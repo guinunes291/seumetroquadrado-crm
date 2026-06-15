@@ -211,12 +211,15 @@ function AgendamentosPage() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("agendamentos").delete().eq("id", id);
+      const { error } = await supabase
+        .from("agendamentos")
+        .update({ deleted_at: new Date().toISOString() } as never)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
-      toast.success("Agendamento removido");
+      toast.success("Agendamento movido para a lixeira");
       setEditing(null);
     },
     onError: (e: Error) => toast.error(e.message),
