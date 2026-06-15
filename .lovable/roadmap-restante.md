@@ -1,6 +1,6 @@
 # Roadmap restante — paridade com o repositório original
 
-> Atualizado ao final da **Fase 6 (parcial)**. Tudo abaixo é o que ainda **não foi implementado** comparado ao CRM original.
+> Atualizado ao final da **Fase Go-Live (Confiabilidade)**. 57 testes unitários passando.
 
 ## ✅ Já entregue
 
@@ -15,8 +15,8 @@
 | 5b | Empreendimentos (CRUD + webhook token por projeto) | ✅ |
 | 6 | Interações, timeline de lead, notificações em tempo real, templates de mensagem, botão WhatsApp | ✅ parcial |
 | 7 | Unidades, histórico de preços (trigger), projeto em foco, página de detalhe do projeto | ✅ parcial |
+| **GL** | **Lixeira (soft delete), Auditoria, Detector+merge de duplicatas, pg_cron (reset cota + expiração 90d)** | **✅** |
 
-45 testes unitários passando (`vitest`).
 
 ---
 
