@@ -59,7 +59,7 @@ const SECTIONS: Section[] = [
   {
     title: "Negócios",
     items: [
-      { to: "/projetos", label: "Empreendimentos", icon: Building2, comingSoon: true },
+      { to: "/projetos", label: "Empreendimentos", icon: Building2 },
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone, comingSoon: true },
       { to: "/carteira", label: "Carteira Ativa", icon: Wallet, comingSoon: true },
       { to: "/comissoes", label: "Comissões", icon: FileText, comingSoon: true },
