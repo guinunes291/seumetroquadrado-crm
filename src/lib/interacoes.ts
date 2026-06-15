@@ -95,7 +95,7 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   const day = Math.round(hr / 24);
   if (day < 30) return `há ${day} d`;
   const month = Math.round(day / 30);
-  if (month < 12) return `há ${month} mês${month > 1 ? "es" : ""}`;
+  if (month < 12) return `há ${month} ${month > 1 ? "meses" : "mês"}`;
   const year = Math.round(month / 12);
   return `há ${year} ano${year > 1 ? "s" : ""}`;
 }
