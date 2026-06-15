@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Calendar, User, Building2 } from "lucide-react";
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Calendar, User, Building2, MessageCircle } from "lucide-react";
 import {
   INTERACAO_ICON,
   INTERACAO_LABEL,
@@ -28,6 +28,7 @@ import {
   type InteracaoTipo,
   type InteracaoDirecao,
 } from "@/lib/interacoes";
+import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
