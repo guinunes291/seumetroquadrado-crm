@@ -1,66 +1,66 @@
 import { describe, it, expect } from "vitest";
 import {
+  SEMANAS,
+  TOTAL_SEMANAS,
+  semanaAtual,
+  parseDDMM,
+  shortName,
+  medalha,
   computeCopaTotal,
   configFromRows,
-  totalSemanas,
-  semanaAtual,
-  faseDaSemana,
-  decideVencedor,
-  medalha,
 } from "@/lib/copa";
 
-const config = { agendamento: 25, visita: 40, analise: 60, venda: 150 };
+const cfg = { agendamentos: 1, visitas: 5, documentacao: 10, vendas: 40 };
 
-describe("copa scoring", () => {
-  it("computeCopaTotal multiplica contadores pela config", () => {
-    expect(computeCopaTotal({ agendamentos: 2, visitas: 1, analise: 1, vendas: 1 }, config)).toBe(
-      300,
+describe("copa — calendário", () => {
+  it("tem 14 semanas", () => {
+    expect(SEMANAS).toHaveLength(14);
+    expect(TOTAL_SEMANAS).toBe(14);
+    expect(SEMANAS[0].label).toBe("FASE DE GRUPOS");
+    expect(SEMANAS[13].label).toBe("PREMIAÇÃO");
+  });
+
+  it("semanaAtual a partir de 03/06/2026", () => {
+    expect(semanaAtual(new Date("2026-06-01T12:00:00"))).toBe(1); // antes do início
+    expect(semanaAtual(new Date("2026-06-03T12:00:00"))).toBe(1);
+    expect(semanaAtual(new Date("2026-06-15T12:00:00"))).toBe(2);
+    expect(semanaAtual(new Date("2026-09-08T12:00:00"))).toBe(14); // clamp
+  });
+
+  it("parseDDMM converte para 2026", () => {
+    const d = parseDDMM("03/06")!;
+    expect(d.getMonth()).toBe(5); // junho
+    expect(d.getDate()).toBe(3);
+    expect(parseDDMM(null)).toBeNull();
+  });
+});
+
+describe("copa — pontuação", () => {
+  it("computeCopaTotal usa a config (1/5/10/40)", () => {
+    expect(computeCopaTotal({ agendamentos: 2, visitas: 1, documentacao: 1, vendas: 1 }, cfg)).toBe(
+      57,
     );
-    expect(computeCopaTotal({ agendamentos: 0, visitas: 0, analise: 0, vendas: 0 }, config)).toBe(
+    expect(computeCopaTotal({ agendamentos: 0, visitas: 0, documentacao: 0, vendas: 0 }, cfg)).toBe(
       0,
     );
   });
 
-  it("configFromRows usa valores do banco e cai no fallback", () => {
-    const c = configFromRows([{ chave: "venda", pontos: 1000 }]);
-    expect(c.venda).toBe(1000);
-    expect(c.agendamento).toBe(25); // fallback
+  it("configFromRows usa banco e cai no fallback", () => {
+    const c = configFromRows([{ chave: "vendas", pontos: 100 }]);
+    expect(c.vendas).toBe(100);
+    expect(c.agendamentos).toBe(1); // fallback
+    expect(c.visitas).toBe(5);
   });
 });
 
-describe("copa calendário", () => {
-  it("totalSemanas cobre a edição 03/06–26/07", () => {
-    expect(totalSemanas("2026-06-03", "2026-07-26")).toBe(8);
+describe("copa — helpers", () => {
+  it("shortName = primeiro + último", () => {
+    expect(shortName("Bruno Soares Martins")).toBe("Bruno Martins");
+    expect(shortName("Andrew")).toBe("Andrew");
   });
-
-  it("semanaAtual respeita início, meio e fim", () => {
-    expect(semanaAtual("2026-06-03", "2026-07-26", new Date("2026-06-01T12:00:00"))).toBe(1);
-    expect(semanaAtual("2026-06-03", "2026-07-26", new Date("2026-06-15T12:00:00"))).toBe(2);
-    expect(semanaAtual("2026-06-03", "2026-07-26", new Date("2026-08-10T12:00:00"))).toBe(8);
-  });
-
-  it("faseDaSemana acha a fase e cai na última", () => {
-    const fases = [
-      { nome: "Grupos", ordem: 1, semana_inicio: 1, semana_fim: 3 },
-      { nome: "Oitavas", ordem: 2, semana_inicio: 4, semana_fim: 4 },
-      { nome: "Final", ordem: 6, semana_inicio: 8, semana_fim: 8 },
-    ];
-    expect(faseDaSemana(fases, 2)?.nome).toBe("Grupos");
-    expect(faseDaSemana(fases, 4)?.nome).toBe("Oitavas");
-    expect(faseDaSemana(fases, 9)?.nome).toBe("Final");
-  });
-});
-
-describe("copa confronto e medalhas", () => {
-  it("decideVencedor: empate favorece A", () => {
-    expect(decideVencedor(10, 20, "a", "b")).toBe("b");
-    expect(decideVencedor(20, 10, "a", "b")).toBe("a");
-    expect(decideVencedor(5, 5, "a", "b")).toBe("a");
-  });
-
   it("medalha por posição", () => {
     expect(medalha(1)).toBe("🥇");
     expect(medalha(3)).toBe("🥉");
-    expect(medalha(4)).toBe("4º");
+    expect(medalha(5)).toBe("5º");
   });
 });
