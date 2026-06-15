@@ -161,11 +161,28 @@ function DistribuicaoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Distribuição de Leads"
-        description="Gerencie a fila de roleta automática e as cotas diárias dos corretores."
+        description="Roleta automática (a cada 5min) com regra de elegibilidade: presente hoje + ativo + dentro da cota + ≥90% da carteira fora de Aguardando atendimento."
         actions={
-          <Button variant="outline" size="sm" onClick={() => resetCotas.mutate()}>
-            Zerar cotas do dia
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const { error } = await supabase.rpc("processar_distribuicao_automatica");
+                if (error) toast.error(error.message);
+                else {
+                  toast.success("Distribuição executada");
+                  qc.invalidateQueries({ queryKey: ["fila"] });
+                  qc.invalidateQueries({ queryKey: ["dist-log"] });
+                }
+              }}
+            >
+              Rodar agora
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => resetCotas.mutate()}>
+              Zerar cotas do dia
+            </Button>
+          </div>
         }
       />
 
