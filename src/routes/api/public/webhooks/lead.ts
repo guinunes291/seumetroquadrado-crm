@@ -26,9 +26,43 @@ export const Route = createFileRoute("/api/public/webhooks/lead")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Authentication: require shared secret header OR HMAC-SHA256 signature
+        const secret = process.env.LEAD_WEBHOOK_SECRET;
+        if (!secret) {
+          return Response.json(
+            { error: "Webhook not configured (missing LEAD_WEBHOOK_SECRET)" },
+            { status: 503 },
+          );
+        }
+
+        const rawBody = await request.text();
+        const headerSecret = request.headers.get("x-webhook-secret");
+        const signature = request.headers.get("x-webhook-signature");
+
+        let authorized = false;
+        if (headerSecret) {
+          const a = new TextEncoder().encode(headerSecret);
+          const b = new TextEncoder().encode(secret);
+          if (a.length === b.length) {
+            let diff = 0;
+            for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+            authorized = diff === 0;
+          }
+        } else if (signature) {
+          const { createHmac, timingSafeEqual } = await import("node:crypto");
+          const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+          const sig = Buffer.from(signature);
+          const exp = Buffer.from(expected);
+          authorized = sig.length === exp.length && timingSafeEqual(sig, exp);
+        }
+
+        if (!authorized) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+
         let body: unknown;
         try {
-          body = await request.json();
+          body = JSON.parse(rawBody);
         } catch {
           return new Response("Invalid JSON", { status: 400 });
         }
