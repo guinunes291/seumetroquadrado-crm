@@ -227,6 +227,8 @@ function AgendamentosPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  if (!user) return null;
+
   return (
     <div className="space-y-6">
       <PageHeader
