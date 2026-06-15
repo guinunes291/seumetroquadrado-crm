@@ -233,13 +233,72 @@ function LeadDetailPage() {
         title={lead.nome}
         description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
         actions={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" /> Registrar interação
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+          <div className="flex gap-2">
+            <Dialog open={waOpen} onOpenChange={setWaOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400">
+                  <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Enviar WhatsApp</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3 py-2">
+                  <div>
+                    <Label>Template (opcional)</Label>
+                    <Select
+                      value={waTemplateId}
+                      onValueChange={(v) => {
+                        setWaTemplateId(v);
+                        const t = templatesWa.find((x) => x.id === v);
+                        if (t) {
+                          setWaMensagem(
+                            renderTemplate(t.conteudo, {
+                              nome: lead.nome,
+                              projeto: lead.projeto_nome ?? "",
+                            }),
+                          );
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={templatesWa.length === 0 ? "Nenhum template ativo" : "Escolha um modelo"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templatesWa.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Mensagem</Label>
+                    <Textarea
+                      value={waMensagem}
+                      onChange={(e) => setWaMensagem(e.target.value)}
+                      rows={6}
+                      maxLength={2000}
+                      placeholder={`Olá ${lead.nome}, tudo bem?`}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setWaOpen(false)}>Cancelar</Button>
+                  <Button onClick={() => enviarWhatsapp.mutate()} disabled={enviarWhatsapp.isPending}>
+                    Abrir WhatsApp
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" /> Registrar interação
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
               <DialogHeader>
                 <DialogTitle>Nova interação</DialogTitle>
               </DialogHeader>
