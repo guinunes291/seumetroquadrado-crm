@@ -6,7 +6,12 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,58 +19,50 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { UserPlus, Search, Trash2, Shuffle, Trello } from "lucide-react";
+import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
+import {
+  LEAD_STATUS_ORDER,
+  LEAD_STATUS_LABEL,
+  LEAD_STATUS_BADGE_TONE,
+  leadStatusLabel,
+  type LeadStatus,
+} from "@/lib/leads";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
   component: LeadsPage,
 });
 
-const STATUS_OPTIONS = [
-  "novo", "aguardando_atendimento", "em_atendimento", "qualificado",
-  "agendado", "visita_realizada", "proposta_enviada", "analise_credito",
-  "contrato_fechado", "pos_venda", "perdido",
-] as const;
-
 const ORIGEM_OPTIONS = [
-  "facebook", "google_sheets", "site", "indicacao", "captacao_corretor",
-  "whatsapp", "telefone", "plantao", "agendamento_self_service", "chatbot", "outro",
+  "facebook",
+  "google_sheets",
+  "site",
+  "indicacao",
+  "captacao_corretor",
+  "whatsapp",
+  "telefone",
+  "plantao",
+  "agendamento_self_service",
+  "chatbot",
+  "outro",
 ] as const;
-
-const STATUS_LABEL: Record<string, string> = {
-  novo: "Novo",
-  aguardando_atendimento: "Aguardando atendimento",
-  em_atendimento: "Em atendimento",
-  qualificado: "Qualificado",
-  agendado: "Agendado",
-  visita_realizada: "Visita realizada",
-  proposta_enviada: "Proposta enviada",
-  analise_credito: "Análise de crédito",
-  contrato_fechado: "Contrato fechado",
-  pos_venda: "Pós-venda",
-  perdido: "Perdido",
-};
-
-const STATUS_TONE: Record<string, string> = {
-  novo: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  aguardando_atendimento: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  em_atendimento: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  qualificado: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-  agendado: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-  visita_realizada: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  proposta_enviada: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
-  analise_credito: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  contrato_fechado: "bg-green-600/20 text-green-800 dark:text-green-300",
-  pos_venda: "bg-lime-500/15 text-lime-700 dark:text-lime-300",
-  perdido: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-};
 
 type Lead = {
   id: string;
@@ -117,7 +114,9 @@ function LeadsPage() {
     queryFn: async () => {
       let q = supabase
         .from("leads")
-        .select("id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_nome, created_at, na_lixeira")
+        .select(
+          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_nome, created_at, na_lixeira",
+        )
         .order("created_at", { ascending: false })
         .limit(500);
       q = q.eq("na_lixeira", showLixeira);
@@ -145,10 +144,13 @@ function LeadsPage() {
 
   const distribuir = useMutation({
     mutationFn: async (leadId: string) => {
-      const { data, error } = await supabase.rpc("distribuir_lead" as never, {
-        _lead_id: leadId,
-        _tipo: "manual",
-      } as never);
+      const { data, error } = await supabase.rpc(
+        "distribuir_lead" as never,
+        {
+          _lead_id: leadId,
+          _tipo: "manual",
+        } as never,
+      );
       if (error) throw error;
       return data;
     },
@@ -220,31 +222,43 @@ function LeadsPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                {LEAD_STATUS_ORDER.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {LEAD_STATUS_LABEL[s]}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={origemFilter} onValueChange={setOrigemFilter}>
-              <SelectTrigger><SelectValue placeholder="Origem" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Origem" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as origens</SelectItem>
                 {ORIGEM_OPTIONS.map((o) => (
-                  <SelectItem key={o} value={o}>{o.replace(/_/g, " ")}</SelectItem>
+                  <SelectItem key={o} value={o}>
+                    {o.replace(/_/g, " ")}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {canManage && (
               <Select value={corretorFilter} onValueChange={setCorretorFilter}>
-                <SelectTrigger><SelectValue placeholder="Corretor" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Corretor" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os corretores</SelectItem>
                   <SelectItem value="unassigned">Sem corretor</SelectItem>
                   {(corretores ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -255,11 +269,7 @@ function LeadsPage() {
             <div className="text-sm text-muted-foreground">
               {isLoading ? "Carregando…" : `${filtered.length} lead(s)`}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowLixeira(!showLixeira)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
               {showLixeira ? "Ver ativos" : "Ver lixeira"}
             </Button>
           </div>
@@ -288,7 +298,13 @@ function LeadsPage() {
                 {filtered.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <Link to="/leads/$leadId" params={{ leadId: l.id }} className="font-medium hover:underline">{l.nome}</Link>
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.id }}
+                        className="font-medium hover:underline"
+                      >
+                        {l.nome}
+                      </Link>
                       {l.projeto_nome && (
                         <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
                       )}
@@ -297,14 +313,21 @@ function LeadsPage() {
                       <div className="text-sm">{l.telefone}</div>
                       <div className="text-xs text-muted-foreground">{l.email ?? "—"}</div>
                     </TableCell>
-                    <TableCell className="capitalize text-sm">{l.origem.replace(/_/g, " ")}</TableCell>
+                    <TableCell className="capitalize text-sm">
+                      {l.origem.replace(/_/g, " ")}
+                    </TableCell>
                     <TableCell>
-                      <Badge className={STATUS_TONE[l.status]} variant="secondary">
-                        {STATUS_LABEL[l.status] ?? l.status}
+                      <Badge
+                        className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
+                        variant="secondary"
+                      >
+                        {leadStatusLabel(l.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {l.corretor_id ? corretoresMap.get(l.corretor_id) ?? "—" : (
+                      {l.corretor_id ? (
+                        (corretoresMap.get(l.corretor_id) ?? "—")
+                      ) : (
                         <span className="text-muted-foreground italic">sem corretor</span>
                       )}
                     </TableCell>
@@ -360,6 +383,12 @@ function NovoLeadDialog({ onClose }: { onClose: () => void }) {
       if (!form.nome.trim() || !form.telefone.trim()) {
         throw new Error("Nome e telefone são obrigatórios");
       }
+      if (!isValidBrazilPhone(form.telefone)) {
+        throw new Error("Telefone inválido. Informe DDD + número (ex.: 11 91234-5678).");
+      }
+      if (form.email.trim() && !isValidEmail(form.email)) {
+        throw new Error("E-mail inválido.");
+      }
       const { data, error } = await supabase
         .from("leads")
         .insert({
@@ -375,18 +404,24 @@ function NovoLeadDialog({ onClose }: { onClose: () => void }) {
       if (error) throw error;
 
       if (distribuirAuto && data?.id) {
-        const { data: corretor } = await supabase.rpc("distribuir_lead" as never, {
-          _lead_id: data.id,
-          _tipo: "inicial",
-        } as never);
+        const { data: corretor } = await supabase.rpc(
+          "distribuir_lead" as never,
+          {
+            _lead_id: data.id,
+            _tipo: "inicial",
+          } as never,
+        );
         return { id: data.id, corretor };
       }
       return { id: data!.id, corretor: null };
     },
     onSuccess: (r) => {
       toast.success(
-        r.corretor ? "Lead criado e atribuído" :
-        distribuirAuto ? "Lead criado (nenhum corretor disponível na fila)" : "Lead criado",
+        r.corretor
+          ? "Lead criado e atribuído"
+          : distribuirAuto
+            ? "Lead criado (nenhum corretor disponível na fila)"
+            : "Lead criado",
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
       onClose();
@@ -408,33 +443,51 @@ function NovoLeadDialog({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Telefone *</Label>
-            <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
+            <Input
+              value={form.telefone}
+              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+            />
           </div>
           <div>
             <Label>Email</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Origem</Label>
             <Select value={form.origem} onValueChange={(v) => setForm({ ...form, origem: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {ORIGEM_OPTIONS.map((o) => (
-                  <SelectItem key={o} value={o}>{o.replace(/_/g, " ")}</SelectItem>
+                  <SelectItem key={o} value={o}>
+                    {o.replace(/_/g, " ")}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>Projeto de interesse</Label>
-            <Input value={form.projeto_nome} onChange={(e) => setForm({ ...form, projeto_nome: e.target.value })} />
+            <Input
+              value={form.projeto_nome}
+              onChange={(e) => setForm({ ...form, projeto_nome: e.target.value })}
+            />
           </div>
         </div>
         <div>
           <Label>Observações</Label>
-          <Textarea rows={3} value={form.observacoes} onChange={(e) => setForm({ ...form, observacoes: e.target.value })} />
+          <Textarea
+            rows={3}
+            value={form.observacoes}
+            onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+          />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -446,7 +499,9 @@ function NovoLeadDialog({ onClose }: { onClose: () => void }) {
         </label>
       </div>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+        <Button variant="ghost" onClick={onClose}>
+          Cancelar
+        </Button>
         <Button onClick={() => create.mutate()} disabled={create.isPending}>
           {create.isPending ? "Salvando…" : "Criar lead"}
         </Button>

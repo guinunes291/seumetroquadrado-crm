@@ -9,25 +9,32 @@ import { Input } from "@/components/ui/input";
 import { Phone, Mail, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
 
 export const Route = createFileRoute("/_authenticated/kanban")({
   head: () => ({ meta: [{ title: "Kanban — Seu Metro Quadrado" }] }),
   component: KanbanPage,
 });
 
-const COLUMNS: { id: string; label: string; tone: string }[] = [
-  { id: "novo", label: "Novo", tone: "bg-blue-500/10 border-blue-500/30" },
-  { id: "aguardando_atendimento", label: "Aguardando atendimento", tone: "bg-amber-500/10 border-amber-500/30" },
-  { id: "em_atendimento", label: "Em atendimento", tone: "bg-violet-500/10 border-violet-500/30" },
-  { id: "qualificado", label: "Qualificado", tone: "bg-cyan-500/10 border-cyan-500/30" },
-  { id: "agendado", label: "Agendado", tone: "bg-indigo-500/10 border-indigo-500/30" },
-  { id: "visita_realizada", label: "Visita realizada", tone: "bg-emerald-500/10 border-emerald-500/30" },
-  { id: "proposta_enviada", label: "Proposta enviada", tone: "bg-teal-500/10 border-teal-500/30" },
-  { id: "analise_credito", label: "Análise de crédito", tone: "bg-orange-500/10 border-orange-500/30" },
-  { id: "contrato_fechado", label: "Contrato fechado", tone: "bg-green-600/15 border-green-600/40" },
-  { id: "pos_venda", label: "Pós-venda", tone: "bg-lime-500/10 border-lime-500/30" },
-  { id: "perdido", label: "Perdido", tone: "bg-rose-500/10 border-rose-500/30" },
-];
+const COLUMN_TONE: Record<LeadStatus, string> = {
+  novo: "bg-blue-500/10 border-blue-500/30",
+  aguardando_atendimento: "bg-amber-500/10 border-amber-500/30",
+  em_atendimento: "bg-violet-500/10 border-violet-500/30",
+  qualificado: "bg-cyan-500/10 border-cyan-500/30",
+  agendado: "bg-indigo-500/10 border-indigo-500/30",
+  visita_realizada: "bg-emerald-500/10 border-emerald-500/30",
+  proposta_enviada: "bg-teal-500/10 border-teal-500/30",
+  analise_credito: "bg-orange-500/10 border-orange-500/30",
+  contrato_fechado: "bg-green-600/15 border-green-600/40",
+  pos_venda: "bg-lime-500/10 border-lime-500/30",
+  perdido: "bg-rose-500/10 border-rose-500/30",
+};
+
+const COLUMNS = LEAD_STATUS_ORDER.map((id) => ({
+  id,
+  label: LEAD_STATUS_LABEL[id],
+  tone: COLUMN_TONE[id],
+}));
 
 type Lead = {
   id: string;
@@ -130,7 +137,10 @@ function KanbanPage() {
             return (
               <div
                 key={col.id}
-                onDragOver={(e) => { e.preventDefault(); setOverCol(col.id); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setOverCol(col.id);
+                }}
                 onDragLeave={() => setOverCol((c) => (c === col.id ? null : c))}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -151,7 +161,9 @@ function KanbanPage() {
               >
                 <div className="flex items-center justify-between px-1 py-2">
                   <div className="font-semibold text-sm">{col.label}</div>
-                  <Badge variant="secondary" className="text-[10px]">{items.length}</Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {items.length}
+                  </Badge>
                 </div>
                 <div className="space-y-2 min-h-[100px]">
                   {items.map((lead) => (
@@ -170,7 +182,9 @@ function KanbanPage() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{lead.nome}</div>
                           {lead.projeto_nome && (
-                            <div className="text-[11px] text-muted-foreground truncate">{lead.projeto_nome}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {lead.projeto_nome}
+                            </div>
                           )}
                           <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
                             <Phone className="h-3 w-3" />
@@ -184,16 +198,21 @@ function KanbanPage() {
                           )}
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-[10px] text-muted-foreground">
-                              {lead.corretor_id ? corretoresMap.get(lead.corretor_id) ?? "—" : "sem corretor"}
+                              {lead.corretor_id
+                                ? (corretoresMap.get(lead.corretor_id) ?? "—")
+                                : "sem corretor"}
                             </span>
                             {lead.temperatura && (
                               <Badge
                                 variant="secondary"
                                 className={cn(
                                   "text-[9px] uppercase",
-                                  lead.temperatura === "quente" && "bg-red-500/15 text-red-700 dark:text-red-300",
-                                  lead.temperatura === "morno" && "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-                                  lead.temperatura === "frio" && "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+                                  lead.temperatura === "quente" &&
+                                    "bg-red-500/15 text-red-700 dark:text-red-300",
+                                  lead.temperatura === "morno" &&
+                                    "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+                                  lead.temperatura === "frio" &&
+                                    "bg-blue-500/15 text-blue-700 dark:text-blue-300",
                                 )}
                               >
                                 {lead.temperatura}
