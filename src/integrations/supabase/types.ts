@@ -21,6 +21,7 @@ export type Database = {
           criado_por_id: string | null
           data_fim: string
           data_inicio: string
+          deleted_at: string | null
           descricao: string | null
           id: string
           lead_id: string | null
@@ -40,6 +41,7 @@ export type Database = {
           criado_por_id?: string | null
           data_fim: string
           data_inicio: string
+          deleted_at?: string | null
           descricao?: string | null
           id?: string
           lead_id?: string | null
@@ -59,6 +61,7 @@ export type Database = {
           criado_por_id?: string | null
           data_fim?: string
           data_inicio?: string
+          deleted_at?: string | null
           descricao?: string | null
           id?: string
           lead_id?: string | null
@@ -115,6 +118,42 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["alerta_tipo"]
           titulo?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          created_at: string
+          diff: Json | null
+          id: string
+          operacao: string
+          registro_id: string
+          tabela: string
+          usuario_id: string | null
+          valores_antigos: Json | null
+          valores_novos: Json | null
+        }
+        Insert: {
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          operacao: string
+          registro_id: string
+          tabela: string
+          usuario_id?: string | null
+          valores_antigos?: Json | null
+          valores_novos?: Json | null
+        }
+        Update: {
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          operacao?: string
+          registro_id?: string
+          tabela?: string
+          usuario_id?: string | null
+          valores_antigos?: Json | null
+          valores_novos?: Json | null
         }
         Relationships: []
       }
@@ -262,6 +301,7 @@ export type Database = {
           autor_id: string | null
           conteudo: string
           created_at: string
+          deleted_at: string | null
           direcao: Database["public"]["Enums"]["interacao_direcao"]
           id: string
           lead_id: string
@@ -275,6 +315,7 @@ export type Database = {
           autor_id?: string | null
           conteudo: string
           created_at?: string
+          deleted_at?: string | null
           direcao?: Database["public"]["Enums"]["interacao_direcao"]
           id?: string
           lead_id: string
@@ -288,6 +329,7 @@ export type Database = {
           autor_id?: string | null
           conteudo?: string
           created_at?: string
+          deleted_at?: string | null
           direcao?: Database["public"]["Enums"]["interacao_direcao"]
           id?: string
           lead_id?: string
@@ -317,6 +359,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          deleted_at: string | null
           email: string | null
           entrada_disponivel: string | null
           id: string
@@ -352,6 +395,7 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          deleted_at?: string | null
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
@@ -387,6 +431,7 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          deleted_at?: string | null
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
@@ -583,6 +628,7 @@ export type Database = {
           construtora: string | null
           created_at: string
           criado_por: string | null
+          deleted_at: string | null
           id: string
           nome: string
           observacoes: string | null
@@ -596,6 +642,7 @@ export type Database = {
           construtora?: string | null
           created_at?: string
           criado_por?: string | null
+          deleted_at?: string | null
           id?: string
           nome: string
           observacoes?: string | null
@@ -609,6 +656,7 @@ export type Database = {
           construtora?: string | null
           created_at?: string
           criado_por?: string | null
+          deleted_at?: string | null
           id?: string
           nome?: string
           observacoes?: string | null
@@ -625,6 +673,7 @@ export type Database = {
           criado_por: string | null
           data_conclusao: string | null
           data_vencimento: string | null
+          deleted_at: string | null
           descricao: string | null
           id: string
           lead_id: string | null
@@ -641,6 +690,7 @@ export type Database = {
           criado_por?: string | null
           data_conclusao?: string | null
           data_vencimento?: string | null
+          deleted_at?: string | null
           descricao?: string | null
           id?: string
           lead_id?: string | null
@@ -657,6 +707,7 @@ export type Database = {
           criado_por?: string | null
           data_conclusao?: string | null
           data_vencimento?: string | null
+          deleted_at?: string | null
           descricao?: string | null
           id?: string
           lead_id?: string | null
@@ -731,6 +782,7 @@ export type Database = {
           bloco: string | null
           created_at: string
           criado_por: string | null
+          deleted_at: string | null
           dormitorios: number | null
           id: string
           identificador: string
@@ -749,6 +801,7 @@ export type Database = {
           bloco?: string | null
           created_at?: string
           criado_por?: string | null
+          deleted_at?: string | null
           dormitorios?: number | null
           id?: string
           identificador: string
@@ -767,6 +820,7 @@ export type Database = {
           bloco?: string | null
           created_at?: string
           criado_por?: string | null
+          deleted_at?: string | null
           dormitorios?: number | null
           id?: string
           identificador?: string
@@ -815,6 +869,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      detectar_duplicatas_leads: {
+        Args: never
+        Returns: {
+          grupo_chave: string
+          lead_ids: string[]
+          quantidade: number
+          tipo: string
+        }[]
+      }
       distribuir_lead: {
         Args: {
           _distribuido_por?: string
@@ -830,7 +893,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      mesclar_leads: {
+        Args: { _lead_destino: string; _lead_origem: string }
+        Returns: boolean
+      }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
+      restaurar_registro: {
+        Args: { _id: string; _tabela: string }
+        Returns: boolean
+      }
     }
     Enums: {
       agendamento_status:
