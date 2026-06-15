@@ -128,11 +128,28 @@ function LeadDetailPage() {
     },
   });
 
+  const { data: templatesWa = [] } = useQuery({
+    queryKey: ["templates-whatsapp"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("templates_mensagem")
+        .select("id, nome, conteudo")
+        .eq("canal", "whatsapp")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tipo, setTipo] = useState<InteracaoTipo>("ligacao");
   const [direcao, setDirecao] = useState<InteracaoDirecao>("saida");
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
+  const [waOpen, setWaOpen] = useState(false);
+  const [waTemplateId, setWaTemplateId] = useState<string>("");
+  const [waMensagem, setWaMensagem] = useState("");
 
   const criarInteracao = useMutation({
     mutationFn: async () => {
