@@ -1,0 +1,1 @@
+ALTER TYPE public.lead_origem ADD VALUE IF NOT EXISTS 'importacao';
