@@ -107,6 +107,32 @@ function MeuPerfilPage() {
     <div className="max-w-2xl">
       <PageHeader title="Meu perfil" description="Atualize seus dados de cadastro e senha." />
 
+      <Card className="mb-4 border-primary/30">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center justify-between">
+            <span>Presença de hoje</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"}`}>
+              {presenteHoje ? "Presente" : "Ausente"}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div className="text-sm text-muted-foreground">
+            {presenteHoje
+              ? `Você marcou presença ${perfilQuery.data?.presente_em ? "às " + new Date(perfilQuery.data.presente_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "hoje"}. Você está elegível para receber leads da roleta automática.`
+              : "Marque presença para entrar na roleta de distribuição automática de leads. A presença é resetada todos os dias."}
+          </div>
+          <Button
+            size="sm"
+            variant={presenteHoje ? "outline" : "default"}
+            disabled={togglePresenca.isPending}
+            onClick={() => togglePresenca.mutate(!presenteHoje)}
+          >
+            {presenteHoje ? "Sair" : "Cheguei"}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Dados pessoais</CardTitle>
