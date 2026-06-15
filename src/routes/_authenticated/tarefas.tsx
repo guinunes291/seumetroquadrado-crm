@@ -51,6 +51,7 @@ function TarefasPage() {
       const { data, error } = await supabase
         .from("tarefas")
         .select("*, leads(id, nome), profiles!tarefas_corretor_id_fkey(id, nome)")
+        .is("deleted_at", null)
         .order("data_vencimento", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data ?? [];
