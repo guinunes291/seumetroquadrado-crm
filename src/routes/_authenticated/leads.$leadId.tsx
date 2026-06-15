@@ -178,6 +178,34 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const enviarWhatsapp = useMutation({
+    mutationFn: async () => {
+      const msg = waMensagem.trim();
+      if (msg.length === 0) throw new Error("Escreva a mensagem.");
+      const url = buildWhatsAppUrl(lead?.telefone ?? "", msg);
+      window.open(url, "_blank", "noopener,noreferrer");
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("interacoes").insert({
+        lead_id: leadId,
+        autor_id: u.user?.id ?? null,
+        tipo: "whatsapp",
+        direcao: "saida",
+        titulo: "Mensagem enviada via WhatsApp",
+        conteudo: msg,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("WhatsApp aberto e interação registrada");
+      setWaOpen(false);
+      setWaMensagem("");
+      setWaTemplateId("");
+      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Carregando lead…</div>;
   }
