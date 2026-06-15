@@ -213,7 +213,6 @@ export type Database = {
           definido_manual: boolean
           fase_id: string
           id: string
-          is_wo: boolean
           posicao: number
           semana_ref: number | null
           vencedor_id: string | null
@@ -225,7 +224,6 @@ export type Database = {
           definido_manual?: boolean
           fase_id: string
           id?: string
-          is_wo?: boolean
           posicao?: number
           semana_ref?: number | null
           vencedor_id?: string | null
@@ -237,7 +235,6 @@ export type Database = {
           definido_manual?: boolean
           fase_id?: string
           id?: string
-          is_wo?: boolean
           posicao?: number
           semana_ref?: number | null
           vencedor_id?: string | null
@@ -288,27 +285,24 @@ export type Database = {
           id: string
           nome: string
           ordem: number
-          semana_fim: string | null
-          semana_inicio: string | null
-          tipo: string | null
+          semana_fim: number
+          semana_inicio: number
         }
         Insert: {
           edicao_id: string
           id?: string
           nome: string
           ordem: number
-          semana_fim?: string | null
-          semana_inicio?: string | null
-          tipo?: string | null
+          semana_fim: number
+          semana_inicio: number
         }
         Update: {
           edicao_id?: string
           id?: string
           nome?: string
           ordem?: number
-          semana_fim?: string | null
-          semana_inicio?: string | null
-          tipo?: string | null
+          semana_fim?: number
+          semana_inicio?: number
         }
         Relationships: [
           {
@@ -326,7 +320,6 @@ export type Database = {
           corretor_id: string
           created_at: string
           edicao_id: string
-          grupo: string | null
           id: string
           selecao_id: string | null
         }
@@ -335,7 +328,6 @@ export type Database = {
           corretor_id: string
           created_at?: string
           edicao_id: string
-          grupo?: string | null
           id?: string
           selecao_id?: string | null
         }
@@ -344,7 +336,6 @@ export type Database = {
           corretor_id?: string
           created_at?: string
           edicao_id?: string
-          grupo?: string | null
           id?: string
           selecao_id?: string | null
         }
@@ -1281,57 +1272,35 @@ export type Database = {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
       }
-      copa_avancar_fase: { Args: Record<PropertyKey, never>; Returns: string }
-      copa_get_ajuste_manual: {
-        Args: { _corretor_id: string; _semana: number }
+      copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
+      copa_definir_vencedor: {
+        Args: { _confronto_id: string; _corretor_id: string }
+        Returns: undefined
+      }
+      copa_pontos_corretor: {
+        Args: { _corretor_id: string; _df: string; _di: string }
+        Returns: number
+      }
+      copa_ranking: {
+        Args: { _edicao_id: string }
         Returns: {
           agendamentos: number
-          documentacao: number
+          analise: number
+          bandeira: string
+          corretor_id: string
+          nome: string
+          total: number
           vendas: number
           visitas: number
         }[]
       }
-      copa_inicializar_dados: { Args: Record<PropertyKey, never>; Returns: undefined }
-      copa_pontos_por_semana: {
-        Args: Record<PropertyKey, never>
-        Returns: { corretor_id: string; pontos: number; semana: number }[]
-      }
-      copa_ranking: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          bandeira: string
-          corretor_id: string
-          grupo: string | null
-          nome: string
-          selecao_id: string | null
-          selecao_nome: string | null
-          total_agendamentos: number
-          total_documentacao: number
-          total_pontos: number
-          total_vendas: number
-          total_visitas: number
-        }[]
-      }
-      copa_realizar_sorteio: { Args: Record<PropertyKey, never>; Returns: undefined }
-      copa_salvar_pontuacao: {
-        Args: {
-          _ag: number
-          _corretor_id: string
-          _doc: number
-          _semana: number
-          _ve: number
-          _vi: number
-        }
+      copa_realizar_sorteio: {
+        Args: { _edicao_id: string }
         Returns: undefined
       }
-      copa_set_participantes: { Args: { _ids: string[] }; Returns: undefined }
-      copa_set_vencedor: {
-        Args: { _confronto_id: string; _vencedor_id: string }
+      copa_set_participantes: {
+        Args: { _edicao_id: string; _ids: string[] }
         Returns: undefined
-      }
-      copa_status_chaveamento: {
-        Args: Record<PropertyKey, never>
-        Returns: { fase_atual: string | null; pode_avancar: boolean }[]
       }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       detectar_duplicatas_leads: {
