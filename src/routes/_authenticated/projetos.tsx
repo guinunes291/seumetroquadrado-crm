@@ -65,12 +65,23 @@ function ProjetosPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Tokens só são carregados sob demanda via RPC (admin/gestor)
+  const [tokens, setTokens] = useState<Record<string, string>>({});
+
+  const loadToken = async (id: string): Promise<string | null> => {
+    if (tokens[id]) return tokens[id];
+    const { data, error } = await supabase.rpc("get_projeto_webhook_token", { _projeto_id: id });
+    if (error) { toast.error(error.message); return null; }
+    const t = (data as string) ?? "";
+    setTokens((s) => ({ ...s, [id]: t }));
+    return t;
+  };
+
   const regenMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Gera UUID via crypto e remove hifens
-      const novo = crypto.randomUUID().replace(/-/g, "");
-      const { error } = await supabase.from("projetos").update({ webhook_token: novo }).eq("id", id);
+      const { data, error } = await supabase.rpc("regenerar_webhook_token", { _projeto_id: id });
       if (error) throw error;
+      setTokens((s) => ({ ...s, [id]: (data as string) ?? "" }));
     },
     onSuccess: () => {
       toast.success("Token regenerado");
