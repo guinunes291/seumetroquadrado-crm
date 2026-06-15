@@ -26,12 +26,29 @@ function MeuPerfilPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("nome, email, telefone, cargo, bio, avatar_url, data_admissao")
+        .select("nome, email, telefone, cargo, bio, avatar_url, data_admissao, presente, presente_em")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
+  });
+
+  const presenteHoje =
+    !!perfilQuery.data?.presente &&
+    !!perfilQuery.data?.presente_em &&
+    new Date(perfilQuery.data.presente_em).toDateString() === new Date().toDateString();
+
+  const togglePresenca = useMutation({
+    mutationFn: async (v: boolean) => {
+      const { error } = await supabase.rpc("marcar_presenca", { _presente: v });
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v ? "Bem-vindo! Você está presente." : "Presença removida.");
+      qc.invalidateQueries({ queryKey: ["meu-perfil"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const [nome, setNome] = useState("");
