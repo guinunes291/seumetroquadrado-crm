@@ -349,6 +349,44 @@ export type Database = {
           },
         ]
       }
+      lead_status_transitions: {
+        Row: {
+          alterado_por: string | null
+          corretor_id: string | null
+          created_at: string
+          de_status: Database["public"]["Enums"]["lead_status"] | null
+          id: string
+          lead_id: string
+          para_status: Database["public"]["Enums"]["lead_status"]
+        }
+        Insert: {
+          alterado_por?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          de_status?: Database["public"]["Enums"]["lead_status"] | null
+          id?: string
+          lead_id: string
+          para_status: Database["public"]["Enums"]["lead_status"]
+        }
+        Update: {
+          alterado_por?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          de_status?: Database["public"]["Enums"]["lead_status"] | null
+          id?: string
+          lead_id?: string
+          para_status?: Database["public"]["Enums"]["lead_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_status_transitions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           campanha: string | null
@@ -869,6 +907,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      buscar_lead_duplicado: {
+        Args: { _projeto_id: string; _telefone: string }
+        Returns: string
+      }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -887,6 +929,8 @@ export type Database = {
         Returns: string
       }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
+      gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
+      gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
