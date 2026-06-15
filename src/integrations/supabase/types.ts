@@ -598,6 +598,53 @@ export type Database = {
           },
         ]
       }
+      templates_mensagem: {
+        Row: {
+          assunto: string | null
+          ativo: boolean
+          canal: Database["public"]["Enums"]["template_canal"]
+          conteudo: string
+          created_at: string
+          criado_por: string | null
+          id: string
+          nome: string
+          projeto_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assunto?: string | null
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["template_canal"]
+          conteudo: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          projeto_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assunto?: string | null
+          ativo?: boolean
+          canal?: Database["public"]["Enums"]["template_canal"]
+          conteudo?: string
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          projeto_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "templates_mensagem_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -705,6 +752,7 @@ export type Database = {
         | "follow_up"
         | "documentacao"
         | "outro"
+      template_canal: "whatsapp" | "email" | "sms" | "interno"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -901,6 +949,7 @@ export const Constants = {
         "documentacao",
         "outro",
       ],
+      template_canal: ["whatsapp", "email", "sms", "interno"],
     },
   },
 } as const
