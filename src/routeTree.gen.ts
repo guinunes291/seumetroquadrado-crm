@@ -19,6 +19,7 @@ import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
+import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
 import { Route as ApiPublicWebhooksLeadRouteImport } from './routes/api/public/webhooks/lead'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -71,6 +72,12 @@ const AuthenticatedCorretoresRoute = AuthenticatedCorretoresRouteImport.update({
   path: '/corretores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAgendamentosRoute =
+  AuthenticatedAgendamentosRouteImport.update({
+    id: '/agendamentos',
+    path: '/agendamentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicWebhooksLeadRoute = ApiPublicWebhooksLeadRouteImport.update({
   id: '/api/public/webhooks/lead',
   path: '/api/public/webhooks/lead',
@@ -81,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/equipes': typeof AuthenticatedEquipesRoute
@@ -92,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/equipes': typeof AuthenticatedEquipesRoute
@@ -106,6 +115,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/reset-password'
+    | '/agendamentos'
     | '/corretores'
     | '/distribuicao'
     | '/equipes'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
   to:
     | '/auth'
     | '/reset-password'
+    | '/agendamentos'
     | '/corretores'
     | '/distribuicao'
     | '/equipes'
@@ -145,6 +157,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
+    | '/_authenticated/agendamentos'
     | '/_authenticated/corretores'
     | '/_authenticated/distribuicao'
     | '/_authenticated/equipes'
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCorretoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agendamentos': {
+      id: '/_authenticated/agendamentos'
+      path: '/agendamentos'
+      fullPath: '/agendamentos'
+      preLoaderRoute: typeof AuthenticatedAgendamentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/webhooks/lead': {
       id: '/api/public/webhooks/lead'
       path: '/api/public/webhooks/lead'
@@ -245,6 +265,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAgendamentosRoute: typeof AuthenticatedAgendamentosRoute
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
@@ -255,6 +276,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAgendamentosRoute: AuthenticatedAgendamentosRoute,
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
