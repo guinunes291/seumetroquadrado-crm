@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Seu Metro Quadrado CRM" },
+      { name: "description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Seu Metro Quadrado CRM" },
+      { property: "og:description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Seu Metro Quadrado CRM" },
+      { name: "twitter:description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sgOGHcSX2lYQWbrwsTekWBSJEuJ2/social-images/social-1781539340665-IMG_2740.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sgOGHcSX2lYQWbrwsTekWBSJEuJ2/social-images/social-1781539340665-IMG_2740.webp" },
     ],
     links: [
       {
