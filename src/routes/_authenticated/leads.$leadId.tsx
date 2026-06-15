@@ -350,6 +350,7 @@ function LeadDetailPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 
