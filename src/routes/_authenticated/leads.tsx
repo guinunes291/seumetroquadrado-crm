@@ -288,7 +288,7 @@ function LeadsPage() {
                 {filtered.map((l) => (
                   <TableRow key={l.id}>
                     <TableCell>
-                      <div className="font-medium">{l.nome}</div>
+                      <Link to="/leads/$leadId" params={{ leadId: l.id }} className="font-medium hover:underline">{l.nome}</Link>
                       {l.projeto_nome && (
                         <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
                       )}
