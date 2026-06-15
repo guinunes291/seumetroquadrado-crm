@@ -222,6 +222,56 @@ export type Database = {
         }
         Relationships: []
       }
+      interacoes: {
+        Row: {
+          autor_id: string | null
+          conteudo: string
+          created_at: string
+          direcao: Database["public"]["Enums"]["interacao_direcao"]
+          id: string
+          lead_id: string
+          metadata: Json
+          ocorreu_em: string
+          tipo: Database["public"]["Enums"]["interacao_tipo"]
+          titulo: string | null
+          updated_at: string
+        }
+        Insert: {
+          autor_id?: string | null
+          conteudo: string
+          created_at?: string
+          direcao?: Database["public"]["Enums"]["interacao_direcao"]
+          id?: string
+          lead_id: string
+          metadata?: Json
+          ocorreu_em?: string
+          tipo?: Database["public"]["Enums"]["interacao_tipo"]
+          titulo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          autor_id?: string | null
+          conteudo?: string
+          created_at?: string
+          direcao?: Database["public"]["Enums"]["interacao_direcao"]
+          id?: string
+          lead_id?: string
+          metadata?: Json
+          ocorreu_em?: string
+          tipo?: Database["public"]["Enums"]["interacao_tipo"]
+          titulo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           campanha: string | null
@@ -608,6 +658,18 @@ export type Database = {
         | "sistema"
       app_role: "admin" | "gestor" | "corretor"
       distribuicao_tipo: "automatica" | "manual" | "inicial"
+      interacao_direcao: "entrada" | "saida" | "interna"
+      interacao_tipo:
+        | "ligacao"
+        | "whatsapp"
+        | "email"
+        | "sms"
+        | "visita"
+        | "reuniao"
+        | "nota"
+        | "mudanca_status"
+        | "proposta"
+        | "outro"
       lead_origem:
         | "facebook"
         | "google_sheets"
@@ -788,6 +850,19 @@ export const Constants = {
       ],
       app_role: ["admin", "gestor", "corretor"],
       distribuicao_tipo: ["automatica", "manual", "inicial"],
+      interacao_direcao: ["entrada", "saida", "interna"],
+      interacao_tipo: [
+        "ligacao",
+        "whatsapp",
+        "email",
+        "sms",
+        "visita",
+        "reuniao",
+        "nota",
+        "mudanca_status",
+        "proposta",
+        "outro",
+      ],
       lead_origem: [
         "facebook",
         "google_sheets",
