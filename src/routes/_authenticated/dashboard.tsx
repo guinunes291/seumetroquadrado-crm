@@ -33,7 +33,8 @@ function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("status, corretor_id, created_at");
+        .select("status, corretor_id, created_at")
+        .is("deleted_at", null);
       if (error) throw error;
       return data ?? [];
     },
@@ -44,7 +45,8 @@ function DashboardPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("status, corretor_id, data_inicio");
+        .select("status, corretor_id, data_inicio")
+        .is("deleted_at", null);
       if (error) throw error;
       return data ?? [];
     },
