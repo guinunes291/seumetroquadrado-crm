@@ -1264,6 +1264,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atribuir_lead_a_corretor: {
+        Args: { _corretor_id: string; _lead_id: string }
+        Returns: undefined
+      }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
