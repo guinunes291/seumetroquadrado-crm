@@ -14,10 +14,168 @@ export type Database = {
   }
   public: {
     Tables: {
+      agendamentos: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          criado_por_id: string | null
+          data_fim: string
+          data_inicio: string
+          deleted_at: string | null
+          descricao: string | null
+          id: string
+          lead_id: string | null
+          lembrete_minutos: number
+          local: string | null
+          motivo_cancelamento: string | null
+          realizado_em: string | null
+          status: Database["public"]["Enums"]["agendamento_status"]
+          timezone: string
+          tipo: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          criado_por_id?: string | null
+          data_fim: string
+          data_inicio: string
+          deleted_at?: string | null
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          lembrete_minutos?: number
+          local?: string | null
+          motivo_cancelamento?: string | null
+          realizado_em?: string | null
+          status?: Database["public"]["Enums"]["agendamento_status"]
+          timezone?: string
+          tipo?: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          criado_por_id?: string | null
+          data_fim?: string
+          data_inicio?: string
+          deleted_at?: string | null
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          lembrete_minutos?: number
+          local?: string | null
+          motivo_cancelamento?: string | null
+          realizado_em?: string | null
+          status?: Database["public"]["Enums"]["agendamento_status"]
+          timezone?: string
+          tipo?: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alertas: {
+        Row: {
+          created_at: string
+          id: string
+          lida: boolean
+          link: string | null
+          mensagem: string | null
+          ref_id: string | null
+          tipo: Database["public"]["Enums"]["alerta_tipo"]
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          link?: string | null
+          mensagem?: string | null
+          ref_id?: string | null
+          tipo: Database["public"]["Enums"]["alerta_tipo"]
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          link?: string | null
+          mensagem?: string | null
+          ref_id?: string | null
+          tipo?: Database["public"]["Enums"]["alerta_tipo"]
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          created_at: string
+          diff: Json | null
+          id: string
+          operacao: string
+          registro_id: string
+          tabela: string
+          usuario_id: string | null
+          valores_antigos: Json | null
+          valores_novos: Json | null
+        }
+        Insert: {
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          operacao: string
+          registro_id: string
+          tabela: string
+          usuario_id?: string | null
+          valores_antigos?: Json | null
+          valores_novos?: Json | null
+        }
+        Update: {
+          created_at?: string
+          diff?: Json | null
+          id?: string
+          operacao?: string
+          registro_id?: string
+          tabela?: string
+          usuario_id?: string | null
+          valores_antigos?: Json | null
+          valores_novos?: Json | null
+        }
+        Relationships: []
+      }
       copa_config_pontos: {
-        Row: { chave: string; id: string; label: string; pontos: number }
-        Insert: { chave: string; id?: string; label: string; pontos?: number }
-        Update: { chave?: string; id?: string; label?: string; pontos?: number }
+        Row: {
+          chave: string
+          id: string
+          label: string
+          pontos: number
+        }
+        Insert: {
+          chave: string
+          id?: string
+          label: string
+          pontos?: number
+        }
+        Update: {
+          chave?: string
+          id?: string
+          label?: string
+          pontos?: number
+        }
         Relationships: []
       }
       copa_config_premios: {
@@ -249,151 +407,23 @@ export type Database = {
         ]
       }
       copa_selecoes: {
-        Row: { ativo: boolean; bandeira: string; id: string; nome: string }
-        Insert: { ativo?: boolean; bandeira: string; id?: string; nome: string }
-        Update: { ativo?: boolean; bandeira?: string; id?: string; nome?: string }
-        Relationships: []
-      }
-      agendamentos: {
         Row: {
-          corretor_id: string
-          created_at: string
-          criado_por_id: string | null
-          data_fim: string
-          data_inicio: string
-          deleted_at: string | null
-          descricao: string | null
+          ativo: boolean
+          bandeira: string
           id: string
-          lead_id: string | null
-          lembrete_minutos: number
-          local: string | null
-          motivo_cancelamento: string | null
-          realizado_em: string | null
-          status: Database["public"]["Enums"]["agendamento_status"]
-          timezone: string
-          tipo: Database["public"]["Enums"]["agendamento_tipo"]
-          titulo: string
-          updated_at: string
+          nome: string
         }
         Insert: {
-          corretor_id: string
-          created_at?: string
-          criado_por_id?: string | null
-          data_fim: string
-          data_inicio: string
-          deleted_at?: string | null
-          descricao?: string | null
+          ativo?: boolean
+          bandeira: string
           id?: string
-          lead_id?: string | null
-          lembrete_minutos?: number
-          local?: string | null
-          motivo_cancelamento?: string | null
-          realizado_em?: string | null
-          status?: Database["public"]["Enums"]["agendamento_status"]
-          timezone?: string
-          tipo?: Database["public"]["Enums"]["agendamento_tipo"]
-          titulo: string
-          updated_at?: string
+          nome: string
         }
         Update: {
-          corretor_id?: string
-          created_at?: string
-          criado_por_id?: string | null
-          data_fim?: string
-          data_inicio?: string
-          deleted_at?: string | null
-          descricao?: string | null
+          ativo?: boolean
+          bandeira?: string
           id?: string
-          lead_id?: string | null
-          lembrete_minutos?: number
-          local?: string | null
-          motivo_cancelamento?: string | null
-          realizado_em?: string | null
-          status?: Database["public"]["Enums"]["agendamento_status"]
-          timezone?: string
-          tipo?: Database["public"]["Enums"]["agendamento_tipo"]
-          titulo?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agendamentos_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      alertas: {
-        Row: {
-          created_at: string
-          id: string
-          lida: boolean
-          link: string | null
-          mensagem: string | null
-          ref_id: string | null
-          tipo: Database["public"]["Enums"]["alerta_tipo"]
-          titulo: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          lida?: boolean
-          link?: string | null
-          mensagem?: string | null
-          ref_id?: string | null
-          tipo: Database["public"]["Enums"]["alerta_tipo"]
-          titulo: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          lida?: boolean
-          link?: string | null
-          mensagem?: string | null
-          ref_id?: string | null
-          tipo?: Database["public"]["Enums"]["alerta_tipo"]
-          titulo?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      audit_log: {
-        Row: {
-          created_at: string
-          diff: Json | null
-          id: string
-          operacao: string
-          registro_id: string
-          tabela: string
-          usuario_id: string | null
-          valores_antigos: Json | null
-          valores_novos: Json | null
-        }
-        Insert: {
-          created_at?: string
-          diff?: Json | null
-          id?: string
-          operacao: string
-          registro_id: string
-          tabela: string
-          usuario_id?: string | null
-          valores_antigos?: Json | null
-          valores_novos?: Json | null
-        }
-        Update: {
-          created_at?: string
-          diff?: Json | null
-          id?: string
-          operacao?: string
-          registro_id?: string
-          tabela?: string
-          usuario_id?: string | null
-          valores_antigos?: Json | null
-          valores_novos?: Json | null
+          nome?: string
         }
         Relationships: []
       }
@@ -1151,10 +1181,7 @@ export type Database = {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
       }
-      copa_apurar_fase: {
-        Args: { _fase_id: string }
-        Returns: undefined
-      }
+      copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
       copa_definir_vencedor: {
         Args: { _confronto_id: string; _corretor_id: string }
         Returns: undefined
