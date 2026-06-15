@@ -129,11 +129,14 @@ function ProjetoDetalhePage() {
 
   const deleteUnidade = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("unidades").delete().eq("id", id);
+      const { error } = await supabase
+        .from("unidades")
+        .update({ deleted_at: new Date().toISOString() } as never)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Unidade removida");
+      toast.success("Unidade movida para a lixeira");
       qc.invalidateQueries({ queryKey: ["unidades", projetoId] });
     },
     onError: (e: any) => toast.error(e.message),
