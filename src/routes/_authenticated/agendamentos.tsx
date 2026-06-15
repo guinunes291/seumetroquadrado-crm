@@ -125,6 +125,7 @@ function AgendamentosPage() {
       const { data, error } = await supabase
         .from("leads")
         .select("id, nome, telefone, corretor_id")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
