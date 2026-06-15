@@ -61,7 +61,7 @@ function TarefasPage() {
   const leadsQuery = useQuery({
     queryKey: ["tarefas:leads-opt"],
     queryFn: async () => {
-      const { data } = await supabase.from("leads").select("id, nome").order("nome").limit(200);
+      const { data } = await supabase.from("leads").select("id, nome").is("deleted_at", null).order("nome").limit(200);
       return data ?? [];
     },
   });
