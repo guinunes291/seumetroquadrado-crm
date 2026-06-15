@@ -1480,6 +1480,73 @@ export type Database = {
         Returns: undefined
       }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
+      dashboard_funil: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          etapa: string
+          ordem: number
+          quantidade: number
+        }[]
+      }
+      dashboard_kpis: {
+        Args: { _corretor?: string; _df?: string; _di?: string }
+        Returns: Json
+      }
+      dashboard_leads_urgentes: {
+        Args: { _corretor?: string; _min_minutos?: number }
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          lead_id: string
+          minutos_parado: number
+          nome: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+        }[]
+      }
+      dashboard_metricas_por_corretor: {
+        Args: { _df: string; _di: string }
+        Returns: {
+          agendamentos: number
+          analise: number
+          conversao: number
+          corretor_id: string
+          fechados: number
+          leads: number
+          nome: string
+          perdidos: number
+          visitas: number
+        }[]
+      }
+      dashboard_motivos_perda: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          motivo: string
+          quantidade: number
+        }[]
+      }
+      dashboard_redistribuicoes: {
+        Args: { _df: string; _di: string }
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          lead_id: string
+          lead_nome: string
+          motivo: string
+          quando: string
+          tipo: Database["public"]["Enums"]["distribuicao_tipo"]
+        }[]
+      }
+      dashboard_serie_diaria: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          agendamentos: number
+          dia: string
+          leads: number
+          vendas: number
+          visitas: number
+        }[]
+      }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {

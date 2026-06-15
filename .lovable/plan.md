@@ -1,66 +1,120 @@
-## Objetivo
+# Reescrita do Dashboard
 
-Enriquecer a tabela `profiles` com todos os campos do CSV `users_20260615_194040.csv` e atualizar os corretores existentes (match por email), devolvendo um relatório dos que não têm conta no sistema.
+Reaproveitar a estrutura visual e a divisão em camadas do `Dashboard.tsx` enviado, adaptando ao stack TanStack + Supabase. Todas as métricas vêm de RPCs (resolve o teto de 1000 linhas e dá performance com 33k+ leads).
 
-## 1. Migration — expandir `profiles`
+## Arquitetura
 
-Adicionar colunas (todas nullable, sem quebrar registros existentes):
+- **Página única** `src/routes/_authenticated/dashboard.tsx` com bifurcação:
+  - Gestor/Admin/Superintendente → visão completa do time
+  - Corretor → visão pessoal (mesmo layout, escopo do `auth.uid()`)
+- **Carregamento em tiers** (igual ao original) para evitar pico de queries:
+  - Tier 1 (imediato): KPIs principais
+  - Tier 2 (+300ms): leads parados, métricas por corretor
+  - Tier 3 (+800ms): histórico 14d, funil, motivos de perda
+  - Tier 4 (+1500ms): tabelas detalhadas (redistribuições, ranking estendido)
+- Cada bloco em um componente próprio em `src/features/dashboard/sections/`.
 
-| Coluna | Tipo | Origem CSV |
-|---|---|---|
-| `legacy_user_id` | bigint UNIQUE | `id` |
-| `cpf` | text | `cpf` (normalizado, só dígitos) |
-| `data_nascimento` | date | `dataNascimento` |
-| `creci` | text | `creci` |
-| `data_credenciamento` | date | `dataCredenciamento` |
-| `data_descredenciamento` | date | `dataDescredenciamento` |
-| `situacao` | text | `situacao` |
-| `foto_url` | text | `fotoUrl` (também copiada para `avatar_url` se vazio) |
-| `logradouro` | text | idem |
-| `numero` | text | idem |
-| `complemento` | text | idem |
-| `bairro` | text | idem |
-| `cidade` | text | idem |
-| `estado` | text (2) | idem |
-| `cep` | text | idem (só dígitos) |
-| `codigo_indicacao` | text | idem |
-| `limite_diario_leads` | int default 50 | idem |
-| `limite_diario_webhook` | int default 10 | idem |
-| `google_calendar_enabled` | bool default false | idem |
-| `perfil_completo` | bool default false | idem |
-| `acessa_links_uteis` | bool default false | idem |
+## Filtros (topo)
 
-Não traz: `openId`, `loginMethod`, `lastSignedIn`, `status` (presença), `equipeId` (IDs do sistema antigo não batem), `googleRefreshToken` (sensível, deve vir por OAuth).
+Substituir o seletor Mês/Ano atual por:
+- Preset: Hoje · Ontem · Esta semana · Semana passada · Este mês · Mês passado · 30 dias · 90 dias · Ano · Todo o período · Custom (range com `Calendar`)
+- Checkbox "Ocultar sem corretor" (gestor)
+- Tudo controlado via `useSearch` da rota para virar URL compartilhável
 
-Índice único parcial em `cpf` (quando não nulo). Sem mudança em policies/grants — herdam o que já existe em profiles.
+## Blocos a implementar
 
-## 2. Import — atualizar corretores existentes
+### Pacote essencial
+1. **KPIs por status** — 8 cards clicáveis (`Aguardando, Em atendimento, Agendado, Visita realizada, Análise crédito, Contrato fechado, Perdido, Total`) + card de destaque com Vendas/Conversão. Clique navega para `/leads?status=...`.
+2. **Ranking do mês/período** — top 10 corretores por vendas → visitas → leads (já parcialmente existe).
+3. **Gráfico histórico 14 dias** — linha com leads recebidos, agendamentos, visitas, contratos por dia.
+4. **Funil de vendas** — visual (Novo → Em atendimento → Agendado → Visita → Análise → Fechado) com %.
 
-Server function admin-only (`createServerFn` + `supabaseAdmin`, gate por `has_role('admin')`) chamada uma vez via botão temporário ou direto pelo agente:
+### Operacional
+5. **Situação Agora** — alertas em tempo real (refetch 2 min):
+   - Leads aguardando > 30 min sem contato
+   - Leads sem corretor (não distribuídos)
+   - Agendamentos próximos (1h)
+   - Tarefas atrasadas
+6. **Painel de redistribuições** — logs de `distribution_log` por período (hoje/semana/mês) com motivo.
 
-1. Ler CSV embarcado (committo em `src/data/seed/users_legacy.json` ou rodo via psql `\copy` para tabela temporária).
-2. Para cada linha:
-   - Normalizar email (`lower(trim)`)
-   - Buscar `profiles` por email.
-   - Se existe: `UPDATE` preenchendo TODOS os campos novos + `telefone`, `avatar_url` (só se vazio), `cargo` ← `role`, `data_admissao` ← `dataCredenciamento`.
-   - Se não existe: registrar em lista `faltantes[]` com `{legacy_id, name, email, role}`.
-3. Atualizar `user_roles` para refletir o `role` do CSV (`admin`/`gestor`/`superintendente`/`corretor`) quando o profile existe — mapear `superintendente` → manter como `gestor` ou criar enum (a decidir; default = manter `gestor`).
+### Analítico
+7. **Métricas por corretor** — tabela consolidada (leads, agendamentos, visitas, análise, fechados, conversão), ordenável.
+8. **Motivos de perda** — bar chart top 10 categorias do campo `motivo_perdido`.
 
-Output: relatório `{atualizados: N, faltantes: [...]}` salvo em `/mnt/documents/import-corretores-relatorio.json` e exibido no chat.
+## Visão do Corretor
 
-## 3. Entrega do relatório
+Mesmos componentes, mas:
+- KPIs filtrados por `corretor_id = auth.uid()`
+- Ranking → mostra "Minha posição vs Top 3"
+- Sem Situação Agora do time; troca por "Meus leads urgentes" (sem interação > 30 min)
+- Sem redistribuições
 
-Listo no chat os corretores faltantes (nome + email + role esperado) para você decidir convidar manualmente depois.
+## Backend (uma migration única)
 
-## Detalhes técnicos
+Criar funções SQL `SECURITY DEFINER` com check de role embutido:
 
-- O CSV tem 31 linhas — operação rápida, faço direto via `supabase--insert` em batch após a migration.
-- CPF: alguns vêm formatados (`115.444.674-35`), outros não — normalizo com regex.
-- Datas: vêm como `2026-01-17 17:25:00` — cast para `date` extraindo só YYYY-MM-DD.
-- `role` no CSV tem `superintendente` que não existe no enum `app_role` (admin/gestor/corretor). Vou mapear `superintendente` → `gestor` por padrão; confirma se prefere outro.
-- Nada muda no front nessa entrega — só schema + dados. Telas que mostram esses campos (meu-perfil, equipes) ficam como follow-up se você quiser.
+```text
+public.dashboard_kpis(_di timestamptz, _df timestamptz, _corretor uuid DEFAULT NULL)
+  → jsonb { total, aguardando, em_atendimento, agendado, visita, analise, fechado, perdido, vgv }
 
-## Pontos a confirmar antes de implementar
+public.dashboard_serie_diaria(_di, _df, _corretor)
+  → TABLE (dia date, leads int, agendamentos int, visitas int, vendas int)
 
-1. `superintendente` → mapear para `gestor` ou criar novo valor no enum?
-2. Quando o CSV tem `fotoUrl` mas o profile já tem `avatar_url`, sobrescrevo ou preservo? (default sugerido: preservar)
+public.dashboard_funil(_di, _df, _corretor)
+  → TABLE (etapa text, quantidade int)
+
+public.dashboard_metricas_por_corretor(_di, _df)
+  → TABLE (corretor_id, nome, leads, agendamentos, visitas, analise, fechados, conversao)
+  → reaproveita lógica de copa_ranking
+
+public.dashboard_motivos_perda(_di, _df, _corretor)
+  → TABLE (motivo text, quantidade int)
+
+public.dashboard_leads_urgentes(_corretor uuid DEFAULT NULL, _min_minutos int DEFAULT 30)
+  → TABLE (lead_id, nome, telefone, corretor_id, minutos_parado)
+
+public.dashboard_redistribuicoes(_di, _df)
+  → TABLE (data, lead_id, lead_nome, corretor_anterior, corretor_novo, motivo)
+```
+
+Todas com `GRANT EXECUTE TO authenticated`. As que retornam dados globais checam `has_role(auth.uid(), 'gestor'|'admin'|'superintendente')`; quando `_corretor` é informado e é diferente de `auth.uid()`, exigem role de gestor.
+
+## Frontend — arquivos
+
+```text
+src/routes/_authenticated/dashboard.tsx          # orquestrador, filtros, tiers
+src/features/dashboard/
+  hooks/useDashboardFilters.ts                   # presets + range
+  hooks/useDashboardData.ts                      # wrappers de useQuery por RPC
+  sections/KpiGrid.tsx
+  sections/RankingCard.tsx
+  sections/SerieHistorica.tsx                    # recharts LineChart
+  sections/FunilVendas.tsx
+  sections/SituacaoAgora.tsx
+  sections/LeadsUrgentesList.tsx
+  sections/MetricasPorCorretorTable.tsx
+  sections/MotivosPerdaChart.tsx                 # recharts BarChart
+  sections/PainelRedistribuicoes.tsx
+  components/KpiCard.tsx
+  components/PeriodFilter.tsx
+```
+
+Cada `useQuery` com `staleTime: 30s`, `refetchInterval: 60s` (2 min para Situação Agora). `enabled` controlado pelo `loadStage`.
+
+Recharts já está no projeto.
+
+## Ordem de execução
+
+1. Migration com as 7 RPCs.
+2. `useDashboardFilters` + `PeriodFilter` + reescrita do header da rota.
+3. `KpiGrid` + `useDashboardData.useKpis` (tier 1) — primeira tela já útil.
+4. `RankingCard` + `SerieHistorica` + `FunilVendas` (tier 2/3).
+5. `SituacaoAgora` + `LeadsUrgentesList` + `PainelRedistribuicoes`.
+6. `MetricasPorCorretorTable` + `MotivosPerdaChart`.
+7. Variante do corretor (mesmos componentes, props com `corretorId`).
+
+## Fora de escopo
+
+- VGV/contratos detalhados (não há tabela de contratos modelada).
+- Edição de contrato, anexos, criação de contrato (componentes do CRM antigo).
+- Performance semanal por equipe (não há tabela `equipes` ligada a metas semanais ainda).
