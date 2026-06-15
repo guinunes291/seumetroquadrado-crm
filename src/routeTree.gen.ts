@@ -26,6 +26,7 @@ import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authent
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
+import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 
@@ -115,6 +116,12 @@ const AuthenticatedAgendamentosRoute =
     path: '/agendamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedProjetosProjetoIdRoute =
+  AuthenticatedProjetosProjetoIdRouteImport.update({
+    id: '/$projetoId',
+    path: '/$projetoId',
+    getParentRoute: () => AuthenticatedProjetosRoute,
+  } as any)
 const AuthenticatedLeadsLeadIdRoute =
   AuthenticatedLeadsLeadIdRouteImport.update({
     id: '/$leadId',
@@ -141,11 +148,12 @@ export interface FileRoutesByFullPath {
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
-  '/projetos': typeof AuthenticatedProjetosRoute
+  '/projetos': typeof AuthenticatedProjetosRouteWithChildren
   '/ranking': typeof AuthenticatedRankingRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
+  '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesByTo {
@@ -160,12 +168,13 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
-  '/projetos': typeof AuthenticatedProjetosRoute
+  '/projetos': typeof AuthenticatedProjetosRouteWithChildren
   '/ranking': typeof AuthenticatedRankingRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
+  '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesById {
@@ -182,12 +191,13 @@ export interface FileRoutesById {
   '/_authenticated/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
-  '/_authenticated/projetos': typeof AuthenticatedProjetosRoute
+  '/_authenticated/projetos': typeof AuthenticatedProjetosRouteWithChildren
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
+  '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRouteTypes {
@@ -210,6 +220,7 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/leads/$leadId'
+    | '/projetos/$projetoId'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -230,6 +241,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/'
     | '/leads/$leadId'
+    | '/projetos/$projetoId'
     | '/api/public/webhooks/lead/$token'
   id:
     | '__root__'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/'
     | '/_authenticated/leads/$leadId'
+    | '/_authenticated/projetos/$projetoId'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
 }
@@ -382,6 +395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgendamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/projetos/$projetoId': {
+      id: '/_authenticated/projetos/$projetoId'
+      path: '/$projetoId'
+      fullPath: '/projetos/$projetoId'
+      preLoaderRoute: typeof AuthenticatedProjetosProjetoIdRouteImport
+      parentRoute: typeof AuthenticatedProjetosRoute
+    }
     '/_authenticated/leads/$leadId': {
       id: '/_authenticated/leads/$leadId'
       path: '/$leadId'
@@ -410,6 +430,19 @@ const AuthenticatedLeadsRouteChildren: AuthenticatedLeadsRouteChildren = {
 const AuthenticatedLeadsRouteWithChildren =
   AuthenticatedLeadsRoute._addFileChildren(AuthenticatedLeadsRouteChildren)
 
+interface AuthenticatedProjetosRouteChildren {
+  AuthenticatedProjetosProjetoIdRoute: typeof AuthenticatedProjetosProjetoIdRoute
+}
+
+const AuthenticatedProjetosRouteChildren: AuthenticatedProjetosRouteChildren = {
+  AuthenticatedProjetosProjetoIdRoute: AuthenticatedProjetosProjetoIdRoute,
+}
+
+const AuthenticatedProjetosRouteWithChildren =
+  AuthenticatedProjetosRoute._addFileChildren(
+    AuthenticatedProjetosRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendamentosRoute: typeof AuthenticatedAgendamentosRoute
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
@@ -420,7 +453,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRouteWithChildren
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
-  AuthenticatedProjetosRoute: typeof AuthenticatedProjetosRoute
+  AuthenticatedProjetosRoute: typeof AuthenticatedProjetosRouteWithChildren
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
@@ -437,7 +470,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsRoute: AuthenticatedLeadsRouteWithChildren,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
-  AuthenticatedProjetosRoute: AuthenticatedProjetosRoute,
+  AuthenticatedProjetosRoute: AuthenticatedProjetosRouteWithChildren,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -174,7 +174,13 @@ function ProjetosPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium">{p.nome}</span>
+                        <Link
+                          to="/projetos/$projetoId"
+                          params={{ projetoId: p.id }}
+                          className="font-medium hover:underline"
+                        >
+                          {p.nome}
+                        </Link>
                         <Badge variant="outline">{p.slug}</Badge>
                         {!p.ativo && <Badge variant="secondary">Inativo</Badge>}
                       </div>
