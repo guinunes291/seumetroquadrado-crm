@@ -144,6 +144,7 @@ function AgendamentosPage() {
       let q = supabase
         .from("agendamentos")
         .select("*")
+        .is("deleted_at", null)
         .gte("data_inicio", rangeStart.toISOString())
         .lte("data_inicio", rangeEnd.toISOString())
         .order("data_inicio");
