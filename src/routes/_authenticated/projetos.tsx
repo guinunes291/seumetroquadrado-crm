@@ -175,8 +175,9 @@ function ProjetosPage() {
       ) : (
         <div className="grid gap-3">
           {(projetosQ.data ?? []).map((p: any) => {
-            const url = webhookUrl(origin, p.webhook_token);
-            const isRevealed = !!revealed[p.id];
+            const token = tokens[p.id];
+            const url = token ? webhookUrl(origin, token) : "";
+            const isRevealed = !!revealed[p.id] && !!token;
             return (
               <Card key={p.id} className={!p.ativo ? "opacity-60" : ""}>
                 <CardContent className="p-4 space-y-3">
@@ -217,12 +218,12 @@ function ProjetosPage() {
                     )}
                   </div>
 
-                  <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Webhook URL
-                      </Label>
-                      {canManage && (
+                  {canManage && (
+                    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Webhook URL
+                        </Label>
                         <Button
                           size="sm" variant="ghost"
                           onClick={() => {
@@ -234,27 +235,37 @@ function ProjetosPage() {
                           <RefreshCw className="h-3 w-3 mr-1" />
                           Regenerar
                         </Button>
-                      )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-xs bg-background border rounded px-2 py-1.5 font-mono truncate">
+                          {token ? (isRevealed ? url : webhookUrl(origin, maskToken(token))) : "•••••• (clique no olho para carregar)"}
+                        </code>
+                        <Button
+                          size="icon" variant="ghost"
+                          onClick={async () => {
+                            const t = await loadToken(p.id);
+                            if (t) setRevealed((r) => ({ ...r, [p.id]: !r[p.id] }));
+                          }}
+                          title={isRevealed ? "Ocultar" : "Mostrar"}
+                        >
+                          {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          size="icon" variant="ghost"
+                          onClick={async () => {
+                            const t = await loadToken(p.id);
+                            if (t) copy(webhookUrl(origin, t));
+                          }}
+                          title="Copiar URL"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Envie POST com JSON: <code>{`{ "nome", "telefone", "email", "origem", "campanha", "utm_source", ... }`}</code>
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs bg-background border rounded px-2 py-1.5 font-mono truncate">
-                        {isRevealed ? url : webhookUrl(origin, maskToken(p.webhook_token))}
-                      </code>
-                      <Button
-                        size="icon" variant="ghost"
-                        onClick={() => setRevealed((r) => ({ ...r, [p.id]: !r[p.id] }))}
-                        title={isRevealed ? "Ocultar" : "Mostrar"}
-                      >
-                        {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => copy(url)} title="Copiar URL">
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Envie POST com JSON: <code>{`{ "nome", "telefone", "email", "origem", "campanha", "utm_source", ... }`}</code>
-                    </p>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             );
