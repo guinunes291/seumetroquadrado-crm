@@ -35,7 +35,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Search, Trash2, Shuffle, Trello } from "lucide-react";
+import { UserPlus, Search, Trash2, Shuffle, Trello, Upload } from "lucide-react";
+import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
 import {
   LEAD_STATUS_ORDER,
@@ -89,6 +90,7 @@ function LeadsPage() {
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
@@ -196,14 +198,24 @@ function LeadsPage() {
               </Link>
             </Button>
             {canManage && (
-              <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <UserPlus className="h-4 w-4 mr-1" /> Novo lead
-                  </Button>
-                </DialogTrigger>
-                <NovoLeadDialog onClose={() => setCreateOpen(false)} />
-              </Dialog>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-1" /> Importar
+                </Button>
+                <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
+                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <UserPlus className="h-4 w-4 mr-1" /> Novo lead
+                    </Button>
+                  </DialogTrigger>
+                  <NovoLeadDialog onClose={() => setCreateOpen(false)} />
+                </Dialog>
+              </>
             )}
           </div>
         }

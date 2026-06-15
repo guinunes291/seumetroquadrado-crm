@@ -50,13 +50,28 @@ function DistribuicaoPage() {
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("id, nome, email").eq("ativo", true).order("nome");
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, nome, email, presente, presente_em")
+        .eq("ativo", true)
+        .order("nome");
       return data ?? [];
     },
+    refetchInterval: 30000,
   });
   const corretoresMap = useMemo(() => {
-    const m = new Map<string, { nome: string; email: string }>();
-    (corretores ?? []).forEach((c) => m.set(c.id, { nome: c.nome, email: c.email }));
+    const m = new Map<string, { nome: string; email: string; presente: boolean; presente_em: string | null }>();
+    (corretores ?? []).forEach((c) =>
+      m.set(c.id, {
+        nome: c.nome,
+        email: c.email,
+        presente:
+          !!c.presente &&
+          !!c.presente_em &&
+          new Date(c.presente_em).toDateString() === new Date().toDateString(),
+        presente_em: c.presente_em,
+      }),
+    );
     return m;
   }, [corretores]);
 
@@ -146,11 +161,28 @@ function DistribuicaoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Distribuição de Leads"
-        description="Gerencie a fila de roleta automática e as cotas diárias dos corretores."
+        description="Roleta automática (a cada 5min) com regra de elegibilidade: presente hoje + ativo + dentro da cota + ≥90% da carteira fora de Aguardando atendimento."
         actions={
-          <Button variant="outline" size="sm" onClick={() => resetCotas.mutate()}>
-            Zerar cotas do dia
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const { error } = await supabase.rpc("processar_distribuicao_automatica");
+                if (error) toast.error(error.message);
+                else {
+                  toast.success("Distribuição executada");
+                  qc.invalidateQueries({ queryKey: ["fila"] });
+                  qc.invalidateQueries({ queryKey: ["dist-log"] });
+                }
+              }}
+            >
+              Rodar agora
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => resetCotas.mutate()}>
+              Zerar cotas do dia
+            </Button>
+          </div>
         }
       />
 
@@ -163,6 +195,7 @@ function DistribuicaoPage() {
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Corretor</TableHead>
+                  <TableHead>Presença</TableHead>
                   <TableHead>Ativo</TableHead>
                   <TableHead>Recebidos hoje</TableHead>
                   <TableHead>Máx/dia</TableHead>
@@ -173,7 +206,7 @@ function DistribuicaoPage() {
               <TableBody>
                 {(fila ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Nenhum corretor na fila. Adicione um abaixo.
                     </TableCell>
                   </TableRow>
@@ -188,6 +221,18 @@ function DistribuicaoPage() {
                       <TableCell>
                         <div className="font-medium text-sm">{c?.nome ?? "—"}</div>
                         <div className="text-xs text-muted-foreground">{c?.email ?? ""}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            c?.presente
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {c?.presente ? "Presente" : "Ausente"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Switch

@@ -436,6 +436,24 @@ export type Database = {
         }
         Relationships: []
       }
+      distribuicao_config: {
+        Row: {
+          origem: Database["public"]["Enums"]["lead_origem"]
+          timeout_horas: number
+          updated_at: string
+        }
+        Insert: {
+          origem: Database["public"]["Enums"]["lead_origem"]
+          timeout_horas?: number
+          updated_at?: string
+        }
+        Update: {
+          origem?: Database["public"]["Enums"]["lead_origem"]
+          timeout_horas?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       distribution_log: {
         Row: {
           corretor_id: string
@@ -873,6 +891,8 @@ export type Database = {
           nome: string
           numero: string | null
           perfil_completo: boolean
+          presente: boolean
+          presente_em: string | null
           situacao: string | null
           telefone: string | null
           updated_at: string
@@ -908,6 +928,8 @@ export type Database = {
           nome?: string
           numero?: string | null
           perfil_completo?: boolean
+          presente?: boolean
+          presente_em?: string | null
           situacao?: string | null
           telefone?: string | null
           updated_at?: string
@@ -943,6 +965,8 @@ export type Database = {
           nome?: string
           numero?: string | null
           perfil_completo?: boolean
+          presente?: boolean
+          presente_em?: string | null
           situacao?: string | null
           telefone?: string | null
           updated_at?: string
@@ -1249,6 +1273,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      atribuir_lead_a_corretor: {
+        Args: { _corretor_id: string; _lead_id: string }
+        Returns: undefined
+      }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
@@ -1305,6 +1333,7 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: { fase_atual: string | null; pode_avancar: boolean }[]
       }
+      corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -1322,6 +1351,7 @@ export type Database = {
         }
         Returns: string
       }
+      distribuir_lead_elegivel: { Args: { _lead_id: string }; Returns: string }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
@@ -1336,15 +1366,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
       }
+      processar_distribuicao_automatica: { Args: never; Returns: Json }
+      redistribuir_leads_parados: { Args: never; Returns: number }
       regenerar_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
       }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
+      resetar_presenca_diaria: { Args: never; Returns: undefined }
       restaurar_registro: {
         Args: { _id: string; _tabela: string }
         Returns: boolean
@@ -1391,6 +1425,7 @@ export type Database = {
         | "agendamento_self_service"
         | "chatbot"
         | "outro"
+        | "importacao"
       lead_status:
         | "novo"
         | "aguardando_atendimento"
@@ -1586,6 +1621,7 @@ export const Constants = {
         "agendamento_self_service",
         "chatbot",
         "outro",
+        "importacao",
       ],
       lead_status: [
         "novo",
