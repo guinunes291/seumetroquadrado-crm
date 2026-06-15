@@ -1,0 +1,15 @@
+-- Conserta o dashboard 100% zerado (KPIs 0, "Sem dados" em todos os blocos).
+--
+-- Causa: as RPCs do dashboard (dashboard_kpis, dashboard_serie_diaria,
+-- dashboard_funil, dashboard_metricas_por_corretor, dashboard_motivos_perda,
+-- dashboard_leads_urgentes, dashboard_redistribuicoes) chamam
+--   has_role(_caller, 'superintendente')
+-- mas o enum public.app_role só tinha ('admin','gestor','corretor'). O literal
+-- 'superintendente' é convertido para app_role e, como o valor não existe, dá
+-- erro de runtime ("invalid input value for enum app_role") em TODA chamada ->
+-- o front renderiza 0 / "Sem dados" em qualquer período e independente do papel.
+--
+-- Fix mínimo e não-invasivo: adicionar o valor ao enum (não mexe nas RPCs do
+-- Lovable). Ninguém tem esse papel ainda, então has_role(...) retorna false e o
+-- admin/gestor volta a ver tudo normalmente.
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'superintendente';
