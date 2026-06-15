@@ -887,6 +887,10 @@ export type Database = {
         Returns: string
       }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
+      get_projeto_webhook_token: {
+        Args: { _projeto_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -897,6 +901,10 @@ export type Database = {
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
+      }
+      regenerar_webhook_token: {
+        Args: { _projeto_id: string }
+        Returns: string
       }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
       restaurar_registro: {
