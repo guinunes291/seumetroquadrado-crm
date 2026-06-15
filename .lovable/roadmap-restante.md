@@ -14,8 +14,9 @@
 | 5 | Metas, Dashboard, Ranking | ✅ |
 | 5b | Empreendimentos (CRUD + webhook token por projeto) | ✅ |
 | 6 | Interações, timeline de lead, notificações em tempo real, templates de mensagem, botão WhatsApp | ✅ parcial |
+| 7 | Unidades, histórico de preços (trigger), projeto em foco, página de detalhe do projeto | ✅ parcial |
 
-40 testes unitários passando (`vitest`).
+45 testes unitários passando (`vitest`).
 
 ---
 
@@ -28,10 +29,12 @@
 - [ ] **Notificações via e-mail** (Resend) para alertas críticos (lead frio há X dias, agendamento amanhã).
 
 ### Fase 7 — Empreendimentos avançado
-- [ ] `properties` (unidades dentro do empreendimento), `tabeloes`, `historicos_precos`.
-- [ ] `projetos_map` (vista de mapa com geocoding).
-- [ ] `importar_projetos` (CSV/Sheets), `limpar_orfaos`, `aprovar`, `atualizar_em_massa`.
-- [ ] `configuracao_projeto_foco` (destaque rotativo).
+- [x] `unidades` (CRUD + status disponível/reservada/vendida/bloqueada).
+- [x] `historico_precos` (trigger automático em mudança de valor).
+- [x] `projeto_foco` (destaque rotativo).
+- [ ] `tabelas_preco` (vigências e condições comerciais).
+- [ ] `projetos_map` (vista de mapa com geocoding via Google Maps).
+- [ ] `importar_projetos` (CSV/Sheets), `limpar_orfaos`, `atualizar_em_massa`.
 - [ ] `project_suggestions` (sugestões automáticas baseadas no perfil do lead).
 
 ### Fase 8 — Oferta Ativa

@@ -222,6 +222,41 @@ export type Database = {
         }
         Relationships: []
       }
+      historico_precos: {
+        Row: {
+          alterado_em: string
+          alterado_por: string | null
+          id: string
+          unidade_id: string
+          valor_anterior: number | null
+          valor_novo: number
+        }
+        Insert: {
+          alterado_em?: string
+          alterado_por?: string | null
+          id?: string
+          unidade_id: string
+          valor_anterior?: number | null
+          valor_novo: number
+        }
+        Update: {
+          alterado_em?: string
+          alterado_por?: string | null
+          id?: string
+          unidade_id?: string
+          valor_anterior?: number | null
+          valor_novo?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_precos_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interacoes: {
         Row: {
           autor_id: string | null
@@ -497,6 +532,50 @@ export type Database = {
           },
         ]
       }
+      projeto_foco: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          fim: string | null
+          id: string
+          inicio: string
+          motivo: string | null
+          projeto_id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          fim?: string | null
+          id?: string
+          inicio?: string
+          motivo?: string | null
+          projeto_id: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          fim?: string | null
+          id?: string
+          inicio?: string
+          motivo?: string | null
+          projeto_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projeto_foco_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projetos: {
         Row: {
           ativo: boolean
@@ -645,6 +724,71 @@ export type Database = {
           },
         ]
       }
+      unidades: {
+        Row: {
+          andar: string | null
+          area_privativa: number | null
+          bloco: string | null
+          created_at: string
+          criado_por: string | null
+          dormitorios: number | null
+          id: string
+          identificador: string
+          observacoes: string | null
+          projeto_id: string
+          status: Database["public"]["Enums"]["unidade_status"]
+          suites: number | null
+          tipologia: string | null
+          updated_at: string
+          vagas: number | null
+          valor: number | null
+        }
+        Insert: {
+          andar?: string | null
+          area_privativa?: number | null
+          bloco?: string | null
+          created_at?: string
+          criado_por?: string | null
+          dormitorios?: number | null
+          id?: string
+          identificador: string
+          observacoes?: string | null
+          projeto_id: string
+          status?: Database["public"]["Enums"]["unidade_status"]
+          suites?: number | null
+          tipologia?: string | null
+          updated_at?: string
+          vagas?: number | null
+          valor?: number | null
+        }
+        Update: {
+          andar?: string | null
+          area_privativa?: number | null
+          bloco?: string | null
+          created_at?: string
+          criado_por?: string | null
+          dormitorios?: number | null
+          id?: string
+          identificador?: string
+          observacoes?: string | null
+          projeto_id?: string
+          status?: Database["public"]["Enums"]["unidade_status"]
+          suites?: number | null
+          tipologia?: string | null
+          updated_at?: string
+          vagas?: number | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unidades_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -753,6 +897,7 @@ export type Database = {
         | "documentacao"
         | "outro"
       template_canal: "whatsapp" | "email" | "sms" | "interno"
+      unidade_status: "disponivel" | "reservada" | "vendida" | "bloqueada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -950,6 +1095,7 @@ export const Constants = {
         "outro",
       ],
       template_canal: ["whatsapp", "email", "sms", "interno"],
+      unidade_status: ["disponivel", "reservada", "vendida", "bloqueada"],
     },
   },
 } as const
