@@ -39,6 +39,7 @@ function ProjetosPage() {
       const { data, error } = await supabase
         .from("projetos")
         .select("*")
+        .is("deleted_at", null)
         .order("nome");
       if (error) throw error;
       return data ?? [];
