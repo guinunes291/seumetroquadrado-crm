@@ -689,6 +689,7 @@ export type Database = {
           email: string | null
           entrada_disponivel: string | null
           id: string
+          legacy_id: number | null
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
@@ -725,6 +726,7 @@ export type Database = {
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
+          legacy_id?: number | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome: string
@@ -761,6 +763,7 @@ export type Database = {
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
+          legacy_id?: number | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome?: string
@@ -1058,6 +1061,180 @@ export type Database = {
           slug?: string
           updated_at?: string
           webhook_token?: string
+        }
+        Relationships: []
+      }
+      stg_agendamentos: {
+        Row: {
+          construtora: string | null
+          corretor_legacy: number | null
+          created_at: string | null
+          data_agendamento: string | null
+          lead_legacy: number | null
+          legacy_id: number | null
+          observacoes: string | null
+          status: string | null
+        }
+        Insert: {
+          construtora?: string | null
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_agendamento?: string | null
+          lead_legacy?: number | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          status?: string | null
+        }
+        Update: {
+          construtora?: string | null
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_agendamento?: string | null
+          lead_legacy?: number | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      stg_analises: {
+        Row: {
+          corretor_legacy: number | null
+          created_at: string | null
+          lead_legacy: number | null
+          status: string | null
+        }
+        Insert: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          lead_legacy?: number | null
+          status?: string | null
+        }
+        Update: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          lead_legacy?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      stg_leads: {
+        Row: {
+          campanha: string | null
+          corretor_anterior_legacy: number | null
+          corretor_legacy: number | null
+          cpf: string | null
+          created_at: string | null
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          email: string | null
+          entrada_disponivel: string | null
+          legacy_id: number | null
+          motivo_perdido: string | null
+          na_lixeira: string | null
+          nome: string | null
+          observacoes: string | null
+          origem: string | null
+          projeto_custom: string | null
+          proximo_followup: string | null
+          renda_informada: string | null
+          status: string | null
+          telefone: string | null
+          temperatura: string | null
+          timestamp_recebimento: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string | null
+          usa_fgts: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          campanha?: string | null
+          corretor_anterior_legacy?: number | null
+          corretor_legacy?: number | null
+          cpf?: string | null
+          created_at?: string | null
+          data_distribuicao?: string | null
+          data_movido_lixeira?: string | null
+          email?: string | null
+          entrada_disponivel?: string | null
+          legacy_id?: number | null
+          motivo_perdido?: string | null
+          na_lixeira?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          projeto_custom?: string | null
+          proximo_followup?: string | null
+          renda_informada?: string | null
+          status?: string | null
+          telefone?: string | null
+          temperatura?: string | null
+          timestamp_recebimento?: string | null
+          ultima_interacao?: string | null
+          ultimo_contato?: string | null
+          updated_at?: string | null
+          usa_fgts?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          campanha?: string | null
+          corretor_anterior_legacy?: number | null
+          corretor_legacy?: number | null
+          cpf?: string | null
+          created_at?: string | null
+          data_distribuicao?: string | null
+          data_movido_lixeira?: string | null
+          email?: string | null
+          entrada_disponivel?: string | null
+          legacy_id?: number | null
+          motivo_perdido?: string | null
+          na_lixeira?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          projeto_custom?: string | null
+          proximo_followup?: string | null
+          renda_informada?: string | null
+          status?: string | null
+          telefone?: string | null
+          temperatura?: string | null
+          timestamp_recebimento?: string | null
+          ultima_interacao?: string | null
+          ultimo_contato?: string | null
+          updated_at?: string | null
+          usa_fgts?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
+      stg_visitas: {
+        Row: {
+          corretor_legacy: number | null
+          created_at: string | null
+          data_visita: string | null
+          lead_legacy: number | null
+        }
+        Insert: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_visita?: string | null
+          lead_legacy?: number | null
+        }
+        Update: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_visita?: string | null
+          lead_legacy?: number | null
         }
         Relationships: []
       }
