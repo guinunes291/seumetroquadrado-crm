@@ -63,6 +63,7 @@ function ProjetoDetalhePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("unidades").select("*").eq("projeto_id", projetoId)
+        .is("deleted_at", null)
         .order("bloco", { ascending: true })
         .order("identificador", { ascending: true });
       if (error) throw error;
