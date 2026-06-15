@@ -106,9 +106,9 @@ function LeadDetailPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tarefas")
-        .select("id, titulo, status, data_limite, prioridade")
+        .select("id, titulo, status, data_vencimento, prioridade")
         .eq("lead_id", leadId)
-        .order("data_limite", { ascending: true, nullsFirst: false });
+        .order("data_vencimento", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data ?? [];
     },
@@ -354,7 +354,7 @@ function LeadDetailPage() {
                     <div>
                       <div className="text-sm font-medium">{t.titulo}</div>
                       <div className="text-xs text-muted-foreground">
-                        {t.data_limite ? new Date(t.data_limite).toLocaleString("pt-BR") : "Sem prazo"}
+                        {t.data_vencimento ? new Date(t.data_vencimento).toLocaleString("pt-BR") : "Sem prazo"}
                       </div>
                     </div>
                     <div className="flex gap-1">
