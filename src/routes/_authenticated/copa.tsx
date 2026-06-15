@@ -116,17 +116,17 @@ function CopaPage() {
     queryFn: async () => {
       const { data, error } = await supabase.from("copa_fases").select("*").order("ordem");
       if (error) throw error;
-      return (data ?? []) as Fase[];
+      return (data ?? []) as unknown as Fase[];
     },
   });
   const participantesQ = useQuery({
     queryKey: ["copa:participantes"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("copa_participantes")
         .select("id, corretor_id, selecao_id, ativo, grupo");
       if (error) throw error;
-      return (data ?? []) as Participante[];
+      return (data ?? []) as unknown as Participante[];
     },
   });
   const selecoesQ = useQuery({
@@ -140,14 +140,14 @@ function CopaPage() {
   const confrontosQ = useQuery({
     queryKey: ["copa:confrontos"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("copa_confrontos")
         .select(
           "id, fase_id, corretor_a_id, corretor_b_id, vencedor_id, is_wo, semana_ref, posicao",
         )
         .order("posicao");
       if (error) throw error;
-      return (data ?? []) as Confronto[];
+      return (data ?? []) as unknown as Confronto[];
     },
   });
   const profilesQ = useQuery({
@@ -165,16 +165,16 @@ function CopaPage() {
     queryKey: ["copa:ranking"],
     refetchInterval: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("copa_ranking");
+      const { data, error } = await (supabase as any).rpc("copa_ranking");
       if (error) throw error;
-      return (data ?? []) as RankRow[];
+      return (data ?? []) as unknown as RankRow[];
     },
   });
   const pontosSemQ = useQuery({
     queryKey: ["copa:pontos-semana"],
     refetchInterval: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("copa_pontos_por_semana");
+      const { data, error } = await (supabase as any).rpc("copa_pontos_por_semana");
       if (error) throw error;
       return (data ?? []) as { corretor_id: string; semana: number; pontos: number }[];
     },
@@ -201,9 +201,11 @@ function CopaPage() {
     enabled: canManage,
     refetchInterval: 15000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("copa_status_chaveamento");
+      const { data, error } = await (supabase as any).rpc("copa_status_chaveamento");
       if (error) throw error;
-      return (data ?? [])[0] as { fase_atual: string | null; pode_avancar: boolean } | undefined;
+      return ((data ?? []) as any[])[0] as
+        | { fase_atual: string | null; pode_avancar: boolean }
+        | undefined;
     },
   });
 
@@ -311,7 +313,7 @@ function CopaPage() {
   };
   const setVencedor = useMutation({
     mutationFn: async (v: { confronto: string; vencedor: string }) => {
-      const { error } = await supabase.rpc("copa_set_vencedor", {
+      const { error } = await (supabase as any).rpc("copa_set_vencedor", {
         _confronto_id: v.confronto,
         _vencedor_id: v.vencedor,
       });
@@ -336,7 +338,7 @@ function CopaPage() {
   });
   const avancarFase = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("copa_avancar_fase");
+      const { error } = await (supabase as any).rpc("copa_avancar_fase");
       if (error) throw error;
     },
     onSuccess: () => {
@@ -347,7 +349,7 @@ function CopaPage() {
   });
   const inicializar = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("copa_inicializar_dados");
+      const { error } = await (supabase as any).rpc("copa_inicializar_dados");
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1630,7 +1632,7 @@ function AdminParticipantes({
   }, [participantes]);
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("copa_set_participantes", { _ids: Array.from(sel) });
+      const { error } = await (supabase as any).rpc("copa_set_participantes", { _ids: Array.from(sel) });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1709,11 +1711,11 @@ function AdminLancarPontuacao({
     queryKey: ["copa:ajuste", corretor, sem],
     enabled: corretor !== "",
     queryFn: async () => {
-      const { data } = await supabase.rpc("copa_get_ajuste_manual", {
+      const { data } = await (supabase as any).rpc("copa_get_ajuste_manual", {
         _corretor_id: corretor,
         _semana: sem,
       });
-      return (data ?? [])[0] as
+      return ((data ?? []) as any[])[0] as
         | { agendamentos: number; visitas: number; documentacao: number; vendas: number }
         | undefined;
     },
@@ -1734,7 +1736,7 @@ function AdminLancarPontuacao({
   const save = useMutation({
     mutationFn: async () => {
       if (!corretor) throw new Error("Selecione um corretor");
-      const { error } = await supabase.rpc("copa_salvar_pontuacao", {
+      const { error } = await (supabase as any).rpc("copa_salvar_pontuacao", {
         _corretor_id: corretor,
         _semana: sem,
         _ag: f.agendamentos,
