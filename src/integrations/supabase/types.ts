@@ -886,6 +886,7 @@ export type Database = {
         }
         Returns: string
       }
+      expirar_lixeira_antiga: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
