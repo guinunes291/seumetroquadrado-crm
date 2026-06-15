@@ -17,6 +17,7 @@ import {
   Plug,
   Settings,
   LogOut,
+  Shuffle,
   User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,8 +40,9 @@ const SECTIONS: Section[] = [
     title: "Operação",
     items: [
       { to: "/", label: "Painel", icon: LayoutDashboard },
-      { to: "/leads", label: "Leads", icon: Users, comingSoon: true },
-      { to: "/kanban", label: "Kanban", icon: Trello, comingSoon: true },
+      { to: "/leads", label: "Leads", icon: Users },
+      { to: "/kanban", label: "Kanban", icon: Trello },
+      { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
       { to: "/agendamentos", label: "Agendamentos", icon: CalendarClock, comingSoon: true },
       { to: "/tarefas", label: "Tarefas do dia", icon: ListTodo, comingSoon: true },
     ],

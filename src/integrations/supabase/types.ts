@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      distribution_log: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          distribuido_por_id: string | null
+          id: string
+          lead_id: string
+          motivo: string | null
+          tipo: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          distribuido_por_id?: string | null
+          id?: string
+          lead_id: string
+          motivo?: string | null
+          tipo: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          distribuido_por_id?: string | null
+          id?: string
+          lead_id?: string
+          motivo?: string | null
+          tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribution_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           ativo: boolean
@@ -41,6 +79,147 @@ export type Database = {
           id?: string
           nome?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      fila_distribuicao: {
+        Row: {
+          ativo: boolean
+          corretor_id: string
+          created_at: string
+          id: string
+          leads_recebidos_hoje: number
+          max_leads_dia: number
+          posicao: number
+          ultima_distribuicao: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          corretor_id: string
+          created_at?: string
+          id?: string
+          leads_recebidos_hoje?: number
+          max_leads_dia?: number
+          posicao: number
+          ultima_distribuicao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          corretor_id?: string
+          created_at?: string
+          id?: string
+          leads_recebidos_hoje?: number
+          max_leads_dia?: number
+          posicao?: number
+          ultima_distribuicao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          campanha: string | null
+          corretor_anterior_id: string | null
+          corretor_id: string | null
+          corretores_que_tentaram: string[]
+          cpf: string | null
+          created_at: string
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          email: string | null
+          entrada_disponivel: string | null
+          id: string
+          motivo_perdido: string | null
+          na_lixeira: boolean
+          nome: string
+          observacoes: string | null
+          origem: Database["public"]["Enums"]["lead_origem"]
+          projeto_nome: string | null
+          proximo_followup: string | null
+          renda_informada: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao: number
+          timestamp_recebimento: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string
+          usa_fgts: boolean
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          campanha?: string | null
+          corretor_anterior_id?: string | null
+          corretor_id?: string | null
+          corretores_que_tentaram?: string[]
+          cpf?: string | null
+          created_at?: string
+          data_distribuicao?: string | null
+          data_movido_lixeira?: string | null
+          email?: string | null
+          entrada_disponivel?: string | null
+          id?: string
+          motivo_perdido?: string | null
+          na_lixeira?: boolean
+          nome: string
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["lead_origem"]
+          projeto_nome?: string | null
+          proximo_followup?: string | null
+          renda_informada?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao?: number
+          timestamp_recebimento?: string | null
+          ultima_interacao?: string | null
+          ultimo_contato?: string | null
+          updated_at?: string
+          usa_fgts?: boolean
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          campanha?: string | null
+          corretor_anterior_id?: string | null
+          corretor_id?: string | null
+          corretores_que_tentaram?: string[]
+          cpf?: string | null
+          created_at?: string
+          data_distribuicao?: string | null
+          data_movido_lixeira?: string | null
+          email?: string | null
+          entrada_disponivel?: string | null
+          id?: string
+          motivo_perdido?: string | null
+          na_lixeira?: boolean
+          nome?: string
+          observacoes?: string | null
+          origem?: Database["public"]["Enums"]["lead_origem"]
+          projeto_nome?: string | null
+          proximo_followup?: string | null
+          renda_informada?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          telefone?: string
+          temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao?: number
+          timestamp_recebimento?: string | null
+          ultima_interacao?: string | null
+          ultimo_contato?: string | null
+          updated_at?: string
+          usa_fgts?: boolean
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Relationships: []
       }
@@ -123,6 +302,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      distribuir_lead: {
+        Args: {
+          _distribuido_por?: string
+          _lead_id: string
+          _tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -130,9 +317,36 @@ export type Database = {
         }
         Returns: boolean
       }
+      resetar_cotas_diarias: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "gestor" | "corretor"
+      distribuicao_tipo: "automatica" | "manual" | "inicial"
+      lead_origem:
+        | "facebook"
+        | "google_sheets"
+        | "site"
+        | "indicacao"
+        | "captacao_corretor"
+        | "whatsapp"
+        | "telefone"
+        | "plantao"
+        | "agendamento_self_service"
+        | "chatbot"
+        | "outro"
+      lead_status:
+        | "novo"
+        | "aguardando_atendimento"
+        | "em_atendimento"
+        | "qualificado"
+        | "agendado"
+        | "visita_realizada"
+        | "proposta_enviada"
+        | "analise_credito"
+        | "contrato_fechado"
+        | "pos_venda"
+        | "perdido"
+      lead_temperatura: "quente" | "morno" | "frio"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -261,6 +475,34 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "gestor", "corretor"],
+      distribuicao_tipo: ["automatica", "manual", "inicial"],
+      lead_origem: [
+        "facebook",
+        "google_sheets",
+        "site",
+        "indicacao",
+        "captacao_corretor",
+        "whatsapp",
+        "telefone",
+        "plantao",
+        "agendamento_self_service",
+        "chatbot",
+        "outro",
+      ],
+      lead_status: [
+        "novo",
+        "aguardando_atendimento",
+        "em_atendimento",
+        "qualificado",
+        "agendado",
+        "visita_realizada",
+        "proposta_enviada",
+        "analise_credito",
+        "contrato_fechado",
+        "pos_venda",
+        "perdido",
+      ],
+      lead_temperatura: ["quente", "morno", "frio"],
     },
   },
 } as const
