@@ -1,0 +1,419 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Calendar, User, Building2 } from "lucide-react";
+import {
+  INTERACAO_ICON,
+  INTERACAO_LABEL,
+  INTERACAO_TONE,
+  DIRECAO_LABEL,
+  describeInteracao,
+  formatRelativeTime,
+  type InteracaoTipo,
+  type InteracaoDirecao,
+} from "@/lib/interacoes";
+
+export const Route = createFileRoute("/_authenticated/leads/$leadId")({
+  head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
+  component: LeadDetailPage,
+});
+
+type Lead = {
+  id: string;
+  nome: string;
+  email: string | null;
+  telefone: string;
+  origem: string;
+  status: string;
+  temperatura: string | null;
+  corretor_id: string | null;
+  projeto_id: string | null;
+  projeto_nome: string | null;
+  observacoes: string | null;
+  cpf: string | null;
+  renda_informada: string | null;
+  entrada_disponivel: string | null;
+  usa_fgts: boolean;
+  campanha: string | null;
+  created_at: string;
+  ultima_interacao: string | null;
+  proximo_followup: string | null;
+};
+
+type Interacao = {
+  id: string;
+  lead_id: string;
+  autor_id: string | null;
+  tipo: InteracaoTipo;
+  direcao: InteracaoDirecao;
+  titulo: string | null;
+  conteudo: string;
+  ocorreu_em: string;
+};
+
+const TIPO_OPTIONS: InteracaoTipo[] = [
+  "ligacao", "whatsapp", "email", "sms", "visita", "reuniao", "nota", "proposta", "outro",
+];
+
+function LeadDetailPage() {
+  const { leadId } = Route.useParams();
+  const qc = useQueryClient();
+
+  const { data: lead, isLoading } = useQuery({
+    queryKey: ["lead", leadId],
+    queryFn: async (): Promise<Lead | null> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .eq("id", leadId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as Lead) ?? null;
+    },
+  });
+
+  const { data: interacoes = [] } = useQuery({
+    queryKey: ["interacoes", leadId],
+    queryFn: async (): Promise<Interacao[]> => {
+      const { data, error } = await supabase
+        .from("interacoes")
+        .select("*")
+        .eq("lead_id", leadId)
+        .order("ocorreu_em", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Interacao[];
+    },
+  });
+
+  const { data: tarefas = [] } = useQuery({
+    queryKey: ["tarefas-lead", leadId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tarefas")
+        .select("id, titulo, status, data_limite, prioridade")
+        .eq("lead_id", leadId)
+        .order("data_limite", { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: agendamentos = [] } = useQuery({
+    queryKey: ["agendamentos-lead", leadId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("id, titulo, data_inicio, status, tipo, local")
+        .eq("lead_id", leadId)
+        .order("data_inicio", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [tipo, setTipo] = useState<InteracaoTipo>("ligacao");
+  const [direcao, setDirecao] = useState<InteracaoDirecao>("saida");
+  const [titulo, setTitulo] = useState("");
+  const [conteudo, setConteudo] = useState("");
+
+  const criarInteracao = useMutation({
+    mutationFn: async () => {
+      const conteudoTrim = conteudo.trim();
+      if (conteudoTrim.length === 0) throw new Error("Descreva a interação.");
+      if (conteudoTrim.length > 2000) throw new Error("Conteúdo muito longo (máx 2000).");
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("interacoes").insert({
+        lead_id: leadId,
+        autor_id: u.user?.id ?? null,
+        tipo,
+        direcao,
+        titulo: titulo.trim() || null,
+        conteudo: conteudoTrim,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Interação registrada");
+      setDialogOpen(false);
+      setTitulo("");
+      setConteudo("");
+      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Carregando lead…</div>;
+  }
+  if (!lead) {
+    return (
+      <div>
+        <Link to="/leads" className="text-sm text-primary hover:underline">
+          ← Voltar para leads
+        </Link>
+        <div className="mt-4 text-muted-foreground">Lead não encontrado.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Link
+        to="/leads"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" /> Voltar para leads
+      </Link>
+
+      <PageHeader
+        title={lead.nome}
+        description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
+        actions={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" /> Registrar interação
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nova interação</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3 py-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Tipo</Label>
+                    <Select value={tipo} onValueChange={(v) => setTipo(v as InteracaoTipo)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TIPO_OPTIONS.map((t) => (
+                          <SelectItem key={t} value={t}>{INTERACAO_LABEL[t]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Direção</Label>
+                    <Select value={direcao} onValueChange={(v) => setDirecao(v as InteracaoDirecao)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entrada">Entrada (do lead)</SelectItem>
+                        <SelectItem value="saida">Saída (para o lead)</SelectItem>
+                        <SelectItem value="interna">Interna</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Título (opcional)</Label>
+                  <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={160} />
+                </div>
+                <div>
+                  <Label>O que aconteceu? <span className="text-destructive">*</span></Label>
+                  <Textarea
+                    value={conteudo}
+                    onChange={(e) => setConteudo(e.target.value)}
+                    rows={4}
+                    maxLength={2000}
+                    placeholder="Resumo da conversa, próximos passos, objeções…"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={() => criarInteracao.mutate()} disabled={criarInteracao.isPending}>
+                  Registrar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Status</CardTitle></CardHeader>
+          <CardContent>
+            <Badge variant="secondary">{lead.status}</Badge>
+            {lead.temperatura && (
+              <Badge variant="outline" className="ml-2">{lead.temperatura}</Badge>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Origem</CardTitle></CardHeader>
+          <CardContent className="text-sm">
+            {lead.origem}
+            {lead.campanha && <div className="text-xs text-muted-foreground mt-1">{lead.campanha}</div>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Última interação</CardTitle></CardHeader>
+          <CardContent className="text-sm">
+            {lead.ultima_interacao ? formatRelativeTime(lead.ultima_interacao) : "—"}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="timeline">
+        <TabsList>
+          <TabsTrigger value="timeline">Timeline ({interacoes.length})</TabsTrigger>
+          <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="tarefas">Tarefas ({tarefas.length})</TabsTrigger>
+          <TabsTrigger value="agendamentos">Agendamentos ({agendamentos.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="timeline" className="mt-4">
+          {interacoes.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Nenhuma interação registrada ainda.
+              </CardContent>
+            </Card>
+          ) : (
+            <ol className="relative border-l border-border ml-4 space-y-4">
+              {interacoes.map((i) => {
+                const Icon = INTERACAO_ICON[i.tipo];
+                return (
+                  <li key={i.id} className="ml-6">
+                    <span className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-background ${INTERACAO_TONE[i.tipo]}`}>
+                      <Icon className="h-3 w-3" />
+                    </span>
+                    <Card>
+                      <CardContent className="pt-4">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="font-medium text-sm">
+                            {i.titulo || describeInteracao(i.tipo, i.direcao)}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatRelativeTime(i.ocorreu_em)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 mb-2">
+                          <Badge variant="outline" className="text-[10px]">{INTERACAO_LABEL[i.tipo]}</Badge>
+                          <Badge variant="outline" className="text-[10px]">{DIRECAO_LABEL[i.direcao]}</Badge>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap">{i.conteudo}</p>
+                      </CardContent>
+                    </Card>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </TabsContent>
+
+        <TabsContent value="dados" className="mt-4">
+          <Card>
+            <CardContent className="pt-6 grid gap-4 md:grid-cols-2 text-sm">
+              <DataRow icon={User} label="Nome" value={lead.nome} />
+              <DataRow icon={Phone} label="Telefone" value={lead.telefone} />
+              <DataRow icon={Mail} label="E-mail" value={lead.email} />
+              <DataRow icon={Building2} label="Empreendimento" value={lead.projeto_nome} />
+              <DataRow icon={Calendar} label="Próximo follow-up" value={lead.proximo_followup ? new Date(lead.proximo_followup).toLocaleString("pt-BR") : null} />
+              <DataRow icon={MapPin} label="Renda informada" value={lead.renda_informada} />
+              <DataRow icon={User} label="CPF" value={lead.cpf} />
+              <DataRow icon={User} label="Entrada disponível" value={lead.entrada_disponivel} />
+              <DataRow icon={User} label="Usa FGTS" value={lead.usa_fgts ? "Sim" : "Não"} />
+              {lead.observacoes && (
+                <div className="md:col-span-2">
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Observações</div>
+                  <p className="whitespace-pre-wrap">{lead.observacoes}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tarefas" className="mt-4">
+          {tarefas.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Sem tarefas vinculadas.</CardContent></Card>
+          ) : (
+            <Card>
+              <CardContent className="py-4 divide-y">
+                {tarefas.map((t) => (
+                  <div key={t.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium">{t.titulo}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {t.data_limite ? new Date(t.data_limite).toLocaleString("pt-BR") : "Sem prazo"}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Badge variant="outline">{t.status}</Badge>
+                      <Badge variant="outline">{t.prioridade}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="agendamentos" className="mt-4">
+          {agendamentos.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Sem agendamentos vinculados.</CardContent></Card>
+          ) : (
+            <Card>
+              <CardContent className="py-4 divide-y">
+                {agendamentos.map((a) => (
+                  <div key={a.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium">{a.titulo}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(a.data_inicio).toLocaleString("pt-BR")}
+                        {a.local ? ` · ${a.local}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Badge variant="outline">{a.tipo}</Badge>
+                      <Badge variant="outline">{a.status}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function DataRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof User;
+  label: string;
+  value: string | null | undefined;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+      <div>
+        <div className="text-xs uppercase text-muted-foreground">{label}</div>
+        <div>{value || "—"}</div>
+      </div>
+    </div>
+  );
+}
