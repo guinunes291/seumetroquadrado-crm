@@ -1,80 +1,47 @@
-// Helpers puros da Copa SMQ (pontuação, semana/fase, medalhas). Testáveis.
+// Helpers puros da Copa SMQ (réplica 1:1 — 14 semanas). Testáveis.
 
-export type CopaCounts = {
-  agendamentos: number;
-  visitas: number;
-  analise: number;
-  vendas: number;
-};
+export const COPA_INICIO = "2026-06-03";
 
-export type CopaConfigPontos = {
-  agendamento: number;
-  visita: number;
-  analise: number;
-  venda: number;
-};
+/** Calendário fixo de 14 semanas (igual ao Manus). */
+export const SEMANAS: { semana: number; periodo: string; label: string }[] = [
+  { semana: 1, periodo: "03/06–09/06", label: "FASE DE GRUPOS" },
+  { semana: 2, periodo: "10/06–16/06", label: "FASE DE GRUPOS" },
+  { semana: 3, periodo: "17/06–23/06", label: "FASE DE GRUPOS" },
+  { semana: 4, periodo: "24/06–30/06", label: "FASE DE GRUPOS" },
+  { semana: 5, periodo: "01/07–07/07", label: "FASE DE GRUPOS" },
+  { semana: 6, periodo: "08/07–14/07", label: "FASE DE GRUPOS" },
+  { semana: 7, periodo: "15/07–21/07", label: "FASE DE GRUPOS" },
+  { semana: 8, periodo: "22/07–28/07", label: "REPESCAGEM 1" },
+  { semana: 9, periodo: "29/07–04/08", label: "OITAVAS DE FINAL" },
+  { semana: 10, periodo: "05/08–11/08", label: "REPESCAGEM 2" },
+  { semana: 11, periodo: "12/08–18/08", label: "QUARTAS DE FINAL" },
+  { semana: 12, periodo: "19/08–25/08", label: "SEMIFINAL" },
+  { semana: 13, periodo: "26/08–01/09", label: "FINAL + 3º LUGAR" },
+  { semana: 14, periodo: "02/09–08/09", label: "PREMIAÇÃO" },
+];
 
-/** Chaves de atividade da Copa (mesmas de copa_config_pontos). */
-export const COPA_ATIVIDADES = ["agendamento", "visita", "analise", "venda"] as const;
-export type CopaAtividade = (typeof COPA_ATIVIDADES)[number];
+export const TOTAL_SEMANAS = SEMANAS.length;
 
-/** Total de pontos = contadores × configuração. */
-export function computeCopaTotal(c: CopaCounts, cfg: CopaConfigPontos): number {
-  return (
-    c.agendamentos * cfg.agendamento +
-    c.visitas * cfg.visita +
-    c.analise * cfg.analise +
-    c.vendas * cfg.venda
-  );
+/** Semana atual (1..14), a partir de 03/06/2026. */
+export function semanaAtual(now: Date = new Date()): number {
+  const inicio = new Date(`${COPA_INICIO}T00:00:00`);
+  const diffDias = Math.floor((now.getTime() - inicio.getTime()) / (24 * 3600 * 1000));
+  return Math.min(Math.max(Math.floor(diffDias / 7) + 1, 1), TOTAL_SEMANAS);
 }
 
-/** Converte linhas de copa_config_pontos (chave/pontos) num objeto tipado. */
-export function configFromRows(
-  rows: { chave: string; pontos: number }[],
-  fallback: CopaConfigPontos = { agendamento: 25, visita: 40, analise: 60, venda: 150 },
-): CopaConfigPontos {
-  const map = new Map(rows.map((r) => [r.chave, r.pontos]));
-  return {
-    agendamento: map.get("agendamento") ?? fallback.agendamento,
-    visita: map.get("visita") ?? fallback.visita,
-    analise: map.get("analise") ?? fallback.analise,
-    venda: map.get("venda") ?? fallback.venda,
-  };
+/** Converte "DD/MM" em Date (ano 2026). */
+export function parseDDMM(str: string | null | undefined): Date | null {
+  if (!str) return null;
+  const [d, m] = str.trim().split("/").map(Number);
+  if (!d || !m) return null;
+  return new Date(2026, m - 1, d);
 }
 
-/** Número total de semanas da edição (mínimo 1). */
-export function totalSemanas(dataInicio: string, dataFim: string): number {
-  const ini = new Date(`${dataInicio}T00:00:00`);
-  const fim = new Date(`${dataFim}T23:59:59`);
-  return Math.max(1, Math.ceil((fim.getTime() - ini.getTime()) / (7 * 24 * 3600 * 1000)));
-}
-
-/** Semana atual (1..totalSemanas), limitada ao intervalo da edição. */
-export function semanaAtual(dataInicio: string, dataFim: string, now: Date = new Date()): number {
-  const ini = new Date(`${dataInicio}T00:00:00`);
-  if (now.getTime() < ini.getTime()) return 1;
-  const diffDays = Math.floor((now.getTime() - ini.getTime()) / (24 * 3600 * 1000));
-  const semana = Math.floor(diffDays / 7) + 1;
-  return Math.min(Math.max(semana, 1), totalSemanas(dataInicio, dataFim));
-}
-
-export type CopaFaseLite = {
-  nome: string;
-  ordem: number;
-  semana_inicio: number;
-  semana_fim: number;
-};
-
-/** Fase correspondente a uma semana (ou a última fase, se a semana passou do fim). */
-export function faseDaSemana<T extends CopaFaseLite>(fases: T[], semana: number): T | undefined {
-  const direta = fases.find((f) => semana >= f.semana_inicio && semana <= f.semana_fim);
-  if (direta) return direta;
-  return [...fases].sort((a, b) => b.ordem - a.ordem).find((f) => semana >= f.semana_inicio);
-}
-
-/** Vencedor de um confronto por pontos (empate favorece A — mesmo critério do SQL). */
-export function decideVencedor(aPontos: number, bPontos: number, aId: string, bId: string): string {
-  return bPontos > aPontos ? bId : aId;
+/** Primeiro + último nome. */
+export function shortName(nome: string): string {
+  const parts = (nome ?? "").trim().split(/\s+/);
+  if (parts.length <= 1) return parts[0] ?? nome;
+  return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
 /** Medalha por posição (1..3) ou "Nº". */
@@ -83,4 +50,36 @@ export function medalha(posicao: number): string {
   if (posicao === 2) return "🥈";
   if (posicao === 3) return "🥉";
   return `${posicao}º`;
+}
+
+export type CopaCounts = {
+  agendamentos: number;
+  visitas: number;
+  documentacao: number;
+  vendas: number;
+};
+export type CopaConfigPontos = CopaCounts;
+
+/** Total = contadores × configuração. */
+export function computeCopaTotal(c: CopaCounts, cfg: CopaConfigPontos): number {
+  return (
+    c.agendamentos * cfg.agendamentos +
+    c.visitas * cfg.visitas +
+    c.documentacao * cfg.documentacao +
+    c.vendas * cfg.vendas
+  );
+}
+
+/** Converte linhas de copa_config_pontos (chave/pontos) num objeto tipado (defaults reais 1/5/10/40). */
+export function configFromRows(
+  rows: { chave: string; pontos: number }[],
+  fallback: CopaConfigPontos = { agendamentos: 1, visitas: 5, documentacao: 10, vendas: 40 },
+): CopaConfigPontos {
+  const m = new Map(rows.map((r) => [r.chave, r.pontos]));
+  return {
+    agendamentos: m.get("agendamentos") ?? fallback.agendamentos,
+    visitas: m.get("visitas") ?? fallback.visitas,
+    documentacao: m.get("documentacao") ?? fallback.documentacao,
+    vendas: m.get("vendas") ?? fallback.vendas,
+  };
 }
