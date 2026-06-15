@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "@tanstack/react-router";
+
 import { Bell, CheckCheck } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,7 +130,7 @@ export function NotificationBell() {
                 );
                 return (
                   <li key={a.id} onClick={() => !a.lida && markRead.mutate(a.id)}>
-                    {a.link ? <Link to={a.link}>{content}</Link> : content}
+                    {a.link ? <a href={a.link}>{content}</a> : content}
                   </li>
                 );
               })}
