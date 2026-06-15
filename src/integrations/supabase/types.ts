@@ -240,6 +240,7 @@ export type Database = {
           nome: string
           observacoes: string | null
           origem: Database["public"]["Enums"]["lead_origem"]
+          projeto_id: string | null
           projeto_nome: string | null
           proximo_followup: string | null
           renda_informada: string | null
@@ -274,6 +275,7 @@ export type Database = {
           nome: string
           observacoes?: string | null
           origem?: Database["public"]["Enums"]["lead_origem"]
+          projeto_id?: string | null
           projeto_nome?: string | null
           proximo_followup?: string | null
           renda_informada?: string | null
@@ -308,6 +310,7 @@ export type Database = {
           nome?: string
           observacoes?: string | null
           origem?: Database["public"]["Enums"]["lead_origem"]
+          projeto_id?: string | null
           projeto_nome?: string | null
           proximo_followup?: string | null
           renda_informada?: string | null
@@ -325,7 +328,15 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       metas: {
         Row: {
@@ -435,6 +446,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      projetos: {
+        Row: {
+          ativo: boolean
+          cidade: string | null
+          construtora: string | null
+          created_at: string
+          criado_por: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          slug: string
+          updated_at: string
+          webhook_token: string
+        }
+        Insert: {
+          ativo?: boolean
+          cidade?: string | null
+          construtora?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          slug: string
+          updated_at?: string
+          webhook_token?: string
+        }
+        Update: {
+          ativo?: boolean
+          cidade?: string | null
+          construtora?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          slug?: string
+          updated_at?: string
+          webhook_token?: string
+        }
+        Relationships: []
       }
       tarefas: {
         Row: {
