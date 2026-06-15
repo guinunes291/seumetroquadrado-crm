@@ -1454,6 +1454,7 @@ export type Database = {
         Args: { _confronto_id: string; _corretor_id: string }
         Returns: undefined
       }
+      copa_inicializar_dados: { Args: never; Returns: Json }
       copa_pontos_corretor: {
         Args: { _corretor_id: string; _df: string; _di: string }
         Returns: number
