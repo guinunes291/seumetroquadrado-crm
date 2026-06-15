@@ -74,6 +74,8 @@ const SECTIONS: Section[] = [
       { to: "/corretores", label: "Corretores", icon: Users, roles: ["admin", "gestor"] },
       { to: "/equipes", label: "Equipes", icon: UsersRound, roles: ["admin", "gestor"] },
       { to: "/templates", label: "Templates", icon: MessageSquare, roles: ["admin", "gestor"] },
+      { to: "/duplicatas", label: "Duplicatas", icon: Merge, roles: ["admin", "gestor"] },
+      { to: "/lixeira", label: "Lixeira", icon: Trash2, roles: ["admin"] },
       { to: "/integracoes", label: "Integrações", icon: Plug, comingSoon: true, roles: ["admin"] },
       { to: "/configuracoes", label: "Configurações", icon: Settings, comingSoon: true, roles: ["admin"] },
     ],
