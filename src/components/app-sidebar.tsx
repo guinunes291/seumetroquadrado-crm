@@ -40,6 +40,7 @@ const SECTIONS: Section[] = [
     title: "Operação",
     items: [
       { to: "/", label: "Painel", icon: LayoutDashboard },
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { to: "/leads", label: "Leads", icon: Users },
       { to: "/kanban", label: "Kanban", icon: Trello },
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
@@ -50,9 +51,9 @@ const SECTIONS: Section[] = [
   {
     title: "Performance",
     items: [
-      { to: "/metas", label: "Metas", icon: Target, comingSoon: true },
+      { to: "/metas", label: "Metas", icon: Target },
+      { to: "/ranking", label: "Ranking", icon: Trophy },
       { to: "/conquistas", label: "Conquistas", icon: Trophy, comingSoon: true },
-      { to: "/ranking", label: "Ranking TV", icon: Trophy, comingSoon: true },
     ],
   },
   {
