@@ -25,6 +25,7 @@ import {
   TAREFA_STATUS, TAREFA_TIPOS, TAREFA_PRIORIDADES,
   STATUS_LABEL, TIPO_LABEL, PRIORIDADE_LABEL,
   isAtrasada, statusBadgeClass, prioridadeBadgeClass,
+  type TarefaStatus, type TarefaTipo, type TarefaPrioridade,
 } from "@/lib/tarefas";
 
 export const Route = createFileRoute("/_authenticated/tarefas")({
