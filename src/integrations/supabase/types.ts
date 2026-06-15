@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      agendamentos: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          criado_por_id: string | null
+          data_fim: string
+          data_inicio: string
+          descricao: string | null
+          id: string
+          lead_id: string | null
+          lembrete_minutos: number
+          local: string | null
+          motivo_cancelamento: string | null
+          realizado_em: string | null
+          status: Database["public"]["Enums"]["agendamento_status"]
+          timezone: string
+          tipo: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          criado_por_id?: string | null
+          data_fim: string
+          data_inicio: string
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          lembrete_minutos?: number
+          local?: string | null
+          motivo_cancelamento?: string | null
+          realizado_em?: string | null
+          status?: Database["public"]["Enums"]["agendamento_status"]
+          timezone?: string
+          tipo?: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          criado_por_id?: string | null
+          data_fim?: string
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          lembrete_minutos?: number
+          local?: string | null
+          motivo_cancelamento?: string | null
+          realizado_em?: string | null
+          status?: Database["public"]["Enums"]["agendamento_status"]
+          timezone?: string
+          tipo?: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribution_log: {
         Row: {
           corretor_id: string
@@ -320,6 +388,14 @@ export type Database = {
       resetar_cotas_diarias: { Args: never; Returns: undefined }
     }
     Enums: {
+      agendamento_status:
+        | "agendado"
+        | "confirmado"
+        | "realizado"
+        | "cancelado"
+        | "nao_compareceu"
+        | "remarcado"
+      agendamento_tipo: "visita" | "reuniao" | "ligacao" | "follow_up" | "outro"
       app_role: "admin" | "gestor" | "corretor"
       distribuicao_tipo: "automatica" | "manual" | "inicial"
       lead_origem:
@@ -474,6 +550,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      agendamento_status: [
+        "agendado",
+        "confirmado",
+        "realizado",
+        "cancelado",
+        "nao_compareceu",
+        "remarcado",
+      ],
+      agendamento_tipo: ["visita", "reuniao", "ligacao", "follow_up", "outro"],
       app_role: ["admin", "gestor", "corretor"],
       distribuicao_tipo: ["automatica", "manual", "inicial"],
       lead_origem: [
