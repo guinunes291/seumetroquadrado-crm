@@ -23,6 +23,7 @@ import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
+import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
@@ -100,6 +101,11 @@ const AuthenticatedEquipesRoute = AuthenticatedEquipesRouteImport.update({
   path: '/equipes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDuplicatasRoute = AuthenticatedDuplicatasRouteImport.update({
+  id: '/duplicatas',
+  path: '/duplicatas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDistribuicaoRoute =
   AuthenticatedDistribuicaoRouteImport.update({
     id: '/distribuicao',
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
+  '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
+  '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
+  '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRouteWithChildren
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/corretores'
     | '/dashboard'
     | '/distribuicao'
+    | '/duplicatas'
     | '/equipes'
     | '/kanban'
     | '/leads'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/corretores'
     | '/dashboard'
     | '/distribuicao'
+    | '/duplicatas'
     | '/equipes'
     | '/kanban'
     | '/leads'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/_authenticated/corretores'
     | '/_authenticated/dashboard'
     | '/_authenticated/distribuicao'
+    | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
     | '/_authenticated/kanban'
     | '/_authenticated/leads'
@@ -386,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEquipesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/duplicatas': {
+      id: '/_authenticated/duplicatas'
+      path: '/duplicatas'
+      fullPath: '/duplicatas'
+      preLoaderRoute: typeof AuthenticatedDuplicatasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/distribuicao': {
       id: '/_authenticated/distribuicao'
       path: '/distribuicao'
@@ -467,6 +486,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
+  AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRouteWithChildren
@@ -485,6 +505,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
+  AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRouteWithChildren,

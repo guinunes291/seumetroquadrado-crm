@@ -19,6 +19,8 @@ import {
   LogOut,
   Shuffle,
   User as UserIcon,
+  Trash2,
+  Merge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
