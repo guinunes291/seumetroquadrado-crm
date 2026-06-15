@@ -308,12 +308,12 @@ function TarefasPage() {
                           {t.titulo}
                         </span>
                         <Badge variant="outline" className={statusBadgeClass(t.status)}>
-                          {STATUS_LABEL[t.status]}
+                          {STATUS_LABEL[t.status as TarefaStatus]}
                         </Badge>
                         <Badge variant="outline" className={prioridadeBadgeClass(t.prioridade)}>
-                          {PRIORIDADE_LABEL[t.prioridade]}
+                          {PRIORIDADE_LABEL[t.prioridade as TarefaPrioridade]}
                         </Badge>
-                        <Badge variant="secondary">{TIPO_LABEL[t.tipo]}</Badge>
+                        <Badge variant="secondary">{TIPO_LABEL[t.tipo as TarefaTipo]}</Badge>
                         {atrasada && <Badge variant="destructive">Atrasada</Badge>}
                       </div>
                       {t.descricao && <p className="text-sm text-muted-foreground mt-0.5">{t.descricao}</p>}
