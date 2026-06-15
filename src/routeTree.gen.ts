@@ -14,8 +14,12 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
+import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
+import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
+import { Route as ApiPublicWebhooksLeadRouteImport } from './routes/api/public/webhooks/lead'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -41,15 +45,36 @@ const AuthenticatedMeuPerfilRoute = AuthenticatedMeuPerfilRouteImport.update({
   path: '/meu-perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
+  id: '/kanban',
+  path: '/kanban',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedEquipesRoute = AuthenticatedEquipesRouteImport.update({
   id: '/equipes',
   path: '/equipes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDistribuicaoRoute =
+  AuthenticatedDistribuicaoRouteImport.update({
+    id: '/distribuicao',
+    path: '/distribuicao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCorretoresRoute = AuthenticatedCorretoresRouteImport.update({
   id: '/corretores',
   path: '/corretores',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiPublicWebhooksLeadRoute = ApiPublicWebhooksLeadRouteImport.update({
+  id: '/api/public/webhooks/lead',
+  path: '/api/public/webhooks/lead',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -57,16 +82,24 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
+  '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/equipes': typeof AuthenticatedEquipesRoute
+  '/kanban': typeof AuthenticatedKanbanRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
+  '/api/public/webhooks/lead': typeof ApiPublicWebhooksLeadRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
+  '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/equipes': typeof AuthenticatedEquipesRoute
+  '/kanban': typeof AuthenticatedKanbanRoute
+  '/leads': typeof AuthenticatedLeadsRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/webhooks/lead': typeof ApiPublicWebhooksLeadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -74,9 +107,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
+  '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
+  '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/webhooks/lead': typeof ApiPublicWebhooksLeadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -85,31 +122,44 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/corretores'
+    | '/distribuicao'
     | '/equipes'
+    | '/kanban'
+    | '/leads'
     | '/meu-perfil'
+    | '/api/public/webhooks/lead'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/reset-password'
     | '/corretores'
+    | '/distribuicao'
     | '/equipes'
+    | '/kanban'
+    | '/leads'
     | '/meu-perfil'
     | '/'
+    | '/api/public/webhooks/lead'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
     | '/_authenticated/corretores'
+    | '/_authenticated/distribuicao'
     | '/_authenticated/equipes'
+    | '/_authenticated/kanban'
+    | '/_authenticated/leads'
     | '/_authenticated/meu-perfil'
     | '/_authenticated/'
+    | '/api/public/webhooks/lead'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicWebhooksLeadRoute: typeof ApiPublicWebhooksLeadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -149,11 +199,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMeuPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kanban': {
+      id: '/_authenticated/kanban'
+      path: '/kanban'
+      fullPath: '/kanban'
+      preLoaderRoute: typeof AuthenticatedKanbanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/equipes': {
       id: '/_authenticated/equipes'
       path: '/equipes'
       fullPath: '/equipes'
       preLoaderRoute: typeof AuthenticatedEquipesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/distribuicao': {
+      id: '/_authenticated/distribuicao'
+      path: '/distribuicao'
+      fullPath: '/distribuicao'
+      preLoaderRoute: typeof AuthenticatedDistribuicaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/corretores': {
@@ -163,19 +234,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCorretoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/webhooks/lead': {
+      id: '/api/public/webhooks/lead'
+      path: '/api/public/webhooks/lead'
+      fullPath: '/api/public/webhooks/lead'
+      preLoaderRoute: typeof ApiPublicWebhooksLeadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
+  AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
+  AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
+  AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
+  AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
@@ -187,6 +271,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicWebhooksLeadRoute: ApiPublicWebhooksLeadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
