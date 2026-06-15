@@ -19,6 +19,7 @@ import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedProjetosRouteImport } from './routes/_authenticated/projetos'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
+import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
@@ -77,6 +78,11 @@ const AuthenticatedMeuPerfilRoute = AuthenticatedMeuPerfilRouteImport.update({
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   id: '/metas',
   path: '/metas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedLixeiraRoute = AuthenticatedLixeiraRouteImport.update({
+  id: '/lixeira',
+  path: '/lixeira',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
+  '/lixeira': typeof AuthenticatedLixeiraRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/projetos': typeof AuthenticatedProjetosRouteWithChildren
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads': typeof AuthenticatedLeadsRouteWithChildren
+  '/lixeira': typeof AuthenticatedLixeiraRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/projetos': typeof AuthenticatedProjetosRouteWithChildren
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRouteWithChildren
+  '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/projetos': typeof AuthenticatedProjetosRouteWithChildren
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/equipes'
     | '/kanban'
     | '/leads'
+    | '/lixeira'
     | '/metas'
     | '/meu-perfil'
     | '/projetos'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/equipes'
     | '/kanban'
     | '/leads'
+    | '/lixeira'
     | '/metas'
     | '/meu-perfil'
     | '/projetos'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/_authenticated/equipes'
     | '/_authenticated/kanban'
     | '/_authenticated/leads'
+    | '/_authenticated/lixeira'
     | '/_authenticated/metas'
     | '/_authenticated/meu-perfil'
     | '/_authenticated/projetos'
@@ -344,6 +356,13 @@ declare module '@tanstack/react-router' {
       path: '/metas'
       fullPath: '/metas'
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/lixeira': {
+      id: '/_authenticated/lixeira'
+      path: '/lixeira'
+      fullPath: '/lixeira'
+      preLoaderRoute: typeof AuthenticatedLixeiraRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/leads': {
@@ -451,6 +470,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRouteWithChildren
+  AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedProjetosRoute: typeof AuthenticatedProjetosRouteWithChildren
@@ -468,6 +488,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRouteWithChildren,
+  AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedProjetosRoute: AuthenticatedProjetosRouteWithChildren,
