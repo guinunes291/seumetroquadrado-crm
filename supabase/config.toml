@@ -1,1 +1,6 @@
 project_id = "rldnprwjlomjmjvinxuh"
+
+# Webhook público do Zapier (Facebook Lead Ads). Autenticação via LEAD_INTAKE_SECRET,
+# não por JWT do Supabase.
+[functions.lead-intake]
+verify_jwt = false

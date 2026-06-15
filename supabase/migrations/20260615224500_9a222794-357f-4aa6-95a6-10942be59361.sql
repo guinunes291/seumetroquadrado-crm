@@ -1,21 +1,19 @@
 -- =============================================================================
--- IMPORT DO HISTÓRICO DO CRM (leads + agendamentos + visitas + análises) — MANUAL
+-- Transform do histórico do Manus (staging -> tabelas reais) — como MIGRATION
 -- =============================================================================
--- Converte os CSVs do Manus (ids inteiros) para o schema novo (UUID):
---   corretor -> profiles.legacy_user_id ; lead -> leads.legacy_id
--- Como os leads ainda NÃO existem no banco novo, este script TAMBÉM os insere.
--- Visitas/análises/vendas viram lead_status_transitions (alimenta Copa + Dashboard).
+-- Por que o dashboard ficava ZERADO mesmo "após importar": o transform manual
+-- (supabase/import_crm_historico.sql) quebrava por:
+--   • na_lixeira / usa_fgts: (s.x='1') vira NULL em célula vazia -> viola NOT NULL;
+--   • datas vazias: ''::timestamptz dá erro de cast (agendamentos/visitas/análises).
+-- Como tudo roda num único bloco, QUALQUER erro fazia ROLLBACK de tudo -> 0 linhas.
 --
--- NOTA: este transform agora também roda automaticamente como MIGRATION
--- (supabase/migrations/20260615224500_...sql), com estas mesmas correções de
--- robustez. Este script fica como backup para rodar manual caso precise
--- recarregar o staging.
--- PRÉ-REQUISITO: migration legacy_id aplicada (PR #6).
--- PASSO A: rode os CREATE TABLE de staging e IMPORTE os CSVs neles (mapeando colunas).
--- PASSO B: rode o bloco DO. Idempotente (NOT EXISTS / ON CONFLICT).
+-- Esta migration roda o transform de forma TOLERANTE (COALESCE/NULLIF em tudo),
+-- IDEMPOTENTE (NOT EXISTS) e automática (Lovable aplica no banco). Depende das
+-- tabelas de staging já populadas (Lovable "Criou e importou staging do CRM").
+-- Se o staging estiver vazio, é no-op e registra NOTICE com as contagens.
 -- =============================================================================
 
--- ---------- PASSO A: staging (importe os CSVs aqui) ----------
+-- Staging defensivo (caso a migration de staging não tenha rodado nesta ordem).
 CREATE TABLE IF NOT EXISTS public.stg_leads (
   legacy_id bigint, nome text, email text, telefone text, cpf text, origem text,
   projeto_custom text, corretor_legacy bigint, corretor_anterior_legacy bigint,
@@ -37,14 +35,22 @@ CREATE TABLE IF NOT EXISTS public.stg_analises (
   lead_legacy bigint, corretor_legacy bigint, status text, created_at text
 );
 
--- ---------- PASSO B: transform ----------
 DO $$
+DECLARE
+  _n_leads int := 0; _n_ag int := 0; _n_vi int := 0; _n_an int := 0; _n_ve int := 0;
+  _has_trg boolean;
 BEGIN
-  -- evita centenas de alertas "lead_novo" durante o import em massa
-  ALTER TABLE public.leads DISABLE TRIGGER trg_alerta_lead_distribuido;
+  -- Silencia o alerta de distribuição durante a carga em massa (se existir).
+  SELECT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trg_alerta_lead_distribuido'
+      AND tgrelid = 'public.leads'::regclass AND NOT tgisinternal
+  ) INTO _has_trg;
+  IF _has_trg THEN
+    EXECUTE 'ALTER TABLE public.leads DISABLE TRIGGER trg_alerta_lead_distribuido';
+  END IF;
 
-  -- 0) Insere os leads do Manus (com legacy_id). Pula os que já existem
-  --    (por legacy_id ou por telefone).
+  -- 0) Leads (com legacy_id). Pula os que já existem (legacy_id ou telefone).
   INSERT INTO public.leads (
     legacy_id, nome, email, telefone, cpf, origem, projeto_nome, corretor_id, corretor_anterior_id,
     status, temperatura, observacoes, motivo_perdido, campanha, renda_informada, usa_fgts,
@@ -76,34 +82,35 @@ BEGIN
       WHERE right(regexp_replace(l.telefone,'\D','','g'),11) = right(regexp_replace(s.telefone,'\D','','g'),11)
         AND length(regexp_replace(s.telefone,'\D','','g')) >= 10
     );
+  GET DIAGNOSTICS _n_leads = ROW_COUNT;
 
-  -- 1) (caso já existissem leads sem legacy_id) liga por telefone
+  -- 1) Liga leads pré-existentes (sem legacy_id) por telefone.
   UPDATE public.leads l SET legacy_id = s.legacy_id
   FROM public.stg_leads s
   WHERE l.legacy_id IS NULL AND s.legacy_id IS NOT NULL
     AND right(regexp_replace(l.telefone,'\D','','g'),11) = right(regexp_replace(s.telefone,'\D','','g'),11)
     AND length(regexp_replace(s.telefone,'\D','','g')) >= 10;
 
-  ALTER TABLE public.leads ENABLE TRIGGER trg_alerta_lead_distribuido;
-
-  -- 2) Agendamentos -> agendamentos
+  -- 2) Agendamentos (só com data válida; evita cast de string vazia).
   INSERT INTO public.agendamentos (lead_id, corretor_id, criado_por_id, tipo, status, titulo, data_inicio, data_fim, created_at)
   SELECT l.id, pr.id, pr.id, 'visita',
          (CASE s.status WHEN 'realizado' THEN 'realizado' WHEN 'cancelado' THEN 'cancelado'
                         WHEN 'nao_compareceu' THEN 'nao_compareceu' ELSE 'agendado' END)::public.agendamento_status,
          COALESCE(NULLIF(s.construtora,''),'Agendamento (histórico)'),
-         NULLIF(s.data_agendamento,'')::timestamptz, NULLIF(s.data_agendamento,'')::timestamptz + interval '1 hour',
+         NULLIF(s.data_agendamento,'')::timestamptz,
+         NULLIF(s.data_agendamento,'')::timestamptz + interval '1 hour',
          COALESCE(NULLIF(s.created_at,'')::timestamptz, NULLIF(s.data_agendamento,'')::timestamptz, now())
   FROM public.stg_agendamentos s
   JOIN public.profiles pr ON pr.legacy_user_id = s.corretor_legacy
   LEFT JOIN public.leads l ON l.legacy_id = s.lead_legacy
   WHERE NULLIF(s.data_agendamento,'') IS NOT NULL
     AND NOT EXISTS (
-    SELECT 1 FROM public.agendamentos a
-    WHERE a.corretor_id = pr.id AND a.data_inicio = NULLIF(s.data_agendamento,'')::timestamptz
-      AND a.titulo = COALESCE(NULLIF(s.construtora,''),'Agendamento (histórico)'));
+      SELECT 1 FROM public.agendamentos a
+      WHERE a.corretor_id = pr.id AND a.data_inicio = NULLIF(s.data_agendamento,'')::timestamptz
+        AND a.titulo = COALESCE(NULLIF(s.construtora,''),'Agendamento (histórico)'));
+  GET DIAGNOSTICS _n_ag = ROW_COUNT;
 
-  -- 3) Visitas -> lead_status_transitions (visita_realizada)
+  -- 3) Visitas -> lead_status_transitions (visita_realizada).
   INSERT INTO public.lead_status_transitions (lead_id, corretor_id, de_status, para_status, created_at)
   SELECT l.id, pr.id, NULL, 'visita_realizada'::public.lead_status,
          COALESCE(NULLIF(s.data_visita,'')::timestamptz, NULLIF(s.created_at,'')::timestamptz, now())
@@ -111,34 +118,38 @@ BEGIN
   JOIN public.leads l ON l.legacy_id = s.lead_legacy
   JOIN public.profiles pr ON pr.legacy_user_id = s.corretor_legacy
   WHERE NOT EXISTS (SELECT 1 FROM public.lead_status_transitions t
-    WHERE t.lead_id=l.id AND t.para_status='visita_realizada'
+    WHERE t.lead_id = l.id AND t.para_status = 'visita_realizada'
       AND t.created_at = COALESCE(NULLIF(s.data_visita,'')::timestamptz, NULLIF(s.created_at,'')::timestamptz, now()));
+  GET DIAGNOSTICS _n_vi = ROW_COUNT;
 
-  -- 4) Análises -> lead_status_transitions (analise_credito)
+  -- 4) Análises -> lead_status_transitions (analise_credito).
   INSERT INTO public.lead_status_transitions (lead_id, corretor_id, de_status, para_status, created_at)
-  SELECT l.id, pr.id, NULL, 'analise_credito'::public.lead_status, COALESCE(NULLIF(s.created_at,'')::timestamptz, now())
+  SELECT l.id, pr.id, NULL, 'analise_credito'::public.lead_status,
+         COALESCE(NULLIF(s.created_at,'')::timestamptz, now())
   FROM public.stg_analises s
   JOIN public.leads l ON l.legacy_id = s.lead_legacy
   JOIN public.profiles pr ON pr.legacy_user_id = s.corretor_legacy
   WHERE NOT EXISTS (SELECT 1 FROM public.lead_status_transitions t
-    WHERE t.lead_id=l.id AND t.para_status='analise_credito' AND t.created_at = COALESCE(NULLIF(s.created_at,'')::timestamptz, now()));
+    WHERE t.lead_id = l.id AND t.para_status = 'analise_credito'
+      AND t.created_at = COALESCE(NULLIF(s.created_at,'')::timestamptz, now()));
+  GET DIAGNOSTICS _n_an = ROW_COUNT;
 
-  -- 5) Vendas (leads contrato_fechado) -> lead_status_transitions
+  -- 5) Vendas (leads contrato_fechado) -> lead_status_transitions.
   INSERT INTO public.lead_status_transitions (lead_id, corretor_id, de_status, para_status, created_at)
   SELECT l.id, pr.id, NULL, 'contrato_fechado'::public.lead_status, COALESCE(NULLIF(s.updated_at,'')::timestamptz, now())
   FROM public.stg_leads s
   JOIN public.leads l ON l.legacy_id = s.legacy_id
   JOIN public.profiles pr ON pr.legacy_user_id = s.corretor_legacy
-  WHERE s.status='contrato_fechado'
-    AND NOT EXISTS (SELECT 1 FROM public.lead_status_transitions t WHERE t.lead_id=l.id AND t.para_status='contrato_fechado');
+  WHERE s.status = 'contrato_fechado'
+    AND NOT EXISTS (SELECT 1 FROM public.lead_status_transitions t WHERE t.lead_id = l.id AND t.para_status = 'contrato_fechado');
+  GET DIAGNOSTICS _n_ve = ROW_COUNT;
 
-  RAISE NOTICE 'leads c/ legacy_id: % | agendamentos: % | visitas: % | analises: % | vendas: %',
-    (SELECT count(*) FROM public.leads WHERE legacy_id IS NOT NULL),
-    (SELECT count(*) FROM public.agendamentos),
-    (SELECT count(*) FROM public.lead_status_transitions WHERE para_status='visita_realizada'),
-    (SELECT count(*) FROM public.lead_status_transitions WHERE para_status='analise_credito'),
-    (SELECT count(*) FROM public.lead_status_transitions WHERE para_status='contrato_fechado');
+  IF _has_trg THEN
+    EXECUTE 'ALTER TABLE public.leads ENABLE TRIGGER trg_alerta_lead_distribuido';
+  END IF;
+
+  RAISE NOTICE 'IMPORT historico: % leads novos | % agendamentos | % visitas | % analises | % vendas (stg_leads=%, leads totais=%)',
+    _n_leads, _n_ag, _n_vi, _n_an, _n_ve,
+    (SELECT count(*) FROM public.stg_leads),
+    (SELECT count(*) FROM public.leads);
 END $$;
-
--- Corretores do staging sem profile (esses leads ficam sem corretor):
--- SELECT DISTINCT corretor_legacy FROM stg_leads s WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.legacy_user_id=s.corretor_legacy);
