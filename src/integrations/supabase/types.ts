@@ -1612,7 +1612,7 @@ export type Database = {
         | "agendamento_proximo"
         | "follow_up"
         | "sistema"
-      app_role: "admin" | "gestor" | "corretor"
+      app_role: "admin" | "gestor" | "corretor" | "superintendente"
       distribuicao_tipo: "automatica" | "manual" | "inicial"
       interacao_direcao: "entrada" | "saida" | "interna"
       interacao_tipo:
@@ -1807,7 +1807,7 @@ export const Constants = {
         "follow_up",
         "sistema",
       ],
-      app_role: ["admin", "gestor", "corretor"],
+      app_role: ["admin", "gestor", "corretor", "superintendente"],
       distribuicao_tipo: ["automatica", "manual", "inicial"],
       interacao_direcao: ["entrada", "saida", "interna"],
       interacao_tipo: [
