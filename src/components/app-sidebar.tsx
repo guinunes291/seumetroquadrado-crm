@@ -44,7 +44,7 @@ const SECTIONS: Section[] = [
       { to: "/kanban", label: "Kanban", icon: Trello },
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
       { to: "/agendamentos", label: "Agendamentos", icon: CalendarClock },
-      { to: "/tarefas", label: "Tarefas do dia", icon: ListTodo, comingSoon: true },
+      { to: "/tarefas", label: "Tarefas do dia", icon: ListTodo },
     ],
   },
   {
