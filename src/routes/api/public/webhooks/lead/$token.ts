@@ -3,12 +3,29 @@ import { z } from "zod";
 
 const payloadSchema = z.object({
   nome: z.string().trim().min(1).max(255),
-  telefone: z.string().trim().min(5).max(30),
+  telefone: z
+    .string()
+    .trim()
+    .min(5)
+    .max(30)
+    .refine((v) => {
+      const d = v.replace(/\D/g, "");
+      return d.length >= 10 && d.length <= 13;
+    }, "telefone inválido"),
   email: z.string().trim().email().max(320).optional().nullable(),
   origem: z
     .enum([
-      "facebook", "google_sheets", "site", "indicacao", "captacao_corretor",
-      "whatsapp", "telefone", "plantao", "agendamento_self_service", "chatbot", "outro",
+      "facebook",
+      "google_sheets",
+      "site",
+      "indicacao",
+      "captacao_corretor",
+      "whatsapp",
+      "telefone",
+      "plantao",
+      "agendamento_self_service",
+      "chatbot",
+      "outro",
     ])
     .optional()
     .default("outro"),
@@ -66,6 +83,18 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         }
         const data = parsed.data;
 
+        // Deduplicação: mesmo telefone (só dígitos) dentro do mesmo projeto.
+        const { data: dupId } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
+          _projeto_id: projeto.id,
+          _telefone: data.telefone,
+        });
+        if (dupId) {
+          return Response.json(
+            { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId },
+            { headers: corsHeaders },
+          );
+        }
+
         const { data: lead, error } = await supabaseAdmin
           .from("leads")
           .insert({
@@ -90,12 +119,14 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         }
 
         let corretorId: string | null = null;
+        let motivo: string | null = null;
         if (data.distribuir) {
           const { data: c } = await supabaseAdmin.rpc("distribuir_lead", {
             _lead_id: lead.id,
             _tipo: "automatica",
           });
           corretorId = (c as string | null) ?? null;
+          if (!corretorId) motivo = "sem_corretor_disponivel";
         }
 
         return Response.json(
@@ -105,6 +136,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             lead_id: lead.id,
             corretor_id: corretorId,
             distributed: !!corretorId,
+            motivo,
           },
           { headers: corsHeaders },
         );

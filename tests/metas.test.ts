@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
-  isInPeriod, pct, progressoMeta, computeAgentMetrics, rankAgents, MESES_PT,
+  isInPeriod,
+  pct,
+  progressoMeta,
+  computeAgentMetrics,
+  rankAgents,
+  MESES_PT,
 } from "@/lib/metas";
 
 describe("metas helpers", () => {
@@ -71,12 +76,29 @@ describe("computeAgentMetrics", () => {
 
   it("rankAgents ordena por vendas desc e atribui posição", () => {
     const m = computeAgentMetrics(leads as any, ags as any, 2026, 6);
-    const nomes = new Map([["a", "Ana"], ["b", "Bruno"]]);
+    const nomes = new Map([
+      ["a", "Ana"],
+      ["b", "Bruno"],
+    ]);
     const r = rankAgents(m, nomes);
     expect(r[0].posicao).toBe(1);
     expect(r[1].posicao).toBe(2);
     // empate em vendas (1x1): desempate pelas visitas (a=2, b=1)
     expect(r[0].corretor_id).toBe("a");
     expect(r[0].nome).toBe("Ana");
+  });
+
+  it("conta vendas por transições para contrato_fechado quando fornecidas", () => {
+    const transicoes = [
+      { para_status: "contrato_fechado", corretor_id: "a", created_at: "2026-06-18T10:00:00Z" },
+      { para_status: "contrato_fechado", corretor_id: "a", created_at: "2026-06-25T10:00:00Z" },
+      { para_status: "visita_realizada", corretor_id: "a", created_at: "2026-06-19T10:00:00Z" },
+      { para_status: "contrato_fechado", corretor_id: "a", created_at: "2026-05-30T10:00:00Z" }, // fora
+      { para_status: "contrato_fechado", corretor_id: "b", created_at: "2026-06-02T10:00:00Z" },
+    ];
+    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6, transicoes as any);
+    // a: 2 transições em junho (ignora a de maio e a de visita)
+    expect(m.get("a")!.vendas).toBe(2);
+    expect(m.get("b")!.vendas).toBe(1);
   });
 });

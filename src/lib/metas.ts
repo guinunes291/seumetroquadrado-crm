@@ -22,8 +22,18 @@ export const LEAD_STATUS_ATENDIDO = [
 ] as const;
 
 export const MESES_PT = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 export type LeadSlim = {
@@ -38,11 +48,13 @@ export type AgendamentoSlim = {
   data_inicio?: string | null;
 };
 
-export function isInPeriod(
-  iso: string | null | undefined,
-  ano: number,
-  mes: number,
-): boolean {
+export type TransicaoSlim = {
+  para_status: string;
+  corretor_id?: string | null;
+  created_at?: string | null;
+};
+
+export function isInPeriod(iso: string | null | undefined, ano: number, mes: number): boolean {
   if (!iso) return false;
   const d = new Date(iso);
   return d.getFullYear() === ano && d.getMonth() + 1 === mes;
@@ -68,6 +80,7 @@ export function computeAgentMetrics(
   agendamentos: AgendamentoSlim[],
   ano: number,
   mes: number,
+  transicoes?: TransicaoSlim[],
 ): Map<string, AgentMetrics> {
   const out = new Map<string, AgentMetrics>();
   const get = (id: string): AgentMetrics => {
@@ -93,8 +106,21 @@ export function computeAgentMetrics(
     const m = get(l.corretor_id);
     m.leads_total++;
     if ((LEAD_STATUS_ATENDIDO as readonly string[]).includes(l.status)) m.leads_atendidos++;
-    if ((LEAD_STATUS_GANHO as readonly string[]).includes(l.status)) m.vendas++;
+    // Quando há histórico de transições, vendas são contadas por data real da
+    // transição (abaixo). Sem ele, usamos o status atual como fallback.
+    if (!transicoes && (LEAD_STATUS_GANHO as readonly string[]).includes(l.status)) m.vendas++;
     if ((LEAD_STATUS_PERDIDO as readonly string[]).includes(l.status)) m.perdidos++;
+  }
+
+  // Vendas = transições para "contrato_fechado" ocorridas no período (data real),
+  // atribuídas ao corretor responsável no momento da transição.
+  if (transicoes) {
+    for (const t of transicoes) {
+      if (!t.corretor_id) continue;
+      if (t.para_status !== "contrato_fechado") continue;
+      if (!isInPeriod(t.created_at, ano, mes)) continue;
+      get(t.corretor_id).vendas++;
+    }
   }
 
   for (const a of agendamentos) {
@@ -119,7 +145,10 @@ export function rankAgents(
   nomes?: Map<string, string>,
 ): Ranking[] {
   return Array.from(metrics.values())
-    .sort((a, b) => b.vendas - a.vendas || b.visitas - a.visitas || b.leads_atendidos - a.leads_atendidos)
+    .sort(
+      (a, b) =>
+        b.vendas - a.vendas || b.visitas - a.visitas || b.leads_atendidos - a.leads_atendidos,
+    )
     .map((m, idx) => ({ ...m, posicao: idx + 1, nome: nomes?.get(m.corretor_id) }));
 }
 

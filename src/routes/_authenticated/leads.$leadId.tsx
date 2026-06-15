@@ -11,13 +11,32 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Calendar, User, Building2, MessageCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  User,
+  Building2,
+  MessageCircle,
+} from "lucide-react";
 import {
   INTERACAO_ICON,
   INTERACAO_LABEL,
@@ -29,6 +48,7 @@ import {
   type InteracaoDirecao,
 } from "@/lib/interacoes";
 import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
+import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL } from "@/lib/leads";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
@@ -69,7 +89,15 @@ type Interacao = {
 };
 
 const TIPO_OPTIONS: InteracaoTipo[] = [
-  "ligacao", "whatsapp", "email", "sms", "visita", "reuniao", "nota", "proposta", "outro",
+  "ligacao",
+  "whatsapp",
+  "email",
+  "sms",
+  "visita",
+  "reuniao",
+  "nota",
+  "proposta",
+  "outro",
 ];
 
 function LeadDetailPage() {
@@ -206,6 +234,23 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const atualizarStatus = useMutation({
+    mutationFn: async (novo: string) => {
+      if (!lead || novo === lead.status) return;
+      const { error } = await supabase
+        .from("leads")
+        .update({ status: novo as never })
+        .eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Carregando lead…</div>;
   }
@@ -236,7 +281,10 @@ function LeadDetailPage() {
           <div className="flex gap-2">
             <Dialog open={waOpen} onOpenChange={setWaOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400">
+                <Button
+                  variant="outline"
+                  className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
+                >
                   <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
                 </Button>
               </DialogTrigger>
@@ -263,11 +311,17 @@ function LeadDetailPage() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={templatesWa.length === 0 ? "Nenhum template ativo" : "Escolha um modelo"} />
+                        <SelectValue
+                          placeholder={
+                            templatesWa.length === 0 ? "Nenhum template ativo" : "Escolha um modelo"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {templatesWa.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.nome}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -284,8 +338,13 @@ function LeadDetailPage() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="ghost" onClick={() => setWaOpen(false)}>Cancelar</Button>
-                  <Button onClick={() => enviarWhatsapp.mutate()} disabled={enviarWhatsapp.isPending}>
+                  <Button variant="ghost" onClick={() => setWaOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => enviarWhatsapp.mutate()}
+                    disabled={enviarWhatsapp.isPending}
+                  >
                     Abrir WhatsApp
                   </Button>
                 </DialogFooter>
@@ -299,80 +358,121 @@ function LeadDetailPage() {
                 </Button>
               </DialogTrigger>
               <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nova interação</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-3 py-2">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Tipo</Label>
-                    <Select value={tipo} onValueChange={(v) => setTipo(v as InteracaoTipo)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {TIPO_OPTIONS.map((t) => (
-                          <SelectItem key={t} value={t}>{INTERACAO_LABEL[t]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <DialogHeader>
+                  <DialogTitle>Nova interação</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3 py-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Tipo</Label>
+                      <Select value={tipo} onValueChange={(v) => setTipo(v as InteracaoTipo)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPO_OPTIONS.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {INTERACAO_LABEL[t]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Direção</Label>
+                      <Select
+                        value={direcao}
+                        onValueChange={(v) => setDirecao(v as InteracaoDirecao)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="entrada">Entrada (do lead)</SelectItem>
+                          <SelectItem value="saida">Saída (para o lead)</SelectItem>
+                          <SelectItem value="interna">Interna</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div>
-                    <Label>Direção</Label>
-                    <Select value={direcao} onValueChange={(v) => setDirecao(v as InteracaoDirecao)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entrada">Entrada (do lead)</SelectItem>
-                        <SelectItem value="saida">Saída (para o lead)</SelectItem>
-                        <SelectItem value="interna">Interna</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Título (opcional)</Label>
+                    <Input
+                      value={titulo}
+                      onChange={(e) => setTitulo(e.target.value)}
+                      maxLength={160}
+                    />
+                  </div>
+                  <div>
+                    <Label>
+                      O que aconteceu? <span className="text-destructive">*</span>
+                    </Label>
+                    <Textarea
+                      value={conteudo}
+                      onChange={(e) => setConteudo(e.target.value)}
+                      rows={4}
+                      maxLength={2000}
+                      placeholder="Resumo da conversa, próximos passos, objeções…"
+                    />
                   </div>
                 </div>
-                <div>
-                  <Label>Título (opcional)</Label>
-                  <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={160} />
-                </div>
-                <div>
-                  <Label>O que aconteceu? <span className="text-destructive">*</span></Label>
-                  <Textarea
-                    value={conteudo}
-                    onChange={(e) => setConteudo(e.target.value)}
-                    rows={4}
-                    maxLength={2000}
-                    placeholder="Resumo da conversa, próximos passos, objeções…"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-                <Button onClick={() => criarInteracao.mutate()} disabled={criarInteracao.isPending}>
-                  Registrar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={() => criarInteracao.mutate()}
+                    disabled={criarInteracao.isPending}
+                  >
+                    Registrar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         }
       />
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Status</CardTitle></CardHeader>
-          <CardContent>
-            <Badge variant="secondary">{lead.status}</Badge>
-            {lead.temperatura && (
-              <Badge variant="outline" className="ml-2">{lead.temperatura}</Badge>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Status</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-2">
+            <Select
+              value={lead.status}
+              onValueChange={(v) => atualizarStatus.mutate(v)}
+              disabled={atualizarStatus.isPending}
+            >
+              <SelectTrigger className="h-8 w-[210px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_STATUS_ORDER.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {LEAD_STATUS_LABEL[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Origem</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {lead.origem}
+            {lead.campanha && (
+              <div className="text-xs text-muted-foreground mt-1">{lead.campanha}</div>
             )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Origem</CardTitle></CardHeader>
-          <CardContent className="text-sm">
-            {lead.origem}
-            {lead.campanha && <div className="text-xs text-muted-foreground mt-1">{lead.campanha}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Última interação</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Última interação</CardTitle>
+          </CardHeader>
           <CardContent className="text-sm">
             {lead.ultima_interacao ? formatRelativeTime(lead.ultima_interacao) : "—"}
           </CardContent>
@@ -400,7 +500,9 @@ function LeadDetailPage() {
                 const Icon = INTERACAO_ICON[i.tipo];
                 return (
                   <li key={i.id} className="ml-6">
-                    <span className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-background ${INTERACAO_TONE[i.tipo]}`}>
+                    <span
+                      className={`absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-background ${INTERACAO_TONE[i.tipo]}`}
+                    >
                       <Icon className="h-3 w-3" />
                     </span>
                     <Card>
@@ -414,8 +516,12 @@ function LeadDetailPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-1 mb-2">
-                          <Badge variant="outline" className="text-[10px]">{INTERACAO_LABEL[i.tipo]}</Badge>
-                          <Badge variant="outline" className="text-[10px]">{DIRECAO_LABEL[i.direcao]}</Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            {INTERACAO_LABEL[i.tipo]}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            {DIRECAO_LABEL[i.direcao]}
+                          </Badge>
                         </div>
                         <p className="text-sm whitespace-pre-wrap">{i.conteudo}</p>
                       </CardContent>
@@ -434,7 +540,15 @@ function LeadDetailPage() {
               <DataRow icon={Phone} label="Telefone" value={lead.telefone} />
               <DataRow icon={Mail} label="E-mail" value={lead.email} />
               <DataRow icon={Building2} label="Empreendimento" value={lead.projeto_nome} />
-              <DataRow icon={Calendar} label="Próximo follow-up" value={lead.proximo_followup ? new Date(lead.proximo_followup).toLocaleString("pt-BR") : null} />
+              <DataRow
+                icon={Calendar}
+                label="Próximo follow-up"
+                value={
+                  lead.proximo_followup
+                    ? new Date(lead.proximo_followup).toLocaleString("pt-BR")
+                    : null
+                }
+              />
               <DataRow icon={MapPin} label="Renda informada" value={lead.renda_informada} />
               <DataRow icon={User} label="CPF" value={lead.cpf} />
               <DataRow icon={User} label="Entrada disponível" value={lead.entrada_disponivel} />
@@ -451,7 +565,11 @@ function LeadDetailPage() {
 
         <TabsContent value="tarefas" className="mt-4">
           {tarefas.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Sem tarefas vinculadas.</CardContent></Card>
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                Sem tarefas vinculadas.
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="py-4 divide-y">
@@ -460,7 +578,9 @@ function LeadDetailPage() {
                     <div>
                       <div className="text-sm font-medium">{t.titulo}</div>
                       <div className="text-xs text-muted-foreground">
-                        {t.data_vencimento ? new Date(t.data_vencimento).toLocaleString("pt-BR") : "Sem prazo"}
+                        {t.data_vencimento
+                          ? new Date(t.data_vencimento).toLocaleString("pt-BR")
+                          : "Sem prazo"}
                       </div>
                     </div>
                     <div className="flex gap-1">
@@ -476,7 +596,11 @@ function LeadDetailPage() {
 
         <TabsContent value="agendamentos" className="mt-4">
           {agendamentos.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Sem agendamentos vinculados.</CardContent></Card>
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                Sem agendamentos vinculados.
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="py-4 divide-y">
