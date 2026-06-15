@@ -50,13 +50,28 @@ function DistribuicaoPage() {
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("id, nome, email").eq("ativo", true).order("nome");
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, nome, email, presente, presente_em")
+        .eq("ativo", true)
+        .order("nome");
       return data ?? [];
     },
+    refetchInterval: 30000,
   });
   const corretoresMap = useMemo(() => {
-    const m = new Map<string, { nome: string; email: string }>();
-    (corretores ?? []).forEach((c) => m.set(c.id, { nome: c.nome, email: c.email }));
+    const m = new Map<string, { nome: string; email: string; presente: boolean; presente_em: string | null }>();
+    (corretores ?? []).forEach((c) =>
+      m.set(c.id, {
+        nome: c.nome,
+        email: c.email,
+        presente:
+          !!c.presente &&
+          !!c.presente_em &&
+          new Date(c.presente_em).toDateString() === new Date().toDateString(),
+        presente_em: c.presente_em,
+      }),
+    );
     return m;
   }, [corretores]);
 
