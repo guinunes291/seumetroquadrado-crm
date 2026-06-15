@@ -327,6 +327,62 @@ export type Database = {
         }
         Relationships: []
       }
+      metas: {
+        Row: {
+          ano: number
+          corretor_id: string | null
+          created_at: string
+          criado_por: string | null
+          equipe_id: string | null
+          id: string
+          mes: number
+          meta_gmv: number
+          meta_leads_atendidos: number
+          meta_vendas: number
+          meta_visitas: number
+          observacoes: string | null
+          updated_at: string
+        }
+        Insert: {
+          ano: number
+          corretor_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          equipe_id?: string | null
+          id?: string
+          mes: number
+          meta_gmv?: number
+          meta_leads_atendidos?: number
+          meta_vendas?: number
+          meta_visitas?: number
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ano?: number
+          corretor_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          equipe_id?: string | null
+          id?: string
+          mes?: number
+          meta_gmv?: number
+          meta_leads_atendidos?: number
+          meta_vendas?: number
+          meta_visitas?: number
+          observacoes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metas_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           ativo: boolean
