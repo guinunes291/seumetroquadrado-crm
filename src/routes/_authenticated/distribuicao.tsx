@@ -178,6 +178,7 @@ function DistribuicaoPage() {
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Corretor</TableHead>
+                  <TableHead>Presença</TableHead>
                   <TableHead>Ativo</TableHead>
                   <TableHead>Recebidos hoje</TableHead>
                   <TableHead>Máx/dia</TableHead>
@@ -188,7 +189,7 @@ function DistribuicaoPage() {
               <TableBody>
                 {(fila ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       Nenhum corretor na fila. Adicione um abaixo.
                     </TableCell>
                   </TableRow>
@@ -203,6 +204,18 @@ function DistribuicaoPage() {
                       <TableCell>
                         <div className="font-medium text-sm">{c?.nome ?? "—"}</div>
                         <div className="text-xs text-muted-foreground">{c?.email ?? ""}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            c?.presente
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {c?.presente ? "Presente" : "Ausente"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Switch
