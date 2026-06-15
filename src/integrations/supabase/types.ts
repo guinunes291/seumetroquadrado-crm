@@ -1360,6 +1360,7 @@ export type Database = {
         | "agendamento_self_service"
         | "chatbot"
         | "outro"
+        | "importacao"
       lead_status:
         | "novo"
         | "aguardando_atendimento"
@@ -1555,6 +1556,7 @@ export const Constants = {
         "agendamento_self_service",
         "chatbot",
         "outro",
+        "importacao",
       ],
       lead_status: [
         "novo",
