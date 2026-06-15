@@ -176,8 +176,9 @@ function ProjetosPage() {
         <div className="grid gap-3">
           {(projetosQ.data ?? []).map((p: any) => {
             const token = tokens[p.id];
-            const url = token ? webhookUrl(origin, token) : "";
             const isRevealed = !!revealed[p.id] && !!token;
+            const url = token ? webhookUrl(origin, token) : "";
+            void url;
             return (
               <Card key={p.id} className={!p.ativo ? "opacity-60" : ""}>
                 <CardContent className="p-4 space-y-3">
