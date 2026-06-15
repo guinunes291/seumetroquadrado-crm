@@ -41,7 +41,6 @@ const SECTIONS: Section[] = [
   {
     title: "Operação",
     items: [
-      { to: "/", label: "Painel", icon: LayoutDashboard },
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { to: "/leads", label: "Leads", icon: Users },
       { to: "/kanban", label: "Kanban", icon: Trello },
