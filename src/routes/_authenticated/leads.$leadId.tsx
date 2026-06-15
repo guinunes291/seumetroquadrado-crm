@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Mail, Phone, MapPin, Calendar, User, Building2 } from "lucide-react";
+import { ArrowLeft, Plus, Mail, Phone, MapPin, Calendar, User, Building2, MessageCircle } from "lucide-react";
 import {
   INTERACAO_ICON,
   INTERACAO_LABEL,
@@ -28,6 +28,7 @@ import {
   type InteracaoTipo,
   type InteracaoDirecao,
 } from "@/lib/interacoes";
+import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
@@ -127,11 +128,28 @@ function LeadDetailPage() {
     },
   });
 
+  const { data: templatesWa = [] } = useQuery({
+    queryKey: ["templates-whatsapp"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("templates_mensagem")
+        .select("id, nome, conteudo")
+        .eq("canal", "whatsapp")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tipo, setTipo] = useState<InteracaoTipo>("ligacao");
   const [direcao, setDirecao] = useState<InteracaoDirecao>("saida");
   const [titulo, setTitulo] = useState("");
   const [conteudo, setConteudo] = useState("");
+  const [waOpen, setWaOpen] = useState(false);
+  const [waTemplateId, setWaTemplateId] = useState<string>("");
+  const [waMensagem, setWaMensagem] = useState("");
 
   const criarInteracao = useMutation({
     mutationFn: async () => {
@@ -154,6 +172,34 @@ function LeadDetailPage() {
       setDialogOpen(false);
       setTitulo("");
       setConteudo("");
+      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const enviarWhatsapp = useMutation({
+    mutationFn: async () => {
+      const msg = waMensagem.trim();
+      if (msg.length === 0) throw new Error("Escreva a mensagem.");
+      const url = buildWhatsAppUrl(lead?.telefone ?? "", msg);
+      window.open(url, "_blank", "noopener,noreferrer");
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("interacoes").insert({
+        lead_id: leadId,
+        autor_id: u.user?.id ?? null,
+        tipo: "whatsapp",
+        direcao: "saida",
+        titulo: "Mensagem enviada via WhatsApp",
+        conteudo: msg,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("WhatsApp aberto e interação registrada");
+      setWaOpen(false);
+      setWaMensagem("");
+      setWaTemplateId("");
       qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
       qc.invalidateQueries({ queryKey: ["lead", leadId] });
     },
@@ -187,13 +233,72 @@ function LeadDetailPage() {
         title={lead.nome}
         description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
         actions={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" /> Registrar interação
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
+          <div className="flex gap-2">
+            <Dialog open={waOpen} onOpenChange={setWaOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400">
+                  <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Enviar WhatsApp</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-3 py-2">
+                  <div>
+                    <Label>Template (opcional)</Label>
+                    <Select
+                      value={waTemplateId}
+                      onValueChange={(v) => {
+                        setWaTemplateId(v);
+                        const t = templatesWa.find((x) => x.id === v);
+                        if (t) {
+                          setWaMensagem(
+                            renderTemplate(t.conteudo, {
+                              nome: lead.nome,
+                              projeto: lead.projeto_nome ?? "",
+                            }),
+                          );
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={templatesWa.length === 0 ? "Nenhum template ativo" : "Escolha um modelo"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templatesWa.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Mensagem</Label>
+                    <Textarea
+                      value={waMensagem}
+                      onChange={(e) => setWaMensagem(e.target.value)}
+                      rows={6}
+                      maxLength={2000}
+                      placeholder={`Olá ${lead.nome}, tudo bem?`}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setWaOpen(false)}>Cancelar</Button>
+                  <Button onClick={() => enviarWhatsapp.mutate()} disabled={enviarWhatsapp.isPending}>
+                    Abrir WhatsApp
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" /> Registrar interação
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
               <DialogHeader>
                 <DialogTitle>Nova interação</DialogTitle>
               </DialogHeader>
@@ -245,6 +350,7 @@ function LeadDetailPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 
