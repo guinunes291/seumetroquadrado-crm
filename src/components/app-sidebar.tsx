@@ -8,6 +8,7 @@ import {
   ListTodo,
   Target,
   Trophy,
+  Swords,
   Building2,
   Megaphone,
   Wallet,
@@ -54,6 +55,7 @@ const SECTIONS: Section[] = [
     items: [
       { to: "/metas", label: "Metas", icon: Target },
       { to: "/ranking", label: "Ranking", icon: Trophy },
+      { to: "/copa", label: "Copa SMQ", icon: Swords },
       { to: "/conquistas", label: "Conquistas", icon: Trophy, comingSoon: true },
     ],
   },
@@ -76,7 +78,13 @@ const SECTIONS: Section[] = [
       { to: "/duplicatas", label: "Duplicatas", icon: Merge, roles: ["admin", "gestor"] },
       { to: "/lixeira", label: "Lixeira", icon: Trash2, roles: ["admin"] },
       { to: "/integracoes", label: "Integrações", icon: Plug, comingSoon: true, roles: ["admin"] },
-      { to: "/configuracoes", label: "Configurações", icon: Settings, comingSoon: true, roles: ["admin"] },
+      {
+        to: "/configuracoes",
+        label: "Configurações",
+        icon: Settings,
+        comingSoon: true,
+        roles: ["admin"],
+      },
     ],
   },
 ];
@@ -88,7 +96,10 @@ export function AppSidebar() {
   const canSee = (it: Item) => {
     if (!it.roles) return true;
     if (isAdmin) return true;
-    return it.roles.some((r) => (r === "admin" && isAdmin) || (r === "gestor" && isGestor) || roles.includes(r as never));
+    return it.roles.some(
+      (r) =>
+        (r === "admin" && isAdmin) || (r === "gestor" && isGestor) || roles.includes(r as never),
+    );
   };
 
   const handleSignOut = async () => {
@@ -99,7 +110,9 @@ export function AppSidebar() {
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
-        <div className="h-8 w-8 rounded-md bg-gold text-navy flex items-center justify-center font-bold">m²</div>
+        <div className="h-8 w-8 rounded-md bg-gold text-navy flex items-center justify-center font-bold">
+          m²
+        </div>
         <div className="leading-tight">
           <div className="font-semibold text-sm">Seu Metro Quadrado</div>
           <div className="text-[11px] text-sidebar-foreground/60">CRM Imobiliário</div>
@@ -118,7 +131,8 @@ export function AppSidebar() {
               <ul className="space-y-0.5">
                 {visible.map((it) => {
                   const Icon = it.icon;
-                  const active = pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to));
+                  const active =
+                    pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to));
                   return (
                     <li key={it.to}>
                       <Link

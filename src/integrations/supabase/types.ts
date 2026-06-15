@@ -14,6 +14,246 @@ export type Database = {
   }
   public: {
     Tables: {
+      copa_config_pontos: {
+        Row: { chave: string; id: string; label: string; pontos: number }
+        Insert: { chave: string; id?: string; label: string; pontos?: number }
+        Update: { chave?: string; id?: string; label?: string; pontos?: number }
+        Relationships: []
+      }
+      copa_config_premios: {
+        Row: {
+          descricao: string | null
+          icone: string | null
+          id: string
+          ordem: number
+          posicao: string
+          valor: string | null
+        }
+        Insert: {
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          ordem?: number
+          posicao: string
+          valor?: string | null
+        }
+        Update: {
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          ordem?: number
+          posicao?: string
+          valor?: string | null
+        }
+        Relationships: []
+      }
+      copa_confrontos: {
+        Row: {
+          corretor_a_id: string | null
+          corretor_b_id: string | null
+          created_at: string
+          definido_manual: boolean
+          fase_id: string
+          id: string
+          posicao: number
+          semana_ref: number | null
+          vencedor_id: string | null
+        }
+        Insert: {
+          corretor_a_id?: string | null
+          corretor_b_id?: string | null
+          created_at?: string
+          definido_manual?: boolean
+          fase_id: string
+          id?: string
+          posicao?: number
+          semana_ref?: number | null
+          vencedor_id?: string | null
+        }
+        Update: {
+          corretor_a_id?: string | null
+          corretor_b_id?: string | null
+          created_at?: string
+          definido_manual?: boolean
+          fase_id?: string
+          id?: string
+          posicao?: number
+          semana_ref?: number | null
+          vencedor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copa_confrontos_fase_id_fkey"
+            columns: ["fase_id"]
+            isOneToOne: false
+            referencedRelation: "copa_fases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copa_edicao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          data_fim: string
+          data_inicio: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          data_fim: string
+          data_inicio: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          data_fim?: string
+          data_inicio?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      copa_fases: {
+        Row: {
+          edicao_id: string
+          id: string
+          nome: string
+          ordem: number
+          semana_fim: number
+          semana_inicio: number
+        }
+        Insert: {
+          edicao_id: string
+          id?: string
+          nome: string
+          ordem: number
+          semana_fim: number
+          semana_inicio: number
+        }
+        Update: {
+          edicao_id?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          semana_fim?: number
+          semana_inicio?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copa_fases_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "copa_edicao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copa_participantes: {
+        Row: {
+          ativo: boolean
+          corretor_id: string
+          created_at: string
+          edicao_id: string
+          id: string
+          selecao_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          corretor_id: string
+          created_at?: string
+          edicao_id: string
+          id?: string
+          selecao_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          corretor_id?: string
+          created_at?: string
+          edicao_id?: string
+          id?: string
+          selecao_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copa_participantes_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "copa_edicao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copa_participantes_selecao_id_fkey"
+            columns: ["selecao_id"]
+            isOneToOne: false
+            referencedRelation: "copa_selecoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copa_pontuacoes: {
+        Row: {
+          agendamentos: number
+          analise: number
+          corretor_id: string
+          created_at: string
+          edicao_id: string
+          id: string
+          observacao: string | null
+          semana: number
+          updated_at: string
+          vendas: number
+          visitas: number
+        }
+        Insert: {
+          agendamentos?: number
+          analise?: number
+          corretor_id: string
+          created_at?: string
+          edicao_id: string
+          id?: string
+          observacao?: string | null
+          semana: number
+          updated_at?: string
+          vendas?: number
+          visitas?: number
+        }
+        Update: {
+          agendamentos?: number
+          analise?: number
+          corretor_id?: string
+          created_at?: string
+          edicao_id?: string
+          id?: string
+          observacao?: string | null
+          semana?: number
+          updated_at?: string
+          vendas?: number
+          visitas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copa_pontuacoes_edicao_id_fkey"
+            columns: ["edicao_id"]
+            isOneToOne: false
+            referencedRelation: "copa_edicao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      copa_selecoes: {
+        Row: { ativo: boolean; bandeira: string; id: string; nome: string }
+        Insert: { ativo?: boolean; bandeira: string; id?: string; nome: string }
+        Update: { ativo?: boolean; bandeira?: string; id?: string; nome?: string }
+        Relationships: []
+      }
       agendamentos: {
         Row: {
           corretor_id: string
@@ -910,6 +1150,39 @@ export type Database = {
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
+      }
+      copa_apurar_fase: {
+        Args: { _fase_id: string }
+        Returns: undefined
+      }
+      copa_definir_vencedor: {
+        Args: { _confronto_id: string; _corretor_id: string }
+        Returns: undefined
+      }
+      copa_pontos_corretor: {
+        Args: { _corretor_id: string; _df: string; _di: string }
+        Returns: number
+      }
+      copa_ranking: {
+        Args: { _edicao_id: string }
+        Returns: {
+          agendamentos: number
+          analise: number
+          bandeira: string
+          corretor_id: string
+          nome: string
+          total: number
+          vendas: number
+          visitas: number
+        }[]
+      }
+      copa_realizar_sorteio: {
+        Args: { _edicao_id: string }
+        Returns: undefined
+      }
+      copa_set_participantes: {
+        Args: { _edicao_id: string; _ids: string[] }
+        Returns: undefined
       }
       detectar_duplicatas_leads: {
         Args: never

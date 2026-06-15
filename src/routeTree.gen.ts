@@ -27,6 +27,7 @@ import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
+import { Route as AuthenticatedCopaRouteImport } from './routes/_authenticated/copa'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
@@ -122,6 +123,11 @@ const AuthenticatedCorretoresRoute = AuthenticatedCorretoresRouteImport.update({
   path: '/corretores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCopaRoute = AuthenticatedCopaRouteImport.update({
+  id: '/copa',
+  path: '/copa',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAgendamentosRoute =
   AuthenticatedAgendamentosRouteImport.update({
     id: '/agendamentos',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
+  '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
+  '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
+  '/_authenticated/copa': typeof AuthenticatedCopaRoute
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/agendamentos'
+    | '/copa'
     | '/corretores'
     | '/dashboard'
     | '/distribuicao'
@@ -247,6 +257,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/agendamentos'
+    | '/copa'
     | '/corretores'
     | '/dashboard'
     | '/distribuicao'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/agendamentos'
+    | '/_authenticated/copa'
     | '/_authenticated/corretores'
     | '/_authenticated/dashboard'
     | '/_authenticated/distribuicao'
@@ -426,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCorretoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/copa': {
+      id: '/_authenticated/copa'
+      path: '/copa'
+      fullPath: '/copa'
+      preLoaderRoute: typeof AuthenticatedCopaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agendamentos': {
       id: '/_authenticated/agendamentos'
       path: '/agendamentos'
@@ -483,6 +502,7 @@ const AuthenticatedProjetosRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendamentosRoute: typeof AuthenticatedAgendamentosRoute
+  AuthenticatedCopaRoute: typeof AuthenticatedCopaRoute
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
@@ -502,6 +522,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendamentosRoute: AuthenticatedAgendamentosRoute,
+  AuthenticatedCopaRoute: AuthenticatedCopaRoute,
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
@@ -531,3 +552,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
