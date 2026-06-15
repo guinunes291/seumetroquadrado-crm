@@ -25,7 +25,6 @@ import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authent
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
-import { Route as ApiPublicWebhooksLeadRouteImport } from './routes/api/public/webhooks/lead'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -109,16 +108,11 @@ const AuthenticatedAgendamentosRoute =
     path: '/agendamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const ApiPublicWebhooksLeadRoute = ApiPublicWebhooksLeadRouteImport.update({
-  id: '/api/public/webhooks/lead',
-  path: '/api/public/webhooks/lead',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicWebhooksLeadTokenRoute =
   ApiPublicWebhooksLeadTokenRouteImport.update({
-    id: '/$token',
-    path: '/$token',
-    getParentRoute: () => ApiPublicWebhooksLeadRoute,
+    id: '/api/public/webhooks/lead/$token',
+    path: '/api/public/webhooks/lead/$token',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -137,7 +131,6 @@ export interface FileRoutesByFullPath {
   '/projetos': typeof AuthenticatedProjetosRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
-  '/api/public/webhooks/lead': typeof ApiPublicWebhooksLeadRouteWithChildren
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesByTo {
@@ -156,7 +149,6 @@ export interface FileRoutesByTo {
   '/ranking': typeof AuthenticatedRankingRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/': typeof AuthenticatedIndexRoute
-  '/api/public/webhooks/lead': typeof ApiPublicWebhooksLeadRouteWithChildren
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesById {
@@ -177,7 +169,6 @@ export interface FileRoutesById {
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
-  '/api/public/webhooks/lead': typeof ApiPublicWebhooksLeadRouteWithChildren
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRouteTypes {
@@ -198,7 +189,6 @@ export interface FileRouteTypes {
     | '/projetos'
     | '/ranking'
     | '/tarefas'
-    | '/api/public/webhooks/lead'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -217,7 +207,6 @@ export interface FileRouteTypes {
     | '/ranking'
     | '/tarefas'
     | '/'
-    | '/api/public/webhooks/lead'
     | '/api/public/webhooks/lead/$token'
   id:
     | '__root__'
@@ -237,7 +226,6 @@ export interface FileRouteTypes {
     | '/_authenticated/ranking'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
-    | '/api/public/webhooks/lead'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
 }
@@ -245,7 +233,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  ApiPublicWebhooksLeadRoute: typeof ApiPublicWebhooksLeadRouteWithChildren
+  ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -362,19 +350,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgendamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/webhooks/lead': {
-      id: '/api/public/webhooks/lead'
-      path: '/api/public/webhooks/lead'
-      fullPath: '/api/public/webhooks/lead'
-      preLoaderRoute: typeof ApiPublicWebhooksLeadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/webhooks/lead/$token': {
       id: '/api/public/webhooks/lead/$token'
-      path: '/$token'
+      path: '/api/public/webhooks/lead/$token'
       fullPath: '/api/public/webhooks/lead/$token'
       preLoaderRoute: typeof ApiPublicWebhooksLeadTokenRouteImport
-      parentRoute: typeof ApiPublicWebhooksLeadRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -414,24 +395,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface ApiPublicWebhooksLeadRouteChildren {
-  ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
-}
-
-const ApiPublicWebhooksLeadRouteChildren: ApiPublicWebhooksLeadRouteChildren = {
-  ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
-}
-
-const ApiPublicWebhooksLeadRouteWithChildren =
-  ApiPublicWebhooksLeadRoute._addFileChildren(
-    ApiPublicWebhooksLeadRouteChildren,
-  )
-
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  ApiPublicWebhooksLeadRoute: ApiPublicWebhooksLeadRouteWithChildren,
+  ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
