@@ -187,7 +187,7 @@ function AuthPage() {
                     {loading ? "Criando..." : "Criar conta"}
                   </Button>
                   <p className="text-[11px] text-muted-foreground text-center">
-                    O primeiro usuário criado vira <strong>admin</strong>. Os demais nascem como corretor.
+                    Sua conta passa por aprovação antes do acesso completo. Em caso de dúvida, fale com o administrador.
                   </p>
                 </form>
               </TabsContent>
