@@ -689,6 +689,7 @@ export type Database = {
           email: string | null
           entrada_disponivel: string | null
           id: string
+          legacy_id: number | null
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
@@ -725,6 +726,7 @@ export type Database = {
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
+          legacy_id?: number | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome: string
@@ -761,6 +763,7 @@ export type Database = {
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
+          legacy_id?: number | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome?: string
