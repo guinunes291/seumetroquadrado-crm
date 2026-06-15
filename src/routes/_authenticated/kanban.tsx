@@ -66,6 +66,7 @@ function KanbanPage() {
         .from("leads")
         .select("id, nome, email, telefone, status, corretor_id, projeto_nome, temperatura")
         .eq("na_lixeira", false)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(1000);
       if (error) throw error;

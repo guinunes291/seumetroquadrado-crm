@@ -125,6 +125,7 @@ function AgendamentosPage() {
       const { data, error } = await supabase
         .from("leads")
         .select("id, nome, telefone, corretor_id")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -143,6 +144,7 @@ function AgendamentosPage() {
       let q = supabase
         .from("agendamentos")
         .select("*")
+        .is("deleted_at", null)
         .gte("data_inicio", rangeStart.toISOString())
         .lte("data_inicio", rangeEnd.toISOString())
         .order("data_inicio");
@@ -211,12 +213,15 @@ function AgendamentosPage() {
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("agendamentos").delete().eq("id", id);
+      const { error } = await supabase
+        .from("agendamentos")
+        .update({ deleted_at: new Date().toISOString() } as never)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
-      toast.success("Agendamento removido");
+      toast.success("Agendamento movido para a lixeira");
       setEditing(null);
     },
     onError: (e: Error) => toast.error(e.message),

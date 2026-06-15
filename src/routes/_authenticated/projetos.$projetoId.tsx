@@ -63,6 +63,7 @@ function ProjetoDetalhePage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("unidades").select("*").eq("projeto_id", projetoId)
+        .is("deleted_at", null)
         .order("bloco", { ascending: true })
         .order("identificador", { ascending: true });
       if (error) throw error;
@@ -129,11 +130,14 @@ function ProjetoDetalhePage() {
 
   const deleteUnidade = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("unidades").delete().eq("id", id);
+      const { error } = await supabase
+        .from("unidades")
+        .update({ deleted_at: new Date().toISOString() } as never)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Unidade removida");
+      toast.success("Unidade movida para a lixeira");
       qc.invalidateQueries({ queryKey: ["unidades", projetoId] });
     },
     onError: (e: any) => toast.error(e.message),
