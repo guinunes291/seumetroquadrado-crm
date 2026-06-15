@@ -82,6 +82,42 @@ export type Database = {
           },
         ]
       }
+      alertas: {
+        Row: {
+          created_at: string
+          id: string
+          lida: boolean
+          link: string | null
+          mensagem: string | null
+          ref_id: string | null
+          tipo: Database["public"]["Enums"]["alerta_tipo"]
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          link?: string | null
+          mensagem?: string | null
+          ref_id?: string | null
+          tipo: Database["public"]["Enums"]["alerta_tipo"]
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          link?: string | null
+          mensagem?: string | null
+          ref_id?: string | null
+          tipo?: Database["public"]["Enums"]["alerta_tipo"]
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       distribution_log: {
         Row: {
           corretor_id: string
@@ -344,6 +380,65 @@ export type Database = {
           },
         ]
       }
+      tarefas: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          criado_por: string | null
+          data_conclusao: string | null
+          data_vencimento: string | null
+          descricao: string | null
+          id: string
+          lead_id: string | null
+          prioridade: Database["public"]["Enums"]["tarefa_prioridade"]
+          resultado: string | null
+          status: Database["public"]["Enums"]["tarefa_status"]
+          tipo: Database["public"]["Enums"]["tarefa_tipo"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          criado_por?: string | null
+          data_conclusao?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          prioridade?: Database["public"]["Enums"]["tarefa_prioridade"]
+          resultado?: string | null
+          status?: Database["public"]["Enums"]["tarefa_status"]
+          tipo?: Database["public"]["Enums"]["tarefa_tipo"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          criado_por?: string | null
+          data_conclusao?: string | null
+          data_vencimento?: string | null
+          descricao?: string | null
+          id?: string
+          lead_id?: string | null
+          prioridade?: Database["public"]["Enums"]["tarefa_prioridade"]
+          resultado?: string | null
+          status?: Database["public"]["Enums"]["tarefa_status"]
+          tipo?: Database["public"]["Enums"]["tarefa_tipo"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -396,6 +491,12 @@ export type Database = {
         | "nao_compareceu"
         | "remarcado"
       agendamento_tipo: "visita" | "reuniao" | "ligacao" | "follow_up" | "outro"
+      alerta_tipo:
+        | "tarefa_atrasada"
+        | "lead_novo"
+        | "agendamento_proximo"
+        | "follow_up"
+        | "sistema"
       app_role: "admin" | "gestor" | "corretor"
       distribuicao_tipo: "automatica" | "manual" | "inicial"
       lead_origem:
@@ -423,6 +524,16 @@ export type Database = {
         | "pos_venda"
         | "perdido"
       lead_temperatura: "quente" | "morno" | "frio"
+      tarefa_prioridade: "baixa" | "media" | "alta" | "urgente"
+      tarefa_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
+      tarefa_tipo:
+        | "ligacao"
+        | "whatsapp"
+        | "email"
+        | "visita"
+        | "follow_up"
+        | "documentacao"
+        | "outro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -559,6 +670,13 @@ export const Constants = {
         "remarcado",
       ],
       agendamento_tipo: ["visita", "reuniao", "ligacao", "follow_up", "outro"],
+      alerta_tipo: [
+        "tarefa_atrasada",
+        "lead_novo",
+        "agendamento_proximo",
+        "follow_up",
+        "sistema",
+      ],
       app_role: ["admin", "gestor", "corretor"],
       distribuicao_tipo: ["automatica", "manual", "inicial"],
       lead_origem: [
@@ -588,6 +706,17 @@ export const Constants = {
         "perdido",
       ],
       lead_temperatura: ["quente", "morno", "frio"],
+      tarefa_prioridade: ["baixa", "media", "alta", "urgente"],
+      tarefa_status: ["pendente", "em_andamento", "concluida", "cancelada"],
+      tarefa_tipo: [
+        "ligacao",
+        "whatsapp",
+        "email",
+        "visita",
+        "follow_up",
+        "documentacao",
+        "outro",
+      ],
     },
   },
 } as const
