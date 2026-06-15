@@ -43,7 +43,7 @@ const SECTIONS: Section[] = [
       { to: "/leads", label: "Leads", icon: Users },
       { to: "/kanban", label: "Kanban", icon: Trello },
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
-      { to: "/agendamentos", label: "Agendamentos", icon: CalendarClock, comingSoon: true },
+      { to: "/agendamentos", label: "Agendamentos", icon: CalendarClock },
       { to: "/tarefas", label: "Tarefas do dia", icon: ListTodo, comingSoon: true },
     ],
   },
