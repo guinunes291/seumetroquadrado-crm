@@ -834,44 +834,107 @@ export type Database = {
       }
       profiles: {
         Row: {
+          acessa_links_uteis: boolean
           ativo: boolean
           avatar_url: string | null
+          bairro: string | null
           bio: string | null
           cargo: string | null
+          cep: string | null
+          cidade: string | null
+          codigo_indicacao: string | null
+          complemento: string | null
+          cpf: string | null
           created_at: string
+          creci: string | null
           data_admissao: string | null
+          data_credenciamento: string | null
+          data_descredenciamento: string | null
+          data_nascimento: string | null
           email: string
           equipe_id: string | null
+          estado: string | null
+          foto_url: string | null
+          google_calendar_enabled: boolean
           id: string
+          legacy_user_id: number | null
+          limite_diario_leads: number
+          limite_diario_webhook: number
+          logradouro: string | null
           nome: string
+          numero: string | null
+          perfil_completo: boolean
+          situacao: string | null
           telefone: string | null
           updated_at: string
         }
         Insert: {
+          acessa_links_uteis?: boolean
           ativo?: boolean
           avatar_url?: string | null
+          bairro?: string | null
           bio?: string | null
           cargo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo_indicacao?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
+          creci?: string | null
           data_admissao?: string | null
+          data_credenciamento?: string | null
+          data_descredenciamento?: string | null
+          data_nascimento?: string | null
           email: string
           equipe_id?: string | null
+          estado?: string | null
+          foto_url?: string | null
+          google_calendar_enabled?: boolean
           id: string
+          legacy_user_id?: number | null
+          limite_diario_leads?: number
+          limite_diario_webhook?: number
+          logradouro?: string | null
           nome?: string
+          numero?: string | null
+          perfil_completo?: boolean
+          situacao?: string | null
           telefone?: string | null
           updated_at?: string
         }
         Update: {
+          acessa_links_uteis?: boolean
           ativo?: boolean
           avatar_url?: string | null
+          bairro?: string | null
           bio?: string | null
           cargo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          codigo_indicacao?: string | null
+          complemento?: string | null
+          cpf?: string | null
           created_at?: string
+          creci?: string | null
           data_admissao?: string | null
+          data_credenciamento?: string | null
+          data_descredenciamento?: string | null
+          data_nascimento?: string | null
           email?: string
           equipe_id?: string | null
+          estado?: string | null
+          foto_url?: string | null
+          google_calendar_enabled?: boolean
           id?: string
+          legacy_user_id?: number | null
+          limite_diario_leads?: number
+          limite_diario_webhook?: number
+          logradouro?: string | null
           nome?: string
+          numero?: string | null
+          perfil_completo?: boolean
+          situacao?: string | null
           telefone?: string | null
           updated_at?: string
         }
