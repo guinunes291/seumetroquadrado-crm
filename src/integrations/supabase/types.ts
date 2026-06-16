@@ -1472,14 +1472,12 @@ export type Database = {
           visitas: number
         }[]
       }
-      copa_realizar_sorteio: {
-        Args: { _edicao_id: string }
-        Returns: undefined
-      }
-      copa_set_participantes: {
-        Args: { _edicao_id: string; _ids: string[] }
-        Returns: undefined
-      }
+      copa_realizar_sorteio:
+        | { Args: never; Returns: undefined }
+        | { Args: { _edicao_id: string }; Returns: undefined }
+      copa_set_participantes:
+        | { Args: { _edicao_id: string; _ids: string[] }; Returns: undefined }
+        | { Args: { _ids: string[] }; Returns: undefined }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       dashboard_funil: {
         Args: { _corretor?: string; _df: string; _di: string }
