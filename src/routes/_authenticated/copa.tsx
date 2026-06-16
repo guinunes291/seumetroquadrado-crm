@@ -1648,71 +1648,120 @@ function AdminPremios({ rows }: { rows: Premio[] }) {
 function AdminParticipantes({
   profiles,
   participantes,
+  selecoes,
 }: {
   profiles: { id: string; nome: string }[];
   participantes: Participante[];
+  selecoes: Selecao[];
 }) {
   const qc = useQueryClient();
-  const [sel, setSel] = useState<Set<string>>(new Set());
+  type Linha = { corretor_id: string; nome: string; ativo: boolean; selecao_id: string; grupo: string };
+  const [linhas, setLinhas] = useState<Linha[]>([]);
   useEffect(() => {
-    setSel(new Set(participantes.filter((p) => p.ativo).map((p) => p.corretor_id)));
-  }, [participantes]);
+    const byCorretor = new Map(participantes.map((p) => [p.corretor_id, p]));
+    setLinhas(
+      profiles.map((p) => {
+        const found = byCorretor.get(p.id);
+        return {
+          corretor_id: p.id,
+          nome: p.nome,
+          ativo: !!found?.ativo,
+          selecao_id: found?.selecao_id ?? "",
+          grupo: found?.grupo ?? "",
+        };
+      }),
+    );
+  }, [profiles, participantes]);
+
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).rpc("copa_set_participantes", { _ids: Array.from(sel) });
-      if (error) throw error;
+      // Salva uma linha por vez (lote sequencial via RPC).
+      for (const l of linhas) {
+        const { error } = await (supabase as any).rpc("copa_set_participante", {
+          _edicao_id: EDICAO_ID,
+          _corretor_id: l.corretor_id,
+          _selecao_id: l.selecao_id || null,
+          _grupo: l.grupo || null,
+          _ativo: l.ativo,
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      toast.success("Participantes atualizados!");
+      toast.success("Participantes salvos!");
       qc.invalidateQueries({ queryKey: ["copa:participantes"] });
       qc.invalidateQueries({ queryKey: ["copa:ranking"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const ativos = linhas.filter((l) => l.ativo).length;
+  const update = (idx: number, patch: Partial<Linha>) =>
+    setLinhas((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
   return (
-    <AdminCard title={`Participantes (${sel.size})`} color="#4299e1" icon="👥">
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))",
-          gap: 6,
-          maxHeight: 260,
-          overflowY: "auto",
-          marginBottom: 12,
-        }}
-      >
-        {profiles.map((p) => {
-          const checked = sel.has(p.id);
-          return (
-            <label
-              key={p.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                background: checked ? "rgba(66,153,225,0.15)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${checked ? "rgba(66,153,225,0.4)" : "rgba(255,255,255,0.08)"}`,
-                borderRadius: 8,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() =>
-                  setSel((s) => {
-                    const n = new Set(s);
-                    if (n.has(p.id)) n.delete(p.id);
-                    else n.add(p.id);
-                    return n;
-                  })
-                }
-              />
-              <span style={{ fontSize: 13 }}>{shortName(p.nome)}</span>
-            </label>
-          );
-        })}
+    <AdminCard title={`Participantes / Seleções / Grupos (${ativos} ativos)`} color="#4299e1" icon="👥">
+      <div style={{ maxHeight: 420, overflowY: "auto", marginBottom: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.5)" }}>
+              <th style={{ textAlign: "center", padding: "8px 6px", width: 50 }}>Na copa</th>
+              <th style={{ textAlign: "left", padding: "8px 6px" }}>Corretor</th>
+              <th style={{ textAlign: "left", padding: "8px 6px", width: 220 }}>Seleção</th>
+              <th style={{ textAlign: "left", padding: "8px 6px", width: 80 }}>Grupo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l, idx) => (
+              <tr
+                key={l.corretor_id}
+                style={{
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                  background: l.ativo ? "rgba(66,153,225,0.06)" : "transparent",
+                }}
+              >
+                <td style={{ textAlign: "center", padding: "6px" }}>
+                  <input
+                    type="checkbox"
+                    checked={l.ativo}
+                    onChange={(e) => update(idx, { ativo: e.target.checked })}
+                  />
+                </td>
+                <td style={{ padding: "6px" }}>{shortName(l.nome)}</td>
+                <td style={{ padding: "6px" }}>
+                  <select
+                    style={inputStyle}
+                    value={l.selecao_id}
+                    onChange={(e) => update(idx, { selecao_id: e.target.value })}
+                    disabled={!l.ativo}
+                  >
+                    <option value="">— sem seleção —</option>
+                    {selecoes.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.bandeira} {s.nome}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td style={{ padding: "6px" }}>
+                  <select
+                    style={inputStyle}
+                    value={l.grupo}
+                    onChange={(e) => update(idx, { grupo: e.target.value })}
+                    disabled={!l.ativo}
+                  >
+                    <option value="">—</option>
+                    {["A", "B", "C", "D"].map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <button style={btnStyle("#4299e1")} disabled={save.isPending} onClick={() => save.mutate()}>
         💾 Salvar Participantes
@@ -1720,6 +1769,7 @@ function AdminParticipantes({
     </AdminCard>
   );
 }
+
 function AdminLancarPontuacao({
   profiles,
   participantes,
@@ -1730,95 +1780,210 @@ function AdminLancarPontuacao({
   onSaved: () => void;
 }) {
   const nomeById = useMemo(() => new Map(profiles.map((p) => [p.id, p.nome])), [profiles]);
-  const ativos = participantes.filter((p) => p.ativo);
-  const [corretor, setCorretor] = useState<string>("");
-  const [sem, setSem] = useState(1);
-  const [f, setF] = useState({ agendamentos: 0, visitas: 0, documentacao: 0, vendas: 0 });
-  const ajusteQ = useQuery({
-    queryKey: ["copa:ajuste", corretor, sem],
-    enabled: corretor !== "",
+  const ativos = useMemo(() => participantes.filter((p) => p.ativo), [participantes]);
+  const [sem, setSem] = useState<number>(calcSemanaAtual());
+
+  type Row = {
+    corretor_id: string;
+    agendamentos: number;
+    visitas: number;
+    analise: number;
+    vendas: number;
+    bonus: number;
+    observacao: string;
+    bonus_observacao: string;
+  };
+  const [grid, setGrid] = useState<Row[]>([]);
+
+  const semQ = useQuery({
+    queryKey: ["copa:semanal", sem],
     queryFn: async () => {
-      const { data } = await (supabase as any).rpc("copa_get_ajuste_manual", {
-        _corretor_id: corretor,
-        _semana: sem,
-      });
-      return ((data ?? []) as any[])[0] as
-        | { agendamentos: number; visitas: number; documentacao: number; vendas: number }
-        | undefined;
+      const { data, error } = await (supabase as any)
+        .from("copa_pontuacao_semanal")
+        .select("corretor_id, agendamentos, visitas, analise, vendas, bonus, observacao, bonus_observacao")
+        .eq("edicao_id", EDICAO_ID)
+        .eq("semana", sem);
+      if (error) throw error;
+      return (data ?? []) as {
+        corretor_id: string;
+        agendamentos: number;
+        visitas: number;
+        analise: number;
+        vendas: number;
+        bonus: number;
+        observacao: string | null;
+        bonus_observacao: string | null;
+      }[];
     },
   });
+
   useEffect(() => {
-    const d = ajusteQ.data;
-    setF(
-      d
-        ? {
-            agendamentos: d.agendamentos,
-            visitas: d.visitas,
-            documentacao: d.documentacao,
-            vendas: d.vendas,
-          }
-        : { agendamentos: 0, visitas: 0, documentacao: 0, vendas: 0 },
+    const byId = new Map((semQ.data ?? []).map((r) => [r.corretor_id, r]));
+    setGrid(
+      ativos.map((p) => {
+        const e = byId.get(p.corretor_id);
+        return {
+          corretor_id: p.corretor_id,
+          agendamentos: e?.agendamentos ?? 0,
+          visitas: e?.visitas ?? 0,
+          analise: e?.analise ?? 0,
+          vendas: e?.vendas ?? 0,
+          bonus: e?.bonus ?? 0,
+          observacao: e?.observacao ?? "",
+          bonus_observacao: e?.bonus_observacao ?? "",
+        };
+      }),
     );
-  }, [ajusteQ.data]);
+  }, [semQ.data, ativos]);
+
   const save = useMutation({
     mutationFn: async () => {
-      if (!corretor) throw new Error("Selecione um corretor");
-      const { error } = await (supabase as any).rpc("copa_salvar_pontuacao", {
-        _corretor_id: corretor,
+      const { error } = await (supabase as any).rpc("copa_salvar_pontuacao_lote", {
+        _edicao_id: EDICAO_ID,
         _semana: sem,
-        _ag: f.agendamentos,
-        _vi: f.visitas,
-        _doc: f.documentacao,
-        _ve: f.vendas,
+        _rows: grid,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Pontuação lançada!");
+      toast.success("Planilha salva!");
+      onSaved();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const update = (idx: number, patch: Partial<Row>) =>
+    setGrid((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
+  const folga = (idx: number) =>
+    update(idx, {
+      agendamentos: 0,
+      visitas: 0,
+      analise: 0,
+      vendas: 0,
+      bonus: 0,
+      observacao: "folga",
+      bonus_observacao: "",
+    });
+
+  return (
+    <AdminCard title="Lançamento Manual — Planilha da Semana" color="#ed8936" icon="✏️">
+      <div style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center" }}>
+        <label style={{ ...labelStyle, marginBottom: 0 }}>Semana</label>
+        <select
+          style={{ ...inputStyle, width: 260 }}
+          value={sem}
+          onChange={(e) => setSem(Number(e.target.value))}
+        >
+          {SEMANAS.map((s) => (
+            <option key={s.semana} value={s.semana}>
+              Semana {s.semana} — {s.label} ({s.periodo})
+            </option>
+          ))}
+        </select>
+        <button
+          style={btnStyle("#ed8936")}
+          disabled={save.isPending || grid.length === 0}
+          onClick={() => save.mutate()}
+        >
+          💾 Salvar semana {sem}
+        </button>
+      </div>
+      <div style={{ maxHeight: 480, overflowY: "auto", overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: "rgba(0,0,0,0.3)", color: "rgba(255,255,255,0.5)" }}>
+              <th style={{ textAlign: "left", padding: "8px 6px" }}>Corretor</th>
+              <th style={{ textAlign: "center", padding: "8px 4px", width: 70 }}>📅 Ag</th>
+              <th style={{ textAlign: "center", padding: "8px 4px", width: 70 }}>🏠 Vi</th>
+              <th style={{ textAlign: "center", padding: "8px 4px", width: 70 }}>📄 An</th>
+              <th style={{ textAlign: "center", padding: "8px 4px", width: 70 }}>✅ Ve</th>
+              <th style={{ textAlign: "center", padding: "8px 4px", width: 70 }}>🎁 Bônus</th>
+              <th style={{ textAlign: "left", padding: "8px 6px", width: 150 }}>Motivo bônus</th>
+              <th style={{ textAlign: "left", padding: "8px 6px", width: 110 }}>Obs.</th>
+              <th style={{ textAlign: "center", padding: "8px 6px", width: 70 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {grid.map((r, idx) => {
+              const nome = shortName(nomeById.get(r.corretor_id) ?? "—");
+              return (
+                <tr key={r.corretor_id} style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                  <td style={{ padding: "4px 6px", fontWeight: 600 }}>{nome}</td>
+                  {(["agendamentos", "visitas", "analise", "vendas", "bonus"] as const).map((k) => (
+                    <td key={k} style={{ padding: "4px" }}>
+                      <input
+                        type="number"
+                        min={0}
+                        style={{ ...inputStyle, padding: "4px 6px", textAlign: "center" }}
+                        value={r[k]}
+                        onChange={(e) => update(idx, { [k]: Number(e.target.value) || 0 } as Partial<Row>)}
+                      />
+                    </td>
+                  ))}
+                  <td style={{ padding: "4px" }}>
+                    <input
+                      style={{ ...inputStyle, padding: "4px 6px" }}
+                      placeholder="ex: W.O."
+                      value={r.bonus_observacao}
+                      onChange={(e) => update(idx, { bonus_observacao: e.target.value })}
+                    />
+                  </td>
+                  <td style={{ padding: "4px" }}>
+                    <input
+                      style={{ ...inputStyle, padding: "4px 6px" }}
+                      placeholder="folga…"
+                      value={r.observacao}
+                      onChange={(e) => update(idx, { observacao: e.target.value })}
+                    />
+                  </td>
+                  <td style={{ textAlign: "center", padding: "4px" }}>
+                    <button
+                      style={btnStyle("#666", true)}
+                      title="Marcar folga"
+                      onClick={() => folga(idx)}
+                    >
+                      💤
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 10 }}>
+        Pesos aplicados pelo sistema: Ag×1, Vi×5, An×10, Ve×40. Bônus é somado direto ao total.
+      </p>
+    </AdminCard>
+  );
+}
+
+function AdminBonusFinal({ onSaved }: { onSaved: () => void }) {
+  const apply = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).rpc("copa_aplicar_bonus_final", {
+        _edicao_id: EDICAO_ID,
+      });
+      if (error) throw error;
+      return data as { aplicados: number };
+    },
+    onSuccess: (d) => {
+      toast.success(`Bônus aplicados: ${d?.aplicados ?? 0}`);
       onSaved();
     },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
-    <AdminCard title="Lançar Pontuação Manual" color="#ed8936" icon="✏️">
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-        <div>
-          <label style={labelStyle}>Corretor</label>
-          <select style={inputStyle} value={corretor} onChange={(e) => setCorretor(e.target.value)}>
-            <option value="">Selecionar…</option>
-            {ativos.map((p) => (
-              <option key={p.corretor_id} value={p.corretor_id}>
-                {shortName(nomeById.get(p.corretor_id) ?? "—")}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={labelStyle}>Semana</label>
-          <select style={inputStyle} value={sem} onChange={(e) => setSem(Number(e.target.value))}>
-            {SEMANAS.map((s) => (
-              <option key={s.semana} value={s.semana}>
-                Semana {s.semana} — {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        {(["agendamentos", "visitas", "documentacao", "vendas"] as const).map((k) => (
-          <div key={k}>
-            <label style={labelStyle}>{k}</label>
-            <input
-              type="number"
-              min={0}
-              style={inputStyle}
-              value={f[k]}
-              onChange={(e) => setF({ ...f, [k]: Number(e.target.value) })}
-            />
-          </div>
-        ))}
-      </div>
-      <button style={btnStyle("#ed8936")} disabled={save.isPending} onClick={() => save.mutate()}>
-        ✅ Lançar Pontuação
+    <AdminCard title="Bônus de Classificação Final" color={GOLD} icon="🏆">
+      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 12 }}>
+        Aplica automaticamente +10/+7/+5/+3 aos campeão/vice/3º/4º a partir dos vencedores das fases
+        <strong> final</strong> e <strong>3º lugar</strong>. Pode rodar várias vezes (idempotente).
+      </p>
+      <button style={btnStyle(GOLD)} disabled={apply.isPending} onClick={() => apply.mutate()}>
+        🏆 Aplicar bônus finais
       </button>
     </AdminCard>
   );
 }
+
