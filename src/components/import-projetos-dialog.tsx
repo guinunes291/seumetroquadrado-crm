@@ -181,17 +181,57 @@ function sugerirCampo(header: string): FieldKey | null {
 
 function toNum(v: unknown): number | null {
   if (v == null) return null;
-  const s = String(v).trim();
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  let s = String(v).trim();
   if (!s) return null;
-  const cleaned = s.replace(/r\$/gi, "").replace(/\s/g, "").replace(/\./g, "").replace(/,/g, ".");
-  const m = cleaned.match(/-?\d+(\.\d+)?/);
-  if (!m) {
-    const direct = Number(s.replace(",", "."));
-    return Number.isFinite(direct) ? direct : null;
+  s = s.replace(/r\$/gi, "").replace(/\s/g, "");
+  if (!s) return null;
+  const negative = s.startsWith("-");
+  if (negative) s = s.slice(1);
+  // mantém apenas dígitos, vírgulas e pontos
+  s = s.replace(/[^\d.,]/g, "");
+  if (!s) return null;
+
+  const commas = (s.match(/,/g) || []).length;
+  const dots = (s.match(/\./g) || []).length;
+
+  let normalized: string;
+  if (commas === 0 && dots === 0) {
+    normalized = s;
+  } else if (commas > 0 && dots > 0) {
+    // mistura: o separador da direita é o decimal
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      // BR: pontos = milhar, vírgula = decimal
+      normalized = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      // US: vírgulas = milhar, ponto = decimal
+      normalized = s.replace(/,/g, "");
+    }
+  } else {
+    // só um tipo de separador
+    const sep = commas > 0 ? "," : ".";
+    const count = commas > 0 ? commas : dots;
+    const parts = s.split(sep);
+    const lastLen = parts[parts.length - 1].length;
+    if (count > 1) {
+      // múltiplos → todos são milhar
+      normalized = parts.join("");
+    } else if (lastLen === 3) {
+      // único separador com 3 dígitos depois → milhar
+      normalized = parts.join("");
+    } else {
+      // decimal
+      normalized = parts.join(".");
+    }
   }
-  const n = Number(m[0]);
-  return Number.isFinite(n) ? n : null;
+
+  const n = Number(normalized);
+  if (!Number.isFinite(n)) return null;
+  return negative ? -n : n;
 }
+
 
 function toBool(v: unknown): boolean {
   if (v == null) return false;
