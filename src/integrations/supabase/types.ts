@@ -702,6 +702,7 @@ export type Database = {
           entrada_disponivel: string | null
           id: string
           legacy_id: number | null
+          motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
@@ -739,6 +740,7 @@ export type Database = {
           entrada_disponivel?: string | null
           id?: string
           legacy_id?: number | null
+          motivo_perda_categoria?: string | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome: string
@@ -776,6 +778,7 @@ export type Database = {
           entrada_disponivel?: string | null
           id?: string
           legacy_id?: number | null
+          motivo_perda_categoria?: string | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome?: string
@@ -1770,6 +1773,10 @@ export type Database = {
           temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
         }[]
       }
+      marcar_lead_perdido: {
+        Args: { _categoria?: string; _detalhe?: string; _lead_id: string }
+        Returns: string
+      }
       marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
@@ -1840,7 +1847,7 @@ export type Database = {
         | "follow_up"
         | "sistema"
       app_role: "admin" | "gestor" | "corretor" | "superintendente"
-      distribuicao_tipo: "automatica" | "manual" | "inicial"
+      distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
       interacao_direcao: "entrada" | "saida" | "interna"
       interacao_tipo:
         | "ligacao"
@@ -2035,7 +2042,7 @@ export const Constants = {
         "sistema",
       ],
       app_role: ["admin", "gestor", "corretor", "superintendente"],
-      distribuicao_tipo: ["automatica", "manual", "inicial"],
+      distribuicao_tipo: ["automatica", "manual", "inicial", "redistribuicao"],
       interacao_direcao: ["entrada", "saida", "interna"],
       interacao_tipo: [
         "ligacao",
