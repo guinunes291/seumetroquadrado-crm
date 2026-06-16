@@ -1,81 +1,140 @@
-## Objetivo
 
-Unificar os filtros de `/projetos` em **barra enxuta + modal "Mais filtros"** (padrão das referências) e padronizar os filtros de intervalo (**Preço, Metragem, Data de Entrega**) como **dois dropdowns "De" / "Até" com valores pré-definidos**, em vez de sliders ou inputs livres.
+# PWA + Push Notifications (sem custos)
 
-## Nova barra (sempre visível)
+Transformar o CRM atual em app instalável no celular (Android e iOS) com notificações push em tempo real para corretores, usando apenas Web Push padrão — zero custo, sem Firebase pago, sem App Store.
 
-Uma única linha com 3 controles:
+## O que o corretor vai experimentar
 
-1. **Busca** (input com lupa) — nome, construtora, bairro, endereço.
-2. **Localização** (popover) — Cidade → Região → Bairro em cascata; mostra resumo no botão.
-3. **Mais filtros** (botão com ícone, badge com contador) — abre o modal.
+1. Abre o site no celular → banner "Instalar app" aparece.
+2. Toca em instalar → ícone do CRM vai pra tela inicial, abre em tela cheia (sem barra do navegador).
+3. Na primeira abertura, o app pede permissão pra notificações.
+4. A partir daí recebe push em tempo real, mesmo com o app fechado, para:
+   - **Novo lead recebido** (roleta atribuiu).
+   - **Agendamento próximo** (lembrete X min antes).
+   - **Tarefa criada ou vencendo**.
+5. Toca na notificação → abre direto na tela relevante (`/leads/:id`, `/agendamentos`, `/tarefas`).
 
-À direita: **Limpar** (só quando há filtros). Abaixo da barra: chips de filtros ativos com `×` (já existem).
+## Limitação importante no iOS (transparente pro usuário)
 
-## Modal "Mais filtros"
+iOS só permite push em PWA se o usuário **instalar via Safari → Compartilhar → Adicionar à Tela de Início** (iOS 16.4+). Vamos exibir instruções específicas pra iOS no banner de instalação. No Android funciona de forma transparente em qualquer navegador Chromium.
 
-`Dialog` com título "Mais filtros", seções separadas por divisor. Estado interno até "Aplicar".
+## Arquitetura
 
-- **Tipologia** — pílulas multi: Studio, 1, 2, 3, 4, 5+ dorms.
-- **Vagas** — pílulas multi: 0, 1, 2, 3+.
-- **Construtora** — lista com checkbox (busca interna se >8 itens).
-- **Faixa de preço** — `RangeSelect` (De / Até), presets:
-  - De: 200k, 300k, 500k, 750k, 1mi, 1,5mi, 2mi
-  - Até: 300k, 500k, 750k, 1mi, 1,5mi, 2mi, 3mi, 5mi+
-  - Checkbox "Incluir projetos sem preço informado".
-- **Metragem (área privativa)** — `RangeSelect` (De / Até), presets:
-  - De: 25m², 30m², 40m², 50m², 60m², 80m², 100m²
-  - Até: 45m², 50m², 60m², 100m², 200m², 400m², 600m²+
-- **Data de entrega** — `RangeSelect` (De / Até), presets gerados dinamicamente a partir do ano atual:
-  - De: "Imediato", ano atual, +1, +2, +3, +4, +5
-  - Até: ano atual, +1, +2, +3, +4, +5, "Sem limite"
-- **Status de entrega** — pílulas multi: Lançamento, Em obras, Pronto.
-
-Rodapé: **Limpar tudo** (ghost) / **Aplicar** (primary).
-
-## Componente `RangeSelect` (reutilizável)
-
-```tsx
-<RangeSelect
-  label="Preço"
-  fromOptions={[{value: 200000, label: "R$ 200 mil"}, ...]}
-  toOptions={[...]}
-  value={[from, to]}
-  onChange={([f, t]) => ...}
-/>
+```text
+┌─────────────────────┐
+│  CRM (PWA)          │ ─── Service Worker registra push subscription
+│  no celular         │     e envia endpoint+keys pro backend
+└─────────────────────┘
+           │
+           ▼
+┌─────────────────────┐
+│  Lovable Cloud      │ ─── tabela push_subscriptions (user_id → endpoint)
+│  (Postgres)         │     triggers em leads/agendamentos/tarefas
+└─────────────────────┘     enfileiram notificação
+           │
+           ▼
+┌─────────────────────┐
+│  Server Function    │ ─── envia Web Push assinado com VAPID
+│  send-push          │     para o endpoint do navegador do corretor
+└─────────────────────┘
+           │
+           ▼
+   📱 Notificação aparece no celular
 ```
 
-- Dois `Select` lado a lado ("De" / "Até").
-- Validação leve: se `from > to`, ajusta `to = from` ao mudar.
-- Cada um aceita "Qualquer" como opção (null).
-- Usado para Preço, Metragem e Data de Entrega.
+## Etapas de implementação
 
-## Schema / dados
+### 1. Manifest + ícones (instalabilidade)
+- Criar `public/manifest.webmanifest` com nome, cores, `display: standalone`, ícones 192/512.
+- Gerar ícones do app (logo Seu m² em fundo da marca).
+- Tags `<link rel="manifest">`, `theme-color`, `apple-touch-icon` no `__root.tsx`.
 
-- **Preço**: já existe `preco_inicial` + `parsePrecoBRL`. OK.
-- **Metragem**: a coluna `area_privativa` (ou similar) provavelmente não existe ainda no `projetos`. Antes de implementar, vou **conferir o schema** e o `ProjetoRow`. Se não existir, este sub-filtro fica desabilitado com tooltip "Em breve" e a migração de coluna fica fora deste plano (peço aprovação separada).
-- **Data de entrega**: idem — se só houver `entrega_status` textual (Lançamento / Em obras / Pronto) sem ano, o filtro De/Até de data fica desabilitado e mantemos só o filtro de Status. Se houver campo `previsao_entrega` ou similar, usamos o ano dele.
+### 2. Service Worker (com guards de preview)
+- `vite-plugin-pwa` em modo `generateSW`, `injectRegister: null`.
+- Wrapper `src/lib/pwa/register-sw.ts` que **só registra em produção** e fora do preview Lovable (preview é iframe, não pode ter SW ativo).
+- HTML em `NetworkFirst`, assets hashados em `CacheFirst`. Sem cache agressivo (CRM precisa de dados frescos).
 
-> Decisão pragmática: se faltar coluna, o filtro aparece desabilitado com aviso, em vez de criar dados sintéticos.
+### 3. Web Push (VAPID)
+- Gerar par de chaves VAPID (uma vez, via script Node) → salvar em secrets:
+  - `VAPID_PUBLIC_KEY` (também exposta ao cliente via `VITE_VAPID_PUBLIC_KEY`).
+  - `VAPID_PRIVATE_KEY` (server only).
+- Service worker escuta evento `push` e mostra notificação com título, corpo, ícone, badge e `data.url` pra navegação.
+- Service worker escuta `notificationclick` e abre/foca a URL alvo.
 
-## Comportamento
+### 4. Banco — tabela de assinaturas push
+```sql
+CREATE TABLE public.push_subscriptions (
+  id uuid PK,
+  user_id uuid → auth.users,
+  endpoint text UNIQUE,
+  p256dh text,
+  auth text,
+  user_agent text,
+  created_at, updated_at
+);
+-- GRANTs + RLS: cada usuário só vê/edita as próprias; service_role acessa tudo.
+```
 
-- AND entre filtros, serializados em search params (sem mudança no contrato).
-- Cascata Cidade→Região→Bairro continua, agora dentro do popover de Localização.
-- Chips ativos cobrem todos os novos filtros (intervalo aparece como "R$ 300 mil – 750 mil", "50m² – 100m²", "2026 – 2028").
+### 5. UI de opt-in
+- Hook `usePushSubscription()` que detecta suporte, mostra estado e expõe `subscribe()` / `unsubscribe()`.
+- Componente `<PushOptInBanner />` no topo do `/leads` e `/agendamentos` quando permissão = `default`.
+- Toggle "Notificações push" no `/meu-perfil` pra ligar/desligar a qualquer momento.
+- Tratamento explícito do caso iOS (detectar Safari iOS sem `standalone` e mostrar instruções de instalação).
 
-## Arquivos
+### 6. Disparo dos pushes (3 server functions)
+- `sendPushToUser(userId, payload)` — helper que busca todas as subscriptions do user e envia via `web-push` (pacote npm). Remove subscriptions com 410/404.
+- Integrar em 3 pontos:
+  - **Novo lead**: trigger SQL em `leads` (após `UPDATE` com `corretor_id` mudando de NULL) enfileira evento → server route `/api/public/hooks/push-dispatch` chamado por `pg_net` envia o push.
+  - **Tarefa criada/vencendo**: trigger `alerta_tarefa_criada` já existe; estender pra também postar no endpoint. Pra "vencendo", reutilizar `gerar_alertas_tarefas_atrasadas` (já roda via cron).
+  - **Agendamento próximo**: reutilizar `gerar_alertas_agendamentos_proximos` (já existe) — adicionar passo final que dispara push pros alertas recém-criados.
 
-- `src/components/projetos-filters.tsx` — refatorar barra + introduzir modal.
-- `src/components/range-select.tsx` — novo, reutilizável.
-- `src/lib/projetos.ts` — adicionar:
-  - `PRECO_FROM_PRESETS`, `PRECO_TO_PRESETS`
-  - `AREA_FROM_PRESETS`, `AREA_TO_PRESETS`
-  - `entregaYearPresets()` helper
-  - `parseAreaM2`, `parseEntregaYear` (se a coluna existir)
-- `applyFilters` estendido com `areaMin/areaMax`, `entregaAnoMin/entregaAnoMax`.
-- Sem mudança em `projetos.tsx`, `projeto-card.tsx`, rotas, migrations.
+  Padrão: `pg_cron` + `pg_net` chamam `/api/public/hooks/push-dispatch` autenticado com `apikey` (anon key). Sem novo secret.
 
-## Passo 0 (antes de codar)
+### 7. Realtime (opcional, complementa o push)
+Quando o app está aberto, escutar `postgres_changes` em `alertas` do user logado e atualizar o sino (`notification-bell.tsx`) instantaneamente — já temos infra.
 
-Ler `ProjetoRow` em `src/components/projeto-card.tsx` e o tipo gerado em `types.ts` para confirmar quais colunas existem (`area_privativa`, `previsao_entrega`, etc.) e habilitar/desabilitar os sub-filtros condicionalmente.
+## Detalhes técnicos
+
+**Dependências novas:**
+- `vite-plugin-pwa`, `workbox-window` (PWA).
+- `web-push` (envio server-side, Worker-compatível).
+
+**Guards do service worker** (críticos pra não quebrar o preview Lovable):
+- Não registra em dev.
+- Não registra se hostname começa com `id-preview--` ou `preview--`, ou termina em `.lovableproject.com`.
+- Suporta `?sw=off` pra desregistrar em emergência.
+
+**Compatibilidade:**
+- Android (Chrome/Edge/Brave/Samsung Internet): tudo funciona, push em background OK.
+- iOS 16.4+: funciona **somente após** instalar via "Adicionar à Tela de Início" no Safari.
+- Desktop (bônus grátis): instalável e recebe push em Chrome/Edge.
+
+**Custos:** R$ 0. Web Push é padrão do navegador, sem intermediário pago. Não usa FCM (Firebase) nem APNs direto.
+
+## Fora de escopo (não vou fazer agora)
+
+- Empacotamento Capacitor / publicação em lojas.
+- Notificações por SMS ou WhatsApp (já existe Z-API pra isso noutro fluxo).
+- Push pra eventos diferentes dos 3 escolhidos (lead redistribuído, mudança de status).
+- Modo offline completo — só caching mínimo do shell pra abrir rápido; queries continuam exigindo internet.
+
+## Arquivos que serão criados/editados
+
+**Criados:**
+- `public/manifest.webmanifest`
+- `public/icons/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`
+- `src/lib/pwa/register-sw.ts`
+- `src/lib/push/use-push-subscription.ts`
+- `src/lib/push/push.functions.ts` (subscribe/unsubscribe server fns)
+- `src/lib/push/send-push.server.ts` (helper com `web-push`)
+- `src/components/push-opt-in-banner.tsx`
+- `src/routes/api/public/hooks/push-dispatch.ts`
+- Migração SQL: tabela `push_subscriptions` + ajustes nos triggers existentes.
+
+**Editados:**
+- `vite.config.ts` (plugin PWA).
+- `src/routes/__root.tsx` (manifest links, theme-color, registrar SW).
+- `src/routes/_authenticated/meu-perfil.tsx` (toggle de push).
+- `src/components/notification-bell.tsx` (realtime opcional).
+
+Confirma que posso seguir nesse caminho? Se sim, alterno pra build e implemento.

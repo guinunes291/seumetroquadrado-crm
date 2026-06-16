@@ -1094,6 +1094,72 @@ export type Database = {
         }
         Relationships: []
       }
+      push_outbox: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sent_at: string | null
+          tag: string | null
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sent_at?: string | null
+          tag?: string | null
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sent_at?: string | null
+          tag?: string | null
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       stg_agendamentos: {
         Row: {
           construtora: string | null
@@ -1594,9 +1660,20 @@ export type Database = {
         Returns: string
       }
       distribuir_lead_elegivel: { Args: { _lead_id: string }; Returns: string }
+      enqueue_push: {
+        Args: {
+          _body: string
+          _tag: string
+          _title: string
+          _url: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
+      gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
