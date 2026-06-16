@@ -579,14 +579,20 @@ function NovoLeadDialog({
             onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={distribuirAuto}
-            onChange={(e) => setDistribuirAuto(e.target.checked)}
-          />
-          Distribuir automaticamente via roleta
-        </label>
+        {canManage ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={distribuirAuto}
+              onChange={(e) => setDistribuirAuto(e.target.checked)}
+            />
+            Distribuir automaticamente via roleta
+          </label>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Este lead será atribuído automaticamente a você.
+          </p>
+        )}
       </div>
       <DialogFooter>
         <Button variant="ghost" onClick={onClose}>
