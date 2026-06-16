@@ -21,6 +21,12 @@ import {
 } from "@/lib/orcamento";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { Link } from "@tanstack/react-router";
+import {
+  ProjetosFilters,
+  applyFilters,
+  emptyFilters,
+  type Filters,
+} from "@/components/projetos-filters";
 
 export const Route = createFileRoute("/_authenticated/match")({
   head: () => ({ meta: [{ title: "Match — Seu Metro Quadrado" }] }),
@@ -40,6 +46,7 @@ function MatchPage() {
   });
   const [ajuste, setAjuste] = useState<number>(100); // 80..120
   const [mostrarForaSegmento, setMostrarForaSegmento] = useState(false);
+  const [filters, setFilters] = useState<Filters>(emptyFilters);
 
 
   const orc = useMemo<ResultadoOrcamento | null>(() => {
@@ -291,12 +298,19 @@ function MatchPage() {
           )}
 
           {projetosQ.data && (
-            <MatchList
-              projetos={projetosQ.data}
-              orc={orc}
-              ajuste={ajuste / 100}
-              mostrarForaSegmento={mostrarForaSegmento}
-            />
+            <>
+              <ProjetosFilters
+                projetos={projetosQ.data}
+                filters={filters}
+                onChange={setFilters}
+              />
+              <MatchList
+                projetos={applyFilters(projetosQ.data, filters)}
+                orc={orc}
+                ajuste={ajuste / 100}
+                mostrarForaSegmento={mostrarForaSegmento}
+              />
+            </>
           )}
         </div>
       )}
@@ -423,7 +437,7 @@ function MatchList({
                 {a.dentroDaAvaliacao && (
                   <>
                     <div>
-                      <div className="text-xs text-muted-foreground">Parcela construtora</div>
+                      <div className="text-xs text-muted-foreground">Saldo construtora (total)</div>
                       <div className="font-medium">{brl(a.valorParcelarConstrutora)}</div>
                     </div>
                     <div>
