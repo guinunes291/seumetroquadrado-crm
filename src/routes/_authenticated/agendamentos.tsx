@@ -157,6 +157,10 @@ function AgendamentosPage() {
     },
   });
 
+  useRealtimeInvalidate("agendamentos", [["agendamentos"]]);
+
+
+
   const corretorNome = (id: string | null) =>
     corretores.find((c) => c.id === id)?.nome ?? "—";
   const leadNome = (id: string | null) =>
