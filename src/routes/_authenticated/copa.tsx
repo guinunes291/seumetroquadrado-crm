@@ -6,10 +6,13 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { SEMANAS, semanaAtual as calcSemanaAtual, shortName } from "@/lib/copa";
 
+const EDICAO_ID = "a0000000-0000-4000-8000-000000000001";
+
 export const Route = createFileRoute("/_authenticated/copa")({
   head: () => ({ meta: [{ title: "Copa SMQ — Seu Metro Quadrado" }] }),
   component: CopaPage,
 });
+
 
 type Fase = {
   id: string;
