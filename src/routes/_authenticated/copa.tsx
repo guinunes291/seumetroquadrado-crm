@@ -1960,7 +1960,7 @@ function AdminLancarPontuacao({
         </table>
       </div>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 10 }}>
-        Pesos aplicados pelo sistema: Ag×1, Vi×5, An×10, Ve×40. Bônus é somado direto ao total.
+        Pontuação 100% manual: o total digitado em <strong>Bônus/Total</strong> é o que vale na semana. Os campos Ag/Vi/An/Ve ficam apenas como registro informativo.
       </p>
     </AdminCard>
   );
