@@ -235,12 +235,21 @@ function KanbanPage() {
                               <span className="truncate">{lead.email}</span>
                             </div>
                           )}
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
                             <span className="text-[10px] text-muted-foreground">
                               {lead.corretor_id
                                 ? (corretoresMap.get(lead.corretor_id) ?? "—")
                                 : "sem corretor"}
                             </span>
+                            {(lead.status === "novo" ||
+                              lead.status === "aguardando_atendimento") &&
+                              slaMap.get(lead.id) && (
+                                <SlaBadge
+                                  compact
+                                  slaMinutos={slaMap.get(lead.id)!.sla_minutos}
+                                  referencia={lead.data_distribuicao ?? lead.created_at}
+                                />
+                              )}
                             {lead.temperatura && (
                               <Badge
                                 variant="secondary"
