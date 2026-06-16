@@ -220,6 +220,30 @@ function CopaPage() {
   const semanaLabel = SEMANAS[semana - 1];
   const myId = user?.id ?? null;
 
+  // Realtime: invalida queries quando algo muda no servidor.
+  useEffect(() => {
+    const ch = supabase
+      .channel("copa-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "copa_pontuacoes" }, () => {
+        qc.invalidateQueries({ queryKey: ["copa:ranking"] });
+        qc.invalidateQueries({ queryKey: ["copa:pontos-semana"] });
+        qc.invalidateQueries({ queryKey: ["copa:semanal"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "copa_confrontos" }, () => {
+        qc.invalidateQueries({ queryKey: ["copa:confrontos"] });
+        qc.invalidateQueries({ queryKey: ["copa:ranking"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "copa_participantes" }, () => {
+        qc.invalidateQueries({ queryKey: ["copa:participantes"] });
+        qc.invalidateQueries({ queryKey: ["copa:ranking"] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [qc]);
+
+
   const nomeByUuid = useMemo(() => {
     const m = new Map<string, string>();
     (profilesQ.data ?? []).forEach((p) => m.set(p.id, p.nome));
