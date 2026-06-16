@@ -60,6 +60,16 @@ type Lead = {
   projeto_nome: string | null;
   observacoes: string | null;
   temperatura: string | null;
+  origem: string | null;
+  data_distribuicao: string | null;
+  created_at: string;
+};
+
+type SlaRow = {
+  lead_id: string;
+  sla_minutos: number;
+  minutos_decorridos: number;
+  sla_status: string;
 };
 
 function KanbanPage() {
