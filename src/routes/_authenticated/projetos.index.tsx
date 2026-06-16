@@ -23,7 +23,7 @@ import {
   type Filters,
 } from "@/components/projetos-filters";
 
-export const Route = createFileRoute("/_authenticated/projetos")({
+export const Route = createFileRoute("/_authenticated/projetos/")({
   head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
   component: ProjetosPage,
 });
