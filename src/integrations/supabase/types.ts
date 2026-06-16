@@ -1664,19 +1664,41 @@ export type Database = {
         Args: { _corretor_id: string; _df: string; _di: string }
         Returns: number
       }
-      copa_ranking: {
-        Args: { _edicao_id: string }
+      copa_pontos_por_semana: {
+        Args: never
         Returns: {
-          agendamentos: number
-          analise: number
-          bandeira: string
           corretor_id: string
-          nome: string
-          total: number
-          vendas: number
-          visitas: number
+          pontos: number
+          semana: number
         }[]
       }
+      copa_ranking:
+        | {
+            Args: never
+            Returns: {
+              agendamentos: number
+              analise: number
+              bandeira: string
+              corretor_id: string
+              nome: string
+              total: number
+              vendas: number
+              visitas: number
+            }[]
+          }
+        | {
+            Args: { _edicao_id: string }
+            Returns: {
+              agendamentos: number
+              analise: number
+              bandeira: string
+              corretor_id: string
+              nome: string
+              total: number
+              vendas: number
+              visitas: number
+            }[]
+          }
       copa_realizar_sorteio:
         | { Args: never; Returns: undefined }
         | { Args: { _edicao_id: string }; Returns: undefined }
