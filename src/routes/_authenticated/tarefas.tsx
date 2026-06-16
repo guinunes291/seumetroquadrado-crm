@@ -59,6 +59,9 @@ function TarefasPage() {
     },
   });
 
+  useRealtimeInvalidate("tarefas", [["tarefas"]]);
+
+
   const leadsQuery = useQuery({
     queryKey: ["tarefas:leads-opt"],
     queryFn: async () => {
