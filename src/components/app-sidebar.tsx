@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import logoM2 from "@/assets/logo-m2.png.asset.json";
 import {
   LayoutDashboard,
   Users,
