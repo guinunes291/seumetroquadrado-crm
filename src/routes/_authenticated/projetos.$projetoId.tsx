@@ -566,3 +566,12 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
     </Card>
   );
 }
+
+function InfoLine({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="font-medium">{children}</div>
+    </div>
+  );
+}
