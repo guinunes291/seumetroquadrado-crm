@@ -90,7 +90,7 @@ const SECTIONS: Section[] = [
   },
 ];
 
-export function AppSidebar() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { roles, isAdmin, isGestor } = useUserRoles();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -109,7 +109,7 @@ export function AppSidebar() {
   };
 
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
         <img src={logoM2.url} alt="Seu Metro Quadrado" className="h-9 w-9 rounded-md object-contain bg-white" />
         <div className="leading-tight">
@@ -136,6 +136,7 @@ export function AppSidebar() {
                     <li key={it.to}>
                       <Link
                         to={it.to}
+                        onClick={onNavigate}
                         className={cn(
                           "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                           active
@@ -163,6 +164,7 @@ export function AppSidebar() {
       <div className="border-t border-sidebar-border p-2 space-y-1">
         <Link
           to="/meu-perfil"
+          onClick={onNavigate}
           className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <UserIcon className="h-4 w-4" />
@@ -177,6 +179,30 @@ export function AppSidebar() {
           Sair
         </Button>
       </div>
+    </div>
+  );
+}
+
+export function AppSidebar() {
+  return (
+    <aside className="hidden md:flex md:w-64 md:flex-col border-r border-sidebar-border">
+      <SidebarContent />
     </aside>
+  );
+}
+
+export function MobileSidebar() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menu">
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
+        <SidebarContent onNavigate={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
   );
 }
