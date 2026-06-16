@@ -61,3 +61,73 @@ export const LEAD_STATUS_BADGE_TONE: Record<LeadStatus, string> = {
 export function leadStatusLabel(status: string): string {
   return LEAD_STATUS_LABEL[status as LeadStatus] ?? status;
 }
+
+// ---------------------------------------------------------------------------
+// Avanço no funil a partir dos cards (Kanban + lista)
+// ---------------------------------------------------------------------------
+
+/** Forma mínima de lead que as ações de etapa (menu + modais) precisam. */
+export type StageLead = {
+  id: string;
+  nome: string;
+  status: string;
+  corretor_id: string | null;
+  projeto_id?: string | null;
+  projeto_nome?: string | null;
+  observacoes?: string | null;
+};
+
+/** Etapas oferecidas como destino no menu "Mover para" (exclui `perdido`,
+ *  que é tratado por uma ação dedicada). */
+export const FUNNEL_STAGES: LeadStatus[] = LEAD_STATUS_ORDER.filter((s) => s !== "perdido");
+
+/** Transições que exigem um modal para capturar dados antes de mudar o status. */
+export type StageModal = "agendado" | "visita_realizada" | "analise_credito" | "contrato_fechado";
+
+export const STAGE_MODAL: Partial<Record<LeadStatus, StageModal>> = {
+  agendado: "agendado",
+  visita_realizada: "visita_realizada",
+  analise_credito: "analise_credito",
+  contrato_fechado: "contrato_fechado",
+};
+
+export function stageRequiresModal(status: LeadStatus): boolean {
+  return status in STAGE_MODAL;
+}
+
+/** Decisão única de roteamento, usada tanto pelo menu quanto pelo drop do Kanban. */
+export type StageAction =
+  | { kind: "direct" }
+  | { kind: "modal"; modal: StageModal }
+  | { kind: "perdido" };
+
+export function resolveStageAction(target: LeadStatus): StageAction {
+  if (target === "perdido") return { kind: "perdido" };
+  const modal = STAGE_MODAL[target];
+  return modal ? { kind: "modal", modal } : { kind: "direct" };
+}
+
+/** Categorias de perda (espelham o `motivoPerdaCategoria` do CRM de origem). */
+export const MOTIVO_PERDA_CATEGORIAS = [
+  "sem_resposta",
+  "sem_interesse",
+  "sem_perfil_credito",
+  "comprou_concorrente",
+  "fora_regiao",
+  "duplicado",
+  "contato_invalido",
+  "outro",
+] as const;
+
+export type MotivoPerdaCategoria = (typeof MOTIVO_PERDA_CATEGORIAS)[number];
+
+export const MOTIVO_PERDA_LABEL: Record<MotivoPerdaCategoria, string> = {
+  sem_resposta: "Sem resposta / não atende",
+  sem_interesse: "Sem interesse",
+  sem_perfil_credito: "Sem perfil de crédito",
+  comprou_concorrente: "Comprou com concorrente",
+  fora_regiao: "Fora da região de atuação",
+  duplicado: "Lead duplicado",
+  contato_invalido: "Contato inválido",
+  outro: "Outro motivo",
+};
