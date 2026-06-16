@@ -104,6 +104,8 @@ const TIPO_OPTIONS: InteracaoTipo[] = [
 function LeadDetailPage() {
   const { leadId } = Route.useParams();
   const qc = useQueryClient();
+  const [perdidoOpen, setPerdidoOpen] = useState(false);
+
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", leadId],
