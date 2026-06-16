@@ -48,7 +48,8 @@ import {
   type InteracaoDirecao,
 } from "@/lib/interacoes";
 import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
-import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL } from "@/lib/leads";
+import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL, type StageLead } from "@/lib/leads";
+import { PerdidoDialog } from "@/components/lead-stage/perdido-dialog";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
