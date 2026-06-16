@@ -51,18 +51,18 @@ async function notificarCorretor(opts: {
   projeto: string | null;
   renda: string | null;
   link: string;
-}): Promise<void> {
+}): Promise<string> {
   const instance = Deno.env.get("ZAPI_INSTANCE_ID");
   const token = Deno.env.get("ZAPI_TOKEN");
   const clientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
   if (!instance || !token) {
     console.log("Z-API não configurada (ZAPI_INSTANCE_ID/ZAPI_TOKEN) — pulando notificação.");
-    return;
+    return "zapi_nao_configurada";
   }
   const phone = toZapiPhone(opts.telefone);
   if (!phone) {
     console.log("Corretor sem telefone válido — pulando notificação.");
-    return;
+    return "sem_telefone";
   }
   const message =
     `🔔 *Novo lead recebido!*\n\n` +
@@ -82,9 +82,16 @@ async function notificarCorretor(opts: {
         body: JSON.stringify({ phone, message }),
       },
     );
-    if (!resp.ok) console.error("Z-API falhou:", resp.status, await resp.text());
+    const respBody = await resp.text();
+    if (!resp.ok) {
+      console.error("Z-API falhou:", resp.status, respBody);
+      return `falhou_${resp.status}: ${respBody.slice(0, 200)}`;
+    }
+    console.log("Z-API enviada:", respBody);
+    return "enviada";
   } catch (e) {
     console.error("Z-API erro:", e);
+    return `erro: ${e instanceof Error ? e.message : String(e)}`;
   }
 }
 
@@ -228,14 +235,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   // 6) Notifica o corretor (Z-API), sem o telefone do lead.
+  let notificacao = "nao_distribuido";
+  let corretor_tem_telefone = false;
   if (corretor_id) {
     const { data: prof } = await supabase
       .from("profiles")
       .select("nome,telefone")
       .eq("id", corretor_id)
       .maybeSingle();
+    corretor_tem_telefone = Boolean(prof?.telefone);
     const appUrl = (Deno.env.get("APP_BASE_URL") ?? "").replace(/\/+$/, "");
-    await notificarCorretor({
+    notificacao = await notificarCorretor({
       telefone: prof?.telefone as string | null | undefined,
       nomeLead: nome ?? "(sem nome)",
       projeto: projeto_nome,
@@ -250,5 +260,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     projeto_id,
     corretor_id,
     distribuido: corretor_id !== null,
+    corretor_tem_telefone,
+    notificacao,
   });
 });
