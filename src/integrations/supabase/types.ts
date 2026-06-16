@@ -1653,7 +1653,6 @@ export type Database = {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
       }
-      copa_aplicar_bonus_final: { Args: { _edicao_id: string }; Returns: Json }
       copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
       copa_avancar_fase: { Args: never; Returns: string }
       copa_definir_vencedor: {
