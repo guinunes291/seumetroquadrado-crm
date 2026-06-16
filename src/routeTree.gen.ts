@@ -21,7 +21,6 @@ import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authentica
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
-import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
@@ -33,6 +32,7 @@ import { Route as AuthenticatedConquistasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedComissoesRouteImport } from './routes/_authenticated/comissoes'
 import { Route as AuthenticatedBlitzRouteImport } from './routes/_authenticated/blitz'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
+import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
@@ -97,11 +97,6 @@ const AuthenticatedLixeiraRoute = AuthenticatedLixeiraRouteImport.update({
   path: '/lixeira',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
-  id: '/leads',
-  path: '/leads',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
   id: '/kanban',
   path: '/kanban',
@@ -159,6 +154,11 @@ const AuthenticatedAgendamentosRoute =
     path: '/agendamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
+  id: '/leads/',
+  path: '/leads/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedProjetosProjetoIdRoute =
   AuthenticatedProjetosProjetoIdRouteImport.update({
     id: '/$projetoId',
@@ -167,9 +167,9 @@ const AuthenticatedProjetosProjetoIdRoute =
   } as any)
 const AuthenticatedLeadsLeadIdRoute =
   AuthenticatedLeadsLeadIdRouteImport.update({
-    id: '/$leadId',
-    path: '/$leadId',
-    getParentRoute: () => AuthenticatedLeadsRoute,
+    id: '/leads/$leadId',
+    path: '/leads/$leadId',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const ApiPublicHooksPushDispatchRoute =
   ApiPublicHooksPushDispatchRouteImport.update({
@@ -199,7 +199,6 @@ export interface FileRoutesByFullPath {
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
-  '/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/lixeira': typeof AuthenticatedLixeiraRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -210,6 +209,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -227,7 +227,6 @@ export interface FileRoutesByTo {
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
-  '/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/lixeira': typeof AuthenticatedLixeiraRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -239,6 +238,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/leads': typeof AuthenticatedLeadsIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -258,7 +258,6 @@ export interface FileRoutesById {
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
-  '/_authenticated/leads': typeof AuthenticatedLeadsRouteWithChildren
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -270,6 +269,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -290,7 +290,6 @@ export interface FileRouteTypes {
     | '/duplicatas'
     | '/equipes'
     | '/kanban'
-    | '/leads'
     | '/lixeira'
     | '/metas'
     | '/meu-painel'
@@ -301,6 +300,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/leads/$leadId'
     | '/projetos/$projetoId'
+    | '/leads/'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
@@ -318,7 +318,6 @@ export interface FileRouteTypes {
     | '/duplicatas'
     | '/equipes'
     | '/kanban'
-    | '/leads'
     | '/lixeira'
     | '/metas'
     | '/meu-painel'
@@ -330,6 +329,7 @@ export interface FileRouteTypes {
     | '/'
     | '/leads/$leadId'
     | '/projetos/$projetoId'
+    | '/leads'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/webhooks/lead/$token'
   id:
@@ -348,7 +348,6 @@ export interface FileRouteTypes {
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
     | '/_authenticated/kanban'
-    | '/_authenticated/leads'
     | '/_authenticated/lixeira'
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
@@ -360,6 +359,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/projetos/$projetoId'
+    | '/_authenticated/leads/'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
@@ -458,13 +458,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLixeiraRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/leads': {
-      id: '/_authenticated/leads'
-      path: '/leads'
-      fullPath: '/leads'
-      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/kanban': {
       id: '/_authenticated/kanban'
       path: '/kanban'
@@ -542,6 +535,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgendamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/leads/': {
+      id: '/_authenticated/leads/'
+      path: '/leads'
+      fullPath: '/leads/'
+      preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projetos/$projetoId': {
       id: '/_authenticated/projetos/$projetoId'
       path: '/$projetoId'
@@ -551,10 +551,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/leads/$leadId': {
       id: '/_authenticated/leads/$leadId'
-      path: '/$leadId'
+      path: '/leads/$leadId'
       fullPath: '/leads/$leadId'
       preLoaderRoute: typeof AuthenticatedLeadsLeadIdRouteImport
-      parentRoute: typeof AuthenticatedLeadsRoute
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/hooks/push-dispatch': {
       id: '/api/public/hooks/push-dispatch'
@@ -572,17 +572,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AuthenticatedLeadsRouteChildren {
-  AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
-}
-
-const AuthenticatedLeadsRouteChildren: AuthenticatedLeadsRouteChildren = {
-  AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
-}
-
-const AuthenticatedLeadsRouteWithChildren =
-  AuthenticatedLeadsRoute._addFileChildren(AuthenticatedLeadsRouteChildren)
 
 interface AuthenticatedProjetosRouteChildren {
   AuthenticatedProjetosProjetoIdRoute: typeof AuthenticatedProjetosProjetoIdRoute
@@ -609,7 +598,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
-  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRouteWithChildren
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
@@ -619,6 +607,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
+  AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -633,7 +623,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
-  AuthenticatedLeadsRoute: AuthenticatedLeadsRouteWithChildren,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
@@ -643,6 +632,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
+  AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -658,3 +649,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -55,7 +55,7 @@ import {
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
 
-export const Route = createFileRoute("/_authenticated/leads")({
+export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
   component: LeadsPage,
 });
