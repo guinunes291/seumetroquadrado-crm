@@ -271,6 +271,18 @@ function MatchPage() {
                   <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
                 </Button>
               </div>
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div>
+                  <Label className="text-sm">Mostrar imóveis fora do segmento</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Inclui empreendimentos acima do teto de avaliação ({brl(orc.tetoAvaliacaoSegmento)}).
+                  </p>
+                </div>
+                <Switch
+                  checked={mostrarForaSegmento}
+                  onCheckedChange={setMostrarForaSegmento}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -279,10 +291,16 @@ function MatchPage() {
           )}
 
           {projetosQ.data && (
-            <MatchList projetos={projetosQ.data} orc={orc} ajuste={ajuste / 100} />
+            <MatchList
+              projetos={projetosQ.data}
+              orc={orc}
+              ajuste={ajuste / 100}
+              mostrarForaSegmento={mostrarForaSegmento}
+            />
           )}
         </div>
       )}
+
     </div>
   );
 }
