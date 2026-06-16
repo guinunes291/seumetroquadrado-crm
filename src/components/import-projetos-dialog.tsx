@@ -22,11 +22,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Upload,
   FileSpreadsheet,
-  CheckCircle2,
   AlertCircle,
   Loader2,
 } from "lucide-react";
@@ -34,6 +32,7 @@ import { toast } from "sonner";
 import {
   importarProjetos,
   type ImportProjetosResult,
+  type ImportProjetoRow,
 } from "@/lib/projetos-import.functions";
 
 type Step = "upload" | "mapear" | "resultado";
@@ -44,18 +43,31 @@ type ParsedSheet = {
   rows: Record<string, unknown>[];
 };
 
-type Mapping = {
-  nome: string;
-  construtora: string;
-  regiao: string;
-  bairro: string;
-  cidade: string;
-  endereco: string;
-  tipologia: string;
-  vagas: string;
-  preco_inicial: string;
-  entrega_status: string;
-};
+type FieldKey =
+  | "nome"
+  | "construtora"
+  | "regiao"
+  | "bairro"
+  | "cidade"
+  | "logradouro"
+  | "numero"
+  | "metragem_min"
+  | "metragem_max"
+  | "dorms_min"
+  | "dorms_max"
+  | "suites"
+  | "tipo_extra"
+  | "vagas_min"
+  | "vagas_max"
+  | "vagas_observacao"
+  | "preco_a_partir"
+  | "sob_consulta"
+  | "status_entrega"
+  | "mes_entrega"
+  | "ano_entrega"
+  | "fonte";
+
+type Mapping = Record<FieldKey, string>;
 
 const EMPTY_MAPPING: Mapping = {
   nome: "",
@@ -63,26 +75,128 @@ const EMPTY_MAPPING: Mapping = {
   regiao: NONE,
   bairro: NONE,
   cidade: NONE,
-  endereco: NONE,
-  tipologia: NONE,
-  vagas: NONE,
-  preco_inicial: NONE,
-  entrega_status: NONE,
+  logradouro: NONE,
+  numero: NONE,
+  metragem_min: NONE,
+  metragem_max: NONE,
+  dorms_min: NONE,
+  dorms_max: NONE,
+  suites: NONE,
+  tipo_extra: NONE,
+  vagas_min: NONE,
+  vagas_max: NONE,
+  vagas_observacao: NONE,
+  preco_a_partir: NONE,
+  sob_consulta: NONE,
+  status_entrega: NONE,
+  mes_entrega: NONE,
+  ano_entrega: NONE,
+  fonte: NONE,
 };
 
-function sugerirCampo(header: string): keyof Mapping | null {
-  const h = header.toLowerCase();
-  if (/empreend|projeto|nome/.test(h)) return "nome";
+const FIELD_LABELS: Record<FieldKey, string> = {
+  nome: "Empreendimento *",
+  construtora: "Incorporadora",
+  regiao: "Região / Zona",
+  bairro: "Bairro / Cidade",
+  cidade: "Cidade (opcional)",
+  logradouro: "Logradouro",
+  numero: "Número",
+  metragem_min: "Metragem mín. (m²)",
+  metragem_max: "Metragem máx. (m²)",
+  dorms_min: "Dorms mín.",
+  dorms_max: "Dorms máx.",
+  suites: "Suítes",
+  tipo_extra: "Tipo extra",
+  vagas_min: "Vagas mín.",
+  vagas_max: "Vagas máx.",
+  vagas_observacao: "Observação de vagas",
+  preco_a_partir: "Preço a partir de (R$)",
+  sob_consulta: "Sob consulta (Sim/Não)",
+  status_entrega: "Status",
+  mes_entrega: "Mês de entrega",
+  ano_entrega: "Ano de entrega",
+  fonte: "Fonte",
+};
+
+const FIELD_ORDER: FieldKey[] = [
+  "nome",
+  "construtora",
+  "regiao",
+  "bairro",
+  "cidade",
+  "logradouro",
+  "numero",
+  "metragem_min",
+  "metragem_max",
+  "dorms_min",
+  "dorms_max",
+  "suites",
+  "tipo_extra",
+  "vagas_min",
+  "vagas_max",
+  "vagas_observacao",
+  "preco_a_partir",
+  "sob_consulta",
+  "status_entrega",
+  "mes_entrega",
+  "ano_entrega",
+  "fonte",
+];
+
+function norm(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function sugerirCampo(header: string): FieldKey | null {
+  const h = norm(header);
+  if (/^empreend|^projeto|^nome/.test(h)) return "nome";
   if (/incorpor|construt/.test(h)) return "construtora";
-  if (/regi[aã]o|zona/.test(h)) return "regiao";
-  if (/bairro/.test(h) && !/cidade/.test(h)) return "bairro";
-  if (/cidade/.test(h)) return "cidade";
-  if (/endere[cç]o|rua|avenida/.test(h)) return "endereco";
-  if (/tipologia|metragem|dorm/.test(h)) return "tipologia";
-  if (/vaga/.test(h)) return "vagas";
-  if (/pre[cç]o|valor/.test(h)) return "preco_inicial";
-  if (/entrega|status/.test(h)) return "entrega_status";
+  if (/^regi|zona/.test(h)) return "regiao";
+  if (/bairro/.test(h)) return "bairro";
+  if (/^cidade$/.test(h)) return "cidade";
+  if (/logradouro|^rua|avenida/.test(h)) return "logradouro";
+  if (/^numero$|^num$|^n\b/.test(h)) return "numero";
+  if (/metragem.*min/.test(h)) return "metragem_min";
+  if (/metragem.*max/.test(h)) return "metragem_max";
+  if (/dorms.*min|dorm.*min/.test(h)) return "dorms_min";
+  if (/dorms.*max|dorm.*max/.test(h)) return "dorms_max";
+  if (/^suite/.test(h)) return "suites";
+  if (/tipo.*extra/.test(h)) return "tipo_extra";
+  if (/vagas.*min/.test(h)) return "vagas_min";
+  if (/vagas.*max/.test(h)) return "vagas_max";
+  if (/vagas.*obs|obs.*vaga/.test(h)) return "vagas_observacao";
+  if (/preco|pre[cç]o|valor/.test(h)) return "preco_a_partir";
+  if (/sob.*consulta|consulta/.test(h)) return "sob_consulta";
+  if (/^status$|entrega.*status/.test(h)) return "status_entrega";
+  if (/mes.*entrega/.test(h)) return "mes_entrega";
+  if (/ano.*entrega/.test(h)) return "ano_entrega";
+  if (/fonte/.test(h)) return "fonte";
   return null;
+}
+
+function toNum(v: unknown): number | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const cleaned = s.replace(/r\$/gi, "").replace(/\s/g, "").replace(/\./g, "").replace(/,/g, ".");
+  const m = cleaned.match(/-?\d+(\.\d+)?/);
+  if (!m) {
+    const direct = Number(s.replace(",", "."));
+    return Number.isFinite(direct) ? direct : null;
+  }
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+function toBool(v: unknown): boolean {
+  if (v == null) return false;
+  const s = norm(String(v));
+  return s === "sim" || s === "s" || s === "true" || s === "yes" || s === "y" || s === "1";
 }
 
 export function ImportProjetosDialog({
@@ -114,7 +228,7 @@ export function ImportProjetosDialog({
   async function handleFile(file: File) {
     try {
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array", raw: false });
+      const wb = XLSX.read(buf, { type: "array", raw: false, FS: ";" });
       const sheetName = wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
@@ -125,8 +239,14 @@ export function ImportProjetosDialog({
         toast.error("Planilha vazia");
         return;
       }
-      const headers = Object.keys(rows[0]);
-      setParsed({ headers, rows });
+      const headers = Object.keys(rows[0]).map((h) => h.replace(/^\ufeff/, ""));
+      // re-key rows w/o BOM
+      const cleanRows = rows.map((r) => {
+        const out: Record<string, unknown> = {};
+        for (const k of Object.keys(r)) out[k.replace(/^\ufeff/, "")] = r[k];
+        return out;
+      });
+      setParsed({ headers, rows: cleanRows });
       setFileName(file.name);
 
       const auto: Mapping = { ...EMPTY_MAPPING };
@@ -151,40 +271,54 @@ export function ImportProjetosDialog({
       nome: val(r, mapping.nome),
       construtora: val(r, mapping.construtora),
       bairro: val(r, mapping.bairro),
-      tipologia: val(r, mapping.tipologia),
-      preco_inicial: val(r, mapping.preco_inicial),
+      dorms: [val(r, mapping.dorms_min), val(r, mapping.dorms_max)].filter(Boolean).join("–"),
+      metr: [val(r, mapping.metragem_min), val(r, mapping.metragem_max)].filter(Boolean).join("–"),
+      preco: val(r, mapping.preco_a_partir),
     }));
   }, [parsed, mapping]);
 
   const importar = useMutation({
     mutationFn: async () => {
       if (!parsed) throw new Error("Sem dados");
-      if (!mapping.nome) throw new Error("Mapeie ao menos o Nome");
+      if (!mapping.nome) throw new Error("Mapeie ao menos o Empreendimento");
       const get = (r: Record<string, unknown>, key: string) =>
         key && key !== NONE ? String(r[key] ?? "").trim() || null : null;
-      const rows = parsed.rows.map((r) => ({
+      const getNum = (r: Record<string, unknown>, key: string) =>
+        key && key !== NONE ? toNum(r[key]) : null;
+      const getBool = (r: Record<string, unknown>, key: string) =>
+        key && key !== NONE ? toBool(r[key]) : false;
+
+      const rows: ImportProjetoRow[] = parsed.rows.map((r) => ({
         nome: String(r[mapping.nome] ?? "").trim(),
         construtora: get(r, mapping.construtora),
         regiao: get(r, mapping.regiao),
         bairro: get(r, mapping.bairro),
         cidade: get(r, mapping.cidade),
-        endereco: get(r, mapping.endereco),
-        tipologia: get(r, mapping.tipologia),
-        vagas: get(r, mapping.vagas),
-        preco_inicial: get(r, mapping.preco_inicial),
-        entrega_status: get(r, mapping.entrega_status),
+        logradouro: get(r, mapping.logradouro),
+        numero: get(r, mapping.numero),
+        metragem_min: getNum(r, mapping.metragem_min),
+        metragem_max: getNum(r, mapping.metragem_max),
+        dorms_min: getNum(r, mapping.dorms_min),
+        dorms_max: getNum(r, mapping.dorms_max),
+        suites: getNum(r, mapping.suites),
+        tipo_extra: get(r, mapping.tipo_extra),
+        vagas_min: getNum(r, mapping.vagas_min),
+        vagas_max: getNum(r, mapping.vagas_max),
+        vagas_observacao: get(r, mapping.vagas_observacao),
+        preco_a_partir: getNum(r, mapping.preco_a_partir),
+        sob_consulta: getBool(r, mapping.sob_consulta),
+        status_entrega: get(r, mapping.status_entrega),
+        mes_entrega: getNum(r, mapping.mes_entrega),
+        ano_entrega: getNum(r, mapping.ano_entrega),
+        fonte: get(r, mapping.fonte),
       }));
-      return await importarFn({
-        data: { rows, atualizarExistentes: atualizar },
-      });
+      return await importarFn({ data: { rows, atualizarExistentes: atualizar } });
     },
     onSuccess: (res) => {
       setResultado(res);
       setStep("resultado");
       qc.invalidateQueries({ queryKey: ["projetos"] });
-      toast.success(
-        `${res.inseridos} inseridos · ${res.atualizados} atualizados`,
-      );
+      toast.success(`${res.inseridos} inseridos · ${res.atualizados} atualizados`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -201,10 +335,10 @@ export function ImportProjetosDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Importar projetos
+            Importar empreendimentos
           </DialogTitle>
           <DialogDescription>
-            Carregue uma planilha .xlsx ou .csv com os empreendimentos.
+            Carregue a planilha (.xlsx ou .csv com separador ;) com os 21 campos do Tabelão.
           </DialogDescription>
         </DialogHeader>
 
@@ -221,7 +355,7 @@ export function ImportProjetosDialog({
                     Clique para selecionar uma planilha
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    .xlsx, .xls ou .csv (separador ; ou ,)
+                    .xlsx, .xls ou .csv (UTF-8, separador ;)
                   </span>
                   <Input
                     id="file-upload-projetos"
@@ -237,16 +371,12 @@ export function ImportProjetosDialog({
               </CardContent>
             </Card>
             <div className="text-xs text-muted-foreground space-y-1">
+              <p>• Cada linha vira um empreendimento.</p>
               <p>
-                • Cada linha vira um <strong>projeto/empreendimento</strong>.
+                • Slug = Incorporadora + Nome. Empreendimentos existentes são pulados a menos que
+                "Atualizar existentes" esteja ligado.
               </p>
-              <p>
-                • Projetos cujo slug (Construtora + Nome) já existir são pulados — marque
-                "Atualizar existentes" para sobrescrever.
-              </p>
-              <p>
-                • Webhook próprio é gerado automaticamente para cada projeto criado.
-              </p>
+              <p>• Webhook próprio é gerado automaticamente.</p>
             </div>
           </div>
         )}
@@ -259,84 +389,21 @@ export function ImportProjetosDialog({
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <CampoMap
-                label="Nome do empreendimento *"
-                value={mapping.nome}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, nome: v }))}
-              />
-              <CampoMap
-                label="Construtora / Incorporadora"
-                value={mapping.construtora}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, construtora: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Região / Zona"
-                value={mapping.regiao}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, regiao: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Bairro"
-                value={mapping.bairro}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, bairro: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Cidade"
-                value={mapping.cidade}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, cidade: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Endereço"
-                value={mapping.endereco}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, endereco: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Tipologia / Metragem"
-                value={mapping.tipologia}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, tipologia: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Vagas"
-                value={mapping.vagas}
-                headers={parsed.headers}
-                onChange={(v) => setMapping((m) => ({ ...m, vagas: v }))}
-                allowNone
-              />
-              <CampoMap
-                label="Preço a partir de"
-                value={mapping.preco_inicial}
-                headers={parsed.headers}
-                onChange={(v) =>
-                  setMapping((m) => ({ ...m, preco_inicial: v }))
-                }
-                allowNone
-              />
-              <CampoMap
-                label="Entrega / Status"
-                value={mapping.entrega_status}
-                headers={parsed.headers}
-                onChange={(v) =>
-                  setMapping((m) => ({ ...m, entrega_status: v }))
-                }
-                allowNone
-              />
+              {FIELD_ORDER.map((key) => (
+                <CampoMap
+                  key={key}
+                  label={FIELD_LABELS[key]}
+                  value={mapping[key] || (key === "nome" ? "" : NONE)}
+                  headers={parsed.headers}
+                  onChange={(v) => setMapping((m) => ({ ...m, [key]: v }))}
+                  allowNone={key !== "nome"}
+                />
+              ))}
             </div>
 
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
-                <Label>Atualizar projetos existentes</Label>
+                <Label>Atualizar empreendimentos existentes</Label>
                 <p className="text-xs text-muted-foreground">
                   Sobrescreve dados de projetos cujo slug já existe.
                 </p>
@@ -352,40 +419,22 @@ export function ImportProjetosDialog({
                     <thead className="bg-muted">
                       <tr>
                         <th className="text-left p-2">Nome</th>
-                        <th className="text-left p-2">Construtora</th>
+                        <th className="text-left p-2">Incorporadora</th>
                         <th className="text-left p-2">Bairro</th>
-                        <th className="text-left p-2">Tipologia</th>
+                        <th className="text-left p-2">Dorms</th>
+                        <th className="text-left p-2">Metragem</th>
                         <th className="text-left p-2">Preço</th>
                       </tr>
                     </thead>
                     <tbody>
                       {preview.map((r, i) => (
                         <tr key={i} className="border-t">
-                          <td className="p-2">
-                            {r.nome || (
-                              <em className="text-muted-foreground">—</em>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {r.construtora || (
-                              <em className="text-muted-foreground">—</em>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {r.bairro || (
-                              <em className="text-muted-foreground">—</em>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {r.tipologia || (
-                              <em className="text-muted-foreground">—</em>
-                            )}
-                          </td>
-                          <td className="p-2">
-                            {r.preco_inicial || (
-                              <em className="text-muted-foreground">—</em>
-                            )}
-                          </td>
+                          <td className="p-2">{r.nome || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.construtora || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.bairro || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.dorms || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.metr || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.preco || <em className="text-muted-foreground">—</em>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -408,7 +457,7 @@ export function ImportProjetosDialog({
                     Importando…
                   </>
                 ) : (
-                  `Importar ${parsed.rows.length} projetos`
+                  `Importar ${parsed.rows.length} empreendimentos`
                 )}
               </Button>
             </DialogFooter>
@@ -418,54 +467,28 @@ export function ImportProjetosDialog({
         {step === "resultado" && resultado && (
           <div className="space-y-4">
             <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-green-600">
-                    {resultado.inseridos}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Inseridos</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {resultado.atualizados}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Atualizados
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-amber-600">
-                    {resultado.duplicados}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Duplicados
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-rose-600">
-                    {resultado.invalidos + resultado.erros}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Inválidos / erros
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-muted-foreground">
-                    {resultado.total}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Total no arquivo
-                  </div>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-green-600">{resultado.inseridos}</div>
+                <div className="text-xs text-muted-foreground">Inseridos</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-blue-600">{resultado.atualizados}</div>
+                <div className="text-xs text-muted-foreground">Atualizados</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-amber-600">{resultado.duplicados}</div>
+                <div className="text-xs text-muted-foreground">Duplicados</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-rose-600">
+                  {resultado.invalidos + resultado.erros}
+                </div>
+                <div className="text-xs text-muted-foreground">Inválidos / erros</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-muted-foreground">{resultado.total}</div>
+                <div className="text-xs text-muted-foreground">Total no arquivo</div>
+              </CardContent></Card>
             </div>
 
             {resultado.detalhes.length > 0 && (
@@ -488,11 +511,7 @@ export function ImportProjetosDialog({
                         <tr key={i} className="border-t">
                           <td className="p-2">{d.linha}</td>
                           <td className="p-2">{d.nome ?? "—"}</td>
-                          <td className="p-2">
-                            <Badge variant="outline" className="text-xs">
-                              {d.motivo}
-                            </Badge>
-                          </td>
+                          <td className="p-2">{d.motivo}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -502,13 +521,7 @@ export function ImportProjetosDialog({
             )}
 
             <DialogFooter>
-              <Button variant="outline" onClick={reset}>
-                Importar outra planilha
-              </Button>
-              <Button onClick={() => onOpenChange(false)}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Concluir
-              </Button>
+              <Button onClick={() => onOpenChange(false)}>Fechar</Button>
             </DialogFooter>
           </div>
         )}
@@ -531,17 +544,14 @@ function CampoMap({
   allowNone?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Select
-        value={value || (allowNone ? NONE : "")}
-        onValueChange={onChange}
-      >
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Select value={value || (allowNone ? NONE : "")} onValueChange={onChange}>
         <SelectTrigger>
-          <SelectValue placeholder="Selecione a coluna" />
+          <SelectValue placeholder="Selecione a coluna…" />
         </SelectTrigger>
         <SelectContent>
-          {allowNone && <SelectItem value={NONE}>— não usar —</SelectItem>}
+          {allowNone && <SelectItem value={NONE}>— Não importar —</SelectItem>}
           {headers.map((h) => (
             <SelectItem key={h} value={h}>
               {h}

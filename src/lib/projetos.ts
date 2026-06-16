@@ -1,4 +1,4 @@
-// Helpers para projetos / webhooks por token
+// Helpers para projetos / webhooks / catálogo
 
 export function slugify(input: string): string {
   return input
@@ -22,23 +22,7 @@ export function maskToken(token: string): string {
   return `${token.slice(0, 4)}${"•".repeat(token.length - 8)}${token.slice(-4)}`;
 }
 
-// ---------- Parsing helpers para filtros do catálogo ----------
-
-export function parsePrecoBRL(text: string | null | undefined): number | null {
-  if (text == null) return null;
-  const s = String(text).trim();
-  if (!s) return null;
-  // Remove R$, espaços e separadores de milhar; troca vírgula decimal por ponto
-  const cleaned = s
-    .replace(/r\$/gi, "")
-    .replace(/\s/g, "")
-    .replace(/\./g, "")
-    .replace(/,/g, ".");
-  const match = cleaned.match(/-?\d+(\.\d+)?/);
-  if (!match) return null;
-  const n = Number(match[0]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
+// ---------- Format helpers ----------
 
 export function formatBRL(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "";
@@ -49,73 +33,111 @@ export function formatBRL(n: number | null | undefined): string {
   }).format(n);
 }
 
-export function normalizeVagas(text: string | null | undefined): "0" | "1" | "2" | "3+" | null {
-  if (text == null) return null;
-  const s = String(text).trim();
-  if (!s) return null;
-  const m = s.match(/\d+/);
-  if (!m) return null;
-  const n = Number(m[0]);
-  if (!Number.isFinite(n)) return null;
+export function formatM2Range(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string | null {
+  if (min == null && max == null) return null;
+  if (min != null && max != null) {
+    if (min === max) return `${fmtNum(min)} m²`;
+    return `${fmtNum(min)} – ${fmtNum(max)} m²`;
+  }
+  return `${fmtNum((min ?? max)!)} m²`;
+}
+
+export function formatDormsRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+): string | null {
+  if (min == null && max == null) return null;
+  if (min != null && max != null) {
+    if (min === max) return `${min} ${min === 1 ? "dorm" : "dorms"}`;
+    return `${min}–${max} dorms`;
+  }
+  const v = (min ?? max)!;
+  return `${v} ${v === 1 ? "dorm" : "dorms"}`;
+}
+
+export function formatVagasRange(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  obs: string | null | undefined,
+): string | null {
+  if (min == null && max == null) {
+    return obs?.trim() || null;
+  }
+  if (min != null && max != null) {
+    if (min === max) {
+      const v = min;
+      return v === 0 ? (obs?.trim() || "Sem vaga") : `${v} vaga${v === 1 ? "" : "s"}`;
+    }
+    return `${min}–${max} vagas`;
+  }
+  const v = (min ?? max)!;
+  return `${v} vaga${v === 1 ? "" : "s"}`;
+}
+
+export function formatEntrega(
+  status: string | null | undefined,
+  mes: number | null | undefined,
+  ano: number | null | undefined,
+): string | null {
+  const parts: string[] = [];
+  if (status) parts.push(status);
+  if (ano) {
+    const mm = mes ? String(mes).padStart(2, "0") + "/" : "";
+    parts.push(`${mm}${ano}`);
+  }
+  return parts.length ? parts.join(" · ") : null;
+}
+
+function fmtNum(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+}
+
+// ---------- Tipo extra (multivalor separado por vírgula) ----------
+
+export function splitTipoExtra(text: string | null | undefined): string[] {
+  if (!text) return [];
+  return String(text)
+    .split(/[,;|/]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// ---------- Buckets ----------
+
+export type Bucket = "0" | "1" | "2" | "3+";
+
+export function bucketize(n: number | null | undefined): Bucket | null {
+  if (n == null || !Number.isFinite(n)) return null;
   if (n <= 0) return "0";
   if (n === 1) return "1";
   if (n === 2) return "2";
   return "3+";
 }
 
-export function normalizeTipologia(text: string | null | undefined): string | null {
-  if (text == null) return null;
-  const s = String(text).trim().toLowerCase();
-  if (!s) return null;
-  if (/studio|stdio|kit/.test(s)) return "Studio";
-  const m = s.match(/(\d+)\s*(dorm|quart|qto|q\b|d\b)/);
-  if (m) {
-    const n = Number(m[1]);
-    return `${n} ${n === 1 ? "dorm" : "dorms"}`;
+export function rangeOverlapsBuckets(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  selected: Bucket[],
+  includeNull = false,
+): boolean {
+  if (selected.length === 0) return true;
+  if (min == null && max == null) return includeNull;
+  const lo = min ?? max!;
+  const hi = max ?? min!;
+  for (let n = lo; n <= Math.max(hi, lo); n++) {
+    const b = bucketize(n);
+    if (b && selected.includes(b)) return true;
+    if (n > 100) break;
   }
-  const lone = s.match(/^(\d+)$/);
-  if (lone) {
-    const n = Number(lone[1]);
-    return `${n} ${n === 1 ? "dorm" : "dorms"}`;
-  }
-  // Fallback: capitaliza primeira letra
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-export function normalizeEntregaStatus(text: string | null | undefined): string | null {
-  if (text == null) return null;
-  const s = String(text).trim().toLowerCase();
-  if (!s) return null;
-  if (/lan[cç]/.test(s)) return "Lançamento";
-  if (/obra|constru/.test(s)) return "Em obras";
-  if (/pronto|entreg|hab/.test(s)) return "Pronto";
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// ---------- Parsing de metragem (área privativa) ----------
-export function parseAreaM2(text: string | null | undefined): number | null {
-  if (text == null) return null;
-  const s = String(text).trim();
-  if (!s) return null;
-  const cleaned = s.replace(/\./g, "").replace(/,/g, ".");
-  const match = cleaned.match(/-?\d+(\.\d+)?/);
-  if (!match) return null;
-  const n = Number(match[0]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-// ---------- Parsing de ano de entrega ----------
-export function parseEntregaYear(text: string | null | undefined): number | null {
-  if (text == null) return null;
-  const s = String(text).trim();
-  if (!s) return null;
-  const m = s.match(/(20\d{2})/);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) ? n : null;
+  if (hi >= 3 && selected.includes("3+")) return true;
+  return false;
 }
 
 // ---------- Presets para filtros de intervalo ----------
+
 export type RangeOption = { value: number | null; label: string };
 
 const QUALQUER: RangeOption = { value: null, label: "Qualquer" };
@@ -127,40 +149,33 @@ const fmtMil = (n: number) =>
 
 export const PRECO_FROM_PRESETS: RangeOption[] = [
   QUALQUER,
-  ...[200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000].map(
+  ...[150_000, 200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000].map(
     (v) => ({ value: v, label: fmtMil(v) }),
   ),
 ];
 
 export const PRECO_TO_PRESETS: RangeOption[] = [
   QUALQUER,
-  ...[300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000, 5_000_000].map(
+  ...[200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000, 5_000_000].map(
     (v) => ({ value: v, label: fmtMil(v) }),
   ),
 ];
 
 export const AREA_FROM_PRESETS: RangeOption[] = [
   QUALQUER,
-  ...[25, 30, 40, 50, 60, 80, 100].map((v) => ({ value: v, label: `${v}m²` })),
+  ...[20, 25, 30, 40, 50, 60, 80, 100, 150].map((v) => ({ value: v, label: `${v}m²` })),
 ];
 
 export const AREA_TO_PRESETS: RangeOption[] = [
   QUALQUER,
-  ...[45, 50, 60, 100, 200, 400, 600].map((v) => ({ value: v, label: `${v}m²` })),
+  ...[30, 40, 50, 60, 80, 100, 150, 200, 300, 500].map((v) => ({ value: v, label: `${v}m²` })),
 ];
 
 export function entregaYearPresets(): { from: RangeOption[]; to: RangeOption[] } {
   const y = new Date().getFullYear();
-  const years = [0, 1, 2, 3, 4, 5].map((d) => y + d);
+  const years = [-1, 0, 1, 2, 3, 4, 5].map((d) => y + d);
   return {
-    from: [
-      QUALQUER,
-      { value: 0, label: "Imediato" },
-      ...years.map((v) => ({ value: v, label: String(v) })),
-    ],
-    to: [
-      QUALQUER,
-      ...years.map((v) => ({ value: v, label: String(v) })),
-    ],
+    from: [QUALQUER, ...years.map((v) => ({ value: v, label: String(v) }))],
+    to: [QUALQUER, ...years.map((v) => ({ value: v, label: String(v) }))],
   };
 }
