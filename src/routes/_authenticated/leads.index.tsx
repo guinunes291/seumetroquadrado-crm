@@ -174,13 +174,17 @@ function LeadsPage() {
         } as never,
       );
       if (error) throw error;
-      return data;
+      return { corretorId: data as string | null, leadId };
     },
-    onSuccess: (corretorId) => {
+    onSuccess: async ({ corretorId, leadId }) => {
       if (!corretorId) {
         toast.error("Nenhum corretor disponível na fila. Ative corretores em Distribuição.");
       } else {
         toast.success("Lead atribuído via roleta");
+        // Notifica via WhatsApp se for lead de origem=facebook.
+        await supabase.functions.invoke("notify-lead-transfer", {
+          body: { lead_id: leadId, corretor_id: corretorId },
+        });
       }
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
