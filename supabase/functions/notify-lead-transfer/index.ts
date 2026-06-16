@@ -109,7 +109,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     telefone: prof?.telefone as string | null | undefined,
     nomeLead: (lead.nome as string | null) ?? "(sem nome)",
     projeto: (lead.projeto_nome as string | null) ?? null,
-    renda: (lead.renda_familiar as string | null) ?? null,
+    renda: (lead.renda_informada as string | null) ?? null,
     link: appUrl ? `${appUrl}/leads/${lead.id}` : `/leads/${lead.id}`,
   });
 
