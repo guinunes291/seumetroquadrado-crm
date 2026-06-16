@@ -1072,14 +1072,7 @@ function CopaPage() {
                 🎲 Realizar Sorteio
               </button>
             </AdminCard>
-            <AdminLancarPontuacao
-              profiles={profilesQ.data ?? []}
-              participantes={participantes}
-              onSaved={() => {
-                qc.invalidateQueries({ queryKey: ["copa:ranking"] });
-                qc.invalidateQueries({ queryKey: ["copa:pontos-semana"] });
-              }}
-            />
+
             <AdminCard title="Definir Vencedores" color={RED} icon="⚔️">
               {fases
                 .filter((f) => confrontosDaFase(f.id).length > 0)
