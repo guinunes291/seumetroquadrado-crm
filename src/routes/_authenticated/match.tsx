@@ -348,6 +348,10 @@ function MatchList({
     recursosNaoConstrutora: orc.recursosNaoConstrutora * ajuste,
   };
 
+  const semPreco = projetos.filter(
+    (p) => p.preco_a_partir == null || p.preco_a_partir <= 0,
+  ).length;
+
   const todos = projetos
     .filter((p) => p.preco_a_partir != null && p.preco_a_partir > 0)
     .map((p) => ({
@@ -376,15 +380,25 @@ function MatchList({
             ({ocultos} ocultos por estarem acima do teto de avaliação do segmento)
           </span>
         )}
+        {semPreco > 0 && (
+          <span className="ml-1 text-amber-600 dark:text-amber-400">
+            ({semPreco} empreendimento{semPreco > 1 ? "s" : ""} sem preço cadastrado — não entram no match)
+          </span>
+        )}
       </div>
 
       {items.length === 0 && (
         <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Nenhum empreendimento dentro do segmento. Ative "Mostrar imóveis fora do segmento" para ver o estoque completo.
+          <CardContent className="py-12 text-center text-muted-foreground space-y-2">
+            <div>
+              {semPreco > 0
+                ? `Os ${semPreco} empreendimento${semPreco > 1 ? "s" : ""} desse filtro não têm preço cadastrado, por isso não entram no match. Cadastre o "preço a partir" no detalhe do empreendimento para que apareçam aqui.`
+                : `Nenhum empreendimento dentro do segmento. Ative "Mostrar imóveis fora do segmento" para ver o estoque completo.`}
+            </div>
           </CardContent>
         </Card>
       )}
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {items.map(({ projeto: p, aderencia: a }) => (
