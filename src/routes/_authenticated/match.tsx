@@ -23,10 +23,10 @@ import type { ProjetoRow } from "@/components/projeto-card";
 import { Link } from "@tanstack/react-router";
 import {
   ProjetosFilters,
+  applyFilters,
   emptyFilters,
   type Filters,
 } from "@/components/projetos-filters";
-import { applyFilters } from "@/lib/projetos";
 
 export const Route = createFileRoute("/_authenticated/match")({
   head: () => ({ meta: [{ title: "Match — Seu Metro Quadrado" }] }),
