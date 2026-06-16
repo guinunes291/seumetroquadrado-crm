@@ -14,8 +14,9 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Copy, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Plus, Building2, Copy, RefreshCw, Eye, EyeOff, Upload } from "lucide-react";
 import { slugify, webhookUrl, maskToken } from "@/lib/projetos";
+import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
 
 export const Route = createFileRoute("/_authenticated/projetos")({
   head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
