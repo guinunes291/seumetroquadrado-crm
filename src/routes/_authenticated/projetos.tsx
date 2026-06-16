@@ -14,8 +14,9 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Copy, RefreshCw, Eye, EyeOff } from "lucide-react";
+import { Plus, Building2, Copy, RefreshCw, Eye, EyeOff, Upload } from "lucide-react";
 import { slugify, webhookUrl, maskToken } from "@/lib/projetos";
+import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
 
 export const Route = createFileRoute("/_authenticated/projetos")({
   head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
@@ -28,6 +29,7 @@ function ProjetosPage() {
   const canManage = isAdmin || isGestor;
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
@@ -123,47 +125,55 @@ function ProjetosPage() {
         title="Projetos / Empreendimentos"
         description="Cada projeto tem seu próprio webhook para receber leads externos (Facebook, sites, Zapier)."
         actions={canManage && (
-          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />Novo projeto</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{editing ? "Editar projeto" : "Novo projeto"}</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-3">
-                <div>
-                  <Label htmlFor="nome">Nome do empreendimento</Label>
-                  <Input id="nome" name="nome" required defaultValue={editing?.nome} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />Importar projetos
+            </Button>
+            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+              <DialogTrigger asChild>
+                <Button><Plus className="h-4 w-4 mr-2" />Novo projeto</Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>{editing ? "Editar projeto" : "Novo projeto"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-3">
                   <div>
-                    <Label htmlFor="slug">Slug</Label>
-                    <Input id="slug" name="slug" placeholder="auto" defaultValue={editing?.slug} />
+                    <Label htmlFor="nome">Nome do empreendimento</Label>
+                    <Input id="nome" name="nome" required defaultValue={editing?.nome} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="slug">Slug</Label>
+                      <Input id="slug" name="slug" placeholder="auto" defaultValue={editing?.slug} />
+                    </div>
+                    <div>
+                      <Label htmlFor="cidade">Cidade</Label>
+                      <Input id="cidade" name="cidade" defaultValue={editing?.cidade ?? ""} />
+                    </div>
                   </div>
                   <div>
-                    <Label htmlFor="cidade">Cidade</Label>
-                    <Input id="cidade" name="cidade" defaultValue={editing?.cidade ?? ""} />
+                    <Label htmlFor="construtora">Construtora</Label>
+                    <Input id="construtora" name="construtora" defaultValue={editing?.construtora ?? ""} />
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="construtora">Construtora</Label>
-                  <Input id="construtora" name="construtora" defaultValue={editing?.construtora ?? ""} />
-                </div>
-                <div>
-                  <Label htmlFor="observacoes">Observações</Label>
-                  <Input id="observacoes" name="observacoes" defaultValue={editing?.observacoes ?? ""} />
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={saveMutation.isPending}>
-                    {saveMutation.isPending ? "Salvando..." : "Salvar"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div>
+                    <Label htmlFor="observacoes">Observações</Label>
+                    <Input id="observacoes" name="observacoes" defaultValue={editing?.observacoes ?? ""} />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" disabled={saveMutation.isPending}>
+                      {saveMutation.isPending ? "Salvando..." : "Salvar"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         )}
       />
+
+      <ImportProjetosDialog open={importOpen} onOpenChange={setImportOpen} />
+
 
       {projetosQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
