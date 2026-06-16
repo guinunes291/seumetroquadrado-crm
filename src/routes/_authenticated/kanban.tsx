@@ -96,7 +96,7 @@ function KanbanPage() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura",
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, created_at",
         )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
@@ -106,6 +106,30 @@ function KanbanPage() {
       return (data ?? []) as Lead[];
     },
   });
+
+  const { data: slaRows } = useQuery({
+    queryKey: ["leads-sla"],
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args?: Record<string, unknown>,
+        ) => Promise<{ data: SlaRow[] | null; error: unknown }>
+      )("leads_com_sla");
+      if (error) throw error;
+      return (data ?? []) as SlaRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const slaMap = useMemo(() => {
+    const m = new Map<string, SlaRow>();
+    (slaRows ?? []).forEach((r) => m.set(r.lead_id, r));
+    return m;
+  }, [slaRows]);
+
+  // Substitui polling por realtime
+  useRealtimeInvalidate("leads", [["leads-kanban"], ["leads-sla"]]);
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
