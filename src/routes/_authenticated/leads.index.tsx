@@ -223,16 +223,20 @@ function LeadsPage() {
                   <Upload className="h-4 w-4 mr-1" /> Importar
                 </Button>
                 <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
-                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm">
-                      <UserPlus className="h-4 w-4 mr-1" /> Novo lead
-                    </Button>
-                  </DialogTrigger>
-                  <NovoLeadDialog onClose={() => setCreateOpen(false)} />
-                </Dialog>
               </>
             )}
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <UserPlus className="h-4 w-4 mr-1" /> Novo lead
+                </Button>
+              </DialogTrigger>
+              <NovoLeadDialog
+                onClose={() => setCreateOpen(false)}
+                canManage={canManage}
+                currentUserId={user?.id ?? null}
+              />
+            </Dialog>
           </div>
         }
       />
