@@ -28,6 +28,7 @@ import {
   User as UserIcon,
   Trash2,
   Merge,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,6 +72,7 @@ const SECTIONS: Section[] = [
     title: "Negócios",
     items: [
       { to: "/projetos", label: "Empreendimentos", icon: Building2 },
+      { to: "/match", label: "Match", icon: Sparkles },
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone, comingSoon: true },
       { to: "/carteira", label: "Carteira Ativa", icon: Wallet, comingSoon: true },
       { to: "/comissoes", label: "Comissões", icon: FileText },

@@ -19,6 +19,7 @@ import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
+import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLeadsPorCorretorRouteImport } from './routes/_authenticated/leads-por-corretor'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
@@ -86,6 +87,11 @@ const AuthenticatedMeuPainelRoute = AuthenticatedMeuPainelRouteImport.update({
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   id: '/metas',
   path: '/metas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMatchRoute = AuthenticatedMatchRouteImport.update({
+  id: '/match',
+  path: '/match',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLixeiraRoute = AuthenticatedLixeiraRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
+  '/match': typeof AuthenticatedMatchRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
+  '/match': typeof AuthenticatedMatchRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
+  '/_authenticated/match': typeof AuthenticatedMatchRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/leads-por-corretor'
     | '/lixeira'
+    | '/match'
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/leads-por-corretor'
     | '/lixeira'
+    | '/match'
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
@@ -363,6 +374,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kanban'
     | '/_authenticated/leads-por-corretor'
     | '/_authenticated/lixeira'
+    | '/_authenticated/match'
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
@@ -456,6 +468,13 @@ declare module '@tanstack/react-router' {
       path: '/metas'
       fullPath: '/metas'
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/match': {
+      id: '/_authenticated/match'
+      path: '/match'
+      fullPath: '/match'
+      preLoaderRoute: typeof AuthenticatedMatchRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/lixeira': {
@@ -608,6 +627,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
+  AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
@@ -635,6 +655,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
+  AuthenticatedMatchRoute: AuthenticatedMatchRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
