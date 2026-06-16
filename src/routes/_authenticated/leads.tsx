@@ -148,6 +148,10 @@ function LeadsPage() {
     },
   });
 
+  useRealtimeInvalidate("leads", [["leads"]]);
+
+
+
   const filtered = useMemo(() => {
     if (!leads) return [];
     if (!search.trim()) return leads;
