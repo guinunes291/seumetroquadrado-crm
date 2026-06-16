@@ -21,6 +21,8 @@ import {
   type StageModalState,
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
+import { SlaBadge } from "@/components/sla-badge";
 
 export const Route = createFileRoute("/_authenticated/kanban")({
   head: () => ({ meta: [{ title: "Kanban — Seu Metro Quadrado" }] }),
