@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { NotificationBell } from "@/components/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -19,8 +19,11 @@ function AuthenticatedLayout() {
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
       <main className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-10 flex items-center justify-end gap-2 border-b border-border bg-background/80 backdrop-blur px-4 md:px-8 h-14">
-          <NotificationBell />
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/80 backdrop-blur px-4 md:px-8 h-14">
+          <MobileSidebar />
+          <div className="ml-auto flex items-center gap-2">
+            <NotificationBell />
+          </div>
         </header>
         <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
           <Outlet />
