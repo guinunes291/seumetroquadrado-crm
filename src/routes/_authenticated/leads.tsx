@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -43,8 +43,16 @@ import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
   leadStatusLabel,
+  resolveStageAction,
   type LeadStatus,
 } from "@/lib/leads";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
+import { LeadStageMenu } from "@/components/lead-stage-menu";
+import {
+  LeadStageModals,
+  type StageModalState,
+  type PerdidoState,
+} from "@/components/lead-stage/lead-stage-modals";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
@@ -74,15 +82,22 @@ type Lead = {
   status: string;
   temperatura: string | null;
   corretor_id: string | null;
+  projeto_id: string | null;
   projeto_nome: string | null;
+  observacoes: string | null;
   created_at: string;
   na_lixeira: boolean;
 };
 
 function LeadsPage() {
   const { isAdmin, isGestor } = useUserRoles();
+  const { user } = useAuth();
   const canManage = isAdmin || isGestor;
   const qc = useQueryClient();
+
+  const [modalState, setModalState] = useState<StageModalState>(null);
+  const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+  const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"]] });
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -117,7 +132,7 @@ function LeadsPage() {
       let q = supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_nome, created_at, na_lixeira",
+          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, na_lixeira",
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -199,11 +214,7 @@ function LeadsPage() {
             </Button>
             {canManage && (
               <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setImportOpen(true)}
-                >
+                <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
                   <Upload className="h-4 w-4 mr-1" /> Importar
                 </Button>
                 <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
@@ -346,26 +357,40 @@ function LeadsPage() {
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(l.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
-                    <TableCell className="text-right space-x-1">
-                      {canManage && !l.corretor_id && !l.na_lixeira && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => distribuir.mutate(l.id)}
-                          disabled={distribuir.isPending}
-                        >
-                          <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
-                        </Button>
-                      )}
-                      {canManage && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => moverLixeira.mutate({ id: l.id, lixeira: !l.na_lixeira })}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {!l.na_lixeira && (canManage || l.corretor_id === user?.id) && (
+                          <LeadStageMenu
+                            lead={l}
+                            onPickDirect={(target) =>
+                              updateStatus.mutate({ id: l.id, status: target })
+                            }
+                            onPickModal={(modal) => setModalState({ modal, lead: l })}
+                            onPickPerdido={() => setPerdidoLead(l)}
+                          />
+                        )}
+                        {canManage && !l.corretor_id && !l.na_lixeira && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => distribuir.mutate(l.id)}
+                            disabled={distribuir.isPending}
+                          >
+                            <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
+                          </Button>
+                        )}
+                        {canManage && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              moverLixeira.mutate({ id: l.id, lixeira: !l.na_lixeira })
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -374,6 +399,12 @@ function LeadsPage() {
           </div>
         </CardContent>
       </Card>
+      <LeadStageModals
+        modalState={modalState}
+        onModalOpenChange={(o) => !o && setModalState(null)}
+        perdidoLead={perdidoLead}
+        onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+      />
     </div>
   );
 }

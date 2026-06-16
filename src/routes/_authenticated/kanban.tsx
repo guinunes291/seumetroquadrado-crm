@@ -1,15 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Phone, Mail, GripVertical } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
+import {
+  LEAD_STATUS_ORDER,
+  LEAD_STATUS_LABEL,
+  resolveStageAction,
+  type LeadStatus,
+} from "@/lib/leads";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
+import { LeadStageMenu } from "@/components/lead-stage-menu";
+import {
+  LeadStageModals,
+  type StageModalState,
+  type PerdidoState,
+} from "@/components/lead-stage/lead-stage-modals";
 
 export const Route = createFileRoute("/_authenticated/kanban")({
   head: () => ({ meta: [{ title: "Kanban — Seu Metro Quadrado" }] }),
@@ -43,12 +54,13 @@ type Lead = {
   telefone: string;
   status: string;
   corretor_id: string | null;
+  projeto_id: string | null;
   projeto_nome: string | null;
+  observacoes: string | null;
   temperatura: string | null;
 };
 
 function KanbanPage() {
-  const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -71,7 +83,9 @@ function KanbanPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, nome, email, telefone, status, corretor_id, projeto_nome, temperatura")
+        .select(
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura",
+        )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -81,28 +95,19 @@ function KanbanPage() {
     },
   });
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from("leads")
-        .update({ status: status as never, ultima_interacao: new Date().toISOString() })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: ["leads-kanban"] });
-      const prev = qc.getQueryData<Lead[]>(["leads-kanban"]);
-      qc.setQueryData<Lead[]>(["leads-kanban"], (old) =>
-        (old ?? []).map((l) => (l.id === id ? { ...l, status } : l)),
-      );
-      return { prev };
-    },
-    onError: (err: Error, _v, ctx) => {
-      qc.setQueryData(["leads-kanban"], ctx?.prev);
-      toast.error(err.message);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["leads-kanban"] }),
-  });
+  const [modalState, setModalState] = useState<StageModalState>(null);
+  const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+
+  const updateStatus = useLeadStatusMutation({ optimisticKeys: [["leads-kanban"]] });
+
+  // Roteia a etapa escolhida (no menu ou ao arrastar): direta, modal ou perdido.
+  const routeStage = (lead: Lead, target: LeadStatus) => {
+    if (lead.status === target) return;
+    const action = resolveStageAction(target);
+    if (action.kind === "direct") updateStatus.mutate({ id: lead.id, status: target });
+    else if (action.kind === "modal") setModalState({ modal: action.modal, lead });
+    else setPerdidoLead(lead);
+  };
 
   const byColumn = useMemo(() => {
     const map = new Map<string, Lead[]>();
@@ -147,9 +152,7 @@ function KanbanPage() {
                   setOverCol(null);
                   if (dragId) {
                     const lead = (leads ?? []).find((l) => l.id === dragId);
-                    if (lead && lead.status !== col.id) {
-                      updateStatus.mutate({ id: dragId, status: col.id });
-                    }
+                    if (lead) routeStage(lead, col.id as LeadStatus);
                   }
                   setDragId(null);
                 }}
@@ -220,6 +223,14 @@ function KanbanPage() {
                             )}
                           </div>
                         </div>
+                        <LeadStageMenu
+                          lead={lead}
+                          onPickDirect={(target) =>
+                            updateStatus.mutate({ id: lead.id, status: target })
+                          }
+                          onPickModal={(modal) => setModalState({ modal, lead })}
+                          onPickPerdido={() => setPerdidoLead(lead)}
+                        />
                       </div>
                     </Card>
                   ))}
@@ -229,6 +240,12 @@ function KanbanPage() {
           })}
         </div>
       </div>
+      <LeadStageModals
+        modalState={modalState}
+        onModalOpenChange={(o) => !o && setModalState(null)}
+        perdidoLead={perdidoLead}
+        onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+      />
     </div>
   );
 }
