@@ -1966,31 +1966,4 @@ function AdminLancarPontuacao({
   );
 }
 
-function AdminBonusFinal({ onSaved }: { onSaved: () => void }) {
-  const apply = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await (supabase as any).rpc("copa_aplicar_bonus_final", {
-        _edicao_id: EDICAO_ID,
-      });
-      if (error) throw error;
-      return data as { aplicados: number };
-    },
-    onSuccess: (d) => {
-      toast.success(`Bônus aplicados: ${d?.aplicados ?? 0}`);
-      onSaved();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  return (
-    <AdminCard title="Bônus de Classificação Final" color={GOLD} icon="🏆">
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 12 }}>
-        Aplica automaticamente +10/+7/+5/+3 aos campeão/vice/3º/4º a partir dos vencedores das fases
-        <strong> final</strong> e <strong>3º lugar</strong>. Pode rodar várias vezes (idempotente).
-      </p>
-      <button style={btnStyle(GOLD)} disabled={apply.isPending} onClick={() => apply.mutate()}>
-        🏆 Aplicar bônus finais
-      </button>
-    </AdminCard>
-  );
-}
 
