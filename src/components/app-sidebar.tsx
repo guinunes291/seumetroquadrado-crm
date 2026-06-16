@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import logoM2 from "@/assets/logo-m2.png.asset.json";
 import {
   LayoutDashboard,
   Users,
@@ -110,9 +111,7 @@ export function AppSidebar() {
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
-        <div className="h-8 w-8 rounded-md bg-gold text-navy flex items-center justify-center font-bold">
-          m²
-        </div>
+        <img src={logoM2.url} alt="Seu Metro Quadrado" className="h-9 w-9 rounded-md object-contain bg-white" />
         <div className="leading-tight">
           <div className="font-semibold text-sm">Seu Metro Quadrado</div>
           <div className="text-[11px] text-sidebar-foreground/60">CRM Imobiliário</div>
