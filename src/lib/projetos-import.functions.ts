@@ -100,7 +100,7 @@ export const importarProjetos = createServerFn({ method: "POST" })
       }
       vistos.add(slug);
 
-      const payload: Record<string, unknown> = {
+      const payload = {
         nome,
         slug,
         construtora,
