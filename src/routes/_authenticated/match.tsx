@@ -39,6 +39,8 @@ function MatchPage() {
     entrada: 0,
   });
   const [ajuste, setAjuste] = useState<number>(100); // 80..120
+  const [mostrarForaSegmento, setMostrarForaSegmento] = useState(false);
+
 
   const orc = useMemo<ResultadoOrcamento | null>(() => {
     if (!cliente.renda || cliente.renda <= 0) return null;
