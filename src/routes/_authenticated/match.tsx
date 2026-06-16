@@ -67,7 +67,6 @@ function MatchPage() {
       <PageHeader
         title="Match Cliente ↔ Empreendimento"
         description="Motor APROVE 2026 — calcula o poder de compra e cruza com o estoque."
-        icon={Sparkles}
       />
 
       {/* Stepper */}
