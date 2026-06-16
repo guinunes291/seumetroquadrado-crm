@@ -1036,11 +1036,31 @@ function CopaPage() {
             )}
             <AdminConfigPontos rows={configQ.data ?? []} />
             <AdminPremios rows={premiosQ.data ?? []} />
-            <AdminParticipantes profiles={profilesQ.data ?? []} participantes={participantes} />
+            <AdminParticipantes
+              profiles={profilesQ.data ?? []}
+              participantes={participantes}
+              selecoes={selecoesQ.data ?? []}
+            />
+            <AdminLancarPontuacao
+              profiles={profilesQ.data ?? []}
+              participantes={participantes}
+              onSaved={() => {
+                qc.invalidateQueries({ queryKey: ["copa:ranking"] });
+                qc.invalidateQueries({ queryKey: ["copa:pontos-semana"] });
+                qc.invalidateQueries({ queryKey: ["copa:semanal"] });
+              }}
+            />
+            <AdminBonusFinal
+              onSaved={() => {
+                qc.invalidateQueries({ queryKey: ["copa:ranking"] });
+                qc.invalidateQueries({ queryKey: ["copa:semanal"] });
+              }}
+            />
             <AdminCard title="Sorteio (grupos + chaveamento)" color="#9f7aea" icon="🎲">
               <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 12 }}>
                 Gera grupos de 7, atribui seleções e cria os confrontos.{" "}
                 <span style={{ color: RED }}>Substitui os confrontos atuais.</span>
+
               </p>
               <button
                 style={btnStyle("#9f7aea")}
