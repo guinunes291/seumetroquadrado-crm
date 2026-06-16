@@ -12,6 +12,7 @@ import {
   ListTodo,
   Target,
   Trophy,
+  Gauge,
   Swords,
   Building2,
   Megaphone,
@@ -57,10 +58,11 @@ const SECTIONS: Section[] = [
   {
     title: "Performance",
     items: [
+      { to: "/meu-painel", label: "Meu Painel", icon: Gauge },
       { to: "/metas", label: "Metas", icon: Target },
       { to: "/ranking", label: "Ranking", icon: Trophy },
       { to: "/copa", label: "Copa SMQ", icon: Swords },
-      { to: "/conquistas", label: "Conquistas", icon: Trophy, comingSoon: true },
+      { to: "/conquistas", label: "Conquistas", icon: Trophy },
     ],
   },
   {
@@ -69,7 +71,7 @@ const SECTIONS: Section[] = [
       { to: "/projetos", label: "Empreendimentos", icon: Building2 },
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone, comingSoon: true },
       { to: "/carteira", label: "Carteira Ativa", icon: Wallet, comingSoon: true },
-      { to: "/comissoes", label: "Comissões", icon: FileText, comingSoon: true },
+      { to: "/comissoes", label: "Comissões", icon: FileText },
       { to: "/scripts", label: "Scripts & FAQ", icon: Library, comingSoon: true },
     ],
   },
@@ -114,7 +116,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
-        <img src={logoM2.url} alt="Seu Metro Quadrado" className="h-9 w-9 rounded-md object-contain bg-white" />
+        <img
+          src={logoM2.url}
+          alt="Seu Metro Quadrado"
+          className="h-9 w-9 rounded-md object-contain bg-white"
+        />
         <div className="leading-tight">
           <div className="font-semibold text-sm">Seu Metro Quadrado</div>
           <div className="text-[11px] text-sidebar-foreground/60">CRM Imobiliário</div>
