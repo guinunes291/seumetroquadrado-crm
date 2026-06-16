@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ArrowRight, Sparkles, CheckCircle2, XCircle, Building2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, XCircle, Building2 } from "lucide-react";
 import {
   calcularOrcamento,
   avaliarAderencia,
