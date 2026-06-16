@@ -298,12 +298,19 @@ function MatchPage() {
           )}
 
           {projetosQ.data && (
-            <MatchList
-              projetos={projetosQ.data}
-              orc={orc}
-              ajuste={ajuste / 100}
-              mostrarForaSegmento={mostrarForaSegmento}
-            />
+            <>
+              <ProjetosFilters
+                projetos={projetosQ.data}
+                filters={filters}
+                onChange={setFilters}
+              />
+              <MatchList
+                projetos={applyFilters(projetosQ.data, filters)}
+                orc={orc}
+                ajuste={ajuste / 100}
+                mostrarForaSegmento={mostrarForaSegmento}
+              />
+            </>
           )}
         </div>
       )}
