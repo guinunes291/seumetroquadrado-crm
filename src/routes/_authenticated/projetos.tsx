@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -8,15 +8,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Copy, RefreshCw, Eye, EyeOff, Upload } from "lucide-react";
-import { slugify, webhookUrl, maskToken } from "@/lib/projetos";
+import { Plus, Building2, Upload } from "lucide-react";
+import { slugify, webhookUrl } from "@/lib/projetos";
 import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
+import { ProjetoCard, type ProjetoRow } from "@/components/projeto-card";
+import {
+  ProjetosFilters,
+  applyFilters,
+  emptyFilters,
+  type Filters,
+} from "@/components/projetos-filters";
 
 export const Route = createFileRoute("/_authenticated/projetos")({
   head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
@@ -32,21 +37,24 @@ function ProjetosPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [tokens, setTokens] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useState<Filters>(emptyFilters);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const projetosQ = useQuery({
-    queryKey: ["projetos"],
+    queryKey: ["projetos", canManage ? "all" : "ativos"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projetos")
-        .select("*")
-        .is("deleted_at", null)
-        .order("nome");
+      let q = supabase.from("projetos").select("*").is("deleted_at", null);
+      if (!canManage) q = q.eq("ativo", true);
+      const { data, error } = await q.order("nome");
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as ProjetoRow[];
     },
   });
+
+  const all = projetosQ.data ?? [];
+  const filtered = useMemo(() => applyFilters(all, filters), [all, filters]);
 
   const saveMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -66,9 +74,6 @@ function ProjetosPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
-
-  // Tokens só são carregados sob demanda via RPC (admin/gestor)
-  const [tokens, setTokens] = useState<Record<string, string>>({});
 
   const loadToken = async (id: string): Promise<string | null> => {
     if (tokens[id]) return tokens[id];
@@ -123,7 +128,11 @@ function ProjetosPage() {
     <div className="p-6 space-y-6">
       <PageHeader
         title="Projetos / Empreendimentos"
-        description="Cada projeto tem seu próprio webhook para receber leads externos (Facebook, sites, Zapier)."
+        description={
+          canManage
+            ? "Catálogo de empreendimentos. Cada projeto tem seu próprio webhook para receber leads externos."
+            : "Catálogo de empreendimentos disponíveis para indicação."
+        }
         actions={canManage && (
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setImportOpen(true)}>
@@ -174,113 +183,56 @@ function ProjetosPage() {
 
       <ImportProjetosDialog open={importOpen} onOpenChange={setImportOpen} />
 
-
       {projetosQ.isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
-      ) : (projetosQ.data ?? []).length === 0 ? (
+      ) : all.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
           <Building2 className="h-10 w-10 mx-auto mb-2 opacity-40" />
           Nenhum projeto cadastrado ainda.
         </CardContent></Card>
       ) : (
-        <div className="grid gap-3">
-          {(projetosQ.data ?? []).map((p: any) => {
-            const token = tokens[p.id];
-            const isRevealed = !!revealed[p.id] && !!token;
-            const url = token ? webhookUrl(origin, token) : "";
-            return (
-              <Card key={p.id} className={!p.ativo ? "opacity-60" : ""}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                      <Building2 className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link
-                          to="/projetos/$projetoId"
-                          params={{ projetoId: p.id }}
-                          className="font-medium hover:underline"
-                        >
-                          {p.nome}
-                        </Link>
-                        <Badge variant="outline">{p.slug}</Badge>
-                        {!p.ativo && <Badge variant="secondary">Inativo</Badge>}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5 flex gap-3 flex-wrap">
-                        {p.construtora && <span>{p.construtora}</span>}
-                        {p.cidade && <span>{p.cidade}</span>}
-                      </div>
-                    </div>
-                    {canManage && (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">Ativo</span>
-                          <Switch
-                            checked={p.ativo}
-                            onCheckedChange={(v) => toggleAtivo.mutate({ id: p.id, ativo: v })}
-                          />
-                        </div>
-                        <Button size="sm" variant="ghost" onClick={() => { setEditing(p); setOpen(true); }}>
-                          Editar
-                        </Button>
-                      </>
-                    )}
-                  </div>
+        <>
+          <ProjetosFilters projetos={all} filters={filters} onChange={setFilters} />
 
-                  {canManage && (
-                    <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Webhook URL
-                        </Label>
-                        <Button
-                          size="sm" variant="ghost"
-                          onClick={() => {
-                            if (confirm("Regenerar token? URLs antigas pararão de funcionar.")) {
-                              regenMutation.mutate(p.id);
-                            }
-                          }}
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Regenerar
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 text-xs bg-background border rounded px-2 py-1.5 font-mono truncate">
-                          {token ? (isRevealed ? url : webhookUrl(origin, maskToken(token))) : "•••••• (clique no olho para carregar)"}
-                        </code>
-                        <Button
-                          size="icon" variant="ghost"
-                          onClick={async () => {
-                            const t = await loadToken(p.id);
-                            if (t) setRevealed((r) => ({ ...r, [p.id]: !r[p.id] }));
-                          }}
-                          title={isRevealed ? "Ocultar" : "Mostrar"}
-                        >
-                          {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                          size="icon" variant="ghost"
-                          onClick={async () => {
-                            const t = await loadToken(p.id);
-                            if (t) copy(webhookUrl(origin, t));
-                          }}
-                          title="Copiar URL"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">
-                        Envie POST com JSON: <code>{`{ "nome", "telefone", "email", "origem", "campanha", "utm_source", ... }`}</code>
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              {filtered.length} {filtered.length === 1 ? "projeto" : "projetos"}
+              {filtered.length !== all.length && ` de ${all.length}`}
+            </span>
+          </div>
+
+          {filtered.length === 0 ? (
+            <Card><CardContent className="py-12 text-center text-muted-foreground">
+              <Building2 className="h-10 w-10 mx-auto mb-2 opacity-40" />
+              Nenhum projeto corresponde aos filtros aplicados.
+            </CardContent></Card>
+          ) : (
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((p) => {
+                const token = tokens[p.id];
+                return (
+                  <ProjetoCard
+                    key={p.id}
+                    projeto={p}
+                    canManage={canManage}
+                    origin={origin}
+                    token={token}
+                    revealed={!!revealed[p.id]}
+                    onToggleAtivo={(ativo) => toggleAtivo.mutate({ id: p.id, ativo })}
+                    onEdit={() => { setEditing(p); setOpen(true); }}
+                    onLoadToken={() => loadToken(p.id)}
+                    onRegen={() => regenMutation.mutate(p.id)}
+                    onToggleReveal={() => setRevealed((r) => ({ ...r, [p.id]: !r[p.id] }))}
+                    onCopyUrl={async () => {
+                      const t = await loadToken(p.id);
+                      if (t) copy(webhookUrl(origin, t));
+                    }}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

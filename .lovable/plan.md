@@ -1,120 +1,63 @@
-# Reescrita do Dashboard
 
-Reaproveitar a estrutura visual e a divisão em camadas do `Dashboard.tsx` enviado, adaptando ao stack TanStack + Supabase. Todas as métricas vêm de RPCs (resolve o teto de 1000 linhas e dá performance com 33k+ leads).
+## Objetivo
 
-## Arquitetura
+Transformar `/projetos` em um catálogo navegável de empreendimentos, com cards informativos e filtros cruzados. Gestores mantêm as ações de admin (webhook, editar, importar); corretores veem um catálogo limpo focado em achar projetos.
 
-- **Página única** `src/routes/_authenticated/dashboard.tsx` com bifurcação:
-  - Gestor/Admin/Superintendente → visão completa do time
-  - Corretor → visão pessoal (mesmo layout, escopo do `auth.uid()`)
-- **Carregamento em tiers** (igual ao original) para evitar pico de queries:
-  - Tier 1 (imediato): KPIs principais
-  - Tier 2 (+300ms): leads parados, métricas por corretor
-  - Tier 3 (+800ms): histórico 14d, funil, motivos de perda
-  - Tier 4 (+1500ms): tabelas detalhadas (redistribuições, ranking estendido)
-- Cada bloco em um componente próprio em `src/features/dashboard/sections/`.
+## 1. Cards de empreendimento
 
-## Filtros (topo)
+Cada card mostra:
+- Cabeçalho: ícone/placeholder (`Building2`), **Nome**, badge da construtora, badge "Inativo" (somente gestor).
+- Localização: `Cidade · Região · Bairro` (linha discreta).
+- Linha de specs com ícones: **Tipologia**, **Vagas**, **Status de entrega**.
+- **Preço a partir de** (formatado em BRL quando numérico; fallback para o texto livre).
+- Observações: truncadas em 2 linhas.
+- Rodapé: link "Ver detalhes" → `/projetos/$projetoId`.
+- Gestor/admin: bloco webhook permanece como hoje, dentro de um `<details>` colapsado por padrão para não poluir o card. Switch Ativo + Editar continuam no topo.
 
-Substituir o seletor Mês/Ano atual por:
-- Preset: Hoje · Ontem · Esta semana · Semana passada · Este mês · Mês passado · 30 dias · 90 dias · Ano · Todo o período · Custom (range com `Calendar`)
-- Checkbox "Ocultar sem corretor" (gestor)
-- Tudo controlado via `useSearch` da rota para virar URL compartilhável
+Layout em grid responsiva: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`.
 
-## Blocos a implementar
+## 2. Visão por papel
 
-### Pacote essencial
-1. **KPIs por status** — 8 cards clicáveis (`Aguardando, Em atendimento, Agendado, Visita realizada, Análise crédito, Contrato fechado, Perdido, Total`) + card de destaque com Vendas/Conversão. Clique navega para `/leads?status=...`.
-2. **Ranking do mês/período** — top 10 corretores por vendas → visitas → leads (já parcialmente existe).
-3. **Gráfico histórico 14 dias** — linha com leads recebidos, agendamentos, visitas, contratos por dia.
-4. **Funil de vendas** — visual (Novo → Em atendimento → Agendado → Visita → Análise → Fechado) com %.
+- **Corretor** (não-gestor): catálogo limpo — sem webhook, sem switch Ativo, sem botões de editar/importar; vê apenas projetos com `ativo = true`.
+- **Gestor/Admin**: vê todos (ativos + inativos com opacidade reduzida), com todas as ações atuais preservadas.
 
-### Operacional
-5. **Situação Agora** — alertas em tempo real (refetch 2 min):
-   - Leads aguardando > 30 min sem contato
-   - Leads sem corretor (não distribuídos)
-   - Agendamentos próximos (1h)
-   - Tarefas atrasadas
-6. **Painel de redistribuições** — logs de `distribution_log` por período (hoje/semana/mês) com motivo.
+## 3. Filtros cruzados (barra acima do grid)
 
-### Analítico
-7. **Métricas por corretor** — tabela consolidada (leads, agendamentos, visitas, análise, fechados, conversão), ordenável.
-8. **Motivos de perda** — bar chart top 10 categorias do campo `motivo_perdido`.
+Toda combinação aplicada em conjunto (AND). Estado serializado nos search params da rota (`validateSearch` + zod) para permitir compartilhar links filtrados.
 
-## Visão do Corretor
+Controles:
+- **Busca textual** (`q`): casa em nome, construtora, bairro, endereço.
+- **Cidade** (select) → ao escolher, **Região** filtra pelas regiões dessa cidade; ao escolher região, **Bairro** filtra pelos bairros correspondentes (cascata).
+- **Construtora** (multi-select via popover com checkboxes).
+- **Tipologia** (multi-select; valores derivados dos dados, ex.: "1 dorm", "2 dorms", "3 dorms", "Studio").
+- **Vagas** (multi-select: 0, 1, 2, 3+).
+- **Status de entrega** (multi-select: Lançamento, Em obras, Pronto).
+- **Faixa de preço** (slider duplo min/max baseado no `preco_inicial` numérico dos dados; projetos sem preço numérico ficam sob um toggle "Incluir sem preço").
 
-Mesmos componentes, mas:
-- KPIs filtrados por `corretor_id = auth.uid()`
-- Ranking → mostra "Minha posição vs Top 3"
-- Sem Situação Agora do time; troca por "Meus leads urgentes" (sem interação > 30 min)
-- Sem redistribuições
+Acima do grid: contador "X projetos encontrados" e botão "Limpar filtros". Chips removíveis para cada filtro ativo.
 
-## Backend (uma migration única)
+Toda filtragem ocorre no cliente sobre o resultado de `select * from projetos` (volume baixo). As opções dos selects são derivadas dinamicamente do dataset carregado.
 
-Criar funções SQL `SECURITY DEFINER` com check de role embutido:
+## 4. Parsing/normalização auxiliar
 
-```text
-public.dashboard_kpis(_di timestamptz, _df timestamptz, _corretor uuid DEFAULT NULL)
-  → jsonb { total, aguardando, em_atendimento, agendado, visita, analise, fechado, perdido, vgv }
+`preco_inicial`, `vagas` e `tipologia` hoje são `text`. Sem alterar schema, criamos helpers em `src/lib/projetos.ts`:
+- `parsePrecoBRL(text)` → `number | null` (remove "R$", pontos, vírgula).
+- `formatBRL(n)` → "R$ 450.000".
+- `normalizeVagas(text)` → bucket "0" | "1" | "2" | "3+".
+- `normalizeTipologia(text)` → string padronizada para agrupar.
 
-public.dashboard_serie_diaria(_di, _df, _corretor)
-  → TABLE (dia date, leads int, agendamentos int, visitas int, vendas int)
+## 5. Arquivos a tocar (somente frontend)
 
-public.dashboard_funil(_di, _df, _corretor)
-  → TABLE (etapa text, quantidade int)
+- `src/routes/_authenticated/projetos.tsx` — reescrita do componente: search params via zod, hook de filtros, grid de cards, separação por papel. Mantém dialogs de criar/editar/importar e mutations existentes.
+- `src/components/projeto-card.tsx` (novo) — card de empreendimento (versão corretor e versão gestor via prop `canManage`).
+- `src/components/projetos-filters.tsx` (novo) — barra de filtros + chips.
+- `src/lib/projetos.ts` — adiciona helpers de parsing/format (não remove o que já existe).
 
-public.dashboard_metricas_por_corretor(_di, _df)
-  → TABLE (corretor_id, nome, leads, agendamentos, visitas, analise, fechados, conversao)
-  → reaproveita lógica de copa_ranking
+Sem mudanças de banco, RLS, server functions ou rotas.
 
-public.dashboard_motivos_perda(_di, _df, _corretor)
-  → TABLE (motivo text, quantidade int)
+## 6. Checks finais
 
-public.dashboard_leads_urgentes(_corretor uuid DEFAULT NULL, _min_minutos int DEFAULT 30)
-  → TABLE (lead_id, nome, telefone, corretor_id, minutos_parado)
-
-public.dashboard_redistribuicoes(_di, _df)
-  → TABLE (data, lead_id, lead_nome, corretor_anterior, corretor_novo, motivo)
-```
-
-Todas com `GRANT EXECUTE TO authenticated`. As que retornam dados globais checam `has_role(auth.uid(), 'gestor'|'admin'|'superintendente')`; quando `_corretor` é informado e é diferente de `auth.uid()`, exigem role de gestor.
-
-## Frontend — arquivos
-
-```text
-src/routes/_authenticated/dashboard.tsx          # orquestrador, filtros, tiers
-src/features/dashboard/
-  hooks/useDashboardFilters.ts                   # presets + range
-  hooks/useDashboardData.ts                      # wrappers de useQuery por RPC
-  sections/KpiGrid.tsx
-  sections/RankingCard.tsx
-  sections/SerieHistorica.tsx                    # recharts LineChart
-  sections/FunilVendas.tsx
-  sections/SituacaoAgora.tsx
-  sections/LeadsUrgentesList.tsx
-  sections/MetricasPorCorretorTable.tsx
-  sections/MotivosPerdaChart.tsx                 # recharts BarChart
-  sections/PainelRedistribuicoes.tsx
-  components/KpiCard.tsx
-  components/PeriodFilter.tsx
-```
-
-Cada `useQuery` com `staleTime: 30s`, `refetchInterval: 60s` (2 min para Situação Agora). `enabled` controlado pelo `loadStage`.
-
-Recharts já está no projeto.
-
-## Ordem de execução
-
-1. Migration com as 7 RPCs.
-2. `useDashboardFilters` + `PeriodFilter` + reescrita do header da rota.
-3. `KpiGrid` + `useDashboardData.useKpis` (tier 1) — primeira tela já útil.
-4. `RankingCard` + `SerieHistorica` + `FunilVendas` (tier 2/3).
-5. `SituacaoAgora` + `LeadsUrgentesList` + `PainelRedistribuicoes`.
-6. `MetricasPorCorretorTable` + `MotivosPerdaChart`.
-7. Variante do corretor (mesmos componentes, props com `corretorId`).
-
-## Fora de escopo
-
-- VGV/contratos detalhados (não há tabela de contratos modelada).
-- Edição de contrato, anexos, criação de contrato (componentes do CRM antigo).
-- Performance semanal por equipe (não há tabela `equipes` ligada a metas semanais ainda).
+- Corretor logado não vê webhook nem inativos.
+- Filtros funcionam combinados, refletem na URL e podem ser limpos.
+- Estado vazio quando nenhum projeto bate com os filtros (diferente de "nenhum projeto cadastrado").
+- Mobile: filtros recolhem em um `Sheet` lateral.
