@@ -418,13 +418,21 @@ function LeadsPage() {
   );
 }
 
-function NovoLeadDialog({ onClose }: { onClose: () => void }) {
+function NovoLeadDialog({
+  onClose,
+  canManage,
+  currentUserId,
+}: {
+  onClose: () => void;
+  canManage: boolean;
+  currentUserId: string | null;
+}) {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     nome: "",
     telefone: "",
     email: "",
-    origem: "outro",
+    origem: canManage ? "outro" : "captacao_corretor",
     projeto_nome: "",
     observacoes: "",
   });
@@ -441,21 +449,49 @@ function NovoLeadDialog({ onClose }: { onClose: () => void }) {
       if (form.email.trim() && !isValidEmail(form.email)) {
         throw new Error("E-mail inválido.");
       }
+
+      // Checagem de duplicidade por telefone (somente dígitos) e/ou e-mail
+      const telDigits = form.telefone.replace(/\D/g, "");
+      const emailNorm = form.email.trim().toLowerCase();
+      const orFilters: string[] = [];
+      if (telDigits) orFilters.push(`telefone.ilike.%${telDigits.slice(-10)}%`);
+      if (emailNorm) orFilters.push(`email.ilike.${emailNorm}`);
+      if (orFilters.length > 0) {
+        const { data: dup, error: dupErr } = await supabase
+          .from("leads")
+          .select("id, nome, telefone, email, na_lixeira")
+          .or(orFilters.join(","))
+          .limit(1);
+        if (dupErr) throw dupErr;
+        if (dup && dup.length > 0) {
+          const d = dup[0];
+          throw new Error(
+            `Lead duplicado: já existe "${d.nome}" (${d.telefone}${d.email ? " / " + d.email : ""}).`,
+          );
+        }
+      }
+
+      const insertPayload: Record<string, unknown> = {
+        nome: form.nome.trim(),
+        telefone: form.telefone.trim(),
+        email: emailNorm || null,
+        origem: form.origem as never,
+        projeto_nome: form.projeto_nome.trim() || null,
+        observacoes: form.observacoes.trim() || null,
+      };
+      // Corretor: atribui automaticamente a si mesmo
+      if (!canManage && currentUserId) {
+        insertPayload.corretor_id = currentUserId;
+      }
+
       const { data, error } = await supabase
         .from("leads")
-        .insert({
-          nome: form.nome.trim(),
-          telefone: form.telefone.trim(),
-          email: form.email.trim() || null,
-          origem: form.origem as never,
-          projeto_nome: form.projeto_nome.trim() || null,
-          observacoes: form.observacoes.trim() || null,
-        })
+        .insert(insertPayload as never)
         .select("id")
         .single();
       if (error) throw error;
 
-      if (distribuirAuto && data?.id) {
+      if (canManage && distribuirAuto && data?.id) {
         const { data: corretor } = await supabase.rpc(
           "distribuir_lead" as never,
           {
@@ -463,17 +499,19 @@ function NovoLeadDialog({ onClose }: { onClose: () => void }) {
             _tipo: "inicial",
           } as never,
         );
-        return { id: data.id, corretor };
+        return { id: data.id, corretor, selfAssigned: false };
       }
-      return { id: data!.id, corretor: null };
+      return { id: data!.id, corretor: null, selfAssigned: !canManage };
     },
     onSuccess: (r) => {
       toast.success(
-        r.corretor
-          ? "Lead criado e atribuído"
-          : distribuirAuto
-            ? "Lead criado (nenhum corretor disponível na fila)"
-            : "Lead criado",
+        r.selfAssigned
+          ? "Lead criado e atribuído a você"
+          : r.corretor
+            ? "Lead criado e atribuído"
+            : canManage && distribuirAuto
+              ? "Lead criado (nenhum corretor disponível na fila)"
+              : "Lead criado",
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
       onClose();
