@@ -46,6 +46,7 @@ function MatchPage() {
   });
   const [ajuste, setAjuste] = useState<number>(100); // 80..120
   const [mostrarForaSegmento, setMostrarForaSegmento] = useState(false);
+  const [filters, setFilters] = useState<Filters>(emptyFilters);
 
 
   const orc = useMemo<ResultadoOrcamento | null>(() => {
