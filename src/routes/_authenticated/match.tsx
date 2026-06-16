@@ -437,7 +437,7 @@ function MatchList({
                 {a.dentroDaAvaliacao && (
                   <>
                     <div>
-                      <div className="text-xs text-muted-foreground">Parcela construtora</div>
+                      <div className="text-xs text-muted-foreground">Saldo construtora (total)</div>
                       <div className="font-medium">{brl(a.valorParcelarConstrutora)}</div>
                     </div>
                     <div>
