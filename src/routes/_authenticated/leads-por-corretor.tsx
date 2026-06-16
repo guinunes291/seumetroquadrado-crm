@@ -154,6 +154,14 @@ function LeadsPorCorretorPage() {
         .update({ corretor_id: corretorId })
         .in("id", ids);
       if (error) throw error;
+      // Notifica via WhatsApp os leads com origem=facebook (uma chamada por lead).
+      await Promise.allSettled(
+        ids.map((id) =>
+          supabase.functions.invoke("notify-lead-transfer", {
+            body: { lead_id: id, corretor_id: corretorId },
+          }),
+        ),
+      );
     },
     onSuccess: (_data, vars) => {
       toast.success(`${vars.ids.length} lead(s) transferido(s) com sucesso`);
