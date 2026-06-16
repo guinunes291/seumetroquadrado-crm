@@ -1050,12 +1050,6 @@ function CopaPage() {
                 qc.invalidateQueries({ queryKey: ["copa:semanal"] });
               }}
             />
-            <AdminBonusFinal
-              onSaved={() => {
-                qc.invalidateQueries({ queryKey: ["copa:ranking"] });
-                qc.invalidateQueries({ queryKey: ["copa:semanal"] });
-              }}
-            />
             <AdminCard title="Sorteio (grupos + chaveamento)" color="#9f7aea" icon="🎲">
               <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 12 }}>
                 Gera grupos de 7, atribui seleções e cria os confrontos.{" "}
