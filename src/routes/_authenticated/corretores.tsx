@@ -62,20 +62,6 @@ function CorretoresPage() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
 
-  if (!isAdmin && !isGestor) {
-    return (
-      <div>
-        <PageHeader title="Corretores" description="Gestão de usuários do CRM." />
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            Apenas administradores e gestores podem acessar esta página.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-
   const equipesQuery = useQuery({
     queryKey: ["equipes", "list"],
     queryFn: async () => {
