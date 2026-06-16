@@ -1,140 +1,102 @@
 
-# PWA + Push Notifications (sem custos)
+# Plano: Portar CRM legado → Seu Metro Quadrado (5 fases)
 
-Transformar o CRM atual em app instalável no celular (Android e iOS) com notificações push em tempo real para corretores, usando apenas Web Push padrão — zero custo, sem Firebase pago, sem App Store.
+## Diagnóstico (o que já existe vs. falta)
 
-## O que o corretor vai experimentar
+- **Já existe**: distribuição automática + redistribuição (`processar_distribuicao_automatica`, `redistribuir_leads_parados`, `corretor_elegivel`), trigger de transição de status com log + interação automática, dashboards (`dashboard_kpis/funil/serie_diaria/metricas_por_corretor/motivos_perda/leads_urgentes/redistribuicoes`), alertas e push (`enqueue_push`, `push_lead_distribuido`, `push_tarefa_criada`, `gerar_pushes_agendamentos_proximos`), modais de etapa (agendar/visita/análise/contrato/perdido), realtime parcial em leads, vendas/metas/copa.
+- **Falta na Fase 1**: trigger de follow-up automático ao entrar em `em_atendimento`, RPC/coluna de SLA + temperatura derivada por origem, RPCs de relatórios avançados (tempo médio por etapa, conversão por corretor, evolução de vendas, origem efetiva), tabelas `scripts_vendas` e `objecoes` + seed, cron de distribuição agendado, publicação realtime estendida (tarefas/agendamentos), telas Tarefas do Dia, Modo Blitz, Scripts & Objeções, Relatórios com export CSV, Command Palette ⌘K, badge de SLA nos cards.
 
-1. Abre o site no celular → banner "Instalar app" aparece.
-2. Toca em instalar → ícone do CRM vai pra tela inicial, abre em tela cheia (sem barra do navegador).
-3. Na primeira abertura, o app pede permissão pra notificações.
-4. A partir daí recebe push em tempo real, mesmo com o app fechado, para:
-   - **Novo lead recebido** (roleta atribuiu).
-   - **Agendamento próximo** (lembrete X min antes).
-   - **Tarefa criada ou vencendo**.
-5. Toca na notificação → abre direto na tela relevante (`/leads/:id`, `/agendamentos`, `/tarefas`).
+## Decisões já fechadas
+- Fase 1 será dividida em **1a** (backend + SLA badge) e **1b** (telas novas).
+- Ordem da fila Blitz: **SLA estourando → temperatura quente → follow-up vencido**.
+- Scripts/Objeções: **CRUD restrito a admin/gestor**, corretor só lê.
+- Follow-up automático: **24h após entrar em `em_atendimento`, qualquer dia**.
+- IA (Claude) e integrações externas: adiados para Fases 3 e 5.
 
-## Limitação importante no iOS (transparente pro usuário)
+---
 
-iOS só permite push em PWA se o usuário **instalar via Safari → Compartilhar → Adicionar à Tela de Início** (iOS 16.4+). Vamos exibir instruções específicas pra iOS no banner de instalação. No Android funciona de forma transparente em qualquer navegador Chromium.
+## FASE 1a — Backend de automação + SLA visual (esta entrega)
 
-## Arquitetura
+### Migration única (idempotente, timestamp posterior)
 
-```text
-┌─────────────────────┐
-│  CRM (PWA)          │ ─── Service Worker registra push subscription
-│  no celular         │     e envia endpoint+keys pro backend
-└─────────────────────┘
-           │
-           ▼
-┌─────────────────────┐
-│  Lovable Cloud      │ ─── tabela push_subscriptions (user_id → endpoint)
-│  (Postgres)         │     triggers em leads/agendamentos/tarefas
-└─────────────────────┘     enfileiram notificação
-           │
-           ▼
-┌─────────────────────┐
-│  Server Function    │ ─── envia Web Push assinado com VAPID
-│  send-push          │     para o endpoint do navegador do corretor
-└─────────────────────┘
-           │
-           ▼
-   📱 Notificação aparece no celular
-```
+1. **SLA/temperatura por origem**
+   - Adiciona coluna `distribuicao_config.sla_minutos int default 30` (mantém `timeout_horas` existente para redistribuição).
+   - RPC `leads_com_sla(_corretor uuid default null)` → retorna `lead_id, sla_minutos, minutos_decorridos, sla_status ('ok'|'atencao'|'estourado'), temperatura_calc ('frio'|'morno'|'quente')`. Regras: `ok` < 60% do SLA, `atencao` 60-100%, `estourado` >100%; temperatura = quente se `em_atendimento` com interação <24h, morno 24-72h, frio >72h ou sem interação.
+   - RPC `recalcular_temperatura_leads()` (cron 10 min) atualiza `leads.temperatura`.
 
-## Etapas de implementação
+2. **Follow-up automático em `em_atendimento`**
+   - Trigger `AFTER UPDATE` em `leads` quando `NEW.status='em_atendimento' AND OLD.status<>'em_atendimento'`: insere `tarefas (tipo='follow_up', titulo='Follow-up automático', data_vencimento = now()+24h, corretor_id = NEW.corretor_id, lead_id = NEW.id, origem_automatica=true)`.
+   - Adiciona coluna `tarefas.origem_automatica boolean default false` e `tarefas.cancelada_automatica boolean default false`.
+   - Trigger complementar: ao sair do funil ativo (`perdido`, `contrato_fechado`, `pos_venda`), marca tarefas pendentes com `origem_automatica=true` como `status='cancelada'`.
 
-### 1. Manifest + ícones (instalabilidade)
-- Criar `public/manifest.webmanifest` com nome, cores, `display: standalone`, ícones 192/512.
-- Gerar ícones do app (logo Seu m² em fundo da marca).
-- Tags `<link rel="manifest">`, `theme-color`, `apple-touch-icon` no `__root.tsx`.
+3. **Cron de distribuição + temperatura**
+   - `cron.schedule('distribuicao-auto', '*/5 * * * *', $$select public.processar_distribuicao_automatica()$$)`.
+   - `cron.schedule('recalc-temperatura', '*/10 * * * *', $$select public.recalcular_temperatura_leads()$$)`.
 
-### 2. Service Worker (com guards de preview)
-- `vite-plugin-pwa` em modo `generateSW`, `injectRegister: null`.
-- Wrapper `src/lib/pwa/register-sw.ts` que **só registra em produção** e fora do preview Lovable (preview é iframe, não pode ter SW ativo).
-- HTML em `NetworkFirst`, assets hashados em `CacheFirst`. Sem cache agressivo (CRM precisa de dados frescos).
+4. **Realtime estendido**
+   - `ALTER PUBLICATION supabase_realtime ADD TABLE public.tarefas, public.agendamentos, public.interacoes;` + `REPLICA IDENTITY FULL` nas três.
 
-### 3. Web Push (VAPID)
-- Gerar par de chaves VAPID (uma vez, via script Node) → salvar em secrets:
-  - `VAPID_PUBLIC_KEY` (também exposta ao cliente via `VITE_VAPID_PUBLIC_KEY`).
-  - `VAPID_PRIVATE_KEY` (server only).
-- Service worker escuta evento `push` e mostra notificação com título, corpo, ícone, badge e `data.url` pra navegação.
-- Service worker escuta `notificationclick` e abre/foca a URL alvo.
+5. **Scripts & Objeções**
+   - `scripts_vendas (id, titulo, categoria text, etapa lead_status null, conteudo text, ordem int, ativo bool)`.
+   - `objecoes (id, objecao text, resposta text, categoria text, ordem int, ativo bool)`.
+   - GRANTs: `SELECT` para `authenticated`; `ALL` para `service_role`. RLS: SELECT para todo autenticado; INSERT/UPDATE/DELETE só para admin/gestor (via `has_role`).
+   - Seed inicial: 8 scripts (1 por etapa principal) + 10 objeções clássicas (preço, cônjuge, vou pensar, etc.).
 
-### 4. Banco — tabela de assinaturas push
-```sql
-CREATE TABLE public.push_subscriptions (
-  id uuid PK,
-  user_id uuid → auth.users,
-  endpoint text UNIQUE,
-  p256dh text,
-  auth text,
-  user_agent text,
-  created_at, updated_at
-);
--- GRANTs + RLS: cada usuário só vê/edita as próprias; service_role acessa tudo.
-```
+6. **RPCs de relatórios** (SECURITY DEFINER, reaplicam escopo do corretor):
+   - `rel_tempo_medio_por_etapa(_di, _df, _corretor)` → etapa, media_horas, p50_horas, n.
+   - `rel_conversao_por_corretor(_di, _df)` → corretor_id, nome, leads, fechados, conv_pct, ticket_medio.
+   - `rel_evolucao_vendas(_di, _df, _corretor)` → mes, vendas, vgv.
+   - `rel_origem_efetiva(_di, _df, _corretor)` → origem, leads, fechados, conv_pct, custo_por_fechado (null por enquanto).
 
-### 5. UI de opt-in
-- Hook `usePushSubscription()` que detecta suporte, mostra estado e expõe `subscribe()` / `unsubscribe()`.
-- Componente `<PushOptInBanner />` no topo do `/leads` e `/agendamentos` quando permissão = `default`.
-- Toggle "Notificações push" no `/meu-perfil` pra ligar/desligar a qualquer momento.
-- Tratamento explícito do caso iOS (detectar Safari iOS sem `standalone` e mostrar instruções de instalação).
+### Frontend Fase 1a
+- **Hook `useRealtimeInvalidate(tables, queryKeys)`** em `src/hooks/use-realtime-invalidate.ts`; aplicar em leads, tarefas, agendamentos. Remover `refetchInterval` correspondentes.
+- **Componente `<SlaBadge leadId minutos sla />`** em `src/components/sla-badge.tsx`: countdown ao vivo, cor por status (verde/amarelo/vermelho), tooltip com origem e SLA.
+- Integrar `<SlaBadge>` em `LeadCard` (Kanban) e `lead-list-row`.
+- Regenerar types Supabase; remover casts temporários.
 
-### 6. Disparo dos pushes (3 server functions)
-- `sendPushToUser(userId, payload)` — helper que busca todas as subscriptions do user e envia via `web-push` (pacote npm). Remove subscriptions com 410/404.
-- Integrar em 3 pontos:
-  - **Novo lead**: trigger SQL em `leads` (após `UPDATE` com `corretor_id` mudando de NULL) enfileira evento → server route `/api/public/hooks/push-dispatch` chamado por `pg_net` envia o push.
-  - **Tarefa criada/vencendo**: trigger `alerta_tarefa_criada` já existe; estender pra também postar no endpoint. Pra "vencendo", reutilizar `gerar_alertas_tarefas_atrasadas` (já roda via cron).
-  - **Agendamento próximo**: reutilizar `gerar_alertas_agendamentos_proximos` (já existe) — adicionar passo final que dispara push pros alertas recém-criados.
+### Verificação Fase 1a
+- Mudar lead para `em_atendimento` → aparece tarefa de follow-up para +24h.
+- Lead em `aguardando_atendimento` por >SLA → badge vermelho em outra sessão sem refresh.
+- `select public.rel_tempo_medio_por_etapa(now()-interval '30 days', now(), null)` retorna linhas.
+- Cron registrado: `select jobname, schedule from cron.job;`.
 
-  Padrão: `pg_cron` + `pg_net` chamam `/api/public/hooks/push-dispatch` autenticado com `apikey` (anon key). Sem novo secret.
+---
 
-### 7. Realtime (opcional, complementa o push)
-Quando o app está aberto, escutar `postgres_changes` em `alertas` do user logado e atualizar o sino (`notification-bell.tsx`) instantaneamente — já temos infra.
+## FASE 1b — Telas novas (próxima entrega após aprovar 1a)
+- **Tarefas do Dia** (`/tarefas-do-dia`): grupos Atrasadas / Hoje / Próximas, ações rápidas (concluir, adiar, WhatsApp via `wa.me`, abrir lead).
+- **Modo Blitz** (`/blitz`): card único em foco, fila ordenada SLA estourado → temperatura quente → follow-up vencido; atalhos `J/K` navegar, `L` ligar, `W` WhatsApp, `A` agendar, `→` avançar etapa, `X` perder.
+- **Scripts & Objeções** (`/scripts`): abas Scripts/Objeções, busca, copiar com placeholders substituídos `{{nome}}/{{projeto}}`, CRUD condicional (admin/gestor). Painel lateral no detalhe do lead e no Blitz.
+- **Relatórios** (`/relatorios`): 4 cards consumindo as RPCs, gráficos (recharts), botão **Exportar CSV** com BOM `\uFEFF` p/ Excel pt-BR.
+- **Command Palette ⌘K**: `cmdk` já em shadcn; ações de navegação + busca de leads/projetos via RPC simples.
+- Atualizar sidebar e nav mobile.
 
-## Detalhes técnicos
+---
 
-**Dependências novas:**
-- `vite-plugin-pwa`, `workbox-window` (PWA).
-- `web-push` (envio server-side, Worker-compatível).
+## FASE 2 — IA com Claude (Bloco B itens 10–13)
+Edge Function `ia-claude` (única, com action: briefing | objecoes | analise_credito | qualificar | script_whatsapp). Secret `ANTHROPIC_API_KEY`. Botão "Copilot IA" no detalhe do lead, no Blitz e na lista. Score grava em `leads.score_ia` + `interacoes.metadata`. Adiciona sinal de IA no ordenamento Blitz.
 
-**Guards do service worker** (críticos pra não quebrar o preview Lovable):
-- Não registra em dev.
-- Não registra se hostname começa com `id-preview--` ou `preview--`, ou termina em `.lovableproject.com`.
-- Suporta `?sw=off` pra desregistrar em emergência.
+## FASE 3 — Gamificação, presença e dashboards pessoais (Bloco C)
+- Pontuação automática via trigger em `lead_status_transitions` + `agendamentos` (tabela `pontos_diarios`).
+- Conquistas (`conquistas`, `conquistas_corretor`) + confete.
+- `/ranking-tv` (modo TV fullscreen, realtime).
+- `/meu-painel` (KPIs do corretor + tendência).
+- Metas diárias e alertas de produtividade ao gestor.
+- Auto-checkout de presença via cron diário.
 
-**Compatibilidade:**
-- Android (Chrome/Edge/Brave/Samsung Internet): tudo funciona, push em background OK.
-- iOS 16.4+: funciona **somente após** instalar via "Adicionar à Tela de Início" no Safari.
-- Desktop (bônus grátis): instalável e recebe push em Chrome/Edge.
+## FASE 4 — Vendas & autoatendimento (Bloco D)
+Propostas (tabela + link público + PDF via `@react-pdf/renderer`), comissões (cálculo reusando `vendas`), agendamento público (`/agendar/[slug]`), carteira ativa (coluna `leads.protegido_ate timestamptz`).
 
-**Custos:** R$ 0. Web Push é padrão do navegador, sem intermediário pago. Não usa FCM (Firebase) nem APNs direto.
+## FASE 5 — Integrações externas (Bloco E)
+Z-API (WhatsApp), Resend (e-mail), Web Push já existe, Google Calendar/Sheets, Notion, chatbot público, oferta ativa.
 
-## Fora de escopo (não vou fazer agora)
+---
 
-- Empacotamento Capacitor / publicação em lojas.
-- Notificações por SMS ou WhatsApp (já existe Z-API pra isso noutro fluxo).
-- Push pra eventos diferentes dos 3 escolhidos (lead redistribuído, mudança de status).
-- Modo offline completo — só caching mínimo do shell pra abrir rápido; queries continuam exigindo internet.
+## Detalhes técnicos importantes
+- Toda nova tabela: RLS habilitada + GRANTs explícitos + políticas espelhando padrões existentes (admin/gestor full, corretor escopo `auth.uid()`).
+- RPCs `SECURITY DEFINER` reaplicam o escopo no WHERE (como `dashboard_*`).
+- Migration idempotente: `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE FUNCTION`, `DROP TRIGGER IF EXISTS … CREATE TRIGGER`.
+- Após migration, regenerar `src/integrations/supabase/types.ts` e remover casts.
+- Não logar manualmente mudança de status no cliente (trigger já faz).
+- Não duplicar `lead-stage-menu` / modais — Blitz e Tarefas do Dia reusam.
 
-## Arquivos que serão criados/editados
-
-**Criados:**
-- `public/manifest.webmanifest`
-- `public/icons/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png`
-- `src/lib/pwa/register-sw.ts`
-- `src/lib/push/use-push-subscription.ts`
-- `src/lib/push/push.functions.ts` (subscribe/unsubscribe server fns)
-- `src/lib/push/send-push.server.ts` (helper com `web-push`)
-- `src/components/push-opt-in-banner.tsx`
-- `src/routes/api/public/hooks/push-dispatch.ts`
-- Migração SQL: tabela `push_subscriptions` + ajustes nos triggers existentes.
-
-**Editados:**
-- `vite.config.ts` (plugin PWA).
-- `src/routes/__root.tsx` (manifest links, theme-color, registrar SW).
-- `src/routes/_authenticated/meu-perfil.tsx` (toggle de push).
-- `src/components/notification-bell.tsx` (realtime opcional).
-
-Confirma que posso seguir nesse caminho? Se sim, alterno pra build e implemento.
+Confirma o plano para eu começar a Fase 1a?
