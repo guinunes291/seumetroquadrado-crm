@@ -1,0 +1,1 @@
+UPDATE public.copa_selecoes SET bandeira = '🏴󠁧󠁢󠁥󠁮󠁧󠁿' WHERE nome = 'Inglaterra';
