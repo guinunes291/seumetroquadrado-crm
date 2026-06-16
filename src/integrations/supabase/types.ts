@@ -375,6 +375,7 @@ export type Database = {
           id: string
           observacao: string | null
           semana: number
+          total: number
           updated_at: string
           vendas: number
           visitas: number
@@ -388,6 +389,7 @@ export type Database = {
           id?: string
           observacao?: string | null
           semana: number
+          total?: number
           updated_at?: string
           vendas?: number
           visitas?: number
@@ -401,6 +403,7 @@ export type Database = {
           id?: string
           observacao?: string | null
           semana?: number
+          total?: number
           updated_at?: string
           vendas?: number
           visitas?: number
