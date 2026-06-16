@@ -5,6 +5,7 @@ import { format, parseISO, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
