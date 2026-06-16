@@ -120,7 +120,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const nome = pick("nome", "full_name", "name") ?? ([first, last].filter(Boolean).join(" ") || null);
   const telefone = pick("telefone", "phone_number", "phone", "whatsapp", "celular");
   const email = pick("email", "e-mail", "email_address");
-  const renda = pick("renda_informada", "renda", "faixa_renda", "faixa_de_renda", "income");
+  const renda = pick(
+    "renda_informada",
+    "renda",
+    "faixa de renda",
+    "faixa_de_renda",
+    "faixaDeRenda",
+    "faixa_renda",
+    "income",
+  );
+  const finalidade = pick("finalidadeImovel", "finalidade_imovel", "finalidade");
+  const prefereContato = pick("prefereContatoPor", "prefere_contato", "contato_preferido");
   const projetoRef = pick("projeto", "projeto_slug", "project", "empreendimento");
   const projetoToken = pick("projeto_token", "webhook_token");
 
@@ -168,6 +178,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const observacoes = [
     pick("form_name") ? `Formulário: ${pick("form_name")}` : null,
+    finalidade ? `Finalidade: ${finalidade}` : null,
+    prefereContato ? `Prefere contato: ${prefereContato}` : null,
     pick("ad_name") ? `Anúncio: ${pick("ad_name")}` : null,
     pick("adset_name") ? `Conjunto: ${pick("adset_name")}` : null,
     pick("mensagem", "message", "observacoes")
