@@ -25,12 +25,10 @@ import type { ProjetoRow } from "./projeto-card";
 import { RangeSelect } from "./range-select";
 import {
   formatBRL,
-  normalizeEntregaStatus,
-  normalizeTipologia,
-  normalizeVagas,
-  parsePrecoBRL,
-  parseAreaM2,
-  parseEntregaYear,
+  splitTipoExtra,
+  bucketize,
+  rangeOverlapsBuckets,
+  type Bucket,
   PRECO_FROM_PRESETS,
   PRECO_TO_PRESETS,
   AREA_FROM_PRESETS,
@@ -44,12 +42,16 @@ export type Filters = {
   regiao: string | null;
   bairro: string | null;
   construtoras: string[];
-  tipologias: string[];
-  vagas: string[];
+  tipoExtras: string[];
+  dorms: Bucket[];
+  suites: Bucket[];
+  vagas: Bucket[];
+  includeSemVaga: boolean;
   status: string[];
+  fontes: string[];
   precoMin: number | null;
   precoMax: number | null;
-  includeSemPreco: boolean;
+  includeSobConsulta: boolean;
   areaMin: number | null;
   areaMax: number | null;
   entregaAnoMin: number | null;
@@ -62,12 +64,16 @@ export const emptyFilters: Filters = {
   regiao: null,
   bairro: null,
   construtoras: [],
-  tipologias: [],
+  tipoExtras: [],
+  dorms: [],
+  suites: [],
   vagas: [],
+  includeSemVaga: true,
   status: [],
+  fontes: [],
   precoMin: null,
   precoMax: null,
-  includeSemPreco: true,
+  includeSobConsulta: true,
   areaMin: null,
   areaMax: null,
   entregaAnoMin: null,
@@ -75,6 +81,9 @@ export const emptyFilters: Filters = {
 };
 
 const ALL = "__all__";
+const DORMS_BUCKETS: Bucket[] = ["1", "2", "3+"];
+const SUITES_BUCKETS: Bucket[] = ["1", "2", "3+"];
+const VAGAS_BUCKETS: Bucket[] = ["0", "1", "2", "3+"];
 
 type Props = {
   projetos: ProjetoRow[];
@@ -85,21 +94,17 @@ type Props = {
 export function ProjetosFilters({ projetos, filters, onChange }: Props) {
   const opts = useMemo(() => {
     const cidades = new Set<string>();
-    const regioesByCidade = new Map<string, Set<string>>();
+    const regioes = new Set<string>();
     const bairrosByRegiao = new Map<string, Set<string>>();
     const bairrosByCidade = new Map<string, Set<string>>();
     const construtoras = new Set<string>();
-    const tipologias = new Set<string>();
+    const tipoExtras = new Set<string>();
     const statuses = new Set<string>();
-    let hasArea = false;
-    let hasEntregaAno = false;
+    const fontes = new Set<string>();
 
     for (const p of projetos) {
       if (p.cidade) cidades.add(p.cidade);
-      if (p.cidade && p.regiao) {
-        if (!regioesByCidade.has(p.cidade)) regioesByCidade.set(p.cidade, new Set());
-        regioesByCidade.get(p.cidade)!.add(p.regiao);
-      }
+      if (p.regiao) regioes.add(p.regiao);
       if (p.regiao && p.bairro) {
         if (!bairrosByRegiao.has(p.regiao)) bairrosByRegiao.set(p.regiao, new Set());
         bairrosByRegiao.get(p.regiao)!.add(p.bairro);
@@ -109,19 +114,10 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
         bairrosByCidade.get(p.cidade)!.add(p.bairro);
       }
       if (p.construtora) construtoras.add(p.construtora);
-      const t = normalizeTipologia(p.tipologia);
-      if (t) tipologias.add(t);
-      const s = normalizeEntregaStatus(p.entrega_status);
-      if (s) statuses.add(s);
-      if (parseAreaM2((p as any).area_privativa) != null) hasArea = true;
-      if (parseEntregaYear(p.entrega_status) != null) hasEntregaAno = true;
+      for (const t of splitTipoExtra(p.tipo_extra)) tipoExtras.add(t);
+      if (p.status_entrega) statuses.add(p.status_entrega);
+      if (p.fonte) fontes.add(p.fonte);
     }
-
-    const regioes = filters.cidade
-      ? Array.from(regioesByCidade.get(filters.cidade) ?? []).sort()
-      : Array.from(
-          new Set(Array.from(regioesByCidade.values()).flatMap((s) => Array.from(s))),
-        ).sort();
 
     let bairros: string[];
     if (filters.regiao) {
@@ -136,35 +132,32 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
 
     return {
       cidades: Array.from(cidades).sort(),
-      regioes,
+      regioes: Array.from(regioes).sort(),
       bairros,
       construtoras: Array.from(construtoras).sort(),
-      tipologias: Array.from(tipologias).sort(),
+      tipoExtras: Array.from(tipoExtras).sort(),
       statuses: Array.from(statuses).sort(),
-      vagas: ["0", "1", "2", "3+"],
-      hasArea,
-      hasEntregaAno,
+      fontes: Array.from(fontes).sort(),
     };
   }, [projetos, filters.cidade, filters.regiao]);
 
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
 
-  const toggle = (
-    key: "construtoras" | "tipologias" | "vagas" | "status",
-    value: string,
-  ) => {
-    const arr = filters[key];
+  const toggleArr = <K extends keyof Filters>(key: K, value: string) => {
+    const arr = filters[key] as unknown as string[];
     set({
       [key]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value],
-    } as Partial<Filters>);
+    } as unknown as Partial<Filters>);
   };
 
-  // Contador de filtros "Mais filtros" (sem busca / sem localização)
   const advCount =
     filters.construtoras.length +
-    filters.tipologias.length +
+    filters.tipoExtras.length +
+    filters.dorms.length +
+    filters.suites.length +
     filters.vagas.length +
     filters.status.length +
+    filters.fontes.length +
     (filters.precoMin != null || filters.precoMax != null ? 1 : 0) +
     (filters.areaMin != null || filters.areaMax != null ? 1 : 0) +
     (filters.entregaAnoMin != null || filters.entregaAnoMax != null ? 1 : 0);
@@ -185,19 +178,34 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
   if (filters.bairro)
     activeChips.push({ label: filters.bairro, onClear: () => set({ bairro: null }) });
   filters.construtoras.forEach((c) =>
-    activeChips.push({ label: c, onClear: () => toggle("construtoras", c) }),
+    activeChips.push({ label: c, onClear: () => toggleArr("construtoras", c) }),
   );
-  filters.tipologias.forEach((t) =>
-    activeChips.push({ label: t, onClear: () => toggle("tipologias", t) }),
+  filters.tipoExtras.forEach((t) =>
+    activeChips.push({ label: t, onClear: () => toggleArr("tipoExtras", t) }),
+  );
+  filters.dorms.forEach((d) =>
+    activeChips.push({
+      label: `${d} ${d === "1" ? "dorm" : "dorms"}`,
+      onClear: () => toggleArr("dorms", d),
+    }),
+  );
+  filters.suites.forEach((s) =>
+    activeChips.push({
+      label: `${s} suíte${s === "1" ? "" : "s"}`,
+      onClear: () => toggleArr("suites", s),
+    }),
   );
   filters.vagas.forEach((v) =>
     activeChips.push({
-      label: `${v} vaga${v === "1" ? "" : "s"}`,
-      onClear: () => toggle("vagas", v),
+      label: v === "0" ? "Sem vaga" : `${v} vaga${v === "1" ? "" : "s"}`,
+      onClear: () => toggleArr("vagas", v),
     }),
   );
   filters.status.forEach((s) =>
-    activeChips.push({ label: s, onClear: () => toggle("status", s) }),
+    activeChips.push({ label: s, onClear: () => toggleArr("status", s) }),
+  );
+  filters.fontes.forEach((f) =>
+    activeChips.push({ label: f, onClear: () => toggleArr("fontes", f) }),
   );
   if (filters.precoMin != null || filters.precoMax != null)
     activeChips.push({
@@ -219,7 +227,6 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
 
   const hasAny = activeChips.length > 0;
 
-  // Resumo do botão de Localização
   const locLabel =
     [filters.cidade, filters.regiao, filters.bairro].filter(Boolean).join(" · ") ||
     "Localização";
@@ -321,27 +328,29 @@ function LocalizacaoPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3 space-y-3" align="start">
+        {cidades.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Cidade</Label>
+            <Select
+              value={cidade ?? ALL}
+              onValueChange={(v) => onCidade(v === ALL ? null : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todas cidades" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todas cidades</SelectItem>
+                {cidades.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Cidade</Label>
-          <Select
-            value={cidade ?? ALL}
-            onValueChange={(v) => onCidade(v === ALL ? null : v)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todas cidades" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todas cidades</SelectItem>
-              {cidades.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Região</Label>
+          <Label className="text-xs text-muted-foreground">Região / Zona</Label>
           <Select
             value={regiao ?? ALL}
             onValueChange={(v) => onRegiao(v === ALL ? null : v)}
@@ -429,31 +438,25 @@ function MaisFiltrosDialog({
   onApply: (f: Filters) => void;
   opts: {
     construtoras: string[];
-    tipologias: string[];
+    tipoExtras: string[];
     statuses: string[];
-    vagas: string[];
-    hasArea: boolean;
-    hasEntregaAno: boolean;
+    fontes: string[];
   };
   count: number;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Filters>(filters);
 
-  // Sincroniza quando abre
   useEffect(() => {
     if (open) setDraft(filters);
   }, [open, filters]);
 
   const setD = (patch: Partial<Filters>) => setDraft((d) => ({ ...d, ...patch }));
-  const toggleD = (
-    key: "construtoras" | "tipologias" | "vagas" | "status",
-    value: string,
-  ) => {
-    const arr = draft[key];
+  const toggleD = <K extends keyof Filters>(key: K, value: string) => {
+    const arr = draft[key] as unknown as string[];
     setD({
       [key]: arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value],
-    } as Partial<Filters>);
+    } as unknown as Partial<Filters>);
   };
 
   const [construtoraQuery, setConstrutoraQuery] = useState("");
@@ -487,11 +490,24 @@ function MaisFiltrosDialog({
 
         <div className="space-y-5 py-2">
           <section className="space-y-2">
-            <Label className="text-sm font-medium">Tipologia</Label>
+            <Label className="text-sm font-medium">Dormitórios</Label>
             <PillGroup
-              options={opts.tipologias}
-              selected={draft.tipologias}
-              onToggle={(v) => toggleD("tipologias", v)}
+              options={DORMS_BUCKETS}
+              selected={draft.dorms}
+              onToggle={(v) => toggleD("dorms", v)}
+              formatOption={(v) => (v === "3+" ? "3 ou mais" : `${v} dorm${v === "1" ? "" : "s"}`)}
+            />
+          </section>
+
+          <Separator />
+
+          <section className="space-y-2">
+            <Label className="text-sm font-medium">Suítes</Label>
+            <PillGroup
+              options={SUITES_BUCKETS}
+              selected={draft.suites}
+              onToggle={(v) => toggleD("suites", v)}
+              formatOption={(v) => (v === "3+" ? "3 ou mais" : `${v} suíte${v === "1" ? "" : "s"}`)}
             />
           </section>
 
@@ -500,20 +516,41 @@ function MaisFiltrosDialog({
           <section className="space-y-2">
             <Label className="text-sm font-medium">Vagas</Label>
             <PillGroup
-              options={opts.vagas}
+              options={VAGAS_BUCKETS}
               selected={draft.vagas}
               onToggle={(v) => toggleD("vagas", v)}
               formatOption={(v) =>
-                v === "3+" ? "3 ou mais" : `${v} vaga${v === "1" ? "" : "s"}`
+                v === "0" ? "Sem vaga" : v === "3+" ? "3 ou mais" : `${v} vaga${v === "1" ? "" : "s"}`
               }
             />
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={draft.includeSemVaga}
+                onCheckedChange={(v) => setD({ includeSemVaga: !!v })}
+              />
+              Incluir projetos com vagas a consultar / sem dado
+            </label>
           </section>
 
           <Separator />
 
+          {opts.tipoExtras.length > 0 && (
+            <>
+              <section className="space-y-2">
+                <Label className="text-sm font-medium">Tipo de produto</Label>
+                <PillGroup
+                  options={opts.tipoExtras}
+                  selected={draft.tipoExtras}
+                  onToggle={(v) => toggleD("tipoExtras", v)}
+                />
+              </section>
+              <Separator />
+            </>
+          )}
+
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Construtora</Label>
+              <Label className="text-sm font-medium">Construtora / Incorporadora</Label>
               {opts.construtoras.length > 8 && (
                 <Input
                   placeholder="Buscar construtora…"
@@ -558,10 +595,10 @@ function MaisFiltrosDialog({
             />
             <label className="flex items-center gap-2 text-sm">
               <Checkbox
-                checked={draft.includeSemPreco}
-                onCheckedChange={(v) => setD({ includeSemPreco: !!v })}
+                checked={draft.includeSobConsulta}
+                onCheckedChange={(v) => setD({ includeSobConsulta: !!v })}
               />
-              Incluir projetos sem preço informado
+              Incluir projetos com preço "Sob consulta"
             </label>
           </section>
 
@@ -574,8 +611,6 @@ function MaisFiltrosDialog({
               toOptions={AREA_TO_PRESETS}
               value={[draft.areaMin, draft.areaMax]}
               onChange={([from, to]) => setD({ areaMin: from, areaMax: to })}
-              disabled={!opts.hasArea}
-              hint={!opts.hasArea ? "Em breve" : undefined}
             />
           </section>
 
@@ -583,26 +618,41 @@ function MaisFiltrosDialog({
 
           <section>
             <RangeSelect
-              label="Data de entrega"
+              label="Ano de entrega"
               fromOptions={entregaPresets.from}
               toOptions={entregaPresets.to}
               value={[draft.entregaAnoMin, draft.entregaAnoMax]}
               onChange={([from, to]) => setD({ entregaAnoMin: from, entregaAnoMax: to })}
-              disabled={!opts.hasEntregaAno}
-              hint={!opts.hasEntregaAno ? "Sem dados de ano" : undefined}
             />
           </section>
 
-          <Separator />
+          {opts.statuses.length > 0 && (
+            <>
+              <Separator />
+              <section className="space-y-2">
+                <Label className="text-sm font-medium">Status da obra</Label>
+                <PillGroup
+                  options={opts.statuses}
+                  selected={draft.status}
+                  onToggle={(v) => toggleD("status", v)}
+                />
+              </section>
+            </>
+          )}
 
-          <section className="space-y-2">
-            <Label className="text-sm font-medium">Estágio</Label>
-            <PillGroup
-              options={opts.statuses}
-              selected={draft.status}
-              onToggle={(v) => toggleD("status", v)}
-            />
-          </section>
+          {opts.fontes.length > 1 && (
+            <>
+              <Separator />
+              <section className="space-y-2">
+                <Label className="text-sm font-medium">Fonte</Label>
+                <PillGroup
+                  options={opts.fontes}
+                  selected={draft.fontes}
+                  onToggle={(v) => toggleD("fontes", v)}
+                />
+              </section>
+            </>
+          )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -631,7 +681,16 @@ export function applyFilters(projetos: ProjetoRow[], f: Filters): ProjetoRow[] {
   const q = f.q.trim().toLowerCase();
   return projetos.filter((p) => {
     if (q) {
-      const hay = [p.nome, p.construtora, p.bairro, p.endereco, p.cidade, p.regiao]
+      const hay = [
+        p.nome,
+        p.construtora,
+        p.bairro,
+        p.endereco,
+        p.logradouro,
+        p.cidade,
+        p.regiao,
+        p.tipo_extra,
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -642,39 +701,58 @@ export function applyFilters(projetos: ProjetoRow[], f: Filters): ProjetoRow[] {
     if (f.bairro && p.bairro !== f.bairro) return false;
     if (f.construtoras.length && (!p.construtora || !f.construtoras.includes(p.construtora)))
       return false;
-    if (f.tipologias.length) {
-      const t = normalizeTipologia(p.tipologia);
-      if (!t || !f.tipologias.includes(t)) return false;
+    if (f.fontes.length && (!p.fonte || !f.fontes.includes(p.fonte))) return false;
+    if (f.status.length && (!p.status_entrega || !f.status.includes(p.status_entrega)))
+      return false;
+
+    if (f.tipoExtras.length) {
+      const tipos = splitTipoExtra(p.tipo_extra);
+      if (!tipos.some((t) => f.tipoExtras.includes(t))) return false;
     }
+
+    if (f.dorms.length && !rangeOverlapsBuckets(p.dorms_min, p.dorms_max, f.dorms)) return false;
+
+    if (f.suites.length) {
+      const b = bucketize(p.suites);
+      if (!b || !f.suites.includes(b)) return false;
+    }
+
     if (f.vagas.length) {
-      const v = normalizeVagas(p.vagas);
-      if (!v || !f.vagas.includes(v)) return false;
+      const hasRange = p.vagas_min != null || p.vagas_max != null;
+      if (!hasRange) {
+        if (!f.includeSemVaga) return false;
+      } else if (!rangeOverlapsBuckets(p.vagas_min, p.vagas_max, f.vagas, false)) {
+        return false;
+      }
     }
-    if (f.status.length) {
-      const s = normalizeEntregaStatus(p.entrega_status);
-      if (!s || !f.status.includes(s)) return false;
-    }
+
     if (f.precoMin != null || f.precoMax != null) {
-      const preco = parsePrecoBRL(p.preco_inicial);
+      const preco = p.preco_a_partir;
       if (preco == null) {
-        if (!f.includeSemPreco) return false;
+        if (!f.includeSobConsulta) return false;
       } else {
         if (f.precoMin != null && preco < f.precoMin) return false;
         if (f.precoMax != null && preco > f.precoMax) return false;
       }
+    } else if (!f.includeSobConsulta && p.sob_consulta) {
+      return false;
     }
+
     if (f.areaMin != null || f.areaMax != null) {
-      const area = parseAreaM2((p as any).area_privativa);
-      if (area == null) return false;
-      if (f.areaMin != null && area < f.areaMin) return false;
-      if (f.areaMax != null && area > f.areaMax) return false;
+      const lo = p.metragem_min ?? p.metragem_max;
+      const hi = p.metragem_max ?? p.metragem_min;
+      if (lo == null || hi == null) return false;
+      if (f.areaMin != null && hi < f.areaMin) return false;
+      if (f.areaMax != null && lo > f.areaMax) return false;
     }
+
     if (f.entregaAnoMin != null || f.entregaAnoMax != null) {
-      const ano = parseEntregaYear(p.entrega_status);
+      const ano = p.ano_entrega;
       if (ano == null) return false;
       if (f.entregaAnoMin != null && ano < f.entregaAnoMin) return false;
       if (f.entregaAnoMax != null && ano > f.entregaAnoMax) return false;
     }
+
     return true;
   });
 }

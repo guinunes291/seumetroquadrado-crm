@@ -15,11 +15,16 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  Ruler,
 } from "lucide-react";
 import {
   formatBRL,
+  formatM2Range,
+  formatDormsRange,
+  formatVagasRange,
+  formatEntrega,
+  splitTipoExtra,
   maskToken,
-  parsePrecoBRL,
   webhookUrl,
 } from "@/lib/projetos";
 import { useState } from "react";
@@ -33,12 +38,25 @@ export type ProjetoRow = {
   regiao: string | null;
   bairro: string | null;
   endereco: string | null;
-  tipologia: string | null;
-  vagas: string | null;
-  preco_inicial: string | null;
-  entrega_status: string | null;
+  logradouro: string | null;
+  numero: string | null;
   observacoes: string | null;
   ativo: boolean;
+  metragem_min: number | null;
+  metragem_max: number | null;
+  dorms_min: number | null;
+  dorms_max: number | null;
+  suites: number | null;
+  tipo_extra: string | null;
+  vagas_min: number | null;
+  vagas_max: number | null;
+  vagas_observacao: string | null;
+  preco_a_partir: number | null;
+  sob_consulta: boolean;
+  status_entrega: string | null;
+  mes_entrega: number | null;
+  ano_entrega: number | null;
+  fonte: string | null;
 };
 
 type Props = {
@@ -69,9 +87,20 @@ export function ProjetoCard({
   onCopyUrl,
 }: Props) {
   const [webhookOpen, setWebhookOpen] = useState(false);
-  const precoNum = parsePrecoBRL(p.preco_inicial);
-  const precoLabel = precoNum != null ? formatBRL(precoNum) : p.preco_inicial || null;
-  const local = [p.cidade, p.regiao, p.bairro].filter(Boolean).join(" · ");
+
+  const precoLabel = p.sob_consulta
+    ? "Sob consulta"
+    : p.preco_a_partir != null
+      ? formatBRL(p.preco_a_partir)
+      : null;
+
+  const local = [p.bairro, p.regiao, p.cidade].filter(Boolean).join(" · ");
+  const dorms = formatDormsRange(p.dorms_min, p.dorms_max);
+  const metr = formatM2Range(p.metragem_min, p.metragem_max);
+  const vagas = formatVagasRange(p.vagas_min, p.vagas_max, p.vagas_observacao);
+  const entrega = formatEntrega(p.status_entrega, p.mes_entrega, p.ano_entrega);
+  const tipos = splitTipoExtra(p.tipo_extra);
+
   const isRevealed = !!revealed && !!token;
   const url = token ? webhookUrl(origin, token) : "";
 
@@ -96,6 +125,11 @@ export function ProjetoCard({
                   {p.construtora}
                 </Badge>
               )}
+              {tipos.map((t) => (
+                <Badge key={t} variant="secondary" className="font-normal">
+                  {t}
+                </Badge>
+              ))}
               {canManage && !p.ativo && <Badge variant="secondary">Inativo</Badge>}
             </div>
           </div>
@@ -121,22 +155,29 @@ export function ProjetoCard({
         )}
 
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
-          {p.tipologia && (
+          {dorms && (
             <span className="inline-flex items-center gap-1.5">
               <BedDouble className="h-4 w-4 text-muted-foreground" />
-              {p.tipologia}
+              {dorms}
+              {p.suites ? ` · ${p.suites} suíte${p.suites === 1 ? "" : "s"}` : ""}
             </span>
           )}
-          {p.vagas && (
+          {metr && (
+            <span className="inline-flex items-center gap-1.5">
+              <Ruler className="h-4 w-4 text-muted-foreground" />
+              {metr}
+            </span>
+          )}
+          {vagas && (
             <span className="inline-flex items-center gap-1.5">
               <Car className="h-4 w-4 text-muted-foreground" />
-              {p.vagas} {Number(p.vagas) === 1 ? "vaga" : "vagas"}
+              {vagas}
             </span>
           )}
-          {p.entrega_status && (
+          {entrega && (
             <span className="inline-flex items-center gap-1.5">
               <CalendarClock className="h-4 w-4 text-muted-foreground" />
-              {p.entrega_status}
+              {entrega}
             </span>
           )}
         </div>
@@ -217,9 +258,7 @@ export function ProjetoCard({
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      if (
-                        confirm("Regenerar token? URLs antigas pararão de funcionar.")
-                      ) {
+                      if (confirm("Regenerar token? URLs antigas pararão de funcionar.")) {
                         onRegen?.();
                       }
                     }}
