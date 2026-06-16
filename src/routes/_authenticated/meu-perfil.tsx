@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { PushOptInCard } from "@/components/push-opt-in-banner";
 
 export const Route = createFileRoute("/_authenticated/meu-perfil")({
   head: () => ({ meta: [{ title: "Meu perfil — Seu Metro Quadrado" }] }),
@@ -132,6 +133,10 @@ function MeuPerfilPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <div className="mb-4">
+        <PushOptInCard />
+      </div>
 
       <Card>
         <CardHeader>
