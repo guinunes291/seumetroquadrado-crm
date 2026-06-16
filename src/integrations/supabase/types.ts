@@ -213,6 +213,7 @@ export type Database = {
           definido_manual: boolean
           fase_id: string
           id: string
+          is_wo: boolean
           posicao: number
           semana_ref: number | null
           vencedor_id: string | null
@@ -224,6 +225,7 @@ export type Database = {
           definido_manual?: boolean
           fase_id: string
           id?: string
+          is_wo?: boolean
           posicao?: number
           semana_ref?: number | null
           vencedor_id?: string | null
@@ -235,6 +237,7 @@ export type Database = {
           definido_manual?: boolean
           fase_id?: string
           id?: string
+          is_wo?: boolean
           posicao?: number
           semana_ref?: number | null
           vencedor_id?: string | null
@@ -287,6 +290,7 @@ export type Database = {
           ordem: number
           semana_fim: number
           semana_inicio: number
+          tipo: string | null
         }
         Insert: {
           edicao_id: string
@@ -295,6 +299,7 @@ export type Database = {
           ordem: number
           semana_fim: number
           semana_inicio: number
+          tipo?: string | null
         }
         Update: {
           edicao_id?: string
@@ -303,6 +308,7 @@ export type Database = {
           ordem?: number
           semana_fim?: number
           semana_inicio?: number
+          tipo?: string | null
         }
         Relationships: [
           {
@@ -320,6 +326,7 @@ export type Database = {
           corretor_id: string
           created_at: string
           edicao_id: string
+          grupo: string | null
           id: string
           selecao_id: string | null
         }
@@ -328,6 +335,7 @@ export type Database = {
           corretor_id: string
           created_at?: string
           edicao_id: string
+          grupo?: string | null
           id?: string
           selecao_id?: string | null
         }
@@ -336,6 +344,7 @@ export type Database = {
           corretor_id?: string
           created_at?: string
           edicao_id?: string
+          grupo?: string | null
           id?: string
           selecao_id?: string | null
         }
