@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { UserPlus, Search, Trash2, Shuffle, Trello, Upload } from "lucide-react";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
 import {
   LEAD_STATUS_ORDER,
@@ -146,6 +147,10 @@ function LeadsPage() {
       return (data ?? []) as Lead[];
     },
   });
+
+  useRealtimeInvalidate("leads", [["leads"]]);
+
+
 
   const filtered = useMemo(() => {
     if (!leads) return [];

@@ -15,6 +15,7 @@ import {
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -155,6 +156,10 @@ function AgendamentosPage() {
       return (data ?? []) as Agendamento[];
     },
   });
+
+  useRealtimeInvalidate("agendamentos", [["agendamentos"]]);
+
+
 
   const corretorNome = (id: string | null) =>
     corretores.find((c) => c.id === id)?.nome ?? "—";

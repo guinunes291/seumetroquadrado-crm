@@ -21,6 +21,8 @@ import {
   type StageModalState,
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
+import { SlaBadge } from "@/components/sla-badge";
 
 export const Route = createFileRoute("/_authenticated/kanban")({
   head: () => ({ meta: [{ title: "Kanban — Seu Metro Quadrado" }] }),
@@ -58,6 +60,16 @@ type Lead = {
   projeto_nome: string | null;
   observacoes: string | null;
   temperatura: string | null;
+  origem: string | null;
+  data_distribuicao: string | null;
+  created_at: string;
+};
+
+type SlaRow = {
+  lead_id: string;
+  sla_minutos: number;
+  minutos_decorridos: number;
+  sla_status: string;
 };
 
 function KanbanPage() {
@@ -84,7 +96,7 @@ function KanbanPage() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura",
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, created_at",
         )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
@@ -94,6 +106,30 @@ function KanbanPage() {
       return (data ?? []) as Lead[];
     },
   });
+
+  const { data: slaRows } = useQuery({
+    queryKey: ["leads-sla"],
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args?: Record<string, unknown>,
+        ) => Promise<{ data: SlaRow[] | null; error: unknown }>
+      )("leads_com_sla");
+      if (error) throw error;
+      return (data ?? []) as SlaRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const slaMap = useMemo(() => {
+    const m = new Map<string, SlaRow>();
+    (slaRows ?? []).forEach((r) => m.set(r.lead_id, r));
+    return m;
+  }, [slaRows]);
+
+  // Substitui polling por realtime
+  useRealtimeInvalidate("leads", [["leads-kanban"], ["leads-sla"]]);
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
@@ -199,12 +235,21 @@ function KanbanPage() {
                               <span className="truncate">{lead.email}</span>
                             </div>
                           )}
-                          <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
                             <span className="text-[10px] text-muted-foreground">
                               {lead.corretor_id
                                 ? (corretoresMap.get(lead.corretor_id) ?? "—")
                                 : "sem corretor"}
                             </span>
+                            {(lead.status === "novo" ||
+                              lead.status === "aguardando_atendimento") &&
+                              slaMap.get(lead.id) && (
+                                <SlaBadge
+                                  compact
+                                  slaMinutos={slaMap.get(lead.id)!.sla_minutos}
+                                  referencia={lead.data_distribuicao ?? lead.created_at}
+                                />
+                              )}
                             {lead.temperatura && (
                               <Badge
                                 variant="secondary"
