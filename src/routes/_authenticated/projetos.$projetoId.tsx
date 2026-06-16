@@ -211,17 +211,62 @@ function ProjetoDetalhePage() {
   const stats = calcStats(unidades as any);
   const projeto = projetoQ.data;
 
+  const subParts = [
+    projeto?.construtora,
+    [projeto?.bairro, projeto?.regiao, projeto?.cidade].filter(Boolean).join(" · ") || null,
+  ].filter(Boolean) as string[];
+
   return (
     <div className="p-6 space-y-6">
       <PageHeader
         title={projeto?.nome ?? "Projeto"}
-        description={projeto?.construtora || projeto?.cidade || "Gestão completa do empreendimento"}
+        description={subParts.join(" — ") || "Gestão completa do empreendimento"}
         actions={
           <Button variant="outline" size="sm" asChild>
             <Link to="/projetos"><ArrowLeft className="h-4 w-4 mr-1" />Projetos</Link>
           </Button>
         }
       />
+
+      {projeto && (
+        <Card>
+          <CardContent className="py-4 px-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+            <InfoLine label="Metragem">
+              {projeto.metragem_min != null || projeto.metragem_max != null
+                ? `${projeto.metragem_min ?? "?"}–${projeto.metragem_max ?? "?"} m²`
+                : "—"}
+            </InfoLine>
+            <InfoLine label="Dorms / Suítes">
+              {projeto.dorms_min != null || projeto.dorms_max != null
+                ? `${projeto.dorms_min ?? "?"}–${projeto.dorms_max ?? "?"} dorms`
+                : "—"}
+              {projeto.suites ? ` · ${projeto.suites} suíte${projeto.suites === 1 ? "" : "s"}` : ""}
+            </InfoLine>
+            <InfoLine label="Vagas">
+              {projeto.vagas_min != null || projeto.vagas_max != null
+                ? `${projeto.vagas_min ?? "?"}–${projeto.vagas_max ?? "?"}`
+                : projeto.vagas_observacao || "—"}
+            </InfoLine>
+            <InfoLine label="Preço a partir de">
+              {projeto.sob_consulta
+                ? "Sob consulta"
+                : projeto.preco_a_partir != null
+                  ? formatBRL(projeto.preco_a_partir)
+                  : "—"}
+            </InfoLine>
+            <InfoLine label="Status entrega">
+              {[projeto.status_entrega, projeto.ano_entrega ? `${projeto.mes_entrega ? String(projeto.mes_entrega).padStart(2, "0") + "/" : ""}${projeto.ano_entrega}` : null]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+            </InfoLine>
+            <InfoLine label="Tipo extra">{projeto.tipo_extra || "—"}</InfoLine>
+            <InfoLine label="Endereço">
+              {[projeto.logradouro, projeto.numero].filter(Boolean).join(", ") || projeto.endereco || "—"}
+            </InfoLine>
+            <InfoLine label="Fonte">{projeto.fonte || "—"}</InfoLine>
+          </CardContent>
+        </Card>
+      )}
 
       {focoAtivo && (
         <Card className="border-amber-400/40 bg-amber-50/40 dark:bg-amber-900/10">
