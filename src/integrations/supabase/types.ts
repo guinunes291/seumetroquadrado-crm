@@ -439,16 +439,19 @@ export type Database = {
       distribuicao_config: {
         Row: {
           origem: Database["public"]["Enums"]["lead_origem"]
+          sla_minutos: number
           timeout_horas: number
           updated_at: string
         }
         Insert: {
           origem: Database["public"]["Enums"]["lead_origem"]
+          sla_minutos?: number
           timeout_horas?: number
           updated_at?: string
         }
         Update: {
           origem?: Database["public"]["Enums"]["lead_origem"]
+          sla_minutos?: number
           timeout_horas?: number
           updated_at?: string
         }
@@ -862,6 +865,39 @@ export type Database = {
           },
         ]
       }
+      objecoes: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          created_at: string
+          id: string
+          objecao: string
+          ordem: number
+          resposta: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          objecao: string
+          ordem?: number
+          resposta: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          objecao?: string
+          ordem?: number
+          resposta?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           acessa_links_uteis: boolean
@@ -1160,6 +1196,42 @@ export type Database = {
         }
         Relationships: []
       }
+      scripts_vendas: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          conteudo: string
+          created_at: string
+          etapa: Database["public"]["Enums"]["lead_status"] | null
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          conteudo: string
+          created_at?: string
+          etapa?: Database["public"]["Enums"]["lead_status"] | null
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          conteudo?: string
+          created_at?: string
+          etapa?: Database["public"]["Enums"]["lead_status"] | null
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stg_agendamentos: {
         Row: {
           construtora: string | null
@@ -1345,6 +1417,7 @@ export type Database = {
           descricao: string | null
           id: string
           lead_id: string | null
+          origem_automatica: boolean
           prioridade: Database["public"]["Enums"]["tarefa_prioridade"]
           resultado: string | null
           status: Database["public"]["Enums"]["tarefa_status"]
@@ -1362,6 +1435,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           lead_id?: string | null
+          origem_automatica?: boolean
           prioridade?: Database["public"]["Enums"]["tarefa_prioridade"]
           resultado?: string | null
           status?: Database["public"]["Enums"]["tarefa_status"]
@@ -1379,6 +1453,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           lead_id?: string | null
+          origem_automatica?: boolean
           prioridade?: Database["public"]["Enums"]["tarefa_prioridade"]
           resultado?: string | null
           status?: Database["public"]["Enums"]["tarefa_status"]
@@ -1685,16 +1760,62 @@ export type Database = {
         }
         Returns: boolean
       }
+      leads_com_sla: {
+        Args: { _corretor?: string }
+        Returns: {
+          lead_id: string
+          minutos_decorridos: number
+          sla_minutos: number
+          sla_status: string
+          temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
+        }[]
+      }
       marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
       }
       processar_distribuicao_automatica: { Args: never; Returns: Json }
+      recalcular_temperatura_leads: { Args: never; Returns: number }
       redistribuir_leads_parados: { Args: never; Returns: number }
       regenerar_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
+      }
+      rel_conversao_por_corretor: {
+        Args: { _df: string; _di: string }
+        Returns: {
+          conv_pct: number
+          corretor_id: string
+          fechados: number
+          leads: number
+          nome: string
+        }[]
+      }
+      rel_evolucao_vendas: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          mes: string
+          vendas: number
+        }[]
+      }
+      rel_origem_efetiva: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          conv_pct: number
+          fechados: number
+          leads: number
+          origem: string
+        }[]
+      }
+      rel_tempo_medio_por_etapa: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          etapa: string
+          media_horas: number
+          n: number
+          p50_horas: number
+        }[]
       }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
       resetar_presenca_diaria: { Args: never; Returns: undefined }
