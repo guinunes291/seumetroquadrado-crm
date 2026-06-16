@@ -39,6 +39,8 @@ function MatchPage() {
     entrada: 0,
   });
   const [ajuste, setAjuste] = useState<number>(100); // 80..120
+  const [mostrarForaSegmento, setMostrarForaSegmento] = useState(false);
+
 
   const orc = useMemo<ResultadoOrcamento | null>(() => {
     if (!cliente.renda || cliente.renda <= 0) return null;
@@ -269,6 +271,18 @@ function MatchPage() {
                   <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
                 </Button>
               </div>
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div>
+                  <Label className="text-sm">Mostrar imóveis fora do segmento</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Inclui empreendimentos acima do teto de avaliação ({brl(orc.tetoAvaliacaoSegmento)}).
+                  </p>
+                </div>
+                <Switch
+                  checked={mostrarForaSegmento}
+                  onCheckedChange={setMostrarForaSegmento}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -277,10 +291,16 @@ function MatchPage() {
           )}
 
           {projetosQ.data && (
-            <MatchList projetos={projetosQ.data} orc={orc} ajuste={ajuste / 100} />
+            <MatchList
+              projetos={projetosQ.data}
+              orc={orc}
+              ajuste={ajuste / 100}
+              mostrarForaSegmento={mostrarForaSegmento}
+            />
           )}
         </div>
       )}
+
     </div>
   );
 }
@@ -298,10 +318,12 @@ function MatchList({
   projetos,
   orc,
   ajuste,
+  mostrarForaSegmento,
 }: {
   projetos: ProjetoRow[];
   orc: ResultadoOrcamento;
   ajuste: number;
+  mostrarForaSegmento: boolean;
 }) {
   // ajuste em fração (0.8 .. 1.2): usamos orçamento "virtual" com teto ajustado
   // mantendo os recursos (regra 80/20 escala proporcionalmente).
@@ -312,30 +334,40 @@ function MatchList({
     recursosNaoConstrutora: orc.recursosNaoConstrutora * ajuste,
   };
 
-  const items = projetos
+  const todos = projetos
     .filter((p) => p.preco_a_partir != null && p.preco_a_partir > 0)
     .map((p) => ({
       projeto: p,
       aderencia: avaliarAderencia(p.preco_a_partir!, orcAjustado),
     }))
     .sort((a, b) => {
-      // ordena: cabe primeiro, depois menor parcela construtora
       if (a.aderencia.cabe !== b.aderencia.cabe) return a.aderencia.cabe ? -1 : 1;
-      return a.aderencia.percentualConstrutora - b.aderencia.percentualConstrutora;
+      // dentro do mesmo grupo, prioriza menor preço
+      return (a.projeto.preco_a_partir ?? 0) - (b.projeto.preco_a_partir ?? 0);
     });
 
+  const items = mostrarForaSegmento
+    ? todos
+    : todos.filter((i) => i.aderencia.dentroDaAvaliacao);
+
   const cabem = items.filter((i) => i.aderencia.cabe).length;
+  const ocultos = todos.length - items.length;
 
   return (
     <div className="space-y-3">
       <div className="text-sm text-muted-foreground">
         {cabem} de {items.length} empreendimentos cabem no orçamento.
+        {ocultos > 0 && !mostrarForaSegmento && (
+          <span className="ml-1">
+            ({ocultos} ocultos por estarem acima do teto de avaliação do segmento)
+          </span>
+        )}
       </div>
 
       {items.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Nenhum empreendimento ativo com preço cadastrado.
+            Nenhum empreendimento dentro do segmento. Ative "Mostrar imóveis fora do segmento" para ver o estoque completo.
           </CardContent>
         </Card>
       )}
@@ -388,25 +420,29 @@ function MatchList({
                     {brl(a.folga)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Parcela construtora</div>
-                  <div className="font-medium">{brl(a.valorParcelarConstrutora)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">% construtora</div>
-                  <div
-                    className={`font-medium ${
-                      a.estouraParcelamento ? "text-destructive" : ""
-                    }`}
-                  >
-                    {a.percentualConstrutora.toFixed(1)}%
-                  </div>
-                </div>
+                {a.dentroDaAvaliacao && (
+                  <>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Parcela construtora</div>
+                      <div className="font-medium">{brl(a.valorParcelarConstrutora)}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">% construtora</div>
+                      <div
+                        className={`font-medium ${
+                          a.estouraParcelamento ? "text-destructive" : ""
+                        }`}
+                      >
+                        {a.percentualConstrutora.toFixed(1)}%
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {!a.dentroDaAvaliacao && (
                 <div className="text-xs text-destructive">
-                  Acima do teto de avaliação do segmento ({brl(orcAjustado.tetoAvaliacaoSegmento)}).
+                  Acima do teto de avaliação do segmento ({brl(orcAjustado.tetoAvaliacaoSegmento)}). Imóvel não é elegível ao programa.
                 </div>
               )}
             </CardContent>
@@ -416,3 +452,4 @@ function MatchList({
     </div>
   );
 }
+
