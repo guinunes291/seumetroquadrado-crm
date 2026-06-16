@@ -689,6 +689,7 @@ export type Database = {
           email: string | null
           entrada_disponivel: string | null
           id: string
+          legacy_id: number | null
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
@@ -725,6 +726,7 @@ export type Database = {
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
+          legacy_id?: number | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome: string
@@ -761,6 +763,7 @@ export type Database = {
           email?: string | null
           entrada_disponivel?: string | null
           id?: string
+          legacy_id?: number | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome?: string
@@ -1061,6 +1064,180 @@ export type Database = {
         }
         Relationships: []
       }
+      stg_agendamentos: {
+        Row: {
+          construtora: string | null
+          corretor_legacy: number | null
+          created_at: string | null
+          data_agendamento: string | null
+          lead_legacy: number | null
+          legacy_id: number | null
+          observacoes: string | null
+          status: string | null
+        }
+        Insert: {
+          construtora?: string | null
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_agendamento?: string | null
+          lead_legacy?: number | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          status?: string | null
+        }
+        Update: {
+          construtora?: string | null
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_agendamento?: string | null
+          lead_legacy?: number | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      stg_analises: {
+        Row: {
+          corretor_legacy: number | null
+          created_at: string | null
+          lead_legacy: number | null
+          status: string | null
+        }
+        Insert: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          lead_legacy?: number | null
+          status?: string | null
+        }
+        Update: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          lead_legacy?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      stg_leads: {
+        Row: {
+          campanha: string | null
+          corretor_anterior_legacy: number | null
+          corretor_legacy: number | null
+          cpf: string | null
+          created_at: string | null
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          email: string | null
+          entrada_disponivel: string | null
+          legacy_id: number | null
+          motivo_perdido: string | null
+          na_lixeira: string | null
+          nome: string | null
+          observacoes: string | null
+          origem: string | null
+          projeto_custom: string | null
+          proximo_followup: string | null
+          renda_informada: string | null
+          status: string | null
+          telefone: string | null
+          temperatura: string | null
+          timestamp_recebimento: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string | null
+          usa_fgts: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          campanha?: string | null
+          corretor_anterior_legacy?: number | null
+          corretor_legacy?: number | null
+          cpf?: string | null
+          created_at?: string | null
+          data_distribuicao?: string | null
+          data_movido_lixeira?: string | null
+          email?: string | null
+          entrada_disponivel?: string | null
+          legacy_id?: number | null
+          motivo_perdido?: string | null
+          na_lixeira?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          projeto_custom?: string | null
+          proximo_followup?: string | null
+          renda_informada?: string | null
+          status?: string | null
+          telefone?: string | null
+          temperatura?: string | null
+          timestamp_recebimento?: string | null
+          ultima_interacao?: string | null
+          ultimo_contato?: string | null
+          updated_at?: string | null
+          usa_fgts?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          campanha?: string | null
+          corretor_anterior_legacy?: number | null
+          corretor_legacy?: number | null
+          cpf?: string | null
+          created_at?: string | null
+          data_distribuicao?: string | null
+          data_movido_lixeira?: string | null
+          email?: string | null
+          entrada_disponivel?: string | null
+          legacy_id?: number | null
+          motivo_perdido?: string | null
+          na_lixeira?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          projeto_custom?: string | null
+          proximo_followup?: string | null
+          renda_informada?: string | null
+          status?: string | null
+          telefone?: string | null
+          temperatura?: string | null
+          timestamp_recebimento?: string | null
+          ultima_interacao?: string | null
+          ultimo_contato?: string | null
+          updated_at?: string | null
+          usa_fgts?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
+      stg_visitas: {
+        Row: {
+          corretor_legacy: number | null
+          created_at: string | null
+          data_visita: string | null
+          lead_legacy: number | null
+        }
+        Insert: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_visita?: string | null
+          lead_legacy?: number | null
+        }
+        Update: {
+          corretor_legacy?: number | null
+          created_at?: string | null
+          data_visita?: string | null
+          lead_legacy?: number | null
+        }
+        Relationships: []
+      }
       tarefas: {
         Row: {
           corretor_id: string
@@ -1303,6 +1480,73 @@ export type Database = {
         Returns: undefined
       }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
+      dashboard_funil: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          etapa: string
+          ordem: number
+          quantidade: number
+        }[]
+      }
+      dashboard_kpis: {
+        Args: { _corretor?: string; _df?: string; _di?: string }
+        Returns: Json
+      }
+      dashboard_leads_urgentes: {
+        Args: { _corretor?: string; _min_minutos?: number }
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          lead_id: string
+          minutos_parado: number
+          nome: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+        }[]
+      }
+      dashboard_metricas_por_corretor: {
+        Args: { _df: string; _di: string }
+        Returns: {
+          agendamentos: number
+          analise: number
+          conversao: number
+          corretor_id: string
+          fechados: number
+          leads: number
+          nome: string
+          perdidos: number
+          visitas: number
+        }[]
+      }
+      dashboard_motivos_perda: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          motivo: string
+          quantidade: number
+        }[]
+      }
+      dashboard_redistribuicoes: {
+        Args: { _df: string; _di: string }
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          lead_id: string
+          lead_nome: string
+          motivo: string
+          quando: string
+          tipo: Database["public"]["Enums"]["distribuicao_tipo"]
+        }[]
+      }
+      dashboard_serie_diaria: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          agendamentos: number
+          dia: string
+          leads: number
+          vendas: number
+          visitas: number
+        }[]
+      }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -1368,7 +1612,7 @@ export type Database = {
         | "agendamento_proximo"
         | "follow_up"
         | "sistema"
-      app_role: "admin" | "gestor" | "corretor"
+      app_role: "admin" | "gestor" | "corretor" | "superintendente"
       distribuicao_tipo: "automatica" | "manual" | "inicial"
       interacao_direcao: "entrada" | "saida" | "interna"
       interacao_tipo:
@@ -1563,7 +1807,7 @@ export const Constants = {
         "follow_up",
         "sistema",
       ],
-      app_role: ["admin", "gestor", "corretor"],
+      app_role: ["admin", "gestor", "corretor", "superintendente"],
       distribuicao_tipo: ["automatica", "manual", "inicial"],
       interacao_direcao: ["entrada", "saida", "interna"],
       interacao_tipo: [

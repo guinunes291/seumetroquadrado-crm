@@ -1,0 +1,1 @@
+GRANT ALL ON public.stg_leads, public.stg_agendamentos, public.stg_visitas, public.stg_analises TO sandbox_exec;
