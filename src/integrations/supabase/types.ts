@@ -1075,6 +1075,7 @@ export type Database = {
       }
       projetos: {
         Row: {
+          ano_entrega: number | null
           ativo: boolean
           bairro: string | null
           cidade: string | null
@@ -1082,20 +1083,37 @@ export type Database = {
           created_at: string
           criado_por: string | null
           deleted_at: string | null
+          dorms_max: number | null
+          dorms_min: number | null
           endereco: string | null
           entrega_status: string | null
+          fonte: string | null
           id: string
+          logradouro: string | null
+          mes_entrega: number | null
+          metragem_max: number | null
+          metragem_min: number | null
           nome: string
+          numero: string | null
           observacoes: string | null
+          preco_a_partir: number | null
           preco_inicial: string | null
           regiao: string | null
           slug: string
+          sob_consulta: boolean
+          status_entrega: string | null
+          suites: number | null
+          tipo_extra: string | null
           tipologia: string | null
           updated_at: string
           vagas: string | null
+          vagas_max: number | null
+          vagas_min: number | null
+          vagas_observacao: string | null
           webhook_token: string
         }
         Insert: {
+          ano_entrega?: number | null
           ativo?: boolean
           bairro?: string | null
           cidade?: string | null
@@ -1103,20 +1121,37 @@ export type Database = {
           created_at?: string
           criado_por?: string | null
           deleted_at?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
           endereco?: string | null
           entrega_status?: string | null
+          fonte?: string | null
           id?: string
+          logradouro?: string | null
+          mes_entrega?: number | null
+          metragem_max?: number | null
+          metragem_min?: number | null
           nome: string
+          numero?: string | null
           observacoes?: string | null
+          preco_a_partir?: number | null
           preco_inicial?: string | null
           regiao?: string | null
           slug: string
+          sob_consulta?: boolean
+          status_entrega?: string | null
+          suites?: number | null
+          tipo_extra?: string | null
           tipologia?: string | null
           updated_at?: string
           vagas?: string | null
+          vagas_max?: number | null
+          vagas_min?: number | null
+          vagas_observacao?: string | null
           webhook_token?: string
         }
         Update: {
+          ano_entrega?: number | null
           ativo?: boolean
           bairro?: string | null
           cidade?: string | null
@@ -1124,17 +1159,33 @@ export type Database = {
           created_at?: string
           criado_por?: string | null
           deleted_at?: string | null
+          dorms_max?: number | null
+          dorms_min?: number | null
           endereco?: string | null
           entrega_status?: string | null
+          fonte?: string | null
           id?: string
+          logradouro?: string | null
+          mes_entrega?: number | null
+          metragem_max?: number | null
+          metragem_min?: number | null
           nome?: string
+          numero?: string | null
           observacoes?: string | null
+          preco_a_partir?: number | null
           preco_inicial?: string | null
           regiao?: string | null
           slug?: string
+          sob_consulta?: boolean
+          status_entrega?: string | null
+          suites?: number | null
+          tipo_extra?: string | null
           tipologia?: string | null
           updated_at?: string
           vagas?: string | null
+          vagas_max?: number | null
+          vagas_min?: number | null
+          vagas_observacao?: string | null
           webhook_token?: string
         }
         Relationships: []
