@@ -1653,11 +1653,20 @@ export type Database = {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
       }
-      copa_aplicar_bonus_final: { Args: { _edicao_id: string }; Returns: Json }
       copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
+      copa_avancar_fase: { Args: never; Returns: string }
       copa_definir_vencedor: {
         Args: { _confronto_id: string; _corretor_id: string }
         Returns: undefined
+      }
+      copa_get_ajuste_manual: {
+        Args: { _corretor_id: string; _semana: number }
+        Returns: {
+          agendamentos: number
+          documentacao: number
+          vendas: number
+          visitas: number
+        }[]
       }
       copa_inicializar_dados: { Args: never; Returns: Json }
       copa_pontos_corretor: {
@@ -1672,36 +1681,36 @@ export type Database = {
           semana: number
         }[]
       }
-      copa_ranking:
-        | {
-            Args: never
-            Returns: {
-              agendamentos: number
-              analise: number
-              bandeira: string
-              corretor_id: string
-              nome: string
-              total: number
-              vendas: number
-              visitas: number
-            }[]
-          }
-        | {
-            Args: { _edicao_id: string }
-            Returns: {
-              agendamentos: number
-              analise: number
-              bandeira: string
-              corretor_id: string
-              nome: string
-              total: number
-              vendas: number
-              visitas: number
-            }[]
-          }
+      copa_ranking: {
+        Args: never
+        Returns: {
+          bandeira: string
+          corretor_id: string
+          grupo: string
+          nome: string
+          selecao_id: string
+          selecao_nome: string
+          total_agendamentos: number
+          total_documentacao: number
+          total_pontos: number
+          total_vendas: number
+          total_visitas: number
+        }[]
+      }
       copa_realizar_sorteio:
         | { Args: never; Returns: undefined }
         | { Args: { _edicao_id: string }; Returns: undefined }
+      copa_salvar_pontuacao: {
+        Args: {
+          _ag: number
+          _corretor_id: string
+          _doc: number
+          _semana: number
+          _ve: number
+          _vi: number
+        }
+        Returns: undefined
+      }
       copa_salvar_pontuacao_lote: {
         Args: { _edicao_id: string; _rows: Json; _semana: number }
         Returns: number
@@ -1719,6 +1728,17 @@ export type Database = {
       copa_set_participantes:
         | { Args: { _edicao_id: string; _ids: string[] }; Returns: undefined }
         | { Args: { _ids: string[] }; Returns: undefined }
+      copa_set_vencedor: {
+        Args: { _confronto_id: string; _vencedor_id: string }
+        Returns: undefined
+      }
+      copa_status_chaveamento: {
+        Args: never
+        Returns: {
+          fase_atual: string
+          pode_avancar: boolean
+        }[]
+      }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       dashboard_funil: {
         Args: { _corretor?: string; _df: string; _di: string }

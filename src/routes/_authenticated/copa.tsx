@@ -1050,12 +1050,6 @@ function CopaPage() {
                 qc.invalidateQueries({ queryKey: ["copa:semanal"] });
               }}
             />
-            <AdminBonusFinal
-              onSaved={() => {
-                qc.invalidateQueries({ queryKey: ["copa:ranking"] });
-                qc.invalidateQueries({ queryKey: ["copa:semanal"] });
-              }}
-            />
             <AdminCard title="Sorteio (grupos + chaveamento)" color="#9f7aea" icon="🎲">
               <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 12 }}>
                 Gera grupos de 7, atribui seleções e cria os confrontos.{" "}
@@ -1966,37 +1960,10 @@ function AdminLancarPontuacao({
         </table>
       </div>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 10 }}>
-        Pesos aplicados pelo sistema: Ag×1, Vi×5, An×10, Ve×40. Bônus é somado direto ao total.
+        Pontuação 100% manual: o total digitado em <strong>Bônus/Total</strong> é o que vale na semana. Os campos Ag/Vi/An/Ve ficam apenas como registro informativo.
       </p>
     </AdminCard>
   );
 }
 
-function AdminBonusFinal({ onSaved }: { onSaved: () => void }) {
-  const apply = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await (supabase as any).rpc("copa_aplicar_bonus_final", {
-        _edicao_id: EDICAO_ID,
-      });
-      if (error) throw error;
-      return data as { aplicados: number };
-    },
-    onSuccess: (d) => {
-      toast.success(`Bônus aplicados: ${d?.aplicados ?? 0}`);
-      onSaved();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  return (
-    <AdminCard title="Bônus de Classificação Final" color={GOLD} icon="🏆">
-      <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 12 }}>
-        Aplica automaticamente +10/+7/+5/+3 aos campeão/vice/3º/4º a partir dos vencedores das fases
-        <strong> final</strong> e <strong>3º lugar</strong>. Pode rodar várias vezes (idempotente).
-      </p>
-      <button style={btnStyle(GOLD)} disabled={apply.isPending} onClick={() => apply.mutate()}>
-        🏆 Aplicar bônus finais
-      </button>
-    </AdminCard>
-  );
-}
 
