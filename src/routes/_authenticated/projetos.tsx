@@ -29,6 +29,7 @@ function ProjetosPage() {
   const canManage = isAdmin || isGestor;
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
