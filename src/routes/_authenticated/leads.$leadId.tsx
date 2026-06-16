@@ -48,7 +48,8 @@ import {
   type InteracaoDirecao,
 } from "@/lib/interacoes";
 import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
-import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL } from "@/lib/leads";
+import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL, type StageLead } from "@/lib/leads";
+import { PerdidoDialog } from "@/components/lead-stage/perdido-dialog";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
@@ -103,6 +104,8 @@ const TIPO_OPTIONS: InteracaoTipo[] = [
 function LeadDetailPage() {
   const { leadId } = Route.useParams();
   const qc = useQueryClient();
+  const [perdidoOpen, setPerdidoOpen] = useState(false);
+
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", leadId],
@@ -441,7 +444,13 @@ function LeadDetailPage() {
           <CardContent className="flex items-center gap-2">
             <Select
               value={lead.status}
-              onValueChange={(v) => atualizarStatus.mutate(v)}
+              onValueChange={(v) => {
+                if (v === "perdido") {
+                  setPerdidoOpen(true);
+                  return;
+                }
+                atualizarStatus.mutate(v);
+              }}
               disabled={atualizarStatus.isPending}
             >
               <SelectTrigger className="h-8 w-[210px]">
@@ -456,6 +465,24 @@ function LeadDetailPage() {
               </SelectContent>
             </Select>
             {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
+            {perdidoOpen && (
+              <PerdidoDialog
+                lead={{
+                  id: lead.id,
+                  nome: lead.nome,
+                  status: lead.status,
+                  corretor_id: lead.corretor_id,
+                  projeto_id: lead.projeto_id,
+                  projeto_nome: lead.projeto_nome,
+                  observacoes: lead.observacoes,
+                } as StageLead}
+                onOpenChange={setPerdidoOpen}
+                onDone={() => {
+                  qc.invalidateQueries({ queryKey: ["lead", leadId] });
+                  qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+                }}
+              />
+            )}
           </CardContent>
         </Card>
         <Card>
