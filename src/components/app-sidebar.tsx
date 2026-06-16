@@ -81,6 +81,7 @@ const SECTIONS: Section[] = [
     title: "Gestão",
     items: [
       { to: "/corretores", label: "Corretores", icon: Users, roles: ["admin", "gestor"] },
+      { to: "/leads-por-corretor", label: "Leads por Corretor", icon: Shuffle, roles: ["admin", "gestor"] },
       { to: "/equipes", label: "Equipes", icon: UsersRound, roles: ["admin", "gestor"] },
       { to: "/templates", label: "Templates", icon: MessageSquare, roles: ["admin", "gestor"] },
       { to: "/duplicatas", label: "Duplicatas", icon: Merge, roles: ["admin", "gestor"] },
