@@ -1,63 +1,81 @@
-
 ## Objetivo
 
-Transformar `/projetos` em um catálogo navegável de empreendimentos, com cards informativos e filtros cruzados. Gestores mantêm as ações de admin (webhook, editar, importar); corretores veem um catálogo limpo focado em achar projetos.
+Unificar os filtros de `/projetos` em **barra enxuta + modal "Mais filtros"** (padrão das referências) e padronizar os filtros de intervalo (**Preço, Metragem, Data de Entrega**) como **dois dropdowns "De" / "Até" com valores pré-definidos**, em vez de sliders ou inputs livres.
 
-## 1. Cards de empreendimento
+## Nova barra (sempre visível)
 
-Cada card mostra:
-- Cabeçalho: ícone/placeholder (`Building2`), **Nome**, badge da construtora, badge "Inativo" (somente gestor).
-- Localização: `Cidade · Região · Bairro` (linha discreta).
-- Linha de specs com ícones: **Tipologia**, **Vagas**, **Status de entrega**.
-- **Preço a partir de** (formatado em BRL quando numérico; fallback para o texto livre).
-- Observações: truncadas em 2 linhas.
-- Rodapé: link "Ver detalhes" → `/projetos/$projetoId`.
-- Gestor/admin: bloco webhook permanece como hoje, dentro de um `<details>` colapsado por padrão para não poluir o card. Switch Ativo + Editar continuam no topo.
+Uma única linha com 3 controles:
 
-Layout em grid responsiva: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3`.
+1. **Busca** (input com lupa) — nome, construtora, bairro, endereço.
+2. **Localização** (popover) — Cidade → Região → Bairro em cascata; mostra resumo no botão.
+3. **Mais filtros** (botão com ícone, badge com contador) — abre o modal.
 
-## 2. Visão por papel
+À direita: **Limpar** (só quando há filtros). Abaixo da barra: chips de filtros ativos com `×` (já existem).
 
-- **Corretor** (não-gestor): catálogo limpo — sem webhook, sem switch Ativo, sem botões de editar/importar; vê apenas projetos com `ativo = true`.
-- **Gestor/Admin**: vê todos (ativos + inativos com opacidade reduzida), com todas as ações atuais preservadas.
+## Modal "Mais filtros"
 
-## 3. Filtros cruzados (barra acima do grid)
+`Dialog` com título "Mais filtros", seções separadas por divisor. Estado interno até "Aplicar".
 
-Toda combinação aplicada em conjunto (AND). Estado serializado nos search params da rota (`validateSearch` + zod) para permitir compartilhar links filtrados.
+- **Tipologia** — pílulas multi: Studio, 1, 2, 3, 4, 5+ dorms.
+- **Vagas** — pílulas multi: 0, 1, 2, 3+.
+- **Construtora** — lista com checkbox (busca interna se >8 itens).
+- **Faixa de preço** — `RangeSelect` (De / Até), presets:
+  - De: 200k, 300k, 500k, 750k, 1mi, 1,5mi, 2mi
+  - Até: 300k, 500k, 750k, 1mi, 1,5mi, 2mi, 3mi, 5mi+
+  - Checkbox "Incluir projetos sem preço informado".
+- **Metragem (área privativa)** — `RangeSelect` (De / Até), presets:
+  - De: 25m², 30m², 40m², 50m², 60m², 80m², 100m²
+  - Até: 45m², 50m², 60m², 100m², 200m², 400m², 600m²+
+- **Data de entrega** — `RangeSelect` (De / Até), presets gerados dinamicamente a partir do ano atual:
+  - De: "Imediato", ano atual, +1, +2, +3, +4, +5
+  - Até: ano atual, +1, +2, +3, +4, +5, "Sem limite"
+- **Status de entrega** — pílulas multi: Lançamento, Em obras, Pronto.
 
-Controles:
-- **Busca textual** (`q`): casa em nome, construtora, bairro, endereço.
-- **Cidade** (select) → ao escolher, **Região** filtra pelas regiões dessa cidade; ao escolher região, **Bairro** filtra pelos bairros correspondentes (cascata).
-- **Construtora** (multi-select via popover com checkboxes).
-- **Tipologia** (multi-select; valores derivados dos dados, ex.: "1 dorm", "2 dorms", "3 dorms", "Studio").
-- **Vagas** (multi-select: 0, 1, 2, 3+).
-- **Status de entrega** (multi-select: Lançamento, Em obras, Pronto).
-- **Faixa de preço** (slider duplo min/max baseado no `preco_inicial` numérico dos dados; projetos sem preço numérico ficam sob um toggle "Incluir sem preço").
+Rodapé: **Limpar tudo** (ghost) / **Aplicar** (primary).
 
-Acima do grid: contador "X projetos encontrados" e botão "Limpar filtros". Chips removíveis para cada filtro ativo.
+## Componente `RangeSelect` (reutilizável)
 
-Toda filtragem ocorre no cliente sobre o resultado de `select * from projetos` (volume baixo). As opções dos selects são derivadas dinamicamente do dataset carregado.
+```tsx
+<RangeSelect
+  label="Preço"
+  fromOptions={[{value: 200000, label: "R$ 200 mil"}, ...]}
+  toOptions={[...]}
+  value={[from, to]}
+  onChange={([f, t]) => ...}
+/>
+```
 
-## 4. Parsing/normalização auxiliar
+- Dois `Select` lado a lado ("De" / "Até").
+- Validação leve: se `from > to`, ajusta `to = from` ao mudar.
+- Cada um aceita "Qualquer" como opção (null).
+- Usado para Preço, Metragem e Data de Entrega.
 
-`preco_inicial`, `vagas` e `tipologia` hoje são `text`. Sem alterar schema, criamos helpers em `src/lib/projetos.ts`:
-- `parsePrecoBRL(text)` → `number | null` (remove "R$", pontos, vírgula).
-- `formatBRL(n)` → "R$ 450.000".
-- `normalizeVagas(text)` → bucket "0" | "1" | "2" | "3+".
-- `normalizeTipologia(text)` → string padronizada para agrupar.
+## Schema / dados
 
-## 5. Arquivos a tocar (somente frontend)
+- **Preço**: já existe `preco_inicial` + `parsePrecoBRL`. OK.
+- **Metragem**: a coluna `area_privativa` (ou similar) provavelmente não existe ainda no `projetos`. Antes de implementar, vou **conferir o schema** e o `ProjetoRow`. Se não existir, este sub-filtro fica desabilitado com tooltip "Em breve" e a migração de coluna fica fora deste plano (peço aprovação separada).
+- **Data de entrega**: idem — se só houver `entrega_status` textual (Lançamento / Em obras / Pronto) sem ano, o filtro De/Até de data fica desabilitado e mantemos só o filtro de Status. Se houver campo `previsao_entrega` ou similar, usamos o ano dele.
 
-- `src/routes/_authenticated/projetos.tsx` — reescrita do componente: search params via zod, hook de filtros, grid de cards, separação por papel. Mantém dialogs de criar/editar/importar e mutations existentes.
-- `src/components/projeto-card.tsx` (novo) — card de empreendimento (versão corretor e versão gestor via prop `canManage`).
-- `src/components/projetos-filters.tsx` (novo) — barra de filtros + chips.
-- `src/lib/projetos.ts` — adiciona helpers de parsing/format (não remove o que já existe).
+> Decisão pragmática: se faltar coluna, o filtro aparece desabilitado com aviso, em vez de criar dados sintéticos.
 
-Sem mudanças de banco, RLS, server functions ou rotas.
+## Comportamento
 
-## 6. Checks finais
+- AND entre filtros, serializados em search params (sem mudança no contrato).
+- Cascata Cidade→Região→Bairro continua, agora dentro do popover de Localização.
+- Chips ativos cobrem todos os novos filtros (intervalo aparece como "R$ 300 mil – 750 mil", "50m² – 100m²", "2026 – 2028").
 
-- Corretor logado não vê webhook nem inativos.
-- Filtros funcionam combinados, refletem na URL e podem ser limpos.
-- Estado vazio quando nenhum projeto bate com os filtros (diferente de "nenhum projeto cadastrado").
-- Mobile: filtros recolhem em um `Sheet` lateral.
+## Arquivos
+
+- `src/components/projetos-filters.tsx` — refatorar barra + introduzir modal.
+- `src/components/range-select.tsx` — novo, reutilizável.
+- `src/lib/projetos.ts` — adicionar:
+  - `PRECO_FROM_PRESETS`, `PRECO_TO_PRESETS`
+  - `AREA_FROM_PRESETS`, `AREA_TO_PRESETS`
+  - `entregaYearPresets()` helper
+  - `parseAreaM2`, `parseEntregaYear` (se a coluna existir)
+- `applyFilters` estendido com `areaMin/areaMax`, `entregaAnoMin/entregaAnoMax`.
+- Sem mudança em `projetos.tsx`, `projeto-card.tsx`, rotas, migrations.
+
+## Passo 0 (antes de codar)
+
+Ler `ProjetoRow` em `src/components/projeto-card.tsx` e o tipo gerado em `types.ts` para confirmar quais colunas existem (`area_privativa`, `previsao_entrega`, etc.) e habilitar/desabilitar os sub-filtros condicionalmente.
