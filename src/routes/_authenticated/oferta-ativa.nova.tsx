@@ -21,6 +21,7 @@ import {
   STATUS_LEAD_OPTIONS,
   TEMPERATURA_OPTIONS,
   ORIGEM_OPTIONS_OA,
+  ZONA_OPTIONS,
   previewFiltros,
   createOferta,
   type OfertaFiltros,
@@ -54,6 +55,7 @@ function NovaOfertaPage() {
     temperatura: [],
     projetoId: [],
     origem: [],
+    zona: [],
   });
 
 
@@ -106,7 +108,7 @@ function NovaOfertaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function toggleMulti(field: "status" | "temperatura" | "origem", v: string) {
+  function toggleMulti(field: "status" | "temperatura" | "origem" | "zona", v: string) {
     setFiltros((prev) => {
       const cur = prev[field];
       return {
@@ -229,6 +231,32 @@ function NovaOfertaPage() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium">Zona</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {ZONA_OPTIONS.map((z) => {
+                  const active = filtros.zona.includes(z);
+                  return (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={() => toggleMulti("zona", z)}
+                      className={`px-3 py-1 rounded-full text-sm border transition-colors ${
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {z}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Filtra leads pelos projetos cadastrados nessas zonas (inclui projetos vindos por importação).
+              </p>
             </div>
 
             {projetosQ.data && projetosQ.data.length > 0 && (

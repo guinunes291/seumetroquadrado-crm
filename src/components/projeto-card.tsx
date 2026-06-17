@@ -57,6 +57,7 @@ export type ProjetoRow = {
   mes_entrega: number | null;
   ano_entrega: number | null;
   fonte: string | null;
+  zona_smq: string | null;
 };
 
 type Props = {

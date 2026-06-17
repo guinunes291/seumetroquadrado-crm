@@ -1200,6 +1200,7 @@ export type Database = {
           vagas_min: number | null
           vagas_observacao: string | null
           webhook_token: string
+          zona_smq: string | null
         }
         Insert: {
           ano_entrega?: number | null
@@ -1238,6 +1239,7 @@ export type Database = {
           vagas_min?: number | null
           vagas_observacao?: string | null
           webhook_token?: string
+          zona_smq?: string | null
         }
         Update: {
           ano_entrega?: number | null
@@ -1276,6 +1278,7 @@ export type Database = {
           vagas_min?: number | null
           vagas_observacao?: string | null
           webhook_token?: string
+          zona_smq?: string | null
         }
         Relationships: []
       }
@@ -1785,6 +1788,7 @@ export type Database = {
       }
     }
     Functions: {
+      _norm_bairro: { Args: { _t: string }; Returns: string }
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {

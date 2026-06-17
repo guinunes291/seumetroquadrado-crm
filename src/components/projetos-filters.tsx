@@ -41,6 +41,7 @@ export type Filters = {
   cidade: string | null;
   regiao: string | null;
   bairro: string | null;
+  zonas: string[];
   construtoras: string[];
   tipoExtras: string[];
   dorms: Bucket[];
@@ -63,6 +64,7 @@ export const emptyFilters: Filters = {
   cidade: null,
   regiao: null,
   bairro: null,
+  zonas: [],
   construtoras: [],
   tipoExtras: [],
   dorms: [],
@@ -95,6 +97,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
   const opts = useMemo(() => {
     const cidades = new Set<string>();
     const regioes = new Set<string>();
+    const zonas = new Set<string>();
     const bairrosByRegiao = new Map<string, Set<string>>();
     const bairrosByCidade = new Map<string, Set<string>>();
     const construtoras = new Set<string>();
@@ -105,6 +108,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
     for (const p of projetos) {
       if (p.cidade) cidades.add(p.cidade);
       if (p.regiao) regioes.add(p.regiao);
+      if (p.zona_smq) zonas.add(p.zona_smq);
       if (p.regiao && p.bairro) {
         if (!bairrosByRegiao.has(p.regiao)) bairrosByRegiao.set(p.regiao, new Set());
         bairrosByRegiao.get(p.regiao)!.add(p.bairro);
@@ -133,6 +137,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
     return {
       cidades: Array.from(cidades).sort(),
       regioes: Array.from(regioes).sort(),
+      zonas: Array.from(zonas).sort(),
       bairros,
       construtoras: Array.from(construtoras).sort(),
       tipoExtras: Array.from(tipoExtras).sort(),
@@ -170,6 +175,9 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
       label: filters.cidade,
       onClear: () => set({ cidade: null, regiao: null, bairro: null }),
     });
+  filters.zonas.forEach((z) =>
+    activeChips.push({ label: z, onClear: () => toggleArr("zonas", z) }),
+  );
   if (filters.regiao)
     activeChips.push({
       label: filters.regiao,
@@ -272,6 +280,27 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
           </Button>
         )}
       </div>
+
+      {opts.zonas.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground mr-1">Zona:</span>
+          {opts.zonas.map((z) => {
+            const active = filters.zonas.includes(z);
+            return (
+              <Button
+                key={z}
+                type="button"
+                size="sm"
+                variant={active ? "default" : "outline"}
+                className="rounded-full h-7 px-3 text-xs"
+                onClick={() => toggleArr("zonas", z)}
+              >
+                {z}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {hasAny && (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -699,6 +728,7 @@ export function applyFilters(projetos: ProjetoRow[], f: Filters): ProjetoRow[] {
     if (f.cidade && p.cidade !== f.cidade) return false;
     if (f.regiao && p.regiao !== f.regiao) return false;
     if (f.bairro && p.bairro !== f.bairro) return false;
+    if (f.zonas.length && (!p.zona_smq || !f.zonas.includes(p.zona_smq))) return false;
     if (f.construtoras.length && (!p.construtora || !f.construtoras.includes(p.construtora)))
       return false;
     if (f.fontes.length && (!p.fonte || !f.fontes.includes(p.fonte))) return false;
