@@ -128,7 +128,7 @@ function LeadsPage() {
   }, [corretores]);
 
   const { data: leads, isLoading } = useQuery({
-    queryKey: ["leads", { statusFilter, origemFilter, corretorFilter, showLixeira }],
+    queryKey: ["leads", { statusFilter, origemFilter, corretorFilter, showLixeira, canManage, uid: user?.id }],
     queryFn: async () => {
       let q = supabase
         .from("leads")
@@ -142,10 +142,16 @@ function LeadsPage() {
       if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
       if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
       else if (corretorFilter !== "all") q = q.eq("corretor_id", corretorFilter);
+      // Corretor: nunca vê "novo" e só vê seus próprios leads
+      if (!canManage) {
+        q = q.neq("status", "novo" as never);
+        if (user?.id) q = q.eq("corretor_id", user.id);
+      }
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
+    enabled: canManage || !!user?.id,
   });
 
   useRealtimeInvalidate("leads", [["leads"]]);
