@@ -35,7 +35,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Search, Trash2, Shuffle, Trello, Upload } from "lucide-react";
+import { UserPlus, Search, Trash2, Shuffle, Trello, Upload, Play } from "lucide-react";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
@@ -101,7 +101,7 @@ function LeadsPage() {
   const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"]] });
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(canManage ? "all" : "aguardando_atendimento");
   const [origemFilter, setOrigemFilter] = useState<string>("all");
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
@@ -128,7 +128,7 @@ function LeadsPage() {
   }, [corretores]);
 
   const { data: leads, isLoading } = useQuery({
-    queryKey: ["leads", { statusFilter, origemFilter, corretorFilter, showLixeira }],
+    queryKey: ["leads", { statusFilter, origemFilter, corretorFilter, showLixeira, canManage, uid: user?.id }],
     queryFn: async () => {
       let q = supabase
         .from("leads")
@@ -142,10 +142,16 @@ function LeadsPage() {
       if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
       if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
       else if (corretorFilter !== "all") q = q.eq("corretor_id", corretorFilter);
+      // Corretor: nunca vê "novo" e só vê seus próprios leads
+      if (!canManage) {
+        q = q.neq("status", "novo" as never);
+        if (user?.id) q = q.eq("corretor_id", user.id);
+      }
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
+    enabled: canManage || !!user?.id,
   });
 
   useRealtimeInvalidate("leads", [["leads"]]);
@@ -263,7 +269,7 @@ function LeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                {LEAD_STATUS_ORDER.map((s) => (
+                {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => (
                   <SelectItem key={s} value={s}>
                     {LEAD_STATUS_LABEL[s]}
                   </SelectItem>
@@ -372,7 +378,20 @@ function LeadsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {!l.na_lixeira && (canManage || l.corretor_id === user?.id) && (
+                        {!l.na_lixeira &&
+                          l.status === "aguardando_atendimento" &&
+                          (canManage || l.corretor_id === user?.id) && (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                updateStatus.mutate({ id: l.id, status: "em_atendimento" })
+                              }
+                              disabled={updateStatus.isPending}
+                            >
+                              <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
+                            </Button>
+                          )}
+                        {!l.na_lixeira && canManage && l.status !== "aguardando_atendimento" && (
                           <LeadStageMenu
                             lead={l}
                             onPickDirect={(target) =>
