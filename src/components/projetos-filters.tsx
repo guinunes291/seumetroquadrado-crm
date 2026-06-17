@@ -41,6 +41,7 @@ export type Filters = {
   cidade: string | null;
   regiao: string | null;
   bairro: string | null;
+  zonas: string[];
   construtoras: string[];
   tipoExtras: string[];
   dorms: Bucket[];
@@ -63,6 +64,7 @@ export const emptyFilters: Filters = {
   cidade: null,
   regiao: null,
   bairro: null,
+  zonas: [],
   construtoras: [],
   tipoExtras: [],
   dorms: [],
