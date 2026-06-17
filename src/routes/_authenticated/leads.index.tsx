@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -35,7 +36,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Search, Trash2, Shuffle, Trello, Upload, Play, MessageCircle, Phone } from "lucide-react";
+import {
+  UserPlus,
+  Search,
+  Trash2,
+  Shuffle,
+  Trello,
+  Upload,
+  Play,
+  MessageCircle,
+  Phone,
+  Flame,
+  Thermometer,
+  Snowflake,
+  AlertCircle,
+  ArrowRightLeft,
+  X,
+} from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
@@ -45,7 +62,6 @@ import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
   leadStatusLabel,
-  resolveStageAction,
   type LeadStatus,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
@@ -75,6 +91,29 @@ const ORIGEM_OPTIONS = [
   "outro",
 ] as const;
 
+const PERIODO_OPTIONS = [
+  { value: "all", label: "Qualquer período" },
+  { value: "hoje", label: "Hoje" },
+  { value: "7d", label: "Últimos 7 dias" },
+  { value: "30d", label: "Últimos 30 dias" },
+  { value: "90d", label: "Últimos 90 dias" },
+] as const;
+
+type Periodo = (typeof PERIODO_OPTIONS)[number]["value"];
+
+function periodoStart(p: Periodo): Date | null {
+  const now = new Date();
+  if (p === "hoje") {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (p === "7d") return new Date(now.getTime() - 7 * 86400000);
+  if (p === "30d") return new Date(now.getTime() - 30 * 86400000);
+  if (p === "90d") return new Date(now.getTime() - 90 * 86400000);
+  return null;
+}
+
 type Lead = {
   id: string;
   nome: string;
@@ -88,8 +127,37 @@ type Lead = {
   projeto_nome: string | null;
   observacoes: string | null;
   created_at: string;
+  ultima_interacao: string | null;
   na_lixeira: boolean;
 };
+
+function TempIcon({ temp }: { temp: string | null }) {
+  if (temp === "quente")
+    return <Flame className="h-3.5 w-3.5 text-red-500" aria-label="Quente" />;
+  if (temp === "morno")
+    return <Thermometer className="h-3.5 w-3.5 text-amber-500" aria-label="Morno" />;
+  if (temp === "frio")
+    return <Snowflake className="h-3.5 w-3.5 text-sky-500" aria-label="Frio" />;
+  return null;
+}
+
+function InatividadeBadge({ lead }: { lead: Lead }) {
+  const ativo = !["contrato_fechado", "perdido", "pos_venda", "novo"].includes(lead.status);
+  if (!ativo) return null;
+  const ref = lead.ultima_interacao ?? lead.created_at;
+  if (!ref) return null;
+  const dias = Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
+  if (dias < 2) return null;
+  const tone =
+    dias >= 5
+      ? "bg-red-500/15 text-red-700 dark:text-red-300"
+      : "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+  return (
+    <Badge variant="secondary" className={`${tone} gap-1`} title={`Sem interação há ${dias} dias`}>
+      <AlertCircle className="h-3 w-3" /> {dias}d parado
+    </Badge>
+  );
+}
 
 function LeadsPage() {
   const { isAdmin, isGestor } = useUserRoles();
@@ -102,12 +170,28 @@ function LeadsPage() {
   const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"]] });
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>(canManage ? "all" : "aguardando_atendimento");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(
+    canManage ? "all" : "aguardando_atendimento",
+  );
   const [origemFilter, setOrigemFilter] = useState<string>("all");
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
+  const [temperaturaFilter, setTemperaturaFilter] = useState<string>("all");
+  const [periodoFilter, setPeriodoFilter] = useState<Periodo>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
+  const [bulkTarget, setBulkTarget] = useState<string>("");
+  const [contactLead, setContactLead] = useState<Lead | null>(null);
+
+  // Debounce da busca (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
@@ -128,22 +212,39 @@ function LeadsPage() {
     return m;
   }, [corretores]);
 
-  const { data: leads, isLoading } = useQuery({
-    queryKey: ["leads", { statusFilter, origemFilter, corretorFilter, showLixeira, canManage, uid: user?.id }],
+  // Query principal — aplica TODOS os filtros menos statusFilter (para os chips funcionarem).
+  const baseQueryKey = {
+    debouncedSearch,
+    origemFilter,
+    corretorFilter,
+    temperaturaFilter,
+    periodoFilter,
+    showLixeira,
+    canManage,
+    uid: user?.id,
+  };
+
+  const { data: leadsAll, isLoading } = useQuery({
+    queryKey: ["leads", baseQueryKey],
     queryFn: async () => {
       let q = supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, na_lixeira",
+          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira",
         )
         .order("created_at", { ascending: false })
         .limit(500);
       q = q.eq("na_lixeira", showLixeira);
-      if (statusFilter !== "all") q = q.eq("status", statusFilter as never);
       if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
       if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
       else if (corretorFilter !== "all") q = q.eq("corretor_id", corretorFilter);
-      // Corretor: nunca vê "novo" e só vê seus próprios leads
+      if (temperaturaFilter !== "all") q = q.eq("temperatura", temperaturaFilter as never);
+      const start = periodoStart(periodoFilter);
+      if (start) q = q.gte("created_at", start.toISOString());
+      if (debouncedSearch) {
+        const s = debouncedSearch.replace(/[%,]/g, "");
+        q = q.or(`nome.ilike.%${s}%,email.ilike.%${s}%,telefone.ilike.%${s}%`);
+      }
       if (!canManage) {
         q = q.neq("status", "novo" as never);
         if (user?.id) q = q.eq("corretor_id", user.id);
@@ -157,28 +258,54 @@ function LeadsPage() {
 
   useRealtimeInvalidate("leads", [["leads"]]);
 
-
+  // Contagens por status (a partir do conjunto já filtrado, exceto statusFilter).
+  const statusCounts = useMemo(() => {
+    const acc: Record<string, number> = {};
+    (leadsAll ?? []).forEach((l) => {
+      acc[l.status] = (acc[l.status] ?? 0) + 1;
+    });
+    return acc;
+  }, [leadsAll]);
 
   const filtered = useMemo(() => {
-    if (!leads) return [];
-    if (!search.trim()) return leads;
-    const s = search.toLowerCase();
-    return leads.filter(
-      (l) =>
-        l.nome.toLowerCase().includes(s) ||
-        (l.email ?? "").toLowerCase().includes(s) ||
-        l.telefone.toLowerCase().includes(s),
-    );
-  }, [leads, search]);
+    if (!leadsAll) return [];
+    if (statusFilter === "all") return leadsAll;
+    return leadsAll.filter((l) => l.status === statusFilter);
+  }, [leadsAll, statusFilter]);
+
+  // Limpa seleção quando o conjunto filtrado muda
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const ids = new Set(filtered.map((l) => l.id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (ids.has(id)) next.add(id);
+      });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filtered]);
+
+  const allSelected = filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  function toggleAll() {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(filtered.map((l) => l.id)));
+  }
+  function toggleOne(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const distribuir = useMutation({
     mutationFn: async (leadId: string) => {
       const { data, error } = await supabase.rpc(
         "distribuir_lead" as never,
-        {
-          _lead_id: leadId,
-          _tipo: "manual",
-        } as never,
+        { _lead_id: leadId, _tipo: "manual" } as never,
       );
       if (error) throw error;
       return { corretorId: data as string | null, leadId };
@@ -188,7 +315,6 @@ function LeadsPage() {
         toast.error("Nenhum corretor disponível na fila. Ative corretores em Distribuição.");
       } else {
         toast.success("Lead atribuído via roleta");
-        // Notifica via WhatsApp se for lead de origem=facebook.
         await supabase.functions.invoke("notify-lead-transfer", {
           body: { lead_id: leadId, corretor_id: corretorId },
         });
@@ -199,22 +325,107 @@ function LeadsPage() {
   });
 
   const moverLixeira = useMutation({
-    mutationFn: async ({ id, lixeira }: { id: string; lixeira: boolean }) => {
+    mutationFn: async ({ ids, lixeira }: { ids: string[]; lixeira: boolean }) => {
       const { error } = await supabase
         .from("leads")
         .update({
           na_lixeira: lixeira,
           data_movido_lixeira: lixeira ? new Date().toISOString() : null,
         })
-        .eq("id", id);
+        .in("id", ids);
       if (error) throw error;
     },
     onSuccess: (_d, v) => {
-      toast.success(v.lixeira ? "Movido para lixeira" : "Restaurado");
+      toast.success(
+        v.lixeira
+          ? `${v.ids.length} lead(s) movido(s) para lixeira`
+          : `${v.ids.length} lead(s) restaurado(s)`,
+      );
+      setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const bulkTransferir = useMutation({
+    mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          corretor_id: corretorId,
+          data_distribuicao: new Date().toISOString(),
+          timestamp_recebimento: new Date().toISOString(),
+        })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} lead(s) transferido(s)`);
+      setSelectedIds(new Set());
+      setBulkTransferOpen(false);
+      setBulkTarget("");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Iniciar atendimento + registrar interação do tipo de contato escolhido
+  const iniciarAtendimento = useMutation({
+    mutationFn: async ({
+      lead,
+      tipo,
+    }: {
+      lead: Lead;
+      tipo: "ligacao" | "whatsapp";
+    }) => {
+      const { data: u } = await supabase.auth.getUser();
+      const { error: e1 } = await supabase.from("interacoes").insert({
+        lead_id: lead.id,
+        autor_id: u.user?.id ?? null,
+        tipo,
+        direcao: "saida",
+        titulo: tipo === "whatsapp" ? "Contato inicial via WhatsApp" : "Contato inicial por ligação",
+        conteudo: `Atendimento iniciado pelo corretor (${tipo}).`,
+      });
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("leads")
+        .update({ status: "em_atendimento" as never })
+        .eq("id", lead.id);
+      if (e2) throw e2;
+      return { lead, tipo };
+    },
+    onSuccess: ({ lead, tipo }) => {
+      toast.success("Atendimento iniciado");
+      if (tipo === "whatsapp") {
+        const primeiroNome = lead.nome.split(" ")[0] ?? lead.nome;
+        const projeto = lead.projeto_nome ? ` sobre o ${lead.projeto_nome}` : "";
+        const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
+        window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");
+      }
+      setContactLead(null);
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const activeFiltersCount =
+    (statusFilter !== "all" && statusFilter !== "aguardando_atendimento" ? 1 : 0) +
+    (origemFilter !== "all" ? 1 : 0) +
+    (corretorFilter !== "all" ? 1 : 0) +
+    (temperaturaFilter !== "all" ? 1 : 0) +
+    (periodoFilter !== "all" ? 1 : 0) +
+    (debouncedSearch ? 1 : 0);
+
+  function limparFiltros() {
+    setSearch("");
+    setStatusFilter(canManage ? "all" : "aguardando_atendimento");
+    setOrigemFilter("all");
+    setCorretorFilter("all");
+    setTemperaturaFilter("all");
+    setPeriodoFilter("all");
+  }
 
   return (
     <div className="space-y-6">
@@ -252,9 +463,42 @@ function LeadsPage() {
         }
       />
 
+      {/* Chips de status com contagem */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+            statusFilter === "all"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background hover:bg-muted"
+          }`}
+        >
+          Todos · {leadsAll?.length ?? 0}
+        </button>
+        {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
+          const n = statusCounts[s] ?? 0;
+          const active = statusFilter === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(active ? "all" : s)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:bg-muted"
+              }`}
+            >
+              {LEAD_STATUS_LABEL[s]} · {n}
+            </button>
+          );
+        })}
+      </div>
+
       <Card>
         <CardContent className="pt-6 space-y-4">
-          <div className="grid gap-3 md:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-6">
             <div className="md:col-span-2 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -264,19 +508,6 @@ function LeadsPage() {
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {LEAD_STATUS_LABEL[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={origemFilter} onValueChange={setOrigemFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Origem" />
@@ -286,6 +517,29 @@ function LeadsPage() {
                 {ORIGEM_OPTIONS.map((o) => (
                   <SelectItem key={o} value={o}>
                     {o.replace(/_/g, " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={temperaturaFilter} onValueChange={setTemperaturaFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Temperatura" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas temperaturas</SelectItem>
+                <SelectItem value="quente">🔥 Quente</SelectItem>
+                <SelectItem value="morno">🌡️ Morno</SelectItem>
+                <SelectItem value="frio">❄️ Frio</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={periodoFilter} onValueChange={(v) => setPeriodoFilter(v as Periodo)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIODO_OPTIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -311,16 +565,65 @@ function LeadsPage() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               {isLoading ? "Carregando…" : `${filtered.length} lead(s)`}
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 h-7"
+                  onClick={limparFiltros}
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros ({activeFiltersCount})
+                </Button>
+              )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
-              {showLixeira ? "Ver ativos" : "Ver lixeira"}
-            </Button>
+            {canManage && (
+              <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
+                {showLixeira ? "Ver ativos" : "Ver lixeira"}
+              </Button>
+            )}
           </div>
+
+          {/* Barra de ações em lote */}
+          {canManage && selectedIds.size > 0 && (
+            <div className="flex items-center justify-between rounded-md border bg-muted/40 p-2">
+              <div className="text-sm font-medium">{selectedIds.size} selecionado(s)</div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
+                  <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    moverLixeira.mutate({
+                      ids: Array.from(selectedIds),
+                      lixeira: !showLixeira,
+                    })
+                  }
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                  Limpar
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canManage && (
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                        onCheckedChange={toggleAll}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Nome</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Origem</TableHead>
@@ -333,30 +636,50 @@ function LeadsPage() {
               <TableBody>
                 {filtered.length === 0 && !isLoading && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    <TableCell
+                      colSpan={canManage ? 8 : 7}
+                      className="text-center text-muted-foreground py-10"
+                    >
                       Nenhum lead encontrado.
                     </TableCell>
                   </TableRow>
                 )}
                 {filtered.map((l) => (
-                  <TableRow key={l.id}>
+                  <TableRow key={l.id} data-state={selectedIds.has(l.id) ? "selected" : undefined}>
+                    {canManage && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(l.id)}
+                          onCheckedChange={() => toggleOne(l.id)}
+                          aria-label={`Selecionar ${l.nome}`}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
-                      <Link
-                        to="/leads/$leadId"
-                        params={{ leadId: l.id }}
-                        className="font-medium hover:underline"
-                      >
-                        {l.nome}
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <TempIcon temp={l.temperatura} />
+                        <Link
+                          to="/leads/$leadId"
+                          params={{ leadId: l.id }}
+                          className="font-medium hover:underline"
+                        >
+                          {l.nome}
+                        </Link>
+                      </div>
                       {l.projeto_nome && (
                         <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
                       )}
+                      <div className="mt-1">
+                        <InatividadeBadge lead={l} />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="min-w-0">
                           <div className="text-sm">{l.telefone}</div>
-                          <div className="text-xs text-muted-foreground truncate">{l.email ?? "—"}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {l.email ?? "—"}
+                          </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <Button
@@ -369,7 +692,11 @@ function LeadsPage() {
                               const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
                               const projeto = l.projeto_nome ? ` sobre o ${l.projeto_nome}` : "";
                               const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
-                              window.open(buildWhatsAppUrl(l.telefone, msg), "_blank", "noopener,noreferrer");
+                              window.open(
+                                buildWhatsAppUrl(l.telefone, msg),
+                                "_blank",
+                                "noopener,noreferrer",
+                              );
                             }}
                           >
                             <MessageCircle className="h-4 w-4" />
@@ -381,7 +708,10 @@ function LeadsPage() {
                             className="h-7 w-7 text-sky-600 hover:text-sky-700 hover:bg-sky-500/10"
                             title="Ligar"
                           >
-                            <a href={`tel:${l.telefone.replace(/\D/g, "")}`} onClick={(e) => e.stopPropagation()}>
+                            <a
+                              href={`tel:${l.telefone.replace(/\D/g, "")}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <Phone className="h-4 w-4" />
                             </a>
                           </Button>
@@ -416,10 +746,8 @@ function LeadsPage() {
                           (canManage || l.corretor_id === user?.id) && (
                             <Button
                               size="sm"
-                              onClick={() =>
-                                updateStatus.mutate({ id: l.id, status: "em_atendimento" })
-                              }
-                              disabled={updateStatus.isPending}
+                              onClick={() => setContactLead(l)}
+                              disabled={iniciarAtendimento.isPending}
                             >
                               <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
                             </Button>
@@ -449,7 +777,7 @@ function LeadsPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() =>
-                              moverLixeira.mutate({ id: l.id, lixeira: !l.na_lixeira })
+                              moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
                             }
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -464,15 +792,94 @@ function LeadsPage() {
           </div>
         </CardContent>
       </Card>
+
       <LeadStageModals
         modalState={modalState}
         onModalOpenChange={(o) => !o && setModalState(null)}
         perdidoLead={perdidoLead}
         onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
       />
+
+      {/* Tipo de contato ao iniciar atendimento */}
+      <Dialog open={!!contactLead} onOpenChange={(o) => !o && setContactLead(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Iniciar atendimento</DialogTitle>
+            <DialogDescription>
+              Como você está fazendo o primeiro contato com {contactLead?.nome}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 py-2">
+            <button
+              type="button"
+              onClick={() =>
+                contactLead && iniciarAtendimento.mutate({ lead: contactLead, tipo: "ligacao" })
+              }
+              disabled={iniciarAtendimento.isPending}
+              className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
+            >
+              <Phone className="h-10 w-10 text-sky-500" />
+              <span className="font-medium">Ligação</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                contactLead && iniciarAtendimento.mutate({ lead: contactLead, tipo: "whatsapp" })
+              }
+              disabled={iniciarAtendimento.isPending}
+              className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
+            >
+              <MessageCircle className="h-10 w-10 text-emerald-500" />
+              <span className="font-medium">WhatsApp</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transferir em lote */}
+      <Dialog open={bulkTransferOpen} onOpenChange={setBulkTransferOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir {selectedIds.size} lead(s)</DialogTitle>
+            <DialogDescription>Escolha o corretor de destino.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Corretor</Label>
+            <Select value={bulkTarget} onValueChange={setBulkTarget}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um corretor" />
+              </SelectTrigger>
+              <SelectContent>
+                {(corretores ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkTransferOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!bulkTarget || bulkTransferir.isPending}
+              onClick={() =>
+                bulkTransferir.mutate({
+                  ids: Array.from(selectedIds),
+                  corretorId: bulkTarget,
+                })
+              }
+            >
+              {bulkTransferir.isPending ? "Transferindo…" : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function NovoLeadDialog({
   onClose,
