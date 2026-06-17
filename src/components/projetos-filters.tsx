@@ -97,6 +97,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
   const opts = useMemo(() => {
     const cidades = new Set<string>();
     const regioes = new Set<string>();
+    const zonas = new Set<string>();
     const bairrosByRegiao = new Map<string, Set<string>>();
     const bairrosByCidade = new Map<string, Set<string>>();
     const construtoras = new Set<string>();
@@ -107,6 +108,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
     for (const p of projetos) {
       if (p.cidade) cidades.add(p.cidade);
       if (p.regiao) regioes.add(p.regiao);
+      if (p.zona_smq) zonas.add(p.zona_smq);
       if (p.regiao && p.bairro) {
         if (!bairrosByRegiao.has(p.regiao)) bairrosByRegiao.set(p.regiao, new Set());
         bairrosByRegiao.get(p.regiao)!.add(p.bairro);
@@ -135,6 +137,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
     return {
       cidades: Array.from(cidades).sort(),
       regioes: Array.from(regioes).sort(),
+      zonas: Array.from(zonas).sort(),
       bairros,
       construtoras: Array.from(construtoras).sort(),
       tipoExtras: Array.from(tipoExtras).sort(),
