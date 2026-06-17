@@ -269,9 +269,18 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
-    if (statusFilter === "all") return leadsAll;
-    return leadsAll.filter((l) => l.status === statusFilter);
-  }, [leadsAll, statusFilter]);
+    const base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
+    if (canManage) return base;
+    // Corretor: prioriza aguardando_atendimento com projeto registrado, mais recentes primeiro
+    const priority = (l: Lead) =>
+      l.status === "aguardando_atendimento" && l.projeto_id ? 0 : 1;
+    return [...base].sort((a, b) => {
+      const pa = priority(a);
+      const pb = priority(b);
+      if (pa !== pb) return pa - pb;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [leadsAll, statusFilter, canManage]);
 
   // Limpa seleção quando o conjunto filtrado muda
   useEffect(() => {
