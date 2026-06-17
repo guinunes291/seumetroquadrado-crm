@@ -34,8 +34,11 @@ import { Route as AuthenticatedComissoesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedBlitzRouteImport } from './routes/_authenticated/blitz'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
+import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
+import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
+import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
@@ -168,6 +171,12 @@ const AuthenticatedProjetosIndexRoute =
     path: '/projetos/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOfertaAtivaIndexRoute =
+  AuthenticatedOfertaAtivaIndexRouteImport.update({
+    id: '/oferta-ativa/',
+    path: '/oferta-ativa/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
   id: '/leads/',
   path: '/leads/',
@@ -177,6 +186,18 @@ const AuthenticatedProjetosProjetoIdRoute =
   AuthenticatedProjetosProjetoIdRouteImport.update({
     id: '/projetos/$projetoId',
     path: '/projetos/$projetoId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOfertaAtivaNovaRoute =
+  AuthenticatedOfertaAtivaNovaRouteImport.update({
+    id: '/oferta-ativa/nova',
+    path: '/oferta-ativa/nova',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOfertaAtivaOfertaIdRoute =
+  AuthenticatedOfertaAtivaOfertaIdRouteImport.update({
+    id: '/oferta-ativa/$ofertaId',
+    path: '/oferta-ativa/$ofertaId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedLeadsLeadIdRoute =
@@ -223,8 +244,11 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
+  '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
+  '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
+  '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
@@ -254,8 +278,11 @@ export interface FileRoutesByTo {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
+  '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
+  '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
+  '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
@@ -287,8 +314,11 @@ export interface FileRoutesById {
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
+  '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
+  '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
+  '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
@@ -320,8 +350,11 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/leads/$leadId'
+    | '/oferta-ativa/$ofertaId'
+    | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
     | '/leads/'
+    | '/oferta-ativa/'
     | '/projetos/'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/webhooks/lead/$token'
@@ -351,8 +384,11 @@ export interface FileRouteTypes {
     | '/templates'
     | '/'
     | '/leads/$leadId'
+    | '/oferta-ativa/$ofertaId'
+    | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
     | '/leads'
+    | '/oferta-ativa'
     | '/projetos'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/webhooks/lead/$token'
@@ -383,8 +419,11 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/'
     | '/_authenticated/leads/$leadId'
+    | '/_authenticated/oferta-ativa/$ofertaId'
+    | '/_authenticated/oferta-ativa/nova'
     | '/_authenticated/projetos/$projetoId'
     | '/_authenticated/leads/'
+    | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/webhooks/lead/$token'
@@ -575,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjetosIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/oferta-ativa/': {
+      id: '/_authenticated/oferta-ativa/'
+      path: '/oferta-ativa'
+      fullPath: '/oferta-ativa/'
+      preLoaderRoute: typeof AuthenticatedOfertaAtivaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/leads/': {
       id: '/_authenticated/leads/'
       path: '/leads'
@@ -587,6 +633,20 @@ declare module '@tanstack/react-router' {
       path: '/projetos/$projetoId'
       fullPath: '/projetos/$projetoId'
       preLoaderRoute: typeof AuthenticatedProjetosProjetoIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/oferta-ativa/nova': {
+      id: '/_authenticated/oferta-ativa/nova'
+      path: '/oferta-ativa/nova'
+      fullPath: '/oferta-ativa/nova'
+      preLoaderRoute: typeof AuthenticatedOfertaAtivaNovaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/oferta-ativa/$ofertaId': {
+      id: '/_authenticated/oferta-ativa/$ofertaId'
+      path: '/oferta-ativa/$ofertaId'
+      fullPath: '/oferta-ativa/$ofertaId'
+      preLoaderRoute: typeof AuthenticatedOfertaAtivaOfertaIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/leads/$leadId': {
@@ -636,8 +696,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
+  AuthenticatedOfertaAtivaOfertaIdRoute: typeof AuthenticatedOfertaAtivaOfertaIdRoute
+  AuthenticatedOfertaAtivaNovaRoute: typeof AuthenticatedOfertaAtivaNovaRoute
   AuthenticatedProjetosProjetoIdRoute: typeof AuthenticatedProjetosProjetoIdRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
+  AuthenticatedOfertaAtivaIndexRoute: typeof AuthenticatedOfertaAtivaIndexRoute
   AuthenticatedProjetosIndexRoute: typeof AuthenticatedProjetosIndexRoute
 }
 
@@ -664,8 +727,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
+  AuthenticatedOfertaAtivaOfertaIdRoute: AuthenticatedOfertaAtivaOfertaIdRoute,
+  AuthenticatedOfertaAtivaNovaRoute: AuthenticatedOfertaAtivaNovaRoute,
   AuthenticatedProjetosProjetoIdRoute: AuthenticatedProjetosProjetoIdRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
+  AuthenticatedOfertaAtivaIndexRoute: AuthenticatedOfertaAtivaIndexRoute,
   AuthenticatedProjetosIndexRoute: AuthenticatedProjetosIndexRoute,
 }
 
