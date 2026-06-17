@@ -46,6 +46,7 @@ type Lead = {
   email: string | null;
   telefone: string;
   status: string;
+  origem: string;
   corretor_id: string | null;
   projeto_id: string | null;
   projeto_nome: string | null;
@@ -55,6 +56,7 @@ type Lead = {
   ultima_interacao: string | null;
   created_at: string;
 };
+
 type SlaRow = {
   lead_id: string;
   sla_status: string;
@@ -87,8 +89,9 @@ function BlitzPage() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, created_at",
+          "id, nome, email, telefone, status, origem, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, created_at",
         )
+
         .eq("corretor_id", user!.id)
         .eq("na_lixeira", false)
         .is("deleted_at", null)
@@ -123,17 +126,29 @@ function BlitzPage() {
 
   const fila = useMemo(() => {
     const arr = [...(leadsQ.data ?? [])];
+    // Mesma priorização da página de Leads:
+    // 1) Aguardando + Facebook (ADS), 2) Aguardando + projeto registrado,
+    // 3) demais Aguardando, 4) restante. Mais recentes primeiro dentro do grupo;
+    // SLA estourado/atenção desempata acima.
+    const priority = (l: Lead) => {
+      const aguardando = l.status === "aguardando_atendimento";
+      if (aguardando && l.origem === "facebook") return 0;
+      if (aguardando && l.projeto_id) return 1;
+      if (aguardando) return 2;
+      return 3;
+    };
     arr.sort((a, b) => {
+      const pa = priority(a);
+      const pb = priority(b);
+      if (pa !== pb) return pa - pb;
       const sa = SLA_PRIO[slaMap.get(a.id)?.sla_status ?? ""] ?? 3;
       const sb = SLA_PRIO[slaMap.get(b.id)?.sla_status ?? ""] ?? 3;
       if (sa !== sb) return sa - sb;
-      const fa = a.proximo_followup ? Date.parse(a.proximo_followup) : Infinity;
-      const fb = b.proximo_followup ? Date.parse(b.proximo_followup) : Infinity;
-      if (fa !== fb) return fa - fb;
-      return Date.parse(a.created_at) - Date.parse(b.created_at);
+      return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
     return arr;
   }, [leadsQ.data, slaMap]);
+
 
   useRealtimeInvalidate("leads", [["blitz-queue"], ["blitz-sla"]]);
 
