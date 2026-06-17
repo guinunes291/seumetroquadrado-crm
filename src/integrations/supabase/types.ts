@@ -540,6 +540,7 @@ export type Database = {
           leads_recebidos_hoje: number
           max_leads_dia: number
           posicao: number
+          posicao_facebook: number | null
           ultima_distribuicao: string | null
           updated_at: string
         }
@@ -551,6 +552,7 @@ export type Database = {
           leads_recebidos_hoje?: number
           max_leads_dia?: number
           posicao: number
+          posicao_facebook?: number | null
           ultima_distribuicao?: string | null
           updated_at?: string
         }
@@ -562,6 +564,7 @@ export type Database = {
           leads_recebidos_hoje?: number
           max_leads_dia?: number
           posicao?: number
+          posicao_facebook?: number | null
           ultima_distribuicao?: string | null
           updated_at?: string
         }
