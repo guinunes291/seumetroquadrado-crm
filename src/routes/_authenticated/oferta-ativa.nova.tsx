@@ -21,6 +21,7 @@ import {
   STATUS_LEAD_OPTIONS,
   TEMPERATURA_OPTIONS,
   ORIGEM_OPTIONS_OA,
+  ZONA_OPTIONS,
   previewFiltros,
   createOferta,
   type OfertaFiltros,
@@ -54,6 +55,7 @@ function NovaOfertaPage() {
     temperatura: [],
     projetoId: [],
     origem: [],
+    zona: [],
   });
 
 
