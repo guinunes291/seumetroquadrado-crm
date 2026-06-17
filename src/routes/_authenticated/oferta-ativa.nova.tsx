@@ -108,7 +108,7 @@ function NovaOfertaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function toggleMulti(field: "status" | "temperatura" | "origem", v: string) {
+  function toggleMulti(field: "status" | "temperatura" | "origem" | "zona", v: string) {
     setFiltros((prev) => {
       const cur = prev[field];
       return {
