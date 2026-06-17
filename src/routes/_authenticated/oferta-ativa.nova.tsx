@@ -233,6 +233,32 @@ function NovaOfertaPage() {
               </div>
             </div>
 
+            <div>
+              <Label className="text-sm font-medium">Zona</Label>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {ZONA_OPTIONS.map((z) => {
+                  const active = filtros.zona.includes(z);
+                  return (
+                    <button
+                      key={z}
+                      type="button"
+                      onClick={() => toggleMulti("zona", z)}
+                      className={`px-3 py-1 rounded-full text-sm border transition-colors ${
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {z}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Filtra leads pelos projetos cadastrados nessas zonas (inclui projetos vindos por importação).
+              </p>
+            </div>
+
             {projetosQ.data && projetosQ.data.length > 0 && (
               <div>
                 <Label className="text-sm font-medium">Projetos</Label>
