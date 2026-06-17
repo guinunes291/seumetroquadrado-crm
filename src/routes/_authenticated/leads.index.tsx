@@ -378,7 +378,20 @@ function LeadsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {!l.na_lixeira && (canManage || l.corretor_id === user?.id) && (
+                        {!l.na_lixeira &&
+                          l.status === "aguardando_atendimento" &&
+                          (canManage || l.corretor_id === user?.id) && (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                updateStatus.mutate({ id: l.id, status: "em_atendimento" })
+                              }
+                              disabled={updateStatus.isPending}
+                            >
+                              <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
+                            </Button>
+                          )}
+                        {!l.na_lixeira && canManage && l.status !== "aguardando_atendimento" && (
                           <LeadStageMenu
                             lead={l}
                             onPickDirect={(target) =>
