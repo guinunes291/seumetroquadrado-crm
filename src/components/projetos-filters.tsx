@@ -175,6 +175,9 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
       label: filters.cidade,
       onClear: () => set({ cidade: null, regiao: null, bairro: null }),
     });
+  filters.zonas.forEach((z) =>
+    activeChips.push({ label: z, onClear: () => toggleArr("zonas", z) }),
+  );
   if (filters.regiao)
     activeChips.push({
       label: filters.regiao,
