@@ -728,6 +728,7 @@ export function applyFilters(projetos: ProjetoRow[], f: Filters): ProjetoRow[] {
     if (f.cidade && p.cidade !== f.cidade) return false;
     if (f.regiao && p.regiao !== f.regiao) return false;
     if (f.bairro && p.bairro !== f.bairro) return false;
+    if (f.zonas.length && (!p.zona_smq || !f.zonas.includes(p.zona_smq))) return false;
     if (f.construtoras.length && (!p.construtora || !f.construtoras.includes(p.construtora)))
       return false;
     if (f.fontes.length && (!p.fonte || !f.fontes.includes(p.fonte))) return false;
