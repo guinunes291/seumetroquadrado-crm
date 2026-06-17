@@ -40,9 +40,7 @@ function OfertaDetailPage() {
   const { ofertaId } = Route.useParams();
   const qc = useQueryClient();
 
-  useRealtimeInvalidate([
-    { table: "oferta_ativa_leads", queryKey: ["oferta-detail", ofertaId] },
-  ]);
+  useRealtimeInvalidate("oferta_ativa_leads", [["oferta-detail", ofertaId]]);
 
   const q = useQuery({
     queryKey: ["oferta-detail", ofertaId],

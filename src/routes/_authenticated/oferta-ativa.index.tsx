@@ -31,10 +31,10 @@ function OfertaAtivaPage() {
   const canManage = isAdmin || isGestor;
   const [tab, setTab] = useState<"ativas" | "arquivadas">("ativas");
 
-  useRealtimeInvalidate([
-    { table: "ofertas_ativas", queryKey: ["ofertas-ativas"] },
-    { table: "oferta_ativa_leads", queryKey: ["ofertas-ativas"] },
-  ]);
+  useRealtimeInvalidate(
+    ["ofertas_ativas", "oferta_ativa_leads"],
+    [["ofertas-ativas"]],
+  );
 
   const ativasQ = useQuery({
     queryKey: ["ofertas-ativas", "ativas"],
