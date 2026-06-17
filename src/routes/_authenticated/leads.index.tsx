@@ -786,6 +786,19 @@ function LeadsPage() {
                             <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
                           </Button>
                         )}
+                        {canManage && !l.na_lixeira && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            title="Transferir"
+                            onClick={() => {
+                              setSelectedIds(new Set([l.id]));
+                              setBulkTransferOpen(true);
+                            }}
+                          >
+                            <ArrowRightLeft className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                         {canManage && (
                           <Button
                             size="sm"
