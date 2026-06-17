@@ -101,7 +101,7 @@ function LeadsPage() {
   const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"]] });
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(canManage ? "all" : "aguardando_atendimento");
   const [origemFilter, setOrigemFilter] = useState<string>("all");
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
