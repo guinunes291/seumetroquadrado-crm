@@ -275,7 +275,7 @@ function LeadsPage() {
     const priority = (l: Lead) => {
       const aguardando = l.status === "aguardando_atendimento";
       if (aguardando && l.origem === "facebook") return 0;
-      if (!canManage && aguardando && l.projeto_id) return 1;
+      if (!canManage && aguardando && (l.projeto_id || l.projeto_nome)) return 1;
       if (aguardando) return 2;
       return 3;
     };
