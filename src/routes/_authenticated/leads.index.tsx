@@ -270,10 +270,15 @@ function LeadsPage() {
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
     const base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
-    if (canManage) return base;
-    // Corretor: prioriza aguardando_atendimento com projeto registrado, mais recentes primeiro
-    const priority = (l: Lead) =>
-      l.status === "aguardando_atendimento" && l.projeto_id ? 0 : 1;
+    // Prioriza: 1) Aguardando + Facebook (ADS), 2) Aguardando + projeto registrado,
+    // 3) demais. Dentro de cada grupo, mais recentes primeiro.
+    const priority = (l: Lead) => {
+      const aguardando = l.status === "aguardando_atendimento";
+      if (aguardando && l.origem === "facebook") return 0;
+      if (!canManage && aguardando && l.projeto_id) return 1;
+      if (aguardando) return 2;
+      return 3;
+    };
     return [...base].sort((a, b) => {
       const pa = priority(a);
       const pb = priority(b);
