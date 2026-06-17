@@ -269,7 +269,7 @@ function LeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os status</SelectItem>
-                {LEAD_STATUS_ORDER.map((s) => (
+                {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => (
                   <SelectItem key={s} value={s}>
                     {LEAD_STATUS_LABEL[s]}
                   </SelectItem>
