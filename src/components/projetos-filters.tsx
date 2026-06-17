@@ -281,6 +281,27 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
         )}
       </div>
 
+      {opts.zonas.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground mr-1">Zona:</span>
+          {opts.zonas.map((z) => {
+            const active = filters.zonas.includes(z);
+            return (
+              <Button
+                key={z}
+                type="button"
+                size="sm"
+                variant={active ? "default" : "outline"}
+                className="rounded-full h-7 px-3 text-xs"
+                onClick={() => toggleArr("zonas", z)}
+              >
+                {z}
+              </Button>
+            );
+          })}
+        </div>
+      )}
+
       {hasAny && (
         <div className="flex flex-wrap items-center gap-1.5">
           {activeChips.map((chip, i) => (
