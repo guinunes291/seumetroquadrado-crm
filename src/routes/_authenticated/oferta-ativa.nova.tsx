@@ -48,12 +48,14 @@ function NovaOfertaPage() {
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [corretorId, setCorretorId] = useState<string | undefined>();
+  const [projetoSearch, setProjetoSearch] = useState("");
   const [filtros, setFiltros] = useState<OfertaFiltros>({
     status: [],
     temperatura: [],
     projetoId: [],
     origem: [],
   });
+
 
   const debounced = useDebounce(filtros, 400);
   const debouncedCorretor = useDebounce(corretorId, 400);
@@ -232,19 +234,44 @@ function NovaOfertaPage() {
             {projetosQ.data && projetosQ.data.length > 0 && (
               <div>
                 <Label className="text-sm font-medium">Projetos</Label>
-                <div className="flex flex-wrap gap-x-3 gap-y-2 mt-2 max-h-40 overflow-y-auto p-1">
-                  {projetosQ.data.map((p) => (
-                    <label key={p.id} className="flex items-center gap-1.5 cursor-pointer">
-                      <Checkbox
-                        checked={filtros.projetoId.includes(p.id)}
-                        onCheckedChange={() => toggleProjeto(p.id)}
-                      />
-                      <span className="text-sm">{p.nome}</span>
-                    </label>
-                  ))}
+                <Input
+                  value={projetoSearch}
+                  onChange={(e) => setProjetoSearch(e.target.value)}
+                  placeholder="Buscar projeto..."
+                  className="mt-2 mb-2 max-w-sm"
+                />
+                {filtros.projetoId.length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {filtros.projetoId.length} selecionado(s) •{" "}
+                    <button
+                      type="button"
+                      className="underline hover:text-foreground"
+                      onClick={() => setFiltros((p) => ({ ...p, projetoId: [] }))}
+                    >
+                      limpar
+                    </button>
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-x-3 gap-y-2 mt-1 max-h-60 overflow-y-auto p-1 border rounded-md">
+                  {projetosQ.data
+                    .filter((p) =>
+                      projetoSearch.trim() === ""
+                        ? true
+                        : p.nome.toLowerCase().includes(projetoSearch.trim().toLowerCase()),
+                    )
+                    .map((p) => (
+                      <label key={p.id} className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={filtros.projetoId.includes(p.id)}
+                          onCheckedChange={() => toggleProjeto(p.id)}
+                        />
+                        <span className="text-sm">{p.nome}</span>
+                      </label>
+                    ))}
                 </div>
               </div>
             )}
+
 
             <div>
               <Label className="text-sm font-medium">Sem interação há (dias)</Label>
