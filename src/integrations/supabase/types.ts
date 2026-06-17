@@ -907,6 +907,95 @@ export type Database = {
         }
         Relationships: []
       }
+      oferta_ativa_leads: {
+        Row: {
+          avancado: boolean
+          contatado: boolean
+          contatado_em: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          oferta_id: string
+        }
+        Insert: {
+          avancado?: boolean
+          contatado?: boolean
+          contatado_em?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          oferta_id: string
+        }
+        Update: {
+          avancado?: boolean
+          contatado?: boolean
+          contatado_em?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          oferta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oferta_ativa_leads_oferta_id_fkey"
+            columns: ["oferta_id"]
+            isOneToOne: false
+            referencedRelation: "ofertas_ativas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ofertas_ativas: {
+        Row: {
+          corretor_id: string | null
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          filtros: Json
+          id: string
+          nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          filtros?: Json
+          id?: string
+          nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          filtros?: Json
+          id?: string
+          nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ofertas_ativas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           acessa_links_uteis: boolean
@@ -1696,6 +1785,53 @@ export type Database = {
       }
     }
     Functions: {
+      _oferta_ativa_query: {
+        Args: { _corretor: string; _filtros: Json }
+        Returns: {
+          campanha: string | null
+          corretor_anterior_id: string | null
+          corretor_id: string | null
+          corretores_que_tentaram: string[]
+          cpf: string | null
+          created_at: string
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          deleted_at: string | null
+          email: string | null
+          entrada_disponivel: string | null
+          id: string
+          legacy_id: number | null
+          motivo_perda_categoria: string | null
+          motivo_perdido: string | null
+          na_lixeira: boolean
+          nome: string
+          observacoes: string | null
+          origem: Database["public"]["Enums"]["lead_origem"]
+          projeto_id: string | null
+          projeto_nome: string | null
+          proximo_followup: string | null
+          renda_informada: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao: number
+          timestamp_recebimento: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string
+          usa_fgts: boolean
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "leads"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       atribuir_lead_a_corretor: {
         Args: { _corretor_id: string; _lead_id: string }
         Returns: undefined
@@ -1791,6 +1927,15 @@ export type Database = {
         }[]
       }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
+      create_oferta_ativa: {
+        Args: {
+          _corretor?: string
+          _descricao: string
+          _filtros: Json
+          _nome: string
+        }
+        Returns: string
+      }
       dashboard_funil: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
@@ -1919,6 +2064,10 @@ export type Database = {
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
+      }
+      preview_oferta_ativa: {
+        Args: { _corretor?: string; _filtros: Json }
+        Returns: Json
       }
       processar_distribuicao_automatica: { Args: never; Returns: Json }
       recalcular_temperatura_leads: { Args: never; Returns: number }
