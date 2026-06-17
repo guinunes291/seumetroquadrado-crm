@@ -7,8 +7,18 @@ export type OfertaFiltros = {
   temperatura: string[];
   projetoId: string[];
   origem: string[];
+  zona: string[];
   semInteracaoHaDias?: number;
 };
+
+export const ZONA_OPTIONS = [
+  "Centro",
+  "Zona Sul",
+  "Zona Norte",
+  "Zona Leste",
+  "Zona Oeste",
+  "Grande SP",
+];
 
 export type OfertaAtiva = {
   id: string;
