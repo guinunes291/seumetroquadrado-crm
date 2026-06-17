@@ -35,7 +35,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { UserPlus, Search, Trash2, Shuffle, Trello, Upload, Play } from "lucide-react";
+import { UserPlus, Search, Trash2, Shuffle, Trello, Upload, Play, MessageCircle, Phone } from "lucide-react";
+import { buildWhatsAppUrl } from "@/lib/templates";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
@@ -352,8 +353,40 @@ function LeadsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{l.telefone}</div>
-                      <div className="text-xs text-muted-foreground">{l.email ?? "—"}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm">{l.telefone}</div>
+                          <div className="text-xs text-muted-foreground truncate">{l.email ?? "—"}</div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                            title="Abrir WhatsApp com mensagem pronta"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
+                              const projeto = l.projeto_nome ? ` sobre o ${l.projeto_nome}` : "";
+                              const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
+                              window.open(buildWhatsAppUrl(l.telefone, msg), "_blank", "noopener,noreferrer");
+                            }}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            asChild
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-sky-600 hover:text-sky-700 hover:bg-sky-500/10"
+                            title="Ligar"
+                          >
+                            <a href={`tel:${l.telefone.replace(/\D/g, "")}`} onClick={(e) => e.stopPropagation()}>
+                              <Phone className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="capitalize text-sm">
                       {l.origem.replace(/_/g, " ")}
