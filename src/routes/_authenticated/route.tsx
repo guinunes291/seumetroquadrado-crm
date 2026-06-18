@@ -4,13 +4,35 @@ import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { NotificationBell } from "@/components/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
 
+let lastPresenceMark = 0;
+const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
+
+function markPresenceSafely() {
+  const now = Date.now();
+  if (now - lastPresenceMark < PRESENCE_MARK_INTERVAL_MS) return;
+  lastPresenceMark = now;
+
+  void supabase
+    .rpc("marcar_presenca", { _presente: true })
+    .then(({ error }) => {
+      if (error) {
+        lastPresenceMark = 0;
+        console.warn("Não foi possível atualizar presença do corretor", error.message);
+      }
+    })
+    .catch((error) => {
+      lastPresenceMark = 0;
+      console.warn("Não foi possível atualizar presença do corretor", error);
+    });
+}
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
     // Auto check-in para liberar a distribuição automática de leads.
-    void supabase.rpc("marcar_presenca", { _presente: true });
+    markPresenceSafely();
     return { user: data.user };
   },
   component: AuthenticatedLayout,
