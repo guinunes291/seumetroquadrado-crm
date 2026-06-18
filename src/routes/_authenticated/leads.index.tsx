@@ -969,9 +969,10 @@ function NovoLeadDialog({
         projeto_nome: form.projeto_nome.trim() || null,
         observacoes: form.observacoes.trim() || null,
       };
-      // Corretor: atribui automaticamente a si mesmo
+      // Corretor: atribui automaticamente a si mesmo e já entra como "aguardando atendimento"
       if (!canManage && currentUserId) {
         insertPayload.corretor_id = currentUserId;
+        insertPayload.status = "aguardando_atendimento";
       }
 
       const { data, error } = await supabase
