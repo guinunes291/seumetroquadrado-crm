@@ -12,18 +12,18 @@ function markPresenceSafely() {
   if (now - lastPresenceMark < PRESENCE_MARK_INTERVAL_MS) return;
   lastPresenceMark = now;
 
-  void supabase
-    .rpc("marcar_presenca", { _presente: true })
-    .then(({ error }) => {
+  void (async () => {
+    try {
+      const { error } = await supabase.rpc("marcar_presenca", { _presente: true });
       if (error) {
         lastPresenceMark = 0;
         console.warn("Não foi possível atualizar presença do corretor", error.message);
       }
-    })
-    .catch((error) => {
+    } catch (error) {
       lastPresenceMark = 0;
       console.warn("Não foi possível atualizar presença do corretor", error);
-    });
+    }
+  })();
 }
 
 export const Route = createFileRoute("/_authenticated")({
