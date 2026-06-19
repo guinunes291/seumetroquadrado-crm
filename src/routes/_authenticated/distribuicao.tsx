@@ -161,17 +161,34 @@ function DistribuicaoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Distribuição de Leads"
-        description="Roleta automática (a cada 5min) com regra de elegibilidade: presente hoje + ativo + dentro da cota + ≥90% da carteira fora de Aguardando atendimento."
+        description="Roleta automática (a cada 5min) com regra de elegibilidade: presente hoje + ativo + dentro da cota + ≥70% da carteira fora de Aguardando atendimento."
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={async () => {
-                const { error } = await supabase.rpc("processar_distribuicao_automatica");
-                if (error) toast.error(error.message);
-                else {
-                  toast.success("Distribuição executada");
+                const { data, error } = await supabase.rpc("processar_distribuicao_automatica");
+                if (error) {
+                  toast.error(error.message);
+                } else {
+                  const r = (data ?? {}) as {
+                    distribuidos?: number;
+                    redistribuidos?: number;
+                    pendentes?: number;
+                    motivo?: string;
+                  };
+                  if ((r.distribuidos ?? 0) > 0 || (r.redistribuidos ?? 0) > 0) {
+                    toast.success(
+                      `${r.distribuidos ?? 0} distribuído(s)` +
+                        (r.redistribuidos ? `, ${r.redistribuidos} redistribuído(s)` : ""),
+                    );
+                  } else {
+                    toast.warning(
+                      `Nenhum lead distribuído — ${r.motivo ?? "sem detalhes"}` +
+                        (r.pendentes ? ` (${r.pendentes} aguardando)` : ""),
+                    );
+                  }
                   qc.invalidateQueries({ queryKey: ["fila"] });
                   qc.invalidateQueries({ queryKey: ["dist-log"] });
                 }
