@@ -57,6 +57,7 @@ import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
+  FUNNEL_STAGES,
   PROXIMA_ACAO,
   leadStatusLabel,
   resolveStageAction,
