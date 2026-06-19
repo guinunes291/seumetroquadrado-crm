@@ -41,14 +41,32 @@ function MetasPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("metas")
-        .select("*, profiles:corretor_id(id, nome), equipes:equipe_id(id, nome)")
+        .select("*")
         .eq("ano", ano)
         .eq("mes", mes)
         .order("created_at");
       if (error) throw error;
-      return data ?? [];
+      const rows = data ?? [];
+      const corretorIds = Array.from(new Set(rows.map((r: any) => r.corretor_id).filter(Boolean)));
+      const equipeIds = Array.from(new Set(rows.map((r: any) => r.equipe_id).filter(Boolean)));
+      const [profilesRes, equipesRes] = await Promise.all([
+        corretorIds.length
+          ? supabase.from("profiles").select("id, nome").in("id", corretorIds as string[])
+          : Promise.resolve({ data: [] as any[] }),
+        equipeIds.length
+          ? supabase.from("equipes").select("id, nome").in("id", equipeIds as string[])
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const profMap = new Map((profilesRes.data ?? []).map((p: any) => [p.id, p.nome]));
+      const eqMap = new Map((equipesRes.data ?? []).map((e: any) => [e.id, e.nome]));
+      return rows.map((r: any) => ({
+        ...r,
+        profiles: r.corretor_id ? { id: r.corretor_id, nome: profMap.get(r.corretor_id) } : null,
+        equipes: r.equipe_id ? { id: r.equipe_id, nome: eqMap.get(r.equipe_id) } : null,
+      }));
     },
   });
+
 
   const corretoresQ = useQuery({
     queryKey: ["metas:corretores"],
