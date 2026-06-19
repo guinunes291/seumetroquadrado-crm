@@ -824,7 +824,109 @@ function LeadDetailPage() {
           }
         }}
       />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar dados do cliente</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Nome *</Label>
+              <Input
+                value={editForm.nome}
+                onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
+                maxLength={160}
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input value={lead.telefone} readOnly disabled />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Não editável após o cadastro do lead.
+              </p>
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input value={lead.email ?? ""} readOnly disabled />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Não editável após o cadastro do lead.
+              </p>
+            </div>
+            <div>
+              <Label>CPF</Label>
+              <Input
+                value={editForm.cpf}
+                onChange={(e) => setEditForm({ ...editForm, cpf: e.target.value })}
+                maxLength={20}
+              />
+            </div>
+            <div>
+              <Label>Empreendimento</Label>
+              <Input
+                value={editForm.projeto_nome}
+                onChange={(e) => setEditForm({ ...editForm, projeto_nome: e.target.value })}
+                maxLength={160}
+              />
+            </div>
+            <div>
+              <Label>Renda informada</Label>
+              <Input
+                value={editForm.renda_informada}
+                onChange={(e) => setEditForm({ ...editForm, renda_informada: e.target.value })}
+                maxLength={40}
+              />
+            </div>
+            <div>
+              <Label>Entrada disponível</Label>
+              <Input
+                value={editForm.entrada_disponivel}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, entrada_disponivel: e.target.value })
+                }
+                maxLength={40}
+              />
+            </div>
+            <div>
+              <Label>Próximo follow-up</Label>
+              <Input
+                type="datetime-local"
+                value={editForm.proximo_followup}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, proximo_followup: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <Switch
+                checked={editForm.usa_fgts}
+                onCheckedChange={(v) => setEditForm({ ...editForm, usa_fgts: v })}
+                id="usa-fgts"
+              />
+              <Label htmlFor="usa-fgts">Usa FGTS</Label>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={editForm.observacoes}
+                onChange={(e) => setEditForm({ ...editForm, observacoes: e.target.value })}
+                rows={4}
+                maxLength={2000}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => editarLead.mutate()} disabled={editarLead.isPending}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
 
