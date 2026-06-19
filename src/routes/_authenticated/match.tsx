@@ -340,10 +340,16 @@ function MatchPage() {
           )}
         </div>
       )}
+        </TabsContent>
 
+        <TabsContent value="ia">
+          <BuscadorIA leadId={leadId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
