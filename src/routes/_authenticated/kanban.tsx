@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Phone, Mail, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  LEAD_STATUS_ORDER,
+  FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
   resolveStageAction,
   type LeadStatus,
@@ -44,7 +44,7 @@ const COLUMN_TONE: Record<LeadStatus, string> = {
   perdido: "bg-rose-500/10 border-rose-500/30",
 };
 
-const COLUMNS = LEAD_STATUS_ORDER.map((id) => ({
+const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
   label: LEAD_STATUS_LABEL[id],
   tone: COLUMN_TONE[id],

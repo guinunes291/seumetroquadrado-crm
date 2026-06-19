@@ -2040,8 +2040,10 @@ export type Database = {
       }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
+      gerar_alertas_leads_parados: { Args: never; Returns: undefined }
       gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
+      gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
@@ -2058,8 +2060,11 @@ export type Database = {
         Returns: {
           lead_id: string
           minutos_decorridos: number
+          nome: string
           sla_minutos: number
           sla_status: string
+          status: string
+          telefone: string
           temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
         }[]
       }
@@ -2179,6 +2184,7 @@ export type Database = {
         | "contrato_fechado"
         | "pos_venda"
         | "perdido"
+        | "aguardando_retorno"
       lead_temperatura: "quente" | "morno" | "frio"
       tarefa_prioridade: "baixa" | "media" | "alta" | "urgente"
       tarefa_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
@@ -2376,6 +2382,7 @@ export const Constants = {
         "contrato_fechado",
         "pos_venda",
         "perdido",
+        "aguardando_retorno",
       ],
       lead_temperatura: ["quente", "morno", "frio"],
       tarefa_prioridade: ["baixa", "media", "alta", "urgente"],
