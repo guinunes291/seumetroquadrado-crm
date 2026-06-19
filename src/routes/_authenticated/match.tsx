@@ -82,12 +82,27 @@ function MatchPage() {
 
   const tetoAjustado = orc ? Math.round(orc.tetoImovel * (ajuste / 100)) : 0;
 
+  const { leadId, mode } = Route.useSearch();
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Match Cliente ↔ Empreendimento"
-        description="Motor APROVE 2026 — calcula o poder de compra e cruza com o estoque."
+        description="Calcule o poder de compra ou descreva o que o cliente busca em linguagem natural."
       />
+
+      <Tabs defaultValue={mode ?? "financeiro"} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="financeiro" className="gap-2">
+            <Calculator className="h-4 w-4" /> Match financeiro
+          </TabsTrigger>
+          <TabsTrigger value="ia" className="gap-2">
+            <Bot className="h-4 w-4" /> Buscador IA
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="financeiro" className="space-y-6">
+
 
       {/* Stepper */}
       <div className="flex items-center gap-2 text-sm">
