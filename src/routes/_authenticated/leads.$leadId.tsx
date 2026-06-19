@@ -236,7 +236,7 @@ function LeadDetailPage() {
     mutationFn: async () => {
       const nome = editForm.nome.trim();
       if (nome.length < 2) throw new Error("Informe o nome do cliente.");
-      const payload: Record<string, unknown> = {
+      const payload = {
         nome,
         cpf: editForm.cpf.trim() || null,
         renda_informada: editForm.renda_informada.trim() || null,
