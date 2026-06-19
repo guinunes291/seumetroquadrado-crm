@@ -121,6 +121,57 @@ export type Database = {
         }
         Relationships: []
       }
+      analises_credito: {
+        Row: {
+          agendamento_id: string | null
+          corretor_id: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          legacy_id: number | null
+          observacoes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agendamento_id?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agendamento_id?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analises_credito_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           created_at: string
@@ -156,6 +207,84 @@ export type Database = {
           valores_novos?: Json | null
         }
         Relationships: []
+      }
+      comissoes: {
+        Row: {
+          beneficiario_id: string | null
+          beneficiario_nome: string | null
+          contrato_vgv: number
+          created_at: string
+          data_pagamento: string | null
+          id: string
+          lead_id: string | null
+          legacy_id: number | null
+          observacoes: string | null
+          percentual: number
+          percentual_desconto: number
+          status: string
+          tipo: string
+          updated_at: string
+          valor_base: number
+          valor_comissao: number
+          valor_liquido: number
+          venda_id: string | null
+        }
+        Insert: {
+          beneficiario_id?: string | null
+          beneficiario_nome?: string | null
+          contrato_vgv?: number
+          created_at?: string
+          data_pagamento?: string | null
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          percentual?: number
+          percentual_desconto?: number
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_base?: number
+          valor_comissao?: number
+          valor_liquido?: number
+          venda_id?: string | null
+        }
+        Update: {
+          beneficiario_id?: string | null
+          beneficiario_nome?: string | null
+          contrato_vgv?: number
+          created_at?: string
+          data_pagamento?: string | null
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          observacoes?: string | null
+          percentual?: number
+          percentual_desconto?: number
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_base?: number
+          valor_comissao?: number
+          valor_liquido?: number
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comissoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       copa_config_pontos: {
         Row: {
@@ -1826,6 +1955,93 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vendas: {
+        Row: {
+          corretor_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          data_assinatura: string
+          data_distrato: string | null
+          data_recebimento: string | null
+          distrato: boolean
+          id: string
+          lead_id: string | null
+          legacy_id: number | null
+          motivo_distrato: string | null
+          observacoes: string | null
+          percentual_comissao: number
+          percentual_corretor: number
+          percentual_gerente: number
+          percentual_superintendente: number
+          projeto_id: string | null
+          projeto_nome: string | null
+          status_recebimento: string
+          updated_at: string
+          valor_venda: number
+        }
+        Insert: {
+          corretor_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          data_assinatura?: string
+          data_distrato?: string | null
+          data_recebimento?: string | null
+          distrato?: boolean
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          motivo_distrato?: string | null
+          observacoes?: string | null
+          percentual_comissao?: number
+          percentual_corretor?: number
+          percentual_gerente?: number
+          percentual_superintendente?: number
+          projeto_id?: string | null
+          projeto_nome?: string | null
+          status_recebimento?: string
+          updated_at?: string
+          valor_venda?: number
+        }
+        Update: {
+          corretor_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          data_assinatura?: string
+          data_distrato?: string | null
+          data_recebimento?: string | null
+          distrato?: boolean
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          motivo_distrato?: string | null
+          observacoes?: string | null
+          percentual_comissao?: number
+          percentual_corretor?: number
+          percentual_gerente?: number
+          percentual_superintendente?: number
+          projeto_id?: string | null
+          projeto_nome?: string | null
+          status_recebimento?: string
+          updated_at?: string
+          valor_venda?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
