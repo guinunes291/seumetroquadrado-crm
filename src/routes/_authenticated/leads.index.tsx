@@ -39,7 +39,6 @@ import {
   CONTATO_OPCOES,
   VISOES_PADRAO,
   FILTRO_PADRAO,
-  passaContato,
   loadViews,
   saveViews,
   loadUltimoFiltro,
@@ -323,24 +322,6 @@ function LeadsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter]);
 
-  // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
-  const { data: followupIds } = useQuery({
-    queryKey: ["followup-lead-ids", user?.id, canManage],
-    enabled: contatoFilter === "com_followup",
-    queryFn: async () => {
-      let q = supabase
-        .from("tarefas")
-        .select("lead_id")
-        .eq("tipo", "follow_up")
-        .in("status", ["pendente", "em_andamento"])
-        .not("lead_id", "is", null);
-      if (!canManage && user?.id) q = q.eq("corretor_id", user.id);
-      const { data, error } = await q;
-      if (error) throw error;
-      return new Set((data ?? []).map((r) => r.lead_id as string));
-    },
-  });
-
   const salvarVisaoAtual = () => {
     const nome = viewName.trim();
     if (!nome || !user?.id) return;
@@ -379,102 +360,68 @@ function LeadsPage() {
     return m;
   }, [corretores]);
 
-  // Query principal — aplica TODOS os filtros menos statusFilter (para os chips funcionarem).
-  const baseQueryKey = {
-    debouncedSearch,
-    origemFilter,
-    corretorFilter,
-    temperaturaFilter,
-    periodoFilter,
-    showLixeira,
-    canManage,
-    uid: user?.id,
-  };
-
-  const { data: leadsAll, isLoading } = useQuery({
-    queryKey: ["leads", baseQueryKey],
-    queryFn: async () => {
-      let q = supabase
-        .from("leads")
-        .select(
-          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira, renda_informada, entrada_disponivel, usa_fgts",
-        )
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      q = q.eq("na_lixeira", showLixeira);
-      if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
-      if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
-      else if (corretorFilter !== "all") q = q.eq("corretor_id", corretorFilter);
-      if (temperaturaFilter !== "all") q = q.eq("temperatura", temperaturaFilter as never);
-      const start = periodoStart(periodoFilter);
-      if (start) q = q.gte("created_at", start.toISOString());
-      if (debouncedSearch) {
-        const s = debouncedSearch.replace(/[%,]/g, "");
-        q = q.or(`nome.ilike.%${s}%,email.ilike.%${s}%,telefone.ilike.%${s}%`);
-      }
-      if (!canManage) {
-        q = q.neq("status", "novo" as never);
-        if (user?.id) q = q.eq("corretor_id", user.id);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data ?? []) as Lead[];
-    },
+  // Lista paginada + contagens 100% server-side (RPC leads_listagem).
+  // counts/total vêm do conjunto filtrado inteiro (ignora statusFilter); rows é
+  // só a página atual, já ordenada por prioridade no servidor.
+  const listagemQuery = useQuery({
+    queryKey: [
+      "leads",
+      {
+        statusFilter,
+        origemFilter,
+        corretorFilter,
+        temperaturaFilter,
+        periodoFilter,
+        contatoFilter,
+        debouncedSearch,
+        showLixeira,
+        page,
+        canManage,
+        uid: user?.id,
+      },
+    ],
     enabled: canManage || !!user?.id,
+    placeholderData: (prev) => prev,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("leads_listagem", {
+        _status: statusFilter,
+        _origem: origemFilter,
+        _corretor: corretorFilter,
+        _temperatura: temperaturaFilter,
+        _periodo: periodoFilter,
+        _contato: contatoFilter,
+        _busca: debouncedSearch,
+        _lixeira: showLixeira,
+        _page: page,
+        _page_size: LEADS_PAGE_SIZE,
+      });
+      if (error) throw error;
+      return (data ?? { total: 0, counts: {}, rows: [] }) as {
+        total: number;
+        counts: Record<string, number>;
+        rows: Lead[];
+      };
+    },
   });
 
+  const isLoading = listagemQuery.isLoading;
   useRealtimeInvalidate("leads", [["leads"]]);
 
-  // Contagens por status (a partir do conjunto já filtrado, exceto statusFilter).
-  const statusCounts = useMemo(() => {
-    const acc: Record<string, number> = {};
-    (leadsAll ?? []).forEach((l) => {
-      acc[l.status] = (acc[l.status] ?? 0) + 1;
-    });
-    return acc;
-  }, [leadsAll]);
-
-  const filtered = useMemo(() => {
-    if (!leadsAll) return [];
-    let base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
-    if (contatoFilter !== "all") {
-      base = base.filter((l) =>
-        passaContato(contatoFilter, {
-          ultimaInteracao: l.ultima_interacao,
-          status: l.status,
-          temFollowup: followupIds?.has(l.id) ?? false,
-        }),
-      );
-    }
-    // Prioriza: 1) Aguardando + Facebook (ADS), 2) Aguardando + projeto registrado,
-    // 3) demais. Dentro de cada grupo, mais recentes primeiro.
-    const priority = (l: Lead) => {
-      const aguardando = l.status === "aguardando_atendimento";
-      if (aguardando && l.origem === "facebook") return 0;
-      if (aguardando && (l.projeto_id || l.projeto_nome)) return 1;
-      if (aguardando) return 2;
-      return 3;
-    };
-    return [...base].sort((a, b) => {
-      const pa = priority(a);
-      const pb = priority(b);
-      if (pa !== pb) return pa - pb;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [leadsAll, statusFilter, contatoFilter, followupIds, canManage]);
-
-  // Paginação (50/página, lado cliente). As contagens por status continuam vindo
-  // de `statusCounts`/`filtered` (conjunto inteiro), não da página atual.
-  const totalPages = Math.max(1, Math.ceil(filtered.length / LEADS_PAGE_SIZE));
+  const total = listagemQuery.data?.total ?? 0;
+  const statusCounts = listagemQuery.data?.counts ?? {};
+  const paginated = listagemQuery.data?.rows ?? [];
+  const totalPages = Math.max(1, Math.ceil(total / LEADS_PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
-  const paginated = useMemo(
-    () => filtered.slice((pageSafe - 1) * LEADS_PAGE_SIZE, pageSafe * LEADS_PAGE_SIZE),
-    [filtered, pageSafe],
-  );
 
-  // Volta para a 1ª página quando os filtros mudam.
+  // Se o total encolher (ex.: após aplicar filtro), volta para a última página válida.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
+  // Volta para a 1ª página e limpa seleção quando os filtros mudam.
   useEffect(() => {
     setPage(1);
+    setSelectedIds(new Set());
   }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter, debouncedSearch, showLixeira]);
 
   // Persiste o modo de visualização (tabela/cards).
@@ -482,24 +429,18 @@ function LeadsPage() {
     if (typeof window !== "undefined") window.localStorage.setItem("smq:leads-view-mode", viewMode);
   }, [viewMode]);
 
-  // Limpa seleção quando o conjunto filtrado muda
-  useEffect(() => {
-    setSelectedIds((prev) => {
-      const ids = new Set(filtered.map((l) => l.id));
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (ids.has(id)) next.add(id);
-      });
-      return next.size === prev.size ? prev : next;
-    });
-  }, [filtered]);
-
-  const allSelected = filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id));
+  // Seleção: "selecionar todos" opera sobre a página atual (lista é paginada no servidor).
+  const allSelected = paginated.length > 0 && paginated.every((l) => selectedIds.has(l.id));
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   function toggleAll() {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filtered.map((l) => l.id)));
+    const pageIds = paginated.map((l) => l.id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
   }
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
@@ -710,7 +651,7 @@ function LeadsPage() {
               : "bg-background hover:bg-muted"
           }`}
         >
-          Todos · {leadsAll?.length ?? 0}
+          Todos · {total}
         </button>
         {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
           const n = statusCounts[s] ?? 0;
@@ -896,7 +837,7 @@ function LeadsPage() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              {isLoading ? "Carregando…" : `${filtered.length} lead(s)`}
+              {isLoading ? "Carregando…" : `${total} lead(s)`}
               {activeFiltersCount > 0 && (
                 <Button
                   variant="ghost"
@@ -999,7 +940,7 @@ function LeadsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 && !isLoading && (
+                {total === 0 && !isLoading && (
                   <TableRow>
                     <TableCell
                       colSpan={8}
@@ -1343,10 +1284,10 @@ function LeadsPage() {
           )}
 
           {/* Paginação (50 por página) */}
-          {filtered.length > LEADS_PAGE_SIZE && (
+          {total > LEADS_PAGE_SIZE && (
             <div className="flex items-center justify-between pt-1">
               <div className="text-xs text-muted-foreground">
-                Página {pageSafe} de {totalPages} · {filtered.length} lead(s)
+                Página {pageSafe} de {totalPages} · {total} lead(s)
               </div>
               <div className="flex items-center gap-1">
                 <Button
