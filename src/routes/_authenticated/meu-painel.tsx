@@ -286,6 +286,9 @@ function MeuPainelPage() {
   const quentes = quentesQ.data ?? [];
   const agenda = agendaQ.data ?? [];
   const tarefas = tarefasQ.data ?? [];
+  const tarefasAtrasadas = tarefas.filter(
+    (t) => t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now(),
+  ).length;
 
   // Ação de contato (WhatsApp + Ligar) reutilizada nos cards de leads.
   const abrirWhats = (nome: string, telefone: string | null) => {
@@ -391,6 +394,11 @@ function MeuPainelPage() {
             <CardTitle className="text-sm flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-amber-500" /> Tarefas & follow-ups
               {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
+              {tarefasAtrasadas > 0 && (
+                <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
+                  {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
