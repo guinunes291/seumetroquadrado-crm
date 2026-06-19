@@ -21,17 +21,28 @@ import {
 } from "@/lib/orcamento";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { Link } from "@tanstack/react-router";
+import { z } from "zod";
 import {
   ProjetosFilters,
   applyFilters,
   emptyFilters,
   type Filters,
 } from "@/components/projetos-filters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BuscadorIA } from "@/components/match/buscador-ia";
+import { Calculator, Bot } from "lucide-react";
+
+const searchSchema = z.object({
+  leadId: z.string().optional(),
+  mode: z.enum(["financeiro", "ia"]).optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/match")({
   head: () => ({ meta: [{ title: "Match — Seu Metro Quadrado" }] }),
+  validateSearch: searchSchema,
   component: MatchPage,
 });
+
 
 type Step = 1 | 2 | 3;
 
@@ -71,12 +82,27 @@ function MatchPage() {
 
   const tetoAjustado = orc ? Math.round(orc.tetoImovel * (ajuste / 100)) : 0;
 
+  const { leadId, mode } = Route.useSearch();
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Match Cliente ↔ Empreendimento"
-        description="Motor APROVE 2026 — calcula o poder de compra e cruza com o estoque."
+        description="Calcule o poder de compra ou descreva o que o cliente busca em linguagem natural."
       />
+
+      <Tabs defaultValue={mode ?? "financeiro"} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="financeiro" className="gap-2">
+            <Calculator className="h-4 w-4" /> Match financeiro
+          </TabsTrigger>
+          <TabsTrigger value="ia" className="gap-2">
+            <Bot className="h-4 w-4" /> Buscador IA
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="financeiro" className="space-y-6">
+
 
       {/* Stepper */}
       <div className="flex items-center gap-2 text-sm">
@@ -314,10 +340,16 @@ function MatchPage() {
           )}
         </div>
       )}
+        </TabsContent>
 
+        <TabsContent value="ia">
+          <BuscadorIA leadId={leadId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
+
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
