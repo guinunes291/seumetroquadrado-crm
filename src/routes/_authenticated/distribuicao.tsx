@@ -87,6 +87,30 @@ function DistribuicaoPage() {
     },
   });
 
+  // Motivo de (in)elegibilidade por corretor (espelha corretor_elegivel no banco).
+  const { data: elegStatus } = useQuery({
+    queryKey: ["fila-status"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fila_distribuicao_status");
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        corretor_id: string;
+        presente_hoje: boolean;
+        pct_trabalhada: number;
+        elegivel: boolean;
+        motivo: string;
+      }>;
+    },
+  });
+  const statusMap = useMemo(() => {
+    const m = new Map<string, { elegivel: boolean; motivo: string; pct: number }>();
+    (elegStatus ?? []).forEach((s) =>
+      m.set(s.corretor_id, { elegivel: s.elegivel, motivo: s.motivo, pct: s.pct_trabalhada }),
+    );
+    return m;
+  }, [elegStatus]);
+
   const { data: logs } = useQuery({
     queryKey: ["dist-log"],
     queryFn: async () => {
@@ -213,6 +237,7 @@ function DistribuicaoPage() {
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Corretor</TableHead>
                   <TableHead>Presença</TableHead>
+                  <TableHead>Elegível</TableHead>
                   <TableHead>Ativo</TableHead>
                   <TableHead>Recebidos hoje</TableHead>
                   <TableHead>Máx/dia</TableHead>
@@ -223,7 +248,7 @@ function DistribuicaoPage() {
               <TableBody>
                 {(fila ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       Nenhum corretor na fila. Adicione um abaixo.
                     </TableCell>
                   </TableRow>
@@ -250,6 +275,25 @@ function DistribuicaoPage() {
                         >
                           {c?.presente ? "Presente" : "Ausente"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const st = statusMap.get(row.corretor_id);
+                          if (!st) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <Badge
+                              variant="outline"
+                              title={`Carteira ${st.pct ?? 0}% trabalhada`}
+                              className={
+                                st.elegivel
+                                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                  : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                              }
+                            >
+                              {st.elegivel ? "Sim" : st.motivo}
+                            </Badge>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Switch
