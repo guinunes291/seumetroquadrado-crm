@@ -498,7 +498,7 @@ function LeadsPage() {
               key={s}
               type="button"
               onClick={() => setStatusFilter(active ? "all" : s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition ${
                 active
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-background hover:bg-muted"
