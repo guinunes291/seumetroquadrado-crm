@@ -251,8 +251,8 @@ function KpiGrid({
             className={`transition-all hover:border-primary/40 hover:shadow-sm ${className ?? ""}`}
           >
             <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1 gap-1">
-                <span className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">
+              <div className="flex items-start justify-between mb-1 gap-1">
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground leading-tight">
                   {label}
                 </span>
                 <Icon className="h-3.5 w-3.5 text-muted-foreground" />
