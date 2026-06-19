@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateObject } from "ai";
+import { generateText } from "ai";
+
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -90,18 +91,26 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
 
     const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
     const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-2.5-flash");
+    const model = gateway("google/gemini-3-flash-preview");
 
-    const { object } = await generateObject({
+    const { text } = await generateText({
       model,
-      schema: AiSchema,
       system:
-        "Você é um especialista em imóveis MCMV em São Paulo. Analise a descrição do corretor e o catálogo de empreendimentos. Retorne JSON com: resumo curto em PT-BR (1-2 frases), filtros detectados (região, dorms, vagas, preço máximo, programa, entrega) e até 6 projetos rankeados por aderência (pontuação 0-10). Use APENAS ids existentes no catálogo. Justifique em PT-BR em 'motivo' (1 frase).",
+        "Você é um especialista em imóveis MCMV em São Paulo. Analise a descrição do corretor e o catálogo. Responda APENAS com JSON válido (sem markdown, sem cercas ```), no formato exato: {\"resumo\": string, \"filtrosUsados\": {\"regiao\"?: string, \"dorms\"?: string, \"vagas\"?: string, \"precoMax\"?: string, \"programa\"?: string, \"entrega\"?: string}, \"projetos\": [{\"id\": string, \"pontuacao\": number 0-10, \"motivo\": string, \"tipologiaRecomendada\"?: string}]}. Use apenas ids existentes no catálogo. Máximo 6 projetos, ordenados por aderência. Motivo em 1 frase PT-BR.",
       prompt: `Descrição do corretor:\n${data.descricao}\n\nCatálogo (JSON):\n${JSON.stringify(catalogo)}`,
     });
 
+    // Tolerar cercas markdown caso o modelo as inclua
+    const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+    let parsed: z.infer<typeof AiSchema>;
+    try {
+      parsed = AiSchema.parse(JSON.parse(cleaned));
+    } catch (e) {
+      throw new Error(`Resposta da IA em formato inválido: ${(e as Error).message}`);
+    }
+
     const byId = new Map(lista.map((p) => [p.id, p]));
-    const projetosOut = object.projetos
+    const projetosOut = parsed.projetos
       .filter((p) => byId.has(p.id))
       .sort((a, b) => b.pontuacao - a.pontuacao)
       .map((p) => {
@@ -120,9 +129,10 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
       });
 
     return {
-      resumo: object.resumo,
-      filtrosUsados: object.filtrosUsados,
+      resumo: parsed.resumo,
+      filtrosUsados: parsed.filtrosUsados,
       totalFiltrados: projetosOut.length,
       projetos: projetosOut,
     };
+
   });
