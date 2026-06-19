@@ -52,17 +52,38 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
   const [dataInicio, setDataInicio] = useState(toLocal(new Date(now.getTime() + 60 * 60 * 1000)));
   const [dataFim, setDataFim] = useState(toLocal(new Date(now.getTime() + 2 * 60 * 60 * 1000)));
   const [local, setLocal] = useState("");
-  // Presets de horário: evitam digitar no datetime-local (1 clique).
-  const setPreset = (start: Date) => {
-    setDataInicio(toLocal(start));
-    setDataFim(toLocal(new Date(start.getTime() + 60 * 60 * 1000)));
-  };
-  const amanha = (h: number) => {
+
+  // Seleção rápida de dia + horário (os horários de visita variam muito, então
+  // combinamos um chip de dia com um horário comum em vez de presets fixos).
+  const diaAtual = dataInicio.slice(0, 10);
+  const horaAtual = dataInicio.slice(11, 16);
+  const COMMON_TIMES = Array.from({ length: 23 }, (_, i) => {
+    const m = 8 * 60 + i * 30; // 08:00 → 19:00 a cada 30min
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  });
+  const offsetDateStr = (n: number) => {
     const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(h, 0, 0, 0);
-    return d;
+    d.setDate(d.getDate() + n);
+    return toLocal(d).slice(0, 10);
   };
+  const setDia = (offset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    const [hh, mm] = (horaAtual || "09:00").split(":").map(Number);
+    d.setHours(hh, mm, 0, 0);
+    setDataInicio(toLocal(d));
+    setDataFim(toLocal(new Date(d.getTime() + 60 * 60 * 1000)));
+  };
+  const setHora = (hhmm: string) => {
+    const base = new Date(`${diaAtual}T${hhmm}`);
+    setDataInicio(toLocal(base));
+    setDataFim(toLocal(new Date(base.getTime() + 60 * 60 * 1000)));
+  };
+  const DIAS = [
+    { label: "Hoje", offset: 0 },
+    { label: "Amanhã", offset: 1 },
+    { label: "+2 dias", offset: 2 },
+  ];
   const [descricao, setDescricao] = useState(
     [lead.projeto_nome ? `Projeto: ${lead.projeto_nome}` : "", lead.observacoes ?? ""]
       .filter(Boolean)
@@ -154,34 +175,39 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7"
-              onClick={() => setPreset(new Date(Date.now() + 60 * 60 * 1000))}
-            >
-              Hoje +1h
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7"
-              onClick={() => setPreset(amanha(9))}
-            >
-              Amanhã 9h
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-7"
-              onClick={() => setPreset(amanha(14))}
-            >
-              Amanhã 14h
-            </Button>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Dia</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {DIAS.map((d) => (
+                  <Button
+                    key={d.offset}
+                    type="button"
+                    size="sm"
+                    variant={diaAtual === offsetDateStr(d.offset) ? "default" : "outline"}
+                    className="h-8"
+                    onClick={() => setDia(d.offset)}
+                  >
+                    {d.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Horário</Label>
+              <Select value={COMMON_TIMES.includes(horaAtual) ? horaAtual : ""} onValueChange={setHora}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Escolha o horário" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {COMMON_TIMES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

@@ -53,7 +53,7 @@ import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
-  FUNNEL_STAGES,
+  PROXIMA_ACAO,
   leadStatusLabel,
   resolveStageAction,
   type StageLead,
@@ -307,10 +307,8 @@ function LeadDetailPage() {
     else mudarStatus.mutate({ id: lead.id, status: target });
   };
 
-  // Próxima etapa do funil (para o botão "Avançar"); vazio em pos_venda/perdido.
-  const stageIdx = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
-  const proximaEtapa: LeadStatus | null =
-    stageIdx >= 0 && stageIdx < FUNNEL_STAGES.length - 1 ? FUNNEL_STAGES[stageIdx + 1] : null;
+  // Ação comercial sugerida para a etapa atual (botão inteligente).
+  const acaoSugerida = PROXIMA_ACAO[lead.status as LeadStatus] ?? null;
 
   const telHref = `tel:${(lead.telefone ?? "").replace(/[^\d+]/g, "")}`;
 
@@ -341,10 +339,7 @@ function LeadDetailPage() {
             </Button>
             <Dialog open={waOpen} onOpenChange={setWaOpen}>
               <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
-                >
+                <Button className="bg-emerald-600 text-white hover:bg-emerald-700">
                   <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
                 </Button>
               </DialogTrigger>
@@ -413,7 +408,7 @@ function LeadDetailPage() {
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button variant="outline">
                   <Plus className="h-4 w-4 mr-2" /> Registrar interação
                 </Button>
               </DialogTrigger>
@@ -506,14 +501,14 @@ function LeadDetailPage() {
               {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
             </div>
             <div className="flex items-center gap-2">
-              {proximaEtapa && (
+              {acaoSugerida && (
                 <Button
                   size="sm"
                   className="h-8"
                   disabled={mudarStatus.isPending}
-                  onClick={() => goToStage(proximaEtapa)}
+                  onClick={() => goToStage(acaoSugerida.target)}
                 >
-                  {leadStatusLabel(proximaEtapa)} <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                  {acaoSugerida.label} <ArrowRight className="h-3.5 w-3.5 ml-1" />
                 </Button>
               )}
               <Select value={lead.status} onValueChange={(v) => goToStage(v as LeadStatus)}>

@@ -2,7 +2,10 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { NotificationBell } from "@/components/notification-bell";
+import { CommandPalette } from "@/components/command-palette";
 import { Toaster } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
+import { Search } from "lucide-react";
 
 let lastPresenceMark = 0;
 const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
@@ -46,6 +49,18 @@ function AuthenticatedLayout() {
         <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/80 backdrop-blur px-4 md:px-8 h-14">
           <MobileSidebar />
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground gap-2"
+              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">Buscar</span>
+              <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
+                ⌘K
+              </kbd>
+            </Button>
             <NotificationBell />
           </div>
         </header>
@@ -53,6 +68,7 @@ function AuthenticatedLayout() {
           <Outlet />
         </div>
       </main>
+      <CommandPalette />
       <Toaster richColors closeButton />
     </div>
   );

@@ -4,6 +4,7 @@
 export type LeadStatus =
   | "novo"
   | "aguardando_atendimento"
+  | "aguardando_retorno"
   | "em_atendimento"
   | "qualificado"
   | "agendado"
@@ -14,31 +15,31 @@ export type LeadStatus =
   | "pos_venda"
   | "perdido";
 
-/** Ordem do funil, do topo ao fundo. */
+/** Ordem do funil do corretor, do topo ao fundo.
+ *  `novo` (caixa de entrada não distribuída) e os status legados
+ *  (`qualificado`, `proposta_enviada`, `pos_venda`) ficam fora do funil. */
 export const LEAD_STATUS_ORDER: LeadStatus[] = [
-  "novo",
   "aguardando_atendimento",
+  "aguardando_retorno",
   "em_atendimento",
-  "qualificado",
   "agendado",
   "visita_realizada",
-  "proposta_enviada",
   "analise_credito",
   "contrato_fechado",
-  "pos_venda",
   "perdido",
 ];
 
 export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   novo: "Novo",
   aguardando_atendimento: "Aguardando atendimento",
+  aguardando_retorno: "Aguardando retorno",
   em_atendimento: "Em atendimento",
   qualificado: "Qualificado",
   agendado: "Agendado",
   visita_realizada: "Visita realizada",
   proposta_enviada: "Proposta enviada",
   analise_credito: "Análise de crédito",
-  contrato_fechado: "Contrato fechado",
+  contrato_fechado: "Venda",
   pos_venda: "Pós-venda",
   perdido: "Perdido",
 };
@@ -47,6 +48,7 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
 export const LEAD_STATUS_BADGE_TONE: Record<LeadStatus, string> = {
   novo: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
   aguardando_atendimento: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+  aguardando_retorno: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
   em_atendimento: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
   qualificado: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
   agendado: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
@@ -106,6 +108,21 @@ export function resolveStageAction(target: LeadStatus): StageAction {
   const modal = STAGE_MODAL[target];
   return modal ? { kind: "modal", modal } : { kind: "direct" };
 }
+
+/** Ação sugerida ("botão inteligente") por etapa: o avanço mais provável do
+ *  funil a partir do status atual. Não é o próximo linear — é o próximo passo
+ *  comercial. Usado no card e na lista para reduzir cliques. */
+export type ProximaAcao = { label: string; target: LeadStatus };
+
+export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
+  novo: { label: "Iniciar atendimento", target: "em_atendimento" },
+  aguardando_atendimento: { label: "Iniciar atendimento", target: "em_atendimento" },
+  aguardando_retorno: { label: "Retomar atendimento", target: "em_atendimento" },
+  em_atendimento: { label: "Agendar visita", target: "agendado" },
+  agendado: { label: "Marcar visita realizada", target: "visita_realizada" },
+  visita_realizada: { label: "Enviar p/ análise", target: "analise_credito" },
+  analise_credito: { label: "Registrar venda", target: "contrato_fechado" },
+};
 
 /** Categorias de perda (espelham o `motivoPerdaCategoria` do CRM de origem). */
 export const MOTIVO_PERDA_CATEGORIAS = [

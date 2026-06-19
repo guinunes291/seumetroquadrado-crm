@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,8 @@ import {
   Play,
   MessageCircle,
   Phone,
+  PhoneCall,
+  DollarSign,
   Flame,
   Thermometer,
   Snowflake,
@@ -61,7 +64,9 @@ import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
+  PROXIMA_ACAO,
   leadStatusLabel,
+  resolveStageAction,
   type LeadStatus,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
@@ -129,6 +134,9 @@ type Lead = {
   created_at: string;
   ultima_interacao: string | null;
   na_lixeira: boolean;
+  renda_informada: string | null;
+  entrada_disponivel: string | null;
+  usa_fgts: boolean | null;
 };
 
 function TempIcon({ temp }: { temp: string | null }) {
@@ -156,6 +164,52 @@ function InatividadeBadge({ lead }: { lead: Lead }) {
     <Badge variant="secondary" className={`${tone} gap-1`} title={`Sem interação há ${dias} dias`}>
       <AlertCircle className="h-3 w-3" /> {dias}d parado
     </Badge>
+  );
+}
+
+function FinRow({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-right font-medium">{value || "—"}</dd>
+    </div>
+  );
+}
+
+/** Resumo financeiro do lead em um Popover, sem abrir o perfil. */
+function FinanceiroPopover({ lead }: { lead: Lead }) {
+  const temDados =
+    !!(lead.projeto_nome || lead.renda_informada || lead.entrada_disponivel) ||
+    lead.usa_fgts != null;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+          title="Resumo financeiro"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DollarSign className="h-3.5 w-3.5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 text-sm">
+        <div className="font-medium mb-2">Resumo do lead</div>
+        <dl className="space-y-1">
+          <FinRow label="Empreendimento" value={lead.projeto_nome} />
+          <FinRow label="Renda" value={lead.renda_informada} />
+          <FinRow label="Entrada" value={lead.entrada_disponivel} />
+          <FinRow
+            label="FGTS"
+            value={lead.usa_fgts == null ? null : lead.usa_fgts ? "Sim" : "Não"}
+          />
+        </dl>
+        {!temDados && (
+          <div className="mt-2 text-xs text-muted-foreground">Sem dados financeiros ainda.</div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -230,7 +284,7 @@ function LeadsPage() {
       let q = supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira",
+          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira, renda_informada, entrada_disponivel, usa_fgts",
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -379,6 +433,31 @@ function LeadsPage() {
       setSelectedIds(new Set());
       setBulkTransferOpen(false);
       setBulkTarget("");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Registra uma ligação (interação) para todos os leads selecionados de uma vez.
+  const bulkRegistrarLigacao = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { data: u } = await supabase.auth.getUser();
+      const autor = u.user?.id ?? null;
+      const rows = ids.map((leadId) => ({
+        lead_id: leadId,
+        autor_id: autor,
+        tipo: "ligacao" as const,
+        direcao: "saida" as const,
+        titulo: "Ligação",
+        conteudo: "Ligação registrada em lote pelo corretor.",
+      }));
+      const { error } = await supabase.from("interacoes").insert(rows as never);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Ligação registrada em ${n} lead(s)`);
+      setSelectedIds(new Set());
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -598,26 +677,38 @@ function LeadsPage() {
           </div>
 
           {/* Barra de ações em lote */}
-          {canManage && selectedIds.size > 0 && (
+          {selectedIds.size > 0 && (
             <div className="flex items-center justify-between rounded-md border bg-muted/40 p-2">
               <div className="text-sm font-medium">{selectedIds.size} selecionado(s)</div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
-                  <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
-                </Button>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() =>
-                    moverLixeira.mutate({
-                      ids: Array.from(selectedIds),
-                      lixeira: !showLixeira,
-                    })
-                  }
+                  disabled={bulkRegistrarLigacao.isPending}
+                  onClick={() => bulkRegistrarLigacao.mutate(Array.from(selectedIds))}
                 >
-                  <Trash2 className="h-3.5 w-3.5 mr-1" />
-                  {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                  <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
                 </Button>
+                {canManage && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
+                      <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        moverLixeira.mutate({
+                          ids: Array.from(selectedIds),
+                          lixeira: !showLixeira,
+                        })
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                    </Button>
+                  </>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
                   Limpar
                 </Button>
@@ -629,15 +720,13 @@ function LeadsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {canManage && (
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                        onCheckedChange={toggleAll}
-                        aria-label="Selecionar todos"
-                      />
-                    </TableHead>
-                  )}
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                      onCheckedChange={toggleAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>Origem</TableHead>
@@ -651,7 +740,7 @@ function LeadsPage() {
                 {filtered.length === 0 && !isLoading && (
                   <TableRow>
                     <TableCell
-                      colSpan={canManage ? 8 : 7}
+                      colSpan={8}
                       className="text-center text-muted-foreground py-10"
                     >
                       Nenhum lead encontrado.
@@ -660,15 +749,13 @@ function LeadsPage() {
                 )}
                 {filtered.map((l) => (
                   <TableRow key={l.id} data-state={selectedIds.has(l.id) ? "selected" : undefined}>
-                    {canManage && (
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.has(l.id)}
-                          onCheckedChange={() => toggleOne(l.id)}
-                          aria-label={`Selecionar ${l.nome}`}
-                        />
-                      </TableCell>
-                    )}
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(l.id)}
+                        onCheckedChange={() => toggleOne(l.id)}
+                        aria-label={`Selecionar ${l.nome}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <TempIcon temp={l.temperatura} />
@@ -679,6 +766,7 @@ function LeadsPage() {
                         >
                           {l.nome}
                         </Link>
+                        <FinanceiroPopover lead={l} />
                       </div>
                       {l.projeto_nome && (
                         <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
@@ -764,6 +852,26 @@ function LeadsPage() {
                               disabled={iniciarAtendimento.isPending}
                             >
                               <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
+                            </Button>
+                          )}
+                        {!l.na_lixeira &&
+                          (canManage || l.corretor_id === user?.id) &&
+                          l.status !== "aguardando_atendimento" &&
+                          PROXIMA_ACAO[l.status as LeadStatus] && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={updateStatus.isPending}
+                              onClick={() => {
+                                const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
+                                const action = resolveStageAction(acao.target);
+                                if (action.kind === "modal")
+                                  setModalState({ modal: action.modal, lead: l });
+                                else if (action.kind === "perdido") setPerdidoLead(l);
+                                else updateStatus.mutate({ id: l.id, status: acao.target });
+                              }}
+                            >
+                              {PROXIMA_ACAO[l.status as LeadStatus]!.label}
                             </Button>
                           )}
                         {!l.na_lixeira &&

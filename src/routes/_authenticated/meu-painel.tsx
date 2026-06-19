@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/templates";
-import { useDashboardLeadsUrgentes } from "@/features/dashboard/queries";
+import { useLeadsComSla } from "@/features/dashboard/queries";
 import { leadStatusLabel } from "@/lib/leads";
+import { formatRelativeTime } from "@/lib/interacoes";
 import {
   Phone,
   MessageCircle,
@@ -25,6 +26,7 @@ import {
   Clock,
   CheckCircle2,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/meu-painel")({
@@ -132,8 +134,27 @@ function MeuPainelPage() {
     return { ini: ini.toISOString(), fim: fim.toISOString() };
   }, []);
 
-  // Leads parados há 30+ min que exigem contato agora (RPC já existente).
-  const urgentesQ = useDashboardLeadsUrgentes(user?.id ?? null, !!user);
+  // Leads com SLA estourado (tempo por origem: Facebook 5min, demais 30min).
+  const slaQ = useLeadsComSla(user?.id ?? null, !!user);
+
+  // Leads quentes do corretor que ainda estão no funil ativo (prioridade nº 1).
+  const quentesQ = useQuery({
+    queryKey: ["meu-dia:quentes", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, nome, telefone, status, ultima_interacao, projeto_nome")
+        .eq("corretor_id", user!.id)
+        .eq("na_lixeira", false)
+        .eq("temperatura", "quente")
+        .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
+        .order("ultima_interacao", { ascending: true, nullsFirst: true })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   // Agendamentos de hoje do corretor (visitas/reuniões), exceto cancelados/concluídos.
   const agendaQ = useQuery({
@@ -261,9 +282,26 @@ function MeuPainelPage() {
   const hora = (iso: string) =>
     new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  const urgentes = urgentesQ.data ?? [];
+  const urgentes = (slaQ.data ?? []).filter((r) => r.sla_status === "estourado");
+  const quentes = quentesQ.data ?? [];
   const agenda = agendaQ.data ?? [];
   const tarefas = tarefasQ.data ?? [];
+  const tarefasAtrasadas = tarefas.filter(
+    (t) => t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now(),
+  ).length;
+
+  // Ação de contato (WhatsApp + Ligar) reutilizada nos cards de leads.
+  const abrirWhats = (nome: string, telefone: string | null) => {
+    const primeiro = nome.split(" ")[0] ?? nome;
+    window.open(
+      buildWhatsAppUrl(
+        telefone ?? "",
+        `Olá, ${primeiro}! Aqui é da Seu Metro Quadrado. Posso te ajudar agora?`,
+      ),
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -287,39 +325,38 @@ function MeuPainelPage() {
         }
       />
 
-      {/* ----- Fila de ação do dia ----- */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Atender agora: leads parados */}
+      {/* ----- Fila de ação do dia (ordem: quentes → follow-up → agenda → SLA) ----- */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {/* 1) Leads quentes — prioridade nº 1 */}
         <Card className="border-rose-500/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
-              <Flame className="h-4 w-4 text-rose-500" /> Atender agora
-              {urgentes.length > 0 && (
+              <Flame className="h-4 w-4 text-rose-500" /> Leads quentes
+              {quentes.length > 0 && (
                 <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
-                  {urgentes.length}
+                  {quentes.length}
                 </Badge>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {urgentes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum lead parado. 👏</p>
+            {quentes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum lead quente agora.</p>
             ) : (
-              urgentes.slice(0, 8).map((l) => {
+              quentes.map((l) => {
                 const tel = (l.telefone ?? "").replace(/\D/g, "");
                 return (
                   <div
-                    key={l.lead_id}
+                    key={l.id}
                     className="flex items-center justify-between gap-2 rounded-md border p-2"
                   >
-                    <Link
-                      to="/leads/$leadId"
-                      params={{ leadId: l.lead_id }}
-                      className="min-w-0 flex-1"
-                    >
+                    <Link to="/leads/$leadId" params={{ leadId: l.id }} className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{l.nome}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {leadStatusLabel(l.status)} · parado há {l.minutos_parado} min
+                      <div className="truncate text-xs text-muted-foreground">
+                        {leadStatusLabel(l.status)}
+                        {l.ultima_interacao
+                          ? ` · ${formatRelativeTime(l.ultima_interacao)}`
+                          : " · sem contato"}
                       </div>
                     </Link>
                     <div className="flex shrink-0 items-center gap-1">
@@ -328,17 +365,7 @@ function MeuPainelPage() {
                         variant="ghost"
                         className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
                         title="WhatsApp"
-                        onClick={() => {
-                          const primeiro = l.nome.split(" ")[0] ?? l.nome;
-                          window.open(
-                            buildWhatsAppUrl(
-                              l.telefone ?? "",
-                              `Olá, ${primeiro}! Aqui é da Seu Metro Quadrado. Posso te ajudar agora?`,
-                            ),
-                            "_blank",
-                            "noopener,noreferrer",
-                          );
-                        }}
+                        onClick={() => abrirWhats(l.nome, l.telefone)}
                       >
                         <MessageCircle className="h-4 w-4" />
                       </Button>
@@ -361,55 +388,17 @@ function MeuPainelPage() {
           </CardContent>
         </Card>
 
-        {/* Agenda de hoje */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <CalendarCheck className="h-4 w-4 text-indigo-500" /> Agenda de hoje
-              {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {agenda.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
-            ) : (
-              agenda.map((a) => {
-                const row = (
-                  <>
-                    <div className="text-sm font-medium">
-                      <span className="text-muted-foreground">{hora(a.data_inicio)}</span> {a.titulo}
-                    </div>
-                    <div className="text-xs text-muted-foreground capitalize">
-                      {a.tipo}
-                      {a.local ? ` · ${a.local}` : ""}
-                    </div>
-                  </>
-                );
-                return (
-                  <div key={a.id} className="rounded-md border p-2">
-                    {a.lead_id ? (
-                      <Link to="/leads/$leadId" params={{ leadId: a.lead_id }} className="block">
-                        {row}
-                      </Link>
-                    ) : (
-                      row
-                    )}
-                  </div>
-                );
-              })
-            )}
-            <Button asChild variant="link" className="h-auto p-0 text-xs">
-              <Link to="/agendamentos">ver agenda completa</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Tarefas & follow-ups */}
+        {/* 2) Tarefas & follow-ups */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-1.5">
               <Clock className="h-4 w-4 text-amber-500" /> Tarefas & follow-ups
               {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
+              {tarefasAtrasadas > 0 && (
+                <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
+                  {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -461,6 +450,111 @@ function MeuPainelPage() {
             <Button asChild variant="link" className="h-auto p-0 text-xs">
               <Link to="/tarefas">ver todas as tarefas</Link>
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* 3) Agenda de hoje */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <CalendarCheck className="h-4 w-4 text-indigo-500" /> Agenda de hoje
+              {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {agenda.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
+            ) : (
+              agenda.map((a) => {
+                const row = (
+                  <>
+                    <div className="text-sm font-medium">
+                      <span className="text-muted-foreground">{hora(a.data_inicio)}</span> {a.titulo}
+                    </div>
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {a.tipo}
+                      {a.local ? ` · ${a.local}` : ""}
+                    </div>
+                  </>
+                );
+                return (
+                  <div key={a.id} className="rounded-md border p-2">
+                    {a.lead_id ? (
+                      <Link to="/leads/$leadId" params={{ leadId: a.lead_id }} className="block">
+                        {row}
+                      </Link>
+                    ) : (
+                      row
+                    )}
+                  </div>
+                );
+              })
+            )}
+            <Button asChild variant="link" className="h-auto p-0 text-xs">
+              <Link to="/agendamentos">ver agenda completa</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* 4) SLA estourando — leads parados além do tempo de atendimento */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600" /> SLA estourando
+              {urgentes.length > 0 && (
+                <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
+                  {urgentes.length}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {urgentes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Tudo dentro do prazo. 👏</p>
+            ) : (
+              urgentes.slice(0, 8).map((l) => {
+                const tel = (l.telefone ?? "").replace(/\D/g, "");
+                return (
+                  <div
+                    key={l.lead_id}
+                    className="flex items-center justify-between gap-2 rounded-md border p-2"
+                  >
+                    <Link
+                      to="/leads/$leadId"
+                      params={{ leadId: l.lead_id }}
+                      className="min-w-0 flex-1"
+                    >
+                      <div className="truncate text-sm font-medium">{l.nome}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {leadStatusLabel(l.status)} · {l.minutos_decorridos} min sem atendimento
+                      </div>
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                        title="WhatsApp"
+                        onClick={() => abrirWhats(l.nome, l.telefone)}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        asChild
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                        title="Ligar"
+                      >
+                        <a href={`tel:${tel}`}>
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>

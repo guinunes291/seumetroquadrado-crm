@@ -132,6 +132,31 @@ export function useDashboardLeadsUrgentes(corretor: string | null, enabled = tru
   });
 }
 
+/** SLA por origem (RPC leads_com_sla): usado no "Meu Dia" para listar leads com
+ *  SLA estourado respeitando o tempo configurado por origem (ex.: Facebook 5min). */
+export function useLeadsComSla(corretor: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["sla:leads", corretor],
+    enabled,
+    staleTime: 30_000,
+    refetchInterval: 2 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await rpc("leads_com_sla", { _corretor: corretor });
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        lead_id: string;
+        nome: string;
+        telefone: string | null;
+        status: string;
+        sla_minutos: number;
+        minutos_decorridos: number;
+        sla_status: string;
+        temperatura_calc: string;
+      }>;
+    },
+  });
+}
+
 export function useDashboardRedistribuicoes(range: Range, enabled = true) {
   return useQuery({
     queryKey: ["dash:redist", range],

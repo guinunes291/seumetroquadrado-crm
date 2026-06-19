@@ -32,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/kanban")({
 const COLUMN_TONE: Record<LeadStatus, string> = {
   novo: "bg-blue-500/10 border-blue-500/30",
   aguardando_atendimento: "bg-amber-500/10 border-amber-500/30",
+  aguardando_retorno: "bg-yellow-500/10 border-yellow-500/30",
   em_atendimento: "bg-violet-500/10 border-violet-500/30",
   qualificado: "bg-cyan-500/10 border-cyan-500/30",
   agendado: "bg-indigo-500/10 border-indigo-500/30",
