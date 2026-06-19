@@ -227,7 +227,7 @@ const KPI_CARDS: Array<{
   { key: "analise_credito", label: "Análise crédito", icon: FileCheck, status: "analise_credito" },
   {
     key: "contrato_fechado",
-    label: "Fechados",
+    label: "Vendas",
     icon: CheckCircle2,
     status: "contrato_fechado",
     className: "border-emerald-500/40 bg-emerald-500/5",

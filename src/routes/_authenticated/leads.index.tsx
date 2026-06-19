@@ -64,7 +64,9 @@ import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
+  PROXIMA_ACAO,
   leadStatusLabel,
+  resolveStageAction,
   type LeadStatus,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
@@ -850,6 +852,26 @@ function LeadsPage() {
                               disabled={iniciarAtendimento.isPending}
                             >
                               <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
+                            </Button>
+                          )}
+                        {!l.na_lixeira &&
+                          (canManage || l.corretor_id === user?.id) &&
+                          l.status !== "aguardando_atendimento" &&
+                          PROXIMA_ACAO[l.status as LeadStatus] && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={updateStatus.isPending}
+                              onClick={() => {
+                                const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
+                                const action = resolveStageAction(acao.target);
+                                if (action.kind === "modal")
+                                  setModalState({ modal: action.modal, lead: l });
+                                else if (action.kind === "perdido") setPerdidoLead(l);
+                                else updateStatus.mutate({ id: l.id, status: acao.target });
+                              }}
+                            >
+                              {PROXIMA_ACAO[l.status as LeadStatus]!.label}
                             </Button>
                           )}
                         {!l.na_lixeira &&

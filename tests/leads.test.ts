@@ -15,11 +15,18 @@ describe("funil — avanço a partir dos cards", () => {
       expect(FUNNEL_STAGES).not.toContain("perdido");
     });
 
-    it("tem 10 etapas, preservando a ordem do funil", () => {
+    it("tem 7 etapas, preservando a ordem do funil do corretor", () => {
       expect(FUNNEL_STAGES).toEqual(LEAD_STATUS_ORDER.filter((s) => s !== "perdido"));
-      expect(FUNNEL_STAGES).toHaveLength(10);
-      expect(FUNNEL_STAGES[0]).toBe("novo");
-      expect(FUNNEL_STAGES[FUNNEL_STAGES.length - 1]).toBe("pos_venda");
+      expect(FUNNEL_STAGES).toHaveLength(7);
+      expect(FUNNEL_STAGES[0]).toBe("aguardando_atendimento");
+      expect(FUNNEL_STAGES[FUNNEL_STAGES.length - 1]).toBe("contrato_fechado");
+    });
+
+    it("inclui 'aguardando_retorno' e exclui status legados do funil", () => {
+      expect(FUNNEL_STAGES).toContain("aguardando_retorno");
+      for (const legado of ["novo", "qualificado", "proposta_enviada", "pos_venda"] as const) {
+        expect(FUNNEL_STAGES).not.toContain(legado);
+      }
     });
   });
 
@@ -36,6 +43,7 @@ describe("funil — avanço a partir dos cards", () => {
       for (const s of [
         "novo",
         "aguardando_atendimento",
+        "aguardando_retorno",
         "em_atendimento",
         "qualificado",
         "proposta_enviada",
