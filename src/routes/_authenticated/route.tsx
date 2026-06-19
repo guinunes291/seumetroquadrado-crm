@@ -62,6 +62,7 @@ function AuthenticatedLayout() {
                 ⌘K
               </kbd>
             </Button>
+            <RegistrarVendaDialog />
             <NotificationBell />
           </div>
         </header>
