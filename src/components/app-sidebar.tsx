@@ -29,6 +29,7 @@ import {
   Trash2,
   Merge,
   Sparkles,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +77,7 @@ const SECTIONS: Section[] = [
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone },
       { to: "/carteira", label: "Carteira Ativa", icon: Wallet, comingSoon: true },
       { to: "/comissoes", label: "Comissões", icon: FileText },
+      { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
       { to: "/scripts", label: "Scripts & FAQ", icon: Library, comingSoon: true },
     ],
   },
