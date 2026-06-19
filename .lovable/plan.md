@@ -1,74 +1,81 @@
-# Plano: Oferta Ativa
+## Objetivo
 
-Inspirado nas duas páginas de referência (`OfertaAtiva.tsx` e `NovaOfertaAtiva.tsx`), adaptado ao stack atual (TanStack Start + Supabase + tabelas/enums já existentes no CRM).
+Substituir a página `/ranking` atual pela experiência "Performance TV" inspirada no `PerformanceTV.tsx` enviado: um painel ao vivo, com tema escuro, animações e três visões (Real x Meta, VGV/Vendas, Produtividade), pronto para uso em TV.
 
-## Conceito
-Uma **Lista de Oferta Ativa** é um agrupamento de leads filtrados por critérios (status, temperatura, projeto, origem, sem interação há X dias) que o gestor cria e atribui a um corretor (ou ele mesmo) para "trabalhar" como uma campanha — com acompanhamento de progresso (contatados vs avançados) e ciclo de vida (rascunho → ativa → concluída → arquivada).
+## Stack e adaptações
 
-## Banco de dados (migração nova)
+- A referência usa `trpc`, `wouter` e dados como `dashboardPerformance.getData`, `ranking.getCompleto`, `relatoriosGestor.showRate`. No nosso projeto não existem essas APIs.
+- Substituir por **`useQuery` + Supabase client** consultando as tabelas que já temos: `leads`, `lead_status_transitions`, `agendamentos`, `interacoes`, `metas`, `profiles`, `equipes`.
+- Reaproveitar `src/lib/metas.ts` (cálculos de KPIs) e `PONTUACAO` já existente em `ranking.tsx`.
+- Manter o arquivo único `src/routes/_authenticated/ranking.tsx` (rota já existente).
 
-### Tabela `ofertas_ativas`
-- `id uuid pk`
-- `nome text not null`
-- `descricao text`
-- `status text not null default 'ativa'` (`rascunho|ativa|concluida|arquivada`)
-- `criado_por uuid` → `auth.users`
-- `corretor_id uuid` → `profiles` (opcional, null = todos)
-- `filtros jsonb not null` — snapshot dos filtros usados na criação
-- `created_at`, `updated_at`
+## Escopo do que será construído
 
-### Tabela `oferta_ativa_leads` (associação)
-- `id uuid pk`
-- `oferta_id uuid` → `ofertas_ativas(id)` ON DELETE CASCADE
-- `lead_id uuid` → `leads(id)` ON DELETE CASCADE
-- `contatado boolean default false` (true quando houver interação após inclusão)
-- `avancado boolean default false` (true quando status virar `agendado|qualificado|venda`)
-- `created_at`
-- UNIQUE (`oferta_id`, `lead_id`)
+### Header sticky
+- Logo + título "Performance ao Vivo" + badge AO VIVO pulsante.
+- Tabs: **Real x Meta** · **VGV / Vendas** · **Produtividade**.
+- Relógio ao vivo + última atualização.
+- Botões: Auto-rotação (30s), Refresh manual, Fullscreen.
+- Filtros: seletor de Mês/Ano (Real x Meta) ou Período (Hoje/Semana/Mês/Ano), seletor de Equipe (admin/gestor).
 
-GRANT/RLS: GRANTs explícitos para `authenticated` e `service_role`. Policies:
-- SELECT: gestor/admin tudo; corretor só ofertas onde `corretor_id = auth.uid()` ou que ele criou.
-- INSERT/UPDATE: gestor/admin; corretor pode marcar progresso (UPDATE só de `contatado`).
-- DELETE: admin.
+### Componentes auxiliares (mesmo arquivo)
+- `useCountUp` (animação numérica).
+- `LiveClock`.
+- `KPICard` (com variantes, count-up, delta vs período anterior).
+- `GaugeChart` (SVG 270° para % atingimento da meta).
+- `MetaProgressBanner` (barra full-width com milestones 25/50/75/100).
+- `PodiumVisual` (top 6 em pódio com badges 👑🥈🥉🎯).
+- `RankingLateral` (lista rolável com posições e setas sobe/desce).
+- `FunilConversao` (Leads → Agendamentos → Visitas → Contratos com taxas).
+- `EvolucaoMensalChart` e `AtingimentoMensalChart` (barras simples por mês).
+- `CorretoresMetaViz` (gráfico/tabela toggle: faturamento × meta por corretor).
+- `SalesTickerBanner` (faixa inferior com vendas correndo).
+- `MetaAtingidaOverlay` (confete quando bate 100%).
 
-### Função RPC `preview_oferta_ativa(filtros jsonb, corretor uuid)`
-Retorna `{ count, sample }` (até 5 leads) aplicando os filtros sobre `leads` (exclui lixeira). Security definer respeitando role.
+### Aba "Real x Meta"
+- Banner com % atingimento.
+- 3 colunas: Gauge + métricas (Realizado/Meta/Gap/Tendência), evolução do ano, KPIs do mês.
+- Linha extra: Evolução faturamento x meta + Corretores meta viz.
 
-## Camada `src/lib/oferta-ativa.ts`
-- Tipos `OfertaAtiva`, `OfertaFiltros`
-- `listOfertas({ incluirArquivadas })`
-- `previewFiltros(filtros, corretorId)` → chama RPC
-- `createOferta(input)` → cria registro + popula `oferta_ativa_leads` aplicando filtros (server function `createServerFn` com `requireSupabaseAuth`)
-- `archiveOferta(id)` / `restaurarOferta(id)`
-- `getOferta(id)` (detalhe + leads)
-- `marcarContatado(ofertaId, leadId, valor)`
+### Aba "VGV / Vendas"
+- Grade de 8 KPIs: Meta, Faturamento, % Realizado, Gap, Tendência, Contratos, Ticket Médio, Corretores.
+- Pódio + ranking lateral por VGV.
 
-Para escrita usa server functions; leituras simples direto pelo client Supabase.
+### Aba "Produtividade"
+- Grade de KPIs: Pontos, Ligações, WhatsApp, Agendamentos, Visitas, Documentação, Vendas.
+- Pódio por pontuação + ranking lateral.
+- Funil de conversão.
+- Tabela completa com heat-map por coluna.
 
-## Rotas (TanStack)
-- `src/routes/_authenticated/oferta-ativa.index.tsx` — lista de campanhas (tabs Ativas / Arquivadas, cards com progresso, botões "Nova Lista", arquivar/restaurar). Equivalente ao `OfertaAtiva.tsx`.
-- `src/routes/_authenticated/oferta-ativa.nova.tsx` — formulário de criação (nome, descrição, seleção de corretor para gestor, filtros: status, temperatura, projeto, origem, sem interação há X dias) com preview ao vivo (debounce 500ms). Equivalente ao `NovaOfertaAtiva.tsx`.
-- `src/routes/_authenticated/oferta-ativa.$ofertaId.tsx` — detalhe: cabeçalho com KPIs (total, contatados, avançados), tabela de leads da campanha com botão WhatsApp pré-formatado (mesmo padrão da página Leads), marcar contatado, link para abrir ficha do lead.
+## Dados (queries Supabase reais)
 
-## Sidebar
-`src/components/app-sidebar.tsx`: remover flag `comingSoon` do item "Oferta Ativa" (linha 76).
+1. **Leads no período** — count + por corretor.
+2. **Transições** (`lead_status_transitions`) — vendas (`contrato_fechado`), análises (`analise_credito`), visitas realizadas.
+3. **Agendamentos** — totais e realizados (show rate).
+4. **Interações** (`interacoes`) — separar `tipo='ligacao'` e `tipo='whatsapp'`.
+5. **Metas** (`metas`) — VGV individual e total do mês.
+6. **Profiles** — nome/foto dos corretores; filtro opcional por `equipe_id`.
 
-## Adaptações vs referência
-- `wouter` → `@tanstack/react-router` (`Link`, `useNavigate`).
-- `trpc` → server functions + `useQuery`/`useMutation` do React Query já presente no projeto.
-- `DashboardLayout` → o layout já é aplicado pelo `_authenticated/route.tsx`; usar `<PageHeader>` existente.
-- Remover filtro "Faixa de Renda" (campo não existe como enum no schema atual — `renda_informada` é texto livre). Adicionar filtro "Origem" (`facebook`, `site`, etc.) que casa melhor com o CRM.
-- Métrica "avançados" = status em (`agendado`, `qualificado`, `venda`).
-- Botão WhatsApp reaproveita helper já criado na página de Leads para manter a UX consistente (mensagem pré-formada).
+`VGV total` = soma de `lead.valor_negociado` para leads com transição `contrato_fechado` no período (ou usar `leads.valor_negociado` agregado por status atual como fallback enquanto não há campo de venda dedicado).
 
-## Detalhes técnicos
-- Server functions ficam em `src/lib/oferta-ativa.functions.ts` (client-safe path) com `requireSupabaseAuth`.
-- `createOferta` no handler: roda o filtro como SELECT em `leads` respeitando RLS, faz INSERT em `ofertas_ativas` e bulk insert em `oferta_ativa_leads`.
-- Realtime: hook `use-realtime-invalidate` para `ofertas_ativas` e `oferta_ativa_leads`.
-- Sem mudanças em código de negócio fora deste escopo.
+Pontuação por corretor segue o `PONTUACAO` já existente (5/2/15/25/35/80).
+
+## Comportamentos
+
+- Refresh automático a cada 5 min + botão manual.
+- Auto-rotação alternando entre as 3 abas a cada 30s (toggle).
+- Fullscreen real via `requestFullscreen()`.
+- Animação count-up nos KPIs.
+- Tracking de mudança de posição: comparar snapshot anterior e mostrar ▲/▼.
+
+## Fora do escopo (não implementar agora)
+
+- Modal drill-down por corretor (substituível por link para `/leads-por-corretor` ou ficha).
+- Configuração de metas inline (já existe rota `/metas`).
+- Show Rate detalhado (somente o agregado simples).
+- Distratos/VGV líquido (não temos coluna específica).
 
 ## Entregáveis
-1. Migração SQL (tabelas + RLS + GRANT + RPC `preview_oferta_ativa`).
-2. `src/lib/oferta-ativa.ts` + `src/lib/oferta-ativa.functions.ts`.
-3. Três rotas novas em `src/routes/_authenticated/`.
-4. Atualização da sidebar (remover "em breve").
+
+- `src/routes/_authenticated/ranking.tsx` reescrito (componentes auxiliares no mesmo arquivo para manter o padrão atual).
+- Sem migrações novas — usa schema existente.
