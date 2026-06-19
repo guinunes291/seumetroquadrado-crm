@@ -1,81 +1,45 @@
-## Objetivo
+# Match com Busca por IA (linguagem natural)
 
-Substituir a página `/ranking` atual pela experiência "Performance TV" inspirada no `PerformanceTV.tsx` enviado: um painel ao vivo, com tema escuro, animações e três visões (Real x Meta, VGV/Vendas, Produtividade), pronto para uso em TV.
+Hoje `/match` tem um wizard de 3 etapas (Cliente → Orçamento → Match). Vamos adicionar um **segundo modo** na mesma página, inspirado no `BuscadorProjetos.tsx` enviado, em que o corretor descreve em texto livre o que procura e a IA retorna projetos rankeados — sem precisar preencher renda/FGTS/entrada.
 
-## Stack e adaptações
+## UX
 
-- A referência usa `trpc`, `wouter` e dados como `dashboardPerformance.getData`, `ranking.getCompleto`, `relatoriosGestor.showRate`. No nosso projeto não existem essas APIs.
-- Substituir por **`useQuery` + Supabase client** consultando as tabelas que já temos: `leads`, `lead_status_transitions`, `agendamentos`, `interacoes`, `metas`, `profiles`, `equipes`.
-- Reaproveitar `src/lib/metas.ts` (cálculos de KPIs) e `PONTUACAO` já existente em `ranking.tsx`.
-- Manter o arquivo único `src/routes/_authenticated/ranking.tsx` (rota já existente).
+Topo da página `/match` ganha um toggle (Tabs) com dois modos:
 
-## Escopo do que será construído
+- **Match financeiro** — fluxo atual (wizard APROVE 2026), intocado.
+- **Buscador IA** — novo. Caixa de texto grande + chips de exemplos + botão "Buscar Projetos". Resultado: resumo da IA, filtros detectados (badges) e cards rankeados (1, 2, 3…) com nota 0-10, motivo, preço a partir e link para `/projetos/$projetoId`.
 
-### Header sticky
-- Logo + título "Performance ao Vivo" + badge AO VIVO pulsante.
-- Tabs: **Real x Meta** · **VGV / Vendas** · **Produtividade**.
-- Relógio ao vivo + última atualização.
-- Botões: Auto-rotação (30s), Refresh manual, Fullscreen.
-- Filtros: seletor de Mês/Ano (Real x Meta) ou Período (Hoje/Semana/Mês/Ano), seletor de Equipe (admin/gestor).
+Exemplos de prompt (chips clicáveis):
+- "Zona Oeste próximo à estação, 2 dormitórios, até R$350 mil"
+- "MCMV HIS2 Zona Norte, 1 ou 2 dorms, entrada com FGTS"
+- "Lançamento Zona Sul, 2 ou 3 dorms com vaga, até R$600 mil, entrega 2026"
 
-### Componentes auxiliares (mesmo arquivo)
-- `useCountUp` (animação numérica).
-- `LiveClock`.
-- `KPICard` (com variantes, count-up, delta vs período anterior).
-- `GaugeChart` (SVG 270° para % atingimento da meta).
-- `MetaProgressBanner` (barra full-width com milestones 25/50/75/100).
-- `PodiumVisual` (top 6 em pódio com badges 👑🥈🥉🎯).
-- `RankingLateral` (lista rolável com posições e setas sobe/desce).
-- `FunilConversao` (Leads → Agendamentos → Visitas → Contratos com taxas).
-- `EvolucaoMensalChart` e `AtingimentoMensalChart` (barras simples por mês).
-- `CorretoresMetaViz` (gráfico/tabela toggle: faturamento × meta por corretor).
-- `SalesTickerBanner` (faixa inferior com vendas correndo).
-- `MetaAtingidaOverlay` (confete quando bate 100%).
+Atalho Ctrl/Cmd+Enter dispara a busca. Loading: "Analisando catálogo…". Estado vazio quando nada bate. Se a URL tiver `?leadId=…`, mostramos badge "Buscando para o lead #…" (sem persistência por ora).
 
-### Aba "Real x Meta"
-- Banner com % atingimento.
-- 3 colunas: Gauge + métricas (Realizado/Meta/Gap/Tendência), evolução do ano, KPIs do mês.
-- Linha extra: Evolução faturamento x meta + Corretores meta viz.
+## Backend
 
-### Aba "VGV / Vendas"
-- Grade de 8 KPIs: Meta, Faturamento, % Realizado, Gap, Tendência, Contratos, Ticket Médio, Corretores.
-- Pódio + ranking lateral por VGV.
+Nova server function `buscarProjetosIA` em `src/lib/match-ia.functions.ts`:
 
-### Aba "Produtividade"
-- Grade de KPIs: Pontos, Ligações, WhatsApp, Agendamentos, Visitas, Documentação, Vendas.
-- Pódio por pontuação + ranking lateral.
-- Funil de conversão.
-- Tabela completa com heat-map por coluna.
+- Input: `{ descricao: string (>=10 chars), leadId?: string }`.
+- Carrega projetos ativos (`projetos` onde `ativo=true` e `deleted_at is null`) com colunas leves: id, nome, construtora, bairro, cidade, preco_a_partir, tipologias/dorms/vagas/entrega quando existirem.
+- Chama Lovable AI Gateway (`google/gemini-2.5-flash`, sem chave do usuário) com prompt estruturado em PT-BR pedindo JSON:
+  ```
+  { resumo: string,
+    filtrosUsados: { regiao?, dorms?, vagas?, precoMax?, programa?, entrega? },
+    projetos: [{ id, pontuacao (0-10), motivo, tipologiaRecomendada? }],
+    totalFiltrados: number }
+  ```
+  Usa `generateObject` com schema Zod para garantir formato.
+- Devolve até os 6 melhores, ordenados por pontuação. Faz join com os dados originais para devolver `nome`, `construtora`, `preco_a_partir` ao cliente.
+- Sem persistência nesta etapa.
 
-## Dados (queries Supabase reais)
+## Frontend
 
-1. **Leads no período** — count + por corretor.
-2. **Transições** (`lead_status_transitions`) — vendas (`contrato_fechado`), análises (`analise_credito`), visitas realizadas.
-3. **Agendamentos** — totais e realizados (show rate).
-4. **Interações** (`interacoes`) — separar `tipo='ligacao'` e `tipo='whatsapp'`.
-5. **Metas** (`metas`) — VGV individual e total do mês.
-6. **Profiles** — nome/foto dos corretores; filtro opcional por `equipe_id`.
+- `src/routes/_authenticated/match.tsx`: envolver conteúdo atual num `<Tabs>` com value `financeiro` (default) e `ia`.
+- Novo componente `src/components/match/buscador-ia.tsx` baseado no arquivo enviado, **adaptado para o nosso stack**: shadcn tokens (sem `bg-purple-*` cru — usar `primary`/`accent`), `@tanstack/react-router` `Link` para `/projetos/$projetoId`, `useServerFn` + `useMutation` do TanStack Query no lugar de tRPC, `useSearch` da rota para ler `leadId`.
 
-`VGV total` = soma de `lead.valor_negociado` para leads com transição `contrato_fechado` no período (ou usar `leads.valor_negociado` agregado por status atual como fallback enquanto não há campo de venda dedicado).
+## Fora de escopo
 
-Pontuação por corretor segue o `PONTUACAO` já existente (5/2/15/25/35/80).
-
-## Comportamentos
-
-- Refresh automático a cada 5 min + botão manual.
-- Auto-rotação alternando entre as 3 abas a cada 30s (toggle).
-- Fullscreen real via `requestFullscreen()`.
-- Animação count-up nos KPIs.
-- Tracking de mudança de posição: comparar snapshot anterior e mostrar ▲/▼.
-
-## Fora do escopo (não implementar agora)
-
-- Modal drill-down por corretor (substituível por link para `/leads-por-corretor` ou ficha).
-- Configuração de metas inline (já existe rota `/metas`).
-- Show Rate detalhado (somente o agregado simples).
-- Distratos/VGV líquido (não temos coluna específica).
-
-## Entregáveis
-
-- `src/routes/_authenticated/ranking.tsx` reescrito (componentes auxiliares no mesmo arquivo para manter o padrão atual).
-- Sem migrações novas — usa schema existente.
+- Salvar histórico de buscas / vincular ao lead no banco.
+- Chat multi-turno (é one-shot: descrição → resultado). Pode virar próximo passo se quiser.
+- Mexer no wizard financeiro existente.
