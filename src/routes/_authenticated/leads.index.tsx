@@ -76,6 +76,10 @@ import {
   ArrowRightLeft,
   Bookmark,
   ChevronDown,
+  LayoutGrid,
+  Rows3,
+  ChevronLeft,
+  ChevronRight,
   X,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
@@ -127,6 +131,8 @@ const PERIODO_OPTIONS = [
 ] as const;
 
 type Periodo = (typeof PERIODO_OPTIONS)[number]["value"];
+
+const LEADS_PAGE_SIZE = 50;
 
 function periodoStart(p: Periodo): Date | null {
   const now = new Date();
@@ -256,6 +262,11 @@ function LeadsPage() {
   const [periodoFilter, setPeriodoFilter] = useState<Periodo>("all");
   const [contatoFilter, setContatoFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
+  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"tabela" | "cards">(() => {
+    if (typeof window === "undefined") return "tabela";
+    return window.localStorage.getItem("smq:leads-view-mode") === "cards" ? "cards" : "tabela";
+  });
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
@@ -389,7 +400,7 @@ function LeadsPage() {
           "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira, renda_informada, entrada_disponivel, usa_fgts",
         )
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(1000);
       q = q.eq("na_lixeira", showLixeira);
       if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
       if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
@@ -451,6 +462,25 @@ function LeadsPage() {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [leadsAll, statusFilter, contatoFilter, followupIds, canManage]);
+
+  // Paginação (50/página, lado cliente). As contagens por status continuam vindo
+  // de `statusCounts`/`filtered` (conjunto inteiro), não da página atual.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / LEADS_PAGE_SIZE));
+  const pageSafe = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((pageSafe - 1) * LEADS_PAGE_SIZE, pageSafe * LEADS_PAGE_SIZE),
+    [filtered, pageSafe],
+  );
+
+  // Volta para a 1ª página quando os filtros mudam.
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter, debouncedSearch, showLixeira]);
+
+  // Persiste o modo de visualização (tabela/cards).
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem("smq:leads-view-mode", viewMode);
+  }, [viewMode]);
 
   // Limpa seleção quando o conjunto filtrado muda
   useEffect(() => {
@@ -878,11 +908,33 @@ function LeadsPage() {
                 </Button>
               )}
             </div>
-            {canManage && (
-              <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
-                {showLixeira ? "Ver ativos" : "Ver lixeira"}
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-md border p-0.5">
+                <Button
+                  size="icon"
+                  variant={viewMode === "tabela" ? "default" : "ghost"}
+                  className="h-7 w-7"
+                  title="Ver em tabela"
+                  onClick={() => setViewMode("tabela")}
+                >
+                  <Rows3 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant={viewMode === "cards" ? "default" : "ghost"}
+                  className="h-7 w-7"
+                  title="Ver em cards"
+                  onClick={() => setViewMode("cards")}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {canManage && (
+                <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
+                  {showLixeira ? "Ver ativos" : "Ver lixeira"}
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Barra de ações em lote */}
@@ -925,6 +977,7 @@ function LeadsPage() {
             </div>
           )}
 
+          {viewMode === "tabela" ? (
           <div className="rounded-md border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -956,7 +1009,7 @@ function LeadsPage() {
                     </TableCell>
                   </TableRow>
                 )}
-                {filtered.map((l) => (
+                {paginated.map((l) => (
                   <TableRow key={l.id} data-state={selectedIds.has(l.id) ? "selected" : undefined}>
                     <TableCell>
                       <Checkbox
@@ -1136,6 +1189,187 @@ function LeadsPage() {
               </TableBody>
             </Table>
           </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {paginated.length === 0 && !isLoading && (
+                <div className="col-span-full text-center text-muted-foreground py-10">
+                  Nenhum lead encontrado.
+                </div>
+              )}
+              {paginated.map((l) => {
+                const proxima = PROXIMA_ACAO[l.status as LeadStatus];
+                const canAct = canManage || l.corretor_id === user?.id;
+                return (
+                  <div
+                    key={l.id}
+                    className={`rounded-lg border p-3 space-y-2 ${
+                      selectedIds.has(l.id) ? "ring-2 ring-primary" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Checkbox
+                        checked={selectedIds.has(l.id)}
+                        onCheckedChange={() => toggleOne(l.id)}
+                        aria-label={`Selecionar ${l.nome}`}
+                        className="mt-0.5"
+                      />
+                      <TempIcon temp={l.temperatura} />
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.id }}
+                        className="font-medium hover:underline flex-1 truncate"
+                      >
+                        {l.nome}
+                      </Link>
+                      <Badge
+                        className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
+                        variant="secondary"
+                      >
+                        {leadStatusLabel(l.status)}
+                      </Badge>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {l.projeto_nome || "Sem empreendimento"} · {l.origem.replace(/_/g, " ")}
+                    </div>
+                    <div className="text-sm truncate">
+                      {l.telefone}
+                      {l.email ? ` · ${l.email}` : ""}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1 text-xs">
+                      <div>
+                        <div className="text-muted-foreground">Renda</div>
+                        <div className="truncate">{l.renda_informada || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">Entrada</div>
+                        <div className="truncate">{l.entrada_disponivel || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground">FGTS</div>
+                        <div>{l.usa_fgts == null ? "—" : l.usa_fgts ? "Sim" : "Não"}</div>
+                      </div>
+                    </div>
+
+                    <div className="min-h-[20px]">
+                      {l.corretor_id ? (
+                        <span className="text-xs text-muted-foreground">
+                          {corretoresMap.get(l.corretor_id) ?? ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs italic text-muted-foreground">sem corretor</span>
+                      )}
+                      <InatividadeBadge lead={l} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                        title="WhatsApp"
+                        onClick={() => {
+                          const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
+                          const projeto = l.projeto_nome ? ` sobre o ${l.projeto_nome}` : "";
+                          const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
+                          window.open(buildWhatsAppUrl(l.telefone, msg), "_blank", "noopener,noreferrer");
+                        }}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        asChild
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                        title="Ligar"
+                      >
+                        <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      </Button>
+
+                      {!l.na_lixeira && canAct && l.status === "aguardando_atendimento" && (
+                        <Button
+                          size="sm"
+                          className="h-7"
+                          onClick={() => setContactLead(l)}
+                          disabled={iniciarAtendimento.isPending}
+                        >
+                          <Play className="h-3.5 w-3.5 mr-1" /> Atender
+                        </Button>
+                      )}
+                      {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && proxima && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          disabled={updateStatus.isPending}
+                          onClick={() => {
+                            const action = resolveStageAction(proxima.target);
+                            if (action.kind === "modal") setModalState({ modal: action.modal, lead: l });
+                            else if (action.kind === "perdido") setPerdidoLead(l);
+                            else updateStatus.mutate({ id: l.id, status: proxima.target });
+                          }}
+                        >
+                          {proxima.label}
+                        </Button>
+                      )}
+                      {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && (
+                        <LeadStageMenu
+                          lead={l}
+                          onPickDirect={(target) => updateStatus.mutate({ id: l.id, status: target })}
+                          onPickModal={(modal) => setModalState({ modal, lead: l })}
+                          onPickPerdido={() => setPerdidoLead(l)}
+                        />
+                      )}
+                      {canManage && !l.corretor_id && !l.na_lixeira && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 ml-auto"
+                          onClick={() => distribuir.mutate(l.id)}
+                          disabled={distribuir.isPending}
+                        >
+                          <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Paginação (50 por página) */}
+          {filtered.length > LEADS_PAGE_SIZE && (
+            <div className="flex items-center justify-between pt-1">
+              <div className="text-xs text-muted-foreground">
+                Página {pageSafe} de {totalPages} · {filtered.length} lead(s)
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={pageSafe <= 1}
+                  onClick={() => setPage(pageSafe - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" /> Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={pageSafe >= totalPages}
+                  onClick={() => setPage(pageSafe + 1)}
+                >
+                  Próxima <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
