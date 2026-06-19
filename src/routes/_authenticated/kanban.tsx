@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Phone, Mail, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  LEAD_STATUS_ORDER,
+  FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
   resolveStageAction,
   type LeadStatus,
