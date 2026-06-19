@@ -44,7 +44,7 @@ const COLUMN_TONE: Record<LeadStatus, string> = {
   perdido: "bg-rose-500/10 border-rose-500/30",
 };
 
-const COLUMNS = LEAD_STATUS_ORDER.map((id) => ({
+const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
   label: LEAD_STATUS_LABEL[id],
   tone: COLUMN_TONE[id],
