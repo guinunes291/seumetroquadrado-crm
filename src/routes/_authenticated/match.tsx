@@ -21,17 +21,28 @@ import {
 } from "@/lib/orcamento";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { Link } from "@tanstack/react-router";
+import { z } from "zod";
 import {
   ProjetosFilters,
   applyFilters,
   emptyFilters,
   type Filters,
 } from "@/components/projetos-filters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BuscadorIA } from "@/components/match/buscador-ia";
+import { Calculator, Bot } from "lucide-react";
+
+const searchSchema = z.object({
+  leadId: z.string().optional(),
+  mode: z.enum(["financeiro", "ia"]).optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/match")({
   head: () => ({ meta: [{ title: "Match — Seu Metro Quadrado" }] }),
+  validateSearch: searchSchema,
   component: MatchPage,
 });
+
 
 type Step = 1 | 2 | 3;
 
