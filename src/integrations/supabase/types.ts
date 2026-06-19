@@ -2179,6 +2179,7 @@ export type Database = {
         | "contrato_fechado"
         | "pos_venda"
         | "perdido"
+        | "aguardando_retorno"
       lead_temperatura: "quente" | "morno" | "frio"
       tarefa_prioridade: "baixa" | "media" | "alta" | "urgente"
       tarefa_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
@@ -2376,6 +2377,7 @@ export const Constants = {
         "contrato_fechado",
         "pos_venda",
         "perdido",
+        "aguardando_retorno",
       ],
       lead_temperatura: ["quente", "morno", "frio"],
       tarefa_prioridade: ["baixa", "media", "alta", "urgente"],
