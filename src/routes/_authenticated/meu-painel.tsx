@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
@@ -8,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { buildWhatsAppUrl } from "@/lib/templates";
+import { useDashboardLeadsUrgentes } from "@/features/dashboard/queries";
+import { leadStatusLabel } from "@/lib/leads";
 import {
   Phone,
   MessageCircle,
@@ -17,6 +21,10 @@ import {
   Trophy,
   Star,
   DollarSign,
+  Flame,
+  Clock,
+  CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/meu-painel")({
@@ -115,6 +123,69 @@ function MeuPainelPage() {
     },
   });
 
+  // ----- Fila de ação do dia ("Meu Dia") -----
+  const qc = useQueryClient();
+  const hoje = useMemo(() => {
+    const n = new Date();
+    const ini = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0);
+    const fim = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59);
+    return { ini: ini.toISOString(), fim: fim.toISOString() };
+  }, []);
+
+  // Leads parados há 30+ min que exigem contato agora (RPC já existente).
+  const urgentesQ = useDashboardLeadsUrgentes(user?.id ?? null, !!user);
+
+  // Agendamentos de hoje do corretor (visitas/reuniões), exceto cancelados/concluídos.
+  const agendaQ = useQuery({
+    queryKey: ["meu-dia:agenda", user?.id, hoje.ini],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("id, titulo, data_inicio, tipo, status, local, lead_id")
+        .eq("corretor_id", user!.id)
+        .gte("data_inicio", hoje.ini)
+        .lte("data_inicio", hoje.fim)
+        .not("status", "in", "(cancelado,realizado,nao_compareceu)")
+        .order("data_inicio", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Tarefas e follow-ups pendentes (vencendo hoje, atrasados ou sem prazo).
+  const tarefasQ = useQuery({
+    queryKey: ["meu-dia:tarefas", user?.id, hoje.fim],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("tarefas")
+        .select("id, titulo, tipo, prioridade, status, data_vencimento, lead_id")
+        .eq("corretor_id", user!.id)
+        .in("status", ["pendente", "em_andamento"])
+        .or(`data_vencimento.lte.${hoje.fim},data_vencimento.is.null`)
+        .order("data_vencimento", { ascending: true, nullsFirst: false })
+        .limit(30);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const concluirTarefa = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ status: "concluida" } as never)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa concluída");
+      qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const totais = useMemo(() => {
     const acc = {
       ligacoes: 0,
@@ -187,11 +258,18 @@ function MeuPainelPage() {
   // Metas são diárias: só mostramos progresso de meta no período "hoje".
   const mostrarMeta = periodo === "hoje" && !!metaQ.data;
 
+  const hora = (iso: string) =>
+    new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  const urgentes = urgentesQ.data ?? [];
+  const agenda = agendaQ.data ?? [];
+  const tarefas = tarefasQ.data ?? [];
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Meu Painel"
-        description="Sua produtividade, pontuação e metas."
+        title="Meu Dia"
+        description="O que fazer agora — depois, sua produtividade e metas."
         actions={
           <div className="inline-flex rounded-md border bg-card p-0.5">
             {(["hoje", "semana", "mes"] as const).map((p) => (
@@ -208,6 +286,186 @@ function MeuPainelPage() {
           </div>
         }
       />
+
+      {/* ----- Fila de ação do dia ----- */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Atender agora: leads parados */}
+        <Card className="border-rose-500/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Flame className="h-4 w-4 text-rose-500" /> Atender agora
+              {urgentes.length > 0 && (
+                <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
+                  {urgentes.length}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {urgentes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum lead parado. 👏</p>
+            ) : (
+              urgentes.slice(0, 8).map((l) => {
+                const tel = (l.telefone ?? "").replace(/\D/g, "");
+                return (
+                  <div
+                    key={l.lead_id}
+                    className="flex items-center justify-between gap-2 rounded-md border p-2"
+                  >
+                    <Link
+                      to="/leads/$leadId"
+                      params={{ leadId: l.lead_id }}
+                      className="min-w-0 flex-1"
+                    >
+                      <div className="truncate text-sm font-medium">{l.nome}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {leadStatusLabel(l.status)} · parado há {l.minutos_parado} min
+                      </div>
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                        title="WhatsApp"
+                        onClick={() => {
+                          const primeiro = l.nome.split(" ")[0] ?? l.nome;
+                          window.open(
+                            buildWhatsAppUrl(
+                              l.telefone ?? "",
+                              `Olá, ${primeiro}! Aqui é da Seu Metro Quadrado. Posso te ajudar agora?`,
+                            ),
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                        }}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        asChild
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                        title="Ligar"
+                      >
+                        <a href={`tel:${tel}`}>
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Agenda de hoje */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <CalendarCheck className="h-4 w-4 text-indigo-500" /> Agenda de hoje
+              {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {agenda.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
+            ) : (
+              agenda.map((a) => {
+                const row = (
+                  <>
+                    <div className="text-sm font-medium">
+                      <span className="text-muted-foreground">{hora(a.data_inicio)}</span> {a.titulo}
+                    </div>
+                    <div className="text-xs text-muted-foreground capitalize">
+                      {a.tipo}
+                      {a.local ? ` · ${a.local}` : ""}
+                    </div>
+                  </>
+                );
+                return (
+                  <div key={a.id} className="rounded-md border p-2">
+                    {a.lead_id ? (
+                      <Link to="/leads/$leadId" params={{ leadId: a.lead_id }} className="block">
+                        {row}
+                      </Link>
+                    ) : (
+                      row
+                    )}
+                  </div>
+                );
+              })
+            )}
+            <Button asChild variant="link" className="h-auto p-0 text-xs">
+              <Link to="/agendamentos">ver agenda completa</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Tarefas & follow-ups */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-amber-500" /> Tarefas & follow-ups
+              {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {tarefas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
+            ) : (
+              tarefas.slice(0, 10).map((t) => {
+                const atrasada =
+                  !!t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now();
+                return (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 rounded-md border p-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{t.titulo}</div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
+                        {t.data_vencimento && (
+                          <span className={cn(atrasada && "text-rose-600 font-medium")}>
+                            · {atrasada ? "atrasada" : hora(t.data_vencimento)}
+                          </span>
+                        )}
+                        {t.lead_id && (
+                          <Link
+                            to="/leads/$leadId"
+                            params={{ leadId: t.lead_id }}
+                            className="text-primary hover:underline inline-flex items-center"
+                          >
+                            · lead <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                      title="Concluir"
+                      disabled={concluirTarefa.isPending}
+                      onClick={() => concluirTarefa.mutate(t.id)}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })
+            )}
+            <Button asChild variant="link" className="h-auto p-0 text-xs">
+              <Link to="/tarefas">ver todas as tarefas</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <h2 className="text-sm font-semibold text-muted-foreground pt-2">Minha produtividade</h2>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gradient-to-br from-primary/10 to-transparent">

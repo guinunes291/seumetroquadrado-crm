@@ -61,7 +61,7 @@ const SECTIONS: Section[] = [
   {
     title: "Performance",
     items: [
-      { to: "/meu-painel", label: "Meu Painel", icon: Gauge },
+      { to: "/meu-painel", label: "Meu Dia", icon: Gauge },
       { to: "/metas", label: "Metas", icon: Target },
       { to: "/ranking", label: "Ranking", icon: Trophy },
       { to: "/copa", label: "Copa SMQ", icon: Swords },
