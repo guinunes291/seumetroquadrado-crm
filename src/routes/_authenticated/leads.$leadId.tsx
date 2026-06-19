@@ -203,6 +203,63 @@ function LeadDetailPage() {
   const [waOpen, setWaOpen] = useState(false);
   const [waTemplateId, setWaTemplateId] = useState<string>("");
   const [waMensagem, setWaMensagem] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    nome: "",
+    cpf: "",
+    renda_informada: "",
+    entrada_disponivel: "",
+    usa_fgts: false,
+    projeto_nome: "",
+    proximo_followup: "",
+    observacoes: "",
+  });
+
+  const openEdit = () => {
+    if (!lead) return;
+    setEditForm({
+      nome: lead.nome ?? "",
+      cpf: lead.cpf ?? "",
+      renda_informada: lead.renda_informada ?? "",
+      entrada_disponivel: lead.entrada_disponivel ?? "",
+      usa_fgts: !!lead.usa_fgts,
+      projeto_nome: lead.projeto_nome ?? "",
+      proximo_followup: lead.proximo_followup
+        ? new Date(lead.proximo_followup).toISOString().slice(0, 16)
+        : "",
+      observacoes: lead.observacoes ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const editarLead = useMutation({
+    mutationFn: async () => {
+      const nome = editForm.nome.trim();
+      if (nome.length < 2) throw new Error("Informe o nome do cliente.");
+      const payload: Record<string, unknown> = {
+        nome,
+        cpf: editForm.cpf.trim() || null,
+        renda_informada: editForm.renda_informada.trim() || null,
+        entrada_disponivel: editForm.entrada_disponivel.trim() || null,
+        usa_fgts: editForm.usa_fgts,
+        projeto_nome: editForm.projeto_nome.trim() || null,
+        observacoes: editForm.observacoes.trim() || null,
+        proximo_followup: editForm.proximo_followup
+          ? new Date(editForm.proximo_followup).toISOString()
+          : null,
+      };
+      const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Dados atualizados");
+      setEditOpen(false);
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const criarInteracao = useMutation({
     mutationFn: async () => {
