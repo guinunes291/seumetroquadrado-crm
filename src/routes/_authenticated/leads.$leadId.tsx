@@ -28,9 +28,11 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ArrowRight,
   Plus,
   Mail,
   Phone,
+  PhoneCall,
   MapPin,
   Calendar,
   User,
@@ -48,8 +50,22 @@ import {
   type InteracaoDirecao,
 } from "@/lib/interacoes";
 import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
-import { LEAD_STATUS_ORDER, LEAD_STATUS_LABEL, type StageLead } from "@/lib/leads";
-import { PerdidoDialog } from "@/components/lead-stage/perdido-dialog";
+import {
+  LEAD_STATUS_ORDER,
+  LEAD_STATUS_LABEL,
+  FUNNEL_STAGES,
+  leadStatusLabel,
+  resolveStageAction,
+  type StageLead,
+  type LeadStatus,
+} from "@/lib/leads";
+import { LeadStageMenu } from "@/components/lead-stage-menu";
+import {
+  LeadStageModals,
+  type StageModalState,
+  type PerdidoState,
+} from "@/components/lead-stage/lead-stage-modals";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
@@ -104,7 +120,8 @@ const TIPO_OPTIONS: InteracaoTipo[] = [
 function LeadDetailPage() {
   const { leadId } = Route.useParams();
   const qc = useQueryClient();
-  const [perdidoOpen, setPerdidoOpen] = useState(false);
+  const [modalState, setModalState] = useState<StageModalState>(null);
+  const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
 
 
   const { data: lead, isLoading } = useQuery({
@@ -237,22 +254,24 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const atualizarStatus = useMutation({
-    mutationFn: async (novo: string) => {
-      if (!lead || novo === lead.status) return;
-      const { error } = await supabase
-        .from("leads")
-        .update({ status: novo as never })
-        .eq("id", leadId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Status atualizado");
-      qc.invalidateQueries({ queryKey: ["lead", leadId] });
-      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
-    },
-    onError: (e: Error) => toast.error(e.message),
+  const mudarStatus = useLeadStatusMutation({
+    invalidateKeys: [
+      ["lead", leadId],
+      ["interacoes", leadId],
+      ["leads"],
+      ["leads-kanban"],
+    ],
+    onSuccess: () => toast.success("Status atualizado"),
   });
+
+  // Abre uma interação pré-preenchida (ex.: registrar ligação em 1 clique).
+  const abrirInteracaoRapida = (t: InteracaoTipo, tit: string) => {
+    setTipo(t);
+    setDirecao("saida");
+    setTitulo(tit);
+    setConteudo("");
+    setDialogOpen(true);
+  };
 
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Carregando lead…</div>;
@@ -268,6 +287,33 @@ function LeadDetailPage() {
     );
   }
 
+  // Forma mínima usada pelos modais/menu de etapa (mesma rota da lista e do Kanban).
+  const stageLead: StageLead = {
+    id: lead.id,
+    nome: lead.nome,
+    status: lead.status,
+    corretor_id: lead.corretor_id,
+    projeto_id: lead.projeto_id,
+    projeto_nome: lead.projeto_nome,
+    observacoes: lead.observacoes,
+  };
+
+  // Roteamento único de etapa: direto, modal (captura dados) ou perdido.
+  const goToStage = (target: LeadStatus) => {
+    if (target === lead.status) return;
+    const action = resolveStageAction(target);
+    if (action.kind === "perdido") setPerdidoLead(stageLead);
+    else if (action.kind === "modal") setModalState({ modal: action.modal, lead: stageLead });
+    else mudarStatus.mutate({ id: lead.id, status: target });
+  };
+
+  // Próxima etapa do funil (para o botão "Avançar"); vazio em pos_venda/perdido.
+  const stageIdx = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
+  const proximaEtapa: LeadStatus | null =
+    stageIdx >= 0 && stageIdx < FUNNEL_STAGES.length - 1 ? FUNNEL_STAGES[stageIdx + 1] : null;
+
+  const telHref = `tel:${(lead.telefone ?? "").replace(/[^\d+]/g, "")}`;
+
   return (
     <div>
       <Link
@@ -281,7 +327,18 @@ function LeadDetailPage() {
         title={lead.nome}
         description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <a href={telHref}>
+                <Phone className="h-4 w-4 mr-2" /> Ligar
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => abrirInteracaoRapida("ligacao", "Ligação")}
+            >
+              <PhoneCall className="h-4 w-4 mr-2" /> Registrar ligação
+            </Button>
             <Dialog open={waOpen} onOpenChange={setWaOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -441,48 +498,43 @@ function LeadDetailPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Status</CardTitle>
           </CardHeader>
-          <CardContent className="flex items-center gap-2">
-            <Select
-              value={lead.status}
-              onValueChange={(v) => {
-                if (v === "perdido") {
-                  setPerdidoOpen(true);
-                  return;
-                }
-                atualizarStatus.mutate(v);
-              }}
-              disabled={atualizarStatus.isPending}
-            >
-              <SelectTrigger className="h-8 w-[210px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LEAD_STATUS_ORDER.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {LEAD_STATUS_LABEL[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
-            {perdidoOpen && (
-              <PerdidoDialog
-                lead={{
-                  id: lead.id,
-                  nome: lead.nome,
-                  status: lead.status,
-                  corretor_id: lead.corretor_id,
-                  projeto_id: lead.projeto_id,
-                  projeto_nome: lead.projeto_nome,
-                  observacoes: lead.observacoes,
-                } as StageLead}
-                onOpenChange={setPerdidoOpen}
-                onDone={() => {
-                  qc.invalidateQueries({ queryKey: ["lead", leadId] });
-                  qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
-                }}
+          <CardContent className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {leadStatusLabel(lead.status)}
+              </Badge>
+              {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
+            </div>
+            <div className="flex items-center gap-2">
+              {proximaEtapa && (
+                <Button
+                  size="sm"
+                  className="h-8"
+                  disabled={mudarStatus.isPending}
+                  onClick={() => goToStage(proximaEtapa)}
+                >
+                  {leadStatusLabel(proximaEtapa)} <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              )}
+              <Select value={lead.status} onValueChange={(v) => goToStage(v as LeadStatus)}>
+                <SelectTrigger className="h-8 w-[180px]">
+                  <SelectValue placeholder="Mudar para…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEAD_STATUS_ORDER.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {LEAD_STATUS_LABEL[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <LeadStageMenu
+                lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
+                onPickDirect={(target) => goToStage(target)}
+                onPickModal={(modal) => setModalState({ modal, lead: stageLead })}
+                onPickPerdido={() => setPerdidoLead(stageLead)}
               />
-            )}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -651,6 +703,26 @@ function LeadDetailPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <LeadStageModals
+        modalState={modalState}
+        onModalOpenChange={(o) => {
+          if (!o) {
+            setModalState(null);
+            qc.invalidateQueries({ queryKey: ["lead", leadId] });
+            qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+            qc.invalidateQueries({ queryKey: ["agendamentos-lead", leadId] });
+          }
+        }}
+        perdidoLead={perdidoLead}
+        onPerdidoOpenChange={(o) => {
+          if (!o) {
+            setPerdidoLead(null);
+            qc.invalidateQueries({ queryKey: ["lead", leadId] });
+            qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+          }
+        }}
+      />
     </div>
   );
 }

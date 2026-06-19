@@ -52,6 +52,17 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
   const [dataInicio, setDataInicio] = useState(toLocal(new Date(now.getTime() + 60 * 60 * 1000)));
   const [dataFim, setDataFim] = useState(toLocal(new Date(now.getTime() + 2 * 60 * 60 * 1000)));
   const [local, setLocal] = useState("");
+  // Presets de horário: evitam digitar no datetime-local (1 clique).
+  const setPreset = (start: Date) => {
+    setDataInicio(toLocal(start));
+    setDataFim(toLocal(new Date(start.getTime() + 60 * 60 * 1000)));
+  };
+  const amanha = (h: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(h, 0, 0, 0);
+    return d;
+  };
   const [descricao, setDescricao] = useState(
     [lead.projeto_nome ? `Projeto: ${lead.projeto_nome}` : "", lead.observacoes ?? ""]
       .filter(Boolean)
@@ -142,6 +153,35 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
                 placeholder="Endereço, sala, link…"
               />
             </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7"
+              onClick={() => setPreset(new Date(Date.now() + 60 * 60 * 1000))}
+            >
+              Hoje +1h
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7"
+              onClick={() => setPreset(amanha(9))}
+            >
+              Amanhã 9h
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7"
+              onClick={() => setPreset(amanha(14))}
+            >
+              Amanhã 14h
+            </Button>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

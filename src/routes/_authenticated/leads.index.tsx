@@ -766,16 +766,18 @@ function LeadsPage() {
                               <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
                             </Button>
                           )}
-                        {!l.na_lixeira && canManage && l.status !== "aguardando_atendimento" && (
-                          <LeadStageMenu
-                            lead={l}
-                            onPickDirect={(target) =>
-                              updateStatus.mutate({ id: l.id, status: target })
-                            }
-                            onPickModal={(modal) => setModalState({ modal, lead: l })}
-                            onPickPerdido={() => setPerdidoLead(l)}
-                          />
-                        )}
+                        {!l.na_lixeira &&
+                          (canManage || l.corretor_id === user?.id) &&
+                          l.status !== "aguardando_atendimento" && (
+                            <LeadStageMenu
+                              lead={l}
+                              onPickDirect={(target) =>
+                                updateStatus.mutate({ id: l.id, status: target })
+                              }
+                              onPickModal={(modal) => setModalState({ modal, lead: l })}
+                              onPickPerdido={() => setPerdidoLead(l)}
+                            />
+                          )}
                         {canManage && !l.corretor_id && !l.na_lixeira && (
                           <Button
                             size="sm"
