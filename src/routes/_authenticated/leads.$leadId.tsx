@@ -341,10 +341,7 @@ function LeadDetailPage() {
             </Button>
             <Dialog open={waOpen} onOpenChange={setWaOpen}>
               <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400"
-                >
+                <Button className="bg-emerald-600 text-white hover:bg-emerald-700">
                   <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
                 </Button>
               </DialogTrigger>
@@ -413,7 +410,7 @@ function LeadDetailPage() {
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button variant="outline">
                   <Plus className="h-4 w-4 mr-2" /> Registrar interação
                 </Button>
               </DialogTrigger>
