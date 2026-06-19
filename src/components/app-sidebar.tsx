@@ -146,26 +146,42 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                   const Icon = it.icon;
                   const active =
                     pathname === it.to || (it.to !== "/" && pathname.startsWith(it.to));
+                  const inner = (
+                    <>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 truncate">{it.label}</span>
+                      {it.comingSoon && (
+                        <span className="text-[9px] uppercase tracking-wider text-sidebar-foreground/40">
+                          em breve
+                        </span>
+                      )}
+                    </>
+                  );
                   return (
                     <li key={it.to}>
-                      <Link
-                        to={it.to}
-                        onClick={onNavigate}
-                        className={cn(
-                          "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
-                          active
-                            ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
-                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <span className="flex-1 truncate">{it.label}</span>
-                        {it.comingSoon && (
-                          <span className="text-[9px] uppercase tracking-wider text-sidebar-foreground/40">
-                            em breve
-                          </span>
-                        )}
-                      </Link>
+                      {it.comingSoon ? (
+                        // Itens "em breve" não têm rota: não navegáveis (evita tela de erro).
+                        <div
+                          aria-disabled="true"
+                          title="Em breve"
+                          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/40 cursor-not-allowed"
+                        >
+                          {inner}
+                        </div>
+                      ) : (
+                        <Link
+                          to={it.to}
+                          onClick={onNavigate}
+                          className={cn(
+                            "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                            active
+                              ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
+                              : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          )}
+                        >
+                          {inner}
+                        </Link>
+                      )}
                     </li>
                   );
                 })}

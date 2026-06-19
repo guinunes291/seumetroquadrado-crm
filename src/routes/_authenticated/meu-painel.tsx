@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/templates";
-import { useDashboardLeadsUrgentes } from "@/features/dashboard/queries";
+import { useLeadsComSla } from "@/features/dashboard/queries";
 import { leadStatusLabel } from "@/lib/leads";
 import { formatRelativeTime } from "@/lib/interacoes";
 import {
@@ -134,8 +134,8 @@ function MeuPainelPage() {
     return { ini: ini.toISOString(), fim: fim.toISOString() };
   }, []);
 
-  // Leads parados há 30+ min que exigem contato agora (RPC já existente).
-  const urgentesQ = useDashboardLeadsUrgentes(user?.id ?? null, !!user);
+  // Leads com SLA estourado (tempo por origem: Facebook 5min, demais 30min).
+  const slaQ = useLeadsComSla(user?.id ?? null, !!user);
 
   // Leads quentes do corretor que ainda estão no funil ativo (prioridade nº 1).
   const quentesQ = useQuery({
@@ -282,7 +282,7 @@ function MeuPainelPage() {
   const hora = (iso: string) =>
     new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  const urgentes = urgentesQ.data ?? [];
+  const urgentes = (slaQ.data ?? []).filter((r) => r.sla_status === "estourado");
   const quentes = quentesQ.data ?? [];
   const agenda = agendaQ.data ?? [];
   const tarefas = tarefasQ.data ?? [];
@@ -526,7 +526,7 @@ function MeuPainelPage() {
                     >
                       <div className="truncate text-sm font-medium">{l.nome}</div>
                       <div className="text-xs text-muted-foreground">
-                        {leadStatusLabel(l.status)} · parado há {l.minutos_parado} min
+                        {leadStatusLabel(l.status)} · {l.minutos_decorridos} min sem atendimento
                       </div>
                     </Link>
                     <div className="flex shrink-0 items-center gap-1">
