@@ -821,6 +821,71 @@ export type Database = {
           },
         ]
       }
+      links_uteis: {
+        Row: {
+          categoria: string
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          status: string
+          titulo: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          status?: string
+          titulo: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          status?: string
+          titulo?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      links_uteis_acessos: {
+        Row: {
+          created_at: string
+          id: string
+          link_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "links_uteis_acessos_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "links_uteis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       metas: {
         Row: {
           ano: number
