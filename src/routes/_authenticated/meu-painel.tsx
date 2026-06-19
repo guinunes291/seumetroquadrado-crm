@@ -137,6 +137,25 @@ function MeuPainelPage() {
   // Leads com SLA estourado (tempo por origem: Facebook 5min, demais 30min).
   const slaQ = useLeadsComSla(user?.id ?? null, !!user);
 
+  // Status do corretor na roleta (por que está/não está recebendo leads novos).
+  const distStatusQ = useQuery({
+    queryKey: ["meu-status-dist", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("meu_status_distribuicao");
+      if (error) throw error;
+      return (data ?? null) as {
+        na_fila: boolean;
+        elegivel: boolean;
+        motivo: string;
+        pct_trabalhada: number;
+        faltam_trabalhar: number;
+        recebidos_hoje: number;
+        max_leads_dia: number;
+      } | null;
+    },
+  });
+
   // Leads quentes do corretor que ainda estão no funil ativo (prioridade nº 1).
   const quentesQ = useQuery({
     queryKey: ["meu-dia:quentes", user?.id],
@@ -324,6 +343,43 @@ function MeuPainelPage() {
           </div>
         }
       />
+
+      {/* Aviso de distribuição: por que está/não está recebendo leads novos. */}
+      {distStatusQ.data && distStatusQ.data.motivo !== "elegivel" && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="py-3 flex items-start gap-2 text-sm">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              {(() => {
+                const d = distStatusQ.data!;
+                if (d.motivo === "carteira_abaixo_70")
+                  return (
+                    <>
+                      Você não está recebendo novos leads. Trabalhe{" "}
+                      <strong>{d.faltam_trabalhar}</strong> lead(s) — avance-os de "Aguardando
+                      atendimento". Carteira <strong>{d.pct_trabalhada}%</strong> trabalhada
+                      (mínimo 70%).
+                    </>
+                  );
+                if (d.motivo === "cota_atingida")
+                  return (
+                    <>
+                      Você atingiu sua cota de hoje ({d.recebidos_hoje}/{d.max_leads_dia}). Volta a
+                      receber amanhã.
+                    </>
+                  );
+                if (d.motivo === "fora_da_roleta")
+                  return <>Você não está na roleta de distribuição. Fale com seu gestor.</>;
+                if (d.motivo === "inativo")
+                  return <>Sua participação na roleta está inativa. Fale com seu gestor.</>;
+                if (d.motivo === "sem_checkin")
+                  return <>Faça seu check-in para voltar a receber leads.</>;
+                return <>Você não está recebendo novos leads no momento.</>;
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ----- Fila de ação do dia (ordem: quentes → follow-up → agenda → SLA) ----- */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
