@@ -38,7 +38,11 @@ import {
   User,
   Building2,
   MessageCircle,
+  Pencil,
+  Check,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import {
   INTERACAO_ICON,
   INTERACAO_LABEL,
@@ -53,6 +57,7 @@ import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
+  FUNNEL_STAGES,
   PROXIMA_ACAO,
   leadStatusLabel,
   resolveStageAction,
@@ -198,6 +203,63 @@ function LeadDetailPage() {
   const [waOpen, setWaOpen] = useState(false);
   const [waTemplateId, setWaTemplateId] = useState<string>("");
   const [waMensagem, setWaMensagem] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    nome: "",
+    cpf: "",
+    renda_informada: "",
+    entrada_disponivel: "",
+    usa_fgts: false,
+    projeto_nome: "",
+    proximo_followup: "",
+    observacoes: "",
+  });
+
+  const openEdit = () => {
+    if (!lead) return;
+    setEditForm({
+      nome: lead.nome ?? "",
+      cpf: lead.cpf ?? "",
+      renda_informada: lead.renda_informada ?? "",
+      entrada_disponivel: lead.entrada_disponivel ?? "",
+      usa_fgts: !!lead.usa_fgts,
+      projeto_nome: lead.projeto_nome ?? "",
+      proximo_followup: lead.proximo_followup
+        ? new Date(lead.proximo_followup).toISOString().slice(0, 16)
+        : "",
+      observacoes: lead.observacoes ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const editarLead = useMutation({
+    mutationFn: async () => {
+      const nome = editForm.nome.trim();
+      if (nome.length < 2) throw new Error("Informe o nome do cliente.");
+      const payload = {
+        nome,
+        cpf: editForm.cpf.trim() || null,
+        renda_informada: editForm.renda_informada.trim() || null,
+        entrada_disponivel: editForm.entrada_disponivel.trim() || null,
+        usa_fgts: editForm.usa_fgts,
+        projeto_nome: editForm.projeto_nome.trim() || null,
+        observacoes: editForm.observacoes.trim() || null,
+        proximo_followup: editForm.proximo_followup
+          ? new Date(editForm.proximo_followup).toISOString()
+          : null,
+      };
+      const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Dados atualizados");
+      setEditOpen(false);
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const criarInteracao = useMutation({
     mutationFn: async () => {
@@ -484,9 +546,53 @@ function LeadDetailPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <Button variant="outline" onClick={openEdit}>
+              <Pencil className="h-4 w-4 mr-2" /> Editar dados
+            </Button>
           </div>
         }
       />
+
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Etapas do funil</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {FUNNEL_STAGES.map((s) => {
+              const currentIdx = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
+              const idx = FUNNEL_STAGES.indexOf(s);
+              const isCurrent = s === lead.status;
+              const isPast = currentIdx >= 0 && idx < currentIdx;
+              return (
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={isCurrent ? "default" : isPast ? "secondary" : "outline"}
+                  className={cn("h-8", isCurrent && "ring-2 ring-primary/40")}
+                  disabled={isCurrent || mudarStatus.isPending}
+                  onClick={() => goToStage(s)}
+                  title={LEAD_STATUS_LABEL[s]}
+                >
+                  {isPast && <Check className="h-3.5 w-3.5 mr-1" />}
+                  {LEAD_STATUS_LABEL[s]}
+                </Button>
+              );
+            })}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-destructive hover:text-destructive"
+              disabled={lead.status === "perdido"}
+              onClick={() => setPerdidoLead(stageLead)}
+            >
+              Marcar como perdido
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
@@ -718,7 +824,109 @@ function LeadDetailPage() {
           }
         }}
       />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar dados do cliente</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Nome *</Label>
+              <Input
+                value={editForm.nome}
+                onChange={(e) => setEditForm({ ...editForm, nome: e.target.value })}
+                maxLength={160}
+              />
+            </div>
+            <div>
+              <Label>Telefone</Label>
+              <Input value={lead.telefone} readOnly disabled />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Não editável após o cadastro do lead.
+              </p>
+            </div>
+            <div>
+              <Label>E-mail</Label>
+              <Input value={lead.email ?? ""} readOnly disabled />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Não editável após o cadastro do lead.
+              </p>
+            </div>
+            <div>
+              <Label>CPF</Label>
+              <Input
+                value={editForm.cpf}
+                onChange={(e) => setEditForm({ ...editForm, cpf: e.target.value })}
+                maxLength={20}
+              />
+            </div>
+            <div>
+              <Label>Empreendimento</Label>
+              <Input
+                value={editForm.projeto_nome}
+                onChange={(e) => setEditForm({ ...editForm, projeto_nome: e.target.value })}
+                maxLength={160}
+              />
+            </div>
+            <div>
+              <Label>Renda informada</Label>
+              <Input
+                value={editForm.renda_informada}
+                onChange={(e) => setEditForm({ ...editForm, renda_informada: e.target.value })}
+                maxLength={40}
+              />
+            </div>
+            <div>
+              <Label>Entrada disponível</Label>
+              <Input
+                value={editForm.entrada_disponivel}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, entrada_disponivel: e.target.value })
+                }
+                maxLength={40}
+              />
+            </div>
+            <div>
+              <Label>Próximo follow-up</Label>
+              <Input
+                type="datetime-local"
+                value={editForm.proximo_followup}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, proximo_followup: e.target.value })
+                }
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <Switch
+                checked={editForm.usa_fgts}
+                onCheckedChange={(v) => setEditForm({ ...editForm, usa_fgts: v })}
+                id="usa-fgts"
+              />
+              <Label htmlFor="usa-fgts">Usa FGTS</Label>
+            </div>
+            <div className="md:col-span-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={editForm.observacoes}
+                onChange={(e) => setEditForm({ ...editForm, observacoes: e.target.value })}
+                rows={4}
+                maxLength={2000}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => editarLead.mutate()} disabled={editarLead.isPending}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
 
