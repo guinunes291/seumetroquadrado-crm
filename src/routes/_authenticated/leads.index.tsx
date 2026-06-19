@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -28,6 +28,26 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  CONTATO_OPCOES,
+  VISOES_PADRAO,
+  FILTRO_PADRAO,
+  passaContato,
+  loadViews,
+  saveViews,
+  loadUltimoFiltro,
+  saveUltimoFiltro,
+  type LeadFiltros,
+  type SavedView,
+} from "@/lib/leads-views";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -54,6 +74,8 @@ import {
   Snowflake,
   AlertCircle,
   ArrowRightLeft,
+  Bookmark,
+  ChevronDown,
   X,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
@@ -232,6 +254,7 @@ function LeadsPage() {
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [temperaturaFilter, setTemperaturaFilter] = useState<string>("all");
   const [periodoFilter, setPeriodoFilter] = useState<Periodo>("all");
+  const [contatoFilter, setContatoFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -241,11 +264,90 @@ function LeadsPage() {
   const [bulkTarget, setBulkTarget] = useState<string>("");
   const [contactLead, setContactLead] = useState<Lead | null>(null);
 
+  // Visões salvas (localStorage por usuário)
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [viewName, setViewName] = useState("");
+  const filtrosRestauradosRef = useRef(false);
+
   // Debounce da busca (300ms)
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Filtros atuais como objeto (para salvar/restaurar/visões).
+  const filtrosAtuais: LeadFiltros = {
+    status: statusFilter,
+    origem: origemFilter,
+    corretor: corretorFilter,
+    temperatura: temperaturaFilter,
+    periodo: periodoFilter,
+    contato: contatoFilter,
+  };
+
+  const aplicarFiltros = (f: LeadFiltros) => {
+    setStatusFilter(f.status);
+    setOrigemFilter(f.origem);
+    setCorretorFilter(canManage ? f.corretor : "all");
+    setTemperaturaFilter(f.temperatura);
+    setPeriodoFilter(f.periodo as Periodo);
+    setContatoFilter(f.contato);
+  };
+
+  // Carrega visões salvas e restaura o último filtro (1x, ao montar).
+  useEffect(() => {
+    if (!user?.id || filtrosRestauradosRef.current) return;
+    filtrosRestauradosRef.current = true;
+    setSavedViews(loadViews(user.id));
+    const ultimo = loadUltimoFiltro(user.id);
+    if (ultimo) aplicarFiltros({ ...FILTRO_PADRAO, ...ultimo });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  // Persiste o filtro atual sempre que muda (após restaurado).
+  useEffect(() => {
+    if (!user?.id || !filtrosRestauradosRef.current) return;
+    saveUltimoFiltro(user.id, filtrosAtuais);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter]);
+
+  // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
+  const { data: followupIds } = useQuery({
+    queryKey: ["followup-lead-ids", user?.id, canManage],
+    enabled: contatoFilter === "com_followup",
+    queryFn: async () => {
+      let q = supabase
+        .from("tarefas")
+        .select("lead_id")
+        .eq("tipo", "follow_up")
+        .in("status", ["pendente", "em_andamento"])
+        .not("lead_id", "is", null);
+      if (!canManage && user?.id) q = q.eq("corretor_id", user.id);
+      const { data, error } = await q;
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.lead_id as string));
+    },
+  });
+
+  const salvarVisaoAtual = () => {
+    const nome = viewName.trim();
+    if (!nome || !user?.id) return;
+    const nova: SavedView = { id: crypto.randomUUID(), nome, filtros: filtrosAtuais };
+    const next = [...savedViews, nova];
+    setSavedViews(next);
+    saveViews(user.id, next);
+    setViewName("");
+    setSaveViewOpen(false);
+    toast.success("Visão salva");
+  };
+
+  const excluirVisao = (id: string) => {
+    if (!user?.id) return;
+    const next = savedViews.filter((v) => v.id !== id);
+    setSavedViews(next);
+    saveViews(user.id, next);
+  };
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
@@ -323,7 +425,16 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
-    const base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
+    let base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
+    if (contatoFilter !== "all") {
+      base = base.filter((l) =>
+        passaContato(contatoFilter, {
+          ultimaInteracao: l.ultima_interacao,
+          status: l.status,
+          temFollowup: followupIds?.has(l.id) ?? false,
+        }),
+      );
+    }
     // Prioriza: 1) Aguardando + Facebook (ADS), 2) Aguardando + projeto registrado,
     // 3) demais. Dentro de cada grupo, mais recentes primeiro.
     const priority = (l: Lead) => {
@@ -339,7 +450,7 @@ function LeadsPage() {
       if (pa !== pb) return pa - pb;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leadsAll, statusFilter, canManage]);
+  }, [leadsAll, statusFilter, contatoFilter, followupIds, canManage]);
 
   // Limpa seleção quando o conjunto filtrado muda
   useEffect(() => {
@@ -509,6 +620,7 @@ function LeadsPage() {
     (corretorFilter !== "all" ? 1 : 0) +
     (temperaturaFilter !== "all" ? 1 : 0) +
     (periodoFilter !== "all" ? 1 : 0) +
+    (contatoFilter !== "all" ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
 
   function limparFiltros() {
@@ -518,6 +630,7 @@ function LeadsPage() {
     setCorretorFilter("all");
     setTemperaturaFilter("all");
     setPeriodoFilter("all");
+    setContatoFilter("all");
   }
 
   return (
@@ -588,6 +701,102 @@ function LeadsPage() {
           );
         })}
       </div>
+
+      {/* Filtros rápidos (por contato) + Visões salvas */}
+      <div className="flex flex-wrap items-center gap-2">
+        {CONTATO_OPCOES.map((o) => {
+          const active = contatoFilter === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setContatoFilter(active ? "all" : o.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:bg-muted"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+        <div className="ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
+                <ChevronDown className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>Visões prontas</DropdownMenuLabel>
+              {VISOES_PADRAO.map((v) => (
+                <DropdownMenuItem key={v.id} onSelect={() => aplicarFiltros(v.filtros)}>
+                  {v.nome}
+                </DropdownMenuItem>
+              ))}
+              {savedViews.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Minhas visões</DropdownMenuLabel>
+                  {savedViews.map((v) => (
+                    <DropdownMenuItem
+                      key={v.id}
+                      onSelect={() => aplicarFiltros(v.filtros)}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="truncate">{v.nome}</span>
+                      <button
+                        type="button"
+                        aria-label={`Excluir visão ${v.nome}`}
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          excluirVisao(v.id);
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </DropdownMenuItem>
+                  ))}
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
+                <Bookmark className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Salvar visão atual</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <Label>Nome da visão</Label>
+            <Input
+              autoFocus
+              value={viewName}
+              onChange={(e) => setViewName(e.target.value)}
+              placeholder="Ex.: Meus quentes sem contato"
+              onKeyDown={(e) => e.key === "Enter" && salvarVisaoAtual()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSaveViewOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={salvarVisaoAtual} disabled={!viewName.trim()}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="pt-6 space-y-4">
