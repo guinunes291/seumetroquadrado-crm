@@ -546,9 +546,53 @@ function LeadDetailPage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <Button variant="outline" onClick={openEdit}>
+              <Pencil className="h-4 w-4 mr-2" /> Editar dados
+            </Button>
           </div>
         }
       />
+
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Etapas do funil</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {FUNNEL_STAGES.map((s) => {
+              const currentIdx = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
+              const idx = FUNNEL_STAGES.indexOf(s);
+              const isCurrent = s === lead.status;
+              const isPast = currentIdx >= 0 && idx < currentIdx;
+              return (
+                <Button
+                  key={s}
+                  size="sm"
+                  variant={isCurrent ? "default" : isPast ? "secondary" : "outline"}
+                  className={cn("h-8", isCurrent && "ring-2 ring-primary/40")}
+                  disabled={isCurrent || mudarStatus.isPending}
+                  onClick={() => goToStage(s)}
+                  title={LEAD_STATUS_LABEL[s]}
+                >
+                  {isPast && <Check className="h-3.5 w-3.5 mr-1" />}
+                  {LEAD_STATUS_LABEL[s]}
+                </Button>
+              );
+            })}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-destructive hover:text-destructive"
+              disabled={lead.status === "perdido"}
+              onClick={() => setPerdidoLead(stageLead)}
+            >
+              Marcar como perdido
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
