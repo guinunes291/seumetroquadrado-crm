@@ -276,14 +276,7 @@ function RankingPage() {
       }
     >
       <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <Trophy className="h-8 w-8 text-yellow-500" />
-            <span className="bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
-              CORRIDA DOS CAMPEÕES
-            </span>
-          </span>
-        }
+        title="Corrida dos Campeões"
         description="Quem será o campeão? Atualizado em tempo real."
         actions={
           <div className="flex gap-2">
