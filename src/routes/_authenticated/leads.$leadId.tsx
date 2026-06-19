@@ -38,7 +38,11 @@ import {
   User,
   Building2,
   MessageCircle,
+  Pencil,
+  Check,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import {
   INTERACAO_ICON,
   INTERACAO_LABEL,
