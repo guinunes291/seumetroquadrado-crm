@@ -409,8 +409,19 @@ function LeadsPage() {
       const start = periodoStart(periodoFilter);
       if (start) q = q.gte("created_at", start.toISOString());
       if (debouncedSearch) {
-        const s = debouncedSearch.replace(/[%,]/g, "");
-        q = q.or(`nome.ilike.%${s}%,email.ilike.%${s}%,telefone.ilike.%${s}%`);
+        const s = normalizeSearch(debouncedSearch).replace(/[%,]/g, "");
+        const digits = onlyDigits(debouncedSearch);
+        if (digits.length >= 3) {
+          q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
+        } else if (s) {
+          // quebra em palavras para casar "joao silva" mesmo se o nome estiver "Silva, João"
+          const termos = s.split(" ").filter((t) => t.length >= 2);
+          if (termos.length > 1) {
+            for (const t of termos) q = q.ilike("search_text", `%${t}%`);
+          } else {
+            q = q.ilike("search_text", `%${s}%`);
+          }
+        }
       }
       if (!canManage) {
         q = q.neq("status", "novo" as never);
