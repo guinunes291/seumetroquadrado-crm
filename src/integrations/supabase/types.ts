@@ -850,6 +850,7 @@ export type Database = {
           projeto_nome: string | null
           proximo_followup: string | null
           renda_informada: string | null
+          search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
@@ -888,6 +889,7 @@ export type Database = {
           projeto_nome?: string | null
           proximo_followup?: string | null
           renda_informada?: string | null
+          search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone: string
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
@@ -926,6 +928,7 @@ export type Database = {
           projeto_nome?: string | null
           proximo_followup?: string | null
           renda_informada?: string | null
+          search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone?: string
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
@@ -2099,6 +2102,7 @@ export type Database = {
           projeto_nome: string | null
           proximo_followup: string | null
           renda_informada: string | null
+          search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
@@ -2336,6 +2340,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      immutable_unaccent: { Args: { "": string }; Returns: string }
       leads_com_sla: {
         Args: { _corretor?: string }
         Returns: {
