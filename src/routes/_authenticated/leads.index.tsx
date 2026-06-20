@@ -81,6 +81,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  CalendarDays,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
@@ -128,6 +129,7 @@ const PERIODO_OPTIONS = [
   { value: "7d", label: "Últimos 7 dias" },
   { value: "30d", label: "Últimos 30 dias" },
   { value: "90d", label: "Últimos 90 dias" },
+  { value: "custom", label: "Intervalo personalizado" },
 ] as const;
 
 type Periodo = (typeof PERIODO_OPTIONS)[number]["value"];
@@ -145,6 +147,25 @@ function periodoStart(p: Periodo): Date | null {
   if (p === "30d") return new Date(now.getTime() - 30 * 86400000);
   if (p === "90d") return new Date(now.getTime() - 90 * 86400000);
   return null;
+}
+
+function periodoEnd(p: Periodo): Date | null {
+  if (p !== "hoje") return null;
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function customDateStart(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function customDateEnd(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 type Lead = {
@@ -165,6 +186,8 @@ type Lead = {
   renda_informada: string | null;
   entrada_disponivel: string | null;
   usa_fgts: boolean | null;
+  data_venda: string | null;
+  total_count?: number | null;
 };
 
 function TempIcon({ temp }: { temp: string | null }) {
@@ -249,7 +272,7 @@ function LeadsPage() {
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
-  const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"]] });
+  const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"], ["leads-status-counts"]] });
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -260,6 +283,8 @@ function LeadsPage() {
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [temperaturaFilter, setTemperaturaFilter] = useState<string>("all");
   const [periodoFilter, setPeriodoFilter] = useState<Periodo>("all");
+  const [dataInicioFilter, setDataInicioFilter] = useState("");
+  const [dataFimFilter, setDataFimFilter] = useState("");
   const [contatoFilter, setContatoFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   const [page, setPage] = useState(1);
@@ -294,6 +319,8 @@ function LeadsPage() {
     corretor: corretorFilter,
     temperatura: temperaturaFilter,
     periodo: periodoFilter,
+    dataInicio: dataInicioFilter,
+    dataFim: dataFimFilter,
     contato: contatoFilter,
   };
 
@@ -303,6 +330,8 @@ function LeadsPage() {
     setCorretorFilter(canManage ? f.corretor : "all");
     setTemperaturaFilter(f.temperatura);
     setPeriodoFilter(f.periodo as Periodo);
+    setDataInicioFilter(f.dataInicio ?? "");
+    setDataFimFilter(f.dataFim ?? "");
     setContatoFilter(f.contato);
   };
 
@@ -321,7 +350,7 @@ function LeadsPage() {
     if (!user?.id || !filtrosRestauradosRef.current) return;
     saveUltimoFiltro(user.id, filtrosAtuais);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter]);
+  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, dataInicioFilter, dataFimFilter, contatoFilter]);
 
   // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
   const { data: followupIds } = useQuery({
@@ -379,69 +408,60 @@ function LeadsPage() {
     return m;
   }, [corretores]);
 
-  // Query principal — aplica TODOS os filtros menos statusFilter (para os chips funcionarem).
+  // Query principal — aplica os filtros direto no banco; em Venda usa data_assinatura.
   const baseQueryKey = {
     debouncedSearch,
     origemFilter,
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
+    dataInicioFilter,
+    dataFimFilter,
     showLixeira,
     canManage,
     uid: user?.id,
   };
 
+  const periodoRange = useMemo(() => {
+    if (periodoFilter === "custom") {
+      return {
+        start: customDateStart(dataInicioFilter),
+        end: customDateEnd(dataFimFilter),
+      };
+    }
+    return { start: periodoStart(periodoFilter), end: periodoEnd(periodoFilter) };
+  }, [periodoFilter, dataInicioFilter, dataFimFilter]);
+
   const { data: leadsAll, isLoading } = useQuery({
-    queryKey: ["leads", baseQueryKey],
+    queryKey: ["leads", baseQueryKey, statusFilter],
     queryFn: async () => {
-      let q = supabase
-        .from("leads")
-        .select(
-          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira, renda_informada, entrada_disponivel, usa_fgts",
-        )
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      q = q.eq("na_lixeira", showLixeira);
-      if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
-      if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
-      else if (corretorFilter !== "all") q = q.eq("corretor_id", corretorFilter);
-      if (temperaturaFilter !== "all") q = q.eq("temperatura", temperaturaFilter as never);
-      const start = periodoStart(periodoFilter);
-      if (start) q = q.gte("created_at", start.toISOString());
-      if (debouncedSearch) {
-        const s = normalizeSearch(debouncedSearch).replace(/[%,]/g, "");
-        const digits = onlyDigits(debouncedSearch);
-        if (digits.length >= 3) {
-          q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
-        } else if (s) {
-          // quebra em palavras para casar "joao silva" mesmo se o nome estiver "Silva, João"
-          const termos = s.split(" ").filter((t) => t.length >= 2);
-          if (termos.length > 1) {
-            for (const t of termos) q = q.ilike("search_text", `%${t}%`);
-          } else {
-            q = q.ilike("search_text", `%${s}%`);
-          }
-        }
-      }
-      if (!canManage) {
-        q = q.neq("status", "novo" as never);
-        if (user?.id) q = q.eq("corretor_id", user.id);
-      }
-      const { data, error } = await q;
+      const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
+      const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
+      const { data, error } = await supabase.rpc("leads_filtered", {
+        _na_lixeira: showLixeira,
+        _status: statusFilter,
+        _origem: origemFilter,
+        _corretor: corretorFilter,
+        _temperatura: temperaturaFilter,
+        _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
+        _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
+        _search: sNorm,
+        _search_digits: sDig,
+        _limit: 1000,
+        _offset: 0,
+      });
       if (error) throw error;
-      return (data ?? []) as Lead[];
+      return (data ?? []) as unknown as Lead[];
     },
     enabled: canManage || !!user?.id,
   });
 
-  useRealtimeInvalidate("leads", [["leads"], ["leads-status-counts"]]);
+  useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]]);
 
-  // Contagens reais por status — RPC com count exato respeitando os mesmos
-  // filtros (exceto statusFilter) e o escopo do usuário no servidor.
+  // Contagens reais por status — respeita filtros e usa data_assinatura para Venda.
   const { data: statusCountsData } = useQuery({
     queryKey: ["leads-status-counts", baseQueryKey],
     queryFn: async () => {
-      const start = periodoStart(periodoFilter);
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
       const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
       const { data, error } = await supabase.rpc("leads_status_counts", {
@@ -449,14 +469,15 @@ function LeadsPage() {
         _origem: origemFilter,
         _corretor: corretorFilter,
         _temperatura: temperaturaFilter,
-        _periodo_start: start ? start.toISOString() : undefined,
+        _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
+        _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
         _search: sNorm,
         _search_digits: sDig,
       });
       if (error) throw error;
       const counts: Record<string, number> = {};
       let total = 0;
-      (data ?? []).forEach((row: { status: string; quantidade: number }) => {
+      ((data ?? []) as unknown as Array<{ status: string; quantidade: number }>).forEach((row) => {
         if (row.status === "__total__") total = Number(row.quantidade);
         else counts[row.status] = Number(row.quantidade);
       });
@@ -470,7 +491,7 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
-    let base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
+    let base = leadsAll;
     if (contatoFilter !== "all") {
       base = base.filter((l) =>
         passaContato(contatoFilter, {
@@ -493,9 +514,14 @@ function LeadsPage() {
       const pa = priority(a);
       const pb = priority(b);
       if (pa !== pb) return pa - pb;
+      if (a.status === "contrato_fechado" || b.status === "contrato_fechado") {
+        const av = a.data_venda ? new Date(a.data_venda).getTime() : 0;
+        const bv = b.data_venda ? new Date(b.data_venda).getTime() : 0;
+        if (av !== bv) return bv - av;
+      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leadsAll, statusFilter, contatoFilter, followupIds, canManage]);
+  }, [leadsAll, contatoFilter, followupIds]);
 
   // Paginação (50/página, lado cliente). As contagens por status continuam vindo
   // de `statusCounts`/`filtered` (conjunto inteiro), não da página atual.
@@ -509,7 +535,7 @@ function LeadsPage() {
   // Volta para a 1ª página quando os filtros mudam.
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter, debouncedSearch, showLixeira]);
+  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, dataInicioFilter, dataFimFilter, contatoFilter, debouncedSearch, showLixeira]);
 
   // Persiste o modo de visualização (tabela/cards).
   useEffect(() => {
@@ -694,6 +720,8 @@ function LeadsPage() {
     setCorretorFilter("all");
     setTemperaturaFilter("all");
     setPeriodoFilter("all");
+    setDataInicioFilter("");
+    setDataFimFilter("");
     setContatoFilter("all");
   }
 
@@ -874,6 +902,7 @@ function LeadsPage() {
                 className="pl-9"
               />
             </div>
+            <div className="md:col-span-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Select value={origemFilter} onValueChange={setOrigemFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Origem" />
@@ -925,6 +954,31 @@ function LeadsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            </div>
+            {periodoFilter === "custom" && (
+              <div className="md:col-span-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={dataInicioFilter}
+                    onChange={(e) => setDataInicioFilter(e.target.value)}
+                    className="pl-9"
+                    aria-label="Data inicial"
+                  />
+                </div>
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={dataFimFilter}
+                    onChange={(e) => setDataFimFilter(e.target.value)}
+                    className="pl-9"
+                    aria-label="Data final"
+                  />
+                </div>
+              </div>
             )}
           </div>
 
@@ -1028,7 +1082,7 @@ function LeadsPage() {
                   <TableHead>Origem</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Corretor</TableHead>
-                  <TableHead>Criado em</TableHead>
+                  <TableHead>Data</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1135,7 +1189,9 @@ function LeadsPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(l.created_at).toLocaleDateString("pt-BR")}
+                      {l.status === "contrato_fechado" && l.data_venda
+                        ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
+                        : new Date(l.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

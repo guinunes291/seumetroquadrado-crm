@@ -2354,11 +2354,48 @@ export type Database = {
           temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
         }[]
       }
+      leads_filtered: {
+        Args: {
+          _corretor?: string
+          _limit?: number
+          _na_lixeira?: boolean
+          _offset?: number
+          _origem?: string
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _status?: string
+          _temperatura?: string
+        }
+        Returns: {
+          corretor_id: string
+          created_at: string
+          data_venda: string
+          email: string
+          entrada_disponivel: string
+          id: string
+          na_lixeira: boolean
+          nome: string
+          observacoes: string
+          origem: string
+          projeto_id: string
+          projeto_nome: string
+          renda_informada: string
+          status: string
+          telefone: string
+          temperatura: string
+          total_count: number
+          ultima_interacao: string
+          usa_fgts: boolean
+        }[]
+      }
       leads_status_counts: {
         Args: {
           _corretor?: string
           _na_lixeira?: boolean
           _origem?: string
+          _periodo_end?: string
           _periodo_start?: string
           _search?: string
           _search_digits?: string

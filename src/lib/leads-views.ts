@@ -7,6 +7,8 @@ export type LeadFiltros = {
   corretor: string;
   temperatura: string;
   periodo: string; // faixa por created_at (PERIODO_OPTIONS)
+  dataInicio?: string;
+  dataFim?: string;
   contato: string; // filtro rápido por última interação / follow-up
 };
 
