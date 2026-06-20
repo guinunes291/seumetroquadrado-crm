@@ -536,7 +536,7 @@ function LeadsPage() {
   // Volta para a 1ª página quando os filtros mudam.
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter, debouncedSearch, showLixeira]);
+  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, dataInicioFilter, dataFimFilter, contatoFilter, debouncedSearch, showLixeira]);
 
   // Persiste o modo de visualização (tabela/cards).
   useEffect(() => {
