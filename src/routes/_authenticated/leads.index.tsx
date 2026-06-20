@@ -415,48 +415,41 @@ function LeadsPage() {
     corretorFilter,
     temperaturaFilter,
     periodoFilter,
+    dataInicioFilter,
+    dataFimFilter,
     showLixeira,
     canManage,
     uid: user?.id,
   };
 
+  const periodoRange = useMemo(() => {
+    if (periodoFilter === "custom") {
+      return {
+        start: customDateStart(dataInicioFilter),
+        end: customDateEnd(dataFimFilter),
+      };
+    }
+    return { start: periodoStart(periodoFilter), end: periodoEnd(periodoFilter) };
+  }, [periodoFilter, dataInicioFilter, dataFimFilter]);
+
   const { data: leadsAll, isLoading } = useQuery({
-    queryKey: ["leads", baseQueryKey],
+    queryKey: ["leads", baseQueryKey, statusFilter],
     queryFn: async () => {
-      let q = supabase
-        .from("leads")
-        .select(
-          "id, nome, email, telefone, origem, status, temperatura, corretor_id, projeto_id, projeto_nome, observacoes, created_at, ultima_interacao, na_lixeira, renda_informada, entrada_disponivel, usa_fgts",
-        )
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      q = q.eq("na_lixeira", showLixeira);
-      if (origemFilter !== "all") q = q.eq("origem", origemFilter as never);
-      if (corretorFilter === "unassigned") q = q.is("corretor_id", null);
-      else if (corretorFilter !== "all") q = q.eq("corretor_id", corretorFilter);
-      if (temperaturaFilter !== "all") q = q.eq("temperatura", temperaturaFilter as never);
-      const start = periodoStart(periodoFilter);
-      if (start) q = q.gte("created_at", start.toISOString());
-      if (debouncedSearch) {
-        const s = normalizeSearch(debouncedSearch).replace(/[%,]/g, "");
-        const digits = onlyDigits(debouncedSearch);
-        if (digits.length >= 3) {
-          q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
-        } else if (s) {
-          // quebra em palavras para casar "joao silva" mesmo se o nome estiver "Silva, João"
-          const termos = s.split(" ").filter((t) => t.length >= 2);
-          if (termos.length > 1) {
-            for (const t of termos) q = q.ilike("search_text", `%${t}%`);
-          } else {
-            q = q.ilike("search_text", `%${s}%`);
-          }
-        }
-      }
-      if (!canManage) {
-        q = q.neq("status", "novo" as never);
-        if (user?.id) q = q.eq("corretor_id", user.id);
-      }
-      const { data, error } = await q;
+      const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
+      const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
+      const { data, error } = await supabase.rpc("leads_filtered" as never, {
+        _na_lixeira: showLixeira,
+        _status: statusFilter,
+        _origem: origemFilter,
+        _corretor: corretorFilter,
+        _temperatura: temperaturaFilter,
+        _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : null,
+        _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : null,
+        _search: sNorm,
+        _search_digits: sDig,
+        _limit: 1000,
+        _offset: 0,
+      } as never);
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
