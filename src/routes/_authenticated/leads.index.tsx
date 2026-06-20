@@ -85,7 +85,7 @@ import {
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
-import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
+import { isValidBrazilPhone, isValidEmail, normalizeSearch, onlyDigits } from "@/lib/validators";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
