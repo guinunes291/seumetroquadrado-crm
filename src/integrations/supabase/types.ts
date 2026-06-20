@@ -2354,6 +2354,21 @@ export type Database = {
           temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
         }[]
       }
+      leads_status_counts: {
+        Args: {
+          _corretor?: string
+          _na_lixeira?: boolean
+          _origem?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _temperatura?: string
+        }
+        Returns: {
+          quantidade: number
+          status: string
+        }[]
+      }
       marcar_lead_perdido: {
         Args: { _categoria?: string; _detalhe?: string; _lead_id: string }
         Returns: string
