@@ -103,9 +103,17 @@ function getDateRange(p: PeriodOption): { from: Date; to: Date } {
   }
 }
 
+function parseDateTime(value: string): number {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).getTime();
+  }
+  return new Date(value).getTime();
+}
+
 function inRange(iso: string | null | undefined, from: Date, to: Date): boolean {
   if (!iso) return false;
-  const t = new Date(iso).getTime();
+  const t = parseDateTime(iso);
   return t >= from.getTime() && t <= to.getTime();
 }
 
