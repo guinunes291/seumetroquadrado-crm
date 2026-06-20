@@ -272,7 +272,7 @@ function LeadsPage() {
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
-  const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"]] });
+  const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"], ["leads-status-counts"]] });
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -451,7 +451,7 @@ function LeadsPage() {
         _offset: 0,
       } as never);
       if (error) throw error;
-      return (data ?? []) as Lead[];
+      return (data ?? []) as unknown as Lead[];
     },
     enabled: canManage || !!user?.id,
   });
@@ -711,6 +711,7 @@ function LeadsPage() {
     (corretorFilter !== "all" ? 1 : 0) +
     (temperaturaFilter !== "all" ? 1 : 0) +
     (periodoFilter !== "all" ? 1 : 0) +
+    (periodoFilter === "custom" && (dataInicioFilter || dataFimFilter) ? 1 : 0) +
     (contatoFilter !== "all" ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
 
@@ -721,6 +722,8 @@ function LeadsPage() {
     setCorretorFilter("all");
     setTemperaturaFilter("all");
     setPeriodoFilter("all");
+    setDataInicioFilter("");
+    setDataFimFilter("");
     setContatoFilter("all");
   }
 
