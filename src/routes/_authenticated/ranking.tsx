@@ -103,9 +103,17 @@ function getDateRange(p: PeriodOption): { from: Date; to: Date } {
   }
 }
 
+function parseDateTime(value: string): number {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).getTime();
+  }
+  return new Date(value).getTime();
+}
+
 function inRange(iso: string | null | undefined, from: Date, to: Date): boolean {
   if (!iso) return false;
-  const t = new Date(iso).getTime();
+  const t = parseDateTime(iso);
   return t >= from.getTime() && t <= to.getTime();
 }
 
@@ -525,6 +533,15 @@ function PerformanceTVPage() {
       return data ?? [];
     },
   });
+  const vendasQ = useQuery({
+    queryKey: ["tv:vendas"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("vendas")
+        .select("corretor_id, data_assinatura, created_at, distrato");
+      return data ?? [];
+    },
+  });
   const agendQ = useQuery({
     queryKey: ["tv:agend"],
     queryFn: async () => {
@@ -549,10 +566,10 @@ function PerformanceTVPage() {
     },
   });
 
-  const isLoading = profQ.isLoading || leadsQ.isLoading || transQ.isLoading || agendQ.isLoading;
+  const isLoading = profQ.isLoading || leadsQ.isLoading || transQ.isLoading || vendasQ.isLoading || agendQ.isLoading;
 
   const refetchAll = () => {
-    profQ.refetch(); leadsQ.refetch(); transQ.refetch(); agendQ.refetch(); interQ.refetch(); metasQ.refetch();
+    profQ.refetch(); leadsQ.refetch(); transQ.refetch(); vendasQ.refetch(); agendQ.refetch(); interQ.refetch(); metasQ.refetch();
     setLastUpdated(new Date());
   };
 
@@ -621,7 +638,11 @@ function PerformanceTVPage() {
       if (t.para_status === "agendado") r.agendamentos++;
       else if (t.para_status === "visita_realizada") r.visitas++;
       else if (t.para_status === "analise_credito") r.documentacoes++;
-      else if (t.para_status === "contrato_fechado") r.vendas++;
+    }
+    for (const v of (vendasQ.data ?? [])) {
+      if (!v.corretor_id || v.distrato) continue;
+      if (!inRange(v.data_assinatura ?? v.created_at, from, to)) continue;
+      get(v.corretor_id).vendas++;
     }
     for (const a of (agendQ.data ?? [])) {
       if (!a.corretor_id || !inRange(a.data_inicio, from, to)) continue;
@@ -651,13 +672,13 @@ function PerformanceTVPage() {
     const list = buildRanking(dateRange.from, dateRange.to);
     return list.sort((a, b) => b.pontos - a.pontos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange.from, dateRange.to, profQ.data, leadsQ.data, transQ.data, agendQ.data, interQ.data]);
+  }, [dateRange.from, dateRange.to, profQ.data, leadsQ.data, transQ.data, vendasQ.data, agendQ.data, interQ.data]);
 
   const rankingMes = useMemo(() => {
     const list = buildRanking(monthRange.from, monthRange.to);
     return list.sort((a, b) => b.vendas - a.vendas || b.pontos - a.pontos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [monthRange.from, monthRange.to, profQ.data, leadsQ.data, transQ.data, agendQ.data, interQ.data]);
+  }, [monthRange.from, monthRange.to, profQ.data, leadsQ.data, transQ.data, vendasQ.data, agendQ.data, interQ.data]);
 
   // Mês anterior para deltas
   const prevMonthRange = useMemo(() => {
@@ -667,7 +688,7 @@ function PerformanceTVPage() {
   }, [selectedMes, selectedAno]);
   const rankingMesPrev = useMemo(() => buildRanking(prevMonthRange.from, prevMonthRange.to),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [prevMonthRange.from, prevMonthRange.to, profQ.data, leadsQ.data, transQ.data, agendQ.data, interQ.data]);
+    [prevMonthRange.from, prevMonthRange.to, profQ.data, leadsQ.data, transQ.data, vendasQ.data, agendQ.data, interQ.data]);
 
   // Tracking de mudança de posição (no ranking de produtividade)
   useEffect(() => {
