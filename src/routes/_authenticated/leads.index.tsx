@@ -449,7 +449,7 @@ function LeadsPage() {
         _origem: origemFilter,
         _corretor: corretorFilter,
         _temperatura: temperaturaFilter,
-        _periodo_start: start ? start.toISOString() : null,
+        _periodo_start: start ? start.toISOString() : undefined,
         _search: sNorm,
         _search_digits: sDig,
       });
