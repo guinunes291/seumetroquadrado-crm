@@ -81,6 +81,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  CalendarDays,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
@@ -128,6 +129,7 @@ const PERIODO_OPTIONS = [
   { value: "7d", label: "Últimos 7 dias" },
   { value: "30d", label: "Últimos 30 dias" },
   { value: "90d", label: "Últimos 90 dias" },
+  { value: "custom", label: "Intervalo personalizado" },
 ] as const;
 
 type Periodo = (typeof PERIODO_OPTIONS)[number]["value"];
@@ -145,6 +147,25 @@ function periodoStart(p: Periodo): Date | null {
   if (p === "30d") return new Date(now.getTime() - 30 * 86400000);
   if (p === "90d") return new Date(now.getTime() - 90 * 86400000);
   return null;
+}
+
+function periodoEnd(p: Periodo): Date | null {
+  if (p !== "hoje") return null;
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function customDateStart(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function customDateEnd(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 type Lead = {
