@@ -904,6 +904,7 @@ function LeadsPage() {
                 className="pl-9"
               />
             </div>
+            <div className="md:col-span-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Select value={origemFilter} onValueChange={setOrigemFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="Origem" />
@@ -955,6 +956,31 @@ function LeadsPage() {
                   ))}
                 </SelectContent>
               </Select>
+            )}
+            </div>
+            {periodoFilter === "custom" && (
+              <div className="md:col-span-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={dataInicioFilter}
+                    onChange={(e) => setDataInicioFilter(e.target.value)}
+                    className="pl-9"
+                    aria-label="Data inicial"
+                  />
+                </div>
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={dataFimFilter}
+                    onChange={(e) => setDataFimFilter(e.target.value)}
+                    className="pl-9"
+                    aria-label="Data final"
+                  />
+                </div>
+              </div>
             )}
           </div>
 
