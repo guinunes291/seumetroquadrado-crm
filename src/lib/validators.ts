@@ -6,6 +6,19 @@ export function onlyDigits(v: string | null | undefined): string {
 }
 
 /**
+ * Normaliza um termo de busca: remove acentos, baixa caixa e colapsa espaços.
+ * Usado para casar com a coluna `search_text` no banco (lower(unaccent(...))).
+ */
+export function normalizeSearch(v: string | null | undefined): string {
+  return (v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * Telefone brasileiro válido: 10 ou 11 dígitos (DDD + número) sem DDI,
  * ou 12/13 dígitos quando incluir o DDI 55.
  */
