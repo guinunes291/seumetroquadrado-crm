@@ -62,13 +62,24 @@ export function CommandPalette() {
     queryKey: ["cmdk:leads", debounced],
     enabled: open && debounced.length >= 2,
     queryFn: async (): Promise<LeadHit[]> => {
-      const s = debounced.replace(/[%,]/g, "");
-      const { data, error } = await supabase
+      const { normalizeSearch, onlyDigits } = await import("@/lib/validators");
+      const s = normalizeSearch(debounced).replace(/[%,]/g, "");
+      const digits = onlyDigits(debounced);
+      let q = supabase
         .from("leads")
         .select("id, nome, telefone, status")
-        .eq("na_lixeira", false)
-        .or(`nome.ilike.%${s}%,telefone.ilike.%${s}%,email.ilike.%${s}%`)
-        .limit(8);
+        .eq("na_lixeira", false);
+      if (digits.length >= 3) {
+        q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
+      } else {
+        const termos = s.split(" ").filter((t) => t.length >= 2);
+        if (termos.length > 1) {
+          for (const t of termos) q = q.ilike("search_text", `%${t}%`);
+        } else {
+          q = q.ilike("search_text", `%${s}%`);
+        }
+      }
+      const { data, error } = await q.limit(8);
       if (error) throw error;
       return (data ?? []) as LeadHit[];
     },
