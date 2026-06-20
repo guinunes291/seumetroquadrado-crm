@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import {
@@ -33,7 +35,16 @@ import {
   Mail,
   Flame,
   Inbox,
+  Wallet,
+  PiggyBank,
+  Landmark,
+  IdCard,
+  Sparkles,
+  ExternalLink,
+  CalendarClock,
+  Loader2,
 } from "lucide-react";
+import { gerarResumoLeadIA } from "@/lib/lead-resumo-ia.functions";
 
 export const Route = createFileRoute("/_authenticated/blitz")({
   head: () => ({ meta: [{ title: "Modo Blitz — Seu Metro Quadrado" }] }),
@@ -45,6 +56,7 @@ type Lead = {
   nome: string;
   email: string | null;
   telefone: string;
+  cpf: string | null;
   status: string;
   origem: string;
   corretor_id: string | null;
@@ -54,6 +66,11 @@ type Lead = {
   temperatura: string | null;
   proximo_followup: string | null;
   ultima_interacao: string | null;
+  ultimo_contato: string | null;
+  renda_informada: string | null;
+  entrada_disponivel: string | null;
+  usa_fgts: boolean | null;
+  campanha: string | null;
   created_at: string;
 };
 
@@ -89,7 +106,7 @@ function BlitzPage() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, origem, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, created_at",
+          "id, nome, email, telefone, cpf, status, origem, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, ultimo_contato, renda_informada, entrada_disponivel, usa_fgts, campanha, created_at",
         )
 
         .eq("corretor_id", user!.id)
@@ -230,24 +247,33 @@ function BlitzPage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="mx-auto max-w-2xl">
-          <CardContent className="space-y-5 p-6">
+        <Card className="mx-auto max-w-4xl">
+          <CardContent className="space-y-6 p-6 md:p-8">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-2xl font-bold">{current.nome}</div>
-                {current.projeto_nome && (
-                  <div className="text-sm text-muted-foreground">{current.projeto_nome}</div>
-                )}
+                <div className="truncate text-2xl font-bold md:text-3xl">{current.nome}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  {current.projeto_nome && <span>{current.projeto_nome}</span>}
+                  {current.campanha && <span>· {current.campanha}</span>}
+                  <span>· {current.origem}</span>
+                </div>
               </div>
-              <LeadStageMenu
-                lead={current}
-                onPickDirect={(target: LeadStatus) => {
-                  updateStatus.mutate({ id: current.id, status: target });
-                  next();
-                }}
-                onPickModal={(modal) => setModalState({ modal, lead: current as StageLead })}
-                onPickPerdido={() => setPerdidoLead(current as StageLead)}
-              />
+              <div className="flex items-center gap-2">
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/leads/$leadId" params={{ leadId: current.id }}>
+                    <ExternalLink className="mr-1 h-4 w-4" /> Abrir
+                  </Link>
+                </Button>
+                <LeadStageMenu
+                  lead={current}
+                  onPickDirect={(target: LeadStatus) => {
+                    updateStatus.mutate({ id: current.id, status: target });
+                    next();
+                  }}
+                  onPickModal={(modal) => setModalState({ modal, lead: current as StageLead })}
+                  onPickPerdido={() => setPerdidoLead(current as StageLead)}
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -274,20 +300,56 @@ function BlitzPage() {
               )}
             </div>
 
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-muted-foreground" /> {current.telefone}
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <InfoLine icon={Phone} label="Telefone" value={current.telefone} />
+              <InfoLine icon={Mail} label="E-mail" value={current.email ?? "—"} />
+              <InfoLine icon={IdCard} label="CPF" value={current.cpf ?? "—"} />
+              <InfoLine
+                icon={CalendarClock}
+                label="Último contato"
+                value={fmtDate(current.ultimo_contato ?? current.ultima_interacao)}
+              />
+            </div>
+
+            <Separator />
+
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Perfil financeiro
               </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" /> {current.email ?? "—"}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <InfoTile icon={Wallet} label="Renda" value={current.renda_informada ?? "Não informada"} />
+                <InfoTile
+                  icon={PiggyBank}
+                  label="Entrada"
+                  value={current.entrada_disponivel ?? "Não informada"}
+                />
+                <InfoTile
+                  icon={Landmark}
+                  label="FGTS"
+                  value={
+                    current.usa_fgts === true
+                      ? "Sim, usa"
+                      : current.usa_fgts === false
+                        ? "Não usa"
+                        : "Não informado"
+                  }
+                />
               </div>
             </div>
 
             {current.observacoes && (
-              <p className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
-                {current.observacoes}
-              </p>
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Observações
+                </div>
+                <p className="rounded-md bg-muted/40 p-3 text-sm text-foreground/90 whitespace-pre-wrap">
+                  {current.observacoes}
+                </p>
+              </div>
             )}
+
+            <ResumoIA leadId={current.id} />
 
             <div className="grid grid-cols-3 gap-2">
               <Button variant="outline" onClick={ligar}>
@@ -326,3 +388,113 @@ function BlitzPage() {
     </div>
   );
 }
+
+function InfoLine({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-muted-foreground">{label}:</span>
+      <span className="truncate font-medium">{value}</span>
+    </div>
+  );
+}
+
+function InfoTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </div>
+      <div className="text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function ResumoIA({ leadId }: { leadId: string }) {
+  const gerar = useServerFn(gerarResumoLeadIA);
+  const mutation = useMutation({
+    mutationFn: () => gerar({ data: { leadId } }),
+  });
+
+  // Reset ao trocar de lead.
+  useEffect(() => {
+    mutation.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadId]);
+
+  return (
+    <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-accent/5 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Sparkles className="h-4 w-4 text-primary" /> Histórico do lead (IA)
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? (
+            <>
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Gerando…
+            </>
+          ) : mutation.data ? (
+            "Regenerar"
+          ) : (
+            "Gerar resumo"
+          )}
+        </Button>
+      </div>
+      {mutation.data && (
+        <div className="mt-3 whitespace-pre-wrap text-sm text-foreground/90">
+          {mutation.data.resumo}
+          <div className="mt-2 text-xs text-muted-foreground">
+            Baseado em {mutation.data.totalInteracoes} interação(ões).
+          </div>
+        </div>
+      )}
+      {mutation.error && (
+        <div className="mt-3 text-sm text-destructive">
+          {(mutation.error as Error).message ?? "Falha ao gerar resumo."}
+        </div>
+      )}
+      {!mutation.data && !mutation.error && !mutation.isPending && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Clique em "Gerar resumo" para um briefing rápido das interações deste lead.
+        </p>
+      )}
+    </div>
+  );
+}
+
