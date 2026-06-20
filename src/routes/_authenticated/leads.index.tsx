@@ -186,6 +186,8 @@ type Lead = {
   renda_informada: string | null;
   entrada_disponivel: string | null;
   usa_fgts: boolean | null;
+  data_venda: string | null;
+  total_count?: number | null;
 };
 
 function TempIcon({ temp }: { temp: string | null }) {
@@ -281,6 +283,8 @@ function LeadsPage() {
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
   const [temperaturaFilter, setTemperaturaFilter] = useState<string>("all");
   const [periodoFilter, setPeriodoFilter] = useState<Periodo>("all");
+  const [dataInicioFilter, setDataInicioFilter] = useState("");
+  const [dataFimFilter, setDataFimFilter] = useState("");
   const [contatoFilter, setContatoFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   const [page, setPage] = useState(1);
@@ -315,6 +319,8 @@ function LeadsPage() {
     corretor: corretorFilter,
     temperatura: temperaturaFilter,
     periodo: periodoFilter,
+    dataInicio: dataInicioFilter,
+    dataFim: dataFimFilter,
     contato: contatoFilter,
   };
 
@@ -324,6 +330,8 @@ function LeadsPage() {
     setCorretorFilter(canManage ? f.corretor : "all");
     setTemperaturaFilter(f.temperatura);
     setPeriodoFilter(f.periodo as Periodo);
+    setDataInicioFilter(f.dataInicio ?? "");
+    setDataFimFilter(f.dataFim ?? "");
     setContatoFilter(f.contato);
   };
 
@@ -342,7 +350,7 @@ function LeadsPage() {
     if (!user?.id || !filtrosRestauradosRef.current) return;
     saveUltimoFiltro(user.id, filtrosAtuais);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, contatoFilter]);
+  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, dataInicioFilter, dataFimFilter, contatoFilter]);
 
   // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
   const { data: followupIds } = useQuery({
