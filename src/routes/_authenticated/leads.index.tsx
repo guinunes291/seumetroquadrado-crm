@@ -437,7 +437,7 @@ function LeadsPage() {
     queryFn: async () => {
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
       const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const { data, error } = await supabase.rpc("leads_filtered" as never, {
+      const { data, error } = await supabase.rpc("leads_filtered", {
         _na_lixeira: showLixeira,
         _status: statusFilter,
         _origem: origemFilter,
@@ -449,14 +449,14 @@ function LeadsPage() {
         _search_digits: sDig,
         _limit: 1000,
         _offset: 0,
-      } as never);
+      });
       if (error) throw error;
       return (data ?? []) as unknown as Lead[];
     },
     enabled: canManage || !!user?.id,
   });
 
-  useRealtimeInvalidate("leads", [["leads"], ["leads-status-counts"]]);
+  useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]]);
 
   // Contagens reais por status — RPC com count exato respeitando os mesmos
   // filtros (exceto statusFilter) e o escopo do usuário no servidor.
@@ -465,7 +465,7 @@ function LeadsPage() {
     queryFn: async () => {
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
       const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const { data, error } = await supabase.rpc("leads_status_counts" as never, {
+      const { data, error } = await supabase.rpc("leads_status_counts", {
         _na_lixeira: showLixeira,
         _origem: origemFilter,
         _corretor: corretorFilter,
@@ -474,7 +474,7 @@ function LeadsPage() {
         _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : null,
         _search: sNorm,
         _search_digits: sDig,
-      } as never);
+      });
       if (error) throw error;
       const counts: Record<string, number> = {};
       let total = 0;
