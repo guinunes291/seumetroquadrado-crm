@@ -434,16 +434,60 @@ function LeadsPage() {
     enabled: canManage || !!user?.id,
   });
 
-  useRealtimeInvalidate("leads", [["leads"]]);
+  useRealtimeInvalidate("leads", [["leads"], ["leads-status-counts"]]);
 
-  // Contagens por status (a partir do conjunto já filtrado, exceto statusFilter).
-  const statusCounts = useMemo(() => {
-    const acc: Record<string, number> = {};
-    (leadsAll ?? []).forEach((l) => {
-      acc[l.status] = (acc[l.status] ?? 0) + 1;
-    });
-    return acc;
-  }, [leadsAll]);
+  // Contagens reais por status — query separada com count exato (head:true),
+  // aplicando os mesmos filtros (exceto statusFilter). Garante números corretos
+  // mesmo quando o conjunto carregado para a tabela está limitado a 1000.
+  const { data: statusCountsData } = useQuery({
+    queryKey: ["leads-status-counts", baseQueryKey],
+    queryFn: async () => {
+      const applyFilters = (q: any) => {
+        let r = q.eq("na_lixeira", showLixeira);
+        if (origemFilter !== "all") r = r.eq("origem", origemFilter);
+        if (corretorFilter === "unassigned") r = r.is("corretor_id", null);
+        else if (corretorFilter !== "all") r = r.eq("corretor_id", corretorFilter);
+        if (temperaturaFilter !== "all") r = r.eq("temperatura", temperaturaFilter);
+        const start = periodoStart(periodoFilter);
+        if (start) r = r.gte("created_at", start.toISOString());
+        if (debouncedSearch) {
+          const s = normalizeSearch(debouncedSearch).replace(/[%,]/g, "");
+          const digits = onlyDigits(debouncedSearch);
+          if (digits.length >= 3) {
+            r = r.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
+          } else if (s) {
+            const termos = s.split(" ").filter((t) => t.length >= 2);
+            if (termos.length > 1) {
+              for (const t of termos) r = r.ilike("search_text", `%${t}%`);
+            } else {
+              r = r.ilike("search_text", `%${s}%`);
+            }
+          }
+        }
+        if (!canManage) {
+          r = r.neq("status", "novo");
+          if (user?.id) r = r.eq("corretor_id", user.id);
+        }
+        return r;
+      };
+
+      const statuses = LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo");
+      const totalP = applyFilters(supabase.from("leads").select("id", { count: "exact", head: true }));
+      const perStatusP = statuses.map((s) =>
+        applyFilters(supabase.from("leads").select("id", { count: "exact", head: true })).eq("status", s),
+      );
+      const [totalRes, ...statusRes] = await Promise.all([totalP, ...perStatusP]);
+      const counts: Record<string, number> = {};
+      statuses.forEach((s, i) => {
+        counts[s] = statusRes[i]?.count ?? 0;
+      });
+      return { total: totalRes?.count ?? 0, counts };
+    },
+    enabled: canManage || !!user?.id,
+  });
+
+  const statusCounts = statusCountsData?.counts ?? {};
+  const totalLeadsCount = statusCountsData?.total ?? 0;
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
@@ -721,7 +765,7 @@ function LeadsPage() {
               : "bg-background hover:bg-muted"
           }`}
         >
-          Todos · {leadsAll?.length ?? 0}
+          Todos · {totalLeadsCount}
         </button>
         {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
           const n = statusCounts[s] ?? 0;
