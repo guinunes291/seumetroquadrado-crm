@@ -408,7 +408,7 @@ function LeadsPage() {
     return m;
   }, [corretores]);
 
-  // Query principal — aplica TODOS os filtros menos statusFilter (para os chips funcionarem).
+  // Query principal — aplica os filtros direto no banco; em Venda usa data_assinatura.
   const baseQueryKey = {
     debouncedSearch,
     origemFilter,
@@ -458,8 +458,7 @@ function LeadsPage() {
 
   useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]]);
 
-  // Contagens reais por status — RPC com count exato respeitando os mesmos
-  // filtros (exceto statusFilter) e o escopo do usuário no servidor.
+  // Contagens reais por status — respeita filtros e usa data_assinatura para Venda.
   const { data: statusCountsData } = useQuery({
     queryKey: ["leads-status-counts", baseQueryKey],
     queryFn: async () => {
