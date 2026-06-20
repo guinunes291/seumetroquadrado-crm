@@ -765,7 +765,7 @@ function LeadsPage() {
               : "bg-background hover:bg-muted"
           }`}
         >
-          Todos · {leadsAll?.length ?? 0}
+          Todos · {totalLeadsCount}
         </button>
         {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
           const n = statusCounts[s] ?? 0;
