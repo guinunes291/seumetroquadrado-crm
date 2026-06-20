@@ -478,7 +478,7 @@ function LeadsPage() {
       if (error) throw error;
       const counts: Record<string, number> = {};
       let total = 0;
-      (data ?? []).forEach((row: { status: string; quantidade: number }) => {
+      ((data ?? []) as unknown as Array<{ status: string; quantidade: number }>).forEach((row) => {
         if (row.status === "__total__") total = Number(row.quantidade);
         else counts[row.status] = Number(row.quantidade);
       });
