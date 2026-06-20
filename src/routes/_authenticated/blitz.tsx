@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import {
@@ -33,7 +35,16 @@ import {
   Mail,
   Flame,
   Inbox,
+  Wallet,
+  PiggyBank,
+  Landmark,
+  IdCard,
+  Sparkles,
+  ExternalLink,
+  CalendarClock,
+  Loader2,
 } from "lucide-react";
+import { gerarResumoLeadIA } from "@/lib/lead-resumo-ia.functions";
 
 export const Route = createFileRoute("/_authenticated/blitz")({
   head: () => ({ meta: [{ title: "Modo Blitz — Seu Metro Quadrado" }] }),
@@ -45,6 +56,7 @@ type Lead = {
   nome: string;
   email: string | null;
   telefone: string;
+  cpf: string | null;
   status: string;
   origem: string;
   corretor_id: string | null;
@@ -54,6 +66,11 @@ type Lead = {
   temperatura: string | null;
   proximo_followup: string | null;
   ultima_interacao: string | null;
+  ultimo_contato: string | null;
+  renda_informada: string | null;
+  entrada_disponivel: string | null;
+  usa_fgts: boolean | null;
+  campanha: string | null;
   created_at: string;
 };
 
