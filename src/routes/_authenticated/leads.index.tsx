@@ -463,18 +463,18 @@ function LeadsPage() {
   const { data: statusCountsData } = useQuery({
     queryKey: ["leads-status-counts", baseQueryKey],
     queryFn: async () => {
-      const start = periodoStart(periodoFilter);
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
       const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const { data, error } = await supabase.rpc("leads_status_counts", {
+      const { data, error } = await supabase.rpc("leads_status_counts" as never, {
         _na_lixeira: showLixeira,
         _origem: origemFilter,
         _corretor: corretorFilter,
         _temperatura: temperaturaFilter,
-        _periodo_start: start ? start.toISOString() : undefined,
+        _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : null,
+        _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : null,
         _search: sNorm,
         _search_digits: sDig,
-      });
+      } as never);
       if (error) throw error;
       const counts: Record<string, number> = {};
       let total = 0;
@@ -492,7 +492,7 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
-    let base = statusFilter === "all" ? leadsAll : leadsAll.filter((l) => l.status === statusFilter);
+    let base = leadsAll;
     if (contatoFilter !== "all") {
       base = base.filter((l) =>
         passaContato(contatoFilter, {
@@ -515,9 +515,14 @@ function LeadsPage() {
       const pa = priority(a);
       const pb = priority(b);
       if (pa !== pb) return pa - pb;
+      if (a.status === "contrato_fechado" || b.status === "contrato_fechado") {
+        const av = a.data_venda ? new Date(a.data_venda).getTime() : 0;
+        const bv = b.data_venda ? new Date(b.data_venda).getTime() : 0;
+        if (av !== bv) return bv - av;
+      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leadsAll, statusFilter, contatoFilter, followupIds, canManage]);
+  }, [leadsAll, contatoFilter, followupIds]);
 
   // Paginação (50/página, lado cliente). As contagens por status continuam vindo
   // de `statusCounts`/`filtered` (conjunto inteiro), não da página atual.
