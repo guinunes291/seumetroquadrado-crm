@@ -436,52 +436,31 @@ function LeadsPage() {
 
   useRealtimeInvalidate("leads", [["leads"], ["leads-status-counts"]]);
 
-  // Contagens reais por status — query separada com count exato (head:true),
-  // aplicando os mesmos filtros (exceto statusFilter). Garante números corretos
-  // mesmo quando o conjunto carregado para a tabela está limitado a 1000.
+  // Contagens reais por status — RPC com count exato respeitando os mesmos
+  // filtros (exceto statusFilter) e o escopo do usuário no servidor.
   const { data: statusCountsData } = useQuery({
     queryKey: ["leads-status-counts", baseQueryKey],
     queryFn: async () => {
-      const applyFilters = (q: any) => {
-        let r = q.eq("na_lixeira", showLixeira);
-        if (origemFilter !== "all") r = r.eq("origem", origemFilter);
-        if (corretorFilter === "unassigned") r = r.is("corretor_id", null);
-        else if (corretorFilter !== "all") r = r.eq("corretor_id", corretorFilter);
-        if (temperaturaFilter !== "all") r = r.eq("temperatura", temperaturaFilter);
-        const start = periodoStart(periodoFilter);
-        if (start) r = r.gte("created_at", start.toISOString());
-        if (debouncedSearch) {
-          const s = normalizeSearch(debouncedSearch).replace(/[%,]/g, "");
-          const digits = onlyDigits(debouncedSearch);
-          if (digits.length >= 3) {
-            r = r.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
-          } else if (s) {
-            const termos = s.split(" ").filter((t) => t.length >= 2);
-            if (termos.length > 1) {
-              for (const t of termos) r = r.ilike("search_text", `%${t}%`);
-            } else {
-              r = r.ilike("search_text", `%${s}%`);
-            }
-          }
-        }
-        if (!canManage) {
-          r = r.neq("status", "novo");
-          if (user?.id) r = r.eq("corretor_id", user.id);
-        }
-        return r;
-      };
-
-      const statuses = LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo");
-      const totalP = applyFilters(supabase.from("leads").select("id", { count: "exact", head: true }));
-      const perStatusP = statuses.map((s) =>
-        applyFilters(supabase.from("leads").select("id", { count: "exact", head: true })).eq("status", s),
-      );
-      const [totalRes, ...statusRes] = await Promise.all([totalP, ...perStatusP]);
-      const counts: Record<string, number> = {};
-      statuses.forEach((s, i) => {
-        counts[s] = statusRes[i]?.count ?? 0;
+      const start = periodoStart(periodoFilter);
+      const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
+      const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
+      const { data, error } = await supabase.rpc("leads_status_counts", {
+        _na_lixeira: showLixeira,
+        _origem: origemFilter,
+        _corretor: corretorFilter,
+        _temperatura: temperaturaFilter,
+        _periodo_start: start ? start.toISOString() : null,
+        _search: sNorm,
+        _search_digits: sDig,
       });
-      return { total: totalRes?.count ?? 0, counts };
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      let total = 0;
+      (data ?? []).forEach((row: { status: string; quantidade: number }) => {
+        if (row.status === "__total__") total = Number(row.quantidade);
+        else counts[row.status] = Number(row.quantidade);
+      });
+      return { total, counts };
     },
     enabled: canManage || !!user?.id,
   });
