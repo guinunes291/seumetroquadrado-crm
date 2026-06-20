@@ -106,7 +106,7 @@ function BlitzPage() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, origem, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, created_at",
+          "id, nome, email, telefone, cpf, status, origem, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, ultimo_contato, renda_informada, entrada_disponivel, usa_fgts, campanha, created_at",
         )
 
         .eq("corretor_id", user!.id)
