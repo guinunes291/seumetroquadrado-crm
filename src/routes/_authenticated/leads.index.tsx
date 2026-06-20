@@ -711,7 +711,6 @@ function LeadsPage() {
     (corretorFilter !== "all" ? 1 : 0) +
     (temperaturaFilter !== "all" ? 1 : 0) +
     (periodoFilter !== "all" ? 1 : 0) +
-    (periodoFilter === "custom" && (dataInicioFilter || dataFimFilter) ? 1 : 0) +
     (contatoFilter !== "all" ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
 
@@ -1084,7 +1083,7 @@ function LeadsPage() {
                   <TableHead>Origem</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Corretor</TableHead>
-                  <TableHead>Criado em</TableHead>
+                  <TableHead>Data</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1191,7 +1190,9 @@ function LeadsPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(l.created_at).toLocaleDateString("pt-BR")}
+                      {l.status === "contrato_fechado" && l.data_venda
+                        ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
+                        : new Date(l.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
