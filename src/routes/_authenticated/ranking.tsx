@@ -306,6 +306,7 @@ type RankRow = {
   nome: string;
   foto?: string | null;
   vendas: number;
+  vgv: number;
   visitas: number;
   agendamentos: number;
   documentacoes: number;
