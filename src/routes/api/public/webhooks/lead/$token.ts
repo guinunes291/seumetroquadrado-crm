@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+const optStr = (max = 2000) => z.string().trim().max(max).optional().nullable();
+
 const payloadSchema = z.object({
   nome: z.string().trim().min(1).max(255),
   telefone: z
@@ -29,14 +31,65 @@ const payloadSchema = z.object({
     ])
     .optional()
     .default("outro"),
-  campanha: z.string().trim().max(255).optional().nullable(),
-  observacoes: z.string().trim().max(2000).optional().nullable(),
-  utm_source: z.string().trim().max(255).optional().nullable(),
-  utm_medium: z.string().trim().max(255).optional().nullable(),
-  utm_campaign: z.string().trim().max(255).optional().nullable(),
-  utm_content: z.string().trim().max(255).optional().nullable(),
+  campanha: optStr(255),
+  observacoes: optStr(),
+  observacao: optStr(),
+  resumo: optStr(4000),
+  utm_source: optStr(255),
+  utm_medium: optStr(255),
+  utm_campaign: optStr(255),
+  utm_content: optStr(255),
   distribuir: z.boolean().optional().default(true),
+  // Qualificação IA (handoff)
+  faixaRenda: optStr(120),
+  finalidadeImovel: optStr(120),
+  empreendimentoInteresse: optStr(255),
+  regiao: optStr(255),
+  fgts: optStr(255),
+  decisor: optStr(255),
+  temperatura: z
+    .union([z.enum(["FRIO", "MORNO", "QUENTE", "PRONTO", "frio", "morno", "quente", "pronto"]), z.literal("")])
+    .optional()
+    .nullable(),
+  motivoHandoff: z.enum(["analise", "visita", "humano"]).optional().nullable(),
+  aceitouAnalise: z.boolean().optional().nullable(),
+  aceitouVisita: z.boolean().optional().nullable(),
 });
+
+function mapTemperatura(t: string | null | undefined): "quente" | "morno" | "frio" | null {
+  if (!t) return null;
+  const v = t.toLowerCase();
+  if (v === "quente" || v === "pronto") return "quente";
+  if (v === "morno") return "morno";
+  if (v === "frio") return "frio";
+  return null;
+}
+
+function montarBlocoQualificacao(d: {
+  faixaRenda?: string | null;
+  finalidadeImovel?: string | null;
+  empreendimentoInteresse?: string | null;
+  regiao?: string | null;
+  fgts?: string | null;
+  decisor?: string | null;
+  temperatura?: string | null;
+  motivoHandoff?: string | null;
+  aceitouAnalise?: boolean | null;
+  aceitouVisita?: boolean | null;
+}): string {
+  const linhas: string[] = [];
+  if (d.faixaRenda) linhas.push(`• Renda: ${d.faixaRenda}`);
+  if (d.fgts) linhas.push(`• FGTS: ${d.fgts}`);
+  if (d.finalidadeImovel) linhas.push(`• Finalidade: ${d.finalidadeImovel}`);
+  if (d.empreendimentoInteresse) linhas.push(`• Empreendimento: ${d.empreendimentoInteresse}`);
+  if (d.regiao) linhas.push(`• Região: ${d.regiao}`);
+  if (d.decisor) linhas.push(`• Decisor: ${d.decisor}`);
+  if (d.temperatura) linhas.push(`• Temperatura: ${d.temperatura}`);
+  if (d.motivoHandoff) linhas.push(`• Motivo do handoff: ${d.motivoHandoff}`);
+  if (d.aceitouAnalise) linhas.push(`• Aceitou análise de crédito: sim`);
+  if (d.aceitouVisita) linhas.push(`• Aceitou agendar visita: sim`);
+  return linhas.join("\n");
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,6 +148,19 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           );
         }
 
+        const resumo = (data.resumo ?? data.observacao ?? "").trim() || null;
+        const blocoQualif = montarBlocoQualificacao(data);
+        const obsPartes = [
+          data.observacoes?.trim() || null,
+          resumo ? `📝 Resumo da qualificação (IA):\n${resumo}` : null,
+          blocoQualif ? `📋 Dados de qualificação:\n${blocoQualif}` : null,
+        ].filter(Boolean) as string[];
+        const observacoesFinais = obsPartes.length ? obsPartes.join("\n\n") : null;
+
+        const temperatura = mapTemperatura(data.temperatura ?? null);
+        const fgtsTxt = (data.fgts ?? "").toLowerCase();
+        const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
+
         const { data: lead, error } = await supabaseAdmin
           .from("leads")
           .insert({
@@ -103,9 +169,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             email: data.email ?? null,
             origem: data.origem,
             projeto_id: projeto.id,
-            projeto_nome: projeto.nome,
+            projeto_nome: data.empreendimentoInteresse ?? projeto.nome,
             campanha: data.campanha ?? null,
-            observacoes: data.observacoes ?? null,
+            observacoes: observacoesFinais,
+            renda_informada: data.faixaRenda ?? null,
+            usa_fgts: usaFgts,
+            entrada_disponivel: data.fgts ?? null,
+            temperatura: temperatura,
             utm_source: data.utm_source ?? null,
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
@@ -116,6 +186,36 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         if (error) {
           return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        }
+
+        // Registra interação com o resumo da IA para aparecer no histórico do lead.
+        if (resumo || blocoQualif) {
+          const conteudo = [
+            resumo ? resumo : null,
+            blocoQualif ? `\n${blocoQualif}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n");
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: lead.id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Qualificação automática (IA)",
+            conteudo,
+            metadata: {
+              fonte: "webhook_ia",
+              motivoHandoff: data.motivoHandoff ?? null,
+              aceitouAnalise: data.aceitouAnalise ?? null,
+              aceitouVisita: data.aceitouVisita ?? null,
+              faixaRenda: data.faixaRenda ?? null,
+              fgts: data.fgts ?? null,
+              decisor: data.decisor ?? null,
+              finalidadeImovel: data.finalidadeImovel ?? null,
+              empreendimentoInteresse: data.empreendimentoInteresse ?? null,
+              regiao: data.regiao ?? null,
+              temperatura: data.temperatura ?? null,
+            },
+          });
         }
 
         let corretorId: string | null = null;
