@@ -620,7 +620,7 @@ function PerformanceTVPage() {
           corretorId: id,
           nome: p?.nome ?? "Corretor",
           foto: p?.avatar_url ?? p?.foto_url ?? null,
-          vendas: 0, visitas: 0, agendamentos: 0, documentacoes: 0,
+          vendas: 0, vgv: 0, visitas: 0, agendamentos: 0, documentacoes: 0,
           ligacoes: 0, whatsapp: 0, leads: 0, alteracoes: 0, pontos: 0,
         };
         byId.set(id, r);
