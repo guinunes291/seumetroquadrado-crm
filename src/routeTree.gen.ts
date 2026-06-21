@@ -37,10 +37,13 @@ import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authent
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
+import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
+import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
+import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 
@@ -188,6 +191,11 @@ const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
   path: '/leads/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicMetricasRoute = ApiPublicMetricasRouteImport.update({
+  id: '/api/public/metricas',
+  path: '/api/public/metricas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjetosProjetoIdRoute =
   AuthenticatedProjetosProjetoIdRouteImport.update({
     id: '/projetos/$projetoId',
@@ -212,6 +220,16 @@ const AuthenticatedLeadsLeadIdRoute =
     path: '/leads/$leadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicLeadsIndexRoute = ApiPublicLeadsIndexRouteImport.update({
+  id: '/api/public/leads/',
+  path: '/api/public/leads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeadsIdRoute = ApiPublicLeadsIdRouteImport.update({
+  id: '/api/public/leads/$id',
+  path: '/api/public/leads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksPushDispatchRoute =
   ApiPublicHooksPushDispatchRouteImport.update({
     id: '/api/public/hooks/push-dispatch',
@@ -254,10 +272,13 @@ export interface FileRoutesByFullPath {
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
+  '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesByTo {
@@ -289,10 +310,13 @@ export interface FileRoutesByTo {
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
+  '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesById {
@@ -326,10 +350,13 @@ export interface FileRoutesById {
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
+  '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRouteTypes {
@@ -363,10 +390,13 @@ export interface FileRouteTypes {
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
+    | '/api/public/metricas'
     | '/leads/'
     | '/oferta-ativa/'
     | '/projetos/'
     | '/api/public/hooks/push-dispatch'
+    | '/api/public/leads/$id'
+    | '/api/public/leads/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -398,10 +428,13 @@ export interface FileRouteTypes {
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
+    | '/api/public/metricas'
     | '/leads'
     | '/oferta-ativa'
     | '/projetos'
     | '/api/public/hooks/push-dispatch'
+    | '/api/public/leads/$id'
+    | '/api/public/leads'
     | '/api/public/webhooks/lead/$token'
   id:
     | '__root__'
@@ -434,10 +467,13 @@ export interface FileRouteTypes {
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
     | '/_authenticated/projetos/$projetoId'
+    | '/api/public/metricas'
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
     | '/api/public/hooks/push-dispatch'
+    | '/api/public/leads/$id'
+    | '/api/public/leads/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
 }
@@ -445,7 +481,10 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
+  ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRoute
+  ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
   ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
 
@@ -647,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/metricas': {
+      id: '/api/public/metricas'
+      path: '/api/public/metricas'
+      fullPath: '/api/public/metricas'
+      preLoaderRoute: typeof ApiPublicMetricasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/projetos/$projetoId': {
       id: '/_authenticated/projetos/$projetoId'
       path: '/projetos/$projetoId'
@@ -674,6 +720,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/leads/$leadId'
       preLoaderRoute: typeof AuthenticatedLeadsLeadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/leads/': {
+      id: '/api/public/leads/'
+      path: '/api/public/leads'
+      fullPath: '/api/public/leads/'
+      preLoaderRoute: typeof ApiPublicLeadsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leads/$id': {
+      id: '/api/public/leads/$id'
+      path: '/api/public/leads/$id'
+      fullPath: '/api/public/leads/$id'
+      preLoaderRoute: typeof ApiPublicLeadsIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/push-dispatch': {
       id: '/api/public/hooks/push-dispatch'
@@ -763,19 +823,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
+  ApiPublicLeadsIdRoute: ApiPublicLeadsIdRoute,
+  ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
   ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
