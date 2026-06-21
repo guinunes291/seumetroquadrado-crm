@@ -714,6 +714,7 @@ function PerformanceTVPage() {
   // Totais agregados
   const totaisMes = useMemo(() => rankingMes.reduce((acc, r) => ({
     vendas: acc.vendas + r.vendas,
+    vgv: acc.vgv + r.vgv,
     visitas: acc.visitas + r.visitas,
     agendamentos: acc.agendamentos + r.agendamentos,
     documentacoes: acc.documentacoes + r.documentacoes,
@@ -721,7 +722,7 @@ function PerformanceTVPage() {
     ligacoes: acc.ligacoes + r.ligacoes,
     whatsapp: acc.whatsapp + r.whatsapp,
     pontos: acc.pontos + r.pontos,
-  }), { vendas: 0, visitas: 0, agendamentos: 0, documentacoes: 0, leads: 0, ligacoes: 0, whatsapp: 0, pontos: 0 }), [rankingMes]);
+  }), { vendas: 0, vgv: 0, visitas: 0, agendamentos: 0, documentacoes: 0, leads: 0, ligacoes: 0, whatsapp: 0, pontos: 0 }), [rankingMes]);
 
   const totaisMesPrev = useMemo(() => rankingMesPrev.reduce((acc, r) => ({
     vendas: acc.vendas + r.vendas,
@@ -731,6 +732,7 @@ function PerformanceTVPage() {
 
   const totaisPeriodo = useMemo(() => rankingProd.reduce((acc, r) => ({
     vendas: acc.vendas + r.vendas,
+    vgv: acc.vgv + r.vgv,
     visitas: acc.visitas + r.visitas,
     agendamentos: acc.agendamentos + r.agendamentos,
     documentacoes: acc.documentacoes + r.documentacoes,
@@ -738,14 +740,16 @@ function PerformanceTVPage() {
     ligacoes: acc.ligacoes + r.ligacoes,
     whatsapp: acc.whatsapp + r.whatsapp,
     pontos: acc.pontos + r.pontos,
-  }), { vendas: 0, visitas: 0, agendamentos: 0, documentacoes: 0, leads: 0, ligacoes: 0, whatsapp: 0, pontos: 0 }), [rankingProd]);
+  }), { vendas: 0, vgv: 0, visitas: 0, agendamentos: 0, documentacoes: 0, leads: 0, ligacoes: 0, whatsapp: 0, pontos: 0 }), [rankingProd]);
 
   // Metas agregadas do mês
   const metaTotais = useMemo(() => (metasQ.data ?? []).reduce((acc: any, m: any) => ({
     vendas: acc.vendas + (m.meta_vendas || 0),
     visitas: acc.visitas + (m.meta_visitas || 0),
     leads_atendidos: acc.leads_atendidos + (m.meta_leads_atendidos || 0),
-  }), { vendas: 0, visitas: 0, leads_atendidos: 0 }), [metasQ.data]);
+    vgv: acc.vgv + (Number(m.meta_gmv) || 0),
+  }), { vendas: 0, visitas: 0, leads_atendidos: 0, vgv: 0 }), [metasQ.data]);
+
 
   const metaDefined = metaTotais.vendas > 0;
   const pctAtingimento = metaDefined ? (totaisMes.vendas / metaTotais.vendas) * 100 : 0;
