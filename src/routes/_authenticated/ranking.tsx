@@ -539,7 +539,7 @@ function PerformanceTVPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("vendas")
-        .select("corretor_id, data_assinatura, created_at, distrato");
+        .select("corretor_id, data_assinatura, created_at, distrato, valor_venda");
       return data ?? [];
     },
   });
