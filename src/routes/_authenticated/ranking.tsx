@@ -640,10 +640,12 @@ function PerformanceTVPage() {
       else if (t.para_status === "visita_realizada") r.visitas++;
       else if (t.para_status === "analise_credito") r.documentacoes++;
     }
-    for (const v of (vendasQ.data ?? [])) {
+    for (const v of (vendasQ.data ?? []) as any[]) {
       if (!v.corretor_id || v.distrato) continue;
       if (!inRange(v.data_assinatura ?? v.created_at, from, to)) continue;
-      get(v.corretor_id).vendas++;
+      const r = get(v.corretor_id);
+      r.vendas++;
+      r.vgv += Number(v.valor_venda) || 0;
     }
     for (const a of (agendQ.data ?? [])) {
       if (!a.corretor_id || !inRange(a.data_inicio, from, to)) continue;
