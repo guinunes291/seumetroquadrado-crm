@@ -57,18 +57,18 @@ export const Route = createFileRoute("/api/public/leads/")({
         const status = q.get("status");
         if (status) {
           const arr = status.split(",").map((s) => s.trim()).filter(Boolean);
-          if (arr.length === 1) query = query.eq("status", arr[0]);
-          else if (arr.length > 1) query = query.in("status", arr);
+          if (arr.length === 1) query = query.eq("status", arr[0] as never);
+          else if (arr.length > 1) query = query.in("status", arr as never);
         }
 
         const corretorId = q.get("corretor_id");
         if (corretorId) query = query.eq("corretor_id", corretorId);
 
         const temperatura = q.get("temperatura");
-        if (temperatura) query = query.eq("temperatura", temperatura);
+        if (temperatura) query = query.eq("temperatura", temperatura as never);
 
         const origem = q.get("origem");
-        if (origem) query = query.eq("origem", origem);
+        if (origem) query = query.eq("origem", origem as never);
 
         const projetoId = q.get("projeto_id");
         if (projetoId) query = query.eq("projeto_id", projetoId);
