@@ -908,6 +908,54 @@ function PerformanceTVPage() {
               <MetaProgressBanner realizado={totaisMes.vendas} meta={metaTotais.vendas} unidade=" vendas" />
             </div>
 
+            {/* VGV — Realizado x Meta x Gap */}
+            <div className="bg-slate-900/60 rounded-2xl border border-slate-800/50 p-5 mb-5">
+              <h3 className="text-xs text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-400" /> VGV — Realizado x Meta
+              </h3>
+              {(() => {
+                const vgvReal = totaisMes.vgv;
+                const vgvMeta = metaTotais.vgv;
+                const gap = vgvMeta - vgvReal;
+                const pct = vgvMeta > 0 ? (vgvReal / vgvMeta) * 100 : 0;
+                const fmtBRL = (n: number) =>
+                  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
+                const color = pct >= 100 ? "#10b981" : pct >= 75 ? "#22c55e" : pct >= 50 ? "#f59e0b" : "#ef4444";
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                      <div className="bg-emerald-900/30 border border-emerald-500/30 rounded-xl p-4">
+                        <div className="text-[11px] uppercase tracking-wider text-emerald-200 mb-1">VGV Realizado</div>
+                        <div className="text-2xl font-bold text-white tabular-nums">{fmtBRL(vgvReal)}</div>
+                        <div className="text-[10px] text-emerald-300 mt-1">{totaisMes.vendas} venda(s)</div>
+                      </div>
+                      <div className="bg-slate-800/60 border border-slate-600/40 rounded-xl p-4">
+                        <div className="text-[11px] uppercase tracking-wider text-slate-300 mb-1">Meta VGV</div>
+                        <div className="text-2xl font-bold text-white tabular-nums">{vgvMeta > 0 ? fmtBRL(vgvMeta) : "—"}</div>
+                        <div className="text-[10px] text-slate-400 mt-1">{vgvMeta > 0 ? `${pct.toFixed(1)}% atingido` : "Meta não definida"}</div>
+                      </div>
+                      <div className={`rounded-xl p-4 border ${gap > 0 ? "bg-red-900/30 border-red-500/30" : "bg-emerald-900/30 border-emerald-500/30"}`}>
+                        <div className="text-[11px] uppercase tracking-wider text-slate-200 mb-1">GAP VGV</div>
+                        <div className={`text-2xl font-bold tabular-nums ${gap > 0 ? "text-red-300" : "text-emerald-300"}`}>
+                          {vgvMeta > 0 ? `${gap > 0 ? "-" : "+"}${fmtBRL(Math.abs(gap))}` : "—"}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-1">
+                          {vgvMeta > 0 ? (gap > 0 ? "falta para a meta" : "acima da meta") : ""}
+                        </div>
+                      </div>
+                    </div>
+                    {vgvMeta > 0 && (
+                      <div className="relative h-3 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50">
+                        <div className="h-full rounded-full transition-all duration-1000"
+                          style={{ width: `${Math.min(pct, 100)}%`, background: `linear-gradient(90deg, ${color}80, ${color})` }} />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               {/* Gauge */}
               <div className="bg-slate-900/60 rounded-2xl border border-slate-800/50 p-5">
