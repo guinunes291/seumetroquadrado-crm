@@ -148,6 +148,19 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           );
         }
 
+        const resumo = (data.resumo ?? data.observacao ?? "").trim() || null;
+        const blocoQualif = montarBlocoQualificacao(data);
+        const obsPartes = [
+          data.observacoes?.trim() || null,
+          resumo ? `📝 Resumo da qualificação (IA):\n${resumo}` : null,
+          blocoQualif ? `📋 Dados de qualificação:\n${blocoQualif}` : null,
+        ].filter(Boolean) as string[];
+        const observacoesFinais = obsPartes.length ? obsPartes.join("\n\n") : null;
+
+        const temperatura = mapTemperatura(data.temperatura ?? null);
+        const fgtsTxt = (data.fgts ?? "").toLowerCase();
+        const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
+
         const { data: lead, error } = await supabaseAdmin
           .from("leads")
           .insert({
@@ -156,9 +169,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             email: data.email ?? null,
             origem: data.origem,
             projeto_id: projeto.id,
-            projeto_nome: projeto.nome,
+            projeto_nome: data.empreendimentoInteresse ?? projeto.nome,
             campanha: data.campanha ?? null,
-            observacoes: data.observacoes ?? null,
+            observacoes: observacoesFinais,
+            renda_informada: data.faixaRenda ?? null,
+            usa_fgts: usaFgts,
+            entrada_disponivel: data.fgts ?? null,
+            temperatura: temperatura,
             utm_source: data.utm_source ?? null,
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
@@ -169,6 +186,36 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         if (error) {
           return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        }
+
+        // Registra interação com o resumo da IA para aparecer no histórico do lead.
+        if (resumo || blocoQualif) {
+          const conteudo = [
+            resumo ? resumo : null,
+            blocoQualif ? `\n${blocoQualif}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n");
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: lead.id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Qualificação automática (IA)",
+            conteudo,
+            metadata: {
+              fonte: "webhook_ia",
+              motivoHandoff: data.motivoHandoff ?? null,
+              aceitouAnalise: data.aceitouAnalise ?? null,
+              aceitouVisita: data.aceitouVisita ?? null,
+              faixaRenda: data.faixaRenda ?? null,
+              fgts: data.fgts ?? null,
+              decisor: data.decisor ?? null,
+              finalidadeImovel: data.finalidadeImovel ?? null,
+              empreendimentoInteresse: data.empreendimentoInteresse ?? null,
+              regiao: data.regiao ?? null,
+              temperatura: data.temperatura ?? null,
+            },
+          });
         }
 
         let corretorId: string | null = null;
