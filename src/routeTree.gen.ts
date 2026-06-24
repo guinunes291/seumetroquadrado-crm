@@ -23,6 +23,7 @@ import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authenticated/links-uteis'
 import { Route as AuthenticatedLeadsPorCorretorRouteImport } from './routes/_authenticated/leads-por-corretor'
+import { Route as AuthenticatedLeadsLandingRouteImport } from './routes/_authenticated/leads-landing'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
@@ -43,6 +44,7 @@ import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_auth
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
+import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/public/hooks/copiloto-handoff'
@@ -117,6 +119,12 @@ const AuthenticatedLeadsPorCorretorRoute =
   AuthenticatedLeadsPorCorretorRouteImport.update({
     id: '/leads-por-corretor',
     path: '/leads-por-corretor',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedLeadsLandingRoute =
+  AuthenticatedLeadsLandingRouteImport.update({
+    id: '/leads-landing',
+    path: '/leads-landing',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
@@ -227,6 +235,12 @@ const ApiPublicLeadsIndexRoute = ApiPublicLeadsIndexRouteImport.update({
   path: '/api/public/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksLandingRoute =
+  ApiPublicWebhooksLandingRouteImport.update({
+    id: '/api/public/webhooks/landing',
+    path: '/api/public/webhooks/landing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLeadsIdRoute = ApiPublicLeadsIdRouteImport.update({
   id: '/api/public/leads/$id',
   path: '/api/public/leads/$id',
@@ -271,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
@@ -293,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -310,6 +326,7 @@ export interface FileRoutesByTo {
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/kanban': typeof AuthenticatedKanbanRoute
+  '/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
@@ -333,6 +350,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -352,6 +370,7 @@ export interface FileRoutesById {
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
+  '/_authenticated/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/_authenticated/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
@@ -375,6 +394,7 @@ export interface FileRoutesById {
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -395,6 +415,7 @@ export interface FileRouteTypes {
     | '/duplicatas'
     | '/equipes'
     | '/kanban'
+    | '/leads-landing'
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
@@ -417,6 +438,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
+    | '/api/public/webhooks/landing'
     | '/api/public/leads/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
@@ -434,6 +456,7 @@ export interface FileRouteTypes {
     | '/duplicatas'
     | '/equipes'
     | '/kanban'
+    | '/leads-landing'
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
@@ -457,6 +480,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
+    | '/api/public/webhooks/landing'
     | '/api/public/leads'
     | '/api/public/webhooks/lead/$token'
   id:
@@ -475,6 +499,7 @@ export interface FileRouteTypes {
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
     | '/_authenticated/kanban'
+    | '/_authenticated/leads-landing'
     | '/_authenticated/leads-por-corretor'
     | '/_authenticated/links-uteis'
     | '/_authenticated/lixeira'
@@ -498,6 +523,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
+    | '/api/public/webhooks/landing'
     | '/api/public/leads/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
@@ -511,6 +537,7 @@ export interface RootRouteChildren {
   ApiPublicHooksCopilotoHandoffRoute: typeof ApiPublicHooksCopilotoHandoffRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
   ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRoute
+  ApiPublicWebhooksLandingRoute: typeof ApiPublicWebhooksLandingRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
   ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -613,6 +640,13 @@ declare module '@tanstack/react-router' {
       path: '/leads-por-corretor'
       fullPath: '/leads-por-corretor'
       preLoaderRoute: typeof AuthenticatedLeadsPorCorretorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/leads-landing': {
+      id: '/_authenticated/leads-landing'
+      path: '/leads-landing'
+      fullPath: '/leads-landing'
+      preLoaderRoute: typeof AuthenticatedLeadsLandingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/kanban': {
@@ -755,6 +789,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/landing': {
+      id: '/api/public/webhooks/landing'
+      path: '/api/public/webhooks/landing'
+      fullPath: '/api/public/webhooks/landing'
+      preLoaderRoute: typeof ApiPublicWebhooksLandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leads/$id': {
       id: '/api/public/leads/$id'
       path: '/api/public/leads/$id'
@@ -805,6 +846,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
+  AuthenticatedLeadsLandingRoute: typeof AuthenticatedLeadsLandingRoute
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
   AuthenticatedLinksUteisRoute: typeof AuthenticatedLinksUteisRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
@@ -837,6 +879,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
+  AuthenticatedLeadsLandingRoute: AuthenticatedLeadsLandingRoute,
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,
   AuthenticatedLinksUteisRoute: AuthenticatedLinksUteisRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
@@ -869,6 +912,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksCopilotoHandoffRoute: ApiPublicHooksCopilotoHandoffRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
   ApiPublicLeadsIdRoute: ApiPublicLeadsIdRoute,
+  ApiPublicWebhooksLandingRoute: ApiPublicWebhooksLandingRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
   ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }

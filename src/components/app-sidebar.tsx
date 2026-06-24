@@ -52,6 +52,7 @@ const SECTIONS: Section[] = [
     items: [
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { to: "/leads", label: "Leads", icon: Users },
+      { to: "/leads-landing", label: "Leads Landing", icon: Megaphone, roles: ["admin", "gestor"] },
       { to: "/kanban", label: "Kanban", icon: Trello },
       { to: "/blitz", label: "Modo Blitz", icon: Zap },
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },

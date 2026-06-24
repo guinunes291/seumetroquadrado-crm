@@ -1041,6 +1041,117 @@ export type Database = {
           },
         ]
       }
+      leads_landing: {
+        Row: {
+          created_at: string
+          fbclid: string | null
+          gclid: string | null
+          id: string
+          nome: string | null
+          origem: string | null
+          pagina: string | null
+          raw: Json | null
+          recebido_em: string
+          referrer: string | null
+          regiao: string | null
+          renda: string | null
+          sim_aluguel: number | null
+          sim_carteira36m: boolean | null
+          sim_entrada: number | null
+          sim_faixa: number | null
+          sim_fgts: number | null
+          sim_financiamento: number | null
+          sim_parcela: number | null
+          sim_renda: number | null
+          sim_segmento: string | null
+          sim_subsidio: number | null
+          sim_tem_dependente: boolean | null
+          sim_teto_imovel: number | null
+          status: string
+          timestamp_cliente: string | null
+          tipo: string | null
+          updated_at: string
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          fbclid?: string | null
+          gclid?: string | null
+          id?: string
+          nome?: string | null
+          origem?: string | null
+          pagina?: string | null
+          raw?: Json | null
+          recebido_em?: string
+          referrer?: string | null
+          regiao?: string | null
+          renda?: string | null
+          sim_aluguel?: number | null
+          sim_carteira36m?: boolean | null
+          sim_entrada?: number | null
+          sim_faixa?: number | null
+          sim_fgts?: number | null
+          sim_financiamento?: number | null
+          sim_parcela?: number | null
+          sim_renda?: number | null
+          sim_segmento?: string | null
+          sim_subsidio?: number | null
+          sim_tem_dependente?: boolean | null
+          sim_teto_imovel?: number | null
+          status?: string
+          timestamp_cliente?: string | null
+          tipo?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          fbclid?: string | null
+          gclid?: string | null
+          id?: string
+          nome?: string | null
+          origem?: string | null
+          pagina?: string | null
+          raw?: Json | null
+          recebido_em?: string
+          referrer?: string | null
+          regiao?: string | null
+          renda?: string | null
+          sim_aluguel?: number | null
+          sim_carteira36m?: boolean | null
+          sim_entrada?: number | null
+          sim_faixa?: number | null
+          sim_fgts?: number | null
+          sim_financiamento?: number | null
+          sim_parcela?: number | null
+          sim_renda?: number | null
+          sim_segmento?: string | null
+          sim_subsidio?: number | null
+          sim_tem_dependente?: boolean | null
+          sim_teto_imovel?: number | null
+          status?: string
+          timestamp_cliente?: string | null
+          tipo?: string | null
+          updated_at?: string
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       links_uteis: {
         Row: {
           categoria: string
