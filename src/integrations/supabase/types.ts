@@ -2377,6 +2377,7 @@ export type Database = {
           pode_avancar: boolean
         }[]
       }
+      copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       create_oferta_ativa: {
         Args: {
