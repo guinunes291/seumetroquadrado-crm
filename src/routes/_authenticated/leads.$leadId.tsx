@@ -293,7 +293,9 @@ function LeadDetailPage() {
       const msg = waMensagem.trim();
       if (msg.length === 0) throw new Error("Escreva a mensagem.");
       const url = buildWhatsAppUrl(lead?.telefone ?? "", msg);
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Registra a interação ANTES de abrir o WhatsApp: se o insert falhar, o
+      // histórico não fica perdido silenciosamente. O WhatsApp abre de qualquer
+      // forma (o corretor não fica bloqueado), mas o erro de log é surfaceado.
       const { data: u } = await supabase.auth.getUser();
       const { error } = await supabase.from("interacoes").insert({
         lead_id: leadId,
@@ -303,6 +305,7 @@ function LeadDetailPage() {
         titulo: "Mensagem enviada via WhatsApp",
         conteudo: msg,
       });
+      window.open(url, "_blank", "noopener,noreferrer");
       if (error) throw error;
     },
     onSuccess: () => {

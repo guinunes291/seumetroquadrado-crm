@@ -12,7 +12,7 @@
 //   limit=50 (max 200)
 //   offset=0
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse } from "@/lib/public-api-auth";
+import { checkReadApiKey, jsonResponse, PUBLIC_LEAD_SELECT } from "@/lib/public-api-auth";
 
 const PARADOS_RE = /^(\d+)d$/i;
 
@@ -33,10 +33,7 @@ export const Route = createFileRoute("/api/public/leads/")({
 
         let query = supabaseAdmin
           .from("leads")
-          .select(
-            "id,nome,email,telefone,cpf,origem,status,temperatura,corretor_id,projeto_id,projeto_nome,campanha,utm_source,utm_medium,utm_campaign,renda_informada,usa_fgts,entrada_disponivel,observacoes,proximo_followup,ultimo_contato,ultima_interacao,data_distribuicao,created_at,updated_at",
-            { count: "exact" },
-          )
+          .select(PUBLIC_LEAD_SELECT, { count: "exact" })
           .eq("na_lixeira", false)
           .is("deleted_at", null);
 

@@ -2,7 +2,7 @@
 // Auth: header X-API-Key = READ_API_KEY
 // Retorna o lead + intera\u00e7\u00f5es (ordenadas desc).
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse } from "@/lib/public-api-auth";
+import { checkReadApiKey, jsonResponse, PUBLIC_LEAD_SELECT } from "@/lib/public-api-auth";
 
 export const Route = createFileRoute("/api/public/leads/$id")({
   server: {
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const [leadRes, interRes] = await Promise.all([
-          supabaseAdmin.from("leads").select("*").eq("id", id).maybeSingle(),
+          supabaseAdmin.from("leads").select(PUBLIC_LEAD_SELECT).eq("id", id).maybeSingle(),
           supabaseAdmin
             .from("interacoes")
             .select("id,tipo,direcao,titulo,conteudo,metadata,ocorreu_em,created_at,autor_id")

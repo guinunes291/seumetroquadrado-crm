@@ -35,6 +35,13 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// Só dígitos (para armazenamento e deduplicação consistentes).
+function onlyDigits(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const d = String(raw).replace(/\D/g, "");
+  return d || null;
+}
+
 // Normaliza telefone BR para o formato do Z-API: DDI(55) + DDD + número, só dígitos.
 function toZapiPhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -196,12 +203,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .filter(Boolean)
     .join(" | ");
 
+  // 3.1) Idempotência/dedup: se já existe um lead com o mesmo telefone no mesmo
+  //       projeto, reaproveita (evita duplicatas em retries do Zapier). Usa a mesma
+  //       RPC do webhook por projeto; só dedup quando há projeto + telefone válido.
+  const telefoneDigits = onlyDigits(telefone);
+  if (projeto_id && telefoneDigits && telefoneDigits.length >= 8) {
+    const { data: dupId } = await supabase.rpc("buscar_lead_duplicado", {
+      _projeto_id: projeto_id,
+      _telefone: telefoneDigits,
+    });
+    if (dupId) {
+      return json({
+        ok: true,
+        deduplicado: true,
+        lead_id: dupId as string,
+        projeto_id,
+      });
+    }
+  }
+
   // 4) Cria o lead.
   const { data: lead, error: insertError } = await supabase
     .from("leads")
     .insert({
       nome: nome ?? "(sem nome)",
-      telefone: telefone ?? "-",
+      telefone: telefoneDigits ?? "-",
       email,
       origem: "facebook",
       projeto_id,
@@ -252,6 +278,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
       renda,
       link: appUrl ? `${appUrl}/leads/${lead.id}` : `/leads/${lead.id}`,
     });
+
+    // Falha de notificação não pode ser silenciosa: se o corretor NÃO recebeu o
+    // WhatsApp, cria um alerta in-app para que o lead não fique sem atendimento.
+    if (notificacao !== "enviada") {
+      const { error: alertaError } = await supabase.from("alertas").insert({
+        user_id: corretor_id,
+        tipo: "lead_novo",
+        titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
+        mensagem:
+          `Você recebeu o lead "${nome ?? "(sem nome)"}"` +
+          (projeto_nome ? ` — ${projeto_nome}` : "") +
+          ". Não foi possível notificar por WhatsApp; abra o CRM para atender.",
+        link: `/leads/${lead.id}`,
+        ref_id: lead.id,
+      });
+      if (alertaError) console.error("lead-intake alerta_failed:", alertaError);
+    }
   }
 
   return json({
