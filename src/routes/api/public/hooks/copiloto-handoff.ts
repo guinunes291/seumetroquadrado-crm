@@ -136,12 +136,14 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
 
         let alt: { alternativa_nome: string | null; alternativa_bairro: string | null; alternativa_preco: number | null } | null = null;
         if (projeto?.id) {
-          const { data } = await supabaseAdmin
-            .from("projetos_alternativa_regiao")
+          // view não tipada
+          const r = await (supabaseAdmin.from as unknown as (n: string) => {
+            select: (s: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: { alternativa_nome: string | null; alternativa_bairro: string | null; alternativa_preco: number | null } | null }> } };
+          })("projetos_alternativa_regiao")
             .select("alternativa_nome, alternativa_bairro, alternativa_preco")
             .eq("projeto_id", projeto.id)
             .maybeSingle();
-          alt = data;
+          alt = r.data;
         }
 
         const previsao =
@@ -214,8 +216,9 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
         }
 
         if (ok) {
-          await supabaseAdmin
-            .from("leads")
+          await (supabaseAdmin.from("leads") as unknown as {
+            update: (v: Record<string, unknown>) => { eq: (k: string, v: string) => Promise<unknown> };
+          })
             .update({ copiloto_notificado_em: new Date().toISOString() })
             .eq("id", lead.id);
           return Response.json({ ok: true });
