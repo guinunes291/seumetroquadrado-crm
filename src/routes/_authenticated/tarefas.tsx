@@ -44,6 +44,7 @@ function TarefasPage() {
   const qc = useQueryClient();
 
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [quickTitulo, setQuickTitulo] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -156,6 +157,30 @@ function TarefasPage() {
     },
     onSuccess: () => {
       toast.success("Tarefa adiada");
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Quick-add: cria uma tarefa só com o título (padrões follow-up / média / pendente).
+  const quickAdd = useMutation({
+    mutationFn: async () => {
+      const titulo = quickTitulo.trim();
+      if (!titulo) throw new Error("Escreva o título da tarefa.");
+      const payload: any = {
+        titulo,
+        tipo: "follow_up",
+        status: "pendente",
+        prioridade: "media",
+        criado_por: user?.id,
+      };
+      if (canManageAll) payload.corretor_id = user?.id;
+      const { error } = await supabase.from("tarefas").insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setQuickTitulo("");
+      toast.success("Tarefa criada");
       qc.invalidateQueries({ queryKey: ["tarefas"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -286,6 +311,25 @@ function TarefasPage() {
 
       <Card>
         <CardContent className="p-4 space-y-4">
+          {/* Quick-add: adicionar tarefa rápida sem abrir o modal. */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Adicionar tarefa rápida (Enter para salvar)…"
+              value={quickTitulo}
+              onChange={(e) => setQuickTitulo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && quickTitulo.trim()) quickAdd.mutate();
+              }}
+            />
+            <Button
+              variant="outline"
+              disabled={!quickTitulo.trim() || quickAdd.isPending}
+              onClick={() => quickAdd.mutate()}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Adicionar
+            </Button>
+          </div>
+
           <div className="flex flex-wrap gap-3">
             <Input placeholder="Buscar..." value={busca} onChange={(e) => setBusca(e.target.value)} className="max-w-xs" />
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>

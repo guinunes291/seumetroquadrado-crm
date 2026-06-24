@@ -14,6 +14,16 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ArrowUp, ArrowDown, UserPlus2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/distribuicao")({
   head: () => ({ meta: [{ title: "Distribuição — Seu Metro Quadrado" }] }),
@@ -135,6 +145,7 @@ function DistribuicaoPage() {
     },
   });
 
+  const [confirmReset, setConfirmReset] = useState(false);
   const resetCotas = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
@@ -179,7 +190,7 @@ function DistribuicaoPage() {
             >
               Rodar agora
             </Button>
-            <Button variant="outline" size="sm" onClick={() => resetCotas.mutate()}>
+            <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)}>
               Zerar cotas do dia
             </Button>
           </div>
@@ -356,6 +367,29 @@ function DistribuicaoPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zerar as cotas do dia?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso zera o contador de leads recebidos hoje de TODOS os corretores na fila. A
+              roleta volta a distribuir como se ninguém tivesse recebido leads hoje.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                resetCotas.mutate();
+                setConfirmReset(false);
+              }}
+            >
+              Zerar cotas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
