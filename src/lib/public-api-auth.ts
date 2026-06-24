@@ -1,6 +1,7 @@
 // Helper para autenticar endpoints públicos de leitura via X-API-Key.
 // Usado pelos routes em src/routes/api/public/leads/* e /metricas.
 import { timingSafeEqual } from "crypto";
+import { rateLimit, __resetRateLimit as __resetGenericRateLimit } from "@/lib/rate-limit";
 
 // Campos do lead seguros para exposição na API pública de leitura.
 // PII sensível (cpf, renda_informada, entrada_disponivel, observacoes) é
@@ -33,11 +34,10 @@ export const PUBLIC_LEAD_FIELDS = [
 
 export const PUBLIC_LEAD_SELECT = PUBLIC_LEAD_FIELDS.join(",");
 
-// Rate limit simples em memória (janela fixa por chave/IP). Não substitui um
-// rate limit de borda (Cloudflare), mas evita enumeração/abuso trivial.
-const RATE_LIMIT_MAX = Number(process.env.PUBLIC_API_RATE_LIMIT ?? 60); // req
-const RATE_LIMIT_WINDOW_MS = 60_000; // por minuto
-const buckets = new Map<string, { count: number; resetAt: number }>();
+// Rate limit por chave/IP, reusando o helper genérico (janela fixa em memória).
+// Não substitui um rate limit de borda (Cloudflare), mas evita enumeração/abuso trivial.
+const RATE_LIMIT_MAX = Number(process.env.PUBLIC_API_RATE_LIMIT ?? 60); // req/min
+const RATE_LIMIT_WINDOW_MS = 60_000;
 
 function clientId(request: Request): string {
   const key = request.headers.get("x-api-key") ?? "";
@@ -46,37 +46,28 @@ function clientId(request: Request): string {
     request.headers.get("x-real-ip") ||
     "unknown";
   // Identifica pela chave quando presente; senão pelo IP.
-  return key ? `k:${key.slice(0, 12)}` : `ip:${ip}`;
+  return key ? `pubapi:k:${key.slice(0, 12)}` : `pubapi:ip:${ip}`;
 }
 
 export function checkRateLimit(request: Request, now = Date.now()): Response | null {
-  const id = clientId(request);
-  const bucket = buckets.get(id);
-  if (!bucket || now >= bucket.resetAt) {
-    buckets.set(id, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return null;
-  }
-  bucket.count += 1;
-  if (bucket.count > RATE_LIMIT_MAX) {
-    const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
-    return new Response(
-      JSON.stringify({ error: "rate_limit_exceeded", retry_after_s: retryAfter }),
-      {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(retryAfter),
-          "Cache-Control": "no-store",
-        },
+  const r = rateLimit(clientId(request), RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS, now);
+  if (r.allowed) return null;
+  return new Response(
+    JSON.stringify({ error: "rate_limit_exceeded", retry_after_s: r.retryAfterS }),
+    {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "Retry-After": String(r.retryAfterS),
+        "Cache-Control": "no-store",
       },
-    );
-  }
-  return null;
+    },
+  );
 }
 
 // Apenas para testes.
 export function __resetRateLimit() {
-  buckets.clear();
+  __resetGenericRateLimit();
 }
 
 export function checkReadApiKey(request: Request): Response | null {

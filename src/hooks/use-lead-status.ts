@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -31,7 +32,10 @@ export function useLeadStatusMutation(opts: Options = {}) {
     onSuccess,
   } = opts;
 
-  return useMutation({
+  // Referência à própria mutação para permitir "Tentar novamente" no toast de erro.
+  const mutateRef = useRef<((vars: Vars) => void) | null>(null);
+
+  const mutation = useMutation({
     mutationFn: async ({ id, status }: Vars) => {
       const patch: Record<string, unknown> = { status };
       if (touchUltimaInteracao) patch.ultima_interacao = new Date().toISOString();
@@ -58,13 +62,23 @@ export function useLeadStatusMutation(opts: Options = {}) {
       }
       return { snapshots };
     },
-    onError: (err: Error, _vars, ctx) => {
+    onError: (err: Error, vars, ctx) => {
+      // Reverte o update otimista e oferece retry visível (o card "voltar" de
+      // coluna no Kanban pode passar despercebido sem isso).
       ctx?.snapshots.forEach(({ key, data }) => qc.setQueryData(key, data));
-      toast.error(err.message);
+      toast.error(err.message, {
+        action: {
+          label: "Tentar novamente",
+          onClick: () => mutateRef.current?.(vars),
+        },
+      });
     },
     onSuccess: (_data, vars) => onSuccess?.(vars),
     onSettled: () => {
       invalidateKeys.forEach((key) => qc.invalidateQueries({ queryKey: key }));
     },
   });
+
+  mutateRef.current = mutation.mutate;
+  return mutation;
 }
