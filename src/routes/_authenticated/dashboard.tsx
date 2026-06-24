@@ -188,7 +188,7 @@ function DashboardPage() {
             {motivosQ.isLoading ? (
               <Skeleton className="h-full w-full" />
             ) : (motivosQ.data?.length ?? 0) === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem dados no período.</p>
+              <p className="text-sm text-muted-foreground">Sem dados neste período. Ajuste o filtro de data acima.</p>
             ) : (
               <MotivosChart data={motivosQ.data ?? []} />
             )}
@@ -395,7 +395,7 @@ function PorCorretorTable({
 }) {
   if (loading) return <Skeleton className="h-40 w-full" />;
   if (rows.length === 0)
-    return <p className="text-sm text-muted-foreground">Sem dados no período.</p>;
+    return <p className="text-sm text-muted-foreground">Sem dados neste período. Ajuste o filtro de data acima.</p>;
   return (
     <div className="overflow-x-auto">
       <Table>

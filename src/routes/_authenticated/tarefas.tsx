@@ -19,6 +19,9 @@ import {
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Plus, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -136,6 +139,23 @@ function TarefasPage() {
     },
     onSuccess: () => {
       toast.success("Tarefa concluída");
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Snooze: adia o vencimento da tarefa para agora + N (1h / 1 dia / 1 semana).
+  const snoozeMutation = useMutation({
+    mutationFn: async ({ id, ms }: { id: string; ms: number }) => {
+      const novo = new Date(Date.now() + ms).toISOString();
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ data_vencimento: novo })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa adiada");
       qc.invalidateQueries({ queryKey: ["tarefas"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -330,6 +350,26 @@ function TarefasPage() {
                         {canManageAll && t.profiles?.nome && <span>Corretor: {t.profiles.nome}</span>}
                       </div>
                     </div>
+                    {t.status !== "concluida" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" title="Adiar">
+                            <Clock className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 60 * 60 * 1000 })}>
+                            Adiar 1 hora
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 24 * 60 * 60 * 1000 })}>
+                            Adiar 1 dia
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 7 * 24 * 60 * 60 * 1000 })}>
+                            Adiar 1 semana
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => { setEditing(t); setDialogOpen(true); }}>
                       Editar
                     </Button>

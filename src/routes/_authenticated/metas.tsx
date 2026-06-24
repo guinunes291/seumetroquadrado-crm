@@ -246,6 +246,18 @@ function MetasPage() {
             <div className="text-center py-12 text-muted-foreground">
               <Target className="h-10 w-10 mx-auto mb-2 opacity-50" />
               <p className="text-sm">Nenhuma meta cadastrada para {MESES_PT[mes - 1]}/{ano}.</p>
+              {canManage && (
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  onClick={() => {
+                    setEditing(null);
+                    setOpen(true);
+                  }}
+                >
+                  Criar meta para {MESES_PT[mes - 1]}/{ano}
+                </Button>
+              )}
             </div>
           ) : (
             <ul className="divide-y">

@@ -154,7 +154,8 @@ function ComissoesPage() {
                       colSpan={canManage ? 6 : 5}
                       className="py-10 text-center text-muted-foreground"
                     >
-                      Nenhuma comissão encontrada.
+                      Nenhuma comissão por aqui ainda. As comissões são geradas
+                      automaticamente quando uma venda é registrada (etapa "Contrato fechado").
                     </TableCell>
                   </TableRow>
                 )}

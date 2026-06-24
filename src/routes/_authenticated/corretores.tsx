@@ -33,6 +33,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { UserPlus, Search } from "lucide-react";
 
@@ -61,6 +71,8 @@ function CorretoresPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  // Confirmação antes de bloquear um corretor (ação destrutiva: perde acesso).
+  const [confirmBlock, setConfirmBlock] = useState<{ id: string; nome: string } | null>(null);
 
   const equipesQuery = useQuery({
     queryKey: ["equipes", "list"],
@@ -304,7 +316,11 @@ function CorretoresPage() {
                       <Button
                         variant={c.ativo ? "outline" : "default"}
                         size="sm"
-                        onClick={() => updateAtivo.mutate({ id: c.id, ativo: !c.ativo })}
+                        onClick={() =>
+                          c.ativo
+                            ? setConfirmBlock({ id: c.id, nome: c.nome })
+                            : updateAtivo.mutate({ id: c.id, ativo: true })
+                        }
                       >
                         {c.ativo ? "Bloquear" : "Reativar"}
                       </Button>
@@ -335,6 +351,29 @@ function CorretoresPage() {
           </li>
         </ul>
       </div>
+
+      <AlertDialog open={!!confirmBlock} onOpenChange={(o) => !o && setConfirmBlock(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bloquear {confirmBlock?.nome}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O corretor perderá o acesso imediatamente e sairá da fila de distribuição. Você
+              pode reativá-lo depois.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmBlock) updateAtivo.mutate({ id: confirmBlock.id, ativo: false });
+                setConfirmBlock(null);
+              }}
+            >
+              Bloquear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

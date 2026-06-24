@@ -579,12 +579,21 @@ function AgendamentoForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label>Lembrete (minutos antes)</Label>
-          <Input
-            type="number" min={0} max={1440}
-            value={lembrete}
-            onChange={(e) => setLembrete(Number(e.target.value) || 0)}
-          />
+          <Label>Lembrete (antes do horário)</Label>
+          <Select value={String(lembrete)} onValueChange={(v) => setLembrete(Number(v))}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">Sem lembrete</SelectItem>
+              <SelectItem value="5">5 minutos antes</SelectItem>
+              <SelectItem value="15">15 minutos antes</SelectItem>
+              <SelectItem value="30">30 minutos antes</SelectItem>
+              <SelectItem value="60">1 hora antes</SelectItem>
+              <SelectItem value="120">2 horas antes</SelectItem>
+              <SelectItem value="1440">1 dia antes</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {status === "cancelado" && (
