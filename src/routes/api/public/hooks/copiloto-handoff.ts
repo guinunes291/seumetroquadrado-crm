@@ -79,8 +79,12 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         // Carrega lead + corretor + projeto + alternativa
-        const { data: lead, error: leadErr } = await supabaseAdmin
-          .from("leads")
+        // Cast: colunas estado/etapa/motivo_handoff/copiloto_notificado_em ainda
+        // não estão no types.ts gerado.
+        const { data: leadRaw, error: leadErr } = await (supabaseAdmin
+          .from("leads") as unknown as {
+            select: (s: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }> } };
+          })
           .select(
             "id, nome, telefone, temperatura, status, etapa, estado, motivo_handoff, " +
               "renda_informada, usa_fgts, entrada_disponivel, observacoes, " +
@@ -88,7 +92,25 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
           )
           .eq("id", parsed.data.lead_id)
           .maybeSingle();
-        if (leadErr || !lead) return new Response("lead not found", { status: 404 });
+        if (leadErr || !leadRaw) return new Response("lead not found", { status: 404 });
+        const lead = leadRaw as {
+          id: string;
+          nome: string | null;
+          telefone: string | null;
+          temperatura: string | null;
+          status: string | null;
+          etapa: string | null;
+          estado: string | null;
+          motivo_handoff: string | null;
+          renda_informada: string | null;
+          usa_fgts: boolean | null;
+          entrada_disponivel: string | null;
+          observacoes: string | null;
+          corretor_id: string | null;
+          projeto_id: string | null;
+          projeto_nome: string | null;
+          copiloto_notificado_em: string | null;
+        };
 
         // Idempotência
         if (lead.copiloto_notificado_em) {

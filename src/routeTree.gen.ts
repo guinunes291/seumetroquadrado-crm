@@ -45,6 +45,8 @@ import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenti
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
+import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/public/hooks/copiloto-handoff'
+import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -236,6 +238,17 @@ const ApiPublicHooksPushDispatchRoute =
     path: '/api/public/hooks/push-dispatch',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksCopilotoHandoffRoute =
+  ApiPublicHooksCopilotoHandoffRouteImport.update({
+    id: '/api/public/hooks/copiloto-handoff',
+    path: '/api/public/hooks/copiloto-handoff',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCorretoresIdRoute = ApiPublicCorretoresIdRouteImport.update({
+  id: '/api/public/corretores/$id',
+  path: '/api/public/corretores/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhooksLeadTokenRoute =
   ApiPublicWebhooksLeadTokenRouteImport.update({
     id: '/api/public/webhooks/lead/$token',
@@ -276,6 +289,8 @@ export interface FileRoutesByFullPath {
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
+  '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
+  '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
@@ -314,6 +329,8 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
+  '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
+  '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
@@ -354,6 +371,8 @@ export interface FileRoutesById {
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
+  '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
+  '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
@@ -394,6 +413,8 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/oferta-ativa/'
     | '/projetos/'
+    | '/api/public/corretores/$id'
+    | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/leads/'
@@ -432,6 +453,8 @@ export interface FileRouteTypes {
     | '/leads'
     | '/oferta-ativa'
     | '/projetos'
+    | '/api/public/corretores/$id'
+    | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/leads'
@@ -471,6 +494,8 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
+    | '/api/public/corretores/$id'
+    | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/leads/'
@@ -482,6 +507,8 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
+  ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
+  ApiPublicHooksCopilotoHandoffRoute: typeof ApiPublicHooksCopilotoHandoffRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
   ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
@@ -742,6 +769,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPushDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/copiloto-handoff': {
+      id: '/api/public/hooks/copiloto-handoff'
+      path: '/api/public/hooks/copiloto-handoff'
+      fullPath: '/api/public/hooks/copiloto-handoff'
+      preLoaderRoute: typeof ApiPublicHooksCopilotoHandoffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/corretores/$id': {
+      id: '/api/public/corretores/$id'
+      path: '/api/public/corretores/$id'
+      fullPath: '/api/public/corretores/$id'
+      preLoaderRoute: typeof ApiPublicCorretoresIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/lead/$token': {
       id: '/api/public/webhooks/lead/$token'
       path: '/api/public/webhooks/lead/$token'
@@ -824,6 +865,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
+  ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
+  ApiPublicHooksCopilotoHandoffRoute: ApiPublicHooksCopilotoHandoffRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
   ApiPublicLeadsIdRoute: ApiPublicLeadsIdRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
