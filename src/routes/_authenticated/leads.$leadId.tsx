@@ -650,7 +650,13 @@ function LeadDetailPage() {
               </Badge>
               {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
               {slaInfo && (
-                <SlaBadge slaMinutos={slaInfo.sla_minutos} referencia={lead.created_at} />
+                <SlaBadge
+                  slaMinutos={slaInfo.sla_minutos}
+                  referencia={
+                    (lead as { data_distribuicao?: string | null }).data_distribuicao ??
+                    lead.created_at
+                  }
+                />
               )}
             </div>
             <div className="flex items-center gap-2">

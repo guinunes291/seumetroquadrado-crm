@@ -585,6 +585,9 @@ function AgendamentoForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              {![0, 5, 15, 30, 60, 120, 1440].includes(lembrete) && (
+                <SelectItem value={String(lembrete)}>{lembrete} min antes</SelectItem>
+              )}
               <SelectItem value="0">Sem lembrete</SelectItem>
               <SelectItem value="5">5 minutos antes</SelectItem>
               <SelectItem value="15">15 minutos antes</SelectItem>
