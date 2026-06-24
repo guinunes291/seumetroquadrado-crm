@@ -571,6 +571,65 @@ export type Database = {
         }
         Relationships: []
       }
+      copiloto_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      copiloto_eventos: {
+        Row: {
+          criado_em: string
+          id: string
+          lead_id: string | null
+          payload: Json | null
+          resposta: string | null
+          status_http: number | null
+          sucesso: boolean
+          tentativa: number
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          lead_id?: string | null
+          payload?: Json | null
+          resposta?: string | null
+          status_http?: number | null
+          sucesso?: boolean
+          tentativa?: number
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          lead_id?: string | null
+          payload?: Json | null
+          resposta?: string | null
+          status_http?: number | null
+          sucesso?: boolean
+          tentativa?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "copiloto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       distribuicao_config: {
         Row: {
           origem: Database["public"]["Enums"]["lead_origem"]
@@ -828,6 +887,7 @@ export type Database = {
       leads: {
         Row: {
           campanha: string | null
+          copiloto_notificado_em: string | null
           corretor_anterior_id: string | null
           corretor_id: string | null
           corretores_que_tentaram: string[]
@@ -838,8 +898,12 @@ export type Database = {
           deleted_at: string | null
           email: string | null
           entrada_disponivel: string | null
+          estado: Database["public"]["Enums"]["lead_estado"] | null
+          etapa: string | null
+          handoff_em: string | null
           id: string
           legacy_id: number | null
+          motivo_handoff: string | null
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
@@ -867,6 +931,7 @@ export type Database = {
         }
         Insert: {
           campanha?: string | null
+          copiloto_notificado_em?: string | null
           corretor_anterior_id?: string | null
           corretor_id?: string | null
           corretores_que_tentaram?: string[]
@@ -877,8 +942,12 @@ export type Database = {
           deleted_at?: string | null
           email?: string | null
           entrada_disponivel?: string | null
+          estado?: Database["public"]["Enums"]["lead_estado"] | null
+          etapa?: string | null
+          handoff_em?: string | null
           id?: string
           legacy_id?: number | null
+          motivo_handoff?: string | null
           motivo_perda_categoria?: string | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
@@ -906,6 +975,7 @@ export type Database = {
         }
         Update: {
           campanha?: string | null
+          copiloto_notificado_em?: string | null
           corretor_anterior_id?: string | null
           corretor_id?: string | null
           corretores_que_tentaram?: string[]
@@ -916,8 +986,12 @@ export type Database = {
           deleted_at?: string | null
           email?: string | null
           entrada_disponivel?: string | null
+          estado?: Database["public"]["Enums"]["lead_estado"] | null
+          etapa?: string | null
+          handoff_em?: string | null
           id?: string
           legacy_id?: number | null
+          motivo_handoff?: string | null
           motivo_perda_categoria?: string | null
           motivo_perdido?: string | null
           na_lixeira?: boolean
@@ -950,6 +1024,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
           },
         ]
       }
@@ -1359,6 +1447,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_foco_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "projeto_foco_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
           },
         ]
       }
@@ -1868,6 +1970,20 @@ export type Database = {
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "templates_mensagem_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "templates_mensagem_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
         ]
       }
       unidades: {
@@ -1935,6 +2051,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unidades_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "unidades_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
           },
         ]
       }
@@ -2044,6 +2174,20 @@ export type Database = {
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "vendas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
         ]
       }
     }
@@ -2073,6 +2217,16 @@ export type Database = {
           },
         ]
       }
+      projetos_alternativa_regiao: {
+        Row: {
+          alternativa_bairro: string | null
+          alternativa_id: string | null
+          alternativa_nome: string | null
+          alternativa_preco: number | null
+          projeto_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _norm_bairro: { Args: { _t: string }; Returns: string }
@@ -2080,6 +2234,7 @@ export type Database = {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
           campanha: string | null
+          copiloto_notificado_em: string | null
           corretor_anterior_id: string | null
           corretor_id: string | null
           corretores_que_tentaram: string[]
@@ -2090,8 +2245,12 @@ export type Database = {
           deleted_at: string | null
           email: string | null
           entrada_disponivel: string | null
+          estado: Database["public"]["Enums"]["lead_estado"] | null
+          etapa: string | null
+          handoff_em: string | null
           id: string
           legacy_id: number | null
+          motivo_handoff: string | null
           motivo_perda_categoria: string | null
           motivo_perdido: string | null
           na_lixeira: boolean
@@ -2218,6 +2377,7 @@ export type Database = {
           pode_avancar: boolean
         }[]
       }
+      copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       create_oferta_ativa: {
         Args: {
@@ -2497,6 +2657,14 @@ export type Database = {
         | "mudanca_status"
         | "proposta"
         | "outro"
+      lead_estado:
+        | "EM_QUALIFICACAO"
+        | "AGUARDANDO_HORARIO"
+        | "COM_CORRETOR"
+        | "ATENDIMENTO_HUMANO"
+        | "EM_FOLLOWUP"
+        | "FRIO_REATIVACAO"
+        | "ENCERRADO_OPTOUT"
       lead_origem:
         | "facebook"
         | "google_sheets"
@@ -2693,6 +2861,15 @@ export const Constants = {
         "mudanca_status",
         "proposta",
         "outro",
+      ],
+      lead_estado: [
+        "EM_QUALIFICACAO",
+        "AGUARDANDO_HORARIO",
+        "COM_CORRETOR",
+        "ATENDIMENTO_HUMANO",
+        "EM_FOLLOWUP",
+        "FRIO_REATIVACAO",
+        "ENCERRADO_OPTOUT",
       ],
       lead_origem: [
         "facebook",
