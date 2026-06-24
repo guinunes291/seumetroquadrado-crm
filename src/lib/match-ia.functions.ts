@@ -4,6 +4,39 @@ import { generateText } from "ai";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Teto de custo de IA: limita buscas por usuário (cada busca = 1 chamada ao LLM).
+const IA_RATE_MAX = Number(process.env.MATCH_IA_RATE_LIMIT ?? 20); // por minuto
+const IA_RATE_WINDOW_MS = 60_000;
+
+// Linha do catálogo de projetos usada na busca por IA.
+type ProjetoRow = {
+  id: string;
+  nome: string;
+  construtora: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  regiao: string | null;
+  zona_smq: string | null;
+  tipologia: string | null;
+  dorms_min: number | null;
+  dorms_max: number | null;
+  vagas_min: number | null;
+  vagas_max: number | null;
+  metragem_min: number | null;
+  metragem_max: number | null;
+  preco_a_partir: number | null;
+  status_entrega: string | null;
+  mes_entrega: number | string | null;
+  ano_entrega: number | null;
+  observacoes: string | null;
+};
+
+// Cache curto, em memória, do catálogo de projetos ativos — reduz carga no banco
+// em buscas repetidas. Não afeta o custo de tokens (vem do rate limit + limit(200)).
+const CATALOGO_TTL_MS = 60_000;
+let catalogoCache: { at: number; data: ProjetoRow[] } | null = null;
 
 const InputSchema = z.object({
   descricao: z.string().min(10).max(2000),
@@ -56,18 +89,33 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY ausente");
 
-    const { supabase } = context;
-    const { data: projetos, error } = await supabase
-      .from("projetos")
-      .select(
-        "id, nome, construtora, bairro, cidade, regiao, zona_smq, tipologia, dorms_min, dorms_max, vagas_min, vagas_max, metragem_min, metragem_max, preco_a_partir, status_entrega, mes_entrega, ano_entrega, observacoes",
-      )
-      .eq("ativo", true)
-      .is("deleted_at", null)
-      .limit(200);
+    const { supabase, userId } = context;
 
-    if (error) throw new Error(error.message);
-    const lista = projetos ?? [];
+    // Teto de custo: limita buscas de IA por usuário.
+    const rl = rateLimit(`match-ia:${userId}`, IA_RATE_MAX, IA_RATE_WINDOW_MS);
+    if (!rl.allowed) {
+      throw new Error(
+        `Muitas buscas seguidas. Tente novamente em ${rl.retryAfterS}s.`,
+      );
+    }
+
+    // Catálogo de projetos ativos com cache curto em memória.
+    let lista: ProjetoRow[];
+    if (catalogoCache && Date.now() - catalogoCache.at < CATALOGO_TTL_MS) {
+      lista = catalogoCache.data;
+    } else {
+      const { data: projetos, error } = await supabase
+        .from("projetos")
+        .select(
+          "id, nome, construtora, bairro, cidade, regiao, zona_smq, tipologia, dorms_min, dorms_max, vagas_min, vagas_max, metragem_min, metragem_max, preco_a_partir, status_entrega, mes_entrega, ano_entrega, observacoes",
+        )
+        .eq("ativo", true)
+        .is("deleted_at", null)
+        .limit(200);
+      if (error) throw new Error(error.message);
+      lista = (projetos ?? []) as unknown as ProjetoRow[];
+      catalogoCache = { at: Date.now(), data: lista };
+    }
 
     if (lista.length === 0) {
       return { resumo: "Nenhum empreendimento ativo cadastrado.", filtrosUsados: {}, totalFiltrados: 0, projetos: [] };

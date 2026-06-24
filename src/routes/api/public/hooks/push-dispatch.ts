@@ -1,20 +1,55 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { timingSafeEqual } from "crypto";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Comparação de segredos em tempo constante (evita timing attack).
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
 
 /**
  * Cron-driven endpoint. Reads pending rows from `push_outbox`, sends Web Push
  * to each subscription of the target user, and marks them as sent.
- * Authenticated via Supabase anon key (apikey header) — set by pg_cron.
+ *
+ * Auth: header `x-push-secret` == PUSH_DISPATCH_SECRET (segredo dedicado).
+ * Compatibilidade: enquanto PUSH_DISPATCH_SECRET não estiver provisionado,
+ * cai para a anon key no header `apikey` (comportamento legado), logando aviso.
  */
 export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apikey = request.headers.get("apikey") || "";
-        const expected =
-          process.env.SUPABASE_ANON_KEY ||
-          process.env.SUPABASE_PUBLISHABLE_KEY ||
-          "";
-        if (!expected || apikey !== expected) {
+        // Rate limit por origem (o endpoint é chamado pelo cron; limite generoso).
+        const ip =
+          request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+          request.headers.get("x-real-ip") ||
+          "cron";
+        const rl = rateLimit(`push-dispatch:${ip}`, 30, 60_000);
+        if (!rl.allowed) {
+          return new Response("rate_limited", {
+            status: 429,
+            headers: { "Retry-After": String(rl.retryAfterS) },
+          });
+        }
+
+        const pushSecret = process.env.PUSH_DISPATCH_SECRET || "";
+        let authorized = false;
+        if (pushSecret) {
+          authorized = safeEqual(request.headers.get("x-push-secret") || "", pushSecret);
+        } else {
+          // Fallback legado: anon/publishable key. Trocar assim que o segredo
+          // dedicado for provisionado (PUSH_DISPATCH_SECRET).
+          const legacy = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
+          authorized = !!legacy && safeEqual(request.headers.get("apikey") || "", legacy);
+          if (authorized) {
+            console.warn(
+              "[push-dispatch] usando auth legada (anon key). Defina PUSH_DISPATCH_SECRET para endurecer.",
+            );
+          }
+        }
+        if (!authorized) {
           return new Response("unauthorized", { status: 401 });
         }
 

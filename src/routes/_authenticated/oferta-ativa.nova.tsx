@@ -341,13 +341,21 @@ function NovaOfertaPage() {
           )}
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col items-end gap-2">
+          {(nome.trim().length < 2 || (previewQ.data?.count ?? 0) === 0) && (
+            <p className="text-xs text-muted-foreground">
+              {nome.trim().length < 2
+                ? "Dê um nome com pelo menos 2 caracteres à lista."
+                : "Ajuste os filtros: a lista precisa conter ao menos 1 lead."}
+            </p>
+          )}
+          <div className="flex justify-end gap-3">
           <Button variant="outline" asChild>
             <Link to="/oferta-ativa">Cancelar</Link>
           </Button>
           <Button
             onClick={() => createM.mutate()}
-            disabled={!nome.trim() || createM.isPending || (previewQ.data?.count ?? 0) === 0}
+            disabled={nome.trim().length < 2 || createM.isPending || (previewQ.data?.count ?? 0) === 0}
           >
             {createM.isPending ? (
               <>
@@ -359,6 +367,7 @@ function NovaOfertaPage() {
               </>
             )}
           </Button>
+          </div>
         </div>
       </div>
     </div>
