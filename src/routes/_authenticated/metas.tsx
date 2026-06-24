@@ -18,7 +18,16 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Target, Trash2 } from "lucide-react";
-import { MESES_PT } from "@/lib/metas";
+import { Progress } from "@/components/ui/progress";
+import {
+  MESES_PT,
+  computeAgentMetrics,
+  progressoMeta,
+  type AgentMetrics,
+  type LeadSlim,
+  type AgendamentoSlim,
+  type TransicaoSlim,
+} from "@/lib/metas";
 
 export const Route = createFileRoute("/_authenticated/metas")({
   head: () => ({ meta: [{ title: "Metas — Seu Metro Quadrado" }] }),
@@ -85,6 +94,54 @@ function MetasPage() {
       return data ?? [];
     },
   });
+
+  // Realizado do mês (para barras "realizado vs meta"). Reusa computeAgentMetrics.
+  const realizadoQ = useQuery({
+    queryKey: ["metas-realizado", ano, mes],
+    queryFn: async () => {
+      const ini = new Date(ano, mes - 1, 1).toISOString();
+      const fim = new Date(ano, mes, 1).toISOString();
+      const [leadsRes, agendRes, transRes] = await Promise.all([
+        supabase.from("leads").select("status, corretor_id, created_at").gte("created_at", ini).lt("created_at", fim),
+        supabase.from("agendamentos").select("status, corretor_id, data_inicio").gte("data_inicio", ini).lt("data_inicio", fim),
+        supabase.from("lead_status_transitions").select("para_status, corretor_id, created_at").gte("created_at", ini).lt("created_at", fim),
+      ]);
+      const map = computeAgentMetrics(
+        (leadsRes.data ?? []) as LeadSlim[],
+        (agendRes.data ?? []) as AgendamentoSlim[],
+        ano,
+        mes,
+        (transRes.data ?? []) as TransicaoSlim[],
+      );
+      const total: AgentMetrics = {
+        corretor_id: "__total__",
+        leads_total: 0,
+        leads_atendidos: 0,
+        visitas: 0,
+        vendas: 0,
+        perdidos: 0,
+        taxa_conversao: 0,
+      };
+      for (const m of map.values()) {
+        total.leads_total += m.leads_total;
+        total.leads_atendidos += m.leads_atendidos;
+        total.visitas += m.visitas;
+        total.vendas += m.vendas;
+        total.perdidos += m.perdidos;
+      }
+      return { map, total };
+    },
+  });
+
+  // Métricas realizadas aplicáveis a uma meta (corretor → as dele; global → total;
+  // equipe → null por ora, pois exige mapear membros).
+  const realizadoDaMeta = (m: any): AgentMetrics | null => {
+    const r = realizadoQ.data;
+    if (!r) return null;
+    if (m.corretor_id) return r.map.get(m.corretor_id) ?? null;
+    if (!m.equipe_id) return r.total;
+    return null;
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -269,11 +326,39 @@ function MetasPage() {
                       <Badge variant="outline">{MESES_PT[m.mes - 1]}/{m.ano}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 flex gap-3 flex-wrap">
-                      <span>Atend.: <b>{m.meta_leads_atendidos}</b></span>
-                      <span>Visitas: <b>{m.meta_visitas}</b></span>
-                      <span>Vendas: <b>{m.meta_vendas}</b></span>
-                      <span>GMV: <b>R$ {Number(m.meta_gmv).toLocaleString("pt-BR")}</b></span>
+                      <span>GMV (meta): <b>R$ {Number(m.meta_gmv).toLocaleString("pt-BR")}</b></span>
                     </div>
+                    {(() => {
+                      if (m.equipe_id) {
+                        return (
+                          <div className="text-[11px] text-muted-foreground mt-2">
+                            Meta: {m.meta_leads_atendidos} atend. · {m.meta_visitas} visitas ·{" "}
+                            {m.meta_vendas} vendas · progresso por equipe em breve.
+                          </div>
+                        );
+                      }
+                      const r = realizadoDaMeta(m);
+                      const bars = [
+                        { label: "Atendidos", real: r?.leads_atendidos ?? 0, meta: m.meta_leads_atendidos },
+                        { label: "Visitas", real: r?.visitas ?? 0, meta: m.meta_visitas },
+                        { label: "Vendas", real: r?.vendas ?? 0, meta: m.meta_vendas },
+                      ];
+                      return (
+                        <div className="mt-2 space-y-1.5 max-w-md">
+                          {bars.map((b) => (
+                            <div key={b.label}>
+                              <div className="flex justify-between text-[11px] text-muted-foreground">
+                                <span>{b.label}</span>
+                                <span>
+                                  <b className="text-foreground">{b.real}</b> / {b.meta}
+                                </span>
+                              </div>
+                              <Progress value={progressoMeta(b.real, b.meta)} className="h-1.5" />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                   {canManage && (
                     <>

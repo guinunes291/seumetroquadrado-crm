@@ -116,6 +116,9 @@ import {
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
+  validateSearch: (search: Record<string, unknown>): { status?: string } => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+  }),
   component: LeadsPage,
 });
 
@@ -286,8 +289,13 @@ function LeadsPage() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const { status: statusParam } = Route.useSearch();
+  const statusParamValido =
+    statusParam && (LEAD_STATUS_ORDER as readonly string[]).includes(statusParam)
+      ? statusParam
+      : undefined;
   const [statusFilter, setStatusFilter] = useState<string>(
-    canManage ? "all" : "aguardando_atendimento",
+    statusParamValido ?? (canManage ? "all" : "aguardando_atendimento"),
   );
   const [origemFilter, setOrigemFilter] = useState<string>("all");
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
@@ -334,6 +342,11 @@ function LeadsPage() {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Drill-down: ao chegar do dashboard com ?status=…, aplica o filtro de status.
+  useEffect(() => {
+    if (statusParamValido) setStatusFilter(statusParamValido);
+  }, [statusParamValido]);
 
   // Filtros atuais como objeto (para salvar/restaurar/visões).
   const filtrosAtuais: LeadFiltros = {
