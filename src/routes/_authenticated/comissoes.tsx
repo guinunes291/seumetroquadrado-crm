@@ -57,9 +57,10 @@ function ComissoesPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [periodoFilter, setPeriodoFilter] = useState<string>("90d");
 
   const comissoesQ = useQuery({
-    queryKey: ["comissoes", statusFilter],
+    queryKey: ["comissoes", statusFilter, periodoFilter],
     queryFn: async () => {
       let q = supabase
         .from("comissoes" as never)
@@ -69,6 +70,11 @@ function ComissoesPage() {
         .order("created_at", { ascending: false })
         .limit(500);
       if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      const dias: Record<string, number> = { "30d": 30, "90d": 90, "12m": 365 };
+      if (periodoFilter !== "all" && dias[periodoFilter]) {
+        const cutoff = new Date(Date.now() - dias[periodoFilter] * 24 * 60 * 60 * 1000);
+        q = q.gte("created_at", cutoff.toISOString());
+      }
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Comissao[];
@@ -94,17 +100,30 @@ function ComissoesPage() {
         title="Comissões"
         description="Comissões geradas automaticamente a cada venda registrada."
         actions={
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="recebido">Recebido</SelectItem>
-              <SelectItem value="em_disputa">Em disputa</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={periodoFilter} onValueChange={setPeriodoFilter}>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                <SelectItem value="90d">Últimos 90 dias</SelectItem>
+                <SelectItem value="12m">Últimos 12 meses</SelectItem>
+                <SelectItem value="all">Todo o período</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="recebido">Recebido</SelectItem>
+                <SelectItem value="em_disputa">Em disputa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         }
       />
 
@@ -154,7 +173,8 @@ function ComissoesPage() {
                       colSpan={canManage ? 6 : 5}
                       className="py-10 text-center text-muted-foreground"
                     >
-                      Nenhuma comissão encontrada.
+                      Nenhuma comissão por aqui ainda. As comissões são geradas
+                      automaticamente quando uma venda é registrada (etapa "Contrato fechado").
                     </TableCell>
                   </TableRow>
                 )}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
+import { SlaBadge } from "@/components/sla-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -203,6 +204,7 @@ function LeadDetailPage() {
   const [waOpen, setWaOpen] = useState(false);
   const [waTemplateId, setWaTemplateId] = useState<string>("");
   const [waMensagem, setWaMensagem] = useState("");
+  const [notaRapida, setNotaRapida] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     nome: "",
@@ -286,6 +288,45 @@ function LeadDetailPage() {
       qc.invalidateQueries({ queryKey: ["lead", leadId] });
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Nota rápida: registra uma interação (nota interna) em 1 passo, sem o modal completo.
+  const criarNotaRapida = useMutation({
+    mutationFn: async () => {
+      const txt = notaRapida.trim();
+      if (txt.length === 0) throw new Error("Escreva a nota.");
+      if (txt.length > 2000) throw new Error("Nota muito longa (máx 2000).");
+      const { data: u } = await supabase.auth.getUser();
+      const { error } = await supabase.from("interacoes").insert({
+        lead_id: leadId,
+        autor_id: u.user?.id ?? null,
+        tipo: "nota",
+        direcao: "interna",
+        conteudo: txt,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setNotaRapida("");
+      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // SLA do lead (mesma fonte do Kanban: view leads_com_sla). Mostra contador no detalhe.
+  const { data: slaInfo } = useQuery({
+    queryKey: ["lead-sla", leadId],
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+        ) => Promise<{ data: Array<{ lead_id: string; sla_minutos: number }> | null; error: unknown }>
+      )("leads_com_sla");
+      if (error) throw error;
+      return (data ?? []).find((r) => r.lead_id === leadId) ?? null;
+    },
+    staleTime: 60_000,
   });
 
   const enviarWhatsapp = useMutation({
@@ -608,6 +649,15 @@ function LeadDetailPage() {
                 {leadStatusLabel(lead.status)}
               </Badge>
               {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
+              {slaInfo && (
+                <SlaBadge
+                  slaMinutos={slaInfo.sla_minutos}
+                  referencia={
+                    (lead as { data_distribuicao?: string | null }).data_distribuicao ??
+                    lead.created_at
+                  }
+                />
+              )}
             </div>
             <div className="flex items-center gap-2">
               {acaoSugerida && (
@@ -671,6 +721,33 @@ function LeadDetailPage() {
         </TabsList>
 
         <TabsContent value="timeline" className="mt-4">
+          {/* Nota rápida: registra em 1 passo, sem abrir o modal de interação. */}
+          <Card className="mb-4">
+            <CardContent className="pt-4 space-y-2">
+              <Textarea
+                value={notaRapida}
+                onChange={(e) => setNotaRapida(e.target.value)}
+                placeholder="Nota rápida (Ctrl+Enter para salvar)…"
+                rows={2}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && notaRapida.trim()) {
+                    e.preventDefault();
+                    criarNotaRapida.mutate();
+                  }
+                }}
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!notaRapida.trim() || criarNotaRapida.isPending}
+                  onClick={() => criarNotaRapida.mutate()}
+                >
+                  Salvar nota
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           {interacoes.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">

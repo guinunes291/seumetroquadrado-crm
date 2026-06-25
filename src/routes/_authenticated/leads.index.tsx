@@ -56,6 +56,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   UserPlus,
@@ -106,6 +116,9 @@ import {
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
+  validateSearch: (search: Record<string, unknown>): { status?: string } => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+  }),
   component: LeadsPage,
 });
 
@@ -276,8 +289,13 @@ function LeadsPage() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const { status: statusParam } = Route.useSearch();
+  const statusParamValido =
+    statusParam && (LEAD_STATUS_ORDER as readonly string[]).includes(statusParam)
+      ? statusParam
+      : undefined;
   const [statusFilter, setStatusFilter] = useState<string>(
-    canManage ? "all" : "aguardando_atendimento",
+    statusParamValido ?? (canManage ? "all" : "aguardando_atendimento"),
   );
   const [origemFilter, setOrigemFilter] = useState<string>("all");
   const [corretorFilter, setCorretorFilter] = useState<string>("all");
@@ -299,10 +317,23 @@ function LeadsPage() {
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
   const [bulkTarget, setBulkTarget] = useState<string>("");
   const [contactLead, setContactLead] = useState<Lead | null>(null);
+  // Último tipo de contato usado, para o split "Iniciar atendimento" em 1 clique.
+  const [lastContactType, setLastContactType] = useState<"ligacao" | "whatsapp">(() => {
+    if (typeof window === "undefined") return "whatsapp";
+    const v = window.localStorage.getItem("smq:lastContactType");
+    return v === "ligacao" || v === "whatsapp" ? v : "whatsapp";
+  });
+  const iniciarComTipo = (lead: Lead, tipo: "ligacao" | "whatsapp") => {
+    setLastContactType(tipo);
+    if (typeof window !== "undefined") window.localStorage.setItem("smq:lastContactType", tipo);
+    iniciarAtendimento.mutate({ lead, tipo });
+  };
 
   // Visões salvas (localStorage por usuário)
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
+  // Confirmação antes de excluir uma visão salva.
+  const [confirmDeleteView, setConfirmDeleteView] = useState<{ id: string; nome: string } | null>(null);
   const [viewName, setViewName] = useState("");
   const filtrosRestauradosRef = useRef(false);
 
@@ -311,6 +342,11 @@ function LeadsPage() {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Drill-down: ao chegar do dashboard com ?status=…, aplica o filtro de status.
+  useEffect(() => {
+    if (statusParamValido) setStatusFilter(statusParamValido);
+  }, [statusParamValido]);
 
   // Filtros atuais como objeto (para salvar/restaurar/visões).
   const filtrosAtuais: LeadFiltros = {
@@ -846,7 +882,7 @@ function LeadsPage() {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          excluirVisao(v.id);
+                          setConfirmDeleteView({ id: v.id, nome: v.nome });
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -861,6 +897,31 @@ function LeadsPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          <AlertDialog
+            open={!!confirmDeleteView}
+            onOpenChange={(o) => !o && setConfirmDeleteView(null)}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir a visão "{confirmDeleteView?.nome}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta visão salva de filtros será removida. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    if (confirmDeleteView) excluirVisao(confirmDeleteView.id);
+                    setConfirmDeleteView(null);
+                  }}
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -1198,13 +1259,44 @@ function LeadsPage() {
                         {!l.na_lixeira &&
                           l.status === "aguardando_atendimento" &&
                           (canManage || l.corretor_id === user?.id) && (
-                            <Button
-                              size="sm"
-                              onClick={() => setContactLead(l)}
-                              disabled={iniciarAtendimento.isPending}
-                            >
-                              <Play className="h-3.5 w-3.5 mr-1" /> Iniciar atendimento
-                            </Button>
+                            <div className="flex items-center">
+                              <Button
+                                size="sm"
+                                className="rounded-r-none"
+                                onClick={() => iniciarComTipo(l, lastContactType)}
+                                disabled={iniciarAtendimento.isPending}
+                              >
+                                {lastContactType === "whatsapp" ? (
+                                  <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                                ) : (
+                                  <Phone className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Iniciar {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
+                                    disabled={iniciarAtendimento.isPending}
+                                  >
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onSelect={() => iniciarComTipo(l, "whatsapp")}>
+                                    <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onSelect={() => iniciarComTipo(l, "ligacao")}>
+                                    <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onSelect={() => setContactLead(l)}>
+                                    <Play className="h-4 w-4 mr-2" /> Escolher…
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           )}
                         {!l.na_lixeira &&
                           (canManage || l.corretor_id === user?.id) &&
