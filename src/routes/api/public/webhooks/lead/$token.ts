@@ -220,13 +220,41 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         let corretorId: string | null = null;
         let motivo: string | null = null;
+        let corretorNome: string | null = null;
+        let corretorTelefone: string | null = null;
+        let corretorEmail: string | null = null;
+        let distributed = false;
+
         if (data.distribuir) {
           const { data: c } = await supabaseAdmin.rpc("distribuir_lead", {
             _lead_id: lead.id,
             _tipo: "automatica",
           });
           corretorId = (c as string | null) ?? null;
-          if (!corretorId) motivo = "sem_corretor_disponivel";
+          if (!corretorId) {
+            motivo = "sem_corretor_disponivel";
+          } else {
+            const { data: cor } = await supabaseAdmin
+              .from("profiles")
+              .select("nome, email, telefone")
+              .eq("id", corretorId)
+              .maybeSingle();
+            corretorNome = cor?.nome ?? null;
+            corretorEmail = cor?.email ?? null;
+            const tel = (cor?.telefone ?? "").replace(/\D/g, "");
+            if (!tel) {
+              corretorTelefone = null;
+              motivo = "corretor_sem_telefone";
+              distributed = false;
+            } else {
+              let norm = tel;
+              if (!norm.startsWith("55") && (norm.length === 10 || norm.length === 11)) {
+                norm = `55${norm}`;
+              }
+              corretorTelefone = norm;
+              distributed = true;
+            }
+          }
         }
 
         return Response.json(
@@ -235,7 +263,10 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             projeto: projeto.nome,
             lead_id: lead.id,
             corretor_id: corretorId,
-            distributed: !!corretorId,
+            corretor_nome: corretorNome,
+            corretor_telefone: corretorTelefone,
+            corretor_email: corretorEmail,
+            distributed,
             motivo,
           },
           { headers: corsHeaders },

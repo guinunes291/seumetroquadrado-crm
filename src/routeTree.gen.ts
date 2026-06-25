@@ -44,6 +44,7 @@ import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_auth
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
+import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
 import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
@@ -235,6 +236,12 @@ const ApiPublicLeadsIndexRoute = ApiPublicLeadsIndexRouteImport.update({
   path: '/api/public/leads/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCorretoresIndexRoute =
+  ApiPublicCorretoresIndexRouteImport.update({
+    id: '/api/public/corretores/',
+    path: '/api/public/corretores/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksLandingRoute =
   ApiPublicWebhooksLandingRouteImport.update({
     id: '/api/public/webhooks/landing',
@@ -309,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -351,6 +359,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -395,6 +404,7 @@ export interface FileRoutesById {
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -439,6 +449,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/corretores/'
     | '/api/public/leads/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
@@ -481,6 +492,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/corretores'
     | '/api/public/leads'
     | '/api/public/webhooks/lead/$token'
   id:
@@ -524,6 +536,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/corretores/'
     | '/api/public/leads/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
@@ -538,6 +551,7 @@ export interface RootRouteChildren {
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
   ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRoute
   ApiPublicWebhooksLandingRoute: typeof ApiPublicWebhooksLandingRoute
+  ApiPublicCorretoresIndexRoute: typeof ApiPublicCorretoresIndexRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
   ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -789,6 +803,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/corretores/': {
+      id: '/api/public/corretores/'
+      path: '/api/public/corretores'
+      fullPath: '/api/public/corretores/'
+      preLoaderRoute: typeof ApiPublicCorretoresIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/landing': {
       id: '/api/public/webhooks/landing'
       path: '/api/public/webhooks/landing'
@@ -913,6 +934,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
   ApiPublicLeadsIdRoute: ApiPublicLeadsIdRoute,
   ApiPublicWebhooksLandingRoute: ApiPublicWebhooksLandingRoute,
+  ApiPublicCorretoresIndexRoute: ApiPublicCorretoresIndexRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
   ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }
