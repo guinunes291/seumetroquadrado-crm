@@ -86,6 +86,7 @@ import {
   ArrowRightLeft,
   Bookmark,
   ChevronDown,
+  CalendarClock,
   LayoutGrid,
   Rows3,
   ChevronLeft,
@@ -316,6 +317,8 @@ function LeadsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
   const [bulkTarget, setBulkTarget] = useState<string>("");
+  const [bulkFollowupOpen, setBulkFollowupOpen] = useState(false);
+  const [bulkFollowupData, setBulkFollowupData] = useState<string>("");
   const [contactLead, setContactLead] = useState<Lead | null>(null);
   // Último tipo de contato usado, para o split "Iniciar atendimento" em 1 clique.
   const [lastContactType, setLastContactType] = useState<"ligacao" | "whatsapp">(() => {
@@ -670,6 +673,44 @@ function LeadsPage() {
       setSelectedIds(new Set());
       setBulkTransferOpen(false);
       setBulkTarget("");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Muda a temperatura de todos os leads selecionados de uma vez.
+  const bulkTemperatura = useMutation({
+    mutationFn: async ({ ids, temp }: { ids: string[]; temp: string }) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({ temperatura: temp as never })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Temperatura atualizada em ${n} lead(s)`);
+      setSelectedIds(new Set());
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Define o próximo follow-up de todos os leads selecionados.
+  const bulkFollowup = useMutation({
+    mutationFn: async ({ ids, iso }: { ids: string[]; iso: string }) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({ proximo_followup: iso })
+        .in("id", ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      toast.success(`Follow-up definido em ${n} lead(s)`);
+      setSelectedIds(new Set());
+      setBulkFollowupOpen(false);
+      setBulkFollowupData("");
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -1098,6 +1139,34 @@ function LeadsPage() {
                   onClick={() => bulkRegistrarLigacao.mutate(Array.from(selectedIds))}
                 >
                   <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={bulkTemperatura.isPending}>
+                      <Thermometer className="h-3.5 w-3.5 mr-1" /> Temperatura
+                      <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem
+                      onSelect={() => bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "quente" })}
+                    >
+                      <Flame className="h-4 w-4 mr-2 text-rose-500" /> Quente
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "morno" })}
+                    >
+                      <Thermometer className="h-4 w-4 mr-2 text-amber-500" /> Morno
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "frio" })}
+                    >
+                      <Snowflake className="h-4 w-4 mr-2 text-sky-500" /> Frio
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
+                  <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
                 </Button>
                 {canManage && (
                   <>
@@ -1634,6 +1703,41 @@ function LeadsPage() {
               }
             >
               {bulkTransferir.isPending ? "Transferindo…" : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkFollowupOpen} onOpenChange={setBulkFollowupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Definir follow-up em {selectedIds.size} lead(s)</DialogTitle>
+            <DialogDescription>
+              Define a data/hora do próximo follow-up para todos os selecionados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Próximo follow-up</Label>
+            <Input
+              type="datetime-local"
+              value={bulkFollowupData}
+              onChange={(e) => setBulkFollowupData(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkFollowupOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={!bulkFollowupData || bulkFollowup.isPending}
+              onClick={() =>
+                bulkFollowup.mutate({
+                  ids: Array.from(selectedIds),
+                  iso: new Date(bulkFollowupData).toISOString(),
+                })
+              }
+            >
+              {bulkFollowup.isPending ? "Salvando…" : "Confirmar"}
             </Button>
           </DialogFooter>
         </DialogContent>
