@@ -23,11 +23,13 @@ import {
   MESES_PT,
   computeAgentMetrics,
   progressoMeta,
-  type AgentMetrics,
   type LeadSlim,
   type AgendamentoSlim,
   type TransicaoSlim,
 } from "@/lib/metas";
+
+// Realizado agregado aplicável a uma meta (corretor, equipe ou global).
+type RealizadoView = { leads_atendidos: number; visitas: number; vendas: number; vgv: number };
 
 export const Route = createFileRoute("/_authenticated/metas")({
   head: () => ({ meta: [{ title: "Metas — Seu Metro Quadrado" }] }),
@@ -101,10 +103,15 @@ function MetasPage() {
     queryFn: async () => {
       const ini = new Date(ano, mes - 1, 1).toISOString();
       const fim = new Date(ano, mes, 1).toISOString();
-      const [leadsRes, agendRes, transRes] = await Promise.all([
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const iniDate = `${ano}-${pad(mes)}-01`;
+      const fimDate = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${pad(mes + 1)}-01`;
+      const [leadsRes, agendRes, transRes, vendasRes, profsRes] = await Promise.all([
         supabase.from("leads").select("status, corretor_id, created_at").gte("created_at", ini).lt("created_at", fim),
         supabase.from("agendamentos").select("status, corretor_id, data_inicio").gte("data_inicio", ini).lt("data_inicio", fim),
         supabase.from("lead_status_transitions").select("para_status, corretor_id, created_at").gte("created_at", ini).lt("created_at", fim),
+        supabase.from("vendas").select("corretor_id, valor_venda, data_assinatura, distrato").eq("distrato", false).gte("data_assinatura", iniDate).lt("data_assinatura", fimDate),
+        supabase.from("profiles").select("id, equipe_id"),
       ]);
       const map = computeAgentMetrics(
         (leadsRes.data ?? []) as LeadSlim[],
@@ -113,34 +120,62 @@ function MetasPage() {
         mes,
         (transRes.data ?? []) as TransicaoSlim[],
       );
-      const total: AgentMetrics = {
-        corretor_id: "__total__",
-        leads_total: 0,
-        leads_atendidos: 0,
-        visitas: 0,
-        vendas: 0,
-        perdidos: 0,
-        taxa_conversao: 0,
+      // VGV realizado por corretor (vendas não-distratadas no mês).
+      const vgvMap = new Map<string, number>();
+      for (const v of (vendasRes.data ?? []) as Array<{ corretor_id: string | null; valor_venda: number | string }>) {
+        if (!v.corretor_id) continue;
+        vgvMap.set(v.corretor_id, (vgvMap.get(v.corretor_id) ?? 0) + (Number(v.valor_venda) || 0));
+      }
+      // Mapa corretor → equipe (para agregar metas de equipe).
+      const equipeDe = new Map<string, string>();
+      for (const p of (profsRes.data ?? []) as Array<{ id: string; equipe_id: string | null }>) {
+        if (p.equipe_id) equipeDe.set(p.id, p.equipe_id);
+      }
+      const zero = (): RealizadoView => ({ leads_atendidos: 0, visitas: 0, vendas: 0, vgv: 0 });
+      const total = zero();
+      const porEquipe = new Map<string, RealizadoView>();
+      const getEq = (id: string) => {
+        let e = porEquipe.get(id);
+        if (!e) { e = zero(); porEquipe.set(id, e); }
+        return e;
       };
       for (const m of map.values()) {
-        total.leads_total += m.leads_total;
         total.leads_atendidos += m.leads_atendidos;
         total.visitas += m.visitas;
         total.vendas += m.vendas;
-        total.perdidos += m.perdidos;
+        const eq = equipeDe.get(m.corretor_id);
+        if (eq) {
+          const e = getEq(eq);
+          e.leads_atendidos += m.leads_atendidos;
+          e.visitas += m.visitas;
+          e.vendas += m.vendas;
+        }
       }
-      return { map, total };
+      for (const [cid, vgv] of vgvMap) {
+        total.vgv += vgv;
+        const eq = equipeDe.get(cid);
+        if (eq) getEq(eq).vgv += vgv;
+      }
+      return { map, vgvMap, total, porEquipe };
     },
   });
 
-  // Métricas realizadas aplicáveis a uma meta (corretor → as dele; global → total;
-  // equipe → null por ora, pois exige mapear membros).
-  const realizadoDaMeta = (m: any): AgentMetrics | null => {
+  // Realizado aplicável a uma meta: corretor → o dele; equipe → agregado; global → total.
+  const realizadoDaMeta = (m: any): RealizadoView => {
+    const vazio: RealizadoView = { leads_atendidos: 0, visitas: 0, vendas: 0, vgv: 0 };
     const r = realizadoQ.data;
-    if (!r) return null;
-    if (m.corretor_id) return r.map.get(m.corretor_id) ?? null;
-    if (!m.equipe_id) return r.total;
-    return null;
+    if (!r) return vazio;
+    if (m.corretor_id) {
+      const met = r.map.get(m.corretor_id);
+      return {
+        leads_atendidos: met?.leads_atendidos ?? 0,
+        visitas: met?.visitas ?? 0,
+        vendas: met?.vendas ?? 0,
+        vgv: r.vgvMap.get(m.corretor_id) ?? 0,
+      };
+    }
+    if (m.equipe_id) return r.porEquipe.get(m.equipe_id) ?? vazio;
+    return r.total;
   };
 
   const saveMutation = useMutation({
@@ -325,23 +360,15 @@ function MetasPage() {
                       {escopoLabel(m)}
                       <Badge variant="outline">{MESES_PT[m.mes - 1]}/{m.ano}</Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1 flex gap-3 flex-wrap">
-                      <span>GMV (meta): <b>R$ {Number(m.meta_gmv).toLocaleString("pt-BR")}</b></span>
-                    </div>
                     {(() => {
-                      if (m.equipe_id) {
-                        return (
-                          <div className="text-[11px] text-muted-foreground mt-2">
-                            Meta: {m.meta_leads_atendidos} atend. · {m.meta_visitas} visitas ·{" "}
-                            {m.meta_vendas} vendas · progresso por equipe em breve.
-                          </div>
-                        );
-                      }
                       const r = realizadoDaMeta(m);
+                      const fmtBRL = (n: number) =>
+                        `R$ ${Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
                       const bars = [
-                        { label: "Atendidos", real: r?.leads_atendidos ?? 0, meta: m.meta_leads_atendidos },
-                        { label: "Visitas", real: r?.visitas ?? 0, meta: m.meta_visitas },
-                        { label: "Vendas", real: r?.vendas ?? 0, meta: m.meta_vendas },
+                        { label: "Atendidos", real: r.leads_atendidos, meta: Number(m.meta_leads_atendidos) || 0 },
+                        { label: "Visitas", real: r.visitas, meta: Number(m.meta_visitas) || 0 },
+                        { label: "Vendas", real: r.vendas, meta: Number(m.meta_vendas) || 0 },
+                        { label: "GMV", real: r.vgv, meta: Number(m.meta_gmv) || 0, money: true },
                       ];
                       return (
                         <div className="mt-2 space-y-1.5 max-w-md">
@@ -350,7 +377,10 @@ function MetasPage() {
                               <div className="flex justify-between text-[11px] text-muted-foreground">
                                 <span>{b.label}</span>
                                 <span>
-                                  <b className="text-foreground">{b.real}</b> / {b.meta}
+                                  <b className="text-foreground">
+                                    {b.money ? fmtBRL(b.real) : b.real}
+                                  </b>{" "}
+                                  / {b.money ? fmtBRL(b.meta) : b.meta}
                                 </span>
                               </div>
                               <Progress value={progressoMeta(b.real, b.meta)} className="h-1.5" />

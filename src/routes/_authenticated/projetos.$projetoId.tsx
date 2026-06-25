@@ -23,13 +23,15 @@ import { toast } from "sonner";
 import { ArrowLeft, Plus, Star, Trash2 } from "lucide-react";
 import {
   UNIDADE_STATUS_LABEL,
-  UNIDADE_STATUS_VARIANT,
+  UNIDADE_STATUS_TONE,
+  UNIDADE_STATUS_DOT,
   type UnidadeStatus,
   formatBRL,
   formatArea,
   calcStats,
   variacaoPercentual,
 } from "@/lib/unidades";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
   head: () => ({ meta: [{ title: "Detalhe do projeto — Seu Metro Quadrado" }] }),
@@ -47,6 +49,8 @@ function ProjetoDetalhePage() {
   const [unidadeOpen, setUnidadeOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [focoOpen, setFocoOpen] = useState(false);
+  const [unidadeBusca, setUnidadeBusca] = useState("");
+  const [unidadeStatusFiltro, setUnidadeStatusFiltro] = useState<string>("todos");
 
   const projetoQ = useQuery({
     queryKey: ["projeto", projetoId],
@@ -208,6 +212,14 @@ function ProjetoDetalhePage() {
   };
 
   const unidades = unidadesQ.data ?? [];
+  const buscaUni = unidadeBusca.trim().toLowerCase();
+  const unidadesFiltradas = (unidades as any[]).filter((u) => {
+    if (unidadeStatusFiltro !== "todos" && u.status !== unidadeStatusFiltro) return false;
+    if (!buscaUni) return true;
+    return [u.identificador, u.bloco, u.andar, u.tipologia]
+      .filter(Boolean)
+      .some((c: string) => String(c).toLowerCase().includes(buscaUni));
+  });
   const stats = calcStats(unidades as any);
   const projeto = projetoQ.data;
 
@@ -350,6 +362,26 @@ function ProjetoDetalhePage() {
             </div>
           )}
 
+          {unidades.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Input
+                placeholder="Buscar unidade (identificador, bloco, tipologia)…"
+                value={unidadeBusca}
+                onChange={(e) => setUnidadeBusca(e.target.value)}
+                className="max-w-xs"
+              />
+              <Select value={unidadeStatusFiltro} onValueChange={setUnidadeStatusFiltro}>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os status</SelectItem>
+                  {STATUS_OPCOES.map((s) => (
+                    <SelectItem key={s} value={s}>{UNIDADE_STATUS_LABEL[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <Card>
             <CardContent className="p-0">
               {unidadesQ.isLoading ? (
@@ -357,6 +389,10 @@ function ProjetoDetalhePage() {
               ) : unidades.length === 0 ? (
                 <p className="p-6 text-sm text-muted-foreground text-center">
                   Nenhuma unidade cadastrada ainda.
+                </p>
+              ) : unidadesFiltradas.length === 0 ? (
+                <p className="p-6 text-sm text-muted-foreground text-center">
+                  Nenhuma unidade corresponde aos filtros.
                 </p>
               ) : (
                 <Table>
@@ -372,7 +408,7 @@ function ProjetoDetalhePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {unidades.map((u: any) => (
+                    {unidadesFiltradas.map((u: any) => (
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.identificador}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -394,7 +430,17 @@ function ProjetoDetalhePage() {
                               value={u.status}
                               onValueChange={(v) => updateStatus.mutate({ id: u.id, status: v as UnidadeStatus })}
                             >
-                              <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+                              <SelectTrigger className="h-8 w-36">
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className={cn(
+                                      "h-2 w-2 rounded-full shrink-0",
+                                      UNIDADE_STATUS_DOT[u.status as UnidadeStatus],
+                                    )}
+                                  />
+                                  <SelectValue />
+                                </span>
+                              </SelectTrigger>
                               <SelectContent>
                                 {STATUS_OPCOES.map(s => (
                                   <SelectItem key={s} value={s}>{UNIDADE_STATUS_LABEL[s]}</SelectItem>
@@ -402,7 +448,10 @@ function ProjetoDetalhePage() {
                               </SelectContent>
                             </Select>
                           ) : (
-                            <Badge variant={UNIDADE_STATUS_VARIANT[u.status as UnidadeStatus]}>
+                            <Badge
+                              variant="outline"
+                              className={cn(UNIDADE_STATUS_TONE[u.status as UnidadeStatus])}
+                            >
                               {UNIDADE_STATUS_LABEL[u.status as UnidadeStatus]}
                             </Badge>
                           )}

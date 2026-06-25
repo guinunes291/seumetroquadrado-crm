@@ -19,6 +19,23 @@ export const UNIDADE_STATUS_VARIANT: Record<
   bloqueada: "destructive",
 };
 
+// Cores semânticas para o status da unidade (disponível=verde, reservada=âmbar,
+// vendida=azul, bloqueada=vermelho). Usado em badges e indicadores.
+export const UNIDADE_STATUS_TONE: Record<UnidadeStatus, string> = {
+  disponivel: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40",
+  reservada: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40",
+  vendida: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/40",
+  bloqueada: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/40",
+};
+
+// Cor sólida do "ponto" indicador (usado no Select do gestor).
+export const UNIDADE_STATUS_DOT: Record<UnidadeStatus, string> = {
+  disponivel: "bg-emerald-500",
+  reservada: "bg-amber-500",
+  vendida: "bg-sky-500",
+  bloqueada: "bg-rose-500",
+};
+
 export function formatBRL(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return "—";
   const n = typeof value === "string" ? Number(value) : value;
