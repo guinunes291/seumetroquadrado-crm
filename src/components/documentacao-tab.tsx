@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ExternalLink, Trash2, MessageCircle, ListChecks } from "lucide-react";
+import {
+  ExternalLink,
+  Trash2,
+  MessageCircle,
+  ListChecks,
+  Paperclip,
+  Loader2,
+  FileText,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { buildWhatsAppUrl } from "@/lib/templates";
@@ -26,6 +35,11 @@ import {
   checklistPorPerfil,
   docLabel,
   docResolvido,
+  isLinkExterno,
+  nomeArquivo,
+  uploadDocArquivo,
+  urlAssinadaDoc,
+  removerDocArquivo,
   DOC_STATUS,
   DOC_STATUS_LABEL,
   DOC_STATUS_TONE,
@@ -42,7 +56,7 @@ type Props = {
 };
 
 /** Aba "Documentação" da página do lead: dá UI à tabela `documentacoes` (antes
- *  headless) com checklist por perfil, status por documento e cobrança via WhatsApp. */
+ *  headless) — checklist por perfil, status, anexos (Storage ou link) e cobrança. */
 export function DocumentacaoTab({ leadId, lead }: Props) {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -87,8 +101,36 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const anexar = useMutation({
+    mutationFn: async ({ doc, file }: { doc: Documentacao; file: File }) => {
+      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.url).catch(() => {});
+      const path = await uploadDocArquivo(leadId, doc.id, file);
+      await atualizarDoc(doc.id, {
+        url: path,
+        status: doc.status === "pendente" ? "recebido" : doc.status,
+      });
+    },
+    onSuccess: () => {
+      toast.success("Arquivo anexado");
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const limparArquivo = useMutation({
+    mutationFn: async (doc: Documentacao) => {
+      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.url).catch(() => {});
+      await atualizarDoc(doc.id, { url: null });
+    },
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const remover = useMutation({
-    mutationFn: (id: string) => removerDoc(id),
+    mutationFn: async (doc: Documentacao) => {
+      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.url).catch(() => {});
+      await removerDoc(doc.id);
+    },
     onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
   });
@@ -112,7 +154,6 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Gerar checklist por perfil */}
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -169,7 +210,6 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
         </CardContent>
       </Card>
 
-      {/* Lista de documentos */}
       {total === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -196,9 +236,12 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
                 <DocRow
                   key={d.id}
                   doc={d}
+                  uploading={anexar.isPending}
                   onStatus={(status) => mudarStatus.mutate({ id: d.id, status })}
                   onUrl={(url) => salvarUrl.mutate({ id: d.id, url })}
-                  onRemove={() => remover.mutate(d.id)}
+                  onUpload={(file) => anexar.mutate({ doc: d, file })}
+                  onClearArquivo={() => limparArquivo.mutate(d)}
+                  onRemove={() => remover.mutate(d)}
                 />
               ))}
             </div>
@@ -211,16 +254,40 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
 function DocRow({
   doc,
+  uploading,
   onStatus,
   onUrl,
+  onUpload,
+  onClearArquivo,
   onRemove,
 }: {
   doc: Documentacao;
+  uploading: boolean;
   onStatus: (status: DocStatus) => void;
   onUrl: (url: string | null) => void;
+  onUpload: (file: File) => void;
+  onClearArquivo: () => void;
   onRemove: () => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(doc.url ?? "");
+  const [abrindo, setAbrindo] = useState(false);
+
+  const temArquivo = !!doc.url && !isLinkExterno(doc.url);
+
+  const abrirArquivo = async () => {
+    if (!doc.url) return;
+    setAbrindo(true);
+    try {
+      const signed = await urlAssinadaDoc(doc.url);
+      if (signed) window.open(signed, "_blank", "noopener,noreferrer");
+      else toast.error("Não foi possível gerar o link do arquivo.");
+    } catch (e) {
+      toast.error((e as Error).message ?? "Falha ao abrir o arquivo.");
+    } finally {
+      setAbrindo(false);
+    }
+  };
 
   return (
     <div className="py-3 space-y-2">
@@ -244,34 +311,76 @@ function DocRow({
               ))}
             </SelectContent>
           </Select>
-          {doc.url && (
-            <Button asChild size="icon" variant="ghost" className="h-8 w-8" title="Abrir arquivo">
-              <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            </Button>
-          )}
           <Button
             size="icon"
             variant="ghost"
             className="h-8 w-8 text-destructive hover:text-destructive"
             onClick={onRemove}
-            title="Remover"
+            title="Remover documento"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </div>
-      <Input
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        onBlur={() => {
-          const v = url.trim();
-          if (v !== (doc.url ?? "")) onUrl(v || null);
-        }}
-        placeholder="Link do arquivo (Drive, etc.) — opcional"
-        className="h-8 text-xs"
-      />
+
+      {temArquivo ? (
+        <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-sm">
+          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="truncate flex-1">{nomeArquivo(doc.url!)}</span>
+          <Button size="sm" variant="ghost" className="h-7" onClick={abrirArquivo} disabled={abrindo}>
+            {abrindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7"
+            onClick={onClearArquivo}
+            title="Remover arquivo"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onBlur={() => {
+              const v = url.trim();
+              if (v !== (doc.url ?? "")) onUrl(v || null);
+            }}
+            placeholder="Link do arquivo (Drive, etc.) — opcional"
+            className="h-8 text-xs"
+          />
+          {isLinkExterno(doc.url) && (
+            <Button asChild size="icon" variant="ghost" className="h-8 w-8" title="Abrir link">
+              <a href={doc.url!} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onUpload(file);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            <span className="ml-1 hidden sm:inline">Anexar</span>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

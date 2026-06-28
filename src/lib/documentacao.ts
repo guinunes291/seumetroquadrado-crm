@@ -175,3 +175,50 @@ export async function removerDoc(id: string): Promise<void> {
   const { error } = await docsTable().delete().eq("id", id);
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// Arquivos (Supabase Storage). O campo `url` guarda OU um link externo
+// (Drive etc., começando com http) OU o caminho do objeto no bucket privado
+// `documentacao`. Arquivos do bucket são abertos por signed URL temporária.
+// ---------------------------------------------------------------------------
+
+export const DOC_BUCKET = "documentacao";
+
+/** Um `url` é link externo quando é http(s); caso contrário é caminho do Storage. */
+export function isLinkExterno(url: string | null | undefined): boolean {
+  return !!url && /^https?:\/\//i.test(url);
+}
+
+/** Último segmento do caminho — o nome do arquivo, para exibição. */
+export function nomeArquivo(path: string): string {
+  return path.split("/").pop() || path;
+}
+
+function sanitizeNome(nome: string): string {
+  return nome
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+/** Sobe o arquivo para o bucket e devolve o caminho do objeto. */
+export async function uploadDocArquivo(leadId: string, docId: string, file: File): Promise<string> {
+  const path = `${leadId}/${docId}/${sanitizeNome(file.name)}`;
+  const { error } = await supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true });
+  if (error) throw error;
+  return path;
+}
+
+/** Signed URL temporária para abrir um arquivo privado do bucket. */
+export async function urlAssinadaDoc(path: string, expiraSegundos = 3600): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from(DOC_BUCKET)
+    .createSignedUrl(path, expiraSegundos);
+  if (error) throw error;
+  return data?.signedUrl ?? null;
+}
+
+/** Remove o objeto do Storage (best-effort). */
+export async function removerDocArquivo(path: string): Promise<void> {
+  await supabase.storage.from(DOC_BUCKET).remove([path]);
+}
