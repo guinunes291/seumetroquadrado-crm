@@ -257,6 +257,34 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           }
         }
 
+        // Sincroniza com Banco Operacional externo (idempotente por telefone_e164).
+        // Falha aqui NÃO bloqueia a resposta — intake e roleta seguem intactos.
+        try {
+          const { syncLeadToExternal, logEventoFunilExternal } = await import(
+            "@/lib/external-supabase.server"
+          );
+          await syncLeadToExternal({
+            crmLeadId: lead.id,
+            telefone: data.telefone,
+            nome: data.nome,
+            origem: data.origem,
+            campanha: data.campanha ?? null,
+            corretorId: corretorId,
+            estado: corretorId ? "com_corretor" : "novo",
+          });
+          if (corretorId) {
+            await logEventoFunilExternal({
+              crmLeadId: lead.id,
+              telefone: data.telefone,
+              para_estado: "com_corretor",
+              agente: "crm",
+              motivo: `roleta->corretor ${corretorId}`,
+            });
+          }
+        } catch (e) {
+          console.warn("[lead-intake] sync externo falhou:", e);
+        }
+
         return Response.json(
           {
             ok: true,
