@@ -43,14 +43,18 @@ import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_au
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
+import { Route as ApiPublicVendasIndexRouteImport } from './routes/api/public/vendas/index'
+import { Route as ApiPublicProjetosIndexRouteImport } from './routes/api/public/projetos/index'
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
+import { Route as ApiPublicComissoesIndexRouteImport } from './routes/api/public/comissoes/index'
 import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/public/hooks/copiloto-handoff'
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
+import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -231,6 +235,16 @@ const AuthenticatedLeadsLeadIdRoute =
     path: '/leads/$leadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicVendasIndexRoute = ApiPublicVendasIndexRouteImport.update({
+  id: '/api/public/vendas/',
+  path: '/api/public/vendas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicProjetosIndexRoute = ApiPublicProjetosIndexRouteImport.update({
+  id: '/api/public/projetos/',
+  path: '/api/public/projetos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLeadsIndexRoute = ApiPublicLeadsIndexRouteImport.update({
   id: '/api/public/leads/',
   path: '/api/public/leads/',
@@ -242,6 +256,11 @@ const ApiPublicCorretoresIndexRoute =
     path: '/api/public/corretores/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicComissoesIndexRoute = ApiPublicComissoesIndexRouteImport.update({
+  id: '/api/public/comissoes/',
+  path: '/api/public/comissoes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhooksLandingRoute =
   ApiPublicWebhooksLandingRouteImport.update({
     id: '/api/public/webhooks/landing',
@@ -276,6 +295,11 @@ const ApiPublicWebhooksLeadTokenRoute =
     path: '/api/public/webhooks/lead/$token',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLeadsIdEventosRoute = ApiPublicLeadsIdEventosRouteImport.update({
+  id: '/eventos',
+  path: '/eventos',
+  getParentRoute: () => ApiPublicLeadsIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -314,10 +338,14 @@ export interface FileRoutesByFullPath {
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
-  '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
+  '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
+  '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesByTo {
@@ -357,10 +385,14 @@ export interface FileRoutesByTo {
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
-  '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/comissoes': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
+  '/api/public/projetos': typeof ApiPublicProjetosIndexRoute
+  '/api/public/vendas': typeof ApiPublicVendasIndexRoute
+  '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesById {
@@ -402,10 +434,14 @@ export interface FileRoutesById {
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
-  '/api/public/leads/$id': typeof ApiPublicLeadsIdRoute
+  '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
+  '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
+  '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRouteTypes {
@@ -449,8 +485,12 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
+    | '/api/public/projetos/'
+    | '/api/public/vendas/'
+    | '/api/public/leads/$id/eventos'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -492,8 +532,12 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/comissoes'
     | '/api/public/corretores'
     | '/api/public/leads'
+    | '/api/public/projetos'
+    | '/api/public/vendas'
+    | '/api/public/leads/$id/eventos'
     | '/api/public/webhooks/lead/$token'
   id:
     | '__root__'
@@ -536,8 +580,12 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
+    | '/api/public/projetos/'
+    | '/api/public/vendas/'
+    | '/api/public/leads/$id/eventos'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
 }
@@ -549,10 +597,13 @@ export interface RootRouteChildren {
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
   ApiPublicHooksCopilotoHandoffRoute: typeof ApiPublicHooksCopilotoHandoffRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
-  ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRoute
+  ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRouteWithChildren
   ApiPublicWebhooksLandingRoute: typeof ApiPublicWebhooksLandingRoute
+  ApiPublicComissoesIndexRoute: typeof ApiPublicComissoesIndexRoute
   ApiPublicCorretoresIndexRoute: typeof ApiPublicCorretoresIndexRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
+  ApiPublicProjetosIndexRoute: typeof ApiPublicProjetosIndexRoute
+  ApiPublicVendasIndexRoute: typeof ApiPublicVendasIndexRoute
   ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
 
@@ -796,6 +847,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsLeadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/vendas/': {
+      id: '/api/public/vendas/'
+      path: '/api/public/vendas'
+      fullPath: '/api/public/vendas/'
+      preLoaderRoute: typeof ApiPublicVendasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/projetos/': {
+      id: '/api/public/projetos/'
+      path: '/api/public/projetos'
+      fullPath: '/api/public/projetos/'
+      preLoaderRoute: typeof ApiPublicProjetosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leads/': {
       id: '/api/public/leads/'
       path: '/api/public/leads'
@@ -808,6 +873,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/corretores'
       fullPath: '/api/public/corretores/'
       preLoaderRoute: typeof ApiPublicCorretoresIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/comissoes/': {
+      id: '/api/public/comissoes/'
+      path: '/api/public/comissoes'
+      fullPath: '/api/public/comissoes/'
+      preLoaderRoute: typeof ApiPublicComissoesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/webhooks/landing': {
@@ -851,6 +923,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/webhooks/lead/$token'
       preLoaderRoute: typeof ApiPublicWebhooksLeadTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leads/$id/eventos': {
+      id: '/api/public/leads/$id/eventos'
+      path: '/eventos'
+      fullPath: '/api/public/leads/$id/eventos'
+      preLoaderRoute: typeof ApiPublicLeadsIdEventosRouteImport
+      parentRoute: typeof ApiPublicLeadsIdRoute
     }
   }
 }
@@ -924,6 +1003,17 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiPublicLeadsIdRouteChildren {
+  ApiPublicLeadsIdEventosRoute: typeof ApiPublicLeadsIdEventosRoute
+}
+
+const ApiPublicLeadsIdRouteChildren: ApiPublicLeadsIdRouteChildren = {
+  ApiPublicLeadsIdEventosRoute: ApiPublicLeadsIdEventosRoute,
+}
+
+const ApiPublicLeadsIdRouteWithChildren =
+  ApiPublicLeadsIdRoute._addFileChildren(ApiPublicLeadsIdRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
@@ -932,22 +1022,15 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
   ApiPublicHooksCopilotoHandoffRoute: ApiPublicHooksCopilotoHandoffRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
-  ApiPublicLeadsIdRoute: ApiPublicLeadsIdRoute,
+  ApiPublicLeadsIdRoute: ApiPublicLeadsIdRouteWithChildren,
   ApiPublicWebhooksLandingRoute: ApiPublicWebhooksLandingRoute,
+  ApiPublicComissoesIndexRoute: ApiPublicComissoesIndexRoute,
   ApiPublicCorretoresIndexRoute: ApiPublicCorretoresIndexRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
+  ApiPublicProjetosIndexRoute: ApiPublicProjetosIndexRoute,
+  ApiPublicVendasIndexRoute: ApiPublicVendasIndexRoute,
   ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

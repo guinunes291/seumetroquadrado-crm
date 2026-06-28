@@ -95,12 +95,24 @@ export function checkReadApiKey(request: Request): Response | null {
   return checkRateLimit(request);
 }
 
+export const PUBLIC_API_CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-API-Key, Authorization",
+  "Access-Control-Max-Age": "86400",
+};
+
+export function corsPreflight(): Response {
+  return new Response(null, { status: 204, headers: PUBLIC_API_CORS_HEADERS });
+}
+
 export function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
+      ...PUBLIC_API_CORS_HEADERS,
     },
   });
 }
