@@ -17,13 +17,43 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const FIELD_MAP: Record<string, string> = {
   // aliases canônicos → coluna existente
   renda: "renda_informada",
+  renda_estimada: "renda_informada",
   valor_fgts: "entrada_disponivel",
+  fgts_valor: "entrada_disponivel",
   tem_fgts: "usa_fgts",
   empreendimento_interesse: "projeto_nome",
   resumo: "observacoes",
   estagio: "status",
+  estagio_funil: "status",
   proxima_acao_em: "proximo_followup",
 };
+
+// Campos enviados ao Banco Operacional externo (nomes do schema externo).
+// Origem (alias ou coluna real do CRM) → coluna externa
+const EXTERNAL_FIELD_MAP: Record<string, string> = {
+  renda: "renda_estimada",
+  renda_estimada: "renda_estimada",
+  renda_informada: "renda_estimada",
+  tem_fgts: "tem_fgts",
+  usa_fgts: "tem_fgts",
+  fgts_valor: "fgts_valor",
+  valor_fgts: "fgts_valor",
+  entrada_disponivel: "fgts_valor",
+  tipo_renda: "tipo_renda",
+  decisor: "decisor",
+  faixa_mcmv: "faixa_mcmv",
+  temperatura: "temperatura",
+  estagio_funil: "estagio_funil",
+  estagio: "estagio_funil",
+  status: "estagio_funil",
+  estado: "estado",
+  proxima_acao: "proxima_acao",
+  resumo: "resumo",
+  observacoes: "resumo",
+  consentimento_lgpd: "consentimento_lgpd",
+  opt_out: "opt_out",
+};
+
 
 // Campos permitidos para PATCH (coluna real do banco)
 const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum"> = {
