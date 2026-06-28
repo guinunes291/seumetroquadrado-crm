@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
+import { criarFollowUpAutomatico } from "@/lib/follow-up";
 
 const STATUS_OPTIONS = ["enviada", "aprovada", "reprovada", "pendente"] as const;
 const STATUS_LABEL: Record<(typeof STATUS_OPTIONS)[number], string> = {
@@ -64,13 +65,33 @@ export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
         .update({ status: "analise_credito" } as never)
         .eq("id", lead.id);
       if (updErr) throw updErr;
+
+      // Motor anti-perda: cria a tarefa de cobrar o retorno do banco.
+      let followUp = false;
+      try {
+        followUp = await criarFollowUpAutomatico({
+          leadId: lead.id,
+          nome: lead.nome,
+          corretorId: lead.corretor_id ?? uid,
+          status: "analise_credito",
+          criadoPorId: uid,
+        });
+      } catch (e) {
+        console.warn("follow-up automático (análise) falhou", e);
+      }
+      return { followUp };
     },
-    onSuccess: () => {
-      toast.success("Análise registrada · lead movido para Análise de crédito");
+    onSuccess: (res) => {
+      toast.success(
+        "Análise registrada · lead movido para Análise de crédito" +
+          (res?.followUp ? " · follow-up de cobrança criado" : ""),
+      );
       qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
       onDone?.();
       onOpenChange(false);
     },
