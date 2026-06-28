@@ -56,7 +56,7 @@ const EXTERNAL_FIELD_MAP: Record<string, string> = {
 
 
 // Campos permitidos para PATCH (coluna real do banco)
-const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum" | "numeric"> = {
+const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum" | "numeric" | "date" | "json"> = {
   nome: "text",
   telefone: "text",
   email: "text",
@@ -85,6 +85,14 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   utm_medium: "text",
   utm_campaign: "text",
   utm_content: "text",
+  // Handoff v2
+  desfecho: "text",
+  fase: "text",
+  visita_data: "date",
+  visita_hora: "text",
+  visita_empreendimento: "text",
+  docs_recebidos: "json",
+  docs_pendentes: "json",
 };
 
 function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { ok: false; err: string } {
