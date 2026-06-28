@@ -73,7 +73,6 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
-import { criarFollowUpAutomatico } from "@/lib/follow-up";
 import {
   TAREFA_TIPOS,
   TAREFA_PRIORIDADES,
@@ -426,26 +425,7 @@ function LeadDetailPage() {
       ["leads"],
       ["leads-kanban"],
     ],
-    onSuccess: (vars) => {
-      toast.success("Status atualizado");
-      // Motor anti-perda também nas transições diretas (sem modal): garante o
-      // próximo follow-up ao retomar/iniciar atendimento.
-      if (!lead) return;
-      criarFollowUpAutomatico({
-        leadId: lead.id,
-        nome: lead.nome,
-        corretorId: lead.corretor_id,
-        status: vars.status,
-      })
-        .then((criou) => {
-          if (criou) {
-            toast.success("Follow-up criado");
-            qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
-            qc.invalidateQueries({ queryKey: ["tarefas"] });
-          }
-        })
-        .catch(() => {});
-    },
+    onSuccess: () => toast.success("Status atualizado"),
   });
 
   // Abre uma interação pré-preenchida (ex.: registrar ligação em 1 clique).
