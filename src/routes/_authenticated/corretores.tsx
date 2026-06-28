@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { UserPlus, Search } from "lucide-react";
+import { UserPlus, Search, AlertTriangle, Check, X, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/corretores")({
   head: () => ({
