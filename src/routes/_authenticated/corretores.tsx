@@ -279,7 +279,20 @@ function CorretoresPage() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.nome || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.telefone ?? "—"}</TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <TelefoneCell
+                        valor={c.telefone}
+                        onSave={(v) => updateTelefone.mutateAsync({ id: c.id, telefone: v })}
+                      />
+                    ) : c.telefone ? (
+                      <span className="text-muted-foreground">{c.telefone}</span>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Sem telefone
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {isAdmin ? (
                       <Select
