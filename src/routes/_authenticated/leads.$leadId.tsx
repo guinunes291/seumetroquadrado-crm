@@ -98,6 +98,16 @@ type Lead = {
   created_at: string;
   ultima_interacao: string | null;
   proximo_followup: string | null;
+  desfecho: string | null;
+  fase: string | null;
+  visita_data: string | null;
+  visita_hora: string | null;
+  visita_empreendimento: string | null;
+  docs_recebidos: string[] | null;
+  docs_pendentes: string[] | null;
+  tipo_renda: string | null;
+  decisor: string | null;
+  faixa_mcmv: string | null;
 };
 
 type Interacao = {
