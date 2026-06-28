@@ -174,6 +174,8 @@ function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
+  const semTelefone = (corretoresQuery.data ?? []).filter((c) => c.ativo && !c.telefone).length;
+
   const lista = (corretoresQuery.data ?? []).filter((c) => {
     if (!q) return true;
     const s = q.toLowerCase();
