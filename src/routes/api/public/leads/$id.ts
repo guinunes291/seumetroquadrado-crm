@@ -122,6 +122,20 @@ function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { 
       if (typeof value !== "string") return { ok: false, err: "esperado ISO 8601" };
       if (Number.isNaN(Date.parse(value))) return { ok: false, err: "ISO 8601 inválido" };
       return { ok: true, value };
+    case "date": {
+      if (typeof value !== "string") return { ok: false, err: "esperado YYYY-MM-DD" };
+      const s = value.trim();
+      if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return { ok: false, err: "esperado YYYY-MM-DD" };
+      if (Number.isNaN(Date.parse(s))) return { ok: false, err: "data inválida" };
+      return { ok: true, value: s.slice(0, 10) };
+    }
+    case "json": {
+      if (Array.isArray(value) || (value && typeof value === "object")) return { ok: true, value };
+      if (typeof value === "string") {
+        try { return { ok: true, value: JSON.parse(value) }; } catch { /* fallthrough */ }
+      }
+      return { ok: false, err: "esperado array/objeto JSON" };
+    }
     default:
       return { ok: false, err: "tipo não suportado" };
   }
