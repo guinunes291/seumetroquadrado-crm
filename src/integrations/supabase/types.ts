@@ -936,11 +936,15 @@ export type Database = {
           data_movido_lixeira: string | null
           decisor: string | null
           deleted_at: string | null
+          desfecho: string | null
+          docs_pendentes: Json | null
+          docs_recebidos: Json | null
           email: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
           etapa: string | null
           faixa_mcmv: string | null
+          fase: string | null
           handoff_em: string | null
           id: string
           legacy_id: number | null
@@ -972,6 +976,9 @@ export type Database = {
           utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          visita_data: string | null
+          visita_empreendimento: string | null
+          visita_hora: string | null
         }
         Insert: {
           campanha?: string | null
@@ -986,11 +993,15 @@ export type Database = {
           data_movido_lixeira?: string | null
           decisor?: string | null
           deleted_at?: string | null
+          desfecho?: string | null
+          docs_pendentes?: Json | null
+          docs_recebidos?: Json | null
           email?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
           etapa?: string | null
           faixa_mcmv?: string | null
+          fase?: string | null
           handoff_em?: string | null
           id?: string
           legacy_id?: number | null
@@ -1022,6 +1033,9 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          visita_data?: string | null
+          visita_empreendimento?: string | null
+          visita_hora?: string | null
         }
         Update: {
           campanha?: string | null
@@ -1036,11 +1050,15 @@ export type Database = {
           data_movido_lixeira?: string | null
           decisor?: string | null
           deleted_at?: string | null
+          desfecho?: string | null
+          docs_pendentes?: Json | null
+          docs_recebidos?: Json | null
           email?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
           etapa?: string | null
           faixa_mcmv?: string | null
+          fase?: string | null
           handoff_em?: string | null
           id?: string
           legacy_id?: number | null
@@ -1072,6 +1090,9 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          visita_data?: string | null
+          visita_empreendimento?: string | null
+          visita_hora?: string | null
         }
         Relationships: [
           {
@@ -2415,11 +2436,15 @@ export type Database = {
           data_movido_lixeira: string | null
           decisor: string | null
           deleted_at: string | null
+          desfecho: string | null
+          docs_pendentes: Json | null
+          docs_recebidos: Json | null
           email: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
           etapa: string | null
           faixa_mcmv: string | null
+          fase: string | null
           handoff_em: string | null
           id: string
           legacy_id: number | null
@@ -2451,6 +2476,9 @@ export type Database = {
           utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          visita_data: string | null
+          visita_empreendimento: string | null
+          visita_hora: string | null
         }[]
         SetofOptions: {
           from: "*"
