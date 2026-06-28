@@ -846,6 +846,44 @@ export type Database = {
           },
         ]
       }
+      lead_eventos: {
+        Row: {
+          agente: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          lead_id: string
+          payload: Json | null
+          tipo: string
+        }
+        Insert: {
+          agente?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          lead_id: string
+          payload?: Json | null
+          tipo: string
+        }
+        Update: {
+          agente?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          lead_id?: string
+          payload?: Json | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_status_transitions: {
         Row: {
           alterado_por: string | null
@@ -887,6 +925,7 @@ export type Database = {
       leads: {
         Row: {
           campanha: string | null
+          consentimento_lgpd: boolean | null
           copiloto_notificado_em: string | null
           corretor_anterior_id: string | null
           corretor_id: string | null
@@ -895,11 +934,13 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          decisor: string | null
           deleted_at: string | null
           email: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
           etapa: string | null
+          faixa_mcmv: string | null
           handoff_em: string | null
           id: string
           legacy_id: number | null
@@ -909,9 +950,11 @@ export type Database = {
           na_lixeira: boolean
           nome: string
           observacoes: string | null
+          opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
           projeto_id: string | null
           projeto_nome: string | null
+          proxima_acao: string | null
           proximo_followup: string | null
           renda_informada: string | null
           search_text: string | null
@@ -920,6 +963,7 @@ export type Database = {
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
+          tipo_renda: string | null
           ultima_interacao: string | null
           ultimo_contato: string | null
           updated_at: string
@@ -931,6 +975,7 @@ export type Database = {
         }
         Insert: {
           campanha?: string | null
+          consentimento_lgpd?: boolean | null
           copiloto_notificado_em?: string | null
           corretor_anterior_id?: string | null
           corretor_id?: string | null
@@ -939,11 +984,13 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          decisor?: string | null
           deleted_at?: string | null
           email?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
           etapa?: string | null
+          faixa_mcmv?: string | null
           handoff_em?: string | null
           id?: string
           legacy_id?: number | null
@@ -953,9 +1000,11 @@ export type Database = {
           na_lixeira?: boolean
           nome: string
           observacoes?: string | null
+          opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
           projeto_id?: string | null
           projeto_nome?: string | null
+          proxima_acao?: string | null
           proximo_followup?: string | null
           renda_informada?: string | null
           search_text?: string | null
@@ -964,6 +1013,7 @@ export type Database = {
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao?: number
           timestamp_recebimento?: string | null
+          tipo_renda?: string | null
           ultima_interacao?: string | null
           ultimo_contato?: string | null
           updated_at?: string
@@ -975,6 +1025,7 @@ export type Database = {
         }
         Update: {
           campanha?: string | null
+          consentimento_lgpd?: boolean | null
           copiloto_notificado_em?: string | null
           corretor_anterior_id?: string | null
           corretor_id?: string | null
@@ -983,11 +1034,13 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          decisor?: string | null
           deleted_at?: string | null
           email?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
           etapa?: string | null
+          faixa_mcmv?: string | null
           handoff_em?: string | null
           id?: string
           legacy_id?: number | null
@@ -997,9 +1050,11 @@ export type Database = {
           na_lixeira?: boolean
           nome?: string
           observacoes?: string | null
+          opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
           projeto_id?: string | null
           projeto_nome?: string | null
+          proxima_acao?: string | null
           proximo_followup?: string | null
           renda_informada?: string | null
           search_text?: string | null
@@ -1008,6 +1063,7 @@ export type Database = {
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao?: number
           timestamp_recebimento?: string | null
+          tipo_renda?: string | null
           ultima_interacao?: string | null
           ultimo_contato?: string | null
           updated_at?: string
@@ -1604,6 +1660,7 @@ export type Database = {
           slug: string
           sob_consulta: boolean
           status_entrega: string | null
+          status_preco: string
           suites: number | null
           tipo_extra: string | null
           tipologia: string | null
@@ -1643,6 +1700,7 @@ export type Database = {
           slug: string
           sob_consulta?: boolean
           status_entrega?: string | null
+          status_preco?: string
           suites?: number | null
           tipo_extra?: string | null
           tipologia?: string | null
@@ -1682,6 +1740,7 @@ export type Database = {
           slug?: string
           sob_consulta?: boolean
           status_entrega?: string | null
+          status_preco?: string
           suites?: number | null
           tipo_extra?: string | null
           tipologia?: string | null
@@ -2345,6 +2404,7 @@ export type Database = {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
           campanha: string | null
+          consentimento_lgpd: boolean | null
           copiloto_notificado_em: string | null
           corretor_anterior_id: string | null
           corretor_id: string | null
@@ -2353,11 +2413,13 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          decisor: string | null
           deleted_at: string | null
           email: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
           etapa: string | null
+          faixa_mcmv: string | null
           handoff_em: string | null
           id: string
           legacy_id: number | null
@@ -2367,9 +2429,11 @@ export type Database = {
           na_lixeira: boolean
           nome: string
           observacoes: string | null
+          opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
           projeto_id: string | null
           projeto_nome: string | null
+          proxima_acao: string | null
           proximo_followup: string | null
           renda_informada: string | null
           search_text: string | null
@@ -2378,6 +2442,7 @@ export type Database = {
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
+          tipo_renda: string | null
           ultima_interacao: string | null
           ultimo_contato: string | null
           updated_at: string
