@@ -94,6 +94,15 @@ function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { 
     case "enum":
       if (typeof value !== "string") return { ok: false, err: "esperado string" };
       return { ok: true, value };
+    case "numeric": {
+      if (typeof value === "number" && Number.isFinite(value)) return { ok: true, value };
+      if (typeof value === "string") {
+        const s = value.trim().replace(/\./g, "").replace(",", ".");
+        const n = Number(s);
+        if (Number.isFinite(n)) return { ok: true, value: n };
+      }
+      return { ok: false, err: "esperado number" };
+    }
     case "boolean":
       if (typeof value !== "boolean") return { ok: false, err: "esperado boolean" };
       return { ok: true, value };
