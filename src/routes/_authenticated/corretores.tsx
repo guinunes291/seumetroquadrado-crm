@@ -140,6 +140,22 @@ function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
+  const updateTelefone = useMutation({
+    mutationFn: async ({ id, telefone }: { id: string; telefone: string }) => {
+      const digits = telefone.replace(/\D/g, "");
+      if (digits.length < 10 || digits.length > 13) {
+        throw new Error("Telefone inválido. Use DDD + número (ex.: (11) 90000-0000).");
+      }
+      const { error } = await supabase.from("profiles").update({ telefone }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["corretores"] });
+      toast.success("Telefone atualizado");
+    },
+    onError: (e: Error) => toast.error("Erro", { description: e.message }),
+  });
+
   const setRole = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: AppRole }) => {
       // remove papéis existentes (1 role por user, simplificação)
