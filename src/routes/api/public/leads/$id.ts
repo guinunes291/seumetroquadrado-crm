@@ -160,45 +160,83 @@ export const Route = createFileRoute("/api/public/leads/$id")({
 
         const update: Record<string, unknown> = {};
         const errors: Record<string, string> = {};
+        const externalFields: Record<string, unknown> = {};
 
-        for (const [k, v] of Object.entries(body)) {
+        // Normalização de temperatura aceitando UPPER do banco operacional
+        const normTemp = (v: unknown): unknown => {
+          if (typeof v !== "string") return v;
+          const u = v.trim().toUpperCase();
+          if (u === "QUENTE" || u === "PRONTO") return "quente";
+          if (u === "MORNO") return "morno";
+          if (u === "FRIO") return "frio";
+          return v;
+        };
+
+        for (const [k, vRaw] of Object.entries(body)) {
           if (k === "id" || k === "created_at" || k === "updated_at") continue;
+          const v = k === "temperatura" ? normTemp(vRaw) : vRaw;
           const realKey = FIELD_MAP[k] ?? k;
           const kind = PATCHABLE[realKey];
-          if (!kind) continue; // ignora campos desconhecidos silenciosamente
-          const r = coerce(v, kind);
-          if (!r.ok) errors[k] = r.err;
-          else update[realKey] = r.value;
+          if (kind) {
+            const r = coerce(v, kind);
+            if (!r.ok) errors[k] = r.err;
+            else update[realKey] = r.value;
+          }
+          // Espelha no payload externo (mesmo que o CRM não tenha a coluna)
+          const extKey = EXTERNAL_FIELD_MAP[k];
+          if (extKey) externalFields[extKey] = v;
         }
 
         if (Object.keys(errors).length > 0) {
           return jsonResponse({ error: "validação", details: errors }, 422);
         }
-        if (Object.keys(update).length === 0) {
+        if (Object.keys(update).length === 0 && Object.keys(externalFields).length === 0) {
           return jsonResponse({ error: "nenhum campo válido para atualizar" }, 400);
         }
-        update.updated_at = new Date().toISOString();
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: existing, error: chkErr } = await supabaseAdmin
           .from("leads")
-          .select("id")
+          .select("id, telefone")
           .eq("id", id)
           .maybeSingle();
         if (chkErr) return jsonResponse({ error: chkErr.message }, 500);
         if (!existing) return jsonResponse({ error: "lead não encontrado" }, 404);
 
-        const { data, error } = await supabaseAdmin
-          .from("leads")
-          .update(update as never)
-          .eq("id", id)
-          .select(PUBLIC_LEAD_SELECT)
-          .single();
+        let updated: unknown = null;
+        if (Object.keys(update).length > 0) {
+          update.updated_at = new Date().toISOString();
+          const { data, error } = await supabaseAdmin
+            .from("leads")
+            .update(update as never)
+            .eq("id", id)
+            .select(PUBLIC_LEAD_SELECT)
+            .single();
+          if (error) return jsonResponse({ error: error.message }, 500);
+          updated = data;
+        }
 
-        if (error) return jsonResponse({ error: error.message }, 500);
-        return jsonResponse({ ok: true, lead: data });
+        // Replica no Banco Operacional externo (não bloqueia resposta em caso de falha)
+        let externalSync: { ok: boolean; error?: string } = { ok: true };
+        if (Object.keys(externalFields).length > 0) {
+          try {
+            const { replicateLeadFieldsToExternal } = await import(
+              "@/lib/external-supabase.server"
+            );
+            externalSync = await replicateLeadFieldsToExternal({
+              crmLeadId: id,
+              telefone: existing.telefone,
+              fields: externalFields,
+            });
+          } catch (e) {
+            externalSync = { ok: false, error: e instanceof Error ? e.message : String(e) };
+          }
+        }
+
+        return jsonResponse({ ok: true, lead: updated, external_sync: externalSync });
       },
+
     },
   },
 });
