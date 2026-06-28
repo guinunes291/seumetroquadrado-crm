@@ -68,11 +68,18 @@ function MeuPerfilPage() {
     }
   }, [perfilQuery.data]);
 
+  const telefoneDigits = (telefone ?? "").replace(/\D/g, "");
+  const telefoneValido = telefoneDigits.length >= 10 && telefoneDigits.length <= 13;
+
   const save = useMutation({
     mutationFn: async () => {
+      if (!nome.trim()) throw new Error("Nome é obrigatório.");
+      if (!telefoneValido) {
+        throw new Error("Telefone obrigatório (DDD + número, ex.: (11) 90000-0000).");
+      }
       const { error } = await supabase
         .from("profiles")
-        .update({ nome, telefone: telefone || null, cargo: cargo || null, bio: bio || null })
+        .update({ nome: nome.trim(), telefone, cargo: cargo || null, bio: bio || null })
         .eq("id", user!.id);
       if (error) throw error;
     },
