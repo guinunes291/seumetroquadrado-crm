@@ -415,3 +415,82 @@ function CorretoresPage() {
     </div>
   );
 }
+
+function TelefoneCell({
+  valor,
+  onSave,
+}: {
+  valor: string | null;
+  onSave: (v: string) => Promise<unknown>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(valor ?? "");
+  const [saving, setSaving] = useState(false);
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2">
+        {valor ? (
+          <span className="text-muted-foreground">{valor}</span>
+        ) : (
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="h-3 w-3" /> Sem telefone
+          </Badge>
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={() => {
+            setVal(valor ?? "");
+            setEditing(true);
+          }}
+          aria-label="Editar telefone"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="(11) 90000-0000"
+        className="h-8 w-[160px]"
+      />
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onSave(val.trim());
+            setEditing(false);
+          } catch {
+            // toast já é exibido pela mutation
+          } finally {
+            setSaving(false);
+          }
+        }}
+        aria-label="Salvar"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        onClick={() => setEditing(false)}
+        aria-label="Cancelar"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
