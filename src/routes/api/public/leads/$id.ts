@@ -56,7 +56,7 @@ const EXTERNAL_FIELD_MAP: Record<string, string> = {
 
 
 // Campos permitidos para PATCH (coluna real do banco)
-const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum"> = {
+const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum" | "numeric"> = {
   nome: "text",
   telefone: "text",
   email: "text",
@@ -65,9 +65,9 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   projeto_nome: "text",
   projeto_id: "uuid",
   faixa_mcmv: "text",
-  renda_informada: "text",
+  renda_informada: "numeric",
   usa_fgts: "boolean",
-  entrada_disponivel: "text",
+  entrada_disponivel: "numeric",
   tipo_renda: "text",
   decisor: "text",
   temperatura: "enum",
@@ -94,6 +94,15 @@ function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { 
     case "enum":
       if (typeof value !== "string") return { ok: false, err: "esperado string" };
       return { ok: true, value };
+    case "numeric": {
+      if (typeof value === "number" && Number.isFinite(value)) return { ok: true, value };
+      if (typeof value === "string") {
+        const s = value.trim().replace(/\./g, "").replace(",", ".");
+        const n = Number(s);
+        if (Number.isFinite(n)) return { ok: true, value: n };
+      }
+      return { ok: false, err: "esperado number" };
+    }
     case "boolean":
       if (typeof value !== "boolean") return { ok: false, err: "esperado boolean" };
       return { ok: true, value };
@@ -177,14 +186,27 @@ export const Route = createFileRoute("/api/public/leads/$id")({
           const v = k === "temperatura" ? normTemp(vRaw) : vRaw;
           const realKey = FIELD_MAP[k] ?? k;
           const kind = PATCHABLE[realKey];
+          let coerced: unknown = v;
+          let coerceOk = true;
           if (kind) {
             const r = coerce(v, kind);
-            if (!r.ok) errors[k] = r.err;
-            else update[realKey] = r.value;
+            if (!r.ok) {
+              errors[k] = r.err;
+              coerceOk = false;
+            } else {
+              coerced = r.value;
+              update[realKey] = r.value;
+            }
           }
           // Espelha no payload externo (mesmo que o CRM não tenha a coluna)
           const extKey = EXTERNAL_FIELD_MAP[k];
-          if (extKey) externalFields[extKey] = v;
+          if (extKey && coerceOk) {
+            if (extKey === "temperatura" && typeof vRaw === "string") {
+              externalFields[extKey] = vRaw.trim().toUpperCase();
+            } else {
+              externalFields[extKey] = coerced;
+            }
+          }
         }
 
         if (Object.keys(errors).length > 0) {
