@@ -1,20 +1,96 @@
-// GET /api/public/leads/:id
+// GET /api/public/leads/:id          → lead + interações
+// PATCH /api/public/leads/:id        → atualização parcial
+// OPTIONS                             → CORS preflight
 // Auth: header X-API-Key = READ_API_KEY
-// Retorna o lead + intera\u00e7\u00f5es (ordenadas desc).
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse, PUBLIC_LEAD_SELECT } from "@/lib/public-api-auth";
+import {
+  checkReadApiKey,
+  jsonResponse,
+  corsPreflight,
+  PUBLIC_LEAD_SELECT,
+} from "@/lib/public-api-auth";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Mapeamento campo público → coluna real no banco.
+// (mantém compatibilidade aceitando os dois nomes)
+const FIELD_MAP: Record<string, string> = {
+  // aliases canônicos → coluna existente
+  renda: "renda_informada",
+  valor_fgts: "entrada_disponivel",
+  tem_fgts: "usa_fgts",
+  empreendimento_interesse: "projeto_nome",
+  resumo: "observacoes",
+  estagio: "status",
+  proxima_acao_em: "proximo_followup",
+};
+
+// Campos permitidos para PATCH (coluna real do banco)
+const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum"> = {
+  nome: "text",
+  telefone: "text",
+  email: "text",
+  origem: "enum",
+  campanha: "text",
+  projeto_nome: "text",
+  projeto_id: "uuid",
+  faixa_mcmv: "text",
+  renda_informada: "text",
+  usa_fgts: "boolean",
+  entrada_disponivel: "text",
+  tipo_renda: "text",
+  decisor: "text",
+  temperatura: "enum",
+  status: "enum",
+  estado: "enum",
+  etapa: "text",
+  motivo_handoff: "text",
+  observacoes: "text",
+  corretor_id: "uuid",
+  proxima_acao: "text",
+  proximo_followup: "timestamp",
+  consentimento_lgpd: "boolean",
+  opt_out: "boolean",
+  utm_source: "text",
+  utm_medium: "text",
+  utm_campaign: "text",
+  utm_content: "text",
+};
+
+function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { ok: false; err: string } {
+  if (value === null) return { ok: true, value: null };
+  switch (kind) {
+    case "text":
+    case "enum":
+      if (typeof value !== "string") return { ok: false, err: "esperado string" };
+      return { ok: true, value };
+    case "boolean":
+      if (typeof value !== "boolean") return { ok: false, err: "esperado boolean" };
+      return { ok: true, value };
+    case "uuid":
+      if (typeof value !== "string" || !UUID_RE.test(value))
+        return { ok: false, err: "uuid inválido" };
+      return { ok: true, value };
+    case "timestamp":
+      if (typeof value !== "string") return { ok: false, err: "esperado ISO 8601" };
+      if (Number.isNaN(Date.parse(value))) return { ok: false, err: "ISO 8601 inválido" };
+      return { ok: true, value };
+    default:
+      return { ok: false, err: "tipo não suportado" };
+  }
+}
 
 export const Route = createFileRoute("/api/public/leads/$id")({
   server: {
     handlers: {
+      OPTIONS: async () => corsPreflight(),
+
       GET: async ({ request, params }) => {
         const authErr = checkReadApiKey(request);
         if (authErr) return authErr;
 
         const id = params.id;
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-          return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
-        }
+        if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -29,16 +105,69 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             .limit(200),
         ]);
 
-        if (leadRes.error) {
-          console.error("[/api/public/leads/:id] lead err:", leadRes.error);
-          return jsonResponse({ error: leadRes.error.message }, 500);
-        }
+        if (leadRes.error) return jsonResponse({ error: leadRes.error.message }, 500);
         if (!leadRes.data) return jsonResponse({ error: "lead não encontrado" }, 404);
 
-        return jsonResponse({
-          lead: leadRes.data,
-          interacoes: interRes.data ?? [],
-        });
+        return jsonResponse({ lead: leadRes.data, interacoes: interRes.data ?? [] });
+      },
+
+      PATCH: async ({ request, params }) => {
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
+
+        const id = params.id;
+        if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
+
+        let body: Record<string, unknown>;
+        try {
+          body = (await request.json()) as Record<string, unknown>;
+        } catch {
+          return jsonResponse({ error: "JSON inválido" }, 400);
+        }
+        if (!body || typeof body !== "object") {
+          return jsonResponse({ error: "body deve ser objeto JSON" }, 400);
+        }
+
+        const update: Record<string, unknown> = {};
+        const errors: Record<string, string> = {};
+
+        for (const [k, v] of Object.entries(body)) {
+          if (k === "id" || k === "created_at" || k === "updated_at") continue;
+          const realKey = FIELD_MAP[k] ?? k;
+          const kind = PATCHABLE[realKey];
+          if (!kind) continue; // ignora campos desconhecidos silenciosamente
+          const r = coerce(v, kind);
+          if (!r.ok) errors[k] = r.err;
+          else update[realKey] = r.value;
+        }
+
+        if (Object.keys(errors).length > 0) {
+          return jsonResponse({ error: "validação", details: errors }, 422);
+        }
+        if (Object.keys(update).length === 0) {
+          return jsonResponse({ error: "nenhum campo válido para atualizar" }, 400);
+        }
+        update.updated_at = new Date().toISOString();
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        const { data: existing, error: chkErr } = await supabaseAdmin
+          .from("leads")
+          .select("id")
+          .eq("id", id)
+          .maybeSingle();
+        if (chkErr) return jsonResponse({ error: chkErr.message }, 500);
+        if (!existing) return jsonResponse({ error: "lead não encontrado" }, 404);
+
+        const { data, error } = await supabaseAdmin
+          .from("leads")
+          .update(update as never)
+          .eq("id", id)
+          .select(PUBLIC_LEAD_SELECT)
+          .single();
+
+        if (error) return jsonResponse({ error: error.message }, 500);
+        return jsonResponse({ ok: true, lead: data });
       },
     },
   },
