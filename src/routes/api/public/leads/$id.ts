@@ -56,7 +56,7 @@ const EXTERNAL_FIELD_MAP: Record<string, string> = {
 
 
 // Campos permitidos para PATCH (coluna real do banco)
-const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum"> = {
+const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum" | "numeric"> = {
   nome: "text",
   telefone: "text",
   email: "text",
@@ -65,9 +65,9 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   projeto_nome: "text",
   projeto_id: "uuid",
   faixa_mcmv: "text",
-  renda_informada: "text",
+  renda_informada: "numeric",
   usa_fgts: "boolean",
-  entrada_disponivel: "text",
+  entrada_disponivel: "numeric",
   tipo_renda: "text",
   decisor: "text",
   temperatura: "enum",
