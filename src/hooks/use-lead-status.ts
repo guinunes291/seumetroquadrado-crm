@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { LeadStatus } from "@/lib/leads";
+import { criarFollowUpAutomatico, followUpParaStatus } from "@/lib/follow-up";
 
 type Vars = { id: string; status: LeadStatus };
 
@@ -73,7 +74,35 @@ export function useLeadStatusMutation(opts: Options = {}) {
         },
       });
     },
-    onSuccess: (_data, vars) => onSuccess?.(vars),
+    onSuccess: async (_data, vars) => {
+      onSuccess?.(vars);
+      // Motor anti-perda: toda transição direta que pede acompanhamento gera a
+      // próxima tarefa de follow-up — em qualquer tela (lista, Kanban, Blitz,
+      // detalhe). As transições com modal cuidam disso por conta própria, com os
+      // dados que capturam. Best-effort: a mudança de etapa não pode falhar aqui.
+      if (!followUpParaStatus(vars.status)) return;
+      try {
+        const { data } = await supabase
+          .from("leads")
+          .select("nome, corretor_id")
+          .eq("id", vars.id)
+          .maybeSingle();
+        const lead = data as { nome: string; corretor_id: string | null } | null;
+        if (!lead) return;
+        const criou = await criarFollowUpAutomatico({
+          leadId: vars.id,
+          nome: lead.nome,
+          corretorId: lead.corretor_id,
+          status: vars.status,
+        });
+        if (criou) {
+          qc.invalidateQueries({ queryKey: ["tarefas"] });
+          qc.invalidateQueries({ queryKey: ["tarefas-lead", vars.id] });
+        }
+      } catch {
+        // silencioso por design
+      }
+    },
     onSettled: () => {
       invalidateKeys.forEach((key) => qc.invalidateQueries({ queryKey: key }));
     },

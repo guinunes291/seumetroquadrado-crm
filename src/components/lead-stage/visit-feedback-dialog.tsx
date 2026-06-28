@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
+import { criarFollowUpAutomatico } from "@/lib/follow-up";
 
 const RESULTADO_OPTIONS = [
   "interesse_alto",
@@ -75,13 +76,33 @@ export function VisitFeedbackDialog({ lead, onOpenChange, onDone }: Props) {
         .update({ status: "visita_realizada" } as never)
         .eq("id", lead.id);
       if (updErr) throw updErr;
+
+      // Motor anti-perda: pós-visita não pode ficar sem próximo passo.
+      let followUp = false;
+      try {
+        followUp = await criarFollowUpAutomatico({
+          leadId: lead.id,
+          nome: lead.nome,
+          corretorId: lead.corretor_id ?? uid,
+          status: "visita_realizada",
+          criadoPorId: uid,
+        });
+      } catch (e) {
+        console.warn("follow-up automático (visita) falhou", e);
+      }
+      return { followUp };
     },
-    onSuccess: () => {
-      toast.success("Visita registrada · lead movido para Visita realizada");
+    onSuccess: (res) => {
+      toast.success(
+        "Visita registrada · lead movido para Visita realizada" +
+          (res?.followUp ? " · follow-up de pós-visita criado" : ""),
+      );
       qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
       onDone?.();
       onOpenChange(false);
     },

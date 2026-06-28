@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
+import { criarFollowUpAutomatico } from "@/lib/follow-up";
 
 const TIPO_OPTIONS = ["visita", "reuniao", "ligacao", "follow_up", "outro"] as const;
 const TIPO_LABEL: Record<(typeof TIPO_OPTIONS)[number], string> = {
@@ -121,14 +122,35 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
         .update({ status: "agendado", ultima_interacao: new Date().toISOString() } as never)
         .eq("id", lead.id);
       if (updErr) throw updErr;
+
+      // Motor anti-perda: garante o próximo passo (confirmar a visita ~1 dia antes).
+      let followUp = false;
+      try {
+        followUp = await criarFollowUpAutomatico({
+          leadId: lead.id,
+          nome: lead.nome,
+          corretorId: lead.corretor_id ?? uid,
+          status: "agendado",
+          dataInicio: inicio.toISOString(),
+          criadoPorId: uid,
+        });
+      } catch (e) {
+        console.warn("follow-up automático (agendado) falhou", e);
+      }
+      return { followUp };
     },
-    onSuccess: () => {
-      toast.success("Agendamento criado · lead movido para Agendado");
+    onSuccess: (res) => {
+      toast.success(
+        "Agendamento criado · lead movido para Agendado" +
+          (res?.followUp ? " · tarefa de confirmação criada" : ""),
+      );
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       qc.invalidateQueries({ queryKey: ["agendamentos-lead", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
       onDone?.();
       onOpenChange(false);
     },

@@ -72,6 +72,16 @@ import {
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
+import { ResumoIA } from "@/components/resumo-ia";
+import { DocumentacaoTab } from "@/components/documentacao-tab";
+import {
+  TAREFA_TIPOS,
+  TAREFA_PRIORIDADES,
+  TIPO_LABEL as TAREFA_TIPO_LABEL,
+  PRIORIDADE_LABEL as TAREFA_PRIORIDADE_LABEL,
+  type TarefaTipo,
+  type TarefaPrioridade,
+} from "@/lib/tarefas";
 
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
@@ -218,6 +228,8 @@ function LeadDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     nome: "",
+    telefone: "",
+    email: "",
     cpf: "",
     renda_informada: "",
     entrada_disponivel: "",
@@ -227,10 +239,21 @@ function LeadDetailPage() {
     observacoes: "",
   });
 
+  // "+ Tarefa" inline: cria uma tarefa já vinculada a este lead, sem ir até a página de Tarefas.
+  const [tarefaOpen, setTarefaOpen] = useState(false);
+  const [tarefaForm, setTarefaForm] = useState({
+    titulo: "",
+    tipo: "follow_up" as TarefaTipo,
+    prioridade: "media" as TarefaPrioridade,
+    data_vencimento: "",
+  });
+
   const openEdit = () => {
     if (!lead) return;
     setEditForm({
       nome: lead.nome ?? "",
+      telefone: lead.telefone ?? "",
+      email: lead.email ?? "",
       cpf: lead.cpf ?? "",
       renda_informada: lead.renda_informada ?? "",
       entrada_disponivel: lead.entrada_disponivel ?? "",
@@ -248,8 +271,14 @@ function LeadDetailPage() {
     mutationFn: async () => {
       const nome = editForm.nome.trim();
       if (nome.length < 2) throw new Error("Informe o nome do cliente.");
+      const telefone = editForm.telefone.trim();
+      if (telefone.replace(/\D/g, "").length < 8) throw new Error("Telefone inválido.");
+      const email = editForm.email.trim();
+      if (email && !email.includes("@")) throw new Error("E-mail inválido.");
       const payload = {
         nome,
+        telefone,
+        email: email || null,
         cpf: editForm.cpf.trim() || null,
         renda_informada: editForm.renda_informada.trim() || null,
         entrada_disponivel: editForm.entrada_disponivel.trim() || null,
@@ -268,6 +297,36 @@ function LeadDetailPage() {
       setEditOpen(false);
       qc.invalidateQueries({ queryKey: ["lead", leadId] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const criarTarefa = useMutation({
+    mutationFn: async () => {
+      const titulo = tarefaForm.titulo.trim();
+      if (titulo.length < 2) throw new Error("Informe o título da tarefa.");
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id ?? null;
+      const { error } = await supabase.from("tarefas").insert({
+        titulo,
+        tipo: tarefaForm.tipo,
+        prioridade: tarefaForm.prioridade,
+        status: "pendente",
+        lead_id: leadId,
+        corretor_id: lead?.corretor_id ?? uid,
+        criado_por: uid,
+        data_vencimento: tarefaForm.data_vencimento
+          ? new Date(tarefaForm.data_vencimento).toISOString()
+          : null,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa criada");
+      setTarefaOpen(false);
+      setTarefaForm({ titulo: "", tipo: "follow_up", prioridade: "media", data_vencimento: "" });
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -728,9 +787,14 @@ function LeadDetailPage() {
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="tarefas">Tarefas ({tarefas.length})</TabsTrigger>
           <TabsTrigger value="agendamentos">Agendamentos ({agendamentos.length})</TabsTrigger>
+          <TabsTrigger value="documentacao">Documentação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="timeline" className="mt-4">
+          {/* Briefing do lead por IA — mesmo resumo do Modo Blitz, agora no detalhe. */}
+          <div className="mb-4">
+            <ResumoIA leadId={leadId} />
+          </div>
           {/* Nota rápida: registra em 1 passo, sem abrir o modal de interação. */}
           <Card className="mb-4">
             <CardContent className="pt-4 space-y-2">
@@ -871,7 +935,12 @@ function LeadDetailPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="tarefas" className="mt-4">
+        <TabsContent value="tarefas" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setTarefaOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> Nova tarefa
+            </Button>
+          </div>
           {tarefas.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -931,6 +1000,13 @@ function LeadDetailPage() {
             </Card>
           )}
         </TabsContent>
+
+        <TabsContent value="documentacao" className="mt-4">
+          <DocumentacaoTab
+            leadId={leadId}
+            lead={{ nome: lead.nome, telefone: lead.telefone, corretor_id: lead.corretor_id }}
+          />
+        </TabsContent>
       </Tabs>
 
       <LeadStageModals
@@ -969,17 +1045,20 @@ function LeadDetailPage() {
             </div>
             <div>
               <Label>Telefone</Label>
-              <Input value={lead.telefone} readOnly disabled />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Não editável após o cadastro do lead.
-              </p>
+              <Input
+                value={editForm.telefone}
+                onChange={(e) => setEditForm({ ...editForm, telefone: e.target.value })}
+                maxLength={40}
+              />
             </div>
             <div>
               <Label>E-mail</Label>
-              <Input value={lead.email ?? ""} readOnly disabled />
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Não editável após o cadastro do lead.
-              </p>
+              <Input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                maxLength={160}
+              />
             </div>
             <div>
               <Label>CPF</Label>
@@ -1049,6 +1128,84 @@ function LeadDetailPage() {
             </Button>
             <Button onClick={() => editarLead.mutate()} disabled={editarLead.isPending}>
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={tarefaOpen} onOpenChange={setTarefaOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova tarefa</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div>
+              <Label>
+                Título <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={tarefaForm.titulo}
+                onChange={(e) => setTarefaForm({ ...tarefaForm, titulo: e.target.value })}
+                placeholder="Ex.: Ligar para retomar o atendimento"
+                maxLength={160}
+                autoFocus
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Tipo</Label>
+                <Select
+                  value={tarefaForm.tipo}
+                  onValueChange={(v) => setTarefaForm({ ...tarefaForm, tipo: v as TarefaTipo })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAREFA_TIPOS.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {TAREFA_TIPO_LABEL[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Prioridade</Label>
+                <Select
+                  value={tarefaForm.prioridade}
+                  onValueChange={(v) =>
+                    setTarefaForm({ ...tarefaForm, prioridade: v as TarefaPrioridade })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TAREFA_PRIORIDADES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {TAREFA_PRIORIDADE_LABEL[p]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Vencimento</Label>
+              <Input
+                type="datetime-local"
+                value={tarefaForm.data_vencimento}
+                onChange={(e) => setTarefaForm({ ...tarefaForm, data_vencimento: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTarefaOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => criarTarefa.mutate()} disabled={criarTarefa.isPending}>
+              Criar tarefa
             </Button>
           </DialogFooter>
         </DialogContent>
