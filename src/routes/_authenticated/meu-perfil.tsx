@@ -160,8 +160,22 @@ function MeuPerfilPage() {
               <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="tel">Telefone</Label>
-              <Input id="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 90000-0000" />
+              <Label htmlFor="tel">
+                Telefone <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="tel"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(11) 90000-0000"
+                aria-invalid={!telefoneValido}
+                className={!telefoneValido ? "border-destructive" : undefined}
+              />
+              {!telefoneValido && (
+                <p className="text-xs text-destructive">
+                  Obrigatório para receber leads. Inclua DDD + número.
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-1">
