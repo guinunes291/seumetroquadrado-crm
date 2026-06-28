@@ -43,6 +43,7 @@ import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_au
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
+import { Route as ApiPublicVendasIndexRouteImport } from './routes/api/public/vendas/index'
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
 import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
@@ -231,6 +232,11 @@ const AuthenticatedLeadsLeadIdRoute =
     path: '/leads/$leadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicVendasIndexRoute = ApiPublicVendasIndexRouteImport.update({
+  id: '/api/public/vendas/',
+  path: '/api/public/vendas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLeadsIndexRoute = ApiPublicLeadsIndexRouteImport.update({
   id: '/api/public/leads/',
   path: '/api/public/leads/',
@@ -318,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
+  '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesByTo {
@@ -361,6 +368,7 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
+  '/api/public/vendas': typeof ApiPublicVendasIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesById {
@@ -406,6 +414,7 @@ export interface FileRoutesById {
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
+  '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRouteTypes {
@@ -451,6 +460,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/landing'
     | '/api/public/corretores/'
     | '/api/public/leads/'
+    | '/api/public/vendas/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -494,6 +504,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/landing'
     | '/api/public/corretores'
     | '/api/public/leads'
+    | '/api/public/vendas'
     | '/api/public/webhooks/lead/$token'
   id:
     | '__root__'
@@ -538,6 +549,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/landing'
     | '/api/public/corretores/'
     | '/api/public/leads/'
+    | '/api/public/vendas/'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
 }
@@ -553,6 +565,7 @@ export interface RootRouteChildren {
   ApiPublicWebhooksLandingRoute: typeof ApiPublicWebhooksLandingRoute
   ApiPublicCorretoresIndexRoute: typeof ApiPublicCorretoresIndexRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
+  ApiPublicVendasIndexRoute: typeof ApiPublicVendasIndexRoute
   ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
 
@@ -796,6 +809,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsLeadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/vendas/': {
+      id: '/api/public/vendas/'
+      path: '/api/public/vendas'
+      fullPath: '/api/public/vendas/'
+      preLoaderRoute: typeof ApiPublicVendasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leads/': {
       id: '/api/public/leads/'
       path: '/api/public/leads'
@@ -936,6 +956,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksLandingRoute: ApiPublicWebhooksLandingRoute,
   ApiPublicCorretoresIndexRoute: ApiPublicCorretoresIndexRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
+  ApiPublicVendasIndexRoute: ApiPublicVendasIndexRoute,
   ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }
 export const routeTree = rootRouteImport
