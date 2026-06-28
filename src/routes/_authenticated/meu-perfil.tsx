@@ -68,11 +68,18 @@ function MeuPerfilPage() {
     }
   }, [perfilQuery.data]);
 
+  const telefoneDigits = (telefone ?? "").replace(/\D/g, "");
+  const telefoneValido = telefoneDigits.length >= 10 && telefoneDigits.length <= 13;
+
   const save = useMutation({
     mutationFn: async () => {
+      if (!nome.trim()) throw new Error("Nome é obrigatório.");
+      if (!telefoneValido) {
+        throw new Error("Telefone obrigatório (DDD + número, ex.: (11) 90000-0000).");
+      }
       const { error } = await supabase
         .from("profiles")
-        .update({ nome, telefone: telefone || null, cargo: cargo || null, bio: bio || null })
+        .update({ nome: nome.trim(), telefone, cargo: cargo || null, bio: bio || null })
         .eq("id", user!.id);
       if (error) throw error;
     },
@@ -153,8 +160,22 @@ function MeuPerfilPage() {
               <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="tel">Telefone</Label>
-              <Input id="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 90000-0000" />
+              <Label htmlFor="tel">
+                Telefone <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="tel"
+                value={telefone}
+                onChange={(e) => setTelefone(e.target.value)}
+                placeholder="(11) 90000-0000"
+                aria-invalid={!telefoneValido}
+                className={!telefoneValido ? "border-destructive" : undefined}
+              />
+              {!telefoneValido && (
+                <p className="text-xs text-destructive">
+                  Obrigatório para receber leads. Inclua DDD + número.
+                </p>
+              )}
             </div>
           </div>
           <div className="space-y-1">

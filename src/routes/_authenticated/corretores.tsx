@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { UserPlus, Search } from "lucide-react";
+import { UserPlus, Search, AlertTriangle, Check, X, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/corretores")({
   head: () => ({
@@ -140,6 +140,22 @@ function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
+  const updateTelefone = useMutation({
+    mutationFn: async ({ id, telefone }: { id: string; telefone: string }) => {
+      const digits = telefone.replace(/\D/g, "");
+      if (digits.length < 10 || digits.length > 13) {
+        throw new Error("Telefone inválido. Use DDD + número (ex.: (11) 90000-0000).");
+      }
+      const { error } = await supabase.from("profiles").update({ telefone }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["corretores"] });
+      toast.success("Telefone atualizado");
+    },
+    onError: (e: Error) => toast.error("Erro", { description: e.message }),
+  });
+
   const setRole = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: AppRole }) => {
       // remove papéis existentes (1 role por user, simplificação)
@@ -157,6 +173,8 @@ function CorretoresPage() {
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
+
+  const semTelefone = (corretoresQuery.data ?? []).filter((c) => c.ativo && !c.telefone).length;
 
   const lista = (corretoresQuery.data ?? []).filter((c) => {
     if (!q) return true;
@@ -217,6 +235,13 @@ function CorretoresPage() {
         }
       />
 
+      {semTelefone > 0 && (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4" />
+          {semTelefone} corretor{semTelefone > 1 ? "es ativos estão" : " ativo está"} sem telefone cadastrado. Sem telefone, o webhook não consegue distribuir leads para ele{semTelefone > 1 ? "s" : ""}.
+        </div>
+      )}
+
       <div className="mb-4 flex gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -261,7 +286,20 @@ function CorretoresPage() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.nome || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.telefone ?? "—"}</TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <TelefoneCell
+                        valor={c.telefone}
+                        onSave={(v) => updateTelefone.mutateAsync({ id: c.id, telefone: v })}
+                      />
+                    ) : c.telefone ? (
+                      <span className="text-muted-foreground">{c.telefone}</span>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Sem telefone
+                      </Badge>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {isAdmin ? (
                       <Select
@@ -374,6 +412,85 @@ function CorretoresPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+function TelefoneCell({
+  valor,
+  onSave,
+}: {
+  valor: string | null;
+  onSave: (v: string) => Promise<unknown>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(valor ?? "");
+  const [saving, setSaving] = useState(false);
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2">
+        {valor ? (
+          <span className="text-muted-foreground">{valor}</span>
+        ) : (
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="h-3 w-3" /> Sem telefone
+          </Badge>
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={() => {
+            setVal(valor ?? "");
+            setEditing(true);
+          }}
+          aria-label="Editar telefone"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="(11) 90000-0000"
+        className="h-8 w-[160px]"
+      />
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onSave(val.trim());
+            setEditing(false);
+          } catch {
+            // toast já é exibido pela mutation
+          } finally {
+            setSaving(false);
+          }
+        }}
+        aria-label="Salvar"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        onClick={() => setEditing(false)}
+        aria-label="Cancelar"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }
