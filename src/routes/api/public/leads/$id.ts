@@ -186,14 +186,27 @@ export const Route = createFileRoute("/api/public/leads/$id")({
           const v = k === "temperatura" ? normTemp(vRaw) : vRaw;
           const realKey = FIELD_MAP[k] ?? k;
           const kind = PATCHABLE[realKey];
+          let coerced: unknown = v;
+          let coerceOk = true;
           if (kind) {
             const r = coerce(v, kind);
-            if (!r.ok) errors[k] = r.err;
-            else update[realKey] = r.value;
+            if (!r.ok) {
+              errors[k] = r.err;
+              coerceOk = false;
+            } else {
+              coerced = r.value;
+              update[realKey] = r.value;
+            }
           }
           // Espelha no payload externo (mesmo que o CRM não tenha a coluna)
           const extKey = EXTERNAL_FIELD_MAP[k];
-          if (extKey) externalFields[extKey] = v;
+          if (extKey && coerceOk) {
+            if (extKey === "temperatura" && typeof vRaw === "string") {
+              externalFields[extKey] = vRaw.trim().toUpperCase();
+            } else {
+              externalFields[extKey] = coerced;
+            }
+          }
         }
 
         if (Object.keys(errors).length > 0) {
