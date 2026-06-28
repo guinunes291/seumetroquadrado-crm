@@ -820,17 +820,55 @@ function LeadDetailPage() {
                 }
               />
               <DataRow icon={MapPin} label="Renda informada" value={lead.renda_informada} />
+              <DataRow icon={User} label="Tipo de renda" value={lead.tipo_renda} />
               <DataRow icon={User} label="CPF" value={lead.cpf} />
               <DataRow icon={User} label="Entrada disponível" value={lead.entrada_disponivel} />
               <DataRow icon={User} label="Usa FGTS" value={lead.usa_fgts ? "Sim" : "Não"} />
+              <DataRow icon={User} label="Faixa MCMV" value={lead.faixa_mcmv} />
+              <DataRow icon={User} label="Decisor" value={lead.decisor} />
               {lead.observacoes && (
                 <div className="md:col-span-2">
-                  <div className="text-xs uppercase text-muted-foreground mb-1">Observações</div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Resumo / Observações</div>
                   <p className="whitespace-pre-wrap">{lead.observacoes}</p>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          {(lead.desfecho || lead.fase || lead.visita_data || (lead.docs_recebidos?.length ?? 0) > 0 || (lead.docs_pendentes?.length ?? 0) > 0) && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-base">Handoff do qualificador</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2 text-sm">
+                <DataRow icon={ArrowRight} label="Desfecho" value={lead.desfecho} />
+                <DataRow icon={ArrowRight} label="Fase" value={lead.fase} />
+                <DataRow icon={Calendar} label="Visita — data" value={lead.visita_data} />
+                <DataRow icon={Calendar} label="Visita — hora" value={lead.visita_hora} />
+                <DataRow icon={Building2} label="Visita — empreendimento" value={lead.visita_empreendimento} />
+                <div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Docs recebidos</div>
+                  {lead.docs_recebidos && lead.docs_recebidos.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {lead.docs_recebidos.map((d) => (
+                        <Badge key={d} variant="secondary" className="text-[10px]">{d}</Badge>
+                      ))}
+                    </div>
+                  ) : <p className="text-muted-foreground">—</p>}
+                </div>
+                <div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">Docs pendentes</div>
+                  {lead.docs_pendentes && lead.docs_pendentes.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {lead.docs_pendentes.map((d) => (
+                        <Badge key={d} variant="outline" className="text-[10px]">{d}</Badge>
+                      ))}
+                    </div>
+                  ) : <p className="text-muted-foreground">—</p>}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="tarefas" className="mt-4">
