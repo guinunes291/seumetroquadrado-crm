@@ -33,6 +33,8 @@ testado `src/lib/follow-up.ts`:
   sem ir até a página de Tarefas (economiza ~3 cliques).
 - **Telefone/e-mail editáveis** no "Editar dados" do lead (antes eram bloqueados).
 
+**Módulo de Documentação (núcleo da Fase 3).** A tabela `documentacoes` era 100% headless; agora tem **aba Documentação** na página do lead: checklist por perfil (CLT/autônomo/empresário/aposentado + flags casado/FGTS/IR), status por documento (pendente/recebido/aprovado/reprovado), link do arquivo (Drive etc.), barra de progresso e botões **"Enviar checklist"** / **"Cobrar pendência"** via WhatsApp. Núcleo puro e testado em `src/lib/documentacao.ts`; UI em `src/components/documentacao-tab.tsx`. *Upload nativo de arquivo (Supabase Storage vs Google Drive) fica para a próxima iteração, pendente da sua escolha.*
+
 Arquivos: `src/lib/follow-up.ts` (+ `tests/follow-up.test.ts`), `src/components/resumo-ia.tsx`,
 `src/components/lead-stage/{appointment-stage,visit-feedback,credit-analysis}-dialog.tsx`,
 `src/routes/_authenticated/leads.$leadId.tsx`, `src/routes/_authenticated/blitz.tsx`.
@@ -177,7 +179,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **0** | Telefone/e-mail editáveis · "+Tarefa" no lead · Resumo IA no lead | ganhos imediatos sem mudar modelo | médio-alto | baixa | ✅ feito |
 | **1** | Motor anti-perda: tarefa automática por etapa + guardrail | elimina a causa raiz da perda de lead | muito alto | média | ✅ núcleo feito |
 | **2** | "Próxima melhor ação" + registro rápido de contato + Score | reduzir cliques (DOR nº 2) | alto | média | a fazer |
-| **3** | Módulo de Documentação (checklist/upload/cobrança) | destrava crédito/pasta | alto | média-alta | a fazer |
+| **3** | Módulo de Documentação (checklist/status/cobrança) | destrava crédito/pasta | alto | média-alta | ✅ núcleo (upload nativo pendente) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | a fazer |
 | **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | a fazer |
 | **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | a fazer |

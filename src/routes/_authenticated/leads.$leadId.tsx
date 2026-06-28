@@ -73,6 +73,7 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
+import { DocumentacaoTab } from "@/components/documentacao-tab";
 import {
   TAREFA_TIPOS,
   TAREFA_PRIORIDADES,
@@ -776,6 +777,7 @@ function LeadDetailPage() {
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="tarefas">Tarefas ({tarefas.length})</TabsTrigger>
           <TabsTrigger value="agendamentos">Agendamentos ({agendamentos.length})</TabsTrigger>
+          <TabsTrigger value="documentacao">Documentação</TabsTrigger>
         </TabsList>
 
         <TabsContent value="timeline" className="mt-4">
@@ -949,6 +951,13 @@ function LeadDetailPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="documentacao" className="mt-4">
+          <DocumentacaoTab
+            leadId={leadId}
+            lead={{ nome: lead.nome, telefone: lead.telefone, corretor_id: lead.corretor_id }}
+          />
         </TabsContent>
       </Tabs>
 
