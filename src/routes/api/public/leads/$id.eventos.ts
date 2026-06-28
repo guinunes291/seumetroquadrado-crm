@@ -63,7 +63,7 @@ export const Route = createFileRoute("/api/public/leads/$id/eventos")({
             tipo,
             descricao: typeof body.descricao === "string" ? body.descricao : null,
             agente: typeof body.agente === "string" ? body.agente : null,
-            payload: body.payload && typeof body.payload === "object" ? body.payload : null,
+            payload: (body.payload && typeof body.payload === "object" ? body.payload : null) as never,
           })
           .select()
           .single();
