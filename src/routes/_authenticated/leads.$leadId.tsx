@@ -74,6 +74,7 @@ import {
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
 import { DocumentacaoTab } from "@/components/documentacao-tab";
+import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import {
   TAREFA_TIPOS,
   TAREFA_PRIORIDADES,
@@ -226,6 +227,7 @@ function LeadDetailPage() {
   const [waMensagem, setWaMensagem] = useState("");
   const [notaRapida, setNotaRapida] = useState("");
   const [editOpen, setEditOpen] = useState(false);
+  const [contatoOpen, setContatoOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     nome: "",
     telefone: "",
@@ -439,15 +441,6 @@ function LeadDetailPage() {
     onSuccess: () => toast.success("Status atualizado"),
   });
 
-  // Abre uma interação pré-preenchida (ex.: registrar ligação em 1 clique).
-  const abrirInteracaoRapida = (t: InteracaoTipo, tit: string) => {
-    setTipo(t);
-    setDirecao("saida");
-    setTitulo(tit);
-    setConteudo("");
-    setDialogOpen(true);
-  };
-
   if (isLoading) {
     return <div className="text-sm text-muted-foreground">Carregando lead…</div>;
   }
@@ -506,11 +499,8 @@ function LeadDetailPage() {
                 <Phone className="h-4 w-4 mr-2" /> Ligar
               </a>
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => abrirInteracaoRapida("ligacao", "Ligação")}
-            >
-              <PhoneCall className="h-4 w-4 mr-2" /> Registrar ligação
+            <Button variant="outline" onClick={() => setContatoOpen(true)}>
+              <PhoneCall className="h-4 w-4 mr-2" /> Registrar contato
             </Button>
             <Dialog open={waOpen} onOpenChange={setWaOpen}>
               <DialogTrigger asChild>
@@ -1027,6 +1017,12 @@ function LeadDetailPage() {
             qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
           }
         }}
+      />
+
+      <RegistrarContatoDialog
+        open={contatoOpen}
+        onOpenChange={setContatoOpen}
+        lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id }}
       />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
