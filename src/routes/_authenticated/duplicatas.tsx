@@ -29,7 +29,7 @@ type LeadResumo = {
   created_at: string;
 };
 
-function DuplicatasPage() {
+export function DuplicatasPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const podeMesclar = isAdmin || isGestor;
 
@@ -80,7 +80,9 @@ function DuplicatasPage() {
       />
       {isLoading && (
         <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">Procurando duplicatas...</CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">
+            Procurando duplicatas...
+          </CardContent>
         </Card>
       )}
       {!isLoading && (!grupos || grupos.length === 0) && (
@@ -91,23 +93,13 @@ function DuplicatasPage() {
         </Card>
       )}
       {grupos?.map((g) => (
-        <GrupoCard
-          key={`${g.tipo}-${g.grupo_chave}`}
-          grupo={g}
-          leadsMap={leadsMap ?? new Map()}
-        />
+        <GrupoCard key={`${g.tipo}-${g.grupo_chave}`} grupo={g} leadsMap={leadsMap ?? new Map()} />
       ))}
     </div>
   );
 }
 
-function GrupoCard({
-  grupo,
-  leadsMap,
-}: {
-  grupo: Grupo;
-  leadsMap: Map<string, LeadResumo>;
-}) {
+function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, LeadResumo> }) {
   const qc = useQueryClient();
   const mesclarMut = useMutation({
     mutationFn: async ({ destino, origem }: { destino: string; origem: string }) => {

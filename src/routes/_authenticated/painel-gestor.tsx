@@ -25,11 +25,89 @@ import {
   BarChart3,
   Timer,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DistribuicaoPage } from "@/routes/_authenticated/distribuicao";
+import { CorretoresPage } from "@/routes/_authenticated/corretores";
+import { EquipesPage } from "@/routes/_authenticated/equipes";
+import { LeadsPorCorretorPage } from "@/routes/_authenticated/leads-por-corretor";
+import { TemplatesPage } from "@/routes/_authenticated/templates";
+import { DuplicatasPage } from "@/routes/_authenticated/duplicatas";
+import { LixeiraPage } from "@/routes/_authenticated/lixeira";
+
+type GestaoTab =
+  | "saude"
+  | "distribuicao"
+  | "leads-corretor"
+  | "pessoas"
+  | "comunicacao"
+  | "qualidade";
+const GESTAO_TABS: GestaoTab[] = [
+  "saude",
+  "distribuicao",
+  "leads-corretor",
+  "pessoas",
+  "comunicacao",
+  "qualidade",
+];
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
-  head: () => ({ meta: [{ title: "Painel do Gestor — Seu Metro Quadrado" }] }),
+  // `tab` permite abrir/linkar direto uma aba do hub de Gestão.
+  validateSearch: (search: Record<string, unknown>): { tab?: GestaoTab } => ({
+    tab: GESTAO_TABS.includes(search.tab as GestaoTab) ? (search.tab as GestaoTab) : undefined,
+  }),
+  head: () => ({ meta: [{ title: "Gestão — Seu Metro Quadrado" }] }),
   component: PainelGestorPage,
 });
+
+// Hub de Gestão: consolida saúde da operação, distribuição, pessoas, comunicação
+// e qualidade de dados em abas internas (Fase 1). Cada aba reaproveita a página
+// já existente; as rotas antigas seguem válidas para deep-link/compatibilidade.
+function PainelGestorPage() {
+  const { isAdmin, isGestor } = useUserRoles();
+  const podeVer = isAdmin || isGestor;
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeTab: GestaoTab = tab ?? "saude";
+  const onTabChange = (v: string) =>
+    navigate({ search: { tab: v === "saude" ? undefined : (v as GestaoTab) } });
+
+  if (!podeVer) return <SaudePanel />;
+
+  return (
+    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+      <TabsList className="h-auto flex-wrap justify-start">
+        <TabsTrigger value="saude">Saúde</TabsTrigger>
+        <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
+        <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
+        <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
+        <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
+        {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
+      </TabsList>
+      <TabsContent value="saude">
+        <SaudePanel />
+      </TabsContent>
+      <TabsContent value="distribuicao">
+        <DistribuicaoPage />
+      </TabsContent>
+      <TabsContent value="leads-corretor">
+        <LeadsPorCorretorPage />
+      </TabsContent>
+      <TabsContent value="pessoas" className="space-y-10">
+        <CorretoresPage />
+        <EquipesPage />
+      </TabsContent>
+      <TabsContent value="comunicacao">
+        <TemplatesPage />
+      </TabsContent>
+      {isAdmin && (
+        <TabsContent value="qualidade" className="space-y-10">
+          <DuplicatasPage />
+          <LixeiraPage />
+        </TabsContent>
+      )}
+    </Tabs>
+  );
+}
 
 type Periodo = "hoje" | "semana" | "mes";
 const toDate = (d: Date) => d.toISOString().slice(0, 10);
@@ -47,7 +125,7 @@ function intervalo(p: Periodo): { di: string; df: string } {
 // Status fora do funil ativo — usados para filtrar a base de "leads ativos".
 const FORA_DO_FUNIL = "(perdido,contrato_fechado,pos_venda)";
 
-function PainelGestorPage() {
+function SaudePanel() {
   const { isAdmin, isGestor } = useUserRoles();
   const podeVer = isAdmin || isGestor;
   const [periodo, setPeriodo] = useState<Periodo>("mes");
@@ -286,9 +364,7 @@ function PainelGestorPage() {
                       <td className="py-2 px-2 text-right text-muted-foreground">
                         {(() => {
                           const t = tempoMap.get(c.corretor_id);
-                          return t && t.leads_respondidos > 0
-                            ? fmtDuracao(t.tempo_medio_min)
-                            : "—";
+                          return t && t.leads_respondidos > 0 ? fmtDuracao(t.tempo_medio_min) : "—";
                         })()}
                       </td>
                       <td className="py-2 pl-2 text-right">
@@ -396,7 +472,8 @@ function PainelGestorPage() {
       <Card className="border-amber-500/30">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-1.5">
-            <AlertTriangle className="h-4 w-4 text-amber-600" /> Leads parados (+30 min sem atendimento)
+            <AlertTriangle className="h-4 w-4 text-amber-600" /> Leads parados (+30 min sem
+            atendimento)
             {urgentes.length > 0 && (
               <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
                 {urgentes.length}

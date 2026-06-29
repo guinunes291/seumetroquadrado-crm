@@ -6,7 +6,6 @@ import logoM2 from "@/assets/logo-m2.png.asset.json";
 import {
   LayoutDashboard,
   Users,
-  UsersRound,
   Trello,
   CalendarClock,
   ListTodo,
@@ -18,14 +17,10 @@ import {
   Building2,
   Megaphone,
   Wallet,
-  MessageSquare,
   Plug,
   Settings,
   LogOut,
-  Shuffle,
   User as UserIcon,
-  Trash2,
-  Merge,
   Sparkles,
   Link2,
   Activity,
@@ -103,24 +98,12 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
+    // As sub-áreas (Distribuição, Pessoas, Comunicação, Qualidade…) agora são abas
+    // internas do hub /painel-gestor — por isso o item é um único botão.
     to: "/painel-gestor",
     label: "Gestão",
     icon: Activity,
     roles: ["admin", "gestor"],
-    children: [
-      { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
-      { to: "/corretores", label: "Corretores", icon: Users, roles: ["admin", "gestor"] },
-      { to: "/equipes", label: "Equipes", icon: UsersRound, roles: ["admin", "gestor"] },
-      {
-        to: "/leads-por-corretor",
-        label: "Leads por Corretor",
-        icon: Shuffle,
-        roles: ["admin", "gestor"],
-      },
-      { to: "/templates", label: "Templates", icon: MessageSquare, roles: ["admin", "gestor"] },
-      { to: "/duplicatas", label: "Duplicatas", icon: Merge, roles: ["admin", "gestor"] },
-      { to: "/lixeira", label: "Lixeira", icon: Trash2, roles: ["admin"] },
-    ],
   },
   {
     label: "Configurações",

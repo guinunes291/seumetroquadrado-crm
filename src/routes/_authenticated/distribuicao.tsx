@@ -6,7 +6,12 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +54,7 @@ type Log = {
   created_at: string;
 };
 
-function DistribuicaoPage() {
+export function DistribuicaoPage() {
   const { isAdmin, isGestor, loading } = useUserRoles();
   const qc = useQueryClient();
 
@@ -70,7 +75,10 @@ function DistribuicaoPage() {
     refetchInterval: 30000,
   });
   const corretoresMap = useMemo(() => {
-    const m = new Map<string, { nome: string; email: string; presente: boolean; presente_em: string | null }>();
+    const m = new Map<
+      string,
+      { nome: string; email: string; presente: boolean; presente_em: string | null }
+    >();
     (corretores ?? []).forEach((c) =>
       m.set(c.id, {
         nome: c.nome,
@@ -88,10 +96,7 @@ function DistribuicaoPage() {
   const { data: fila } = useQuery({
     queryKey: ["fila"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("fila_distribuicao")
-        .select("*")
-        .order("posicao");
+      const { data, error } = await supabase.from("fila_distribuicao").select("*").order("posicao");
       if (error) throw error;
       return (data ?? []) as FilaRow[];
     },
@@ -111,7 +116,7 @@ function DistribuicaoPage() {
 
   const addToFila = useMutation({
     mutationFn: async (corretorId: string) => {
-      const maxPos = Math.max(0, ...((fila ?? []).map((f) => f.posicao)));
+      const maxPos = Math.max(0, ...(fila ?? []).map((f) => f.posicao));
       const { error } = await supabase.from("fila_distribuicao").insert({
         corretor_id: corretorId,
         posicao: maxPos + 1,
@@ -248,11 +253,19 @@ function DistribuicaoPage() {
                       <TableCell>
                         <Switch
                           checked={row.ativo}
-                          onCheckedChange={(v) => updateFila.mutate({ id: row.id, patch: { ativo: v } })}
+                          onCheckedChange={(v) =>
+                            updateFila.mutate({ id: row.id, patch: { ativo: v } })
+                          }
                         />
                       </TableCell>
                       <TableCell>
-                        <Badge variant={row.leads_recebidos_hoje >= row.max_leads_dia ? "destructive" : "secondary"}>
+                        <Badge
+                          variant={
+                            row.leads_recebidos_hoje >= row.max_leads_dia
+                              ? "destructive"
+                              : "secondary"
+                          }
+                        >
                           {row.leads_recebidos_hoje}
                         </Badge>
                       </TableCell>
@@ -292,11 +305,7 @@ function DistribuicaoPage() {
                         >
                           <ArrowDown className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeFila.mutate(row.id)}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => removeFila.mutate(row.id)}>
                           Remover
                         </Button>
                       </TableCell>
@@ -357,9 +366,13 @@ function DistribuicaoPage() {
                       {corretoresMap.get(log.corretor_id)?.nome ?? log.corretor_id.slice(0, 8)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">{log.tipo}</Badge>
+                      <Badge variant="outline" className="capitalize">
+                        {log.tipo}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{log.motivo ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {log.motivo ?? "—"}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -373,8 +386,8 @@ function DistribuicaoPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Zerar as cotas do dia?</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso zera o contador de leads recebidos hoje de TODOS os corretores na fila. A
-              roleta volta a distribuir como se ninguém tivesse recebido leads hoje.
+              Isso zera o contador de leads recebidos hoje de TODOS os corretores na fila. A roleta
+              volta a distribuir como se ninguém tivesse recebido leads hoje.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

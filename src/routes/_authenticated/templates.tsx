@@ -11,10 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Edit2, Trash2, MessageSquare } from "lucide-react";
@@ -38,7 +47,7 @@ type Template = {
 
 const CANAIS: TemplateCanal[] = ["whatsapp", "email", "sms", "interno"];
 
-function TemplatesPage() {
+export function TemplatesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Template | null>(null);
@@ -77,7 +86,14 @@ function TemplatesPage() {
   });
 
   function resetForm() {
-    setForm({ nome: "", canal: "whatsapp", assunto: "", conteudo: "", ativo: true, projeto_id: null });
+    setForm({
+      nome: "",
+      canal: "whatsapp",
+      assunto: "",
+      conteudo: "",
+      ativo: true,
+      projeto_id: null,
+    });
     setEditing(null);
   }
 
@@ -154,9 +170,17 @@ function TemplatesPage() {
         title="Templates de mensagem"
         description="Modelos reutilizáveis para WhatsApp, e-mail e SMS. Use {{nome}}, {{projeto}} e {{corretor}} como variáveis."
         actions={
-          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
+          <Dialog
+            open={open}
+            onOpenChange={(v) => {
+              setOpen(v);
+              if (!v) resetForm();
+            }}
+          >
             <DialogTrigger asChild>
-              <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> Novo template</Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" /> Novo template
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
@@ -166,14 +190,27 @@ function TemplatesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Nome</Label>
-                    <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} maxLength={120} />
+                    <Input
+                      value={form.nome}
+                      onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                      maxLength={120}
+                    />
                   </div>
                   <div>
                     <Label>Canal</Label>
-                    <Select value={form.canal} onValueChange={(v) => setForm({ ...form, canal: v as TemplateCanal })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={form.canal}
+                      onValueChange={(v) => setForm({ ...form, canal: v as TemplateCanal })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {CANAIS.map((c) => <SelectItem key={c} value={c}>{CANAL_LABEL[c]}</SelectItem>)}
+                        {CANAIS.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {CANAL_LABEL[c]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -182,7 +219,11 @@ function TemplatesPage() {
                 {form.canal === "email" && (
                   <div>
                     <Label>Assunto</Label>
-                    <Input value={form.assunto} onChange={(e) => setForm({ ...form, assunto: e.target.value })} maxLength={200} />
+                    <Input
+                      value={form.assunto}
+                      onChange={(e) => setForm({ ...form, assunto: e.target.value })}
+                      maxLength={200}
+                    />
                   </div>
                 )}
 
@@ -192,10 +233,16 @@ function TemplatesPage() {
                     value={form.projeto_id ?? "all"}
                     onValueChange={(v) => setForm({ ...form, projeto_id: v === "all" ? null : v })}
                   >
-                    <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os empreendimentos</SelectItem>
-                      {projetos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+                      {projetos.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.nome}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -213,20 +260,31 @@ function TemplatesPage() {
                     <div className="mt-2 flex flex-wrap gap-1">
                       <span className="text-xs text-muted-foreground">Variáveis:</span>
                       {variaveis.map((v) => (
-                        <Badge key={v} variant="outline" className="text-[10px]">{`{{${v}}}`}</Badge>
+                        <Badge
+                          key={v}
+                          variant="outline"
+                          className="text-[10px]"
+                        >{`{{${v}}}`}</Badge>
                       ))}
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Switch checked={form.ativo} onCheckedChange={(v) => setForm({ ...form, ativo: v })} />
+                  <Switch
+                    checked={form.ativo}
+                    onCheckedChange={(v) => setForm({ ...form, ativo: v })}
+                  />
                   <Label className="cursor-pointer">Template ativo</Label>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={() => save.mutate()} disabled={save.isPending}>Salvar</Button>
+                <Button variant="ghost" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={() => save.mutate()} disabled={save.isPending}>
+                  Salvar
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
