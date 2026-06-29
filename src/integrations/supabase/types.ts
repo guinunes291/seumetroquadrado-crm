@@ -2500,6 +2500,7 @@ export type Database = {
         Returns: {
           campanha: string | null
           consentimento_lgpd: boolean | null
+          construtora: string | null
           copiloto_notificado_em: string | null
           corretor_anterior_id: string | null
           corretor_id: string | null
