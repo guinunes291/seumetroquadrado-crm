@@ -160,7 +160,6 @@ function LeadDetailPage() {
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
 
-
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", leadId],
     queryFn: async (): Promise<Lead | null> => {
@@ -345,7 +344,6 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-
   const criarInteracao = useMutation({
     mutationFn: async () => {
       const conteudoTrim = conteudo.trim();
@@ -402,9 +400,10 @@ function LeadDetailPage() {
     queryKey: ["lead-sla", leadId],
     queryFn: async () => {
       const { data, error } = await (
-        supabase.rpc as unknown as (
-          fn: string,
-        ) => Promise<{ data: Array<{ lead_id: string; sla_minutos: number }> | null; error: unknown }>
+        supabase.rpc as unknown as (fn: string) => Promise<{
+          data: Array<{ lead_id: string; sla_minutos: number }> | null;
+          error: unknown;
+        }>
       )("leads_com_sla");
       if (error) throw error;
       return (data ?? []).find((r) => r.lead_id === leadId) ?? null;
@@ -457,12 +456,7 @@ function LeadDetailPage() {
   });
 
   const mudarStatus = useLeadStatusMutation({
-    invalidateKeys: [
-      ["lead", leadId],
-      ["interacoes", leadId],
-      ["leads"],
-      ["leads-kanban"],
-    ],
+    invalidateKeys: [["lead", leadId], ["interacoes", leadId], ["leads"], ["leads-kanban"]],
     onSuccess: () => toast.success("Status atualizado"),
   });
 
@@ -742,6 +736,35 @@ function LeadDetailPage() {
         }
       />
 
+      {/* Faixa "Próxima melhor ação" — orienta o corretor sobre o próximo passo. */}
+      <Card className="mb-6 border-primary/40 bg-primary/5">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+          <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              Próxima melhor ação
+            </div>
+            <div className="text-sm font-medium">
+              {acaoSugerida ? acaoSugerida.label : "Registrar um contato e definir o próximo passo"}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setContatoOpen(true)}>
+              <PhoneCall className="mr-1 h-4 w-4" /> Registrar contato
+            </Button>
+            {acaoSugerida && (
+              <Button
+                size="sm"
+                disabled={mudarStatus.isPending}
+                onClick={() => goToStage(acaoSugerida.target)}
+              >
+                {acaoSugerida.label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Etapas do funil</CardTitle>
@@ -781,7 +804,6 @@ function LeadDetailPage() {
         </CardContent>
       </Card>
 
-
       <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
           <CardHeader className="pb-2">
@@ -804,16 +826,6 @@ function LeadDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {acaoSugerida && (
-                <Button
-                  size="sm"
-                  className="h-8"
-                  disabled={mudarStatus.isPending}
-                  onClick={() => goToStage(acaoSugerida.target)}
-                >
-                  {acaoSugerida.label} <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
-              )}
               <Select value={lead.status} onValueChange={(v) => goToStage(v as LeadStatus)}>
                 <SelectTrigger className="h-8 w-[180px]">
                   <SelectValue placeholder="Mudar para…" />
@@ -860,6 +872,7 @@ function LeadDetailPage() {
         <TabsList>
           <TabsTrigger value="timeline">Timeline ({interacoes.length})</TabsTrigger>
           <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="qualificacao">Qualificação</TabsTrigger>
           <TabsTrigger value="tarefas">Tarefas ({tarefas.length})</TabsTrigger>
           <TabsTrigger value="agendamentos">Agendamentos ({agendamentos.length})</TabsTrigger>
           <TabsTrigger value="documentacao">Documentação</TabsTrigger>
@@ -967,39 +980,20 @@ function LeadDetailPage() {
               <DataRow icon={User} label="Decisor" value={lead.decisor} />
               {lead.observacoes && (
                 <div className="md:col-span-2">
-                  <div className="text-xs uppercase text-muted-foreground mb-1">Resumo / Observações</div>
+                  <div className="text-xs uppercase text-muted-foreground mb-1">
+                    Resumo / Observações
+                  </div>
                   <p className="whitespace-pre-wrap">{lead.observacoes}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <div className="mt-4">
-            <LeadObjecoes leadId={lead.id} objecoes={lead.objecoes ?? null} />
-          </div>
-
-          <div className="mt-4">
-            <SimuladorFinanciamento
-              entradaInicial={lead.entrada_disponivel}
-              rendaInicial={lead.renda_informada}
-            />
-          </div>
-
-          <div className="mt-4">
-            <EmpreendimentoRecomendado
-              lead={{
-                id: lead.id,
-                renda_informada: lead.renda_informada,
-                entrada_disponivel: lead.entrada_disponivel,
-                usa_fgts: lead.usa_fgts,
-                faixa_mcmv: lead.faixa_mcmv,
-                projeto_nome: lead.projeto_nome,
-                observacoes: lead.observacoes,
-              }}
-            />
-          </div>
-
-          {(lead.desfecho || lead.fase || lead.visita_data || (lead.docs_recebidos?.length ?? 0) > 0 || (lead.docs_pendentes?.length ?? 0) > 0) && (
+          {(lead.desfecho ||
+            lead.fase ||
+            lead.visita_data ||
+            (lead.docs_recebidos?.length ?? 0) > 0 ||
+            (lead.docs_pendentes?.length ?? 0) > 0) && (
             <Card className="mt-4">
               <CardHeader>
                 <CardTitle className="text-base">Handoff do qualificador</CardTitle>
@@ -1009,30 +1003,61 @@ function LeadDetailPage() {
                 <DataRow icon={ArrowRight} label="Fase" value={lead.fase} />
                 <DataRow icon={Calendar} label="Visita — data" value={lead.visita_data} />
                 <DataRow icon={Calendar} label="Visita — hora" value={lead.visita_hora} />
-                <DataRow icon={Building2} label="Visita — empreendimento" value={lead.visita_empreendimento} />
+                <DataRow
+                  icon={Building2}
+                  label="Visita — empreendimento"
+                  value={lead.visita_empreendimento}
+                />
                 <div>
                   <div className="text-xs uppercase text-muted-foreground mb-1">Docs recebidos</div>
                   {lead.docs_recebidos && lead.docs_recebidos.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {lead.docs_recebidos.map((d) => (
-                        <Badge key={d} variant="secondary" className="text-[10px]">{d}</Badge>
+                        <Badge key={d} variant="secondary" className="text-[10px]">
+                          {d}
+                        </Badge>
                       ))}
                     </div>
-                  ) : <p className="text-muted-foreground">—</p>}
+                  ) : (
+                    <p className="text-muted-foreground">—</p>
+                  )}
                 </div>
                 <div>
                   <div className="text-xs uppercase text-muted-foreground mb-1">Docs pendentes</div>
                   {lead.docs_pendentes && lead.docs_pendentes.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {lead.docs_pendentes.map((d) => (
-                        <Badge key={d} variant="outline" className="text-[10px]">{d}</Badge>
+                        <Badge key={d} variant="outline" className="text-[10px]">
+                          {d}
+                        </Badge>
                       ))}
                     </div>
-                  ) : <p className="text-muted-foreground">—</p>}
+                  ) : (
+                    <p className="text-muted-foreground">—</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="qualificacao" className="mt-4 space-y-4">
+          <LeadObjecoes leadId={lead.id} objecoes={lead.objecoes ?? null} />
+          <SimuladorFinanciamento
+            entradaInicial={lead.entrada_disponivel}
+            rendaInicial={lead.renda_informada}
+          />
+          <EmpreendimentoRecomendado
+            lead={{
+              id: lead.id,
+              renda_informada: lead.renda_informada,
+              entrada_disponivel: lead.entrada_disponivel,
+              usa_fgts: lead.usa_fgts,
+              faixa_mcmv: lead.faixa_mcmv,
+              projeto_nome: lead.projeto_nome,
+              observacoes: lead.observacoes,
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="tarefas" className="mt-4 space-y-3">
@@ -1194,9 +1219,7 @@ function LeadDetailPage() {
               <Label>Entrada disponível</Label>
               <Input
                 value={editForm.entrada_disponivel}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, entrada_disponivel: e.target.value })
-                }
+                onChange={(e) => setEditForm({ ...editForm, entrada_disponivel: e.target.value })}
                 maxLength={40}
               />
             </div>
@@ -1205,9 +1228,7 @@ function LeadDetailPage() {
               <Input
                 type="datetime-local"
                 value={editForm.proximo_followup}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, proximo_followup: e.target.value })
-                }
+                onChange={(e) => setEditForm({ ...editForm, proximo_followup: e.target.value })}
               />
             </div>
             <div className="flex items-center gap-2 pt-6">
@@ -1317,7 +1338,6 @@ function LeadDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
-
   );
 }
 
