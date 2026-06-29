@@ -12,7 +12,7 @@
 //   limit=50 (max 200)
 //   offset=0
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse, PUBLIC_LEAD_SELECT } from "@/lib/public-api-auth";
+import { checkReadApiKey, jsonResponse, PUBLIC_LEAD_SELECT, shapeLeadForPublic } from "@/lib/public-api-auth";
 
 const PARADOS_RE = /^(\d+)d$/i;
 
@@ -91,7 +91,7 @@ export const Route = createFileRoute("/api/public/leads/")({
           total: count ?? data?.length ?? 0,
           limit,
           offset,
-          data: data ?? [],
+          data: (data ?? []).map((l) => shapeLeadForPublic(l as unknown as Record<string, unknown>)),
         });
       },
     },
