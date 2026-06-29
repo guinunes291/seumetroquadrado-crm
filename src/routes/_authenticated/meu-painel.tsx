@@ -13,10 +13,12 @@ import { buildWhatsAppUrl } from "@/lib/templates";
 import { useLeadsComSla } from "@/features/dashboard/queries";
 import { leadStatusLabel } from "@/lib/leads";
 import { formatRelativeTime } from "@/lib/interacoes";
+import { scoreLead, TIER_DOT } from "@/lib/priority";
 import {
   Phone,
   MessageCircle,
   CalendarCheck,
+  CalendarPlus,
   MapPin,
   FileText,
   Trophy,
@@ -27,6 +29,7 @@ import {
   CheckCircle2,
   ArrowRight,
   AlertTriangle,
+  CircleAlert,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/meu-painel")({
@@ -207,6 +210,89 @@ function MeuPainelPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Guardrail anti-perda: leads ativos do corretor SEM próxima ação — nenhuma
+  // tarefa aberta, nenhum agendamento futuro e sem follow-up agendado. São os que
+  // silenciosamente esfriam. Ordenados pelo Score de prioridade.
+  const semAcaoQ = useQuery({
+    queryKey: ["meu-dia:sem-acao", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const [leadsR, tarefasR, agendaR] = await Promise.all([
+        supabase
+          .from("leads")
+          .select("id, nome, telefone, status, temperatura, proximo_followup, ultima_interacao")
+          .eq("corretor_id", user!.id)
+          .eq("na_lixeira", false)
+          .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
+          .limit(300),
+        supabase
+          .from("tarefas")
+          .select("lead_id")
+          .eq("corretor_id", user!.id)
+          .in("status", ["pendente", "em_andamento"])
+          .not("lead_id", "is", null),
+        supabase
+          .from("agendamentos")
+          .select("lead_id")
+          .eq("corretor_id", user!.id)
+          .gte("data_inicio", nowIso)
+          .not("status", "in", "(cancelado,realizado,nao_compareceu)")
+          .not("lead_id", "is", null),
+      ]);
+      if (leadsR.error) throw leadsR.error;
+      if (tarefasR.error) throw tarefasR.error;
+      if (agendaR.error) throw agendaR.error;
+
+      const comTarefa = new Set((tarefasR.data ?? []).map((t) => t.lead_id));
+      const comAgenda = new Set((agendaR.data ?? []).map((a) => a.lead_id));
+      const agoraMs = Date.now();
+
+      return (leadsR.data ?? [])
+        .filter((l) => {
+          if (comTarefa.has(l.id) || comAgenda.has(l.id)) return false;
+          if (l.proximo_followup && new Date(l.proximo_followup).getTime() > agoraMs) return false;
+          return true;
+        })
+        .map((l) => ({
+          ...l,
+          _score: scoreLead({
+            temperatura: l.temperatura,
+            status: l.status,
+            ultimaInteracao: l.ultima_interacao,
+          }),
+        }))
+        .sort((a, b) => b._score.score - a._score.score)
+        .slice(0, 12);
+    },
+  });
+
+  // Cria, em 1 clique, um follow-up para amanhã — tirando o lead do radar de risco.
+  const criarFollowUpRapido = useMutation({
+    mutationFn: async (lead: { id: string; nome: string }) => {
+      const amanha = new Date();
+      amanha.setDate(amanha.getDate() + 1);
+      const { error } = await supabase.from("tarefas").insert({
+        titulo: `Follow-up com ${lead.nome}`,
+        tipo: "follow_up",
+        prioridade: "media",
+        status: "pendente",
+        lead_id: lead.id,
+        corretor_id: user!.id,
+        criado_por: user!.id,
+        data_vencimento: amanha.toISOString(),
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Follow-up criado para amanhã");
+      qc.invalidateQueries({ queryKey: ["meu-dia:sem-acao"] });
+      qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const totais = useMemo(() => {
     const acc = {
       ligacoes: 0,
@@ -286,6 +372,7 @@ function MeuPainelPage() {
   const quentes = quentesQ.data ?? [];
   const agenda = agendaQ.data ?? [];
   const tarefas = tarefasQ.data ?? [];
+  const semAcao = semAcaoQ.data ?? [];
   const tarefasAtrasadas = tarefas.filter(
     (t) => t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now(),
   ).length;
@@ -558,6 +645,87 @@ function MeuPainelPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Guardrail anti-perda: leads ativos sem um próximo passo definido */}
+      <Card className="border-amber-500/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex flex-wrap items-center gap-1.5">
+            <CircleAlert className="h-4 w-4 text-amber-600" /> Sem próxima ação
+            {semAcao.length > 0 && (
+              <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
+                {semAcao.length}
+              </Badge>
+            )}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">
+              leads ativos sem tarefa, agenda ou follow-up
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {semAcao.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Todos os seus leads ativos têm um próximo passo. 👏
+            </p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {semAcao.map((l) => {
+                const tel = (l.telefone ?? "").replace(/\D/g, "");
+                return (
+                  <div
+                    key={l.id}
+                    className="flex items-center justify-between gap-2 rounded-md border p-2"
+                  >
+                    <Link to="/leads/$leadId" params={{ leadId: l.id }} className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 truncate text-sm font-medium">
+                        <span
+                          className={cn("h-2 w-2 shrink-0 rounded-full", TIER_DOT[l._score.tier])}
+                          title={`Prioridade ${l._score.tier}`}
+                        />
+                        <span className="truncate">{l.nome}</span>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {leadStatusLabel(l.status)} · {l._score.motivo}
+                      </div>
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-primary hover:bg-primary/10"
+                        title="Criar follow-up para amanhã"
+                        disabled={criarFollowUpRapido.isPending}
+                        onClick={() => criarFollowUpRapido.mutate({ id: l.id, nome: l.nome })}
+                      >
+                        <CalendarPlus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                        title="WhatsApp"
+                        onClick={() => abrirWhats(l.nome, l.telefone)}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        asChild
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                        title="Ligar"
+                      >
+                        <a href={`tel:${tel}`}>
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <h2 className="text-sm font-semibold text-muted-foreground pt-2">Minha produtividade</h2>
 

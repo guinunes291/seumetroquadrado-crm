@@ -30,6 +30,7 @@ import {
   Merge,
   Sparkles,
   Link2,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,6 +86,7 @@ const SECTIONS: Section[] = [
   {
     title: "Gestão",
     items: [
+      { to: "/painel-gestor", label: "Painel do Gestor", icon: Activity, roles: ["admin", "gestor"] },
       { to: "/corretores", label: "Corretores", icon: Users, roles: ["admin", "gestor"] },
       { to: "/leads-por-corretor", label: "Leads por Corretor", icon: Shuffle, roles: ["admin", "gestor"] },
       { to: "/equipes", label: "Equipes", icon: UsersRound, roles: ["admin", "gestor"] },
