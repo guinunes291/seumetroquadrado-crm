@@ -32,11 +32,29 @@ export const PUBLIC_LEAD_FIELDS = [
   "ultimo_contato",
   "ultima_interacao",
   "data_distribuicao",
+  // Qualificação
+  "renda_estimada",
+  "tem_fgts",
+  "fgts_valor",
+  "tipo_renda",
+  "decisor",
+  "faixa_mcmv",
+  "resumo_qualificacao",
   "created_at",
   "updated_at",
 ] as const;
 
 export const PUBLIC_LEAD_SELECT = PUBLIC_LEAD_FIELDS.join(",");
+
+/** Normaliza temperatura para MAIÚSCULO no payload retornado. */
+export function shapeLeadForPublic<T extends Record<string, unknown> | null | undefined>(lead: T): T {
+  if (!lead || typeof lead !== "object") return lead;
+  const t = (lead as Record<string, unknown>).temperatura;
+  if (typeof t === "string" && t) {
+    (lead as Record<string, unknown>).temperatura = t.toUpperCase();
+  }
+  return lead;
+}
 
 // Rate limit por chave/IP, reusando o helper genérico (janela fixa em memória).
 // Não substitui um rate limit de borda (Cloudflare), mas evita enumeração/abuso trivial.
