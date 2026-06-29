@@ -72,8 +72,10 @@ import {
   Search,
   Trash2,
   Shuffle,
+  List,
   Trello,
   Upload,
+  Zap,
   Play,
   MessageCircle,
   Phone,
@@ -96,6 +98,7 @@ import {
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
+import { KanbanBoard } from "@/components/leads-kanban-board";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail, normalizeSearch, onlyDigits } from "@/lib/validators";
 import {
@@ -117,8 +120,11 @@ import {
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
-  validateSearch: (search: Record<string, unknown>): { status?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { status?: string; view?: "lista" | "kanban" } => ({
     status: typeof search.status === "string" ? search.status : undefined,
+    view: search.view === "kanban" ? "kanban" : undefined,
   }),
   component: LeadsPage,
 });
@@ -205,12 +211,10 @@ type Lead = {
 };
 
 function TempIcon({ temp }: { temp: string | null }) {
-  if (temp === "quente")
-    return <Flame className="h-3.5 w-3.5 text-red-500" aria-label="Quente" />;
+  if (temp === "quente") return <Flame className="h-3.5 w-3.5 text-red-500" aria-label="Quente" />;
   if (temp === "morno")
     return <Thermometer className="h-3.5 w-3.5 text-amber-500" aria-label="Morno" />;
-  if (temp === "frio")
-    return <Snowflake className="h-3.5 w-3.5 text-sky-500" aria-label="Frio" />;
+  if (temp === "frio") return <Snowflake className="h-3.5 w-3.5 text-sky-500" aria-label="Frio" />;
   return null;
 }
 
@@ -286,11 +290,17 @@ function LeadsPage() {
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
-  const updateStatus = useLeadStatusMutation({ invalidateKeys: [["leads"], ["leads-status-counts"]] });
+  const updateStatus = useLeadStatusMutation({
+    invalidateKeys: [["leads"], ["leads-status-counts"]],
+  });
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const { status: statusParam } = Route.useSearch();
+  const { status: statusParam, view } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeView: "lista" | "kanban" = view ?? "lista";
+  const setView = (v: "lista" | "kanban") =>
+    navigate({ search: (prev) => ({ ...prev, view: v === "kanban" ? "kanban" : undefined }) });
   const statusParamValido =
     statusParam && (LEAD_STATUS_ORDER as readonly string[]).includes(statusParam)
       ? statusParam
@@ -336,7 +346,9 @@ function LeadsPage() {
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   // Confirmação antes de excluir uma visão salva.
-  const [confirmDeleteView, setConfirmDeleteView] = useState<{ id: string; nome: string } | null>(null);
+  const [confirmDeleteView, setConfirmDeleteView] = useState<{ id: string; nome: string } | null>(
+    null,
+  );
   const [viewName, setViewName] = useState("");
   const filtrosRestauradosRef = useRef(false);
 
@@ -389,7 +401,16 @@ function LeadsPage() {
     if (!user?.id || !filtrosRestauradosRef.current) return;
     saveUltimoFiltro(user.id, filtrosAtuais);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, dataInicioFilter, dataFimFilter, contatoFilter]);
+  }, [
+    statusFilter,
+    origemFilter,
+    corretorFilter,
+    temperaturaFilter,
+    periodoFilter,
+    dataInicioFilter,
+    dataFimFilter,
+    contatoFilter,
+  ]);
 
   // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
   const { data: followupIds } = useQuery({
@@ -574,7 +595,18 @@ function LeadsPage() {
   // Volta para a 1ª página quando os filtros mudam.
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, origemFilter, corretorFilter, temperaturaFilter, periodoFilter, dataInicioFilter, dataFimFilter, contatoFilter, debouncedSearch, showLixeira]);
+  }, [
+    statusFilter,
+    origemFilter,
+    corretorFilter,
+    temperaturaFilter,
+    periodoFilter,
+    dataInicioFilter,
+    dataFimFilter,
+    contatoFilter,
+    debouncedSearch,
+    showLixeira,
+  ]);
 
   // Persiste o modo de visualização (tabela/cards).
   useEffect(() => {
@@ -743,20 +775,15 @@ function LeadsPage() {
 
   // Iniciar atendimento + registrar interação do tipo de contato escolhido
   const iniciarAtendimento = useMutation({
-    mutationFn: async ({
-      lead,
-      tipo,
-    }: {
-      lead: Lead;
-      tipo: "ligacao" | "whatsapp";
-    }) => {
+    mutationFn: async ({ lead, tipo }: { lead: Lead; tipo: "ligacao" | "whatsapp" }) => {
       const { data: u } = await supabase.auth.getUser();
       const { error: e1 } = await supabase.from("interacoes").insert({
         lead_id: lead.id,
         autor_id: u.user?.id ?? null,
         tipo,
         direcao: "saida",
-        titulo: tipo === "whatsapp" ? "Contato inicial via WhatsApp" : "Contato inicial por ligação",
+        titulo:
+          tipo === "whatsapp" ? "Contato inicial via WhatsApp" : "Contato inicial por ligação",
         conteudo: `Atendimento iniciado pelo corretor (${tipo}).`,
       });
       if (e1) throw e1;
@@ -809,9 +836,25 @@ function LeadsPage() {
         description="Funil de leads, distribuição e qualificação."
         actions={
           <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link to="/kanban">
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              <Button
+                size="sm"
+                variant={activeView === "lista" ? "default" : "ghost"}
+                onClick={() => setView("lista")}
+              >
+                <List className="h-4 w-4 mr-1" /> Lista
+              </Button>
+              <Button
+                size="sm"
+                variant={activeView === "kanban" ? "default" : "ghost"}
+                onClick={() => setView("kanban")}
+              >
                 <Trello className="h-4 w-4 mr-1" /> Kanban
+              </Button>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/blitz">
+                <Zap className="h-4 w-4 mr-1" /> Blitz
               </Link>
             </Button>
             {canManage && (
@@ -838,439 +881,716 @@ function LeadsPage() {
         }
       />
 
-      {/* Chips de status com contagem */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setStatusFilter("all")}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-            statusFilter === "all"
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-background hover:bg-muted"
-          }`}
-        >
-          Todos · {totalLeadsCount}
-        </button>
-        {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
-          const n = statusCounts[s] ?? 0;
-          const active = statusFilter === s;
-          return (
+      {activeView === "kanban" ? (
+        <KanbanBoard />
+      ) : (
+        <>
+          {/* Chips de status com contagem */}
+          <div className="flex flex-wrap gap-2">
             <button
-              key={s}
               type="button"
-              onClick={() => setStatusFilter(active ? "all" : s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition ${
-                active
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background hover:bg-muted"
-              }`}
-            >
-              {LEAD_STATUS_LABEL[s]} · {n}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Filtros rápidos (por contato) + Visões salvas */}
-      <div className="flex flex-wrap items-center gap-2">
-        {CONTATO_OPCOES.map((o) => {
-          const active = contatoFilter === o.value;
-          return (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => setContatoFilter(active ? "all" : o.value)}
+              onClick={() => setStatusFilter("all")}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                active
+                statusFilter === "all"
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-background hover:bg-muted"
               }`}
             >
-              {o.label}
+              Todos · {totalLeadsCount}
             </button>
-          );
-        })}
-        <div className="ml-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8">
-                <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
-                <ChevronDown className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuLabel>Visões prontas</DropdownMenuLabel>
-              {VISOES_PADRAO.map((v) => (
-                <DropdownMenuItem key={v.id} onSelect={() => aplicarFiltros(v.filtros)}>
-                  {v.nome}
-                </DropdownMenuItem>
-              ))}
-              {savedViews.length > 0 && (
-                <>
+            {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
+              const n = statusCounts[s] ?? 0;
+              const active = statusFilter === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(active ? "all" : s)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                >
+                  {LEAD_STATUS_LABEL[s]} · {n}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Filtros rápidos (por contato) + Visões salvas */}
+          <div className="flex flex-wrap items-center gap-2">
+            {CONTATO_OPCOES.map((o) => {
+              const active = contatoFilter === o.value;
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setContatoFilter(active ? "all" : o.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+            <div className="ml-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
+                    <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60">
+                  <DropdownMenuLabel>Visões prontas</DropdownMenuLabel>
+                  {VISOES_PADRAO.map((v) => (
+                    <DropdownMenuItem key={v.id} onSelect={() => aplicarFiltros(v.filtros)}>
+                      {v.nome}
+                    </DropdownMenuItem>
+                  ))}
+                  {savedViews.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel>Minhas visões</DropdownMenuLabel>
+                      {savedViews.map((v) => (
+                        <DropdownMenuItem
+                          key={v.id}
+                          onSelect={() => aplicarFiltros(v.filtros)}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate">{v.nome}</span>
+                          <button
+                            type="button"
+                            aria-label={`Excluir visão ${v.nome}`}
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setConfirmDeleteView({ id: v.id, nome: v.nome });
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuItem>
+                      ))}
+                    </>
+                  )}
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Minhas visões</DropdownMenuLabel>
-                  {savedViews.map((v) => (
-                    <DropdownMenuItem
-                      key={v.id}
-                      onSelect={() => aplicarFiltros(v.filtros)}
-                      className="flex items-center justify-between gap-2"
+                  <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
+                    <Bookmark className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <AlertDialog
+                open={!!confirmDeleteView}
+                onOpenChange={(o) => !o && setConfirmDeleteView(null)}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Excluir a visão "{confirmDeleteView?.nome}"?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta visão salva de filtros será removida. Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        if (confirmDeleteView) excluirVisao(confirmDeleteView.id);
+                        setConfirmDeleteView(null);
+                      }}
                     >
-                      <span className="truncate">{v.nome}</span>
-                      <button
-                        type="button"
-                        aria-label={`Excluir visão ${v.nome}`}
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setConfirmDeleteView({ id: v.id, nome: v.nome });
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
-                <Bookmark className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <AlertDialog
-            open={!!confirmDeleteView}
-            onOpenChange={(o) => !o && setConfirmDeleteView(null)}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir a visão "{confirmDeleteView?.nome}"?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta visão salva de filtros será removida. Esta ação não pode ser desfeita.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    if (confirmDeleteView) excluirVisao(confirmDeleteView.id);
-                    setConfirmDeleteView(null);
-                  }}
-                >
-                  Excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-
-      <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Salvar visão atual</DialogTitle>
-          </DialogHeader>
-          <div className="py-2">
-            <Label>Nome da visão</Label>
-            <Input
-              autoFocus
-              value={viewName}
-              onChange={(e) => setViewName(e.target.value)}
-              placeholder="Ex.: Meus quentes sem contato"
-              onKeyDown={(e) => e.key === "Enter" && salvarVisaoAtual()}
-            />
+                      Excluir
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setSaveViewOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={salvarVisaoAtual} disabled={!viewName.trim()}>
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid gap-3 md:grid-cols-6">
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome, email ou telefone…"
-                className="pl-9"
-              />
-            </div>
-            <div className="md:col-span-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Select value={origemFilter} onValueChange={setOrigemFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Origem" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as origens</SelectItem>
-                {ORIGEM_OPTIONS.map((o) => (
-                  <SelectItem key={o} value={o}>
-                    {o.replace(/_/g, " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={temperaturaFilter} onValueChange={setTemperaturaFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Temperatura" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas temperaturas</SelectItem>
-                <SelectItem value="quente">🔥 Quente</SelectItem>
-                <SelectItem value="morno">🌡️ Morno</SelectItem>
-                <SelectItem value="frio">❄️ Frio</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={periodoFilter} onValueChange={(v) => setPeriodoFilter(v as Periodo)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent>
-                {PERIODO_OPTIONS.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {canManage && (
-              <Select value={corretorFilter} onValueChange={setCorretorFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Corretor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os corretores</SelectItem>
-                  <SelectItem value="unassigned">Sem corretor</SelectItem>
-                  {(corretores ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            </div>
-            {periodoFilter === "custom" && (
-              <div className="md:col-span-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="relative">
-                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Salvar visão atual</DialogTitle>
+              </DialogHeader>
+              <div className="py-2">
+                <Label>Nome da visão</Label>
+                <Input
+                  autoFocus
+                  value={viewName}
+                  onChange={(e) => setViewName(e.target.value)}
+                  placeholder="Ex.: Meus quentes sem contato"
+                  onKeyDown={(e) => e.key === "Enter" && salvarVisaoAtual()}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setSaveViewOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={salvarVisaoAtual} disabled={!viewName.trim()}>
+                  Salvar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div className="grid gap-3 md:grid-cols-6">
+                <div className="md:col-span-2 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    type="date"
-                    value={dataInicioFilter}
-                    onChange={(e) => setDataInicioFilter(e.target.value)}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por nome, email ou telefone…"
                     className="pl-9"
-                    aria-label="Data inicial"
                   />
                 </div>
-                <div className="relative">
-                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="date"
-                    value={dataFimFilter}
-                    onChange={(e) => setDataFimFilter(e.target.value)}
-                    className="pl-9"
-                    aria-label="Data final"
-                  />
+                <div className="md:col-span-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Select value={origemFilter} onValueChange={setOrigemFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Origem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as origens</SelectItem>
+                      {ORIGEM_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>
+                          {o.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={temperaturaFilter} onValueChange={setTemperaturaFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Temperatura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas temperaturas</SelectItem>
+                      <SelectItem value="quente">🔥 Quente</SelectItem>
+                      <SelectItem value="morno">🌡️ Morno</SelectItem>
+                      <SelectItem value="frio">❄️ Frio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={periodoFilter}
+                    onValueChange={(v) => setPeriodoFilter(v as Periodo)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIODO_OPTIONS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {canManage && (
+                    <Select value={corretorFilter} onValueChange={setCorretorFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Corretor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os corretores</SelectItem>
+                        <SelectItem value="unassigned">Sem corretor</SelectItem>
+                        {(corretores ?? []).map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {periodoFilter === "custom" && (
+                  <div className="md:col-span-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        value={dataInicioFilter}
+                        onChange={(e) => setDataInicioFilter(e.target.value)}
+                        className="pl-9"
+                        aria-label="Data inicial"
+                      />
+                    </div>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        value={dataFimFilter}
+                        onChange={(e) => setDataFimFilter(e.target.value)}
+                        className="pl-9"
+                        aria-label="Data final"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {isLoading ? "Carregando…" : `${filtered.length} lead(s)`}
+                  {activeFiltersCount > 0 && (
+                    <Button variant="ghost" size="sm" className="ml-2 h-7" onClick={limparFiltros}>
+                      <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros ({activeFiltersCount})
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-md border p-0.5">
+                    <Button
+                      size="icon"
+                      variant={viewMode === "tabela" ? "default" : "ghost"}
+                      className="h-7 w-7"
+                      title="Ver em tabela"
+                      onClick={() => setViewMode("tabela")}
+                    >
+                      <Rows3 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant={viewMode === "cards" ? "default" : "ghost"}
+                      className="h-7 w-7"
+                      title="Ver em cards"
+                      onClick={() => setViewMode("cards")}
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  {canManage && (
+                    <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
+                      {showLixeira ? "Ver ativos" : "Ver lixeira"}
+                    </Button>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {isLoading ? "Carregando…" : `${filtered.length} lead(s)`}
-              {activeFiltersCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="ml-2 h-7"
-                  onClick={limparFiltros}
-                >
-                  <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros ({activeFiltersCount})
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="inline-flex rounded-md border p-0.5">
-                <Button
-                  size="icon"
-                  variant={viewMode === "tabela" ? "default" : "ghost"}
-                  className="h-7 w-7"
-                  title="Ver em tabela"
-                  onClick={() => setViewMode("tabela")}
-                >
-                  <Rows3 className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant={viewMode === "cards" ? "default" : "ghost"}
-                  className="h-7 w-7"
-                  title="Ver em cards"
-                  onClick={() => setViewMode("cards")}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {canManage && (
-                <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
-                  {showLixeira ? "Ver ativos" : "Ver lixeira"}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Barra de ações em lote */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center justify-between rounded-md border bg-muted/40 p-2">
-              <div className="text-sm font-medium">{selectedIds.size} selecionado(s)</div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={bulkRegistrarLigacao.isPending}
-                  onClick={() => bulkRegistrarLigacao.mutate(Array.from(selectedIds))}
-                >
-                  <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="outline" disabled={bulkTemperatura.isPending}>
-                      <Thermometer className="h-3.5 w-3.5 mr-1" /> Temperatura
-                      <ChevronDown className="h-3.5 w-3.5 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                      onSelect={() => bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "quente" })}
-                    >
-                      <Flame className="h-4 w-4 mr-2 text-rose-500" /> Quente
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "morno" })}
-                    >
-                      <Thermometer className="h-4 w-4 mr-2 text-amber-500" /> Morno
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={() => bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "frio" })}
-                    >
-                      <Snowflake className="h-4 w-4 mr-2 text-sky-500" /> Frio
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
-                  <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
-                </Button>
-                {canManage && (
-                  <>
-                    <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
-                      <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
-                    </Button>
+              {/* Barra de ações em lote */}
+              {selectedIds.size > 0 && (
+                <div className="flex items-center justify-between rounded-md border bg-muted/40 p-2">
+                  <div className="text-sm font-medium">{selectedIds.size} selecionado(s)</div>
+                  <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        moverLixeira.mutate({
-                          ids: Array.from(selectedIds),
-                          lixeira: !showLixeira,
-                        })
-                      }
+                      disabled={bulkRegistrarLigacao.isPending}
+                      onClick={() => bulkRegistrarLigacao.mutate(Array.from(selectedIds))}
                     >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                      <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
                     </Button>
-                  </>
-                )}
-                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
-                  Limpar
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {viewMode === "tabela" ? (
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                      onCheckedChange={toggleAll}
-                      aria-label="Selecionar todos"
-                    />
-                  </TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Corretor</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 && !isLoading && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center text-muted-foreground py-10"
-                    >
-                      Nenhum lead encontrado.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {paginated.map((l) => (
-                  <TableRow key={l.id} data-state={selectedIds.has(l.id) ? "selected" : undefined}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIds.has(l.id)}
-                        onCheckedChange={() => toggleOne(l.id)}
-                        aria-label={`Selecionar ${l.nome}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <TempIcon temp={l.temperatura} />
-                        <Link
-                          to="/leads/$leadId"
-                          params={{ leadId: l.id }}
-                          className="font-medium hover:underline"
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" disabled={bulkTemperatura.isPending}>
+                          <Thermometer className="h-3.5 w-3.5 mr-1" /> Temperatura
+                          <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "quente" })
+                          }
                         >
-                          {l.nome}
-                        </Link>
-                        <FinanceiroPopover lead={l} />
-                      </div>
-                      {l.projeto_nome && (
-                        <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
+                          <Flame className="h-4 w-4 mr-2 text-rose-500" /> Quente
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "morno" })
+                          }
+                        >
+                          <Thermometer className="h-4 w-4 mr-2 text-amber-500" /> Morno
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "frio" })
+                          }
+                        >
+                          <Snowflake className="h-4 w-4 mr-2 text-sky-500" /> Frio
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
+                      <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
+                    </Button>
+                    {canManage && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setBulkTransferOpen(true)}
+                        >
+                          <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            moverLixeira.mutate({
+                              ids: Array.from(selectedIds),
+                              lixeira: !showLixeira,
+                            })
+                          }
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                        </Button>
+                      </>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {viewMode === "tabela" ? (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                            onCheckedChange={toggleAll}
+                            aria-label="Selecionar todos"
+                          />
+                        </TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Origem</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Corretor</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.length === 0 && !isLoading && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={8}
+                            className="text-center text-muted-foreground py-10"
+                          >
+                            Nenhum lead encontrado.
+                          </TableCell>
+                        </TableRow>
                       )}
-                      <div className="mt-1">
-                        <InatividadeBadge lead={l} />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="min-w-0">
-                          <div className="text-sm">{l.telefone}</div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {l.email ?? "—"}
+                      {paginated.map((l) => (
+                        <TableRow
+                          key={l.id}
+                          data-state={selectedIds.has(l.id) ? "selected" : undefined}
+                        >
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.has(l.id)}
+                              onCheckedChange={() => toggleOne(l.id)}
+                              aria-label={`Selecionar ${l.nome}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <TempIcon temp={l.temperatura} />
+                              <Link
+                                to="/leads/$leadId"
+                                params={{ leadId: l.id }}
+                                className="font-medium hover:underline"
+                              >
+                                {l.nome}
+                              </Link>
+                              <FinanceiroPopover lead={l} />
+                            </div>
+                            {l.projeto_nome && (
+                              <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
+                            )}
+                            <div className="mt-1">
+                              <InatividadeBadge lead={l} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="min-w-0">
+                                <div className="text-sm">{l.telefone}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {l.email ?? "—"}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                  title="Abrir WhatsApp com mensagem pronta"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
+                                    const projeto = l.projeto_nome
+                                      ? ` sobre o ${l.projeto_nome}`
+                                      : "";
+                                    const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
+                                    window.open(
+                                      buildWhatsAppUrl(l.telefone, msg),
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
+                                  }}
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  asChild
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-sky-600 hover:text-sky-700 hover:bg-sky-500/10"
+                                  title="Ligar"
+                                >
+                                  <a
+                                    href={`tel:${l.telefone.replace(/\D/g, "")}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Phone className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="capitalize text-sm">
+                            {l.origem.replace(/_/g, " ")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
+                              variant="secondary"
+                            >
+                              {leadStatusLabel(l.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {l.corretor_id ? (
+                              (corretoresMap.get(l.corretor_id) ?? "—")
+                            ) : (
+                              <span className="text-muted-foreground italic">sem corretor</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {l.status === "contrato_fechado" && l.data_venda
+                              ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
+                              : new Date(l.created_at).toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {!l.na_lixeira &&
+                                l.status === "aguardando_atendimento" &&
+                                (canManage || l.corretor_id === user?.id) && (
+                                  <div className="flex items-center">
+                                    <Button
+                                      size="sm"
+                                      className="rounded-r-none"
+                                      onClick={() => iniciarComTipo(l, lastContactType)}
+                                      disabled={iniciarAtendimento.isPending}
+                                    >
+                                      {lastContactType === "whatsapp" ? (
+                                        <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                                      ) : (
+                                        <Phone className="h-3.5 w-3.5 mr-1" />
+                                      )}
+                                      Iniciar{" "}
+                                      {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
+                                    </Button>
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button
+                                          size="sm"
+                                          className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
+                                          disabled={iniciarAtendimento.isPending}
+                                        >
+                                          <ChevronDown className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                          onSelect={() => iniciarComTipo(l, "whatsapp")}
+                                        >
+                                          <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por
+                                          WhatsApp
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onSelect={() => iniciarComTipo(l, "ligacao")}
+                                        >
+                                          <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onSelect={() => setContactLead(l)}>
+                                          <Play className="h-4 w-4 mr-2" /> Escolher…
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                )}
+                              {!l.na_lixeira &&
+                                (canManage || l.corretor_id === user?.id) &&
+                                l.status !== "aguardando_atendimento" &&
+                                PROXIMA_ACAO[l.status as LeadStatus] && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={updateStatus.isPending}
+                                    onClick={() => {
+                                      const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
+                                      const action = resolveStageAction(acao.target);
+                                      if (action.kind === "modal")
+                                        setModalState({ modal: action.modal, lead: l });
+                                      else if (action.kind === "perdido") setPerdidoLead(l);
+                                      else updateStatus.mutate({ id: l.id, status: acao.target });
+                                    }}
+                                  >
+                                    {PROXIMA_ACAO[l.status as LeadStatus]!.label}
+                                  </Button>
+                                )}
+                              {!l.na_lixeira &&
+                                (canManage || l.corretor_id === user?.id) &&
+                                l.status !== "aguardando_atendimento" && (
+                                  <LeadStageMenu
+                                    lead={l}
+                                    onPickDirect={(target) =>
+                                      updateStatus.mutate({ id: l.id, status: target })
+                                    }
+                                    onPickModal={(modal) => setModalState({ modal, lead: l })}
+                                    onPickPerdido={() => setPerdidoLead(l)}
+                                  />
+                                )}
+                              {canManage && !l.corretor_id && !l.na_lixeira && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => distribuir.mutate(l.id)}
+                                  disabled={distribuir.isPending}
+                                >
+                                  <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
+                                </Button>
+                              )}
+                              {canManage && !l.na_lixeira && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title="Transferir"
+                                  onClick={() => {
+                                    setSelectedIds(new Set([l.id]));
+                                    setBulkTransferOpen(true);
+                                  }}
+                                >
+                                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {canManage && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
+                                  }
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {paginated.length === 0 && !isLoading && (
+                    <div className="col-span-full text-center text-muted-foreground py-10">
+                      Nenhum lead encontrado.
+                    </div>
+                  )}
+                  {paginated.map((l) => {
+                    const proxima = PROXIMA_ACAO[l.status as LeadStatus];
+                    const canAct = canManage || l.corretor_id === user?.id;
+                    return (
+                      <div
+                        key={l.id}
+                        className={`rounded-lg border p-3 space-y-2 ${
+                          selectedIds.has(l.id) ? "ring-2 ring-primary" : ""
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <Checkbox
+                            checked={selectedIds.has(l.id)}
+                            onCheckedChange={() => toggleOne(l.id)}
+                            aria-label={`Selecionar ${l.nome}`}
+                            className="mt-0.5"
+                          />
+                          <TempIcon temp={l.temperatura} />
+                          <Link
+                            to="/leads/$leadId"
+                            params={{ leadId: l.id }}
+                            className="font-medium hover:underline flex-1 truncate"
+                          >
+                            {l.nome}
+                          </Link>
+                          <Badge
+                            className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
+                            variant="secondary"
+                          >
+                            {leadStatusLabel(l.status)}
+                          </Badge>
+                        </div>
+
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {l.projeto_nome || "Sem empreendimento"} · {l.origem.replace(/_/g, " ")}
+                        </div>
+                        <div className="text-sm truncate">
+                          {l.telefone}
+                          {l.email ? ` · ${l.email}` : ""}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-1 text-xs">
+                          <div>
+                            <div className="text-muted-foreground">Renda</div>
+                            <div className="truncate">{l.renda_informada || "—"}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">Entrada</div>
+                            <div className="truncate">{l.entrada_disponivel || "—"}</div>
+                          </div>
+                          <div>
+                            <div className="text-muted-foreground">FGTS</div>
+                            <div>{l.usa_fgts == null ? "—" : l.usa_fgts ? "Sim" : "Não"}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+
+                        <div className="min-h-[20px]">
+                          {l.corretor_id ? (
+                            <span className="text-xs text-muted-foreground">
+                              {corretoresMap.get(l.corretor_id) ?? ""}
+                            </span>
+                          ) : (
+                            <span className="text-xs italic text-muted-foreground">
+                              sem corretor
+                            </span>
+                          )}
+                          <InatividadeBadge lead={l} />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
-                            title="Abrir WhatsApp com mensagem pronta"
-                            onClick={(e) => {
-                              e.stopPropagation();
+                            className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                            title="WhatsApp"
+                            onClick={() => {
                               const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
                               const projeto = l.projeto_nome ? ` sobre o ${l.projeto_nome}` : "";
                               const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
@@ -1287,109 +1607,45 @@ function LeadsPage() {
                             asChild
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-sky-600 hover:text-sky-700 hover:bg-sky-500/10"
+                            className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
                             title="Ligar"
                           >
-                            <a
-                              href={`tel:${l.telefone.replace(/\D/g, "")}`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
                               <Phone className="h-4 w-4" />
                             </a>
                           </Button>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="capitalize text-sm">
-                      {l.origem.replace(/_/g, " ")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
-                        variant="secondary"
-                      >
-                        {leadStatusLabel(l.status)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {l.corretor_id ? (
-                        (corretoresMap.get(l.corretor_id) ?? "—")
-                      ) : (
-                        <span className="text-muted-foreground italic">sem corretor</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {l.status === "contrato_fechado" && l.data_venda
-                        ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
-                        : new Date(l.created_at).toLocaleDateString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {!l.na_lixeira &&
-                          l.status === "aguardando_atendimento" &&
-                          (canManage || l.corretor_id === user?.id) && (
-                            <div className="flex items-center">
-                              <Button
-                                size="sm"
-                                className="rounded-r-none"
-                                onClick={() => iniciarComTipo(l, lastContactType)}
-                                disabled={iniciarAtendimento.isPending}
-                              >
-                                {lastContactType === "whatsapp" ? (
-                                  <MessageCircle className="h-3.5 w-3.5 mr-1" />
-                                ) : (
-                                  <Phone className="h-3.5 w-3.5 mr-1" />
-                                )}
-                                Iniciar {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
-                                    disabled={iniciarAtendimento.isPending}
-                                  >
-                                    <ChevronDown className="h-3.5 w-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onSelect={() => iniciarComTipo(l, "whatsapp")}>
-                                    <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onSelect={() => iniciarComTipo(l, "ligacao")}>
-                                    <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onSelect={() => setContactLead(l)}>
-                                    <Play className="h-4 w-4 mr-2" /> Escolher…
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          )}
-                        {!l.na_lixeira &&
-                          (canManage || l.corretor_id === user?.id) &&
-                          l.status !== "aguardando_atendimento" &&
-                          PROXIMA_ACAO[l.status as LeadStatus] && (
+
+                          {!l.na_lixeira && canAct && l.status === "aguardando_atendimento" && (
                             <Button
                               size="sm"
-                              variant="outline"
-                              disabled={updateStatus.isPending}
-                              onClick={() => {
-                                const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
-                                const action = resolveStageAction(acao.target);
-                                if (action.kind === "modal")
-                                  setModalState({ modal: action.modal, lead: l });
-                                else if (action.kind === "perdido") setPerdidoLead(l);
-                                else updateStatus.mutate({ id: l.id, status: acao.target });
-                              }}
+                              className="h-7"
+                              onClick={() => setContactLead(l)}
+                              disabled={iniciarAtendimento.isPending}
                             >
-                              {PROXIMA_ACAO[l.status as LeadStatus]!.label}
+                              <Play className="h-3.5 w-3.5 mr-1" /> Atender
                             </Button>
                           )}
-                        {!l.na_lixeira &&
-                          (canManage || l.corretor_id === user?.id) &&
-                          l.status !== "aguardando_atendimento" && (
+                          {!l.na_lixeira &&
+                            canAct &&
+                            l.status !== "aguardando_atendimento" &&
+                            proxima && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7"
+                                disabled={updateStatus.isPending}
+                                onClick={() => {
+                                  const action = resolveStageAction(proxima.target);
+                                  if (action.kind === "modal")
+                                    setModalState({ modal: action.modal, lead: l });
+                                  else if (action.kind === "perdido") setPerdidoLead(l);
+                                  else updateStatus.mutate({ id: l.id, status: proxima.target });
+                                }}
+                              >
+                                {proxima.label}
+                              </Button>
+                            )}
+                          {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && (
                             <LeadStageMenu
                               lead={l}
                               onPickDirect={(target) =>
@@ -1399,353 +1655,179 @@ function LeadsPage() {
                               onPickPerdido={() => setPerdidoLead(l)}
                             />
                           )}
-                        {canManage && !l.corretor_id && !l.na_lixeira && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => distribuir.mutate(l.id)}
-                            disabled={distribuir.isPending}
-                          >
-                            <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
-                          </Button>
-                        )}
-                        {canManage && !l.na_lixeira && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            title="Transferir"
-                            onClick={() => {
-                              setSelectedIds(new Set([l.id]));
-                              setBulkTransferOpen(true);
-                            }}
-                          >
-                            <ArrowRightLeft className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                        {canManage && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                          {canManage && !l.corretor_id && !l.na_lixeira && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 ml-auto"
+                              onClick={() => distribuir.mutate(l.id)}
+                              disabled={distribuir.isPending}
+                            >
+                              <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {paginated.length === 0 && !isLoading && (
-                <div className="col-span-full text-center text-muted-foreground py-10">
-                  Nenhum lead encontrado.
+                    );
+                  })}
                 </div>
               )}
-              {paginated.map((l) => {
-                const proxima = PROXIMA_ACAO[l.status as LeadStatus];
-                const canAct = canManage || l.corretor_id === user?.id;
-                return (
-                  <div
-                    key={l.id}
-                    className={`rounded-lg border p-3 space-y-2 ${
-                      selectedIds.has(l.id) ? "ring-2 ring-primary" : ""
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <Checkbox
-                        checked={selectedIds.has(l.id)}
-                        onCheckedChange={() => toggleOne(l.id)}
-                        aria-label={`Selecionar ${l.nome}`}
-                        className="mt-0.5"
-                      />
-                      <TempIcon temp={l.temperatura} />
-                      <Link
-                        to="/leads/$leadId"
-                        params={{ leadId: l.id }}
-                        className="font-medium hover:underline flex-1 truncate"
-                      >
-                        {l.nome}
-                      </Link>
-                      <Badge
-                        className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
-                        variant="secondary"
-                      >
-                        {leadStatusLabel(l.status)}
-                      </Badge>
-                    </div>
 
-                    <div className="text-xs text-muted-foreground capitalize">
-                      {l.projeto_nome || "Sem empreendimento"} · {l.origem.replace(/_/g, " ")}
-                    </div>
-                    <div className="text-sm truncate">
-                      {l.telefone}
-                      {l.email ? ` · ${l.email}` : ""}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1 text-xs">
-                      <div>
-                        <div className="text-muted-foreground">Renda</div>
-                        <div className="truncate">{l.renda_informada || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Entrada</div>
-                        <div className="truncate">{l.entrada_disponivel || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">FGTS</div>
-                        <div>{l.usa_fgts == null ? "—" : l.usa_fgts ? "Sim" : "Não"}</div>
-                      </div>
-                    </div>
-
-                    <div className="min-h-[20px]">
-                      {l.corretor_id ? (
-                        <span className="text-xs text-muted-foreground">
-                          {corretoresMap.get(l.corretor_id) ?? ""}
-                        </span>
-                      ) : (
-                        <span className="text-xs italic text-muted-foreground">sem corretor</span>
-                      )}
-                      <InatividadeBadge lead={l} />
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                        title="WhatsApp"
-                        onClick={() => {
-                          const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
-                          const projeto = l.projeto_nome ? ` sobre o ${l.projeto_nome}` : "";
-                          const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
-                          window.open(buildWhatsAppUrl(l.telefone, msg), "_blank", "noopener,noreferrer");
-                        }}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        asChild
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
-                        title="Ligar"
-                      >
-                        <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
-                          <Phone className="h-4 w-4" />
-                        </a>
-                      </Button>
-
-                      {!l.na_lixeira && canAct && l.status === "aguardando_atendimento" && (
-                        <Button
-                          size="sm"
-                          className="h-7"
-                          onClick={() => setContactLead(l)}
-                          disabled={iniciarAtendimento.isPending}
-                        >
-                          <Play className="h-3.5 w-3.5 mr-1" /> Atender
-                        </Button>
-                      )}
-                      {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && proxima && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                          disabled={updateStatus.isPending}
-                          onClick={() => {
-                            const action = resolveStageAction(proxima.target);
-                            if (action.kind === "modal") setModalState({ modal: action.modal, lead: l });
-                            else if (action.kind === "perdido") setPerdidoLead(l);
-                            else updateStatus.mutate({ id: l.id, status: proxima.target });
-                          }}
-                        >
-                          {proxima.label}
-                        </Button>
-                      )}
-                      {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && (
-                        <LeadStageMenu
-                          lead={l}
-                          onPickDirect={(target) => updateStatus.mutate({ id: l.id, status: target })}
-                          onPickModal={(modal) => setModalState({ modal, lead: l })}
-                          onPickPerdido={() => setPerdidoLead(l)}
-                        />
-                      )}
-                      {canManage && !l.corretor_id && !l.na_lixeira && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 ml-auto"
-                          onClick={() => distribuir.mutate(l.id)}
-                          disabled={distribuir.isPending}
-                        >
-                          <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
-                        </Button>
-                      )}
-                    </div>
+              {/* Paginação (50 por página) */}
+              {filtered.length > LEADS_PAGE_SIZE && (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="text-xs text-muted-foreground">
+                    Página {pageSafe} de {totalPages} · {filtered.length} lead(s)
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={pageSafe <= 1}
+                      onClick={() => setPage(pageSafe - 1)}
+                    >
+                      <ChevronLeft className="h-4 w-4" /> Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={pageSafe >= totalPages}
+                      onClick={() => setPage(pageSafe + 1)}
+                    >
+                      Próxima <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Paginação (50 por página) */}
-          {filtered.length > LEADS_PAGE_SIZE && (
-            <div className="flex items-center justify-between pt-1">
-              <div className="text-xs text-muted-foreground">
-                Página {pageSafe} de {totalPages} · {filtered.length} lead(s)
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  disabled={pageSafe <= 1}
-                  onClick={() => setPage(pageSafe - 1)}
+          <LeadStageModals
+            modalState={modalState}
+            onModalOpenChange={(o) => !o && setModalState(null)}
+            perdidoLead={perdidoLead}
+            onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+          />
+
+          {/* Tipo de contato ao iniciar atendimento */}
+          <Dialog open={!!contactLead} onOpenChange={(o) => !o && setContactLead(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Iniciar atendimento</DialogTitle>
+                <DialogDescription>
+                  Como você está fazendo o primeiro contato com {contactLead?.nome}?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-3 py-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    contactLead && iniciarAtendimento.mutate({ lead: contactLead, tipo: "ligacao" })
+                  }
+                  disabled={iniciarAtendimento.isPending}
+                  className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
                 >
-                  <ChevronLeft className="h-4 w-4" /> Anterior
+                  <Phone className="h-10 w-10 text-sky-500" />
+                  <span className="font-medium">Ligação</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    contactLead &&
+                    iniciarAtendimento.mutate({ lead: contactLead, tipo: "whatsapp" })
+                  }
+                  disabled={iniciarAtendimento.isPending}
+                  className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
+                >
+                  <MessageCircle className="h-10 w-10 text-emerald-500" />
+                  <span className="font-medium">WhatsApp</span>
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Transferir em lote */}
+          <Dialog open={bulkTransferOpen} onOpenChange={setBulkTransferOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Transferir {selectedIds.size} lead(s)</DialogTitle>
+                <DialogDescription>Escolha o corretor de destino.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Label>Corretor</Label>
+                <Select value={bulkTarget} onValueChange={setBulkTarget}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um corretor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(corretores ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setBulkTransferOpen(false)}>
+                  Cancelar
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8"
-                  disabled={pageSafe >= totalPages}
-                  onClick={() => setPage(pageSafe + 1)}
+                  disabled={!bulkTarget || bulkTransferir.isPending}
+                  onClick={() =>
+                    bulkTransferir.mutate({
+                      ids: Array.from(selectedIds),
+                      corretorId: bulkTarget,
+                    })
+                  }
                 >
-                  Próxima <ChevronRight className="h-4 w-4" />
+                  {bulkTransferir.isPending ? "Transferindo…" : "Confirmar"}
                 </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={bulkFollowupOpen} onOpenChange={setBulkFollowupOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Definir follow-up em {selectedIds.size} lead(s)</DialogTitle>
+                <DialogDescription>
+                  Define a data/hora do próximo follow-up para todos os selecionados.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-2">
+                <Label>Próximo follow-up</Label>
+                <Input
+                  type="datetime-local"
+                  value={bulkFollowupData}
+                  onChange={(e) => setBulkFollowupData(e.target.value)}
+                />
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <LeadStageModals
-        modalState={modalState}
-        onModalOpenChange={(o) => !o && setModalState(null)}
-        perdidoLead={perdidoLead}
-        onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
-      />
-
-      {/* Tipo de contato ao iniciar atendimento */}
-      <Dialog open={!!contactLead} onOpenChange={(o) => !o && setContactLead(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Iniciar atendimento</DialogTitle>
-            <DialogDescription>
-              Como você está fazendo o primeiro contato com {contactLead?.nome}?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-2">
-            <button
-              type="button"
-              onClick={() =>
-                contactLead && iniciarAtendimento.mutate({ lead: contactLead, tipo: "ligacao" })
-              }
-              disabled={iniciarAtendimento.isPending}
-              className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
-            >
-              <Phone className="h-10 w-10 text-sky-500" />
-              <span className="font-medium">Ligação</span>
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                contactLead && iniciarAtendimento.mutate({ lead: contactLead, tipo: "whatsapp" })
-              }
-              disabled={iniciarAtendimento.isPending}
-              className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
-            >
-              <MessageCircle className="h-10 w-10 text-emerald-500" />
-              <span className="font-medium">WhatsApp</span>
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Transferir em lote */}
-      <Dialog open={bulkTransferOpen} onOpenChange={setBulkTransferOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Transferir {selectedIds.size} lead(s)</DialogTitle>
-            <DialogDescription>Escolha o corretor de destino.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Corretor</Label>
-            <Select value={bulkTarget} onValueChange={setBulkTarget}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um corretor" />
-              </SelectTrigger>
-              <SelectContent>
-                {(corretores ?? []).map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setBulkTransferOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={!bulkTarget || bulkTransferir.isPending}
-              onClick={() =>
-                bulkTransferir.mutate({
-                  ids: Array.from(selectedIds),
-                  corretorId: bulkTarget,
-                })
-              }
-            >
-              {bulkTransferir.isPending ? "Transferindo…" : "Confirmar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={bulkFollowupOpen} onOpenChange={setBulkFollowupOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Definir follow-up em {selectedIds.size} lead(s)</DialogTitle>
-            <DialogDescription>
-              Define a data/hora do próximo follow-up para todos os selecionados.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Próximo follow-up</Label>
-            <Input
-              type="datetime-local"
-              value={bulkFollowupData}
-              onChange={(e) => setBulkFollowupData(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setBulkFollowupOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={!bulkFollowupData || bulkFollowup.isPending}
-              onClick={() =>
-                bulkFollowup.mutate({
-                  ids: Array.from(selectedIds),
-                  iso: new Date(bulkFollowupData).toISOString(),
-                })
-              }
-            >
-              {bulkFollowup.isPending ? "Salvando…" : "Confirmar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setBulkFollowupOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={!bulkFollowupData || bulkFollowup.isPending}
+                  onClick={() =>
+                    bulkFollowup.mutate({
+                      ids: Array.from(selectedIds),
+                      iso: new Date(bulkFollowupData).toISOString(),
+                    })
+                  }
+                >
+                  {bulkFollowup.isPending ? "Salvando…" : "Confirmar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
-
 
 function NovoLeadDialog({
   onClose,
