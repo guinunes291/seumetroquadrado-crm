@@ -300,7 +300,7 @@ function LeadsPage() {
   const navigate = Route.useNavigate();
   const activeView: "lista" | "kanban" = view ?? "lista";
   const setView = (v: "lista" | "kanban") =>
-    navigate({ search: (prev) => ({ ...prev, view: v === "kanban" ? "kanban" : undefined }) });
+    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, view: v === "kanban" ? "kanban" : undefined }) });
   const statusParamValido =
     statusParam && (LEAD_STATUS_ORDER as readonly string[]).includes(statusParam)
       ? statusParam
