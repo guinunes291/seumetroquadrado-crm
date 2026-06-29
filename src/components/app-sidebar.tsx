@@ -8,7 +8,6 @@ import {
   Users,
   Trello,
   CalendarClock,
-  ListTodo,
   Zap,
   Trophy,
   Gauge,
@@ -64,10 +63,10 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
+    // Tarefas agora é uma aba do hub /agendamentos.
     to: "/agendamentos",
     label: "Agenda & Tarefas",
     icon: CalendarClock,
-    children: [{ to: "/tarefas", label: "Tarefas", icon: ListTodo }],
   },
   {
     // Catálogo, Oferta, Radar, Comissões e Links são abas do hub /projetos.

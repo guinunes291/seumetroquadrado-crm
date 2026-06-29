@@ -34,11 +34,45 @@ import {
 import { toast } from "sonner";
 import { CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TarefasPage } from "@/routes/_authenticated/tarefas";
+
+type CompromissosTab = "agenda" | "tarefas";
 
 export const Route = createFileRoute("/_authenticated/agendamentos")({
-  head: () => ({ meta: [{ title: "Agendamentos — Seu Metro Quadrado" }] }),
-  component: AgendamentosPage,
+  // `tab` permite abrir a aba Tarefas; padrão é a Agenda (preserva /agendamentos).
+  validateSearch: (search: Record<string, unknown>): { tab?: CompromissosTab } => ({
+    tab: search.tab === "tarefas" ? "tarefas" : undefined,
+  }),
+  head: () => ({ meta: [{ title: "Agenda & Tarefas — Seu Metro Quadrado" }] }),
+  component: CompromissosPage,
 });
+
+// Hub "Agenda & Tarefas": consolida a agenda de compromissos (calendário) e a
+// lista de tarefas/follow-ups em abas internas (Fase 2). Cada aba reaproveita a
+// página existente; /agendamentos e /tarefas seguem válidas para deep-link.
+function CompromissosPage() {
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeTab: CompromissosTab = tab ?? "agenda";
+  const onTabChange = (v: string) =>
+    navigate({ search: { tab: v === "tarefas" ? "tarefas" : undefined } });
+
+  return (
+    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+      <TabsList className="h-auto flex-wrap justify-start">
+        <TabsTrigger value="agenda">Agenda</TabsTrigger>
+        <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
+      </TabsList>
+      <TabsContent value="agenda">
+        <AgendaPanel />
+      </TabsContent>
+      <TabsContent value="tarefas">
+        <TarefasPage />
+      </TabsContent>
+    </Tabs>
+  );
+}
 
 const TIPO_OPTIONS = ["visita", "reuniao", "ligacao", "follow_up", "outro"] as const;
 const STATUS_OPTIONS = ["agendado", "confirmado", "realizado", "cancelado", "nao_compareceu", "remarcado"] as const;
@@ -100,7 +134,7 @@ function toLocalInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function AgendamentosPage() {
+function AgendaPanel() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const qc = useQueryClient();
