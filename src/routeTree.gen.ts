@@ -17,6 +17,7 @@ import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
+import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
@@ -96,6 +97,11 @@ const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
 const AuthenticatedRankingRoute = AuthenticatedRankingRouteImport.update({
   id: '/ranking',
   path: '/ranking',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedRadarRoute = AuthenticatedRadarRouteImport.update({
+  id: '/radar',
+  path: '/radar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPainelGestorRoute =
@@ -345,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
+  '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
@@ -394,6 +401,7 @@ export interface FileRoutesByTo {
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
+  '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
@@ -446,6 +454,7 @@ export interface FileRoutesById {
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
+  '/_authenticated/radar': typeof AuthenticatedRadarRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
@@ -499,6 +508,7 @@ export interface FileRouteTypes {
     | '/meu-painel'
     | '/meu-perfil'
     | '/painel-gestor'
+    | '/radar'
     | '/ranking'
     | '/relatorios'
     | '/tarefas'
@@ -548,6 +558,7 @@ export interface FileRouteTypes {
     | '/meu-painel'
     | '/meu-perfil'
     | '/painel-gestor'
+    | '/radar'
     | '/ranking'
     | '/relatorios'
     | '/tarefas'
@@ -599,6 +610,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
     | '/_authenticated/painel-gestor'
+    | '/_authenticated/radar'
     | '/_authenticated/ranking'
     | '/_authenticated/relatorios'
     | '/_authenticated/tarefas'
@@ -700,6 +712,13 @@ declare module '@tanstack/react-router' {
       path: '/ranking'
       fullPath: '/ranking'
       preLoaderRoute: typeof AuthenticatedRankingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/radar': {
+      id: '/_authenticated/radar'
+      path: '/radar'
+      fullPath: '/radar'
+      preLoaderRoute: typeof AuthenticatedRadarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/painel-gestor': {
@@ -1014,6 +1033,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
+  AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
@@ -1050,6 +1070,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
+  AuthenticatedRadarRoute: AuthenticatedRadarRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,

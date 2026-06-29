@@ -33,6 +33,7 @@ import {
   Activity,
   ChevronRight,
   ShieldCheck,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +90,7 @@ const SECTIONS: Section[] = [
     items: [
       { to: "/projetos", label: "Empreendimentos", icon: Building2 },
       { to: "/match", label: "Match IA", icon: Sparkles },
+      { to: "/radar", label: "Radar de fechamento", icon: Crosshair },
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone },
       { to: "/comissoes", label: "Comissões", icon: FileText },
       { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
