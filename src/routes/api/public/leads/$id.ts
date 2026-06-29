@@ -327,7 +327,7 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             .select(PUBLIC_LEAD_SELECT)
             .eq("id", id)
             .single();
-          updated = (data ?? null) as Record<string, unknown> | null;
+          updated = (data ?? null) as unknown as Record<string, unknown> | null;
         }
 
         // Replica no Banco Operacional externo (best-effort).
