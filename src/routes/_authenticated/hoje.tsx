@@ -31,8 +31,16 @@ import {
   AlertTriangle,
   CircleAlert,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RelatoriosView } from "@/features/dashboard/relatorios-view";
+
+type HojeTab = "acao" | "analytics";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
+  // `tab` permite abrir direto a aba Analytics (ex.: redirect de /relatorios).
+  validateSearch: (search: Record<string, unknown>): { tab?: HojeTab } => ({
+    tab: search.tab === "analytics" ? "analytics" : undefined,
+  }),
   head: () => ({ meta: [{ title: "Hoje — Seu Metro Quadrado" }] }),
   component: MeuPainelPage,
 });
@@ -74,6 +82,11 @@ const fmtBRL = (n: number) =>
 
 function MeuPainelPage() {
   const { user } = useAuth();
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeTab: HojeTab = tab ?? "acao";
+  const onTabChange = (v: string) =>
+    navigate({ search: { tab: v === "analytics" ? "analytics" : undefined } });
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const { di, df } = useMemo(() => intervalo(periodo), [periodo]);
 
@@ -391,447 +404,465 @@ function MeuPainelPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Hoje"
-        description="O que fazer agora — depois, sua produtividade e metas."
-        actions={
-          <div className="inline-flex rounded-md border bg-card p-0.5">
-            {(["hoje", "semana", "mes"] as const).map((p) => (
-              <Button
-                key={p}
-                size="sm"
-                variant={periodo === p ? "default" : "ghost"}
-                onClick={() => setPeriodo(p)}
-                className="capitalize"
-              >
-                {p === "mes" ? "Mês" : p}
-              </Button>
-            ))}
-          </div>
-        }
-      />
+    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="acao">Ação</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
+      </TabsList>
+      <TabsContent value="acao" className="space-y-6">
+        <PageHeader
+          title="Hoje"
+          description="O que fazer agora — depois, sua produtividade e metas."
+          actions={
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              {(["hoje", "semana", "mes"] as const).map((p) => (
+                <Button
+                  key={p}
+                  size="sm"
+                  variant={periodo === p ? "default" : "ghost"}
+                  onClick={() => setPeriodo(p)}
+                  className="capitalize"
+                >
+                  {p === "mes" ? "Mês" : p}
+                </Button>
+              ))}
+            </div>
+          }
+        />
 
-      {/* ----- Fila de ação do dia (ordem: quentes → follow-up → agenda → SLA) ----- */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {/* 1) Leads quentes — prioridade nº 1 */}
-        <Card className="border-rose-500/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <Flame className="h-4 w-4 text-rose-500" /> Leads quentes
-              {quentes.length > 0 && (
-                <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
-                  {quentes.length}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {quentes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum lead quente agora.</p>
-            ) : (
-              quentes.map((l) => {
-                const tel = (l.telefone ?? "").replace(/\D/g, "");
-                return (
-                  <div
-                    key={l.id}
-                    className="flex items-center justify-between gap-2 rounded-md border p-2"
-                  >
-                    <Link to="/leads/$leadId" params={{ leadId: l.id }} className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{l.nome}</div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {leadStatusLabel(l.status)}
-                        {l.ultima_interacao
-                          ? ` · ${formatRelativeTime(l.ultima_interacao)}`
-                          : " · sem contato"}
+        {/* ----- Fila de ação do dia (ordem: quentes → follow-up → agenda → SLA) ----- */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {/* 1) Leads quentes — prioridade nº 1 */}
+          <Card className="border-rose-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Flame className="h-4 w-4 text-rose-500" /> Leads quentes
+                {quentes.length > 0 && (
+                  <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
+                    {quentes.length}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {quentes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum lead quente agora.</p>
+              ) : (
+                quentes.map((l) => {
+                  const tel = (l.telefone ?? "").replace(/\D/g, "");
+                  return (
+                    <div
+                      key={l.id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
+                    >
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.id }}
+                        className="min-w-0 flex-1"
+                      >
+                        <div className="truncate text-sm font-medium">{l.nome}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {leadStatusLabel(l.status)}
+                          {l.ultima_interacao
+                            ? ` · ${formatRelativeTime(l.ultima_interacao)}`
+                            : " · sem contato"}
+                        </div>
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                          title="WhatsApp"
+                          onClick={() => abrirWhats(l.nome, l.telefone)}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          asChild
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                          title="Ligar"
+                        >
+                          <a href={`tel:${tel}`}>
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        </Button>
                       </div>
-                    </Link>
-                    <div className="flex shrink-0 items-center gap-1">
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 2) Tarefas & follow-ups */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-amber-500" /> Tarefas & follow-ups
+                {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
+                {tarefasAtrasadas > 0 && (
+                  <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
+                    {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {tarefas.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
+              ) : (
+                tarefas.slice(0, 10).map((t) => {
+                  const atrasada =
+                    !!t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now();
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{t.titulo}</div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
+                          {t.data_vencimento && (
+                            <span className={cn(atrasada && "text-rose-600 font-medium")}>
+                              · {atrasada ? "atrasada" : hora(t.data_vencimento)}
+                            </span>
+                          )}
+                          {t.lead_id && (
+                            <Link
+                              to="/leads/$leadId"
+                              params={{ leadId: t.lead_id }}
+                              className="text-primary hover:underline inline-flex items-center"
+                            >
+                              · lead <ArrowRight className="h-3 w-3" />
+                            </Link>
+                          )}
+                        </div>
+                      </div>
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                        title="WhatsApp"
-                        onClick={() => abrirWhats(l.nome, l.telefone)}
+                        title="Concluir"
+                        disabled={concluirTarefa.isPending}
+                        onClick={() => concluirTarefa.mutate(t.id)}
                       >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        asChild
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
-                        title="Ligar"
-                      >
-                        <a href={`tel:${tel}`}>
-                          <Phone className="h-4 w-4" />
-                        </a>
+                        <CheckCircle2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 2) Tarefas & follow-ups */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-amber-500" /> Tarefas & follow-ups
-              {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
-              {tarefasAtrasadas > 0 && (
-                <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
-                  {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
-                </Badge>
+                  );
+                })
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {tarefas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
-            ) : (
-              tarefas.slice(0, 10).map((t) => {
-                const atrasada =
-                  !!t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now();
-                return (
-                  <div
-                    key={t.id}
-                    className="flex items-center justify-between gap-2 rounded-md border p-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{t.titulo}</div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
-                        {t.data_vencimento && (
-                          <span className={cn(atrasada && "text-rose-600 font-medium")}>
-                            · {atrasada ? "atrasada" : hora(t.data_vencimento)}
-                          </span>
-                        )}
-                        {t.lead_id && (
-                          <Link
-                            to="/leads/$leadId"
-                            params={{ leadId: t.lead_id }}
-                            className="text-primary hover:underline inline-flex items-center"
-                          >
-                            · lead <ArrowRight className="h-3 w-3" />
-                          </Link>
-                        )}
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <Link to="/tarefas">ver todas as tarefas</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 3) Agenda de hoje */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <CalendarCheck className="h-4 w-4 text-indigo-500" /> Agenda de hoje
+                {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {agenda.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
+              ) : (
+                agenda.map((a) => {
+                  const row = (
+                    <>
+                      <div className="text-sm font-medium">
+                        <span className="text-muted-foreground">{hora(a.data_inicio)}</span>{" "}
+                        {a.titulo}
+                      </div>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {a.tipo}
+                        {a.local ? ` · ${a.local}` : ""}
+                      </div>
+                    </>
+                  );
+                  return (
+                    <div key={a.id} className="rounded-md border p-2">
+                      {a.lead_id ? (
+                        <Link to="/leads/$leadId" params={{ leadId: a.lead_id }} className="block">
+                          {row}
+                        </Link>
+                      ) : (
+                        row
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <Link to="/agendamentos">ver agenda completa</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* 4) SLA estourando — leads parados além do tempo de atendimento */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600" /> SLA estourando
+                {urgentes.length > 0 && (
+                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
+                    {urgentes.length}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {urgentes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Tudo dentro do prazo. 👏</p>
+              ) : (
+                urgentes.slice(0, 8).map((l) => {
+                  const tel = (l.telefone ?? "").replace(/\D/g, "");
+                  return (
+                    <div
+                      key={l.lead_id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
+                    >
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.lead_id }}
+                        className="min-w-0 flex-1"
+                      >
+                        <div className="truncate text-sm font-medium">{l.nome}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {leadStatusLabel(l.status)} · {l.minutos_decorridos} min sem atendimento
+                        </div>
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                          title="WhatsApp"
+                          onClick={() => abrirWhats(l.nome, l.telefone)}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          asChild
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                          title="Ligar"
+                        >
+                          <a href={`tel:${tel}`}>
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                      title="Concluir"
-                      disabled={concluirTarefa.isPending}
-                      onClick={() => concluirTarefa.mutate(t.id)}
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Guardrail anti-perda: leads ativos sem um próximo passo definido */}
+        <Card className="border-amber-500/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex flex-wrap items-center gap-1.5">
+              <CircleAlert className="h-4 w-4 text-amber-600" /> Sem próxima ação
+              {semAcao.length > 0 && (
+                <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
+                  {semAcao.length}
+                </Badge>
+              )}
+              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                leads ativos sem tarefa, agenda ou follow-up
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {semAcao.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Todos os seus leads ativos têm um próximo passo. 👏
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {semAcao.map((l) => {
+                  const tel = (l.telefone ?? "").replace(/\D/g, "");
+                  return (
+                    <div
+                      key={l.id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
                     >
-                      <CheckCircle2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.id }}
+                        className="min-w-0 flex-1"
+                      >
+                        <div className="flex items-center gap-1.5 truncate text-sm font-medium">
+                          <span
+                            className={cn("h-2 w-2 shrink-0 rounded-full", TIER_DOT[l._score.tier])}
+                            title={`Prioridade ${l._score.tier}`}
+                          />
+                          <span className="truncate">{l.nome}</span>
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {leadStatusLabel(l.status)} · {l._score.motivo}
+                        </div>
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-primary hover:bg-primary/10"
+                          title="Criar follow-up para amanhã"
+                          disabled={criarFollowUpRapido.isPending}
+                          onClick={() => criarFollowUpRapido.mutate({ id: l.id, nome: l.nome })}
+                        >
+                          <CalendarPlus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                          title="WhatsApp"
+                          onClick={() => abrirWhats(l.nome, l.telefone)}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          asChild
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                          title="Ligar"
+                        >
+                          <a href={`tel:${tel}`}>
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
-            <Button asChild variant="link" className="h-auto p-0 text-xs">
-              <Link to="/tarefas">ver todas as tarefas</Link>
-            </Button>
           </CardContent>
         </Card>
 
-        {/* 3) Agenda de hoje */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <CalendarCheck className="h-4 w-4 text-indigo-500" /> Agenda de hoje
-              {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {agenda.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
-            ) : (
-              agenda.map((a) => {
-                const row = (
-                  <>
-                    <div className="text-sm font-medium">
-                      <span className="text-muted-foreground">{hora(a.data_inicio)}</span> {a.titulo}
+        <h2 className="text-sm font-semibold text-muted-foreground pt-2">Minha produtividade</h2>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="bg-gradient-to-br from-primary/10 to-transparent">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Star className="h-4 w-4 text-amber-500" /> Pontuação
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{totais.pontos.toLocaleString("pt-BR")}</div>
+              <div className="text-xs text-muted-foreground">pontos no período</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4 text-emerald-500" /> VGV
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{fmtBRL(totais.vgv)}</div>
+              <div className="text-xs text-muted-foreground">{totais.vendas} venda(s)</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Trophy className="h-4 w-4 text-violet-500" /> Conquistas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {conquistasQ.data?.ganhas ?? 0}
+                <span className="text-base text-muted-foreground">
+                  /{conquistasQ.data?.total ?? 0}
+                </span>
+              </div>
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <a href="/conquistas">ver medalhas</a>
+              </Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Atividades</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
+              </div>
+              <div className="text-xs text-muted-foreground">contatos + agendas + visitas</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((c) => {
+            const Icon = c.icon;
+            const pct =
+              mostrarMeta && c.meta ? Math.min(100, Math.round((c.value / c.meta) * 100)) : null;
+            return (
+              <Card key={c.key}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Icon className="h-4 w-4" /> {c.label}
                     </div>
-                    <div className="text-xs text-muted-foreground capitalize">
-                      {a.tipo}
-                      {a.local ? ` · ${a.local}` : ""}
-                    </div>
-                  </>
-                );
-                return (
-                  <div key={a.id} className="rounded-md border p-2">
-                    {a.lead_id ? (
-                      <Link to="/leads/$leadId" params={{ leadId: a.lead_id }} className="block">
-                        {row}
-                      </Link>
-                    ) : (
-                      row
+                    {pct !== null && (
+                      <Badge
+                        variant="secondary"
+                        className={cn(pct >= 100 && "bg-emerald-500/15 text-emerald-700")}
+                      >
+                        {pct}% da meta
+                      </Badge>
                     )}
                   </div>
-                );
-              })
-            )}
-            <Button asChild variant="link" className="h-auto p-0 text-xs">
-              <Link to="/agendamentos">ver agenda completa</Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* 4) SLA estourando — leads parados além do tempo de atendimento */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600" /> SLA estourando
-              {urgentes.length > 0 && (
-                <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
-                  {urgentes.length}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {urgentes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Tudo dentro do prazo. 👏</p>
-            ) : (
-              urgentes.slice(0, 8).map((l) => {
-                const tel = (l.telefone ?? "").replace(/\D/g, "");
-                return (
-                  <div
-                    key={l.lead_id}
-                    className="flex items-center justify-between gap-2 rounded-md border p-2"
-                  >
-                    <Link
-                      to="/leads/$leadId"
-                      params={{ leadId: l.lead_id }}
-                      className="min-w-0 flex-1"
-                    >
-                      <div className="truncate text-sm font-medium">{l.nome}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {leadStatusLabel(l.status)} · {l.minutos_decorridos} min sem atendimento
-                      </div>
-                    </Link>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                        title="WhatsApp"
-                        onClick={() => abrirWhats(l.nome, l.telefone)}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        asChild
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
-                        title="Ligar"
-                      >
-                        <a href={`tel:${tel}`}>
-                          <Phone className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Guardrail anti-perda: leads ativos sem um próximo passo definido */}
-      <Card className="border-amber-500/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex flex-wrap items-center gap-1.5">
-            <CircleAlert className="h-4 w-4 text-amber-600" /> Sem próxima ação
-            {semAcao.length > 0 && (
-              <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
-                {semAcao.length}
-              </Badge>
-            )}
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              leads ativos sem tarefa, agenda ou follow-up
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {semAcao.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Todos os seus leads ativos têm um próximo passo. 👏
-            </p>
-          ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {semAcao.map((l) => {
-                const tel = (l.telefone ?? "").replace(/\D/g, "");
-                return (
-                  <div
-                    key={l.id}
-                    className="flex items-center justify-between gap-2 rounded-md border p-2"
-                  >
-                    <Link to="/leads/$leadId" params={{ leadId: l.id }} className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 truncate text-sm font-medium">
-                        <span
-                          className={cn("h-2 w-2 shrink-0 rounded-full", TIER_DOT[l._score.tier])}
-                          title={`Prioridade ${l._score.tier}`}
-                        />
-                        <span className="truncate">{l.nome}</span>
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {leadStatusLabel(l.status)} · {l._score.motivo}
-                      </div>
-                    </Link>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-primary hover:bg-primary/10"
-                        title="Criar follow-up para amanhã"
-                        disabled={criarFollowUpRapido.isPending}
-                        onClick={() => criarFollowUpRapido.mutate({ id: l.id, nome: l.nome })}
-                      >
-                        <CalendarPlus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                        title="WhatsApp"
-                        onClick={() => abrirWhats(l.nome, l.telefone)}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        asChild
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
-                        title="Ligar"
-                      >
-                        <a href={`tel:${tel}`}>
-                          <Phone className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <h2 className="text-sm font-semibold text-muted-foreground pt-2">Minha produtividade</h2>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-gradient-to-br from-primary/10 to-transparent">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <Star className="h-4 w-4 text-amber-500" /> Pontuação
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totais.pontos.toLocaleString("pt-BR")}</div>
-            <div className="text-xs text-muted-foreground">pontos no período</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-emerald-500" /> VGV
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{fmtBRL(totais.vgv)}</div>
-            <div className="text-xs text-muted-foreground">{totais.vendas} venda(s)</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <Trophy className="h-4 w-4 text-violet-500" /> Conquistas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {conquistasQ.data?.ganhas ?? 0}
-              <span className="text-base text-muted-foreground">
-                /{conquistasQ.data?.total ?? 0}
-              </span>
-            </div>
-            <Button asChild variant="link" className="h-auto p-0 text-xs">
-              <a href="/conquistas">ver medalhas</a>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Atividades</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
-            </div>
-            <div className="text-xs text-muted-foreground">contatos + agendas + visitas</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((c) => {
-          const Icon = c.icon;
-          const pct =
-            mostrarMeta && c.meta ? Math.min(100, Math.round((c.value / c.meta) * 100)) : null;
-          return (
-            <Card key={c.key}>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Icon className="h-4 w-4" /> {c.label}
+                  <div className="mt-1 text-2xl font-bold">
+                    {c.value}
+                    {mostrarMeta && c.meta ? (
+                      <span className="text-sm font-normal text-muted-foreground"> / {c.meta}</span>
+                    ) : null}
                   </div>
                   {pct !== null && (
-                    <Badge
-                      variant="secondary"
-                      className={cn(pct >= 100 && "bg-emerald-500/15 text-emerald-700")}
-                    >
-                      {pct}% da meta
-                    </Badge>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          pct >= 100 ? "bg-emerald-500" : "bg-primary",
+                        )}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   )}
-                </div>
-                <div className="mt-1 text-2xl font-bold">
-                  {c.value}
-                  {mostrarMeta && c.meta ? (
-                    <span className="text-sm font-normal text-muted-foreground"> / {c.meta}</span>
-                  ) : null}
-                </div>
-                {pct !== null && (
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        pct >= 100 ? "bg-emerald-500" : "bg-primary",
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
 
-      {!metaQ.data && (
-        <p className="text-sm text-muted-foreground">
-          Defina suas metas diárias para acompanhar o progresso (peça ao gestor em “Metas”).
-        </p>
-      )}
-    </div>
+        {!metaQ.data && (
+          <p className="text-sm text-muted-foreground">
+            Defina suas metas diárias para acompanhar o progresso (peça ao gestor em “Metas”).
+          </p>
+        )}
+      </TabsContent>
+      <TabsContent value="analytics">
+        <RelatoriosView />
+      </TabsContent>
+    </Tabs>
   );
 }

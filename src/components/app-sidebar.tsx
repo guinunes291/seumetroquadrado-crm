@@ -18,8 +18,6 @@ import {
   Building2,
   Megaphone,
   Wallet,
-  FileText,
-  Library,
   MessageSquare,
   Plug,
   Settings,
@@ -50,109 +48,90 @@ type Item = {
   children?: Item[];
 };
 
-type Section = { title: string; items: Item[] };
-
-// Navegação por INTENÇÃO (não por entidade): menos itens de topo, com as visões
-// redundantes agrupadas como subitens. Nenhuma rota foi removida — tudo continua
-// acessível, só melhor organizado.
-const SECTIONS: Section[] = [
+// Navegação por INTENÇÃO com TETO DE 7 BOTÕES principais (Fase 1 da reestruturação).
+// Cada botão é um "destino" que agrupa as rotas relacionadas como subitens recolhíveis.
+// Nenhuma rota foi removida — tudo continua acessível, só consolidado em 7 grupos:
+// corretor vê 5 botões, gestor 6, admin 7.
+const NAV_ITEMS: Item[] = [
   {
-    title: "Início",
-    items: [
-      { to: "/hoje", label: "Hoje", icon: Gauge },
-      { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard },
-    ],
+    to: "/hoje",
+    label: "Hoje",
+    icon: Gauge,
+    children: [{ to: "/relatorios", label: "Relatórios", icon: LayoutDashboard }],
   },
   {
-    title: "Trabalhar",
-    items: [
+    to: "/leads",
+    label: "Meus Leads",
+    icon: Users,
+    children: [
+      { to: "/kanban", label: "Funil (Kanban)", icon: Trello },
+      { to: "/blitz", label: "Modo Blitz", icon: Zap },
       {
-        to: "/leads",
-        label: "Leads",
-        icon: Users,
-        children: [
-          { to: "/kanban", label: "Kanban", icon: Trello },
-          { to: "/blitz", label: "Modo Blitz", icon: Zap },
-          {
-            to: "/leads-landing",
-            label: "Leads Landing",
-            icon: Megaphone,
-            roles: ["admin", "gestor"],
-          },
-        ],
+        to: "/leads-landing",
+        label: "Captação (Landing)",
+        icon: Megaphone,
+        roles: ["admin", "gestor"],
       },
-      { to: "/tarefas", label: "Tarefas", icon: ListTodo },
-      { to: "/agendamentos", label: "Agenda & Visitas", icon: CalendarClock },
     ],
   },
   {
-    title: "Negócios",
-    items: [
-      { to: "/projetos", label: "Empreendimentos", icon: Building2 },
-      { to: "/match", label: "Match IA", icon: Sparkles },
-      { to: "/radar", label: "Radar de fechamento", icon: Crosshair },
+    to: "/agendamentos",
+    label: "Agenda & Tarefas",
+    icon: CalendarClock,
+    children: [{ to: "/tarefas", label: "Tarefas", icon: ListTodo }],
+  },
+  {
+    to: "/projetos",
+    label: "Negócios & Carteira",
+    icon: Building2,
+    children: [
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone },
-      { to: "/comissoes", label: "Comissões", icon: FileText },
+      { to: "/radar", label: "Radar de fechamento", icon: Crosshair },
+      { to: "/match", label: "Match IA", icon: Sparkles },
+      { to: "/comissoes", label: "Comissões", icon: Wallet },
       { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
-      { to: "/carteira", label: "Carteira Ativa", icon: Wallet, comingSoon: true },
-      { to: "/scripts", label: "Scripts & FAQ", icon: Library, comingSoon: true },
     ],
   },
   {
-    title: "Desempenho",
-    items: [
+    to: "/ranking",
+    label: "Desempenho",
+    icon: Trophy,
+    children: [
       { to: "/metas", label: "Metas", icon: Target },
-      {
-        to: "/ranking",
-        label: "Ranking & Copa",
-        icon: Trophy,
-        children: [
-          { to: "/copa", label: "Copa SMQ", icon: Swords },
-          { to: "/conquistas", label: "Conquistas", icon: Trophy },
-        ],
-      },
+      { to: "/copa", label: "Copa SMQ", icon: Swords },
+      { to: "/conquistas", label: "Conquistas", icon: Trophy },
     ],
   },
   {
-    title: "Gestão",
-    items: [
-      {
-        to: "/painel-gestor",
-        label: "Painel do Gestor",
-        icon: Activity,
-        roles: ["admin", "gestor"],
-      },
+    to: "/painel-gestor",
+    label: "Gestão",
+    icon: Activity,
+    roles: ["admin", "gestor"],
+    children: [
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
+      { to: "/corretores", label: "Corretores", icon: Users, roles: ["admin", "gestor"] },
+      { to: "/equipes", label: "Equipes", icon: UsersRound, roles: ["admin", "gestor"] },
       {
-        to: "/corretores",
-        label: "Corretores & Equipes",
-        icon: Users,
+        to: "/leads-por-corretor",
+        label: "Leads por Corretor",
+        icon: Shuffle,
         roles: ["admin", "gestor"],
-        children: [
-          { to: "/equipes", label: "Equipes", icon: UsersRound, roles: ["admin", "gestor"] },
-          {
-            to: "/leads-por-corretor",
-            label: "Leads por Corretor",
-            icon: Shuffle,
-            roles: ["admin", "gestor"],
-          },
-        ],
       },
       { to: "/templates", label: "Templates", icon: MessageSquare, roles: ["admin", "gestor"] },
-      {
-        label: "Qualidade de dados",
-        icon: ShieldCheck,
-        roles: ["admin", "gestor"],
-        children: [
-          { to: "/duplicatas", label: "Duplicatas", icon: Merge, roles: ["admin", "gestor"] },
-          { to: "/lixeira", label: "Lixeira", icon: Trash2, roles: ["admin"] },
-        ],
-      },
+      { to: "/duplicatas", label: "Duplicatas", icon: Merge, roles: ["admin", "gestor"] },
+      { to: "/lixeira", label: "Lixeira", icon: Trash2, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Configurações",
+    icon: Settings,
+    roles: ["admin"],
+    children: [
       { to: "/integracoes", label: "Integrações", icon: Plug, comingSoon: true, roles: ["admin"] },
       {
         to: "/configuracoes",
-        label: "Configurações",
-        icon: Settings,
+        label: "Preferências",
+        icon: ShieldCheck,
         comingSoon: true,
         roles: ["admin"],
       },
@@ -254,35 +233,24 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-        {SECTIONS.map((section) => {
-          const visible = section.items.filter(itemVisible);
-          if (visible.length === 0) return null;
-          return (
-            <div key={section.title}>
-              <div className="px-3 text-[10px] uppercase tracking-wider text-sidebar-foreground/50 font-medium mb-1">
-                {section.title}
-              </div>
-              <ul className="space-y-0.5">
-                {visible.map((it) =>
-                  it.children && it.children.length > 0 ? (
-                    <NavGroup
-                      key={it.label}
-                      item={it}
-                      subitems={visibleChildren(it)}
-                      pathname={pathname}
-                      renderLeaf={renderLeaf}
-                      leafClasses={leafClasses}
-                      onNavigate={onNavigate}
-                    />
-                  ) : (
-                    <li key={it.to ?? it.label}>{renderLeaf(it)}</li>
-                  ),
-                )}
-              </ul>
-            </div>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <ul className="space-y-0.5">
+          {NAV_ITEMS.filter(itemVisible).map((it) =>
+            it.children && it.children.length > 0 ? (
+              <NavGroup
+                key={it.label}
+                item={it}
+                subitems={visibleChildren(it)}
+                pathname={pathname}
+                renderLeaf={renderLeaf}
+                leafClasses={leafClasses}
+                onNavigate={onNavigate}
+              />
+            ) : (
+              <li key={it.to ?? it.label}>{renderLeaf(it)}</li>
+            ),
+          )}
+        </ul>
       </nav>
 
       <div className="border-t border-sidebar-border p-2 space-y-1">
@@ -336,9 +304,7 @@ function NavGroup({
       onClick={() => setOpen((o) => !o)}
       className="shrink-0 rounded p-1 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     >
-      <ChevronRight
-        className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-90")}
-      />
+      <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-90")} />
     </button>
   );
 
