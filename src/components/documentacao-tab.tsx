@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,10 +49,12 @@ import {
   type Documentacao,
   type PerfilRenda,
 } from "@/lib/documentacao";
+import { FUNNEL_STAGES, type LeadStatus } from "@/lib/leads";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 
 type Props = {
   leadId: string;
-  lead: { nome: string; telefone: string; corretor_id: string | null };
+  lead: { nome: string; telefone: string; corretor_id: string | null; status: string };
 };
 
 /** Aba "Documentação" da página do lead: dá UI à tabela `documentacoes` (antes
@@ -65,7 +67,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
   const [usaFgts, setUsaFgts] = useState(false);
   const [declaraIr, setDeclaraIr] = useState(false);
 
-  const { data: docs = [] } = useQuery({
+  const { data: docs = [], isSuccess: docsCarregados } = useQuery({
     queryKey: ["documentacoes", leadId],
     queryFn: () => listarDocs(leadId),
   });
@@ -141,6 +143,33 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
     const pendentes = docs.filter((d) => !docResolvido(d.status));
     return { total, resolvidos, pendentes };
   }, [docs]);
+
+  // Auto-avanço: assim que o corretor envia o 3º documento (recebido/aprovado), o
+  // lead passa para "análise de crédito" — desde que ainda esteja antes dessa
+  // etapa no funil (não anda para trás nem re-dispara). Reaproveita o motor de
+  // status, que registra a transição no histórico e cria o follow-up de crédito.
+  const avancarCredito = useLeadStatusMutation({
+    invalidateKeys: [["lead", leadId], ["leads"], ["leads-kanban"], ["leads-status-counts"]],
+    onSuccess: () => toast.success("3 documentos recebidos — lead movido para Análise de Crédito"),
+  });
+  const baselineDocs = useRef<number | null>(null);
+  const jaAvancou = useRef(false);
+  useEffect(() => {
+    if (!docsCarregados) return; // espera a 1ª carga concluir
+    if (baselineDocs.current === null) {
+      // Fixa o baseline na 1ª carga: não dispara só por abrir um lead que já
+      // tinha 3+ documentos — apenas quando novos documentos chegam a partir daqui.
+      baselineDocs.current = resolvidos;
+      return;
+    }
+    if (jaAvancou.current || resolvidos < 3) return;
+    const ordem = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
+    const alvo = FUNNEL_STAGES.indexOf("analise_credito");
+    if (ordem < 0 || ordem >= alvo) return; // só avança se está antes da etapa
+    jaAvancou.current = true;
+    avancarCredito.mutate({ id: leadId, status: "analise_credito" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docsCarregados, resolvidos, lead.status, leadId]);
 
   const abrirWhatsapp = (linhas: Documentacao[], intro: string, vazio: string) => {
     if (linhas.length === 0) {
