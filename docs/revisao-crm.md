@@ -181,7 +181,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **2** | "Próxima melhor ação" + registro rápido de contato + Score | reduzir cliques (DOR nº 2) | alto | média | ✅ Score de prioridade · guardrail "sem próxima ação" · registrar contato combinado (interação + follow-up num gesto) · Blitz ordenado por score |
 | **3** | Módulo de Documentação (checklist/status/cobrança/upload) | destrava crédito/pasta | alto | média-alta | ✅ (upload via Storage — aplicar a migration) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | ✅ v1 — saúde por corretor (métricas + parados), qualidade do CRM (sem corretor/e-mail/renda), leads parados por corretor |
-| **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | a fazer |
+| **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | 🚧 simulador de financiamento (parcela / renda mínima / comprometimento) na aba Dados do lead |
 | **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | a fazer |
 | **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | a fazer |
 
