@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { leadStatusLabel } from "@/lib/leads";
-import { useDashboardPorCorretor, useDashboardLeadsUrgentes } from "@/features/dashboard/queries";
+import {
+  useDashboardPorCorretor,
+  useDashboardLeadsUrgentes,
+  useTempoPrimeiraResposta,
+} from "@/features/dashboard/queries";
 import {
   Activity,
   AlertTriangle,
@@ -19,6 +23,7 @@ import {
   MessageCircle,
   MapPin,
   BarChart3,
+  Timer,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
@@ -50,6 +55,24 @@ function PainelGestorPage() {
 
   const porCorretorQ = useDashboardPorCorretor(range, podeVer);
   const urgentesQ = useDashboardLeadsUrgentes(null, podeVer);
+  const tempoQ = useTempoPrimeiraResposta(range, podeVer);
+
+  // Tempo de 1ª resposta por corretor (mapa corretor_id -> métrica).
+  const tempoMap = useMemo(
+    () => new Map((tempoQ.data ?? []).map((t) => [t.corretor_id, t])),
+    [tempoQ.data],
+  );
+
+  // Média ponderada da equipe (por nº de leads respondidos) para o card de topo.
+  const tempoEquipe = useMemo(() => {
+    let somaPond = 0;
+    let somaResp = 0;
+    for (const t of tempoQ.data ?? []) {
+      somaPond += t.tempo_medio_min * t.leads_respondidos;
+      somaResp += t.leads_respondidos;
+    }
+    return somaResp > 0 ? Math.round(somaPond / somaResp) : null;
+  }, [tempoQ.data]);
 
   // Aderência / qualidade do cadastro — contagens org-wide (gestor enxerga tudo).
   const aderenciaQ = useQuery({
@@ -234,6 +257,7 @@ function PainelGestorPage() {
                   <th className="py-2 px-2 text-right">Vendas</th>
                   <th className="py-2 px-2 text-right">Perdidos</th>
                   <th className="py-2 px-2 text-right">Parados</th>
+                  <th className="py-2 px-2 text-right">1ª resp.</th>
                   <th className="py-2 pl-2 text-right">Conv.</th>
                 </tr>
               </thead>
@@ -259,6 +283,14 @@ function PainelGestorPage() {
                       >
                         {parados}
                       </td>
+                      <td className="py-2 px-2 text-right text-muted-foreground">
+                        {(() => {
+                          const t = tempoMap.get(c.corretor_id);
+                          return t && t.leads_respondidos > 0
+                            ? fmtDuracao(t.tempo_medio_min)
+                            : "—";
+                        })()}
+                      </td>
                       <td className="py-2 pl-2 text-right">
                         <Badge variant="outline">{c.conversao}%</Badge>
                       </td>
@@ -273,10 +305,15 @@ function PainelGestorPage() {
 
       {/* Bloco 2 — Relatório de atividade (ligações / WhatsApp / visitas) */}
       <div>
-        <div className="grid gap-4 sm:grid-cols-3 mb-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-3">
           <AtividadeCard icon={PhoneCall} titulo="Ligações" valor={atividade.tot.ligacao} />
           <AtividadeCard icon={MessageCircle} titulo="WhatsApp" valor={atividade.tot.whatsapp} />
           <AtividadeCard icon={MapPin} titulo="Visitas" valor={atividade.tot.visita} />
+          <AtividadeCard
+            icon={Timer}
+            titulo="1ª resposta (méd. equipe)"
+            valor={tempoEquipe != null ? fmtDuracao(tempoEquipe) : "—"}
+          />
         </div>
         <Card>
           <CardHeader className="pb-2">
@@ -398,6 +435,15 @@ function PainelGestorPage() {
   );
 }
 
+// Minutos -> "Xmin" / "Xh Ymin" para os tempos de resposta.
+function fmtDuracao(min: number): string {
+  if (min <= 0) return "—";
+  if (min < 60) return `${min}min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h}h ${m}min` : `${h}h`;
+}
+
 function AtividadeCard({
   icon: Icon,
   titulo,
@@ -405,7 +451,7 @@ function AtividadeCard({
 }: {
   icon: typeof Activity;
   titulo: string;
-  valor: number;
+  valor: number | string;
 }) {
   return (
     <Card>
@@ -413,7 +459,9 @@ function AtividadeCard({
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Icon className="h-3.5 w-3.5" /> {titulo}
         </div>
-        <div className="mt-1 text-2xl font-bold">{valor.toLocaleString("pt-BR")}</div>
+        <div className="mt-1 text-2xl font-bold">
+          {typeof valor === "number" ? valor.toLocaleString("pt-BR") : valor}
+        </div>
       </CardContent>
     </Card>
   );

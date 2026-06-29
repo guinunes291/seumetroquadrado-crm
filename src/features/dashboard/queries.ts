@@ -157,6 +157,36 @@ export function useLeadsComSla(corretor: string | null, enabled = true) {
   });
 }
 
+export type TempoPrimeiraResposta = {
+  corretor_id: string;
+  leads_no_periodo: number;
+  leads_respondidos: number;
+  tempo_medio_min: number;
+  tempo_mediana_min: number;
+};
+
+/** Tempo de 1ª resposta por corretor (KPI histórico). Degrada para [] se a
+ *  função ainda não foi aplicada no banco, para não quebrar o Painel do Gestor. */
+export function useTempoPrimeiraResposta(range: Range, enabled = true) {
+  return useQuery({
+    queryKey: ["dash:tempoResposta", range],
+    enabled: enabled && !!range.di && !!range.df,
+    staleTime: 60_000,
+    queryFn: async (): Promise<TempoPrimeiraResposta[]> => {
+      const { data, error } = await rpc("tempo_primeira_resposta", {
+        _di: range.di,
+        _df: range.df,
+        _corretor: null,
+      });
+      if (error) {
+        // Função ausente (migration ainda não aplicada): degrada em vez de quebrar.
+        return [];
+      }
+      return (data ?? []) as TempoPrimeiraResposta[];
+    },
+  });
+}
+
 export function useDashboardRedistribuicoes(range: Range, enabled = true) {
   return useQuery({
     queryKey: ["dash:redist", range],
