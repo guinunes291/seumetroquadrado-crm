@@ -36,7 +36,7 @@ type LeadRadar = {
   projeto_nome: string | null;
 };
 
-function RadarFechamentoPage() {
+export function RadarFechamentoPage() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["radar-fechamento"],
     staleTime: 60_000,

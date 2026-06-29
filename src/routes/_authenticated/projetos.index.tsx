@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -12,7 +13,7 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Building2, Upload } from "lucide-react";
+import { Plus, Building2, Upload, Sparkles } from "lucide-react";
 import { slugify, webhookUrl } from "@/lib/projetos";
 import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
 import { ProjetoCard, type ProjetoRow } from "@/components/projeto-card";
@@ -22,13 +23,72 @@ import {
   emptyFilters,
   type Filters,
 } from "@/components/projetos-filters";
+import { OfertaAtivaPage } from "@/routes/_authenticated/oferta-ativa.index";
+import { RadarFechamentoPage } from "@/routes/_authenticated/radar";
+import { ComissoesPage } from "@/routes/_authenticated/comissoes";
+import { LinksUteisPage } from "@/routes/_authenticated/links-uteis";
+
+type NegociosTab = "catalogo" | "oferta" | "radar" | "comissoes" | "links";
+const NEGOCIOS_TABS: NegociosTab[] = ["catalogo", "oferta", "radar", "comissoes", "links"];
 
 export const Route = createFileRoute("/_authenticated/projetos/")({
-  head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
-  component: ProjetosPage,
+  // `tab` permite abrir/linkar direto uma aba do hub de Negócios & Carteira.
+  validateSearch: (search: Record<string, unknown>): { tab?: NegociosTab } => ({
+    tab: NEGOCIOS_TABS.includes(search.tab as NegociosTab)
+      ? (search.tab as NegociosTab)
+      : undefined,
+  }),
+  head: () => ({ meta: [{ title: "Negócios & Carteira — Seu Metro Quadrado" }] }),
+  component: NegociosPage,
 });
 
-function ProjetosPage() {
+// Hub de Negócios & Carteira: catálogo de empreendimentos, oferta ativa, radar de
+// fechamento, comissões e links úteis em abas internas (Fase 2). O Match IA fica
+// como rota própria (usa search params próprios) acessível pelo botão ao lado das
+// abas e pela página do lead. As rotas antigas seguem válidas para deep-link.
+function NegociosPage() {
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeTab: NegociosTab = tab ?? "catalogo";
+  const onTabChange = (v: string) =>
+    navigate({ search: { tab: v === "catalogo" ? undefined : (v as NegociosTab) } });
+
+  return (
+    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <TabsList className="h-auto flex-wrap justify-start">
+          <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
+          <TabsTrigger value="oferta">Oferta Ativa</TabsTrigger>
+          <TabsTrigger value="radar">Radar</TabsTrigger>
+          <TabsTrigger value="comissoes">Comissões</TabsTrigger>
+          <TabsTrigger value="links">Links Úteis</TabsTrigger>
+        </TabsList>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/match">
+            <Sparkles className="mr-1 h-4 w-4" /> Match IA
+          </Link>
+        </Button>
+      </div>
+      <TabsContent value="catalogo">
+        <CatalogoPanel />
+      </TabsContent>
+      <TabsContent value="oferta">
+        <OfertaAtivaPage />
+      </TabsContent>
+      <TabsContent value="radar">
+        <RadarFechamentoPage />
+      </TabsContent>
+      <TabsContent value="comissoes">
+        <ComissoesPage />
+      </TabsContent>
+      <TabsContent value="links">
+        <LinksUteisPage />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function CatalogoPanel() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;

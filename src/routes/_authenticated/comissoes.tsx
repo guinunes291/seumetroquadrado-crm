@@ -53,7 +53,7 @@ const STATUS_TONE: Record<string, string> = {
 const fmtBRL = (n: number) =>
   (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function ComissoesPage() {
+export function ComissoesPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const [statusFilter, setStatusFilter] = useState<string>("all");

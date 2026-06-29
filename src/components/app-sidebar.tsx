@@ -14,17 +14,13 @@ import {
   Gauge,
   Building2,
   Megaphone,
-  Wallet,
   Plug,
   Settings,
   LogOut,
   User as UserIcon,
-  Sparkles,
-  Link2,
   Activity,
   ChevronRight,
   ShieldCheck,
-  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,16 +70,11 @@ const NAV_ITEMS: Item[] = [
     children: [{ to: "/tarefas", label: "Tarefas", icon: ListTodo }],
   },
   {
+    // Catálogo, Oferta, Radar, Comissões e Links são abas do hub /projetos.
+    // Match IA continua acessível pelo botão no hub e pela página do lead.
     to: "/projetos",
     label: "Negócios & Carteira",
     icon: Building2,
-    children: [
-      { to: "/oferta-ativa", label: "Oferta Ativa", icon: Megaphone },
-      { to: "/radar", label: "Radar de fechamento", icon: Crosshair },
-      { to: "/match", label: "Match IA", icon: Sparkles },
-      { to: "/comissoes", label: "Comissões", icon: Wallet },
-      { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
-    ],
   },
   {
     // Metas, Copa e Conquistas agora são abas internas do hub /ranking.
