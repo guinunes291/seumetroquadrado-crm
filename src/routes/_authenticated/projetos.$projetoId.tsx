@@ -32,6 +32,7 @@ import {
   variacaoPercentual,
 } from "@/lib/unidades";
 import { cn } from "@/lib/utils";
+import { ProjetoComercial } from "@/components/projeto-comercial";
 
 export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
   head: () => ({ meta: [{ title: "Detalhe do projeto — Seu Metro Quadrado" }] }),
@@ -272,6 +273,8 @@ function ProjetoDetalhePage() {
                 .join(" · ") || "—"}
             </InfoLine>
             <InfoLine label="Tipo extra">{projeto.tipo_extra || "—"}</InfoLine>
+            <InfoLine label="Status do preço">{projeto.status_preco || "—"}</InfoLine>
+            <InfoLine label="Zona SMQ">{projeto.zona_smq || "—"}</InfoLine>
             <InfoLine label="Endereço">
               {[projeto.logradouro, projeto.numero].filter(Boolean).join(", ") || projeto.endereco || "—"}
             </InfoLine>
@@ -303,6 +306,7 @@ function ProjetoDetalhePage() {
       <Tabs defaultValue="unidades" className="space-y-4">
         <TabsList>
           <TabsTrigger value="unidades">Unidades</TabsTrigger>
+          <TabsTrigger value="comercial">Comercial</TabsTrigger>
           <TabsTrigger value="historico">Histórico de preços</TabsTrigger>
           <TabsTrigger value="foco">Projeto em foco</TabsTrigger>
         </TabsList>
@@ -477,6 +481,16 @@ function ProjetoDetalhePage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="comercial">
+          {projeto && (
+            <ProjetoComercial
+              projetoId={projetoId}
+              projeto={projeto as never}
+              canManage={canManage}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="historico">

@@ -99,7 +99,7 @@ O restante do roadmap (Fases 2–7) está descrito abaixo.
 
 **2.9 Documentação (a construir — hoje headless)** — Aba **Documentação** no lead + tela de pendências: checklist por perfil (CLT/autônomo/informal/FGTS/IR), status por documento, upload (Storage), botões "Enviar checklist" / "Cobrar pendência" / "Encaminhar para análise"; alertas de pendência/ilegível/vencido. Impacto: alto.
 
-**2.10 Empreendimentos (`projetos.*`)** — Adicionar campos comerciais (renda mínima, diferenciais, argumentos, perfil ideal); badge de preço (vigente/a confirmar/vencido); botão "Sugerir para lead". Impacto: médio.
+**2.10 Empreendimentos (`projetos.*`)** — ✅ aba **Comercial** com renda mínima, perfil ideal, diferenciais (chips) e argumentos de venda (bullets), editável por gestor/admin (`migration 20260629140000`); `status_preco`/`zona_smq` agora aparecem na ficha. Próximo: badge de preço (vigente/a confirmar/vencido), botão "Sugerir para lead" e cruzar `renda_minima`/`perfil_ideal` no Match. Impacto: médio.
 
 **2.11 Gestão (`distribuicao/corretores/leads-por-corretor/equipes`)** — Inteligência fragmentada. Novo **Painel do Gestor**: saúde do corretor (última atividade, funil por corretor, idade do lead mais velho, ligações/WA por dia), **leads parados por corretor** (com nome + redistribuir), **SLA compliance**, **aderência/qualidade de cadastro**, KPI por equipe. Impacto: alto.
 
@@ -182,7 +182,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **3** | Módulo de Documentação (checklist/status/cobrança/upload) | destrava crédito/pasta | alto | média-alta | ✅ (upload via Storage — aplicar a migration) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | ✅ v1 — saúde por corretor (métricas + parados), qualidade do CRM (sem corretor/e-mail/renda), leads parados por corretor |
 | **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | ✅ pré-qualificação **APROVE 2026** (teto + regra 80/20) no simulador e no Match · **objeções em chips** por lead (`leads.objecoes` — aplicar migration) · **sugestão de mensagem por IA** no WhatsApp (usa histórico + biblioteca de objeções). Resta o redesenho 3-colunas e a faixa "Próxima melhor ação". |
-| **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | a fazer |
+| **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | 🚧 **munição comercial** do empreendimento (renda mínima · perfil ideal · diferenciais · argumentos) na aba Comercial + `status_preco`/`zona_smq` na ficha; faltam relatórios de atividade e consolidação do menu |
 | **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | a fazer |
 
 ---
