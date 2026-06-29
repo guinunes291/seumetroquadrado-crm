@@ -65,7 +65,7 @@ type Stats = {
   perdidos: number;
 };
 
-function LeadsPorCorretorPage() {
+export function LeadsPorCorretorPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const qc = useQueryClient();
@@ -179,9 +179,7 @@ function LeadsPorCorretorPage() {
     else setSelectedLeads(filteredLeads.map((l) => l.id));
   };
   const toggleOne = (id: string) =>
-    setSelectedLeads((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSelectedLeads((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   if (!canManage) {
     return (
@@ -205,8 +203,7 @@ function LeadsPorCorretorPage() {
           selectedLeads.length > 0 ? (
             <Button onClick={() => setTransferOpen(true)}>
               <ArrowRightLeft className="mr-2 h-4 w-4" />
-              Transferir {selectedLeads.length}{" "}
-              {selectedLeads.length === 1 ? "lead" : "leads"}
+              Transferir {selectedLeads.length} {selectedLeads.length === 1 ? "lead" : "leads"}
             </Button>
           ) : null
         }
@@ -303,8 +300,7 @@ function LeadsPorCorretorPage() {
                     <TableHead className="w-10">
                       <Checkbox
                         checked={
-                          filteredLeads.length > 0 &&
-                          selectedLeads.length === filteredLeads.length
+                          filteredLeads.length > 0 && selectedLeads.length === filteredLeads.length
                         }
                         onCheckedChange={toggleAll}
                       />
@@ -320,7 +316,7 @@ function LeadsPorCorretorPage() {
                 <TableBody>
                   {filteredLeads.map((l) => {
                     const corretorNome = l.corretor_id
-                      ? corretores?.find((c) => c.id === l.corretor_id)?.nome ?? "—"
+                      ? (corretores?.find((c) => c.id === l.corretor_id)?.nome ?? "—")
                       : "Sem corretor";
                     return (
                       <TableRow

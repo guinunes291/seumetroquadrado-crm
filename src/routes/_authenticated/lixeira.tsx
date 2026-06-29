@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/lixeira")({
   component: LixeiraPage,
 });
 
-function LixeiraPage() {
+export function LixeiraPage() {
   const { isAdmin } = useUserRoles();
   const [tab, setTab] = useState<LixeiraTabela>("leads");
 
@@ -112,7 +112,8 @@ function ListaLixeira({ tabela }: { tabela: LixeiraTabela }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">
-          {data.length} {data.length === 1 ? "registro" : "registros"} excluído{data.length === 1 ? "" : "s"}
+          {data.length} {data.length === 1 ? "registro" : "registros"} excluído
+          {data.length === 1 ? "" : "s"}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">

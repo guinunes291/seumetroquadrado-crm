@@ -54,7 +54,7 @@ type Equipe = {
   membros_count?: number;
 };
 
-function EquipesPage() {
+export function EquipesPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const podeCriar = isAdmin || isGestor;
   const qc = useQueryClient();
@@ -112,7 +112,7 @@ function EquipesPage() {
 
       return (data ?? []).map((e) => ({
         ...e,
-        gestor: e.gestor_id ? gestorMap[e.gestor_id] ?? null : null,
+        gestor: e.gestor_id ? (gestorMap[e.gestor_id] ?? null) : null,
         membros_count: counts[e.id] ?? 0,
       }));
     },
@@ -295,7 +295,9 @@ function EquipesPage() {
                   <TableCell>
                     <div className="font-medium">{e.nome}</div>
                     {e.descricao && (
-                      <div className="text-xs text-muted-foreground line-clamp-1">{e.descricao}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-1">
+                        {e.descricao}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
@@ -303,11 +305,7 @@ function EquipesPage() {
                   </TableCell>
                   <TableCell>{e.membros_count ?? 0}</TableCell>
                   <TableCell>
-                    {e.ativo ? (
-                      <Badge>Ativa</Badge>
-                    ) : (
-                      <Badge variant="secondary">Inativa</Badge>
-                    )}
+                    {e.ativo ? <Badge>Ativa</Badge> : <Badge variant="secondary">Inativa</Badge>}
                   </TableCell>
                   <TableCell className="text-right space-x-1">
                     {podeCriar && (

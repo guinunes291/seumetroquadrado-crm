@@ -67,7 +67,7 @@ type CorretorRow = {
   roles: AppRole[];
 };
 
-function CorretoresPage() {
+export function CorretoresPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
@@ -77,10 +77,7 @@ function CorretoresPage() {
   const equipesQuery = useQuery({
     queryKey: ["equipes", "list"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("equipes")
-        .select("id, nome")
-        .order("nome");
+      const { data, error } = await supabase.from("equipes").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },
@@ -159,10 +156,7 @@ function CorretoresPage() {
   const setRole = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: AppRole }) => {
       // remove papéis existentes (1 role por user, simplificação)
-      const { error: delErr } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", user_id);
+      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", user_id);
       if (delErr) throw delErr;
       const { error } = await supabase.from("user_roles").insert({ user_id, role });
       if (error) throw error;
@@ -199,7 +193,6 @@ function CorretoresPage() {
     );
   }
 
-
   return (
     <div>
       <PageHeader
@@ -218,14 +211,17 @@ function CorretoresPage() {
                 <DialogHeader>
                   <DialogTitle>Como adicionar um corretor</DialogTitle>
                   <DialogDescription>
-                    Nesta fase inicial, a entrada de novos usuários é via auto-cadastro: peça para
-                    o corretor acessar a tela <strong>/auth</strong> e criar a conta com o e-mail
+                    Nesta fase inicial, a entrada de novos usuários é via auto-cadastro: peça para o
+                    corretor acessar a tela <strong>/auth</strong> e criar a conta com o e-mail
                     profissional. Ele aparecerá aqui logo após o primeiro login, e você poderá
                     definir o papel e a equipe dele.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => navigator.clipboard?.writeText(window.location.origin + "/auth")}>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigator.clipboard?.writeText(window.location.origin + "/auth")}
+                  >
                     Copiar link /auth
                   </Button>
                 </DialogFooter>
@@ -238,7 +234,9 @@ function CorretoresPage() {
       {semTelefone > 0 && (
         <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
-          {semTelefone} corretor{semTelefone > 1 ? "es ativos estão" : " ativo está"} sem telefone cadastrado. Sem telefone, o webhook não consegue distribuir leads para ele{semTelefone > 1 ? "s" : ""}.
+          {semTelefone} corretor{semTelefone > 1 ? "es ativos estão" : " ativo está"} sem telefone
+          cadastrado. Sem telefone, o webhook não consegue distribuir leads para ele
+          {semTelefone > 1 ? "s" : ""}.
         </div>
       )}
 
@@ -321,7 +319,7 @@ function CorretoresPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      c.equipe?.nome ?? <span className="text-muted-foreground">—</span>
+                      (c.equipe?.nome ?? <span className="text-muted-foreground">—</span>)
                     )}
                   </TableCell>
                   <TableCell>
@@ -395,8 +393,8 @@ function CorretoresPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Bloquear {confirmBlock?.nome}?</AlertDialogTitle>
             <AlertDialogDescription>
-              O corretor perderá o acesso imediatamente e sairá da fila de distribuição. Você
-              pode reativá-lo depois.
+              O corretor perderá o acesso imediatamente e sairá da fila de distribuição. Você pode
+              reativá-lo depois.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
