@@ -107,15 +107,17 @@ O restante do roadmap (Fases 2–7) está descrito abaixo.
 
 ## Entregável 3 — Nova arquitetura de navegação
 
-Consolidar **28 → ~16 itens** por intenção; cada visão de lead vira **modo** dentro de "Leads".
+✅ **Feito** (`app-sidebar.tsx`): sidebar reorganizada por **intenção** (Início · Trabalhar · Negócios · Desempenho · Gestão), com **subgrupos recolhíveis** para reduzir os ~28 itens de topo sem remover nenhuma rota. Visões de lead (Kanban/Blitz/Landing) viram subitens de **Leads**; Copa/Conquistas viram subitens de **Ranking & Copa**; Equipes/Leads por Corretor viram subitens de **Corretores & Equipes**; Duplicatas/Lixeira viram **Qualidade de dados**. Também corrigido o realce de rota (antes `/leads` acendia em `/leads-landing`).
 
 ```
-INÍCIO     • Hoje (funde Dashboard + Meu Dia → fila por score)
-TRABALHAR  • Leads (Tabela | Cards | Kanban | Blitz) • Tarefas & Follow-ups • Agenda & Visitas • Documentação (NOVO)
-NEGÓCIOS   • Empreendimentos (+ Match) • Oferta Ativa • Comissões
-DESEMPENHO • Meu Desempenho (metas + ranking) • Ranking & Copa
-GESTÃO     • Painel do Gestor (NOVO) • Distribuição • Corretores & Equipes • Templates & Materiais • Qualidade de dados
+INÍCIO     • Dashboard • Meu Dia
+TRABALHAR  • Leads (▸ Kanban · Modo Blitz · Leads Landing) • Tarefas • Agenda & Visitas
+NEGÓCIOS   • Empreendimentos • Match IA • Oferta Ativa • Comissões • Links Úteis • Carteira (em breve) • Scripts (em breve)
+DESEMPENHO • Metas • Ranking & Copa (▸ Copa SMQ · Conquistas)
+GESTÃO     • Painel do Gestor • Distribuição • Corretores & Equipes (▸ Equipes · Leads por Corretor) • Templates • Qualidade de dados (▸ Duplicatas · Lixeira) • Integrações/Config (em breve)
 ```
+
+> Pendente (maior risco, fica para depois): **fundir** as páginas Dashboard + Meu Dia numa única "Hoje" e transformar as visões de lead em *toggles internos* da página de Leads. Por ora elas são subitens recolhíveis — mesma redução de poluição, sem mexer nas rotas.
 
 ---
 
@@ -182,7 +184,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **3** | Módulo de Documentação (checklist/status/cobrança/upload) | destrava crédito/pasta | alto | média-alta | ✅ (upload via Storage — aplicar a migration) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | ✅ v1 — saúde por corretor (métricas + parados), qualidade do CRM (sem corretor/e-mail/renda), leads parados por corretor |
 | **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | ✅ pré-qualificação **APROVE 2026** (teto + regra 80/20) no simulador e no Match · **objeções em chips** por lead (`leads.objecoes` — aplicar migration) · **sugestão de mensagem por IA** no WhatsApp (usa histórico + biblioteca de objeções). Resta o redesenho 3-colunas e a faixa "Próxima melhor ação". |
-| **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | 🚧 **munição comercial** do empreendimento (renda mínima · perfil ideal · diferenciais · argumentos) na aba Comercial + `status_preco`/`zona_smq` na ficha; faltam relatórios de atividade e consolidação do menu |
+| **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | 🚧 **munição comercial** do empreendimento (aba Comercial) · **menu consolidado** por intenção com subgrupos recolhíveis (sidebar); falta relatórios de atividade |
 | **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | a fazer |
 
 ---
