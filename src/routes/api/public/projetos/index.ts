@@ -1,5 +1,5 @@
 // GET /api/public/projetos
-// Auth: X-API-Key. Filtros: construtora, status (ativo true/false), status_preco, limit, offset.
+// Auth: X-API-Key. Filtros: construtora, zona, bairro, dorms, status_preco, ativo, limit, offset.
 import { createFileRoute } from "@tanstack/react-router";
 import { checkReadApiKey, jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 
@@ -13,14 +13,14 @@ export const Route = createFileRoute("/api/public/projetos/")({
 
         const url = new URL(request.url);
         const q = url.searchParams;
-        const limit = Math.min(Number(q.get("limit")) || 50, 200);
+        const limit = Math.min(Number(q.get("limit")) || 100, 500);
         const offset = Math.max(Number(q.get("offset")) || 0, 0);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         let query = supabaseAdmin
           .from("projetos")
           .select(
-            "id, nome, construtora, bairro, zona_smq, dorms_min, dorms_max, metragem_min, metragem_max, preco_a_partir, ativo, status_preco, updated_at",
+            "id, nome, construtora, bairro, zona_smq, dorms_min, dorms_max, metragem_min, metragem_max, preco_a_partir, ativo, status_preco, fonte, updated_at",
             { count: "exact" },
           )
           .is("deleted_at", null);
@@ -28,6 +28,23 @@ export const Route = createFileRoute("/api/public/projetos/")({
         const construtora = q.get("construtora");
         if (construtora) query = query.ilike("construtora", `%${construtora}%`);
 
+        const zona = q.get("zona");
+        if (zona) query = query.ilike("zona_smq", `%${zona}%`);
+
+        const bairro = q.get("bairro");
+        if (bairro) query = query.ilike("bairro", `%${bairro}%`);
+
+        const dorms = q.get("dorms");
+        if (dorms) {
+          const n = Number(dorms);
+          if (Number.isFinite(n)) query = query.lte("dorms_min", n).gte("dorms_max", n);
+        }
+
+        const ativo = q.get("ativo");
+        if (ativo === "true") query = query.eq("ativo", true);
+        else if (ativo === "false") query = query.eq("ativo", false);
+
+        // status (legacy alias) ainda aceito
         const status = q.get("status");
         if (status === "ativo" || status === "true") query = query.eq("ativo", true);
         else if (status === "inativo" || status === "false") query = query.eq("ativo", false);
@@ -56,7 +73,9 @@ export const Route = createFileRoute("/api/public/projetos/")({
                 : `${p.metragem_min}-${p.metragem_max}`
               : p.metragem_min ?? null;
           return {
+            projeto_id: p.id,
             id: p.id,
+            empreendimento: p.nome,
             nome: p.nome,
             construtora: p.construtora,
             bairro: p.bairro,
@@ -64,8 +83,9 @@ export const Route = createFileRoute("/api/public/projetos/")({
             dorms,
             metragem,
             preco: p.preco_a_partir,
-            status: p.ativo ? "ativo" : "inativo",
-            status_preco: p.status_preco,
+            status_preco: p.status_preco ?? "a_confirmar",
+            fonte: p.fonte,
+            ativo: p.ativo,
             atualizado_em: p.updated_at,
           };
         });

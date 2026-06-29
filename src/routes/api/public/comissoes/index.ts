@@ -1,5 +1,5 @@
 // GET /api/public/comissoes
-// Auth: X-API-Key. Filtros: corretor_id, status, mes (YYYY-MM), limit, offset.
+// Auth: X-API-Key. Filtros: corretor_id, status, venda_id, desde, ate, mes (YYYY-MM), limit, offset.
 import { createFileRoute } from "@tanstack/react-router";
 import { checkReadApiKey, jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/public/comissoes/")({
 
         const url = new URL(request.url);
         const q = url.searchParams;
-        const limit = Math.min(Number(q.get("limit")) || 50, 200);
+        const limit = Math.min(Number(q.get("limit")) || 100, 500);
         const offset = Math.max(Number(q.get("offset")) || 0, 0);
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -31,6 +31,14 @@ export const Route = createFileRoute("/api/public/comissoes/")({
 
         const status = q.get("status");
         if (status) query = query.eq("status", status);
+
+        const vendaId = q.get("venda_id");
+        if (vendaId) query = query.eq("venda_id", vendaId);
+
+        const desde = q.get("desde");
+        if (desde) query = query.gte("data_pagamento", desde);
+        const ate = q.get("ate");
+        if (ate) query = query.lte("data_pagamento", ate);
 
         const mes = q.get("mes");
         if (mes) {
@@ -49,14 +57,17 @@ export const Route = createFileRoute("/api/public/comissoes/")({
         if (error) return jsonResponse({ error: error.message }, 500);
 
         const mapped = (data ?? []).map((c) => ({
+          comissao_id: c.id,
           id: c.id,
           venda_id: c.venda_id,
           corretor_id: c.beneficiario_id,
           percentual: c.percentual,
+          valor_bruto: c.valor_comissao,
           valor: c.valor_comissao,
+          deducoes: c.percentual_desconto,
           valor_liquido: c.valor_liquido,
           status: c.status,
-          deducoes: c.percentual_desconto,
+          data: c.data_pagamento,
           data_pagamento: c.data_pagamento,
         }));
 
