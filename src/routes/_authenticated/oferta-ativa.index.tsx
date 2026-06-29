@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/oferta-ativa/")({
   component: OfertaAtivaPage,
 });
 
-function OfertaAtivaPage() {
+export function OfertaAtivaPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { isAdmin, isGestor } = useUserRoles();

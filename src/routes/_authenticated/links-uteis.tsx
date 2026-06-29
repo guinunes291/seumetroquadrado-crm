@@ -68,7 +68,7 @@ function formatDataHora(d: string) {
   });
 }
 
-function LinksUteisPage() {
+export function LinksUteisPage() {
   const { isAdmin, isGestor, loading: rolesLoading } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const qc = useQueryClient();
