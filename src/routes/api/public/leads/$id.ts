@@ -8,55 +8,45 @@ import {
   jsonResponse,
   corsPreflight,
   PUBLIC_LEAD_SELECT,
+  shapeLeadForPublic,
 } from "@/lib/public-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Mapeamento campo público → coluna real no banco.
-// (mantém compatibilidade aceitando os dois nomes)
+// Aliases públicos → coluna real do CRM.
 const FIELD_MAP: Record<string, string> = {
-  // aliases canônicos → coluna existente
-  renda: "renda_informada",
-  renda_estimada: "renda_informada",
-  valor_fgts: "entrada_disponivel",
-  fgts_valor: "entrada_disponivel",
-  tem_fgts: "usa_fgts",
+  renda: "renda_estimada",
+  valor_fgts: "fgts_valor",
   empreendimento_interesse: "projeto_nome",
-  resumo: "observacoes",
+  resumo: "resumo_qualificacao",
   estagio: "status",
   estagio_funil: "status",
   proxima_acao_em: "proximo_followup",
 };
 
-// Campos enviados ao Banco Operacional externo (nomes do schema externo).
-// Origem (alias ou coluna real do CRM) → coluna externa
+// Campos enviados ao Banco Operacional externo (chaves do esquema externo).
+// Origem (alias ou coluna real do CRM) → coluna externa.
+// NÃO inclui 'estado' (gerido por outro sistema).
 const EXTERNAL_FIELD_MAP: Record<string, string> = {
+  nome: "nome",
+  origem: "origem",
   renda: "renda_estimada",
   renda_estimada: "renda_estimada",
-  renda_informada: "renda_estimada",
   tem_fgts: "tem_fgts",
-  usa_fgts: "tem_fgts",
   fgts_valor: "fgts_valor",
   valor_fgts: "fgts_valor",
-  entrada_disponivel: "fgts_valor",
   tipo_renda: "tipo_renda",
   decisor: "decisor",
   faixa_mcmv: "faixa_mcmv",
   temperatura: "temperatura",
-  estagio_funil: "estagio_funil",
-  estagio: "estagio_funil",
-  status: "estagio_funil",
-  estado: "estado",
-  proxima_acao: "proxima_acao",
-  resumo: "resumo",
-  observacoes: "resumo",
-  consentimento_lgpd: "consentimento_lgpd",
-  opt_out: "opt_out",
+  resumo: "resumo_qualificacao",
+  resumo_qualificacao: "resumo_qualificacao",
 };
 
+type Kind = "text" | "boolean" | "uuid" | "timestamp" | "enum" | "numeric" | "date" | "json";
 
-// Campos permitidos para PATCH (coluna real do banco)
-const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enum" | "numeric" | "date" | "json"> = {
+// Campos permitidos para PATCH no CRM (coluna real).
+const PATCHABLE: Record<string, Kind> = {
   nome: "text",
   telefone: "text",
   email: "text",
@@ -65,9 +55,12 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   projeto_nome: "text",
   projeto_id: "uuid",
   faixa_mcmv: "text",
-  renda_informada: "numeric",
+  renda_informada: "text",
+  renda_estimada: "numeric",
   usa_fgts: "boolean",
+  tem_fgts: "boolean",
   entrada_disponivel: "numeric",
+  fgts_valor: "numeric",
   tipo_renda: "text",
   decisor: "text",
   temperatura: "enum",
@@ -76,6 +69,7 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   etapa: "text",
   motivo_handoff: "text",
   observacoes: "text",
+  resumo_qualificacao: "text",
   corretor_id: "uuid",
   proxima_acao: "text",
   proximo_followup: "timestamp",
@@ -85,7 +79,6 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   utm_medium: "text",
   utm_campaign: "text",
   utm_content: "text",
-  // Handoff v2
   desfecho: "text",
   fase: "text",
   visita_data: "date",
@@ -95,10 +88,55 @@ const PATCHABLE: Record<string, "text" | "boolean" | "uuid" | "timestamp" | "enu
   docs_pendentes: "json",
 };
 
-function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { ok: false; err: string } {
+// Enums conhecidos do banco — quando o valor não bater, ignoramos esse campo
+// em vez de retornar 500/422.
+const ENUM_VALUES: Record<string, string[]> = {
+  temperatura: ["frio", "morno", "quente"],
+  status: [
+    "novo",
+    "aguardando_atendimento",
+    "em_atendimento",
+    "aguardando_retorno",
+    "qualificado",
+    "agendado",
+    "visita_realizada",
+    "analise_credito",
+    "contrato_fechado",
+    "pos_venda",
+    "perdido",
+  ],
+  estado: ["novo", "com_corretor"],
+  origem: [
+    "facebook",
+    "google_sheets",
+    "site",
+    "indicacao",
+    "captacao_corretor",
+    "whatsapp",
+    "telefone",
+    "plantao",
+    "agendamento_self_service",
+    "chatbot",
+    "outro",
+  ],
+};
+
+function normTempLower(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  const u = v.trim().toUpperCase();
+  if (u === "QUENTE" || u === "PRONTO") return "quente";
+  if (u === "MORNO") return "morno";
+  if (u === "FRIO") return "frio";
+  return v;
+}
+
+function coerce(value: unknown, kind: Kind): { ok: true; value: unknown } | { ok: false; err: string } {
   if (value === null) return { ok: true, value: null };
   switch (kind) {
     case "text":
+      if (typeof value === "string") return { ok: true, value };
+      if (typeof value === "number" || typeof value === "boolean") return { ok: true, value: String(value) };
+      return { ok: false, err: "esperado string" };
     case "enum":
       if (typeof value !== "string") return { ok: false, err: "esperado string" };
       return { ok: true, value };
@@ -112,11 +150,12 @@ function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { 
       return { ok: false, err: "esperado number" };
     }
     case "boolean":
-      if (typeof value !== "boolean") return { ok: false, err: "esperado boolean" };
-      return { ok: true, value };
+      if (typeof value === "boolean") return { ok: true, value };
+      if (value === "true" || value === 1) return { ok: true, value: true };
+      if (value === "false" || value === 0) return { ok: true, value: false };
+      return { ok: false, err: "esperado boolean" };
     case "uuid":
-      if (typeof value !== "string" || !UUID_RE.test(value))
-        return { ok: false, err: "uuid inválido" };
+      if (typeof value !== "string" || !UUID_RE.test(value)) return { ok: false, err: "uuid inválido" };
       return { ok: true, value };
     case "timestamp":
       if (typeof value !== "string") return { ok: false, err: "esperado ISO 8601" };
@@ -132,7 +171,11 @@ function coerce(value: unknown, kind: string): { ok: true; value: unknown } | { 
     case "json": {
       if (Array.isArray(value) || (value && typeof value === "object")) return { ok: true, value };
       if (typeof value === "string") {
-        try { return { ok: true, value: JSON.parse(value) }; } catch { /* fallthrough */ }
+        try {
+          return { ok: true, value: JSON.parse(value) };
+        } catch {
+          /* fall */
+        }
       }
       return { ok: false, err: "esperado array/objeto JSON" };
     }
@@ -169,7 +212,10 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         if (leadRes.error) return jsonResponse({ error: leadRes.error.message }, 500);
         if (!leadRes.data) return jsonResponse({ error: "lead não encontrado" }, 404);
 
-        return jsonResponse({ lead: leadRes.data, interacoes: interRes.data ?? [] });
+        return jsonResponse({
+          lead: shapeLeadForPublic(leadRes.data as Record<string, unknown>),
+          interacoes: interRes.data ?? [],
+        });
       },
 
       PATCH: async ({ request, params }) => {
@@ -190,65 +236,75 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         }
 
         const update: Record<string, unknown> = {};
-        const errors: Record<string, string> = {};
         const externalFields: Record<string, unknown> = {};
+        const ignored: string[] = [];
 
-        // Normalização de temperatura aceitando UPPER do banco operacional
-        const normTemp = (v: unknown): unknown => {
-          if (typeof v !== "string") return v;
-          const u = v.trim().toUpperCase();
-          if (u === "QUENTE" || u === "PRONTO") return "quente";
-          if (u === "MORNO") return "morno";
-          if (u === "FRIO") return "frio";
-          return v;
-        };
+        for (const [rawKey, rawVal] of Object.entries(body)) {
+          if (rawKey === "id" || rawKey === "created_at" || rawKey === "updated_at") continue;
 
-        for (const [k, vRaw] of Object.entries(body)) {
-          if (k === "id" || k === "created_at" || k === "updated_at") continue;
-          const v = k === "temperatura" ? normTemp(vRaw) : vRaw;
-          const realKey = FIELD_MAP[k] ?? k;
+          // Normalização específica de temperatura para o CRM (enum lowercase).
+          const valForCrm = rawKey === "temperatura" ? normTempLower(rawVal) : rawVal;
+
+          const realKey = FIELD_MAP[rawKey] ?? rawKey;
           const kind = PATCHABLE[realKey];
-          let coerced: unknown = v;
-          let coerceOk = true;
+
           if (kind) {
-            const r = coerce(v, kind);
-            if (!r.ok) {
-              errors[k] = r.err;
-              coerceOk = false;
+            const r = coerce(valForCrm, kind);
+            if (r.ok) {
+              // Para enums, valida o valor — se inválido, IGNORA em vez de erro.
+              if (kind === "enum" && typeof r.value === "string") {
+                const allowed = ENUM_VALUES[realKey];
+                if (allowed && !allowed.includes(r.value)) {
+                  ignored.push(`${rawKey}:enum_invalido`);
+                } else {
+                  update[realKey] = r.value;
+                }
+              } else {
+                update[realKey] = r.value;
+              }
             } else {
-              coerced = r.value;
-              update[realKey] = r.value;
+              ignored.push(`${rawKey}:${r.err}`);
             }
+          } else {
+            ignored.push(`${rawKey}:desconhecido`);
           }
-          // Espelha no payload externo (mesmo que o CRM não tenha a coluna)
-          const extKey = EXTERNAL_FIELD_MAP[k];
-          if (extKey && coerceOk) {
-            if (extKey === "temperatura" && typeof vRaw === "string") {
-              externalFields[extKey] = vRaw.trim().toUpperCase();
-            } else {
-              externalFields[extKey] = coerced;
+
+          // Espelha para o payload externo (independente da validação do CRM).
+          const extKey = EXTERNAL_FIELD_MAP[rawKey];
+          if (extKey) {
+            if (extKey === "temperatura" && typeof rawVal === "string") {
+              externalFields[extKey] = rawVal.trim().toUpperCase();
+            } else if (extKey === "renda_estimada" || extKey === "fgts_valor") {
+              // coerção numérica para o externo
+              const r = coerce(rawVal, "numeric");
+              if (r.ok) externalFields[extKey] = r.value;
+            } else if (extKey === "tem_fgts") {
+              const r = coerce(rawVal, "boolean");
+              if (r.ok) externalFields[extKey] = r.value;
+            } else if (rawVal !== undefined) {
+              externalFields[extKey] = rawVal;
             }
           }
         }
 
-        if (Object.keys(errors).length > 0) {
-          return jsonResponse({ error: "validação", details: errors }, 422);
-        }
         if (Object.keys(update).length === 0 && Object.keys(externalFields).length === 0) {
-          return jsonResponse({ error: "nenhum campo válido para atualizar" }, 400);
+          return jsonResponse(
+            { error: "nenhum campo válido para atualizar", ignored },
+            400,
+          );
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const { data: existing, error: chkErr } = await supabaseAdmin
           .from("leads")
-          .select("id, telefone")
+          .select("id, telefone, nome")
           .eq("id", id)
           .maybeSingle();
         if (chkErr) return jsonResponse({ error: chkErr.message }, 500);
         if (!existing) return jsonResponse({ error: "lead não encontrado" }, 404);
 
-        let updated: unknown = null;
+        let updated: Record<string, unknown> | null = null;
         if (Object.keys(update).length > 0) {
           update.updated_at = new Date().toISOString();
           const { data, error } = await supabaseAdmin
@@ -257,12 +313,29 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             .eq("id", id)
             .select(PUBLIC_LEAD_SELECT)
             .single();
-          if (error) return jsonResponse({ error: error.message }, 500);
-          updated = data;
+          if (error) {
+            // Nunca 500 por enum/coluna restrita — devolve 422 limpo.
+            const msg = error.message || "";
+            const status = /invalid input value for enum|violates check/i.test(msg) ? 422 : 500;
+            return jsonResponse({ error: msg, ignored }, status);
+          }
+          updated = data as Record<string, unknown>;
+        } else {
+          // Garante leitura atualizada
+          const { data } = await supabaseAdmin
+            .from("leads")
+            .select(PUBLIC_LEAD_SELECT)
+            .eq("id", id)
+            .single();
+          updated = (data ?? null) as Record<string, unknown> | null;
         }
 
-        // Replica no Banco Operacional externo (não bloqueia resposta em caso de falha)
-        let externalSync: { ok: boolean; error?: string } = { ok: true };
+        // Replica no Banco Operacional externo (best-effort).
+        let externalSync: { ok: boolean; target: string; matched_by: string; error?: string } = {
+          ok: true,
+          target: "lwebydmveyqyzfgmbqfk",
+          matched_by: "telefone_e164",
+        };
         if (Object.keys(externalFields).length > 0) {
           try {
             const { replicateLeadFieldsToExternal } = await import(
@@ -271,16 +344,26 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             externalSync = await replicateLeadFieldsToExternal({
               crmLeadId: id,
               telefone: existing.telefone,
+              nome: existing.nome,
               fields: externalFields,
             });
           } catch (e) {
-            externalSync = { ok: false, error: e instanceof Error ? e.message : String(e) };
+            externalSync = {
+              ok: false,
+              target: "lwebydmveyqyzfgmbqfk",
+              matched_by: "telefone_e164",
+              error: e instanceof Error ? e.message : String(e),
+            };
           }
         }
 
-        return jsonResponse({ ok: true, lead: updated, external_sync: externalSync });
+        return jsonResponse({
+          ok: true,
+          lead: shapeLeadForPublic(updated),
+          ignored,
+          external_sync: externalSync,
+        });
       },
-
     },
   },
 });
