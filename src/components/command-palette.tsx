@@ -93,12 +93,12 @@ export function CommandPalette() {
   };
 
   const navItems = [
-    { label: "Meu Dia", icon: Gauge, go: () => navigate({ to: "/meu-painel" }) },
+    { label: "Hoje", icon: Gauge, go: () => navigate({ to: "/hoje" }) },
     { label: "Leads", icon: Users, go: () => navigate({ to: "/leads" }) },
     { label: "Kanban", icon: Trello, go: () => navigate({ to: "/kanban" }) },
     { label: "Agendamentos", icon: CalendarClock, go: () => navigate({ to: "/agendamentos" }) },
     { label: "Tarefas", icon: ListTodo, go: () => navigate({ to: "/tarefas" }) },
-    { label: "Dashboard", icon: LayoutDashboard, go: () => navigate({ to: "/dashboard" }) },
+    { label: "Relatórios", icon: LayoutDashboard, go: () => navigate({ to: "/relatorios" }) },
     { label: "Empreendimentos", icon: Building2, go: () => navigate({ to: "/projetos" }) },
   ];
 
