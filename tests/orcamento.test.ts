@@ -75,6 +75,47 @@ describe("orçamento APROVE 2026 — aderência do imóvel", () => {
   });
 });
 
+describe("orçamento APROVE 2026 — financiamento é TETO, não aporte fixo", () => {
+  // Regressão: renda 11000 (F4/HMP, finSem 372.322,53), entrada 1.512, imóvel 350k.
+  // O banco financia no máximo 80% de 350k = 280k (não os 372k da renda). Os 20%
+  // restantes (70k) saem da entrada (1.512) + construtora -> ~19,6%, NÃO 0%.
+  const orc = calcularOrcamento({
+    renda: 11000,
+    tem36MesesRegistro: false,
+    temDependente: false,
+    entrada: 1512,
+  });
+
+  it("limita o financiamento a 80% do imóvel mais barato", () => {
+    const a = avaliarAderencia(350000, orc);
+    expect(a.cabe).toBe(true);
+    expect(a.valorParcelarConstrutora).toBe(68488); // 350000 - 280000 - 1512
+    expect(a.percentualConstrutora).toBe(19.6);
+    expect(a.valorParcelarConstrutora).toBeGreaterThan(0); // o bug dava 0
+  });
+
+  it("construtora só zera quando os recursos próprios cobrem os 20%", () => {
+    const comEntradaAlta = calcularOrcamento({
+      renda: 11000,
+      tem36MesesRegistro: false,
+      temDependente: false,
+      entrada: 80000, // cobre os 70k que faltam acima dos 80% financiados
+    });
+    const a = avaliarAderencia(350000, comEntradaAlta);
+    expect(a.valorParcelarConstrutora).toBe(0);
+    expect(a.percentualConstrutora).toBe(0);
+    expect(a.cabe).toBe(true);
+  });
+
+  it("imóvel acima do teto estoura o parcelamento da construtora (>20%)", () => {
+    const a = avaliarAderencia(500000, orc); // dentro da avaliação (600k), mas caro
+    expect(a.dentroDaAvaliacao).toBe(true);
+    expect(a.estouraParcelamento).toBe(true);
+    expect(a.percentualConstrutora).toBeGreaterThan(20);
+    expect(a.cabe).toBe(false);
+  });
+});
+
 describe("brl", () => {
   it("formata em reais", () => {
     expect(brl(214323)).toContain("214.323");

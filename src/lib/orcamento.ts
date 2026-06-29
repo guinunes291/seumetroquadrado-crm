@@ -173,8 +173,22 @@ export function avaliarAderencia(
 ): AderenciaImovel {
   const dentroDaAvaliacao = precoImovel <= orc.tetoAvaliacaoSegmento;
 
-  // Quanto o cliente teria que parcelar com a construtora = preço - recursos.
-  const valorParcelarConstrutora = Math.max(0, precoImovel - orc.recursosNaoConstrutora);
+  // O banco financia o MENOR entre o máximo da renda (tabela) e 80% do imóvel —
+  // nunca mais que 80% do valor do próprio imóvel. Por isso o financiamento
+  // máximo NÃO entra inteiro num imóvel mais barato (ele é um teto, não um aporte
+  // fixo). Esse é o ajuste que evita "construtora 0%" indevido.
+  const fatorFinanciamento = 1 - TETO_PARCELAMENTO_CONSTRUTORA; // 0,80
+  const financiamentoAplicado = Math.min(orc.financiamento, fatorFinanciamento * precoImovel);
+
+  // Recursos próprios do cliente (fora o financiamento): subsídio + FGTS + entrada.
+  const recursosProprios = orc.subsidio + orc.fgts + orc.entrada;
+
+  // O que ainda falta para fechar o imóvel = preço - financiamento aplicado -
+  // recursos próprios. Isso é o que o cliente parcela com a construtora.
+  const valorParcelarConstrutora = Math.max(
+    0,
+    precoImovel - financiamentoAplicado - recursosProprios,
+  );
   const percentualConstrutora = precoImovel > 0
     ? valorParcelarConstrutora / precoImovel
     : 0;
