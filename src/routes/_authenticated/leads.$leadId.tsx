@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { SlaBadge } from "@/components/sla-badge";
@@ -41,6 +42,8 @@ import {
   MessageCircle,
   Pencil,
   Check,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -77,6 +80,9 @@ import { DocumentacaoTab } from "@/components/documentacao-tab";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
 import { EmpreendimentoRecomendado } from "@/components/empreendimento-recomendado";
+import { LeadObjecoes } from "@/components/lead-objecoes";
+import { sugerirMensagemLeadIA } from "@/lib/lead-mensagem-ia.functions";
+import { OBJETIVOS_MENSAGEM, type ObjetivoMensagem } from "@/lib/lead-mensagem";
 import {
   TAREFA_TIPOS,
   TAREFA_PRIORIDADES,
@@ -121,6 +127,8 @@ type Lead = {
   tipo_renda: string | null;
   decisor: string | null;
   faixa_mcmv: string | null;
+  // Opcional: a coluna `objecoes` chega depois da migration 20260629120000.
+  objecoes?: string[] | null;
 };
 
 type Interacao = {
@@ -227,6 +235,8 @@ function LeadDetailPage() {
   const [waOpen, setWaOpen] = useState(false);
   const [waTemplateId, setWaTemplateId] = useState<string>("");
   const [waMensagem, setWaMensagem] = useState("");
+  const [waObjetivo, setWaObjetivo] = useState<ObjetivoMensagem>("primeiro_contato");
+  const [waObjecao, setWaObjecao] = useState<string>("");
   const [notaRapida, setNotaRapida] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [contatoOpen, setContatoOpen] = useState(false);
@@ -433,6 +443,19 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const sugerirMsg = useServerFn(sugerirMensagemLeadIA);
+  const sugerirMensagem = useMutation({
+    mutationFn: () =>
+      sugerirMsg({
+        data: { leadId, objetivo: waObjetivo, objecao: waObjecao.trim() || undefined },
+      }),
+    onSuccess: (r) => {
+      setWaMensagem(r.mensagem);
+      toast.success("Rascunho gerado — revise antes de enviar");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const mudarStatus = useLeadStatusMutation({
     invalidateKeys: [
       ["lead", leadId],
@@ -547,6 +570,66 @@ function LeadDetailPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-2.5 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-medium">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Sugerir com IA
+                    </div>
+                    <Select
+                      value={waObjetivo}
+                      onValueChange={(v) => setWaObjetivo(v as ObjetivoMensagem)}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OBJETIVOS_MENSAGEM.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(lead.objecoes ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        <span className="text-[11px] text-muted-foreground self-center">
+                          Objeção:
+                        </span>
+                        {(lead.objecoes ?? []).map((o) => (
+                          <button
+                            key={o}
+                            type="button"
+                            onClick={() => setWaObjecao(waObjecao === o ? "" : o)}
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 text-[11px]",
+                              waObjecao === o
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-accent",
+                            )}
+                          >
+                            {o}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-full"
+                      onClick={() => sugerirMensagem.mutate()}
+                      disabled={sugerirMensagem.isPending}
+                    >
+                      {sugerirMensagem.isPending ? (
+                        <>
+                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Gerando…
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-1 h-3.5 w-3.5" /> Gerar rascunho
+                        </>
+                      )}
+                    </Button>
                   </div>
                   <div>
                     <Label>Mensagem</Label>
@@ -890,6 +973,10 @@ function LeadDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          <div className="mt-4">
+            <LeadObjecoes leadId={lead.id} objecoes={lead.objecoes ?? null} />
+          </div>
 
           <div className="mt-4">
             <SimuladorFinanciamento
