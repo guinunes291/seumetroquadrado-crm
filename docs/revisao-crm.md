@@ -185,7 +185,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | ✅ v1 — saúde por corretor (métricas + parados), qualidade do CRM (sem corretor/e-mail/renda), leads parados por corretor |
 | **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | ✅ pré-qualificação **APROVE 2026** (teto + regra 80/20) no simulador e no Match · **objeções em chips** por lead (`leads.objecoes` — aplicar migration) · **sugestão de mensagem por IA** no WhatsApp (usa histórico + biblioteca de objeções). Resta o redesenho 3-colunas e a faixa "Próxima melhor ação". |
 | **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | ✅ **munição comercial** (aba Comercial) · **menu consolidado** (sidebar) · **relatório de atividade** + **tempo médio de 1ª resposta** por corretor no Painel do Gestor · **fusão Dashboard + Meu Dia** em `/hoje` (home) e `/relatorios` (analytics), com redirects das rotas antigas. |
-| **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | a fazer |
+| **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | 🚧 **Radar de fechamento** (`/radar`, `lib/fechamento.ts`) entregue · **desenho** do schema/n8n da mensageria em `docs/fase7-mensageria.md`; falta escolher o provedor de WhatsApp + Central de mensagens |
 
 ---
 
