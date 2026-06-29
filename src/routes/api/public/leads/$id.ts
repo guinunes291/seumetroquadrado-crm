@@ -213,7 +213,7 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         if (!leadRes.data) return jsonResponse({ error: "lead não encontrado" }, 404);
 
         return jsonResponse({
-          lead: shapeLeadForPublic(leadRes.data as Record<string, unknown>),
+          lead: shapeLeadForPublic(leadRes.data as unknown as Record<string, unknown>),
           interacoes: interRes.data ?? [],
         });
       },
@@ -319,7 +319,7 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             const status = /invalid input value for enum|violates check/i.test(msg) ? 422 : 500;
             return jsonResponse({ error: msg, ignored }, status);
           }
-          updated = data as Record<string, unknown>;
+          updated = data as unknown as Record<string, unknown>;
         } else {
           // Garante leitura atualizada
           const { data } = await supabaseAdmin
