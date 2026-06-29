@@ -105,7 +105,7 @@ function btnStyle(bg: string, small = false): React.CSSProperties {
   };
 }
 
-function CopaPage() {
+export function CopaPage() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;

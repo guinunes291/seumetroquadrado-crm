@@ -10,10 +10,8 @@ import {
   CalendarClock,
   ListTodo,
   Zap,
-  Target,
   Trophy,
   Gauge,
-  Swords,
   Building2,
   Megaphone,
   Wallet,
@@ -88,14 +86,10 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
+    // Metas, Copa e Conquistas agora são abas internas do hub /ranking.
     to: "/ranking",
     label: "Desempenho",
     icon: Trophy,
-    children: [
-      { to: "/metas", label: "Metas", icon: Target },
-      { to: "/copa", label: "Copa SMQ", icon: Swords },
-      { to: "/conquistas", label: "Conquistas", icon: Trophy },
-    ],
   },
   {
     // As sub-áreas (Distribuição, Pessoas, Comunicação, Qualidade…) agora são abas

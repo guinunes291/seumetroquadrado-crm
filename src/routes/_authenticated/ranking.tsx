@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,11 +35,62 @@ import {
   ArrowDown,
   Flag,
 } from "lucide-react";
+import { useUserRoles } from "@/hooks/use-auth";
+import { CopaPage } from "@/routes/_authenticated/copa";
+import { ConquistasPage } from "@/routes/_authenticated/conquistas";
+import { MetasPage } from "@/routes/_authenticated/metas";
+
+type DesempenhoTab = "ranking" | "competicao" | "conquistas" | "metas";
+const DESEMPENHO_TABS: DesempenhoTab[] = ["ranking", "competicao", "conquistas", "metas"];
 
 export const Route = createFileRoute("/_authenticated/ranking")({
-  head: () => ({ meta: [{ title: "Performance ao Vivo — Seu Metro Quadrado" }] }),
-  component: PerformanceTVPage,
+  // `tab` permite abrir/linkar direto uma aba do hub de Desempenho.
+  validateSearch: (search: Record<string, unknown>): { tab?: DesempenhoTab } => ({
+    tab: DESEMPENHO_TABS.includes(search.tab as DesempenhoTab)
+      ? (search.tab as DesempenhoTab)
+      : undefined,
+  }),
+  head: () => ({ meta: [{ title: "Desempenho — Seu Metro Quadrado" }] }),
+  component: DesempenhoPage,
 });
+
+// Hub de Desempenho: consolida ranking ao vivo, competição (Copa), conquistas e
+// metas em abas internas (Fase 2). Cada aba reaproveita a página existente; as
+// rotas antigas (/copa, /conquistas, /metas) seguem válidas para deep-link.
+function DesempenhoPage() {
+  const { isAdmin, isGestor } = useUserRoles();
+  const podeMetas = isAdmin || isGestor;
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeTab: DesempenhoTab = tab ?? "ranking";
+  const onTabChange = (v: string) =>
+    navigate({ search: { tab: v === "ranking" ? undefined : (v as DesempenhoTab) } });
+
+  return (
+    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+      <TabsList className="h-auto flex-wrap justify-start">
+        <TabsTrigger value="ranking">Ranking</TabsTrigger>
+        <TabsTrigger value="competicao">Competição</TabsTrigger>
+        <TabsTrigger value="conquistas">Conquistas</TabsTrigger>
+        {podeMetas && <TabsTrigger value="metas">Metas</TabsTrigger>}
+      </TabsList>
+      <TabsContent value="ranking">
+        <RankingPanel />
+      </TabsContent>
+      <TabsContent value="competicao">
+        <CopaPage />
+      </TabsContent>
+      <TabsContent value="conquistas">
+        <ConquistasPage />
+      </TabsContent>
+      {podeMetas && (
+        <TabsContent value="metas">
+          <MetasPage />
+        </TabsContent>
+      )}
+    </Tabs>
+  );
+}
 
 // ============================================================================
 // Constantes
@@ -490,7 +541,7 @@ function MetaAtingidaOverlay({ show, onDone }: { show: boolean; onDone: () => vo
 // ============================================================================
 // Página principal
 // ============================================================================
-function PerformanceTVPage() {
+function RankingPanel() {
   const [activeTab, setActiveTab] = useState<TabType>("realxmeta");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
