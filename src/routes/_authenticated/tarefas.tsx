@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_authenticated/tarefas")({
   component: TarefasPage,
 });
 
-function TarefasPage() {
+export function TarefasPage() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const canManageAll = isAdmin || isGestor;
