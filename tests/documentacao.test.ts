@@ -5,10 +5,12 @@ import {
   docResolvido,
   isLinkExterno,
   nomeArquivo,
+  derivarEmpreendimentoPatch,
   DOC_STATUS,
   DOC_STATUS_LABEL,
   PERFIL_RENDA,
   PERFIL_LABEL,
+  type ProjetoMin,
 } from "@/lib/documentacao";
 
 describe("documentação — checklist por perfil", () => {
@@ -95,5 +97,93 @@ describe("documentação — anexos (link externo x arquivo do Storage)", () => 
   it("nomeArquivo extrai o último segmento do caminho", () => {
     expect(nomeArquivo("lead-123/doc-456/comprovante_renda.pdf")).toBe("comprovante_renda.pdf");
     expect(nomeArquivo("arquivo.png")).toBe("arquivo.png");
+  });
+});
+
+describe("documentação — empreendimento de destino (derivarEmpreendimentoPatch)", () => {
+  const projetos: ProjetoMin[] = [
+    { id: "p1", nome: "Residencial Aurora", construtora: "Construtora X" },
+    { id: "p2", nome: "Edifício Sol", construtora: null },
+  ];
+
+  it("vincula o projeto selecionado e usa seu nome", () => {
+    const patch = derivarEmpreendimentoPatch({
+      manual: false,
+      projetoId: "p1",
+      empreendimentoManual: "",
+      construtora: "Construtora X",
+      projetos,
+      leadProjetoNome: null,
+    });
+    expect(patch).toEqual({
+      projeto_id: "p1",
+      projeto_nome: "Residencial Aurora",
+      construtora: "Construtora X",
+    });
+  });
+
+  it("projeto sem construtora grava construtora vazia como null", () => {
+    const patch = derivarEmpreendimentoPatch({
+      manual: false,
+      projetoId: "p2",
+      empreendimentoManual: "",
+      construtora: "   ",
+      projetos,
+      leadProjetoNome: null,
+    });
+    expect(patch).toEqual({ projeto_id: "p2", projeto_nome: "Edifício Sol", construtora: null });
+  });
+
+  it("permite editar a construtora mesmo com projeto vinculado", () => {
+    const patch = derivarEmpreendimentoPatch({
+      manual: false,
+      projetoId: "p1",
+      empreendimentoManual: "",
+      construtora: "Outra Construtora",
+      projetos,
+      leadProjetoNome: null,
+    });
+    expect(patch.construtora).toBe("Outra Construtora");
+  });
+
+  it("modo manual usa o texto digitado e desvincula o projeto", () => {
+    const patch = derivarEmpreendimentoPatch({
+      manual: true,
+      projetoId: "none",
+      empreendimentoManual: "  Torre Nova  ",
+      construtora: "  Incorp Y  ",
+      projetos,
+      leadProjetoNome: null,
+    });
+    expect(patch).toEqual({
+      projeto_id: null,
+      projeto_nome: "Torre Nova",
+      construtora: "Incorp Y",
+    });
+  });
+
+  it("modo manual com empreendimento e construtora vazios lança erro", () => {
+    expect(() =>
+      derivarEmpreendimentoPatch({
+        manual: true,
+        projetoId: "none",
+        empreendimentoManual: "  ",
+        construtora: "",
+        projetos,
+        leadProjetoNome: null,
+      }),
+    ).toThrow();
+  });
+
+  it('"none" desvincula o projeto mas mantém a construtora digitada', () => {
+    const patch = derivarEmpreendimentoPatch({
+      manual: false,
+      projetoId: "none",
+      empreendimentoManual: "",
+      construtora: "Construtora Z",
+      projetos,
+      leadProjetoNome: "Antigo",
+    });
+    expect(patch).toEqual({ projeto_id: null, projeto_nome: null, construtora: "Construtora Z" });
   });
 });

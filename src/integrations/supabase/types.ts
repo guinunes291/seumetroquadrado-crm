@@ -970,6 +970,7 @@ export type Database = {
         Row: {
           campanha: string | null
           consentimento_lgpd: boolean | null
+          construtora: string | null
           copiloto_notificado_em: string | null
           corretor_anterior_id: string | null
           corretor_id: string | null
@@ -1032,6 +1033,7 @@ export type Database = {
         Insert: {
           campanha?: string | null
           consentimento_lgpd?: boolean | null
+          construtora?: string | null
           copiloto_notificado_em?: string | null
           corretor_anterior_id?: string | null
           corretor_id?: string | null
@@ -1094,6 +1096,7 @@ export type Database = {
         Update: {
           campanha?: string | null
           consentimento_lgpd?: boolean | null
+          construtora?: string | null
           copiloto_notificado_em?: string | null
           corretor_anterior_id?: string | null
           corretor_id?: string | null

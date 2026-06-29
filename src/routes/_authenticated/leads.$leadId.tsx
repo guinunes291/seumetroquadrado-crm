@@ -108,6 +108,7 @@ type Lead = {
   corretor_id: string | null;
   projeto_id: string | null;
   projeto_nome: string | null;
+  construtora: string | null;
   observacoes: string | null;
   cpf: string | null;
   renda_informada: string | null;
@@ -1134,6 +1135,9 @@ function LeadDetailPage() {
               telefone: lead.telefone,
               corretor_id: lead.corretor_id,
               status: lead.status,
+              projeto_id: lead.projeto_id,
+              projeto_nome: lead.projeto_nome,
+              construtora: lead.construtora,
             }}
           />
         </TabsContent>
