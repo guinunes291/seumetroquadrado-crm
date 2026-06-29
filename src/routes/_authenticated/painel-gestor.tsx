@@ -10,7 +10,16 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { leadStatusLabel } from "@/lib/leads";
 import { useDashboardPorCorretor, useDashboardLeadsUrgentes } from "@/features/dashboard/queries";
-import { Activity, AlertTriangle, ClipboardCheck, ShieldAlert } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  ClipboardCheck,
+  ShieldAlert,
+  PhoneCall,
+  MessageCircle,
+  MapPin,
+  BarChart3,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
   head: () => ({ meta: [{ title: "Painel do Gestor — Seu Metro Quadrado" }] }),
@@ -68,6 +77,90 @@ function PainelGestorPage() {
       };
     },
   });
+
+  // Nomes dos corretores (autor das interações) para o relatório de atividade.
+  const nomesQ = useQuery({
+    queryKey: ["gestor:nomes-corretores"],
+    enabled: podeVer,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id, nome");
+      if (error) throw error;
+      const m = new Map<string, string>();
+      (data ?? []).forEach((p: { id: string; nome: string }) => m.set(p.id, p.nome));
+      return m;
+    },
+  });
+
+  // Relatório de atividade: interações do período agregadas por autor + tipo.
+  // (Ligações / WhatsApp / Visitas — hoje não medidos no dashboard.)
+  const LIMITE_ATIVIDADE = 10000;
+  const atividadeQ = useQuery({
+    queryKey: ["gestor:atividade", range.di, range.df],
+    enabled: podeVer,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("interacoes")
+        .select("autor_id, tipo")
+        .is("deleted_at", null)
+        .gte("ocorreu_em", `${range.di}T00:00:00`)
+        .lte("ocorreu_em", `${range.df}T23:59:59`)
+        .order("ocorreu_em", { ascending: false })
+        .limit(LIMITE_ATIVIDADE);
+      if (error) throw error;
+      const rows = (data ?? []) as { autor_id: string | null; tipo: string }[];
+      return { rows, truncado: rows.length >= LIMITE_ATIVIDADE };
+    },
+  });
+
+  const atividade = useMemo(() => {
+    const rows = atividadeQ.data?.rows ?? [];
+    const nomes = nomesQ.data;
+    type Lin = {
+      autor: string;
+      nome: string;
+      ligacao: number;
+      whatsapp: number;
+      visita: number;
+      outras: number;
+      total: number;
+    };
+    const m = new Map<string, Lin>();
+    const tot = { ligacao: 0, whatsapp: 0, visita: 0, total: 0 };
+    for (const r of rows) {
+      const autor = r.autor_id ?? "—";
+      let lin = m.get(autor);
+      if (!lin) {
+        lin = {
+          autor,
+          nome: (r.autor_id && nomes?.get(r.autor_id)) || "Sem autor",
+          ligacao: 0,
+          whatsapp: 0,
+          visita: 0,
+          outras: 0,
+          total: 0,
+        };
+        m.set(autor, lin);
+      }
+      if (r.tipo === "ligacao") {
+        lin.ligacao++;
+        tot.ligacao++;
+      } else if (r.tipo === "whatsapp") {
+        lin.whatsapp++;
+        tot.whatsapp++;
+      } else if (r.tipo === "visita") {
+        lin.visita++;
+        tot.visita++;
+      } else {
+        lin.outras++;
+      }
+      lin.total++;
+      tot.total++;
+    }
+    const linhas = Array.from(m.values()).sort((a, b) => b.total - a.total);
+    return { linhas, tot, truncado: atividadeQ.data?.truncado ?? false };
+  }, [atividadeQ.data, nomesQ.data]);
 
   // Leads parados (>30 min sem atendimento) agregados por corretor.
   const paradosPorCorretor = useMemo(() => {
@@ -178,7 +271,65 @@ function PainelGestorPage() {
         </CardContent>
       </Card>
 
-      {/* Bloco 2 — Aderência / qualidade do CRM */}
+      {/* Bloco 2 — Relatório de atividade (ligações / WhatsApp / visitas) */}
+      <div>
+        <div className="grid gap-4 sm:grid-cols-3 mb-3">
+          <AtividadeCard icon={PhoneCall} titulo="Ligações" valor={atividade.tot.ligacao} />
+          <AtividadeCard icon={MessageCircle} titulo="WhatsApp" valor={atividade.tot.whatsapp} />
+          <AtividadeCard icon={MapPin} titulo="Visitas" valor={atividade.tot.visita} />
+        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-1.5">
+              <BarChart3 className="h-4 w-4 text-primary" /> Atividade da equipe no período
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            {atividadeQ.isLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando…</p>
+            ) : atividade.linhas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma interação registrada no período.
+              </p>
+            ) : (
+              <>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground border-b">
+                      <th className="py-2 pr-2">Corretor</th>
+                      <th className="py-2 px-2 text-right">Ligações</th>
+                      <th className="py-2 px-2 text-right">WhatsApp</th>
+                      <th className="py-2 px-2 text-right">Visitas</th>
+                      <th className="py-2 px-2 text-right">Outras</th>
+                      <th className="py-2 pl-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {atividade.linhas.map((l) => (
+                      <tr key={l.autor} className="border-b last:border-0">
+                        <td className="py-2 pr-2 font-medium">{l.nome}</td>
+                        <td className="py-2 px-2 text-right">{l.ligacao}</td>
+                        <td className="py-2 px-2 text-right">{l.whatsapp}</td>
+                        <td className="py-2 px-2 text-right">{l.visita}</td>
+                        <td className="py-2 px-2 text-right text-muted-foreground">{l.outras}</td>
+                        <td className="py-2 pl-2 text-right font-semibold">{l.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {atividade.truncado && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Mostrando as {LIMITE_ATIVIDADE.toLocaleString("pt-BR")} interações mais recentes
+                    do período (limite de exibição) — os totais podem estar subestimados.
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bloco 3 — Aderência / qualidade do CRM */}
       <div>
         <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
           <ClipboardCheck className="h-4 w-4" /> Qualidade do CRM (leads ativos)
@@ -244,6 +395,27 @@ function PainelGestorPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function AtividadeCard({
+  icon: Icon,
+  titulo,
+  valor,
+}: {
+  icon: typeof Activity;
+  titulo: string;
+  valor: number;
+}) {
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Icon className="h-3.5 w-3.5" /> {titulo}
+        </div>
+        <div className="mt-1 text-2xl font-bold">{valor.toLocaleString("pt-BR")}</div>
+      </CardContent>
+    </Card>
   );
 }
 
