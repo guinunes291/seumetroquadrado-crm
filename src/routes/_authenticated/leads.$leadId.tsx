@@ -75,6 +75,7 @@ import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
 import { DocumentacaoTab } from "@/components/documentacao-tab";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
+import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
 import {
   TAREFA_TIPOS,
   TAREFA_PRIORIDADES,
@@ -888,6 +889,13 @@ function LeadDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          <div className="mt-4">
+            <SimuladorFinanciamento
+              entradaInicial={lead.entrada_disponivel}
+              rendaInicial={lead.renda_informada}
+            />
+          </div>
 
           {(lead.desfecho || lead.fase || lead.visita_data || (lead.docs_recebidos?.length ?? 0) > 0 || (lead.docs_pendentes?.length ?? 0) > 0) && (
             <Card className="mt-4">
