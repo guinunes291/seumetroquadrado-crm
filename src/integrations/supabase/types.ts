@@ -989,6 +989,7 @@ export type Database = {
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
+          fgts_valor: number | null
           handoff_em: string | null
           id: string
           legacy_id: number | null
@@ -1004,10 +1005,13 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          renda_estimada: number | null
           renda_informada: string | null
+          resumo_qualificacao: string | null
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          tem_fgts: boolean | null
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
@@ -1046,6 +1050,7 @@ export type Database = {
           etapa?: string | null
           faixa_mcmv?: string | null
           fase?: string | null
+          fgts_valor?: number | null
           handoff_em?: string | null
           id?: string
           legacy_id?: number | null
@@ -1061,10 +1066,13 @@ export type Database = {
           projeto_nome?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
+          renda_estimada?: number | null
           renda_informada?: string | null
+          resumo_qualificacao?: string | null
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          tem_fgts?: boolean | null
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao?: number
           timestamp_recebimento?: string | null
@@ -1103,6 +1111,7 @@ export type Database = {
           etapa?: string | null
           faixa_mcmv?: string | null
           fase?: string | null
+          fgts_valor?: number | null
           handoff_em?: string | null
           id?: string
           legacy_id?: number | null
@@ -1118,10 +1127,13 @@ export type Database = {
           projeto_nome?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
+          renda_estimada?: number | null
           renda_informada?: string | null
+          resumo_qualificacao?: string | null
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone?: string
+          tem_fgts?: boolean | null
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao?: number
           timestamp_recebimento?: string | null
@@ -2489,6 +2501,7 @@ export type Database = {
           etapa: string | null
           faixa_mcmv: string | null
           fase: string | null
+          fgts_valor: number | null
           handoff_em: string | null
           id: string
           legacy_id: number | null
@@ -2504,10 +2517,13 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          renda_estimada: number | null
           renda_informada: string | null
+          resumo_qualificacao: string | null
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          tem_fgts: boolean | null
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
