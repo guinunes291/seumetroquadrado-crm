@@ -689,6 +689,50 @@ export type Database = {
           },
         ]
       }
+      documentacoes: {
+        Row: {
+          corretor_id: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          observacoes: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          corretor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          observacoes?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          corretor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          observacoes?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           ativo: boolean
