@@ -3,6 +3,8 @@ import {
   checklistPorPerfil,
   docLabel,
   docResolvido,
+  isLinkExterno,
+  nomeArquivo,
   DOC_STATUS,
   DOC_STATUS_LABEL,
   PERFIL_RENDA,
@@ -78,5 +80,20 @@ describe("documentação — checklist por perfil", () => {
   it("enums têm rótulo", () => {
     DOC_STATUS.forEach((s) => expect(DOC_STATUS_LABEL[s]).toBeTruthy());
     PERFIL_RENDA.forEach((p) => expect(PERFIL_LABEL[p]).toBeTruthy());
+  });
+});
+
+describe("documentação — anexos (link externo x arquivo do Storage)", () => {
+  it("isLinkExterno reconhece http(s) e rejeita caminhos do Storage", () => {
+    expect(isLinkExterno("https://drive.google.com/abc")).toBe(true);
+    expect(isLinkExterno("http://exemplo.com/x.pdf")).toBe(true);
+    expect(isLinkExterno("lead-123/doc-456/rg.pdf")).toBe(false);
+    expect(isLinkExterno(null)).toBe(false);
+    expect(isLinkExterno("")).toBe(false);
+  });
+
+  it("nomeArquivo extrai o último segmento do caminho", () => {
+    expect(nomeArquivo("lead-123/doc-456/comprovante_renda.pdf")).toBe("comprovante_renda.pdf");
+    expect(nomeArquivo("arquivo.png")).toBe("arquivo.png");
   });
 });
