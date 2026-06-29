@@ -87,7 +87,7 @@ O restante do roadmap (Fases 2–7) está descrito abaixo.
 
 **2.3 Listagem de Leads (`leads.index.tsx`)** — Já forte. Faltam: ordenação por **score**, chip de temperatura clicável e "+ Follow-up" rápido na linha; campo de objeção. Impacto: médio-alto.
 
-**2.4 Página do Lead (`leads.$leadId.tsx`)** — *a mais importante.* Já recebeu Resumo IA, "+Tarefa" e telefone/e-mail editáveis (seção 0). Próximos passos: faixa **"Próxima melhor ação"** (frase + botão), campo de **objeções** (chips), **empreendimento recomendado** embutido (Match), **simulador parcela/renda**, e aba **Documentação**. Meta: entender tudo em <10s. Impacto: muito alto.
+**2.4 Página do Lead (`leads.$leadId.tsx`)** — *a mais importante.* Já recebeu Resumo IA, "+Tarefa" e telefone/e-mail editáveis (seção 0), aba **Documentação**, **empreendimento recomendado** embutido (Match) e **simulador de pré-qualificação APROVE 2026** (teto de imóvel real + "esse imóvel cabe?"). Próximos passos: faixa **"Próxima melhor ação"** (frase + botão), campo de **objeções** (chips) e **sugestão de mensagem** no WhatsApp. Meta: entender tudo em <10s. Impacto: muito alto.
 
 **2.5 Kanban (`kanban.tsx`)** — Adicionar badge "X dias na etapa" + ⚠️ de gargalo; contagem/valor por coluna; filtros por corretor/empreendimento/origem. Impacto: médio.
 
@@ -181,7 +181,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **2** | "Próxima melhor ação" + registro rápido de contato + Score | reduzir cliques (DOR nº 2) | alto | média | ✅ Score de prioridade · guardrail "sem próxima ação" · registrar contato combinado (interação + follow-up num gesto) · Blitz ordenado por score |
 | **3** | Módulo de Documentação (checklist/status/cobrança/upload) | destrava crédito/pasta | alto | média-alta | ✅ (upload via Storage — aplicar a migration) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | ✅ v1 — saúde por corretor (métricas + parados), qualidade do CRM (sem corretor/e-mail/renda), leads parados por corretor |
-| **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | 🚧 simulador de financiamento + empreendimento recomendado (Match IA) na página do lead; falta objeções e sugestão de mensagem |
+| **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | 🚧 pré-qualificação **APROVE 2026** (teto de imóvel real + regra 80/20) no simulador do lead e no Match (`/match` e card do lead), com marcação "cabe no orçamento" por empreendimento; falta objeções e sugestão de mensagem |
 | **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | a fazer |
 | **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | a fazer |
 
