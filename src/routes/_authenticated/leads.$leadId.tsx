@@ -1129,7 +1129,12 @@ function LeadDetailPage() {
         <TabsContent value="documentacao" className="mt-4">
           <DocumentacaoTab
             leadId={leadId}
-            lead={{ nome: lead.nome, telefone: lead.telefone, corretor_id: lead.corretor_id }}
+            lead={{
+              nome: lead.nome,
+              telefone: lead.telefone,
+              corretor_id: lead.corretor_id,
+              status: lead.status,
+            }}
           />
         </TabsContent>
       </Tabs>
