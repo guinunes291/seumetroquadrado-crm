@@ -178,7 +178,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 |---|---|---|---|---|---|
 | **0** | Telefone/e-mail editáveis · "+Tarefa" no lead · Resumo IA no lead | ganhos imediatos sem mudar modelo | médio-alto | baixa | ✅ feito |
 | **1** | Motor anti-perda: tarefa automática por etapa + guardrail | elimina a causa raiz da perda de lead | muito alto | média | ✅ núcleo feito |
-| **2** | "Próxima melhor ação" + registro rápido de contato + Score | reduzir cliques (DOR nº 2) | alto | média | 🚧 parcial — Score de prioridade + guardrail "sem próxima ação" no Meu Dia (com follow-up em 1 clique) |
+| **2** | "Próxima melhor ação" + registro rápido de contato + Score | reduzir cliques (DOR nº 2) | alto | média | ✅ Score de prioridade · guardrail "sem próxima ação" · registrar contato combinado (interação + follow-up num gesto) · Blitz ordenado por score |
 | **3** | Módulo de Documentação (checklist/status/cobrança/upload) | destrava crédito/pasta | alto | média-alta | ✅ (upload via Storage — aplicar a migration) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | a fazer |
 | **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | a fazer |

@@ -40,8 +40,11 @@ import {
   IdCard,
   ExternalLink,
   CalendarClock,
+  PhoneCall,
 } from "lucide-react";
 import { ResumoIA } from "@/components/resumo-ia";
+import { scoreLead } from "@/lib/priority";
+import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 
 export const Route = createFileRoute("/_authenticated/blitz")({
   head: () => ({ meta: [{ title: "Modo Blitz — Seu Metro Quadrado" }] }),
@@ -88,13 +91,13 @@ const TEMP_CLS: Record<string, string> = {
   morno: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
   frio: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
 };
-const SLA_PRIO: Record<string, number> = { estourado: 0, atencao: 1, ok: 2 };
 
 function BlitzPage() {
   const { user } = useAuth();
   const [index, setIndex] = useState(0);
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+  const [contatoOpen, setContatoOpen] = useState(false);
 
   const leadsQ = useQuery({
     queryKey: ["blitz-queue", user?.id],
@@ -140,24 +143,18 @@ function BlitzPage() {
 
   const fila = useMemo(() => {
     const arr = [...(leadsQ.data ?? [])];
-    // Mesma priorização da página de Leads:
-    // 1) Aguardando + Facebook (ADS), 2) Aguardando + projeto registrado,
-    // 3) demais Aguardando, 4) restante. Mais recentes primeiro dentro do grupo;
-    // SLA estourado/atenção desempata acima.
-    const priority = (l: Lead) => {
-      const aguardando = l.status === "aguardando_atendimento";
-      if (aguardando && l.origem === "facebook") return 0;
-      if (aguardando && (l.projeto_id || l.projeto_nome)) return 1;
-      if (aguardando) return 2;
-      return 3;
-    };
+    // Ordena pelo Score de prioridade (temperatura + etapa + SLA + tempo parado).
+    // Mais recentes primeiro desempata. Mesmo critério usado no Meu Dia.
+    const scoreOf = (l: Lead) =>
+      scoreLead({
+        temperatura: l.temperatura,
+        status: l.status,
+        slaStatus: slaMap.get(l.id)?.sla_status,
+        ultimaInteracao: l.ultima_interacao,
+      }).score;
     arr.sort((a, b) => {
-      const pa = priority(a);
-      const pb = priority(b);
-      if (pa !== pb) return pa - pb;
-      const sa = SLA_PRIO[slaMap.get(a.id)?.sla_status ?? ""] ?? 3;
-      const sb = SLA_PRIO[slaMap.get(b.id)?.sla_status ?? ""] ?? 3;
-      if (sa !== sb) return sa - sb;
+      const diff = scoreOf(b) - scoreOf(a);
+      if (diff !== 0) return diff;
       return Date.parse(b.created_at) - Date.parse(a.created_at);
     });
     return arr;
@@ -199,7 +196,7 @@ function BlitzPage() {
   // Atalhos de teclado.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (modalState || perdidoLead) return;
+      if (modalState || perdidoLead || contatoOpen) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "ArrowRight" || e.key === "n") next();
@@ -210,7 +207,7 @@ function BlitzPage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [next, prev, whatsapp, ligar, agendar, modalState, perdidoLead]);
+  }, [next, prev, whatsapp, ligar, agendar, modalState, perdidoLead, contatoOpen]);
 
   const sla = current ? slaMap.get(current.id) : undefined;
 
@@ -348,6 +345,9 @@ function BlitzPage() {
 
             <ResumoIA leadId={current.id} />
 
+            <Button className="w-full" onClick={() => setContatoOpen(true)}>
+              <PhoneCall className="mr-1 h-4 w-4" /> Registrar contato
+            </Button>
             <div className="grid grid-cols-3 gap-2">
               <Button variant="outline" onClick={ligar}>
                 <Phone className="mr-1 h-4 w-4" /> Ligar
@@ -382,6 +382,15 @@ function BlitzPage() {
         perdidoLead={perdidoLead}
         onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
       />
+
+      {current && (
+        <RegistrarContatoDialog
+          open={contatoOpen}
+          onOpenChange={setContatoOpen}
+          lead={{ id: current.id, nome: current.nome, corretor_id: current.corretor_id }}
+          onDone={next}
+        />
+      )}
     </div>
   );
 }
