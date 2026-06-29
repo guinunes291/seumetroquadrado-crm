@@ -133,15 +133,25 @@ export function useDashboardLeadsUrgentes(corretor: string | null, enabled = tru
 }
 
 /** SLA por origem (RPC leads_com_sla): usado no "Meu Dia" para listar leads com
- *  SLA estourado respeitando o tempo configurado por origem (ex.: Facebook 5min). */
-export function useLeadsComSla(corretor: string | null, enabled = true) {
+ *  SLA estourado respeitando o tempo configurado por origem (ex.: Facebook 5min).
+ *  `range` (opcional) limita aos leads cuja entrada (data_distribuicao/created_at)
+ *  cai no período selecionado — server-side. Omitido = todos (comportamento antigo). */
+export function useLeadsComSla(
+  corretor: string | null,
+  range: Range | null = null,
+  enabled = true,
+) {
   return useQuery({
-    queryKey: ["sla:leads", corretor],
+    queryKey: ["sla:leads", corretor, range?.di ?? null, range?.df ?? null],
     enabled,
     staleTime: 30_000,
     refetchInterval: 2 * 60_000,
     queryFn: async () => {
-      const { data, error } = await rpc("leads_com_sla", { _corretor: corretor });
+      const { data, error } = await rpc("leads_com_sla", {
+        _corretor: corretor,
+        _di: range?.di ?? null,
+        _df: range?.df ?? null,
+      });
       if (error) throw error;
       return (data ?? []) as Array<{
         lead_id: string;
