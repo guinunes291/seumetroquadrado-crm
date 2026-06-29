@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_authenticated/metas")({
   component: MetasPage,
 });
 
-function MetasPage() {
+export function MetasPage() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;

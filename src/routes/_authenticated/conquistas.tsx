@@ -24,7 +24,7 @@ type Tipo = {
 };
 type Minha = { tipo_conquista_id: string; conquistado_em: string };
 
-function ConquistasPage() {
+export function ConquistasPage() {
   const { user } = useAuth();
 
   const tiposQ = useQuery({
