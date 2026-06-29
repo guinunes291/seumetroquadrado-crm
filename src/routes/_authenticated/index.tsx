@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/")({
   beforeLoad: () => {
-    throw redirect({ to: "/dashboard" });
+    // "Hoje" é a tela inicial do dia (fila acionável).
+    throw redirect({ to: "/hoje" });
   },
 });

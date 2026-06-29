@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
+import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
@@ -26,6 +27,7 @@ import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authentic
 import { Route as AuthenticatedLeadsPorCorretorRouteImport } from './routes/_authenticated/leads-por-corretor'
 import { Route as AuthenticatedLeadsLandingRouteImport } from './routes/_authenticated/leads-landing'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
+import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
@@ -86,6 +88,11 @@ const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
   path: '/tarefas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRankingRoute = AuthenticatedRankingRouteImport.update({
   id: '/ranking',
   path: '/ranking',
@@ -142,6 +149,11 @@ const AuthenticatedLeadsLandingRoute =
 const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
   id: '/kanban',
   path: '/kanban',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
+  id: '/hoje',
+  path: '/hoje',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEquipesRoute = AuthenticatedEquipesRouteImport.update({
@@ -322,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
+  '/hoje': typeof AuthenticatedHojeRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
@@ -333,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/ranking': typeof AuthenticatedRankingRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
@@ -369,6 +383,7 @@ export interface FileRoutesByTo {
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
+  '/hoje': typeof AuthenticatedHojeRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
@@ -380,6 +395,7 @@ export interface FileRoutesByTo {
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/ranking': typeof AuthenticatedRankingRoute
+  '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/': typeof AuthenticatedIndexRoute
@@ -419,6 +435,7 @@ export interface FileRoutesById {
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
+  '/_authenticated/hoje': typeof AuthenticatedHojeRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
@@ -430,6 +447,7 @@ export interface FileRoutesById {
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
+  '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -470,6 +488,7 @@ export interface FileRouteTypes {
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
+    | '/hoje'
     | '/kanban'
     | '/leads-landing'
     | '/leads-por-corretor'
@@ -481,6 +500,7 @@ export interface FileRouteTypes {
     | '/meu-perfil'
     | '/painel-gestor'
     | '/ranking'
+    | '/relatorios'
     | '/tarefas'
     | '/templates'
     | '/leads/$leadId'
@@ -517,6 +537,7 @@ export interface FileRouteTypes {
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
+    | '/hoje'
     | '/kanban'
     | '/leads-landing'
     | '/leads-por-corretor'
@@ -528,6 +549,7 @@ export interface FileRouteTypes {
     | '/meu-perfil'
     | '/painel-gestor'
     | '/ranking'
+    | '/relatorios'
     | '/tarefas'
     | '/templates'
     | '/'
@@ -566,6 +588,7 @@ export interface FileRouteTypes {
     | '/_authenticated/distribuicao'
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
+    | '/_authenticated/hoje'
     | '/_authenticated/kanban'
     | '/_authenticated/leads-landing'
     | '/_authenticated/leads-por-corretor'
@@ -577,6 +600,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meu-perfil'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/ranking'
+    | '/_authenticated/relatorios'
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
     | '/_authenticated/'
@@ -664,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTarefasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/relatorios': {
+      id: '/_authenticated/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ranking': {
       id: '/_authenticated/ranking'
       path: '/ranking'
@@ -739,6 +770,13 @@ declare module '@tanstack/react-router' {
       path: '/kanban'
       fullPath: '/kanban'
       preLoaderRoute: typeof AuthenticatedKanbanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/hoje': {
+      id: '/_authenticated/hoje'
+      path: '/hoje'
+      fullPath: '/hoje'
+      preLoaderRoute: typeof AuthenticatedHojeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/equipes': {
@@ -965,6 +1003,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
+  AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsLandingRoute: typeof AuthenticatedLeadsLandingRoute
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
@@ -976,6 +1015,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
+  AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -999,6 +1039,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
+  AuthenticatedHojeRoute: AuthenticatedHojeRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsLandingRoute: AuthenticatedLeadsLandingRoute,
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,
@@ -1010,6 +1051,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
+  AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
@@ -1056,3 +1098,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

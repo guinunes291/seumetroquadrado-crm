@@ -58,8 +58,8 @@ const SECTIONS: Section[] = [
   {
     title: "Início",
     items: [
-      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { to: "/meu-painel", label: "Meu Dia", icon: Gauge },
+      { to: "/hoje", label: "Hoje", icon: Gauge },
+      { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard },
     ],
   },
   {

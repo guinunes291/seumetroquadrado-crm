@@ -117,7 +117,7 @@ DESEMPENHO • Metas • Ranking & Copa (▸ Copa SMQ · Conquistas)
 GESTÃO     • Painel do Gestor • Distribuição • Corretores & Equipes (▸ Equipes · Leads por Corretor) • Templates • Qualidade de dados (▸ Duplicatas · Lixeira) • Integrações/Config (em breve)
 ```
 
-> Pendente (maior risco, fica para depois): **fundir** as páginas Dashboard + Meu Dia numa única "Hoje" e transformar as visões de lead em *toggles internos* da página de Leads. Por ora elas são subitens recolhíveis — mesma redução de poluição, sem mexer nas rotas.
+> ✅ **Fusão concluída:** `/meu-painel` virou **`/hoje`** (home — fila acionável) e `/dashboard` virou **`/relatorios`** (analytics). As rotas antigas redirecionam para não quebrar links/atalhos salvos. Pendente apenas (menor): transformar as visões de lead em *toggles internos* da página de Leads (hoje são subitens recolhíveis).
 
 ---
 
@@ -184,7 +184,7 @@ Fundação pronta (Lovable AI Gateway + Match IA + Resumo IA). Expandir com gove
 | **3** | Módulo de Documentação (checklist/status/cobrança/upload) | destrava crédito/pasta | alto | média-alta | ✅ (upload via Storage — aplicar a migration) |
 | **4** | Painel do Gestor (saúde/SLA/aderência/equipe) | accountability da operação | alto | média | ✅ v1 — saúde por corretor (métricas + parados), qualidade do CRM (sem corretor/e-mail/renda), leads parados por corretor |
 | **5** | Página do lead reformulada + IA contextual (objeções, empreendimento, simulador) | conversão | alto | média-alta | ✅ pré-qualificação **APROVE 2026** (teto + regra 80/20) no simulador e no Match · **objeções em chips** por lead (`leads.objecoes` — aplicar migration) · **sugestão de mensagem por IA** no WhatsApp (usa histórico + biblioteca de objeções). Resta o redesenho 3-colunas e a faixa "Próxima melhor ação". |
-| **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | ✅ **munição comercial** (aba Comercial) · **menu consolidado** (sidebar) · **relatório de atividade** + **tempo médio de 1ª resposta** por corretor (RPC `tempo_primeira_resposta`, complementa o SLA ao vivo) no Painel do Gestor. Resta a fusão Dashboard+Meu Dia em "Hoje". |
+| **6** | Empreendimento comercial + relatórios (ligações/WA/tempo de resposta) + consolidar menu | munição + clareza | médio-alto | média | ✅ **munição comercial** (aba Comercial) · **menu consolidado** (sidebar) · **relatório de atividade** + **tempo médio de 1ª resposta** por corretor no Painel do Gestor · **fusão Dashboard + Meu Dia** em `/hoje` (home) e `/relatorios` (analytics), com redirects das rotas antigas. |
 | **7** | WhatsApp API / Central de mensagens (n8n) + radar de fechamento | escala de atendimento | alto | alta | a fazer |
 
 ---
