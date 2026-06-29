@@ -76,6 +76,7 @@ import { ResumoIA } from "@/components/resumo-ia";
 import { DocumentacaoTab } from "@/components/documentacao-tab";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
+import { EmpreendimentoRecomendado } from "@/components/empreendimento-recomendado";
 import {
   TAREFA_TIPOS,
   TAREFA_PRIORIDADES,
@@ -894,6 +895,20 @@ function LeadDetailPage() {
             <SimuladorFinanciamento
               entradaInicial={lead.entrada_disponivel}
               rendaInicial={lead.renda_informada}
+            />
+          </div>
+
+          <div className="mt-4">
+            <EmpreendimentoRecomendado
+              lead={{
+                id: lead.id,
+                renda_informada: lead.renda_informada,
+                entrada_disponivel: lead.entrada_disponivel,
+                usa_fgts: lead.usa_fgts,
+                faixa_mcmv: lead.faixa_mcmv,
+                projeto_nome: lead.projeto_nome,
+                observacoes: lead.observacoes,
+              }}
             />
           </div>
 
