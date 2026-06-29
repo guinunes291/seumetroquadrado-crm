@@ -22,6 +22,7 @@ import {
   Paperclip,
   Loader2,
   FileText,
+  Building2,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,9 @@ import {
   uploadDocArquivo,
   urlAssinadaDoc,
   removerDocArquivo,
+  listarProjetosMin,
+  derivarEmpreendimentoPatch,
+  atualizarEmpreendimentoLead,
   DOC_STATUS,
   DOC_STATUS_LABEL,
   DOC_STATUS_TONE,
@@ -54,7 +58,15 @@ import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 
 type Props = {
   leadId: string;
-  lead: { nome: string; telefone: string; corretor_id: string | null; status: string };
+  lead: {
+    nome: string;
+    telefone: string;
+    corretor_id: string | null;
+    status: string;
+    projeto_id: string | null;
+    projeto_nome: string | null;
+    construtora: string | null;
+  };
 };
 
 /** Aba "Documentação" da página do lead: dá UI à tabela `documentacoes` (antes
@@ -183,6 +195,8 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   return (
     <div className="space-y-4">
+      <EmpreendimentoCard leadId={leadId} lead={lead} />
+
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -278,6 +292,124 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
         </Card>
       )}
     </div>
+  );
+}
+
+/** Card "Empreendimento de destino": registra no lead para qual projeto e
+ *  construtora direcionar o cliente. Reusa `leads.projeto_id`/`projeto_nome`
+ *  (selecionar OU digitar) + `construtora`. A construtora é sempre editável —
+ *  pré-preenchida a partir do projeto escolhido, mas livre para ajuste. */
+function EmpreendimentoCard({
+  leadId,
+  lead,
+}: {
+  leadId: string;
+  lead: { projeto_id: string | null; projeto_nome: string | null; construtora: string | null };
+}) {
+  const qc = useQueryClient();
+  const [manual, setManual] = useState(
+    !lead.projeto_id && (!!lead.projeto_nome || !!lead.construtora),
+  );
+  const [projetoId, setProjetoId] = useState<string>(lead.projeto_id ?? "none");
+  const [empreendimentoManual, setEmpreendimentoManual] = useState(lead.projeto_nome ?? "");
+  const [construtora, setConstrutora] = useState(lead.construtora ?? "");
+
+  const { data: projetos = [] } = useQuery({
+    queryKey: ["projetos-min-construtora"],
+    queryFn: listarProjetosMin,
+  });
+
+  // Ao escolher um projeto, pré-preenche a construtora — mantendo-a editável.
+  const escolherProjeto = (id: string) => {
+    setProjetoId(id);
+    if (id !== "none") setConstrutora(projetos.find((x) => x.id === id)?.construtora ?? "");
+  };
+
+  const salvar = useMutation({
+    mutationFn: () =>
+      atualizarEmpreendimentoLead(
+        leadId,
+        derivarEmpreendimentoPatch({
+          manual,
+          projetoId,
+          empreendimentoManual,
+          construtora,
+          projetos,
+          leadProjetoNome: lead.projeto_nome,
+        }),
+      ),
+    onSuccess: () => {
+      toast.success("Empreendimento de destino salvo");
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Building2 className="h-4 w-4 text-primary" /> Empreendimento de destino
+          </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Switch checked={manual} onCheckedChange={setManual} /> Inserir manualmente
+          </label>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>Empreendimento</Label>
+            {manual ? (
+              <Input
+                value={empreendimentoManual}
+                onChange={(e) => setEmpreendimentoManual(e.target.value)}
+                placeholder="Nome do empreendimento"
+              />
+            ) : (
+              <Select value={projetoId} onValueChange={escolherProjeto}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o projeto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Sem projeto vinculado —</SelectItem>
+                  {projetos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nome}
+                      {p.construtora ? ` · ${p.construtora}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Construtora</Label>
+            <Input
+              value={construtora}
+              onChange={(e) => setConstrutora(e.target.value)}
+              placeholder="Nome da construtora"
+            />
+          </div>
+        </div>
+
+        {(lead.projeto_nome || lead.construtora) && (
+          <p className="text-xs text-muted-foreground">
+            Atual: {lead.projeto_nome ?? "—"}
+            {lead.construtora ? ` · ${lead.construtora}` : ""}
+          </p>
+        )}
+
+        <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+          {salvar.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Building2 className="h-4 w-4 mr-2" />
+          )}
+          Salvar empreendimento
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

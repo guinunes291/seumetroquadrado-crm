@@ -222,3 +222,76 @@ export async function urlAssinadaDoc(path: string, expiraSegundos = 3600): Promi
 export async function removerDocArquivo(path: string): Promise<void> {
   await supabase.storage.from(DOC_BUCKET).remove([path]);
 }
+
+// ---------------------------------------------------------------------------
+// Empreendimento de destino: registra na própria lead para qual projeto e
+// construtora o cliente deve ser direcionado. Reaproveita o par já existente
+// `leads.projeto_id` (FK) + `leads.projeto_nome` (texto) — "selecionar OU
+// digitar" — somando `leads.construtora`. O corretor pode escolher um projeto
+// cadastrado ou inserir manualmente.
+// ---------------------------------------------------------------------------
+
+export type ProjetoMin = { id: string; nome: string; construtora: string | null };
+
+/** Projetos para o seletor (id + nome + construtora, para pré-preencher). */
+export async function listarProjetosMin(): Promise<ProjetoMin[]> {
+  const { data, error } = await supabase
+    .from("projetos")
+    .select("id, nome, construtora")
+    .order("nome");
+  if (error) throw error;
+  return (data ?? []) as ProjetoMin[];
+}
+
+export type EmpreendimentoPatch = {
+  projeto_id: string | null;
+  projeto_nome: string | null;
+  construtora: string | null;
+};
+
+/**
+ * Deriva o patch do lead a partir do estado da UI do card de empreendimento.
+ * Pura e testável. A construtora é sempre o valor do campo editável (pré-
+ * preenchido a partir do projeto, mas livre para o corretor ajustar).
+ *  - manual: usa o texto digitado (exige empreendimento OU construtora);
+ *  - projeto selecionado: vincula o projeto e usa seu nome;
+ *  - "none": desvincula o projeto (mantém a construtora se digitada).
+ */
+export function derivarEmpreendimentoPatch(args: {
+  manual: boolean;
+  projetoId: string; // "none" = sem projeto vinculado
+  empreendimentoManual: string;
+  construtora: string;
+  projetos: ProjetoMin[];
+  leadProjetoNome: string | null;
+}): EmpreendimentoPatch {
+  const construtora = args.construtora.trim() || null;
+  if (args.manual) {
+    const nome = args.empreendimentoManual.trim() || null;
+    if (!nome && !construtora) throw new Error("Informe o empreendimento ou a construtora");
+    return { projeto_id: null, projeto_nome: nome, construtora };
+  }
+  if (args.projetoId !== "none") {
+    const p = args.projetos.find((x) => x.id === args.projetoId);
+    return {
+      projeto_id: args.projetoId,
+      projeto_nome: p?.nome ?? args.leadProjetoNome ?? null,
+      construtora,
+    };
+  }
+  return { projeto_id: null, projeto_nome: null, construtora };
+}
+
+/** Salva o empreendimento/construtora de destino no lead. */
+export async function atualizarEmpreendimentoLead(
+  leadId: string,
+  patch: EmpreendimentoPatch,
+): Promise<void> {
+  // `as never`: o update de `leads` é tipado, mas seguimos o padrão do repo
+  // (ver contract-sale-dialog) para evitar atrito com os tipos gerados.
+  const { error } = await supabase
+    .from("leads")
+    .update(patch as never)
+    .eq("id", leadId);
+  if (error) throw error;
+}
