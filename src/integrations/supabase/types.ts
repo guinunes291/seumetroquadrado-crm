@@ -998,6 +998,7 @@ export type Database = {
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
+          objecoes: string[]
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
@@ -1059,6 +1060,7 @@ export type Database = {
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome: string
+          objecoes?: string[]
           observacoes?: string | null
           opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
@@ -1120,6 +1122,7 @@ export type Database = {
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome?: string
+          objecoes?: string[]
           observacoes?: string | null
           opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
@@ -1711,6 +1714,7 @@ export type Database = {
       projetos: {
         Row: {
           ano_entrega: number | null
+          argumentos_venda: string[]
           ativo: boolean
           bairro: string | null
           cidade: string | null
@@ -1718,6 +1722,7 @@ export type Database = {
           created_at: string
           criado_por: string | null
           deleted_at: string | null
+          diferenciais: string[]
           dorms_max: number | null
           dorms_min: number | null
           endereco: string | null
@@ -1731,9 +1736,11 @@ export type Database = {
           nome: string
           numero: string | null
           observacoes: string | null
+          perfil_ideal: string | null
           preco_a_partir: number | null
           preco_inicial: string | null
           regiao: string | null
+          renda_minima: number | null
           slug: string
           sob_consulta: boolean
           status_entrega: string | null
@@ -1751,6 +1758,7 @@ export type Database = {
         }
         Insert: {
           ano_entrega?: number | null
+          argumentos_venda?: string[]
           ativo?: boolean
           bairro?: string | null
           cidade?: string | null
@@ -1758,6 +1766,7 @@ export type Database = {
           created_at?: string
           criado_por?: string | null
           deleted_at?: string | null
+          diferenciais?: string[]
           dorms_max?: number | null
           dorms_min?: number | null
           endereco?: string | null
@@ -1771,9 +1780,11 @@ export type Database = {
           nome: string
           numero?: string | null
           observacoes?: string | null
+          perfil_ideal?: string | null
           preco_a_partir?: number | null
           preco_inicial?: string | null
           regiao?: string | null
+          renda_minima?: number | null
           slug: string
           sob_consulta?: boolean
           status_entrega?: string | null
@@ -1791,6 +1802,7 @@ export type Database = {
         }
         Update: {
           ano_entrega?: number | null
+          argumentos_venda?: string[]
           ativo?: boolean
           bairro?: string | null
           cidade?: string | null
@@ -1798,6 +1810,7 @@ export type Database = {
           created_at?: string
           criado_por?: string | null
           deleted_at?: string | null
+          diferenciais?: string[]
           dorms_max?: number | null
           dorms_min?: number | null
           endereco?: string | null
@@ -1811,9 +1824,11 @@ export type Database = {
           nome?: string
           numero?: string | null
           observacoes?: string | null
+          perfil_ideal?: string | null
           preco_a_partir?: number | null
           preco_inicial?: string | null
           regiao?: string | null
+          renda_minima?: number | null
           slug?: string
           sob_consulta?: boolean
           status_entrega?: string | null
@@ -2510,6 +2525,7 @@ export type Database = {
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
+          objecoes: string[]
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
