@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchProjetosParaSelecao } from "@/lib/projetos";
 import { toast } from "sonner";
 import { Check, ChevronsUpDown, DollarSign } from "lucide-react";
 import {
@@ -93,15 +94,25 @@ export function RegistrarVendaDialog() {
     },
   });
 
+  // Só projetos ativos podem ser vinculados a uma nova venda (regra central em
+  // fetchProjetosParaSelecao). Arquivados/inativos não são oferecidos.
   const { data: projetos = [] } = useQuery({
-    queryKey: ["projetos-min"],
+    queryKey: ["projetos-select"],
     enabled: open,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("projetos").select("id, nome").order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => fetchProjetosParaSelecao(supabase),
   });
+
+  // Se o lead já está vinculado a um projeto agora inativo, mantém essa opção
+  // selecionável (preserva o histórico) em vez de sumir do seletor.
+  const projetosOpcoes = useMemo(() => {
+    if (lead?.projeto_id && !projetos.some((p) => p.id === lead.projeto_id)) {
+      return [
+        { id: lead.projeto_id, nome: lead.projeto_nome ?? "Projeto vinculado", ativo: false },
+        ...projetos,
+      ];
+    }
+    return projetos;
+  }, [projetos, lead]);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -119,7 +130,7 @@ export function RegistrarVendaDialog() {
       const projetoFinal = projetoId !== "none" ? projetoId : lead.projeto_id;
       const projetoNome =
         projetoId !== "none"
-          ? (projetos.find((p) => p.id === projetoId)?.nome ?? null)
+          ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
           : lead.projeto_nome;
 
       const { error: insErr } = await supabase.from("vendas" as never).insert({
@@ -277,9 +288,10 @@ export function RegistrarVendaDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— Sem projeto vinculado —</SelectItem>
-                  {projetos.map((p) => (
+                  {projetosOpcoes.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.nome}
+                      {p.ativo === false ? " · inativo" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

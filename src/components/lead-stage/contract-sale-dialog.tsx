@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchProjetosParaSelecao } from "@/lib/projetos";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -44,14 +45,23 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const [pGerente, setPGerente] = useState("0.50");
   const [pSuper, setPSuper] = useState("0.30");
 
+  // Só projetos ativos entram em uma nova venda (regra central em
+  // fetchProjetosParaSelecao). Arquivados/inativos não são oferecidos.
   const { data: projetos = [] } = useQuery({
-    queryKey: ["projetos-min"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("projetos").select("id, nome").order("nome");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryKey: ["projetos-select"],
+    queryFn: () => fetchProjetosParaSelecao(supabase),
   });
+
+  // Mantém o projeto já vinculado ao lead selecionável mesmo se ficou inativo.
+  const projetosOpcoes = useMemo(() => {
+    if (lead.projeto_id && !projetos.some((p) => p.id === lead.projeto_id)) {
+      return [
+        { id: lead.projeto_id, nome: lead.projeto_nome ?? "Projeto vinculado", ativo: false },
+        ...projetos,
+      ];
+    }
+    return projetos;
+  }, [projetos, lead.projeto_id, lead.projeto_nome]);
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -67,7 +77,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       const uid = u.user?.id ?? null;
       const projetoNome =
         projetoId !== "none"
-          ? (projetos.find((p) => p.id === projetoId)?.nome ?? null)
+          ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
           : (lead.projeto_nome ?? null);
 
       const { error: insErr } = await supabase.from("vendas" as never).insert({
@@ -144,9 +154,10 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— Sem projeto vinculado —</SelectItem>
-                {projetos.map((p) => (
+                {projetosOpcoes.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.nome}
+                    {p.ativo === false ? " · inativo" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

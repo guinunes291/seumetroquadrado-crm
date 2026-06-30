@@ -7,15 +7,12 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Plus, Building2, Upload, Sparkles } from "lucide-react";
-import { slugify, webhookUrl } from "@/lib/projetos";
+import { Plus, Building2, Upload, Sparkles, AlertTriangle, RefreshCw, X } from "lucide-react";
+import { webhookUrl } from "@/lib/projetos";
 import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
+import { ProjetoFormDialog } from "@/components/projeto-form-dialog";
 import { ProjetoCard, type ProjetoRow } from "@/components/projeto-card";
 import {
   ProjetosFilters,
@@ -95,7 +92,7 @@ function CatalogoPanel() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<ProjetoRow | null>(null);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -113,16 +110,18 @@ function CatalogoPanel() {
     },
   });
 
-  const all = projetosQ.data ?? [];
+  const all = useMemo(() => projetosQ.data ?? [], [projetosQ.data]);
   const filtered = useMemo(() => applyFilters(all, filters), [all, filters]);
+  // Gestores enxergam inativos em `all`; mostramos a contagem ao lado do total.
+  const inativos = useMemo(() => all.filter((p) => !p.ativo).length, [all]);
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: Record<string, unknown>) => {
       if (editing?.id) {
-        const { error } = await supabase.from("projetos").update(payload).eq("id", editing.id);
+        const { error } = await supabase.from("projetos").update(payload as never).eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("projetos").insert({ ...payload, criado_por: user?.id });
+        const { error } = await supabase.from("projetos").insert({ ...payload, criado_por: user?.id } as never);
         if (error) throw error;
       }
     },
@@ -132,7 +131,7 @@ function CatalogoPanel() {
       setEditing(null);
       qc.invalidateQueries({ queryKey: ["projetos"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const loadToken = async (id: string): Promise<string | null> => {
@@ -154,7 +153,7 @@ function CatalogoPanel() {
       toast.success("Token regenerado");
       qc.invalidateQueries({ queryKey: ["projetos"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const toggleAtivo = useMutation({
@@ -164,20 +163,6 @@ function CatalogoPanel() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projetos"] }),
   });
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const nome = String(fd.get("nome"));
-    const payload: any = {
-      nome,
-      slug: String(fd.get("slug") || slugify(nome)),
-      construtora: fd.get("construtora") || null,
-      cidade: fd.get("cidade") || null,
-      observacoes: fd.get("observacoes") || null,
-    };
-    saveMutation.mutate(payload);
-  };
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -198,57 +183,46 @@ function CatalogoPanel() {
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4 mr-2" />Importar projetos
             </Button>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
-              <DialogTrigger asChild>
-                <Button><Plus className="h-4 w-4 mr-2" />Novo projeto</Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>{editing ? "Editar projeto" : "Novo projeto"}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div>
-                    <Label htmlFor="nome">Nome do empreendimento</Label>
-                    <Input id="nome" name="nome" required defaultValue={editing?.nome} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="slug">Slug</Label>
-                      <Input id="slug" name="slug" placeholder="auto" defaultValue={editing?.slug} />
-                    </div>
-                    <div>
-                      <Label htmlFor="cidade">Cidade</Label>
-                      <Input id="cidade" name="cidade" defaultValue={editing?.cidade ?? ""} />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="construtora">Construtora</Label>
-                    <Input id="construtora" name="construtora" defaultValue={editing?.construtora ?? ""} />
-                  </div>
-                  <div>
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <Input id="observacoes" name="observacoes" defaultValue={editing?.observacoes ?? ""} />
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit" disabled={saveMutation.isPending}>
-                      {saveMutation.isPending ? "Salvando..." : "Salvar"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <Button onClick={() => { setEditing(null); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />Novo projeto
+            </Button>
           </div>
         )}
       />
 
       <ImportProjetosDialog open={importOpen} onOpenChange={setImportOpen} />
 
+      {canManage && (
+        <ProjetoFormDialog
+          open={open}
+          onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}
+          editing={editing}
+          isPending={saveMutation.isPending}
+          onSubmit={(payload) => saveMutation.mutate(payload)}
+        />
+      )}
+
       {projetosQ.isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando...</p>
+        <CatalogoSkeleton />
+      ) : projetosQ.isError ? (
+        <Card><CardContent className="py-12 text-center space-y-3">
+          <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+          <p className="text-sm text-muted-foreground">
+            Não foi possível carregar os projetos. Verifique sua conexão e tente novamente.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => projetosQ.refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" />Tentar novamente
+          </Button>
+        </CardContent></Card>
       ) : all.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">
-          <Building2 className="h-10 w-10 mx-auto mb-2 opacity-40" />
-          Nenhum projeto cadastrado ainda.
+        <Card><CardContent className="py-12 text-center text-muted-foreground space-y-3">
+          <Building2 className="h-10 w-10 mx-auto opacity-40" />
+          <p>Nenhum projeto cadastrado ainda.</p>
+          {canManage && (
+            <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" />Novo projeto
+            </Button>
+          )}
         </CardContent></Card>
       ) : (
         <>
@@ -258,13 +232,17 @@ function CatalogoPanel() {
             <span>
               {filtered.length} {filtered.length === 1 ? "projeto" : "projetos"}
               {filtered.length !== all.length && ` de ${all.length}`}
+              {canManage && inativos > 0 && ` · ${inativos} inativo${inativos === 1 ? "" : "s"}`}
             </span>
           </div>
 
           {filtered.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground">
-              <Building2 className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              Nenhum projeto corresponde aos filtros aplicados.
+            <Card><CardContent className="py-12 text-center text-muted-foreground space-y-3">
+              <Building2 className="h-10 w-10 mx-auto opacity-40" />
+              <p>Nenhum projeto corresponde aos filtros aplicados.</p>
+              <Button variant="outline" size="sm" onClick={() => setFilters(emptyFilters)}>
+                <X className="h-4 w-4 mr-2" />Limpar filtros
+              </Button>
             </CardContent></Card>
           ) : (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
@@ -295,5 +273,23 @@ function CatalogoPanel() {
         </>
       )}
     </div>
+  );
+}
+
+// Skeleton do catálogo: evita piscar lista vazia enquanto a query carrega.
+function CatalogoSkeleton() {
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        <Skeleton className="h-10 flex-1 min-w-[240px]" />
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-10 w-28" />
+      </div>
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-56 w-full rounded-xl" />
+        ))}
+      </div>
+    </>
   );
 }
