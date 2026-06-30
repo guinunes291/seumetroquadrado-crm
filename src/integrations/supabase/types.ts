@@ -1013,6 +1013,7 @@ export type Database = {
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          telefone_e164: string | null
           tem_fgts: boolean | null
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao: number
@@ -1076,6 +1077,7 @@ export type Database = {
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          telefone_e164?: string | null
           tem_fgts?: boolean | null
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao?: number
@@ -1139,6 +1141,7 @@ export type Database = {
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone?: string
+          telefone_e164?: string | null
           tem_fgts?: boolean | null
           temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao?: number
@@ -2543,6 +2546,7 @@ export type Database = {
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          telefone_e164: string | null
           tem_fgts: boolean | null
           temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
           tentativas_redistribuicao: number
@@ -2859,6 +2863,7 @@ export type Database = {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
       }
+      normalize_phone_smq: { Args: { _raw: string }; Returns: string }
       preview_oferta_ativa: {
         Args: { _corretor?: string; _filtros: Json }
         Returns: Json

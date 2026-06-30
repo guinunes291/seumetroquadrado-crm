@@ -55,6 +55,9 @@ type SyncResult = {
 type SyncLeadInput = {
   crmLeadId: string;
   telefone: string | null | undefined;
+  /** Telefone já normalizado (lido de leads.telefone_e164). Quando presente,
+   *  evita re-normalizar e garante consistência com a coluna persistida. */
+  telefoneE164?: string | null;
   nome?: string | null;
   origem?: string | null;
   renda_estimada?: number | null;
@@ -99,7 +102,8 @@ async function upsertLead(input: SyncLeadInput): Promise<SyncResult> {
   const out: SyncResult = { ok: false, target: EXTERNAL_REF, matched_by: "telefone_e164" };
   const key = getKey();
   if (!key) return { ...out, error: "missing_SMQ_OPERACIONAL_SERVICE_KEY" };
-  const tel = normalizePhoneSMQ(input.telefone);
+  // Prefere o telefone_e164 já persistido no CRM (mantido por trigger).
+  const tel = input.telefoneE164 ?? normalizePhoneSMQ(input.telefone);
   if (!tel) return { ...out, error: "telefone_invalido" };
 
   const body = buildBody(input, tel);
