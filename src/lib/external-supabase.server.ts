@@ -55,6 +55,9 @@ type SyncResult = {
 type SyncLeadInput = {
   crmLeadId: string;
   telefone: string | null | undefined;
+  /** Telefone já normalizado (lido de leads.telefone_e164). Quando presente,
+   *  evita re-normalizar e garante consistência com a coluna persistida. */
+  telefoneE164?: string | null;
   nome?: string | null;
   origem?: string | null;
   renda_estimada?: number | null;
