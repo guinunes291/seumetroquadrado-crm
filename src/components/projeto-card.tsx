@@ -47,6 +47,7 @@ export type ProjetoRow = {
   dorms_min: number | null;
   dorms_max: number | null;
   suites: number | null;
+  tipologia: string | null;
   tipo_extra: string | null;
   vagas_min: number | null;
   vagas_max: number | null;

@@ -35,6 +35,7 @@ import {
   AREA_TO_PRESETS,
   entregaYearPresets,
 } from "@/lib/projetos";
+import { normalizeSearch } from "@/lib/validators";
 
 export type Filters = {
   q: string;
@@ -155,6 +156,20 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
     } as unknown as Partial<Filters>);
   };
 
+  // Busca com debounce (300ms): o input responde na hora; a filtragem só roda
+  // após a digitação parar, evitando refiltrar o catálogo a cada tecla.
+  const [qLocal, setQLocal] = useState(filters.q);
+  // Ressincroniza quando a busca é limpa/alterada por fora (ex.: "Limpar", chips).
+  useEffect(() => {
+    setQLocal(filters.q);
+  }, [filters.q]);
+  useEffect(() => {
+    if (qLocal === filters.q) return;
+    const t = setTimeout(() => set({ q: qLocal }), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qLocal]);
+
   const advCount =
     filters.construtoras.length +
     filters.tipoExtras.length +
@@ -246,8 +261,8 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, construtora, bairro, endereço…"
-            value={filters.q}
-            onChange={(e) => set({ q: e.target.value })}
+            value={qLocal}
+            onChange={(e) => setQLocal(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -490,9 +505,9 @@ function MaisFiltrosDialog({
 
   const [construtoraQuery, setConstrutoraQuery] = useState("");
   const construtorasFiltradas = useMemo(() => {
-    const q = construtoraQuery.trim().toLowerCase();
+    const q = normalizeSearch(construtoraQuery);
     if (!q) return opts.construtoras;
-    return opts.construtoras.filter((c) => c.toLowerCase().includes(q));
+    return opts.construtoras.filter((c) => normalizeSearch(c).includes(q));
   }, [construtoraQuery, opts.construtoras]);
 
   const entregaPresets = useMemo(() => entregaYearPresets(), []);
@@ -707,22 +722,25 @@ function MaisFiltrosDialog({
 
 // ------- Aplica filtros a uma lista de projetos -------
 export function applyFilters(projetos: ProjetoRow[], f: Filters): ProjetoRow[] {
-  const q = f.q.trim().toLowerCase();
+  // normalizeSearch remove acentos, baixa caixa e colapsa espaços, então a busca
+  // casa "São" com "sao" e ignora maiúsculas/minúsculas.
+  const q = normalizeSearch(f.q);
   return projetos.filter((p) => {
     if (q) {
-      const hay = [
-        p.nome,
-        p.construtora,
-        p.bairro,
-        p.endereco,
-        p.logradouro,
-        p.cidade,
-        p.regiao,
-        p.tipo_extra,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      const hay = normalizeSearch(
+        [
+          p.nome,
+          p.construtora,
+          p.bairro,
+          p.endereco,
+          p.logradouro,
+          p.cidade,
+          p.regiao,
+          p.tipo_extra,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
       if (!hay.includes(q)) return false;
     }
     if (f.cidade && p.cidade !== f.cidade) return false;

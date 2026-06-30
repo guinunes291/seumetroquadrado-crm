@@ -1,5 +1,8 @@
 // Helpers para projetos / webhooks / catálogo
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
 export function slugify(input: string): string {
   return input
     .normalize("NFD")
@@ -178,4 +181,28 @@ export function entregaYearPresets(): { from: RangeOption[]; to: RangeOption[] }
     from: [QUALQUER, ...years.map((v) => ({ value: v, label: String(v) }))],
     to: [QUALQUER, ...years.map((v) => ({ value: v, label: String(v) }))],
   };
+}
+
+// ---------- Seleção de projeto para ações comerciais ----------
+
+export type ProjetoSelecao = { id: string; nome: string; ativo: boolean };
+
+/**
+ * Projetos elegíveis para vincular a uma NOVA ação comercial (registrar venda,
+ * oferta ativa, etc.). Regra única de negócio: apenas projetos ativos e não
+ * excluídos — arquivados/inativos/esgotados não devem ser sugeridos para novos
+ * negócios. O histórico de quem já está vinculado a um projeto inativo é
+ * preservado pelo chamador (que mantém a opção atual selecionável).
+ */
+export async function fetchProjetosParaSelecao(
+  client: SupabaseClient<Database>,
+): Promise<ProjetoSelecao[]> {
+  const { data, error } = await client
+    .from("projetos")
+    .select("id, nome, ativo")
+    .is("deleted_at", null)
+    .eq("ativo", true)
+    .order("nome");
+  if (error) throw error;
+  return (data ?? []) as ProjetoSelecao[];
 }

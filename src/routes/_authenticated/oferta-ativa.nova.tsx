@@ -69,6 +69,7 @@ function NovaOfertaPage() {
         .from("projetos")
         .select("id, nome")
         .is("deleted_at", null)
+        .eq("ativo", true)
         .order("nome");
       if (error) throw error;
       return data ?? [];
