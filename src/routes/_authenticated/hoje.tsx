@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatDuracaoParado } from "@/lib/utils";
 import { toast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { useLeadsComSla } from "@/features/dashboard/queries";
@@ -636,7 +636,8 @@ function MeuPainelPage() {
                       >
                         <div className="truncate text-sm font-medium">{l.nome}</div>
                         <div className="text-xs text-muted-foreground">
-                          {leadStatusLabel(l.status)} · {l.minutos_decorridos} min sem atendimento
+                          {leadStatusLabel(l.status)} · {formatDuracaoParado(l.minutos_decorridos)}{" "}
+                          sem atendimento
                         </div>
                       </Link>
                       <div className="flex shrink-0 items-center gap-1">
