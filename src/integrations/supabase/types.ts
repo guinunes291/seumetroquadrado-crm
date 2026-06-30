@@ -2786,7 +2786,7 @@ export type Database = {
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
       leads_com_sla: {
-        Args: { _corretor?: string }
+        Args: { _corretor?: string; _df?: string; _di?: string }
         Returns: {
           lead_id: string
           minutos_decorridos: number
