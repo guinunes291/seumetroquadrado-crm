@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatDuracaoParado } from "@/lib/utils";
 import { leadStatusLabel } from "@/lib/leads";
 import {
   useDashboardPorCorretor,
@@ -500,7 +500,7 @@ function SaudePanel() {
                     </div>
                   </div>
                   <Badge variant="secondary" className="shrink-0 bg-rose-500/15 text-rose-700">
-                    {u.minutos_parado} min
+                    {formatDuracaoParado(u.minutos_parado)}
                   </Badge>
                 </Link>
               ))}
