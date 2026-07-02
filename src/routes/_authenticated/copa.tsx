@@ -808,9 +808,8 @@ export function CopaPage() {
                           c={c}
                           nomeCorretor={nomeCorretor}
                           selecaoCorretor={selecaoCorretor}
-                          ptsTotal={(id) =>
-                            ranking.find((r) => r.corretor_id === id)?.total_pontos ?? 0
-                          }
+                          ptsTotal={(id) => ptsSem(id, c.semana_ref)}
+                          semanaLabel={c.semana_ref ? `SEM ${c.semana_ref}` : null}
                         />
                       ))}
                     </div>
@@ -1463,11 +1462,13 @@ function ConfrontoCard({
   nomeCorretor,
   selecaoCorretor,
   ptsTotal,
+  semanaLabel,
 }: {
   c: Confronto;
   nomeCorretor: (id: string | null) => string;
   selecaoCorretor: (id: string | null) => { nome: string; bandeira: string } | null;
   ptsTotal: (id: string | null) => number;
+  semanaLabel?: string | null;
 }) {
   const a = selecaoCorretor(c.corretor_a_id),
     b = selecaoCorretor(c.corretor_b_id);
@@ -1482,6 +1483,22 @@ function ConfrontoCard({
         overflow: "hidden",
       }}
     >
+      {semanaLabel && (
+        <div
+          style={{
+            background: "rgba(0,156,59,0.15)",
+            color: GREEN,
+            fontSize: 10,
+            fontWeight: 900,
+            letterSpacing: 1.5,
+            padding: "4px 12px",
+            textAlign: "center",
+            borderBottom: "1px solid rgba(0,156,59,0.25)",
+          }}
+        >
+          PONTOS DA {semanaLabel}
+        </div>
+      )}
       {[
         { id: c.corretor_a_id, sel: a, won: aWon },
         { id: c.corretor_b_id, sel: b, won: bWon },
