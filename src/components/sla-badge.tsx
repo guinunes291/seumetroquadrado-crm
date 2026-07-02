@@ -32,9 +32,15 @@ function calcular(referencia: Date, slaMin: number) {
 function formatarTempo(min: number) {
   const abs = Math.abs(min);
   if (abs < 60) return `${abs}m`;
-  const h = Math.floor(abs / 60);
-  const m = abs % 60;
-  return m > 0 ? `${h}h${m}m` : `${h}h`;
+  if (abs < 1440) {
+    const h = Math.floor(abs / 60);
+    const m = abs % 60;
+    return m > 0 ? `${h}h${m}m` : `${h}h`;
+  }
+  // Acima de 1 dia, mostra dd/hh para SLAs que acumulam muito (leads antigos).
+  const d = Math.floor(abs / 1440);
+  const h = Math.floor((abs % 1440) / 60);
+  return h > 0 ? `${d}d${h}h` : `${d}d`;
 }
 
 /**

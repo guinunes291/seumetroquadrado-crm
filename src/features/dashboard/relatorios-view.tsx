@@ -54,6 +54,7 @@ import {
   useDashboardLeadsUrgentes,
   useDashboardRedistribuicoes,
 } from "@/features/dashboard/queries";
+import { formatDuracaoParado } from "@/lib/utils";
 
 /**
  * Visão de Relatórios/Analytics. Extraída da antiga rota `/relatorios` para ser
@@ -464,9 +465,7 @@ function UrgentesList({
   return (
     <ul className="divide-y">
       {rows.slice(0, 10).map((r) => {
-        const h = Math.floor(r.minutos_parado / 60);
-        const m = r.minutos_parado % 60;
-        const tempo = h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${m}min`;
+        const tempo = formatDuracaoParado(r.minutos_parado);
         return (
           <li key={r.lead_id} className="py-2 flex items-center gap-3">
             <div className="flex-1 min-w-0">
