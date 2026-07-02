@@ -149,6 +149,7 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       qc.invalidateQueries({ queryKey: ["tarefas"] });
       qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
       onDone?.();
