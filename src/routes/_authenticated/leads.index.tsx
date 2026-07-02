@@ -689,15 +689,24 @@ function LeadsPage() {
 
   const bulkTransferir = useMutation({
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
+      if (!ids.length) throw new Error("Selecione ao menos um lead.");
+      if (!corretorId) throw new Error("Selecione o corretor de destino.");
       const { error } = await supabase
         .from("leads")
-        .update({
-          corretor_id: corretorId,
-          data_distribuicao: new Date().toISOString(),
-          timestamp_recebimento: new Date().toISOString(),
-        })
+        .update({ corretor_id: corretorId })
         .in("id", ids);
-      if (error) throw error;
+      if (error) {
+        console.error("[bulkTransferir]", error);
+        throw error;
+      }
+      // Notifica via WhatsApp leads com origem=facebook (best-effort).
+      await Promise.allSettled(
+        ids.map((id) =>
+          supabase.functions.invoke("notify-lead-transfer", {
+            body: { lead_id: id, corretor_id: corretorId },
+          }),
+        ),
+      );
       return ids.length;
     },
     onSuccess: (n) => {
@@ -706,9 +715,11 @@ function LeadsPage() {
       setBulkTransferOpen(false);
       setBulkTarget("");
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message || "Falha ao transferir leads."),
   });
+
 
   // Muda a temperatura de todos os leads selecionados de uma vez.
   const bulkTemperatura = useMutation({
