@@ -78,6 +78,7 @@ import {
   Zap,
   Play,
   MessageCircle,
+  MoreHorizontal,
   Phone,
   PhoneCall,
   DollarSign,
@@ -85,11 +86,13 @@ import {
   Thermometer,
   Snowflake,
   AlertCircle,
+  AlertTriangle,
   ArrowRightLeft,
   Bookmark,
   ChevronDown,
   CalendarClock,
   LayoutGrid,
+  RefreshCw,
   Rows3,
   ChevronLeft,
   ChevronRight,
@@ -97,6 +100,9 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
+import { mensagemPrimeiroContato } from "@/lib/whatsapp";
+import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { KanbanBoard } from "@/components/leads-kanban-board";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
@@ -109,9 +115,10 @@ import {
   leadStatusLabel,
   resolveStageAction,
   type LeadStatus,
+  type StageModal,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
-import { LeadStageMenu } from "@/components/lead-stage-menu";
+import { LeadStageMenuItems } from "@/components/lead-stage-menu";
 import {
   LeadStageModals,
   type StageModalState,
@@ -282,10 +289,149 @@ function FinanceiroPopover({ lead }: { lead: Lead }) {
   );
 }
 
+/**
+ * Menu ⋯ único da linha/card: etapas do funil + ações de gestão (Roleta,
+ * Transferir, Lixeira). Substitui os 4 botões soltos que existiam por linha.
+ */
+function LeadRowMenu({
+  lead,
+  canManage,
+  canAct,
+  onPickDirect,
+  onPickModal,
+  onPickPerdido,
+  onRoleta,
+  onTransferir,
+  onLixeira,
+}: {
+  lead: Lead;
+  canManage: boolean;
+  canAct: boolean;
+  onPickDirect: (target: LeadStatus) => void;
+  onPickModal: (modal: StageModal) => void;
+  onPickPerdido: () => void;
+  onRoleta: () => void;
+  onTransferir: () => void;
+  onLixeira: () => void;
+}) {
+  const showStages = canAct && !lead.na_lixeira && lead.status !== "aguardando_atendimento";
+  if (!showStages && !canManage) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          aria-label="Mais ações"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        {showStages && (
+          <LeadStageMenuItems
+            lead={lead}
+            onPickDirect={onPickDirect}
+            onPickModal={(modal) => onPickModal(modal)}
+            onPickPerdido={onPickPerdido}
+          />
+        )}
+        {canManage && (
+          <>
+            {showStages && <DropdownMenuSeparator />}
+            <DropdownMenuLabel>Gestão</DropdownMenuLabel>
+            {!lead.corretor_id && !lead.na_lixeira && (
+              <DropdownMenuItem onSelect={onRoleta}>
+                <Shuffle className="h-4 w-4 mr-2" /> Distribuir (roleta)
+              </DropdownMenuItem>
+            )}
+            {!lead.na_lixeira && (
+              <DropdownMenuItem onSelect={onTransferir}>
+                <ArrowRightLeft className="h-4 w-4 mr-2" /> Transferir
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={onLixeira}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {lead.na_lixeira ? "Restaurar" : "Mover p/ lixeira"}
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/**
+ * Split "Iniciar {WhatsApp|ligação}": um clique repete o último tipo de contato;
+ * a seta abre as alternativas. Usado na tabela e nos cards (mesma UX).
+ */
+function IniciarSplitButton({
+  lead,
+  lastContactType,
+  pending,
+  onIniciar,
+  onEscolher,
+}: {
+  lead: Lead;
+  lastContactType: "ligacao" | "whatsapp";
+  pending: boolean;
+  onIniciar: (lead: Lead, tipo: "ligacao" | "whatsapp") => void;
+  onEscolher: (lead: Lead) => void;
+}) {
+  return (
+    <div className="flex items-center">
+      <Button
+        size="sm"
+        className="rounded-r-none"
+        onClick={() => onIniciar(lead, lastContactType)}
+        disabled={pending}
+      >
+        {lastContactType === "whatsapp" ? (
+          <MessageCircle className="h-3.5 w-3.5 mr-1" />
+        ) : (
+          <Phone className="h-3.5 w-3.5 mr-1" />
+        )}
+        Iniciar {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
+            disabled={pending}
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => onIniciar(lead, "whatsapp")}>
+            <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onIniciar(lead, "ligacao")}>
+            <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => onEscolher(lead)}>
+            <Play className="h-4 w-4 mr-2" /> Escolher…
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 function LeadsPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const { user } = useAuth();
   const canManage = isAdmin || isGestor;
+  // Abre o wa.me e registra a interação na timeline (ação única de WhatsApp).
+  const abrirWhatsApp = useWhatsAppLead();
   const qc = useQueryClient();
 
   const [modalState, setModalState] = useState<StageModalState>(null);
@@ -492,7 +638,12 @@ function LeadsPage() {
     return { start: periodoStart(periodoFilter), end: periodoEnd(periodoFilter) };
   }, [periodoFilter, dataInicioFilter, dataFimFilter]);
 
-  const { data: leadsAll, isLoading } = useQuery({
+  const {
+    data: leadsAll,
+    isLoading,
+    isError: leadsError,
+    refetch: refetchLeads,
+  } = useQuery({
     queryKey: ["leads", baseQueryKey, statusFilter],
     queryFn: async () => {
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
@@ -816,9 +967,7 @@ function LeadsPage() {
     onSuccess: ({ lead, tipo }) => {
       toast.success("Atendimento iniciado");
       if (tipo === "whatsapp") {
-        const primeiroNome = lead.nome.split(" ")[0] ?? lead.nome;
-        const projeto = lead.projeto_nome ? ` sobre o ${lead.projeto_nome}` : "";
-        const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
+        const msg = mensagemPrimeiroContato(lead.nome, lead.projeto_nome);
         window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");
       }
       setContactLead(null);
@@ -1271,7 +1420,33 @@ function LeadsPage() {
                 </div>
               )}
 
-              {viewMode === "tabela" ? (
+              {leadsError ? (
+                <Card>
+                  <CardContent className="py-12 text-center space-y-3">
+                    <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+                    <p className="text-sm text-muted-foreground">
+                      Não foi possível carregar os leads. Verifique sua conexão e tente novamente.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => refetchLeads()}>
+                      <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : isLoading ? (
+                viewMode === "tabela" ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 8 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-44 w-full rounded-lg" />
+                    ))}
+                  </div>
+                )
+              ) : viewMode === "tabela" ? (
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1350,16 +1525,7 @@ function LeadsPage() {
                                   title="Abrir WhatsApp com mensagem pronta"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
-                                    const projeto = l.projeto_nome
-                                      ? ` sobre o ${l.projeto_nome}`
-                                      : "";
-                                    const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
-                                    window.open(
-                                      buildWhatsAppUrl(l.telefone, msg),
-                                      "_blank",
-                                      "noopener,noreferrer",
-                                    );
+                                    abrirWhatsApp(l);
                                   }}
                                 >
                                   <MessageCircle className="h-4 w-4" />
@@ -1409,50 +1575,13 @@ function LeadsPage() {
                               {!l.na_lixeira &&
                                 l.status === "aguardando_atendimento" &&
                                 (canManage || l.corretor_id === user?.id) && (
-                                  <div className="flex items-center">
-                                    <Button
-                                      size="sm"
-                                      className="rounded-r-none"
-                                      onClick={() => iniciarComTipo(l, lastContactType)}
-                                      disabled={iniciarAtendimento.isPending}
-                                    >
-                                      {lastContactType === "whatsapp" ? (
-                                        <MessageCircle className="h-3.5 w-3.5 mr-1" />
-                                      ) : (
-                                        <Phone className="h-3.5 w-3.5 mr-1" />
-                                      )}
-                                      Iniciar{" "}
-                                      {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
-                                    </Button>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
-                                          disabled={iniciarAtendimento.isPending}
-                                        >
-                                          <ChevronDown className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem
-                                          onSelect={() => iniciarComTipo(l, "whatsapp")}
-                                        >
-                                          <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por
-                                          WhatsApp
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                          onSelect={() => iniciarComTipo(l, "ligacao")}
-                                        >
-                                          <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onSelect={() => setContactLead(l)}>
-                                          <Play className="h-4 w-4 mr-2" /> Escolher…
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </div>
+                                  <IniciarSplitButton
+                                    lead={l}
+                                    lastContactType={lastContactType}
+                                    pending={iniciarAtendimento.isPending}
+                                    onIniciar={iniciarComTipo}
+                                    onEscolher={setContactLead}
+                                  />
                                 )}
                               {!l.na_lixeira &&
                                 (canManage || l.corretor_id === user?.id) &&
@@ -1474,52 +1603,24 @@ function LeadsPage() {
                                     {PROXIMA_ACAO[l.status as LeadStatus]!.label}
                                   </Button>
                                 )}
-                              {!l.na_lixeira &&
-                                (canManage || l.corretor_id === user?.id) &&
-                                l.status !== "aguardando_atendimento" && (
-                                  <LeadStageMenu
-                                    lead={l}
-                                    onPickDirect={(target) =>
-                                      updateStatus.mutate({ id: l.id, status: target })
-                                    }
-                                    onPickModal={(modal) => setModalState({ modal, lead: l })}
-                                    onPickPerdido={() => setPerdidoLead(l)}
-                                  />
-                                )}
-                              {canManage && !l.corretor_id && !l.na_lixeira && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => distribuir.mutate(l.id)}
-                                  disabled={distribuir.isPending}
-                                >
-                                  <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
-                                </Button>
-                              )}
-                              {canManage && !l.na_lixeira && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  title="Transferir"
-                                  onClick={() => {
-                                    setSelectedIds(new Set([l.id]));
-                                    setBulkTransferOpen(true);
-                                  }}
-                                >
-                                  <ArrowRightLeft className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {canManage && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() =>
-                                    moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
-                                  }
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
+                              <LeadRowMenu
+                                lead={l}
+                                canManage={canManage}
+                                canAct={canManage || l.corretor_id === user?.id}
+                                onPickDirect={(target) =>
+                                  updateStatus.mutate({ id: l.id, status: target })
+                                }
+                                onPickModal={(modal) => setModalState({ modal, lead: l })}
+                                onPickPerdido={() => setPerdidoLead(l)}
+                                onRoleta={() => distribuir.mutate(l.id)}
+                                onTransferir={() => {
+                                  setSelectedIds(new Set([l.id]));
+                                  setBulkTransferOpen(true);
+                                }}
+                                onLixeira={() =>
+                                  moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
+                                }
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1608,17 +1709,8 @@ function LeadsPage() {
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                            title="WhatsApp"
-                            onClick={() => {
-                              const primeiroNome = l.nome.split(" ")[0] ?? l.nome;
-                              const projeto = l.projeto_nome ? ` sobre o ${l.projeto_nome}` : "";
-                              const msg = `Olá, ${primeiroNome}! Aqui é da Seu Metro Quadrado${projeto}. Recebemos seu contato e gostaríamos de te ajudar. Posso te chamar agora?`;
-                              window.open(
-                                buildWhatsAppUrl(l.telefone, msg),
-                                "_blank",
-                                "noopener,noreferrer",
-                              );
-                            }}
+                            title="Abrir WhatsApp com mensagem pronta"
+                            onClick={() => abrirWhatsApp(l)}
                           >
                             <MessageCircle className="h-4 w-4" />
                           </Button>
@@ -1635,14 +1727,13 @@ function LeadsPage() {
                           </Button>
 
                           {!l.na_lixeira && canAct && l.status === "aguardando_atendimento" && (
-                            <Button
-                              size="sm"
-                              className="h-7"
-                              onClick={() => setContactLead(l)}
-                              disabled={iniciarAtendimento.isPending}
-                            >
-                              <Play className="h-3.5 w-3.5 mr-1" /> Atender
-                            </Button>
+                            <IniciarSplitButton
+                              lead={l}
+                              lastContactType={lastContactType}
+                              pending={iniciarAtendimento.isPending}
+                              onIniciar={iniciarComTipo}
+                              onEscolher={setContactLead}
+                            />
                           )}
                           {!l.na_lixeira &&
                             canAct &&
@@ -1664,27 +1755,24 @@ function LeadsPage() {
                                 {proxima.label}
                               </Button>
                             )}
-                          {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && (
-                            <LeadStageMenu
-                              lead={l}
-                              onPickDirect={(target) =>
-                                updateStatus.mutate({ id: l.id, status: target })
-                              }
-                              onPickModal={(modal) => setModalState({ modal, lead: l })}
-                              onPickPerdido={() => setPerdidoLead(l)}
-                            />
-                          )}
-                          {canManage && !l.corretor_id && !l.na_lixeira && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 ml-auto"
-                              onClick={() => distribuir.mutate(l.id)}
-                              disabled={distribuir.isPending}
-                            >
-                              <Shuffle className="h-3.5 w-3.5 mr-1" /> Roleta
-                            </Button>
-                          )}
+                          <LeadRowMenu
+                            lead={l}
+                            canManage={canManage}
+                            canAct={canAct}
+                            onPickDirect={(target) =>
+                              updateStatus.mutate({ id: l.id, status: target })
+                            }
+                            onPickModal={(modal) => setModalState({ modal, lead: l })}
+                            onPickPerdido={() => setPerdidoLead(l)}
+                            onRoleta={() => distribuir.mutate(l.id)}
+                            onTransferir={() => {
+                              setSelectedIds(new Set([l.id]));
+                              setBulkTransferOpen(true);
+                            }}
+                            onLixeira={() =>
+                              moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
+                            }
+                          />
                         </div>
                       </div>
                     );

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { buildWhatsAppUrl } from "@/lib/templates";
+import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import {
   listarDocs,
   criarDocs,
@@ -183,14 +183,22 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docsCarregados, resolvidos, lead.status, leadId]);
 
-  const abrirWhatsapp = (linhas: Documentacao[], intro: string, vazio: string) => {
+  // Abre o WhatsApp e registra a interação na timeline (antes o envio do
+  // checklist/cobrança não deixava rastro no histórico do lead).
+  const abrirWa = useWhatsAppLead();
+  const abrirWhatsapp = (
+    linhas: Documentacao[],
+    intro: string,
+    vazio: string,
+    titulo: string,
+  ) => {
     if (linhas.length === 0) {
       toast.info(vazio);
       return;
     }
     const lista = linhas.map((d) => `• ${docLabel(d.tipo)}`).join("\n");
     const msg = `Olá ${lead.nome}! ${intro}\n\n${lista}\n\nPode me enviar por aqui mesmo? 😊`;
-    window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");
+    abrirWa({ id: leadId, nome: lead.nome, telefone: lead.telefone }, { mensagem: msg, titulo });
   };
 
   return (
@@ -238,14 +246,28 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
               size="sm"
               variant="outline"
               className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-              onClick={() => abrirWhatsapp(docs, "Para seguirmos com a documentação, preciso destes documentos:", "Gere o checklist primeiro.")}
+              onClick={() =>
+                abrirWhatsapp(
+                  docs,
+                  "Para seguirmos com a documentação, preciso destes documentos:",
+                  "Gere o checklist primeiro.",
+                  "Checklist de documentação enviado via WhatsApp",
+                )
+              }
             >
               <MessageCircle className="h-4 w-4 mr-2" /> Enviar checklist
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => abrirWhatsapp(pendentes, "Ainda faltam alguns documentos para darmos andamento:", "Nenhuma pendência. 🎉")}
+              onClick={() =>
+                abrirWhatsapp(
+                  pendentes,
+                  "Ainda faltam alguns documentos para darmos andamento:",
+                  "Nenhuma pendência. 🎉",
+                  "Cobrança de pendência de documentos via WhatsApp",
+                )
+              }
             >
               <MessageCircle className="h-4 w-4 mr-2" /> Cobrar pendência
             </Button>

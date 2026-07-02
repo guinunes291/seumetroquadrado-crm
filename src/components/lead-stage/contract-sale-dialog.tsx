@@ -84,7 +84,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
         lead_id: lead.id,
         corretor_id: lead.corretor_id ?? uid,
         criado_por_id: uid,
-        projeto_id: projetoId !== "none" ? projetoId : null,
+        projeto_id: projetoId !== "none" ? projetoId : (lead.projeto_id ?? null),
         projeto_nome: projetoNome,
         valor_venda: valorNum,
         data_assinatura: dataAssinatura,
@@ -105,9 +105,12 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
     onSuccess: () => {
       toast.success("Venda registrada · lead movido para Contrato fechado 🎉");
       qc.invalidateQueries({ queryKey: ["vendas"] });
+      qc.invalidateQueries({ queryKey: ["comissoes"] });
+      qc.invalidateQueries({ queryKey: ["leads-para-venda"] });
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       onDone?.();
       onOpenChange(false);
     },

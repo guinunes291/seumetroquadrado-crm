@@ -65,6 +65,7 @@ export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       onDone?.();
       onOpenChange(false);
     },
