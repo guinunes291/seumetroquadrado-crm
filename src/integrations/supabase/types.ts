@@ -2502,8 +2502,12 @@ export type Database = {
         }
         Returns: string
       }
+      dashboard_atividade_periodo: {
+        Args: { _df: string; _di: string; _scope: string }
+        Returns: Json
+      }
       dashboard_funil: {
-        Args: { _corretor?: string; _df: string; _di: string }
+        Args: { _corretor?: string; _df?: string; _di?: string }
         Returns: {
           etapa: string
           ordem: number
@@ -2519,11 +2523,13 @@ export type Database = {
         Returns: {
           corretor_id: string
           corretor_nome: string
+          distribuido: boolean
           lead_id: string
           minutos_parado: number
           nome: string
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          total_count: number
         }[]
       }
       dashboard_metricas_por_corretor: {
@@ -2541,11 +2547,25 @@ export type Database = {
         }[]
       }
       dashboard_motivos_perda: {
-        Args: { _corretor?: string; _df: string; _di: string }
+        Args: { _corretor?: string; _df?: string; _di?: string }
         Returns: {
           motivo: string
           quantidade: number
         }[]
+      }
+      dashboard_origem: {
+        Args: { _corretor?: string; _df?: string; _di?: string }
+        Returns: {
+          chave: string
+          conv_pct: number
+          leads: number
+          nivel: string
+          vendas: number
+        }[]
+      }
+      dashboard_receita: {
+        Args: { _corretor?: string; _df?: string; _di?: string }
+        Returns: Json
       }
       dashboard_redistribuicoes: {
         Args: { _df: string; _di: string }
@@ -2560,7 +2580,7 @@ export type Database = {
         }[]
       }
       dashboard_serie_diaria: {
-        Args: { _corretor?: string; _df: string; _di: string }
+        Args: { _corretor?: string; _df?: string; _di?: string }
         Returns: {
           agendamentos: number
           dia: string
@@ -2741,6 +2761,16 @@ export type Database = {
       restaurar_registro: {
         Args: { _id: string; _tabela: string }
         Returns: boolean
+      }
+      tempo_primeira_resposta: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          corretor_id: string
+          leads_no_periodo: number
+          leads_respondidos: number
+          tempo_mediana_min: number
+          tempo_medio_min: number
+        }[]
       }
     }
     Enums: {
