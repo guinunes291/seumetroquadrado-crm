@@ -808,9 +808,8 @@ export function CopaPage() {
                           c={c}
                           nomeCorretor={nomeCorretor}
                           selecaoCorretor={selecaoCorretor}
-                          ptsTotal={(id) =>
-                            ranking.find((r) => r.corretor_id === id)?.total_pontos ?? 0
-                          }
+                          ptsTotal={(id) => ptsSem(id, c.semana_ref)}
+                          semanaLabel={c.semana_ref ? `SEM ${c.semana_ref}` : null}
                         />
                       ))}
                     </div>
