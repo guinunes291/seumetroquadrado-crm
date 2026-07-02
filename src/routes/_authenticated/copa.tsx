@@ -1462,11 +1462,13 @@ function ConfrontoCard({
   nomeCorretor,
   selecaoCorretor,
   ptsTotal,
+  semanaLabel,
 }: {
   c: Confronto;
   nomeCorretor: (id: string | null) => string;
   selecaoCorretor: (id: string | null) => { nome: string; bandeira: string } | null;
   ptsTotal: (id: string | null) => number;
+  semanaLabel?: string | null;
 }) {
   const a = selecaoCorretor(c.corretor_a_id),
     b = selecaoCorretor(c.corretor_b_id);
