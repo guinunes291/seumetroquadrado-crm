@@ -691,22 +691,30 @@ function LeadsPage() {
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
       if (!ids.length) throw new Error("Selecione ao menos um lead.");
       if (!corretorId) throw new Error("Selecione o corretor de destino.");
-      const { error } = await supabase
-        .from("leads")
-        .update({ corretor_id: corretorId })
-        .in("id", ids);
-      if (error) {
-        console.error("[bulkTransferir]", error);
-        throw error;
+
+      const batchSize = 100;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const lote = ids.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("leads")
+          .update({ corretor_id: corretorId })
+          .in("id", lote);
+        if (error) {
+          console.error("[bulkTransferir]", { error, loteInicio: i, loteTamanho: lote.length });
+          throw error;
+        }
       }
+
       // Notifica via WhatsApp leads com origem=facebook (best-effort).
-      await Promise.allSettled(
-        ids.map((id) =>
+      const notifyBatchSize = 20;
+      for (let i = 0; i < ids.length; i += notifyBatchSize) {
+        const lote = ids.slice(i, i + notifyBatchSize);
+        await Promise.allSettled(lote.map((id) =>
           supabase.functions.invoke("notify-lead-transfer", {
             body: { lead_id: id, corretor_id: corretorId },
           }),
-        ),
-      );
+        ));
+      }
       return ids.length;
     },
     onSuccess: (n) => {
