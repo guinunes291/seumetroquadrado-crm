@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Phone, Mail, GripVertical } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FUNNEL_STAGES, LEAD_STATUS_LABEL, resolveStageAction, type LeadStatus } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
@@ -84,7 +86,12 @@ export function KanbanBoard() {
     return m;
   }, [corretores]);
 
-  const { data: leads } = useQuery({
+  const {
+    data: leads,
+    isLoading: leadsLoading,
+    isError: leadsError,
+    refetch: refetchLeads,
+  } = useQuery({
     queryKey: ["leads-kanban"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -164,119 +171,148 @@ export function KanbanBoard() {
         />
       </div>
 
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-3 min-w-max">
-          {COLUMNS.map((col) => {
-            const items = byColumn.get(col.id) ?? [];
-            return (
-              <div
-                key={col.id}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setOverCol(col.id);
-                }}
-                onDragLeave={() => setOverCol((c) => (c === col.id ? null : c))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setOverCol(null);
-                  if (dragId) {
-                    const lead = (leads ?? []).find((l) => l.id === dragId);
-                    if (lead) routeStage(lead, col.id as LeadStatus);
-                  }
-                  setDragId(null);
-                }}
-                className={cn(
-                  "w-72 shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors",
-                  col.tone,
-                  overCol === col.id && "ring-2 ring-primary/60",
-                )}
-              >
-                <div className="flex items-center justify-between px-1 py-2">
-                  <div className="font-semibold text-sm">{col.label}</div>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {items.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2 min-h-[100px]">
-                  {items.map((lead) => (
-                    <Card
-                      key={lead.id}
-                      draggable
-                      onDragStart={() => setDragId(lead.id)}
-                      onDragEnd={() => setDragId(null)}
-                      className={cn(
-                        "p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background",
-                        dragId === lead.id && "opacity-50",
-                      )}
-                    >
-                      <div className="flex items-start gap-1">
-                        <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{lead.nome}</div>
-                          {lead.projeto_nome && (
-                            <div className="text-[11px] text-muted-foreground truncate">
-                              {lead.projeto_nome}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span className="truncate">{lead.telefone}</span>
-                          </div>
-                          {lead.email && (
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              <span className="truncate">{lead.email}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
-                            <span className="text-[10px] text-muted-foreground">
-                              {lead.corretor_id
-                                ? (corretoresMap.get(lead.corretor_id) ?? "—")
-                                : "sem corretor"}
-                            </span>
-                            {(lead.status === "novo" || lead.status === "aguardando_atendimento") &&
-                              slaMap.get(lead.id) && (
-                                <SlaBadge
-                                  compact
-                                  slaMinutos={slaMap.get(lead.id)!.sla_minutos}
-                                  referencia={lead.data_distribuicao ?? lead.created_at}
-                                />
-                              )}
-                            {lead.temperatura && (
-                              <Badge
-                                variant="secondary"
-                                className={cn(
-                                  "text-[9px] uppercase",
-                                  lead.temperatura === "quente" &&
-                                    "bg-red-500/15 text-red-700 dark:text-red-300",
-                                  lead.temperatura === "morno" &&
-                                    "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-                                  lead.temperatura === "frio" &&
-                                    "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-                                )}
-                              >
-                                {lead.temperatura}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <LeadStageMenu
-                          lead={lead}
-                          onPickDirect={(target) =>
-                            updateStatus.mutate({ id: lead.id, status: target })
-                          }
-                          onPickModal={(modal) => setModalState({ modal, lead })}
-                          onPickPerdido={() => setPerdidoLead(lead)}
-                        />
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+      {leadsError && (
+        <Card className="p-8 text-center space-y-3">
+          <AlertTriangle className="h-8 w-8 mx-auto text-destructive opacity-70" />
+          <p className="text-sm text-muted-foreground">
+            Não foi possível carregar o quadro. Tente novamente.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => refetchLeads()}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+          </Button>
+        </Card>
+      )}
+
+      {leadsLoading && !leadsError && (
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-72 shrink-0 rounded-lg" />
+          ))}
         </div>
-      </div>
+      )}
+
+      {!leadsLoading && !leadsError && (leads ?? []).length === 0 && (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          Nenhum lead ativo no funil ainda.
+        </p>
+      )}
+
+      {!leadsLoading && !leadsError && (leads ?? []).length > 0 && (
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-3 min-w-max">
+            {COLUMNS.map((col) => {
+              const items = byColumn.get(col.id) ?? [];
+              return (
+                <div
+                  key={col.id}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setOverCol(col.id);
+                  }}
+                  onDragLeave={() => setOverCol((c) => (c === col.id ? null : c))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setOverCol(null);
+                    if (dragId) {
+                      const lead = (leads ?? []).find((l) => l.id === dragId);
+                      if (lead) routeStage(lead, col.id as LeadStatus);
+                    }
+                    setDragId(null);
+                  }}
+                  className={cn(
+                    "w-72 shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors",
+                    col.tone,
+                    overCol === col.id && "ring-2 ring-primary/60",
+                  )}
+                >
+                  <div className="flex items-center justify-between px-1 py-2">
+                    <div className="font-semibold text-sm">{col.label}</div>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {items.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2 min-h-[100px]">
+                    {items.map((lead) => (
+                      <Card
+                        key={lead.id}
+                        draggable
+                        onDragStart={() => setDragId(lead.id)}
+                        onDragEnd={() => setDragId(null)}
+                        className={cn(
+                          "p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background",
+                          dragId === lead.id && "opacity-50",
+                        )}
+                      >
+                        <div className="flex items-start gap-1">
+                          <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm truncate">{lead.nome}</div>
+                            {lead.projeto_nome && (
+                              <div className="text-[11px] text-muted-foreground truncate">
+                                {lead.projeto_nome}
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              <span className="truncate">{lead.telefone}</span>
+                            </div>
+                            {lead.email && (
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <Mail className="h-3 w-3" />
+                                <span className="truncate">{lead.email}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
+                              <span className="text-[10px] text-muted-foreground">
+                                {lead.corretor_id
+                                  ? (corretoresMap.get(lead.corretor_id) ?? "—")
+                                  : "sem corretor"}
+                              </span>
+                              {(lead.status === "novo" ||
+                                lead.status === "aguardando_atendimento") &&
+                                slaMap.get(lead.id) && (
+                                  <SlaBadge
+                                    compact
+                                    slaMinutos={slaMap.get(lead.id)!.sla_minutos}
+                                    referencia={lead.data_distribuicao ?? lead.created_at}
+                                  />
+                                )}
+                              {lead.temperatura && (
+                                <Badge
+                                  variant="secondary"
+                                  className={cn(
+                                    "text-[9px] uppercase",
+                                    lead.temperatura === "quente" &&
+                                      "bg-red-500/15 text-red-700 dark:text-red-300",
+                                    lead.temperatura === "morno" &&
+                                      "bg-amber-500/15 text-amber-700 dark:text-amber-300",
+                                    lead.temperatura === "frio" &&
+                                      "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+                                  )}
+                                >
+                                  {lead.temperatura}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <LeadStageMenu
+                            lead={lead}
+                            onPickDirect={(target) =>
+                              updateStatus.mutate({ id: lead.id, status: target })
+                            }
+                            onPickModal={(modal) => setModalState({ modal, lead })}
+                            onPickPerdido={() => setPerdidoLead(lead)}
+                          />
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <LeadStageModals
         modalState={modalState}
         onModalOpenChange={(o) => !o && setModalState(null)}
