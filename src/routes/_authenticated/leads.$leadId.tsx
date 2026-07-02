@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Plus,
@@ -37,6 +38,7 @@ import {
   PhoneCall,
   MapPin,
   Calendar,
+  RefreshCw,
   User,
   Building2,
   MessageCircle,
@@ -45,6 +47,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
@@ -59,7 +62,6 @@ import {
 } from "@/lib/interacoes";
 import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
 import {
-  LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
   FUNNEL_STAGES,
   PROXIMA_ACAO,
@@ -68,7 +70,6 @@ import {
   type StageLead,
   type LeadStatus,
 } from "@/lib/leads";
-import { LeadStageMenu } from "@/components/lead-stage-menu";
 import {
   LeadStageModals,
   type StageModalState,
@@ -92,7 +93,21 @@ import {
   type TarefaPrioridade,
 } from "@/lib/tarefas";
 
+const LEAD_TABS = [
+  "timeline",
+  "dados",
+  "qualificacao",
+  "tarefas",
+  "agendamentos",
+  "documentacao",
+] as const;
+type LeadTab = (typeof LEAD_TABS)[number];
+
 export const Route = createFileRoute("/_authenticated/leads/$leadId")({
+  // `tab` permite deep-linkar/recarregar mantendo a aba ativa (padrão: timeline).
+  validateSearch: (search: Record<string, unknown>): { tab?: LeadTab } => ({
+    tab: LEAD_TABS.includes(search.tab as LeadTab) ? (search.tab as LeadTab) : undefined,
+  }),
   head: () => ({ meta: [{ title: "Lead — Seu Metro Quadrado" }] }),
   component: LeadDetailPage,
 });
@@ -143,25 +158,21 @@ type Interacao = {
   ocorreu_em: string;
 };
 
-const TIPO_OPTIONS: InteracaoTipo[] = [
-  "ligacao",
-  "whatsapp",
-  "email",
-  "sms",
-  "visita",
-  "reuniao",
-  "nota",
-  "proposta",
-  "outro",
-];
-
 function LeadDetailPage() {
   const { leadId } = Route.useParams();
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const activeTab: LeadTab = tab ?? "timeline";
   const qc = useQueryClient();
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
 
-  const { data: lead, isLoading } = useQuery({
+  const {
+    data: lead,
+    isLoading,
+    isError: leadError,
+    refetch: refetchLead,
+  } = useQuery({
     queryKey: ["lead", leadId],
     queryFn: async (): Promise<Lead | null> => {
       const { data, error } = await supabase
@@ -174,7 +185,11 @@ function LeadDetailPage() {
     },
   });
 
-  const { data: interacoes = [] } = useQuery({
+  const {
+    data: interacoes = [],
+    isError: interacoesError,
+    refetch: refetchInteracoes,
+  } = useQuery({
     queryKey: ["interacoes", leadId],
     queryFn: async (): Promise<Interacao[]> => {
       const { data, error } = await supabase
@@ -200,8 +215,10 @@ function LeadDetailPage() {
     },
   });
 
-  const { data: agendamentos = [] } = useQuery({
+  // Carrega só quando a aba Agendamentos é aberta (evita fetch em toda visita).
+  const { data: agendamentosData } = useQuery({
     queryKey: ["agendamentos-lead", leadId],
+    enabled: activeTab === "agendamentos",
     queryFn: async () => {
       const { data, error } = await supabase
         .from("agendamentos")
@@ -212,9 +229,14 @@ function LeadDetailPage() {
       return data ?? [];
     },
   });
+  const agendamentos = agendamentosData ?? [];
 
+  const [waOpen, setWaOpen] = useState(false);
+
+  // Templates só são usados dentro do diálogo de WhatsApp — não buscar antes.
   const { data: templatesWa = [] } = useQuery({
     queryKey: ["templates-whatsapp"],
+    enabled: waOpen,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("templates_mensagem")
@@ -227,12 +249,6 @@ function LeadDetailPage() {
     },
   });
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [tipo, setTipo] = useState<InteracaoTipo>("ligacao");
-  const [direcao, setDirecao] = useState<InteracaoDirecao>("saida");
-  const [titulo, setTitulo] = useState("");
-  const [conteudo, setConteudo] = useState("");
-  const [waOpen, setWaOpen] = useState(false);
   const [waTemplateId, setWaTemplateId] = useState<string>("");
   const [waMensagem, setWaMensagem] = useState("");
   const [waObjetivo, setWaObjetivo] = useState<ObjetivoMensagem>("primeiro_contato");
@@ -345,33 +361,6 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const criarInteracao = useMutation({
-    mutationFn: async () => {
-      const conteudoTrim = conteudo.trim();
-      if (conteudoTrim.length === 0) throw new Error("Descreva a interação.");
-      if (conteudoTrim.length > 2000) throw new Error("Conteúdo muito longo (máx 2000).");
-      const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase.from("interacoes").insert({
-        lead_id: leadId,
-        autor_id: u.user?.id ?? null,
-        tipo,
-        direcao,
-        titulo: titulo.trim() || null,
-        conteudo: conteudoTrim,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Interação registrada");
-      setDialogOpen(false);
-      setTitulo("");
-      setConteudo("");
-      qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
-      qc.invalidateQueries({ queryKey: ["lead", leadId] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   // Nota rápida: registra uma interação (nota interna) em 1 passo, sem o modal completo.
   const criarNotaRapida = useMutation({
     mutationFn: async () => {
@@ -396,16 +385,21 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // SLA do lead (mesma fonte do Kanban: view leads_com_sla). Mostra contador no detalhe.
+  // SLA do lead (mesma fonte do Kanban: view leads_com_sla). O RPC aceita
+  // `_corretor` e filtra no banco — evita varrer todos os leads para 1 badge.
   const { data: slaInfo } = useQuery({
-    queryKey: ["lead-sla", leadId],
+    queryKey: ["lead-sla", leadId, lead?.corretor_id ?? null],
+    enabled: !!lead,
     queryFn: async () => {
       const { data, error } = await (
-        supabase.rpc as unknown as (fn: string) => Promise<{
+        supabase.rpc as unknown as (
+          fn: string,
+          args?: Record<string, unknown>,
+        ) => Promise<{
           data: Array<{ lead_id: string; sla_minutos: number }> | null;
           error: unknown;
         }>
-      )("leads_com_sla");
+      )("leads_com_sla", { _corretor: lead?.corretor_id ?? null });
       if (error) throw error;
       return (data ?? []).find((r) => r.lead_id === leadId) ?? null;
     },
@@ -462,7 +456,35 @@ function LeadDetailPage() {
   });
 
   if (isLoading) {
-    return <div className="text-sm text-muted-foreground">Carregando lead…</div>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-16 w-full max-w-2xl" />
+        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+  // Erro de rede não é "lead não encontrado": oferece tentar de novo.
+  if (leadError) {
+    return (
+      <div>
+        <Link to="/leads" className="text-sm text-primary hover:underline">
+          ← Voltar para leads
+        </Link>
+        <Card className="mt-4">
+          <CardContent className="py-12 text-center space-y-3">
+            <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+            <p className="text-sm text-muted-foreground">
+              Não foi possível carregar o lead. Verifique sua conexão e tente novamente.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetchLead()}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
   if (!lead) {
     return (
@@ -651,85 +673,6 @@ function LeadDetailPage() {
               </DialogContent>
             </Dialog>
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Plus className="h-4 w-4 mr-2" /> Registrar interação
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Nova interação</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-3 py-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Tipo</Label>
-                      <Select value={tipo} onValueChange={(v) => setTipo(v as InteracaoTipo)}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPO_OPTIONS.map((t) => (
-                            <SelectItem key={t} value={t}>
-                              {INTERACAO_LABEL[t]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Direção</Label>
-                      <Select
-                        value={direcao}
-                        onValueChange={(v) => setDirecao(v as InteracaoDirecao)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="entrada">Entrada (do lead)</SelectItem>
-                          <SelectItem value="saida">Saída (para o lead)</SelectItem>
-                          <SelectItem value="interna">Interna</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Título (opcional)</Label>
-                    <Input
-                      value={titulo}
-                      onChange={(e) => setTitulo(e.target.value)}
-                      maxLength={160}
-                    />
-                  </div>
-                  <div>
-                    <Label>
-                      O que aconteceu? <span className="text-destructive">*</span>
-                    </Label>
-                    <Textarea
-                      value={conteudo}
-                      onChange={(e) => setConteudo(e.target.value)}
-                      rows={4}
-                      maxLength={2000}
-                      placeholder="Resumo da conversa, próximos passos, objeções…"
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={() => criarInteracao.mutate()}
-                    disabled={criarInteracao.isPending}
-                  >
-                    Registrar
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
             <Button variant="outline" onClick={openEdit}>
               <Pencil className="h-4 w-4 mr-2" /> Editar dados
             </Button>
@@ -750,9 +693,6 @@ function LeadDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setContatoOpen(true)}>
-              <PhoneCall className="mr-1 h-4 w-4" /> Registrar contato
-            </Button>
             {acaoSugerida && (
               <Button
                 size="sm"
@@ -826,26 +766,6 @@ function LeadDetailPage() {
                 />
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={lead.status} onValueChange={(v) => goToStage(v as LeadStatus)}>
-                <SelectTrigger className="h-8 w-[180px]">
-                  <SelectValue placeholder="Mudar para…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {LEAD_STATUS_ORDER.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {LEAD_STATUS_LABEL[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <LeadStageMenu
-                lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
-                onPickDirect={(target) => goToStage(target)}
-                onPickModal={(modal) => setModalState({ modal, lead: stageLead })}
-                onPickPerdido={() => setPerdidoLead(stageLead)}
-              />
-            </div>
           </CardContent>
         </Card>
         <Card>
@@ -869,13 +789,20 @@ function LeadDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="timeline">
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) =>
+          navigate({ search: { tab: v === "timeline" ? undefined : (v as LeadTab) } })
+        }
+      >
         <TabsList>
           <TabsTrigger value="timeline">Timeline ({interacoes.length})</TabsTrigger>
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="qualificacao">Qualificação</TabsTrigger>
           <TabsTrigger value="tarefas">Tarefas ({tarefas.length})</TabsTrigger>
-          <TabsTrigger value="agendamentos">Agendamentos ({agendamentos.length})</TabsTrigger>
+          <TabsTrigger value="agendamentos">
+            Agendamentos{agendamentosData ? ` (${agendamentos.length})` : ""}
+          </TabsTrigger>
           <TabsTrigger value="documentacao">Documentação</TabsTrigger>
         </TabsList>
 
@@ -911,7 +838,16 @@ function LeadDetailPage() {
               </div>
             </CardContent>
           </Card>
-          {interacoes.length === 0 ? (
+          {interacoesError ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-2">
+                <p>Não foi possível carregar a timeline.</p>
+                <Button variant="outline" size="sm" onClick={() => refetchInteracoes()}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+                </Button>
+              </CardContent>
+            </Card>
+          ) : interacoes.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
                 Nenhuma interação registrada ainda.
@@ -1143,24 +1079,13 @@ function LeadDetailPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Os próprios modais invalidam lead/interações/agendamentos no onSuccess;
+          fechar/cancelar não precisa refazer as queries. */}
       <LeadStageModals
         modalState={modalState}
-        onModalOpenChange={(o) => {
-          if (!o) {
-            setModalState(null);
-            qc.invalidateQueries({ queryKey: ["lead", leadId] });
-            qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
-            qc.invalidateQueries({ queryKey: ["agendamentos-lead", leadId] });
-          }
-        }}
+        onModalOpenChange={(o) => !o && setModalState(null)}
         perdidoLead={perdidoLead}
-        onPerdidoOpenChange={(o) => {
-          if (!o) {
-            setPerdidoLead(null);
-            qc.invalidateQueries({ queryKey: ["lead", leadId] });
-            qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
-          }
-        }}
+        onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
       />
 
       <RegistrarContatoDialog

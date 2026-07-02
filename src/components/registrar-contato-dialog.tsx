@@ -43,6 +43,9 @@ const CANAIS: { value: InteracaoTipo; label: string }[] = [
   { value: "whatsapp", label: "WhatsApp" },
   { value: "visita", label: "Visita" },
   { value: "reuniao", label: "Reunião" },
+  { value: "email", label: "E-mail" },
+  { value: "sms", label: "SMS" },
+  { value: "outro", label: "Outro" },
 ];
 
 type Props = {
