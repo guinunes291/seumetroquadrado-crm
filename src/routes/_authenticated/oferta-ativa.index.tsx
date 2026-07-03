@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Megaphone, Plus, Archive, RotateCcw, Users } from "lucide-react";
+import { Megaphone, Plus, Archive, RotateCcw, Users, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   listOfertas,
   archiveOferta,
   restaurarOferta,
+  deleteOferta,
   statusLabel,
   statusVariant,
   type OfertaAtiva,
@@ -32,19 +43,23 @@ export function OfertaAtivaPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const [tab, setTab] = useState<"ativas" | "arquivadas">("ativas");
+  const [confirmExcluir, setConfirmExcluir] = useState<OfertaAtiva | null>(null);
 
-  useRealtimeInvalidate(
-    ["ofertas_ativas", "oferta_ativa_leads"],
-    [["ofertas-ativas"]],
-  );
+  useRealtimeInvalidate(["ofertas_ativas", "oferta_ativa_leads"], [["ofertas-ativas"]]);
 
   const ativasQ = useQuery({
     queryKey: ["ofertas-ativas", "ativas"],
-    queryFn: () => listOfertas(false),
+    queryFn: async () => {
+      const listas = await listOfertas(false);
+      // Campanhas em andamento antes das concluídas (sort estável mantém
+      // a ordenação por data dentro de cada grupo).
+      const ordem: Record<string, number> = { ativa: 0, rascunho: 1, concluida: 2 };
+      return [...listas].sort((a, b) => (ordem[a.status] ?? 9) - (ordem[b.status] ?? 9));
+    },
   });
   const arqQ = useQuery({
     queryKey: ["ofertas-ativas", "arquivadas"],
-    queryFn: () => listOfertas(true).then((all) => all.filter((o) => o.status === "arquivada")),
+    queryFn: () => listOfertas(true),
   });
 
   const archiveM = useMutation({
@@ -65,13 +80,17 @@ export function OfertaAtivaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function ListaCard({
-    lista,
-    arquivada = false,
-  }: {
-    lista: OfertaAtiva;
-    arquivada?: boolean;
-  }) {
+  const deleteM = useMutation({
+    mutationFn: deleteOferta,
+    onSuccess: () => {
+      toast.success("Lista excluída");
+      setConfirmExcluir(null);
+      qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function ListaCard({ lista, arquivada = false }: { lista: OfertaAtiva; arquivada?: boolean }) {
     const pctContatados =
       lista.totalLeads > 0 ? Math.round((lista.totalContatados / lista.totalLeads) * 100) : 0;
     const pctAvancados =
@@ -79,10 +98,10 @@ export function OfertaAtivaPage() {
 
     return (
       <div
-        className={`bg-card border rounded-xl p-4 transition-shadow ${
-          arquivada ? "opacity-80" : "cursor-pointer hover:shadow-md"
+        className={`bg-card border rounded-xl p-4 transition-shadow cursor-pointer hover:shadow-md ${
+          arquivada ? "opacity-80" : ""
         }`}
-        onClick={() => !arquivada && navigate({ to: "/oferta-ativa/$ofertaId", params: { ofertaId: lista.id } })}
+        onClick={() => navigate({ to: "/oferta-ativa/$ofertaId", params: { ofertaId: lista.id } })}
       >
         <div className="flex items-start justify-between gap-2 mb-3">
           <div>
@@ -119,30 +138,58 @@ export function OfertaAtivaPage() {
           <span className="text-xs text-muted-foreground">
             {new Date(lista.created_at).toLocaleDateString("pt-BR")}
           </span>
-          {canManage &&
-            (arquivada ? (
-              <button
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  restoreM.mutate(lista.id);
-                }}
-                disabled={restoreM.isPending}
-              >
-                <RotateCcw className="w-3 h-3" /> Restaurar
-              </button>
-            ) : (
-              <button
-                className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  archiveM.mutate(lista.id);
-                }}
-                disabled={archiveM.isPending}
-              >
-                <Archive className="w-3 h-3" /> Arquivar
-              </button>
-            ))}
+          {canManage && (
+            <div className="flex items-center gap-3">
+              {arquivada ? (
+                <>
+                  <button
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      restoreM.mutate(lista.id);
+                    }}
+                    disabled={restoreM.isPending}
+                  >
+                    <RotateCcw className="w-3 h-3" /> Restaurar
+                  </button>
+                  {isAdmin && (
+                    <button
+                      className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmExcluir(lista);
+                      }}
+                      disabled={deleteM.isPending}
+                    >
+                      <Trash2 className="w-3 h-3" /> Excluir
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate({ to: "/oferta-ativa/nova", search: { de: lista.id } });
+                    }}
+                  >
+                    <Copy className="w-3 h-3" /> Duplicar
+                  </button>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      archiveM.mutate(lista.id);
+                    }}
+                    disabled={archiveM.isPending}
+                  >
+                    <Archive className="w-3 h-3" /> Arquivar
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -244,6 +291,27 @@ export function OfertaAtivaPage() {
           <Users className="w-3 h-3" /> Você vê apenas as listas atribuídas a você.
         </p>
       )}
+
+      <AlertDialog open={!!confirmExcluir} onOpenChange={(o) => !o && setConfirmExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir "{confirmExcluir?.nome}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A lista e o progresso de contato dos leads dela serão excluídos de forma permanente.
+              Os leads em si não são afetados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => confirmExcluir && deleteM.mutate(confirmExcluir.id)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -170,7 +170,7 @@ export function TemplatesPage() {
     <div>
       <PageHeader
         title="Templates de mensagem"
-        description="Modelos reutilizáveis para WhatsApp, e-mail e SMS. Use {{nome}}, {{projeto}} e {{corretor}} como variáveis."
+        description="Modelos reutilizáveis para WhatsApp, e-mail e SMS. Use {{nome}}, {{primeiro_nome}}, {{projeto}} e {{corretor}} como variáveis."
         actions={
           <Dialog
             open={open}

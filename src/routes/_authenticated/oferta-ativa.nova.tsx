@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Plus, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUserRoles } from "@/hooks/use-auth";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   STATUS_LEAD_OPTIONS,
   TEMPERATURA_OPTIONS,
@@ -24,26 +26,23 @@ import {
   ZONA_OPTIONS,
   previewFiltros,
   createOferta,
+  getOfertaResumo,
   type OfertaFiltros,
 } from "@/lib/oferta-ativa";
 
 export const Route = createFileRoute("/_authenticated/oferta-ativa/nova")({
+  // `de` = id de uma lista existente a duplicar (prefill do formulário).
+  validateSearch: (search: Record<string, unknown>): { de?: string } => ({
+    de: typeof search.de === "string" ? search.de : undefined,
+  }),
   head: () => ({ meta: [{ title: "Nova Lista — Oferta Ativa" }] }),
   component: NovaOfertaPage,
 });
 
-function useDebounce<T>(value: T, ms: number): T {
-  const [d, setD] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setD(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return d;
-}
-
 function NovaOfertaPage() {
   const navigate = useNavigate();
-  const { isAdmin, isGestor } = useUserRoles();
+  const { de } = Route.useSearch();
+  const { isAdmin, isGestor, loading: rolesLoading } = useUserRoles();
   const canManage = isAdmin || isGestor;
 
   const [nome, setNome] = useState("");
@@ -58,6 +57,29 @@ function NovaOfertaPage() {
     zona: [],
   });
 
+  // Duplicar: pré-preenche o builder com os dados da lista de origem (uma vez).
+  const origemQ = useQuery({
+    queryKey: ["oferta-origem", de],
+    enabled: !!de,
+    queryFn: () => getOfertaResumo(de!),
+  });
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!de || seeded.current || !origemQ.data) return;
+    seeded.current = true;
+    setNome(`${origemQ.data.nome} (cópia)`);
+    setDescricao(origemQ.data.descricao ?? "");
+    setCorretorId(origemQ.data.corretor_id ?? undefined);
+    setFiltros(origemQ.data.filtros);
+  }, [de, origemQ.data]);
+  useEffect(() => {
+    if (origemQ.isError) {
+      toast.error("Não foi possível carregar a lista de origem", {
+        description:
+          "Ela pode ter sido excluída ou você não tem acesso. Preencha o formulário manualmente.",
+      });
+    }
+  }, [origemQ.isError]);
 
   const debounced = useDebounce(filtros, 400);
   const debouncedCorretor = useDebounce(corretorId, 400);
@@ -80,10 +102,7 @@ function NovaOfertaPage() {
     queryKey: ["corretores-oa"],
     enabled: canManage,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nome")
-        .order("nome");
+      const { data, error } = await supabase.from("profiles").select("id, nome").order("nome");
       if (error) throw error;
       return data ?? [];
     },
@@ -127,6 +146,34 @@ function NovaOfertaPage() {
     }));
   }
 
+  // Espera os papéis para não piscar "Acesso restrito" para gestor no 1º paint.
+  if (rolesLoading || (de && canManage && origemQ.isLoading)) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Criar listas é ação de gestão (o RPC create_oferta_ativa rejeita os demais).
+  if (!canManage) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="Acesso restrito"
+        description="A criação de listas de Oferta Ativa é exclusiva para gestores e administradores. Você trabalha as listas atribuídas a você na aba Oferta Ativa."
+        action={
+          <Button asChild variant="outline">
+            <Link to="/projetos" search={{ tab: "oferta" }}>
+              Voltar para Oferta Ativa
+            </Link>
+          </Button>
+        }
+        className="py-20"
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
@@ -135,7 +182,7 @@ function NovaOfertaPage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
         </Button>
-        <PageHeader title="Nova Lista de Oferta Ativa" />
+        <PageHeader title={de ? "Duplicar Lista de Oferta Ativa" : "Nova Lista de Oferta Ativa"} />
       </div>
 
       <div className="bg-card border rounded-xl p-6 space-y-6">
@@ -256,7 +303,8 @@ function NovaOfertaPage() {
                 })}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Filtra leads pelos projetos cadastrados nessas zonas (inclui projetos vindos por importação).
+                Filtra leads pelos projetos cadastrados nessas zonas (inclui projetos vindos por
+                importação).
               </p>
             </div>
 
@@ -300,7 +348,6 @@ function NovaOfertaPage() {
                 </div>
               </div>
             )}
-
 
             <div>
               <Label className="text-sm font-medium">Sem interação há (dias)</Label>
@@ -351,23 +398,25 @@ function NovaOfertaPage() {
             </p>
           )}
           <div className="flex justify-end gap-3">
-          <Button variant="outline" asChild>
-            <Link to="/oferta-ativa">Cancelar</Link>
-          </Button>
-          <Button
-            onClick={() => createM.mutate()}
-            disabled={nome.trim().length < 2 || createM.isPending || (previewQ.data?.count ?? 0) === 0}
-          >
-            {createM.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-2" /> Criar Lista
-              </>
-            )}
-          </Button>
+            <Button variant="outline" asChild>
+              <Link to="/oferta-ativa">Cancelar</Link>
+            </Button>
+            <Button
+              onClick={() => createM.mutate()}
+              disabled={
+                nome.trim().length < 2 || createM.isPending || (previewQ.data?.count ?? 0) === 0
+              }
+            >
+              {createM.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" /> Criar Lista
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>
