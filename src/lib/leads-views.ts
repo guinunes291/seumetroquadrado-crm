@@ -113,9 +113,16 @@ export function saveViews(uid: string, views: SavedView[]): void {
 }
 
 export function loadUltimoFiltro(uid: string): LeadFiltros | null {
-  return readJSON<LeadFiltros | null>(filtroKey(uid), null);
+  const raw = readJSON<LeadFiltros | null>(filtroKey(uid), null);
+  if (!raw) return null;
+  // Nunca restaura recorte por período: leads (principalmente
+  // "aguardando atendimento") acumulam ao longo do tempo, e um filtro
+  // persistido de 7/30/90d escondia silenciosamente leads antigos do
+  // corretor (aparecia "1" em vez de dezenas).
+  return { ...raw, periodo: "all", dataInicio: "", dataFim: "" };
 }
 
 export function saveUltimoFiltro(uid: string, f: LeadFiltros): void {
-  writeJSON(filtroKey(uid), f);
+  // Persiste tudo menos o período — ver loadUltimoFiltro.
+  writeJSON(filtroKey(uid), { ...f, periodo: "all", dataInicio: "", dataFim: "" });
 }
