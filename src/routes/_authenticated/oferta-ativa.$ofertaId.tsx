@@ -19,6 +19,8 @@ import {
   Send,
   AlertTriangle,
   X,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
