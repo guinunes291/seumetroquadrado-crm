@@ -215,10 +215,10 @@ function NovaOfertaPage() {
                 onValueChange={(v) => setCorretorId(v === "all" ? undefined : v)}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Todos / carteira geral" />
+                  <SelectValue placeholder="Carteira geral (sem dono)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os leads</SelectItem>
+                  <SelectItem value="all">Carteira geral (sem dono)</SelectItem>
                   {(corretoresQ.data ?? []).map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.nome ?? "Sem nome"}
@@ -226,6 +226,10 @@ function NovaOfertaPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Define quem será o dono desta lista. Não filtra os leads — use os filtros abaixo
+                para escolher quais leads entram.
+              </p>
             </div>
           )}
         </div>
