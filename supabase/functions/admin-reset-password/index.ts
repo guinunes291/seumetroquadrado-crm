@@ -18,7 +18,10 @@ Deno.serve(async (req) => {
   );
 
   // Localiza usuário por email
-  const { data: list, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+  const { data: list, error: listErr } = await admin.auth.admin.listUsers({
+    page: 1,
+    perPage: 200,
+  });
   if (listErr) return new Response(JSON.stringify({ error: listErr.message }), { status: 500 });
   const user = list.users.find((u) => (u.email ?? "").toLowerCase() === email.toLowerCase());
   if (!user) return new Response(JSON.stringify({ error: "user_not_found" }), { status: 404 });

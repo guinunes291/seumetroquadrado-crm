@@ -89,7 +89,11 @@ export const Route = createFileRoute("/_authenticated/comissoes")({
 });
 
 const PAGINA_RENDER = 50;
-const hoje = () => new Date().toISOString().slice(0, 10);
+// Data local (não UTC): à noite no Brasil o toISOString já virou o dia seguinte.
+const hoje = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 function Beneficiario({ row }: { row: ComissaoRow }) {
   if (row.beneficiario_nome) return <span>{row.beneficiario_nome}</span>;
@@ -203,6 +207,19 @@ export function ComissoesPage() {
   });
 
   const rows = useMemo(() => comissoesQ.data ?? [], [comissoesQ.data]);
+
+  // Reseta o filtro de beneficiário quando o valor escolhido deixa de existir
+  // nos dados carregados (troca de mês/status ou reatribuição) — senão o
+  // Select fica órfão, em branco, com a lista vazia sem explicação.
+  useEffect(() => {
+    if (beneficiario === "all" || !comissoesQ.data) return;
+    const existe =
+      beneficiario === "sem"
+        ? comissoesQ.data.some((r) => !r.beneficiario_id)
+        : comissoesQ.data.some((r) => r.beneficiario_id === beneficiario);
+    if (!existe) setBeneficiario("all");
+  }, [beneficiario, comissoesQ.data]);
+
   const filtered = useMemo(() => {
     if (beneficiario === "all") return rows;
     if (beneficiario === "sem") return rows.filter((r) => !r.beneficiario_id);
@@ -225,6 +242,10 @@ export function ComissoesPage() {
 
   const mesLabel =
     mes === "todos" ? "Todo o período" : (mesesOpcoes.find((m) => m.value === mes)?.label ?? mes);
+  // Os cards de pendente/paga refletem os filtros de status/beneficiário —
+  // o hint precisa dizer isso para não parecer o total do mês.
+  const hintComissoes =
+    status !== "all" || beneficiario !== "all" ? `${mesLabel} · com filtros ativos` : mesLabel;
 
   // --- Mutations com update otimista sobre a query ativa -------------------
   const activeKey = useMemo(() => ["comissoes", mes, status] as const, [mes, status]);
@@ -246,12 +267,15 @@ export function ComissoesPage() {
     mutationFn: ({ run }: UpdateVars) => run(),
     onMutate: async ({ id, changes }) => {
       await qc.cancelQueries({ queryKey: ["comissoes"] });
-      const prev = qc.getQueryData<ComissaoRow[]>(activeKey);
+      // Captura a key do momento do mutate: se o usuário trocar o filtro
+      // antes do erro, o rollback precisa restaurar a key onde o patch caiu.
+      const key = activeKey;
+      const prev = qc.getQueryData<ComissaoRow[]>(key);
       patchCache(id, changes);
-      return { prev };
+      return { prev, key };
     },
     onError: (err: Error, vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(activeKey, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(ctx.key, ctx.prev);
       toast.error(err.message, {
         action: { label: "Tentar novamente", onClick: () => updateRef.current?.(vars) },
       });
@@ -262,11 +286,15 @@ export function ComissoesPage() {
   updateRef.current = updateM.mutate;
 
   async function exportarXlsx() {
-    const XLSX = await import("xlsx");
-    const ws = XLSX.utils.json_to_sheet(buildExportRows(filtered));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Comissões");
-    XLSX.writeFile(wb, `comissoes-${mes === "todos" ? "todas" : mes}.xlsx`);
+    try {
+      const XLSX = await import("xlsx");
+      const ws = XLSX.utils.json_to_sheet(buildExportRows(filtered));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Comissões");
+      XLSX.writeFile(wb, `comissoes-${mes === "todos" ? "todas" : mes}.xlsx`);
+    } catch {
+      toast.error("Não foi possível exportar a planilha. Verifique a conexão e tente novamente.");
+    }
   }
 
   const filtros = (
@@ -311,11 +339,9 @@ export function ComissoesPage() {
           </SelectContent>
         </Select>
       )}
-      {canManage && (
-        <Button variant="outline" size="sm" onClick={exportarXlsx} disabled={filtered.length === 0}>
-          <Download className="w-4 h-4 mr-1.5" /> Exportar
-        </Button>
-      )}
+      <Button variant="outline" size="sm" onClick={exportarXlsx} disabled={filtered.length === 0}>
+        <Download className="w-4 h-4 mr-1.5" /> Exportar
+      </Button>
     </div>
   );
 
@@ -337,23 +363,27 @@ export function ComissoesPage() {
 
       <KpiGrid>
         <KpiCard
-          title="VGV do período"
+          title={canManage ? "VGV do período" : "Meu VGV do período"}
           value={formatBRL2(resumoVendas.vgv)}
           hint={mesLabel}
           icon={TrendingUp}
           loading={vendasQ.isLoading}
         />
         <KpiCard
-          title="Comissão imobiliária"
+          title={canManage ? "Comissão imobiliária" : "Comissão sobre minhas vendas"}
           value={formatBRL2(resumoVendas.comissaoImobiliaria)}
-          hint="Prevista sobre as vendas do período"
+          hint={
+            canManage
+              ? "Prevista sobre as vendas do período"
+              : "Prevista sobre as minhas vendas do período"
+          }
           icon={Building2}
           loading={vendasQ.isLoading}
         />
         <KpiCard
           title={canManage ? "Comissões pendentes" : "Minha comissão pendente"}
           value={formatBRL2(totais.pendente)}
-          hint={mesLabel}
+          hint={hintComissoes}
           icon={Clock}
           intent="warning"
           loading={comissoesQ.isLoading}
@@ -361,7 +391,7 @@ export function ComissoesPage() {
         <KpiCard
           title={canManage ? "Comissões pagas" : "Minha comissão paga"}
           value={formatBRL2(totais.paga)}
-          hint={mesLabel}
+          hint={hintComissoes}
           icon={CheckCircle2}
           intent="success"
           loading={comissoesQ.isLoading}
@@ -493,7 +523,8 @@ export function ComissoesPage() {
                     {/* Totais do filtro ativo (todas as linhas, não só as visíveis) */}
                     <TableRow className="bg-muted/40 font-medium">
                       <TableCell colSpan={4}>
-                        Totais ({filtered.length} comissã{filtered.length === 1 ? "o" : "es"})
+                        Totais ({filtered.length} {filtered.length === 1 ? "comissão" : "comissões"}
+                        )
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatBRL2(totais.vgv)}

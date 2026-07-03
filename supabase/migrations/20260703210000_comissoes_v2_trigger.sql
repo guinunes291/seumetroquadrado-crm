@@ -54,7 +54,9 @@ BEGIN
   END IF;
 
   -- Corretor: sempre que a venda tem corretor (mesmo com pct 0, para a venda
-  -- aparecer na página dele).
+  -- aparecer na página dele). Venda órfã de corretor (conta removida) com
+  -- pct > 0 também gera a linha, sem beneficiário ("a atribuir"), como nas
+  -- partes de gerente/superintendente.
   INSERT INTO public.comissoes (
     venda_id, lead_id, beneficiario_id, beneficiario_nome, tipo, status,
     valor_base, percentual, valor_comissao, percentual_desconto, valor_liquido, contrato_vgv
@@ -63,7 +65,7 @@ BEGIN
          _v.valor_venda, COALESCE(_v.percentual_corretor, 0),
          round(_v.valor_venda * COALESCE(_v.percentual_corretor, 0) / 100, 2), 0,
          round(_v.valor_venda * COALESCE(_v.percentual_corretor, 0) / 100, 2), _v.valor_venda
-  WHERE _v.corretor_id IS NOT NULL
+  WHERE (_v.corretor_id IS NOT NULL OR COALESCE(_v.percentual_corretor, 0) > 0)
     AND NOT EXISTS (
       SELECT 1 FROM public.comissoes c WHERE c.venda_id = _v.id AND c.tipo = 'corretor'
     );
@@ -98,6 +100,10 @@ BEGIN
 END;
 $$;
 
+-- Convenção do repo para funções privilegiadas: sem EXECUTE via RPC do
+-- PostgREST (a execução por trigger e pelo backfill abaixo não é afetada).
+REVOKE ALL ON FUNCTION public.gerar_comissoes_para_venda(uuid) FROM PUBLIC, anon, authenticated;
+
 -- 3) Trigger de INSERT em vendas (nome próprio, independente dos demais).
 CREATE OR REPLACE FUNCTION public.gerar_comissoes_v2()
 RETURNS trigger
@@ -108,6 +114,8 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.gerar_comissoes_v2() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS trg_gerar_comissoes_v2 ON public.vendas;
 CREATE TRIGGER trg_gerar_comissoes_v2
@@ -133,6 +141,8 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.sincronizar_comissoes_distrato() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS trg_comissoes_distrato ON public.vendas;
 CREATE TRIGGER trg_comissoes_distrato
@@ -161,3 +171,21 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.vendas;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 7) Quem recebe comissão de uma venda precisa enxergar os dados básicos dela
+--    (data, projeto, VGV) — sem isso, a comissão de um gerente/superintendente
+--    que não é o corretor da venda sumiria do filtro mensal (join com vendas
+--    barrado pela RLS). Recria a policy de SELECT com essa cláusula extra.
+DROP POLICY IF EXISTS "vendas_select_own_or_gestor" ON public.vendas;
+CREATE POLICY "vendas_select_own_or_gestor" ON public.vendas FOR SELECT TO authenticated
+USING (
+  corretor_id = auth.uid()
+  OR criado_por_id = auth.uid()
+  OR public.has_role(auth.uid(),'admin')
+  OR public.has_role(auth.uid(),'gestor')
+  OR public.has_role(auth.uid(),'superintendente')
+  OR EXISTS (
+    SELECT 1 FROM public.comissoes c
+    WHERE c.venda_id = vendas.id AND c.beneficiario_id = auth.uid()
+  )
+);
