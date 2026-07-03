@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { INTENT_BADGE } from "@/lib/status-tones";
-import { getGoogleCalendarStatus, disconnectGoogleCalendar } from "@/lib/google-calendar.functions";
+import {
+  getGoogleCalendarStatus,
+  disconnectGoogleCalendar,
+  setEspelhoGlobal,
+} from "@/lib/google-calendar.functions";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { CalendarClock, Unplug } from "lucide-react";
 
 /**
@@ -44,6 +50,19 @@ export function GoogleCalendarCard() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const espelho = useMutation({
+    mutationFn: (ativo: boolean) => setEspelhoGlobal({ data: { ativo } }),
+    onSuccess: (r, ativo) => {
+      toast.success(
+        ativo
+          ? `Espelho ligado — ${r.processados} agendamento(s) futuros enviados para sua agenda`
+          : "Espelho desligado — novos agendamentos da equipe não entram mais na sua agenda",
+      );
+      qc.invalidateQueries({ queryKey: ["google-calendar-status"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const s = statusQ.data;
 
   return (
@@ -71,14 +90,35 @@ export function GoogleCalendarCard() {
             Cloud no servidor).
           </p>
         ) : s.connected ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disconnect.isPending}
-            onClick={() => disconnect.mutate()}
-          >
-            <Unplug className="mr-1 h-4 w-4" /> Desconectar
-          </Button>
+          <div className="space-y-4">
+            {s.podeEspelhoGlobal && (
+              <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/40 p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="espelho-global" className="text-sm font-medium">
+                    Agenda completa da equipe
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Receber TODOS os agendamentos dos corretores na minha agenda Google
+                    (visão do dono/gestor).
+                  </p>
+                </div>
+                <Switch
+                  id="espelho-global"
+                  checked={s.espelhoGlobal}
+                  disabled={espelho.isPending}
+                  onCheckedChange={(v) => espelho.mutate(v)}
+                />
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disconnect.isPending}
+              onClick={() => disconnect.mutate()}
+            >
+              <Unplug className="mr-1 h-4 w-4" /> Desconectar
+            </Button>
+          </div>
         ) : (
           <Button size="sm" onClick={() => s.authUrl && (window.location.href = s.authUrl)}>
             Conectar conta Google
