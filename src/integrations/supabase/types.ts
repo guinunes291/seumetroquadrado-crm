@@ -2473,6 +2473,10 @@ export type Database = {
         Args: { _corretor_id: string; _lead_id: string }
         Returns: undefined
       }
+      atribuir_oferta_ativa: {
+        Args: { _corretor_ids: string[]; _oferta_id: string }
+        Returns: Json
+      }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
@@ -2711,6 +2715,7 @@ export type Database = {
         Returns: boolean
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
+      isleadavancado_status: { Args: { _status: string }; Returns: boolean }
       leads_com_sla: {
         Args: { _corretor?: string; _df?: string; _di?: string }
         Returns: {
