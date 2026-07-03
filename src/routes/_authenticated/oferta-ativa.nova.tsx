@@ -82,7 +82,6 @@ function NovaOfertaPage() {
   }, [origemQ.isError]);
 
   const debounced = useDebounce(filtros, 400);
-  const debouncedCorretor = useDebounce(corretorId, 400);
 
   const projetosQ = useQuery({
     queryKey: ["projetos-oa"],
@@ -108,9 +107,12 @@ function NovaOfertaPage() {
     },
   });
 
+  // O corretor destinatário define APENAS o dono da lista — não filtra o
+  // universo de leads. O preview considera todos os leads que casam com os
+  // filtros, independente de quem é o corretor responsável.
   const previewQ = useQuery({
-    queryKey: ["oa-preview", debounced, debouncedCorretor],
-    queryFn: () => previewFiltros(debounced, debouncedCorretor),
+    queryKey: ["oa-preview", debounced],
+    queryFn: () => previewFiltros(debounced),
   });
 
   const createM = useMutation({
