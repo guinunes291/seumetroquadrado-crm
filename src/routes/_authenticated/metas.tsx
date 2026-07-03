@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,9 +31,11 @@ import {
 // Realizado agregado aplicável a uma meta (corretor, equipe ou global).
 type RealizadoView = { leads_atendidos: number; visitas: number; vendas: number; vgv: number };
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/metas")({
-  head: () => ({ meta: [{ title: "Metas — Seu Metro Quadrado" }] }),
-  component: MetasPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/ranking", search: { tab: "metas" } });
+  },
 });
 
 export function MetasPage() {

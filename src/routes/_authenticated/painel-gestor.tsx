@@ -5,6 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatDuracaoParado } from "@/lib/utils";
@@ -321,60 +325,66 @@ function SaudePanel() {
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          {corretores.length === 0 ? (
+          {porCorretorQ.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : corretores.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem dados no período.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-muted-foreground border-b">
-                  <th className="py-2 pr-2">Corretor</th>
-                  <th className="py-2 px-2 text-right">Leads</th>
-                  <th className="py-2 px-2 text-right">Agend.</th>
-                  <th className="py-2 px-2 text-right">Visitas</th>
-                  <th className="py-2 px-2 text-right">Análise</th>
-                  <th className="py-2 px-2 text-right">Vendas</th>
-                  <th className="py-2 px-2 text-right">Perdidos</th>
-                  <th className="py-2 px-2 text-right">Parados</th>
-                  <th className="py-2 px-2 text-right">1ª resp.</th>
-                  <th className="py-2 pl-2 text-right">Conv.</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Corretor</TableHead>
+                  <TableHead className="text-right">Leads</TableHead>
+                  <TableHead className="text-right">Agend.</TableHead>
+                  <TableHead className="text-right">Visitas</TableHead>
+                  <TableHead className="text-right">Análise</TableHead>
+                  <TableHead className="text-right">Vendas</TableHead>
+                  <TableHead className="text-right">Perdidos</TableHead>
+                  <TableHead className="text-right">Parados</TableHead>
+                  <TableHead className="text-right">1ª resp.</TableHead>
+                  <TableHead className="text-right">Conv.</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {corretores.map((c) => {
                   const parados = paradosPorCorretor.get(c.corretor_id) ?? 0;
                   return (
-                    <tr key={c.corretor_id} className="border-b last:border-0">
-                      <td className="py-2 pr-2 font-medium">{c.nome}</td>
-                      <td className="py-2 px-2 text-right">{c.leads}</td>
-                      <td className="py-2 px-2 text-right">{c.agendamentos}</td>
-                      <td className="py-2 px-2 text-right">{c.visitas}</td>
-                      <td className="py-2 px-2 text-right">{c.analise}</td>
-                      <td className="py-2 px-2 text-right font-semibold text-emerald-600">
+                    <TableRow key={c.corretor_id}>
+                      <TableCell className="font-medium">{c.nome}</TableCell>
+                      <TableCell className="text-right">{c.leads}</TableCell>
+                      <TableCell className="text-right">{c.agendamentos}</TableCell>
+                      <TableCell className="text-right">{c.visitas}</TableCell>
+                      <TableCell className="text-right">{c.analise}</TableCell>
+                      <TableCell className="text-right font-semibold text-success">
                         {c.fechados}
-                      </td>
-                      <td className="py-2 px-2 text-right text-muted-foreground">{c.perdidos}</td>
-                      <td
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">{c.perdidos}</TableCell>
+                      <TableCell
                         className={cn(
-                          "py-2 px-2 text-right",
-                          parados > 0 ? "font-semibold text-rose-600" : "text-muted-foreground",
+                          "text-right",
+                          parados > 0 ? "font-semibold text-destructive" : "text-muted-foreground",
                         )}
                       >
                         {parados}
-                      </td>
-                      <td className="py-2 px-2 text-right text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
                         {(() => {
                           const t = tempoMap.get(c.corretor_id);
                           return t && t.leads_respondidos > 0 ? fmtDuracao(t.tempo_medio_min) : "—";
                         })()}
-                      </td>
-                      <td className="py-2 pl-2 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Badge variant="outline">{c.conversao}%</Badge>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
@@ -406,30 +416,30 @@ function SaudePanel() {
               </p>
             ) : (
               <>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted-foreground border-b">
-                      <th className="py-2 pr-2">Corretor</th>
-                      <th className="py-2 px-2 text-right">Ligações</th>
-                      <th className="py-2 px-2 text-right">WhatsApp</th>
-                      <th className="py-2 px-2 text-right">Visitas</th>
-                      <th className="py-2 px-2 text-right">Outras</th>
-                      <th className="py-2 pl-2 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Corretor</TableHead>
+                      <TableHead className="text-right">Ligações</TableHead>
+                      <TableHead className="text-right">WhatsApp</TableHead>
+                      <TableHead className="text-right">Visitas</TableHead>
+                      <TableHead className="text-right">Outras</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {atividade.linhas.map((l) => (
-                      <tr key={l.autor} className="border-b last:border-0">
-                        <td className="py-2 pr-2 font-medium">{l.nome}</td>
-                        <td className="py-2 px-2 text-right">{l.ligacao}</td>
-                        <td className="py-2 px-2 text-right">{l.whatsapp}</td>
-                        <td className="py-2 px-2 text-right">{l.visita}</td>
-                        <td className="py-2 px-2 text-right text-muted-foreground">{l.outras}</td>
-                        <td className="py-2 pl-2 text-right font-semibold">{l.total}</td>
-                      </tr>
+                      <TableRow key={l.autor}>
+                        <TableCell className="font-medium">{l.nome}</TableCell>
+                        <TableCell className="text-right">{l.ligacao}</TableCell>
+                        <TableCell className="text-right">{l.whatsapp}</TableCell>
+                        <TableCell className="text-right">{l.visita}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{l.outras}</TableCell>
+                        <TableCell className="text-right font-semibold">{l.total}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
                 {atividade.truncado && (
                   <p className="mt-2 text-[11px] text-muted-foreground">
                     Mostrando as {LIMITE_ATIVIDADE.toLocaleString("pt-BR")} interações mais recentes
@@ -469,13 +479,13 @@ function SaudePanel() {
       </div>
 
       {/* Bloco 3 — Leads parados por corretor (acionável) */}
-      <Card className="border-amber-500/30">
+      <Card className="border-warning/30">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-1.5">
-            <AlertTriangle className="h-4 w-4 text-amber-600" /> Leads parados (+30 min sem
+            <AlertTriangle className="h-4 w-4 text-warning" /> Leads parados (+30 min sem
             atendimento)
             {urgentes.length > 0 && (
-              <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
+              <Badge variant="secondary" className="bg-warning/15 text-warning">
                 {urgentes.length}
               </Badge>
             )}
@@ -499,7 +509,7 @@ function SaudePanel() {
                       {leadStatusLabel(u.status)} · {u.corretor_nome || "sem corretor"}
                     </div>
                   </div>
-                  <Badge variant="secondary" className="shrink-0 bg-rose-500/15 text-rose-700">
+                  <Badge variant="secondary" className="shrink-0 bg-destructive/15 text-destructive">
                     {formatDuracaoParado(u.minutos_parado)}
                   </Badge>
                 </Link>
@@ -558,10 +568,10 @@ function AderenciaCard({
   href?: string;
 }) {
   const inner = (
-    <Card className={cn(alerta && "border-amber-500/40")}>
+    <Card className={cn(alerta && "border-warning/40")}>
       <CardContent className="pt-5">
         <div className="text-xs text-muted-foreground">{titulo}</div>
-        <div className={cn("mt-1 text-2xl font-bold", alerta && "text-amber-600")}>
+        <div className={cn("mt-1 text-2xl font-bold", alerta && "text-warning")}>
           {valor ?? "—"}
         </div>
         {sub != null && <div className="text-xs text-muted-foreground">{sub}% preenchido</div>}

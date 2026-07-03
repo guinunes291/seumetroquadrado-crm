@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Megaphone, Plus, Archive, RotateCcw, Users } from "lucide-react";
@@ -19,9 +19,11 @@ import {
 import { useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/oferta-ativa/")({
-  head: () => ({ meta: [{ title: "Oferta Ativa — Seu Metro Quadrado" }] }),
-  component: OfertaAtivaPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/projetos", search: { tab: "oferta" } });
+  },
 });
 
 export function OfertaAtivaPage() {

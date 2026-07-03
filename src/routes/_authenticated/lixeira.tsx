@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -19,8 +19,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { RotateCcw, Trash2 } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/lixeira")({
-  component: LixeiraPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "qualidade" } });
+  },
 });
 
 export function LixeiraPage() {

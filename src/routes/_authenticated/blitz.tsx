@@ -69,9 +69,9 @@ function BlitzError({ error, reset }: { error: Error; reset: () => void }) {
         title="Modo Blitz"
         description="Atenda um lead por vez, priorizado por urgência."
       />
-      <Card className="mx-auto max-w-xl border-amber-300">
+      <Card className="mx-auto max-w-xl border-warning/40">
         <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <AlertTriangle className="h-10 w-10 text-amber-500" />
+          <AlertTriangle className="h-10 w-10 text-warning" />
           <div className="font-semibold">Não foi possível carregar sua fila do Blitz</div>
           <p className="text-sm text-muted-foreground">
             Tente novamente. Se o erro continuar, envie esta mensagem para o suporte.
@@ -131,14 +131,14 @@ type SlaRow = {
 };
 
 const SLA_META: Record<string, { label: string; cls: string }> = {
-  estourado: { label: "SLA estourado", cls: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
-  atencao: { label: "Atenção", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  ok: { label: "No prazo", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  estourado: { label: "SLA estourado", cls: "bg-destructive/15 text-destructive" },
+  atencao: { label: "Atenção", cls: "bg-warning/15 text-warning" },
+  ok: { label: "No prazo", cls: "bg-success/15 text-success" },
 };
 const TEMP_CLS: Record<string, string> = {
-  quente: "bg-red-500/15 text-red-700 dark:text-red-300",
-  morno: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  frio: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  quente: "bg-destructive/15 text-destructive",
+  morno: "bg-warning/15 text-warning",
+  frio: "bg-info/15 text-info",
 };
 
 function BlitzPage() {
@@ -403,7 +403,7 @@ function BlitzPage() {
               </Button>
               <Button
                 variant="outline"
-                className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                className="border-success/40 text-success hover:bg-success/10"
                 onClick={whatsapp}
               >
                 <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp

@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PushOptInCard } from "@/components/push-opt-in-banner";
+import { GoogleCalendarCard } from "@/components/google-calendar-card";
+import { maskPhoneBR } from "@/lib/masks";
 
 export const Route = createFileRoute("/_authenticated/meu-perfil")({
   head: () => ({ meta: [{ title: "Meu perfil — Seu Metro Quadrado" }] }),
@@ -119,7 +121,7 @@ function MeuPerfilPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
             <span>Presença de hoje</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
               {presenteHoje ? "Presente" : "Ausente"}
             </span>
           </CardTitle>
@@ -145,6 +147,10 @@ function MeuPerfilPage() {
         <PushOptInCard />
       </div>
 
+      <div className="mb-4">
+        <GoogleCalendarCard />
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Dados pessoais</CardTitle>
@@ -165,8 +171,9 @@ function MeuPerfilPage() {
               </Label>
               <Input
                 id="tel"
+                inputMode="tel"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={(e) => setTelefone(maskPhoneBR(e.target.value))}
                 placeholder="(11) 90000-0000"
                 aria-invalid={!telefoneValido}
                 className={!telefoneValido ? "border-destructive" : undefined}

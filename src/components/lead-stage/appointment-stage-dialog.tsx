@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
 import { criarFollowUpAutomatico } from "@/lib/follow-up";
+import { buildGoogleCalendarUrl } from "@/lib/calendar-links";
+import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
 
 const TIPO_OPTIONS = ["visita", "reuniao", "ligacao", "follow_up", "outro"] as const;
 const TIPO_LABEL: Record<(typeof TIPO_OPTIONS)[number], string> = {
@@ -101,21 +103,30 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
 
-      const { error: insErr } = await supabase.from("agendamentos").insert({
-        lead_id: lead.id,
-        corretor_id: lead.corretor_id ?? uid,
-        criado_por_id: uid,
-        tipo,
-        status: "agendado",
-        titulo: titulo.trim(),
-        descricao: descricao.trim() || null,
-        local: local.trim() || null,
-        data_inicio: inicio.toISOString(),
-        data_fim: fim.toISOString(),
-        timezone: "America/Sao_Paulo",
-        lembrete_minutos: 30,
-      } as never);
+      const { data: criado, error: insErr } = await supabase
+        .from("agendamentos")
+        .insert({
+          lead_id: lead.id,
+          corretor_id: lead.corretor_id ?? uid,
+          criado_por_id: uid,
+          tipo,
+          status: "agendado",
+          titulo: titulo.trim(),
+          descricao: descricao.trim() || null,
+          local: local.trim() || null,
+          data_inicio: inicio.toISOString(),
+          data_fim: fim.toISOString(),
+          timezone: "America/Sao_Paulo",
+          lembrete_minutos: 30,
+        } as never)
+        .select("id")
+        .single();
       if (insErr) throw insErr;
+
+      // Espelha na agenda Google do corretor (se conectada) sem travar o fluxo.
+      syncAgendamentoGoogle({ data: { agendamentoId: (criado as { id: string }).id } }).catch(
+        () => {},
+      );
 
       const { error: updErr } = await supabase
         .from("leads")
@@ -140,9 +151,23 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
       return { followUp };
     },
     onSuccess: (res) => {
+      const gcalUrl = buildGoogleCalendarUrl({
+        titulo: titulo.trim() || `Visita - ${lead.nome}`,
+        inicio: new Date(dataInicio),
+        fim: dataFim ? new Date(dataFim) : undefined,
+        local: local.trim() || null,
+        descricao: [`Lead: ${lead.nome}`, descricao.trim() || null].filter(Boolean).join("\n"),
+      });
       toast.success(
         "Agendamento criado · lead movido para Agendado" +
           (res?.followUp ? " · tarefa de confirmação criada" : ""),
+        {
+          action: {
+            label: "Google Agenda",
+            onClick: () => window.open(gcalUrl, "_blank", "noopener"),
+          },
+          duration: 8000,
+        },
       );
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       qc.invalidateQueries({ queryKey: ["agendamentos-lead", lead.id] });

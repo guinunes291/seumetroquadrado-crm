@@ -1,3 +1,5 @@
+import { INTENT_OUTLINE } from "@/lib/status-tones";
+
 export const TAREFA_STATUS = ["pendente", "em_andamento", "concluida", "cancelada"] as const;
 export const TAREFA_TIPOS = ["ligacao", "whatsapp", "email", "visita", "follow_up", "documentacao", "outro"] as const;
 export const TAREFA_PRIORIDADES = ["baixa", "media", "alta", "urgente"] as const;
@@ -43,20 +45,20 @@ export function isAtrasada(t: TarefaLike): boolean {
 
 export function statusBadgeClass(status: string): string {
   switch (status) {
-    case "pendente": return "border-amber-500 text-amber-700 dark:text-amber-400";
-    case "em_andamento": return "border-blue-500 text-blue-700 dark:text-blue-400";
-    case "concluida": return "border-green-500 text-green-700 dark:text-green-400";
-    case "cancelada": return "border-muted text-muted-foreground";
+    case "pendente": return INTENT_OUTLINE.warning;
+    case "em_andamento": return INTENT_OUTLINE.info;
+    case "concluida": return INTENT_OUTLINE.success;
+    case "cancelada": return INTENT_OUTLINE.neutral;
     default: return "";
   }
 }
 
 export function prioridadeBadgeClass(prio: string): string {
   switch (prio) {
-    case "urgente": return "border-red-500 text-red-700 dark:text-red-400";
-    case "alta": return "border-orange-500 text-orange-700 dark:text-orange-400";
-    case "media": return "border-yellow-500 text-yellow-700 dark:text-yellow-400";
-    case "baixa": return "border-slate-400 text-slate-600 dark:text-slate-300";
+    case "urgente": return INTENT_OUTLINE.danger;
+    case "alta": return "border-orange-500 text-orange-700";
+    case "media": return INTENT_OUTLINE.warning;
+    case "baixa": return INTENT_OUTLINE.neutral;
     default: return "";
   }
 }

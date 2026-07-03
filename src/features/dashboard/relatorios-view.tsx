@@ -425,7 +425,7 @@ function PorCorretorTable({
               <TableCell className="text-right tabular-nums">{r.agendamentos}</TableCell>
               <TableCell className="text-right tabular-nums">{r.visitas}</TableCell>
               <TableCell className="text-right tabular-nums">{r.analise}</TableCell>
-              <TableCell className="text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">
+              <TableCell className="text-right tabular-nums font-semibold text-emerald-600">
                 {r.fechados}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">

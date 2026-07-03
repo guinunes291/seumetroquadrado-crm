@@ -21,10 +21,10 @@ export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
 
 /** Classe de badge (borda + texto) por status — segue o padrão das tarefas. */
 export const DOC_STATUS_TONE: Record<DocStatus, string> = {
-  pendente: "border-amber-500 text-amber-700 dark:text-amber-400",
-  recebido: "border-blue-500 text-blue-700 dark:text-blue-400",
-  aprovado: "border-green-500 text-green-700 dark:text-green-400",
-  reprovado: "border-red-500 text-red-700 dark:text-red-400",
+  pendente: "border-amber-500 text-amber-700",
+  recebido: "border-blue-500 text-blue-700",
+  aprovado: "border-green-500 text-green-700",
+  reprovado: "border-red-500 text-red-700",
 };
 
 /** Um documento conta como "resolvido" quando já chegou e não foi reprovado. */

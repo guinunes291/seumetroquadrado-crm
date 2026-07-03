@@ -1,6 +1,8 @@
 // Fonte única dos status de lead (rótulos e ordem do funil), reusada por
 // leads, kanban e detalhe do lead para evitar duplicação.
 
+import { HUE_BADGE, HUE_COLUMN, type Hue } from "@/lib/status-tones";
+
 export type LeadStatus =
   | "novo"
   | "aguardando_atendimento"
@@ -44,21 +46,32 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   perdido: "Perdido",
 };
 
-/** Tom para badges (fundo + texto). */
-export const LEAD_STATUS_BADGE_TONE: Record<LeadStatus, string> = {
-  novo: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  aguardando_atendimento: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  aguardando_retorno: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300",
-  em_atendimento: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  qualificado: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-  agendado: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-  visita_realizada: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  proposta_enviada: "bg-teal-500/15 text-teal-700 dark:text-teal-300",
-  analise_credito: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  contrato_fechado: "bg-green-600/20 text-green-800 dark:text-green-300",
-  pos_venda: "bg-lime-500/15 text-lime-700 dark:text-lime-300",
-  perdido: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+/** Hue nominal de cada etapa — única atribuição de cor do funil. Badge (lista,
+ *  busca, blitz) e coluna do kanban derivam daqui via lib/status-tones. */
+export const LEAD_STATUS_HUE: Record<LeadStatus, Hue> = {
+  novo: "blue",
+  aguardando_atendimento: "amber",
+  aguardando_retorno: "yellow",
+  em_atendimento: "violet",
+  qualificado: "cyan",
+  agendado: "indigo",
+  visita_realizada: "emerald",
+  proposta_enviada: "teal",
+  analise_credito: "orange",
+  contrato_fechado: "green",
+  pos_venda: "lime",
+  perdido: "rose",
 };
+
+/** Tom para badges (fundo + texto). */
+export const LEAD_STATUS_BADGE_TONE: Record<LeadStatus, string> = Object.fromEntries(
+  (Object.keys(LEAD_STATUS_HUE) as LeadStatus[]).map((s) => [s, HUE_BADGE[LEAD_STATUS_HUE[s]]]),
+) as Record<LeadStatus, string>;
+
+/** Tom para colunas do kanban (fundo + borda), mesmo hue do badge. */
+export const LEAD_STATUS_COLUMN_TONE: Record<LeadStatus, string> = Object.fromEntries(
+  (Object.keys(LEAD_STATUS_HUE) as LeadStatus[]).map((s) => [s, HUE_COLUMN[LEAD_STATUS_HUE[s]]]),
+) as Record<LeadStatus, string>;
 
 export function leadStatusLabel(status: string): string {
   return LEAD_STATUS_LABEL[status as LeadStatus] ?? status;

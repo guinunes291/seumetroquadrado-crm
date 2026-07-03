@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,9 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/conquistas")({
-  head: () => ({ meta: [{ title: "Conquistas — Seu Metro Quadrado" }] }),
-  component: ConquistasPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/ranking", search: { tab: "conquistas" } });
+  },
 });
 
 type Tipo = {
@@ -92,7 +94,7 @@ export function ConquistasPage() {
                 )}
                 <div className="mt-3 flex items-center justify-center gap-2">
                   {unlocked ? (
-                    <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                    <Badge className="bg-amber-500/15 text-amber-700">
                       Conquistada {new Date(em!).toLocaleDateString("pt-BR")}
                     </Badge>
                   ) : (

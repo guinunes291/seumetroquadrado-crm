@@ -84,9 +84,9 @@ function fmtMoney(n: number | null | undefined): string {
 function statusBadge(s: string) {
   const cls: Record<string, string> = {
     novo: "bg-blue-500/15 text-blue-600",
-    em_contato: "bg-amber-500/15 text-amber-600",
-    ganho: "bg-emerald-500/15 text-emerald-600",
-    perdido: "bg-rose-500/15 text-rose-600",
+    em_contato: "bg-amber-500/15 text-warning",
+    ganho: "bg-success/100/15 text-success",
+    perdido: "bg-rose-500/15 text-destructive",
   };
   return <Badge className={cls[s] ?? ""} variant="secondary">{s}</Badge>;
 }

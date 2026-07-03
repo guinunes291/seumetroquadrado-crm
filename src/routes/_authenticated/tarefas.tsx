@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, isBefore } from "date-fns";
@@ -32,9 +32,11 @@ import {
   type TarefaStatus, type TarefaTipo, type TarefaPrioridade,
 } from "@/lib/tarefas";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/tarefas")({
-  head: () => ({ meta: [{ title: "Tarefas — Seu Metro Quadrado" }] }),
-  component: TarefasPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/agendamentos", search: { tab: "tarefas" } });
+  },
 });
 
 export function TarefasPage() {
@@ -303,9 +305,9 @@ export function TarefasPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={<Clock className="h-4 w-4 text-amber-500" />} label="Pendentes" value={counts.pendentes} />
+        <StatCard icon={<Clock className="h-4 w-4 text-warning" />} label="Pendentes" value={counts.pendentes} />
         <StatCard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Em andamento" value={counts.em_andamento} />
-        <StatCard icon={<AlertTriangle className="h-4 w-4 text-red-500" />} label="Atrasadas" value={counts.atrasadas} />
+        <StatCard icon={<AlertTriangle className="h-4 w-4 text-destructive" />} label="Atrasadas" value={counts.atrasadas} />
         <StatCard icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} label="Concluídas hoje" value={counts.concluidas_hoje} />
       </div>
 

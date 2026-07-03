@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,9 +29,11 @@ import { toast } from "sonner";
 import { Plus, Edit2, Trash2, MessageSquare } from "lucide-react";
 import { CANAL_LABEL, extractVariables, type TemplateCanal } from "@/lib/templates";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/templates")({
-  head: () => ({ meta: [{ title: "Templates de mensagem — Seu Metro Quadrado" }] }),
-  component: TemplatesPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "comunicacao" } });
+  },
 });
 
 type Template = {

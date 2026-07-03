@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,11 +37,11 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/equipes")({
-  head: () => ({
-    meta: [{ title: "Equipes — Seu Metro Quadrado" }],
-  }),
-  component: EquipesPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "pessoas" } });
+  },
 });
 
 type Equipe = {

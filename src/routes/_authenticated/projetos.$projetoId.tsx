@@ -284,7 +284,7 @@ function ProjetoDetalhePage() {
       )}
 
       {focoAtivo && (
-        <Card className="border-amber-400/40 bg-amber-50/40 dark:bg-amber-900/10">
+        <Card className="border-amber-400/40 bg-amber-50/40">
           <CardContent className="py-3 px-4 flex items-center gap-2">
             <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
             <span className="text-sm">

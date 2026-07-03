@@ -19,6 +19,8 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,8 +34,29 @@ import {
   DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from "lucide-react";
+import {
+  CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon,
+  ExternalLink, Download,
+} from "lucide-react";
+import { buildGoogleCalendarUrl, downloadIcs, type CalendarEventInput } from "@/lib/calendar-links";
+import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
+
+// Espelha no Google Calendar em segundo plano — nunca bloqueia o fluxo do CRM.
+function syncGoogleEmBackground(agendamentoId: string) {
+  syncAgendamentoGoogle({ data: { agendamentoId } })
+    .then((r) => {
+      if (!r.synced && r.reason && !/não configurado|sem Google conectado/.test(r.reason)) {
+        toast.warning("Agendamento salvo, mas não sincronizou com o Google Agenda", {
+          description: r.reason,
+        });
+      }
+    })
+    .catch(() => {
+      /* silencioso: o agendamento em si já foi salvo */
+    });
+}
 import { cn } from "@/lib/utils";
+import { HUE_BADGE, HUE_DOT, INTENT_BADGE } from "@/lib/status-tones";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TarefasPage } from "@/routes/_authenticated/tarefas";
 
@@ -95,20 +118,20 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_TONE: Record<string, string> = {
-  agendado: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  confirmado: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  realizado: "bg-green-600/20 text-green-700 dark:text-green-300",
-  cancelado: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  nao_compareceu: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  remarcado: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  agendado: INTENT_BADGE.info,
+  confirmado: INTENT_BADGE.success,
+  realizado: HUE_BADGE.green,
+  cancelado: INTENT_BADGE.danger,
+  nao_compareceu: INTENT_BADGE.warning,
+  remarcado: HUE_BADGE.violet,
 };
 
 const TIPO_DOT: Record<string, string> = {
-  visita: "bg-blue-500",
-  reuniao: "bg-violet-500",
-  ligacao: "bg-emerald-500",
-  follow_up: "bg-amber-500",
-  outro: "bg-slate-400",
+  visita: HUE_DOT.blue,
+  reuniao: HUE_DOT.violet,
+  ligacao: HUE_DOT.emerald,
+  follow_up: HUE_DOT.amber,
+  outro: HUE_DOT.slate,
 };
 
 type Agendamento = {
@@ -173,7 +196,7 @@ function AgendaPanel() {
   const rangeStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const rangeEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const { data: agendamentos = [] } = useQuery({
+  const { data: agendamentos = [], isLoading: agLoading } = useQuery({
     queryKey: ["agendamentos", rangeStart.toISOString(), rangeEnd.toISOString(), filtroCorretor, filtroStatus],
     queryFn: async () => {
       let q = supabase
@@ -223,16 +246,22 @@ function AgendaPanel() {
 
   const createMut = useMutation({
     mutationFn: async (payload: Partial<Agendamento>) => {
-      const { error } = await supabase.from("agendamentos").insert({
-        ...payload,
-        criado_por_id: user!.id,
-      } as never);
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .insert({
+          ...payload,
+          criado_por_id: user!.id,
+        } as never)
+        .select("id")
+        .single();
       if (error) throw error;
+      return data as { id: string };
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento criado");
       setOpenNew(false);
+      syncGoogleEmBackground(created.id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -241,11 +270,13 @@ function AgendaPanel() {
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<Agendamento> }) => {
       const { error } = await supabase.from("agendamentos").update(patch as never).eq("id", id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento atualizado");
       setEditing(null);
+      syncGoogleEmBackground(id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -257,11 +288,13 @@ function AgendaPanel() {
         .update({ deleted_at: new Date().toISOString() } as never)
         .eq("id", id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento movido para a lixeira");
       setEditing(null);
+      syncGoogleEmBackground(id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -408,10 +441,25 @@ function AgendaPanel() {
       ) : (
         <Card>
           <CardContent className="p-0 divide-y">
-            {agendamentos.length === 0 && (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                Nenhum agendamento no período.
-              </div>
+            {agLoading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4">
+                  <Skeleton className="h-9 w-40" />
+                  <Skeleton className="h-4 flex-1" />
+                </div>
+              ))}
+            {!agLoading && agendamentos.length === 0 && (
+              <EmptyState
+                icon={CalendarDays}
+                title="Nenhum agendamento no período"
+                description="Mude o mês nos controles acima ou crie um novo compromisso."
+                action={
+                  <Button size="sm" onClick={() => setOpenNew(true)}>
+                    <CalendarPlus className="mr-1 h-4 w-4" /> Novo agendamento
+                  </Button>
+                }
+                className="m-4 border-0"
+              />
             )}
             {agendamentos.map((a) => (
               <button
@@ -502,6 +550,24 @@ function AgendamentoForm({
   const [descricao, setDescricao] = useState(initial?.descricao ?? "");
   const [lembrete, setLembrete] = useState(initial?.lembrete_minutos ?? 30);
   const [motivoCancel, setMotivoCancel] = useState(initial?.motivo_cancelamento ?? "");
+
+  // Evento para exportação (Google/.ics) com o que está preenchido no form.
+  const calendarEvent = (): CalendarEventInput => {
+    const leadNome = leadId !== "none" ? leads.find((l) => l.id === leadId)?.nome : null;
+    const leadFone = leadId !== "none" ? leads.find((l) => l.id === leadId)?.telefone : null;
+    const detalhes = [
+      `Tipo: ${TIPO_LABEL[tipo]}`,
+      leadNome ? `Lead: ${leadNome}${leadFone ? ` (${leadFone})` : ""}` : null,
+      descricao.trim() || null,
+    ].filter(Boolean);
+    return {
+      titulo: titulo.trim() || "Compromisso",
+      inicio: new Date(dataInicio),
+      fim: new Date(dataFim),
+      local: local.trim() || null,
+      descricao: detalhes.join("\n"),
+    };
+  };
 
   const handle = () => {
     if (!titulo.trim()) return toast.error("Informe um título");
@@ -640,6 +706,28 @@ function AgendamentoForm({
           </div>
         )}
       </div>
+
+      {initial && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+          <span className="text-xs text-muted-foreground">Adicionar ao calendário:</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(buildGoogleCalendarUrl(calendarEvent()), "_blank", "noopener")}
+          >
+            <ExternalLink className="mr-1 h-3.5 w-3.5" /> Google Agenda
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => downloadIcs(calendarEvent(), initial.id)}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" /> .ics (Apple/Outlook)
+          </Button>
+        </div>
+      )}
 
       <DialogFooter className="gap-2">
         {onDelete && (

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,9 +23,11 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/comissoes")({
-  head: () => ({ meta: [{ title: "Comissões — Seu Metro Quadrado" }] }),
-  component: ComissoesPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/projetos", search: { tab: "comissoes" } });
+  },
 });
 
 type Comissao = {
@@ -46,9 +48,9 @@ const STATUS_LABEL: Record<string, string> = {
   em_disputa: "Em disputa",
 };
 const STATUS_TONE: Record<string, string> = {
-  pendente: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  recebido: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  em_disputa: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
+  pendente: "bg-warning/15 text-warning",
+  recebido: "bg-success/15 text-success",
+  em_disputa: "bg-destructive/15 text-destructive",
 };
 const fmtBRL = (n: number) =>
   (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -146,7 +148,7 @@ export function ComissoesPage() {
               {canManage ? "Comissão dos corretores" : "Minha comissão"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold text-emerald-600">
+          <CardContent className="text-2xl font-bold text-success">
             {fmtBRL(totais.corretor)}
           </CardContent>
         </Card>
@@ -186,7 +188,7 @@ export function ComissoesPage() {
                     </TableCell>
                     <TableCell className="text-right">{fmtBRL(r.valor_venda)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.valor_comissao_total)}</TableCell>
-                    <TableCell className="text-right font-medium text-emerald-600">
+                    <TableCell className="text-right font-medium text-success">
                       {fmtBRL(r.valor_corretor)}
                     </TableCell>
                     <TableCell>

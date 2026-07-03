@@ -36,6 +36,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
 import { Route as AuthenticatedCopaRouteImport } from './routes/_authenticated/copa'
 import { Route as AuthenticatedConquistasRouteImport } from './routes/_authenticated/conquistas'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedComissoesRouteImport } from './routes/_authenticated/comissoes'
 import { Route as AuthenticatedBlitzRouteImport } from './routes/_authenticated/blitz'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
@@ -57,6 +58,7 @@ import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/public/hooks/copiloto-handoff'
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
+import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
 
@@ -198,6 +200,12 @@ const AuthenticatedConquistasRoute = AuthenticatedConquistasRouteImport.update({
   path: '/conquistas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedComissoesRoute = AuthenticatedComissoesRouteImport.update({
   id: '/comissoes',
   path: '/comissoes',
@@ -314,6 +322,11 @@ const ApiPublicCorretoresIdRoute = ApiPublicCorretoresIdRouteImport.update({
   path: '/api/public/corretores/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiGoogleOauthCallbackRoute = ApiGoogleOauthCallbackRouteImport.update({
+  id: '/api/google/oauth/callback',
+  path: '/api/google/oauth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWebhooksLeadTokenRoute =
   ApiPublicWebhooksLeadTokenRouteImport.update({
     id: '/api/public/webhooks/lead/$token',
@@ -333,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/blitz': typeof AuthenticatedBlitzRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conquistas': typeof AuthenticatedConquistasRoute
   '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
@@ -364,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
+  '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
@@ -383,6 +398,7 @@ export interface FileRoutesByTo {
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/blitz': typeof AuthenticatedBlitzRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conquistas': typeof AuthenticatedConquistasRoute
   '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
@@ -415,6 +431,7 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
+  '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
@@ -436,6 +453,7 @@ export interface FileRoutesById {
   '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/_authenticated/blitz': typeof AuthenticatedBlitzRoute
   '/_authenticated/comissoes': typeof AuthenticatedComissoesRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/conquistas': typeof AuthenticatedConquistasRoute
   '/_authenticated/copa': typeof AuthenticatedCopaRoute
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
@@ -468,6 +486,7 @@ export interface FileRoutesById {
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
+  '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
@@ -490,6 +509,7 @@ export interface FileRouteTypes {
     | '/agendamentos'
     | '/blitz'
     | '/comissoes'
+    | '/configuracoes'
     | '/conquistas'
     | '/copa'
     | '/corretores'
@@ -521,6 +541,7 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/oferta-ativa/'
     | '/projetos/'
+    | '/api/google/oauth/callback'
     | '/api/public/corretores/$id'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
@@ -540,6 +561,7 @@ export interface FileRouteTypes {
     | '/agendamentos'
     | '/blitz'
     | '/comissoes'
+    | '/configuracoes'
     | '/conquistas'
     | '/copa'
     | '/corretores'
@@ -572,6 +594,7 @@ export interface FileRouteTypes {
     | '/leads'
     | '/oferta-ativa'
     | '/projetos'
+    | '/api/google/oauth/callback'
     | '/api/public/corretores/$id'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
@@ -592,6 +615,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agendamentos'
     | '/_authenticated/blitz'
     | '/_authenticated/comissoes'
+    | '/_authenticated/configuracoes'
     | '/_authenticated/conquistas'
     | '/_authenticated/copa'
     | '/_authenticated/corretores'
@@ -624,6 +648,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
+    | '/api/google/oauth/callback'
     | '/api/public/corretores/$id'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
@@ -643,6 +668,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
+  ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
   ApiPublicHooksCopilotoHandoffRoute: typeof ApiPublicHooksCopilotoHandoffRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
@@ -847,6 +873,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConquistasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/comissoes': {
       id: '/_authenticated/comissoes'
       path: '/comissoes'
@@ -994,6 +1027,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCorretoresIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/google/oauth/callback': {
+      id: '/api/google/oauth/callback'
+      path: '/api/google/oauth/callback'
+      fullPath: '/api/google/oauth/callback'
+      preLoaderRoute: typeof ApiGoogleOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/lead/$token': {
       id: '/api/public/webhooks/lead/$token'
       path: '/api/public/webhooks/lead/$token'
@@ -1015,6 +1055,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendamentosRoute: typeof AuthenticatedAgendamentosRoute
   AuthenticatedBlitzRoute: typeof AuthenticatedBlitzRoute
   AuthenticatedComissoesRoute: typeof AuthenticatedComissoesRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedConquistasRoute: typeof AuthenticatedConquistasRoute
   AuthenticatedCopaRoute: typeof AuthenticatedCopaRoute
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
@@ -1052,6 +1093,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendamentosRoute: AuthenticatedAgendamentosRoute,
   AuthenticatedBlitzRoute: AuthenticatedBlitzRoute,
   AuthenticatedComissoesRoute: AuthenticatedComissoesRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedConquistasRoute: AuthenticatedConquistasRoute,
   AuthenticatedCopaRoute: AuthenticatedCopaRoute,
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
@@ -1104,6 +1146,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
+  ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
   ApiPublicHooksCopilotoHandoffRoute: ApiPublicHooksCopilotoHandoffRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
@@ -1119,3 +1162,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
