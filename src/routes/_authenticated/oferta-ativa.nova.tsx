@@ -82,7 +82,6 @@ function NovaOfertaPage() {
   }, [origemQ.isError]);
 
   const debounced = useDebounce(filtros, 400);
-  const debouncedCorretor = useDebounce(corretorId, 400);
 
   const projetosQ = useQuery({
     queryKey: ["projetos-oa"],
@@ -108,9 +107,12 @@ function NovaOfertaPage() {
     },
   });
 
+  // O corretor destinatário define APENAS o dono da lista — não filtra o
+  // universo de leads. O preview considera todos os leads que casam com os
+  // filtros, independente de quem é o corretor responsável.
   const previewQ = useQuery({
-    queryKey: ["oa-preview", debounced, debouncedCorretor],
-    queryFn: () => previewFiltros(debounced, debouncedCorretor),
+    queryKey: ["oa-preview", debounced],
+    queryFn: () => previewFiltros(debounced),
   });
 
   const createM = useMutation({
@@ -213,10 +215,10 @@ function NovaOfertaPage() {
                 onValueChange={(v) => setCorretorId(v === "all" ? undefined : v)}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Todos / carteira geral" />
+                  <SelectValue placeholder="Carteira geral (sem dono)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os leads</SelectItem>
+                  <SelectItem value="all">Carteira geral (sem dono)</SelectItem>
                   {(corretoresQ.data ?? []).map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.nome ?? "Sem nome"}
@@ -224,6 +226,10 @@ function NovaOfertaPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Define quem será o dono desta lista. Não filtra os leads — use os filtros abaixo
+                para escolher quais leads entram.
+              </p>
             </div>
           )}
         </div>

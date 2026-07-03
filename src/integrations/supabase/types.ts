@@ -2693,6 +2693,10 @@ export type Database = {
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_alertas_leads_parados: { Args: never; Returns: undefined }
       gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
+      gerar_comissoes_para_venda: {
+        Args: { _venda_id: string }
+        Returns: undefined
+      }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
       get_projeto_webhook_token: {
