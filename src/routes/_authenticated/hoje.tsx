@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatDuracaoParado } from "@/lib/utils";
@@ -430,22 +432,94 @@ function MeuPainelPage() {
           }
         />
 
-        {/* ----- Fila de ação do dia (ordem: quentes → follow-up → agenda → SLA) ----- */}
+        {/* ----- Fila de ação do dia (ordem de urgência: SLA → quentes → agenda → tarefas) ----- */}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {/* 1) Leads quentes — prioridade nº 1 */}
-          <Card className="border-rose-500/30">
+          {/* 1) SLA estourado — atender AGORA */}
+          <Card className="border-destructive/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
-                <Flame className="h-4 w-4 text-rose-500" /> Leads quentes
+                <AlertTriangle className="h-4 w-4 text-warning" /> SLA estourando
+                {urgentes.length > 0 && (
+                  <Badge variant="secondary" className="bg-warning/15 text-warning">
+                    {urgentes.length}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {slaQ.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : urgentes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Tudo dentro do prazo. 👏</p>
+              ) : (
+                urgentes.slice(0, 8).map((l) => {
+                  const tel = (l.telefone ?? "").replace(/\D/g, "");
+                  return (
+                    <div
+                      key={l.lead_id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
+                    >
+                      <Link
+                        to="/leads/$leadId"
+                        params={{ leadId: l.lead_id }}
+                        className="min-w-0 flex-1"
+                      >
+                        <div className="truncate text-sm font-medium">{l.nome}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {leadStatusLabel(l.status)} · {formatDuracaoParado(l.minutos_decorridos)}{" "}
+                          sem atendimento
+                        </div>
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-success hover:bg-success/10"
+                          title="WhatsApp"
+                          onClick={() => abrirWhats(l.nome, l.telefone)}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          asChild
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-info hover:bg-info/10"
+                          title="Ligar"
+                        >
+                          <a href={`tel:${tel}`}>
+                            <Phone className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+          {/* 2) Leads quentes */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Flame className="h-4 w-4 text-destructive" /> Leads quentes
                 {quentes.length > 0 && (
-                  <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
+                  <Badge variant="secondary" className="bg-destructive/15 text-destructive">
                     {quentes.length}
                   </Badge>
                 )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {quentes.length === 0 ? (
+              {quentesQ.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : quentes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Nenhum lead quente agora.</p>
               ) : (
                 quentes.map((l) => {
@@ -472,7 +546,7 @@ function MeuPainelPage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                          className="h-7 w-7 text-success hover:bg-success/10"
                           title="WhatsApp"
                           onClick={() => abrirWhats(l.nome, l.telefone)}
                         >
@@ -482,7 +556,7 @@ function MeuPainelPage() {
                           asChild
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                          className="h-7 w-7 text-info hover:bg-info/10"
                           title="Ligar"
                         >
                           <a href={`tel:${tel}`}>
@@ -497,81 +571,21 @@ function MeuPainelPage() {
             </CardContent>
           </Card>
 
-          {/* 2) Tarefas & follow-ups */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-amber-500" /> Tarefas & follow-ups
-                {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
-                {tarefasAtrasadas > 0 && (
-                  <Badge variant="secondary" className="bg-rose-500/15 text-rose-700">
-                    {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {tarefas.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
-              ) : (
-                tarefas.slice(0, 10).map((t) => {
-                  const atrasada =
-                    !!t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now();
-                  return (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between gap-2 rounded-md border p-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{t.titulo}</div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
-                          {t.data_vencimento && (
-                            <span className={cn(atrasada && "text-rose-600 font-medium")}>
-                              · {atrasada ? "atrasada" : hora(t.data_vencimento)}
-                            </span>
-                          )}
-                          {t.lead_id && (
-                            <Link
-                              to="/leads/$leadId"
-                              params={{ leadId: t.lead_id }}
-                              className="text-primary hover:underline inline-flex items-center"
-                            >
-                              · lead <ArrowRight className="h-3 w-3" />
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                        title="Concluir"
-                        disabled={concluirTarefa.isPending}
-                        onClick={() => concluirTarefa.mutate(t.id)}
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })
-              )}
-              <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <Link to="/tarefas">ver todas as tarefas</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
           {/* 3) Agenda de hoje */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
-                <CalendarCheck className="h-4 w-4 text-indigo-500" /> Agenda de hoje
+                <CalendarCheck className="h-4 w-4 text-info" /> Agenda de hoje
                 {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {agenda.length === 0 ? (
+              {agendaQ.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : agenda.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
               ) : (
                 agenda.map((a) => {
@@ -606,77 +620,85 @@ function MeuPainelPage() {
             </CardContent>
           </Card>
 
-          {/* 4) SLA estourando — leads parados além do tempo de atendimento */}
+          {/* 4) Tarefas & follow-ups */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4 text-amber-600" /> SLA estourando
-                {urgentes.length > 0 && (
-                  <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
-                    {urgentes.length}
+                <Clock className="h-4 w-4 text-warning" /> Tarefas & follow-ups
+                {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
+                {tarefasAtrasadas > 0 && (
+                  <Badge variant="secondary" className="bg-destructive/15 text-destructive">
+                    {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
                   </Badge>
                 )}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {urgentes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Tudo dentro do prazo. 👏</p>
+              {tarefasQ.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : tarefas.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
               ) : (
-                urgentes.slice(0, 8).map((l) => {
-                  const tel = (l.telefone ?? "").replace(/\D/g, "");
+                tarefas.slice(0, 10).map((t) => {
+                  const atrasada =
+                    !!t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now();
                   return (
                     <div
-                      key={l.lead_id}
+                      key={t.id}
                       className="flex items-center justify-between gap-2 rounded-md border p-2"
                     >
-                      <Link
-                        to="/leads/$leadId"
-                        params={{ leadId: l.lead_id }}
-                        className="min-w-0 flex-1"
-                      >
-                        <div className="truncate text-sm font-medium">{l.nome}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {leadStatusLabel(l.status)} · {formatDuracaoParado(l.minutos_decorridos)}{" "}
-                          sem atendimento
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{t.titulo}</div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
+                          {t.data_vencimento && (
+                            <span className={cn(atrasada && "text-destructive font-medium")}>
+                              · {atrasada ? "atrasada" : hora(t.data_vencimento)}
+                            </span>
+                          )}
+                          {t.lead_id && (
+                            <Link
+                              to="/leads/$leadId"
+                              params={{ leadId: t.lead_id }}
+                              className="text-primary hover:underline inline-flex items-center"
+                            >
+                              · lead <ArrowRight className="h-3 w-3" />
+                            </Link>
+                          )}
                         </div>
-                      </Link>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
-                          title="WhatsApp"
-                          onClick={() => abrirWhats(l.nome, l.telefone)}
-                        >
-                          <MessageCircle className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          asChild
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
-                          title="Ligar"
-                        >
-                          <a href={`tel:${tel}`}>
-                            <Phone className="h-4 w-4" />
-                          </a>
-                        </Button>
                       </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-success hover:bg-success/10"
+                        title="Concluir"
+                        disabled={concluirTarefa.isPending}
+                        onClick={() => concluirTarefa.mutate(t.id)}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   );
                 })
               )}
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <Link to="/agendamentos" search={{ tab: "tarefas" }}>ver todas as tarefas</Link>
+              </Button>
             </CardContent>
           </Card>
+
         </div>
 
         {/* Guardrail anti-perda: leads ativos sem um próximo passo definido */}
-        <Card className="border-amber-500/30">
+        <Card className="border-warning/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex flex-wrap items-center gap-1.5">
-              <CircleAlert className="h-4 w-4 text-amber-600" /> Sem próxima ação
+              <CircleAlert className="h-4 w-4 text-warning" /> Sem próxima ação
               {semAcao.length > 0 && (
-                <Badge variant="secondary" className="bg-amber-500/15 text-amber-700">
+                <Badge variant="secondary" className="bg-warning/15 text-warning">
                   {semAcao.length}
                 </Badge>
               )}
@@ -729,7 +751,7 @@ function MeuPainelPage() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                          className="h-7 w-7 text-success hover:bg-success/10"
                           title="WhatsApp"
                           onClick={() => abrirWhats(l.nome, l.telefone)}
                         >
@@ -739,7 +761,7 @@ function MeuPainelPage() {
                           asChild
                           size="icon"
                           variant="ghost"
-                          className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                          className="h-7 w-7 text-info hover:bg-info/10"
                           title="Ligar"
                         >
                           <a href={`tel:${tel}`}>
@@ -757,59 +779,49 @@ function MeuPainelPage() {
 
         <h2 className="text-sm font-semibold text-muted-foreground pt-2">Minha produtividade</h2>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-gradient-to-br from-primary/10 to-transparent">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Star className="h-4 w-4 text-amber-500" /> Pontuação
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{totais.pontos.toLocaleString("pt-BR")}</div>
-              <div className="text-xs text-muted-foreground">pontos no período</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <DollarSign className="h-4 w-4 text-emerald-500" /> VGV
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{fmtBRL(totais.vgv)}</div>
-              <div className="text-xs text-muted-foreground">{totais.vendas} venda(s)</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-1.5">
-                <Trophy className="h-4 w-4 text-violet-500" /> Conquistas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+        <KpiGrid className="lg:grid-cols-4 xl:grid-cols-4">
+          <KpiCard
+            title="Pontuação"
+            icon={Star}
+            intent="warning"
+            loading={atividadesQ.isLoading}
+            value={totais.pontos.toLocaleString("pt-BR")}
+            hint="pontos no período"
+            className="bg-gradient-to-br from-primary/10 to-transparent"
+          />
+          <KpiCard
+            title="VGV"
+            icon={DollarSign}
+            intent="success"
+            loading={atividadesQ.isLoading}
+            value={fmtBRL(totais.vgv)}
+            hint={`${totais.vendas} venda(s)`}
+          />
+          <KpiCard
+            title="Conquistas"
+            icon={Trophy}
+            loading={conquistasQ.isLoading}
+            value={
+              <>
                 {conquistasQ.data?.ganhas ?? 0}
                 <span className="text-base text-muted-foreground">
                   /{conquistasQ.data?.total ?? 0}
                 </span>
-              </div>
-              <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <a href="/conquistas">ver medalhas</a>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Atividades</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
-              </div>
-              <div className="text-xs text-muted-foreground">contatos + agendas + visitas</div>
-            </CardContent>
-          </Card>
-        </div>
+              </>
+            }
+            hint={
+              <Link to="/ranking" search={{ tab: "conquistas" }} className="text-primary hover:underline">
+                ver medalhas
+              </Link>
+            }
+          />
+          <KpiCard
+            title="Atividades"
+            loading={atividadesQ.isLoading}
+            value={totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
+            hint="contatos + agendas + visitas"
+          />
+        </KpiGrid>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map((c) => {
@@ -826,7 +838,7 @@ function MeuPainelPage() {
                     {pct !== null && (
                       <Badge
                         variant="secondary"
-                        className={cn(pct >= 100 && "bg-emerald-500/15 text-emerald-700")}
+                        className={cn(pct >= 100 && "bg-success/15 text-success")}
                       >
                         {pct}% da meta
                       </Badge>
@@ -843,7 +855,7 @@ function MeuPainelPage() {
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          pct >= 100 ? "bg-emerald-500" : "bg-primary",
+                          pct >= 100 ? "bg-success" : "bg-primary",
                         )}
                         style={{ width: `${pct}%` }}
                       />

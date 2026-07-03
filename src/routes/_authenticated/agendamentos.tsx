@@ -19,6 +19,8 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,7 +180,7 @@ function AgendaPanel() {
   const rangeStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const rangeEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const { data: agendamentos = [] } = useQuery({
+  const { data: agendamentos = [], isLoading: agLoading } = useQuery({
     queryKey: ["agendamentos", rangeStart.toISOString(), rangeEnd.toISOString(), filtroCorretor, filtroStatus],
     queryFn: async () => {
       let q = supabase
@@ -413,10 +415,25 @@ function AgendaPanel() {
       ) : (
         <Card>
           <CardContent className="p-0 divide-y">
-            {agendamentos.length === 0 && (
-              <div className="p-8 text-center text-sm text-muted-foreground">
-                Nenhum agendamento no período.
-              </div>
+            {agLoading &&
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 p-4">
+                  <Skeleton className="h-9 w-40" />
+                  <Skeleton className="h-4 flex-1" />
+                </div>
+              ))}
+            {!agLoading && agendamentos.length === 0 && (
+              <EmptyState
+                icon={CalendarDays}
+                title="Nenhum agendamento no período"
+                description="Mude o mês nos controles acima ou crie um novo compromisso."
+                action={
+                  <Button size="sm" onClick={() => setOpenNew(true)}>
+                    <CalendarPlus className="mr-1 h-4 w-4" /> Novo agendamento
+                  </Button>
+                }
+                className="m-4 border-0"
+              />
             )}
             {agendamentos.map((a) => (
               <button

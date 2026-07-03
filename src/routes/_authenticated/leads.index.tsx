@@ -1783,6 +1783,14 @@ function LeadsPage() {
                 </div>
               )}
 
+              {/* Teto de segurança da RPC: sem aviso, o corte de 1000 seria silencioso. */}
+              {totalLeadsCount > 1000 && (
+                <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  Mostrando os 1.000 leads mais relevantes de {totalLeadsCount.toLocaleString("pt-BR")}.
+                  Refine os filtros (status, período, corretor) para ver o restante.
+                </p>
+              )}
+
               {/* Paginação (50 por página) */}
               {filtered.length > LEADS_PAGE_SIZE && (
                 <div className="flex items-center justify-between pt-1">
