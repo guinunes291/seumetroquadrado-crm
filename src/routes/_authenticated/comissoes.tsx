@@ -48,9 +48,9 @@ const STATUS_LABEL: Record<string, string> = {
   em_disputa: "Em disputa",
 };
 const STATUS_TONE: Record<string, string> = {
-  pendente: "bg-amber-500/15 text-amber-700",
-  recebido: "bg-emerald-500/15 text-emerald-700",
-  em_disputa: "bg-rose-500/15 text-rose-700",
+  pendente: "bg-warning/15 text-warning",
+  recebido: "bg-success/15 text-success",
+  em_disputa: "bg-destructive/15 text-destructive",
 };
 const fmtBRL = (n: number) =>
   (Number(n) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -148,7 +148,7 @@ export function ComissoesPage() {
               {canManage ? "Comissão dos corretores" : "Minha comissão"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold text-emerald-600">
+          <CardContent className="text-2xl font-bold text-success">
             {fmtBRL(totais.corretor)}
           </CardContent>
         </Card>
@@ -188,7 +188,7 @@ export function ComissoesPage() {
                     </TableCell>
                     <TableCell className="text-right">{fmtBRL(r.valor_venda)}</TableCell>
                     <TableCell className="text-right">{fmtBRL(r.valor_comissao_total)}</TableCell>
-                    <TableCell className="text-right font-medium text-emerald-600">
+                    <TableCell className="text-right font-medium text-success">
                       {fmtBRL(r.valor_corretor)}
                     </TableCell>
                     <TableCell>

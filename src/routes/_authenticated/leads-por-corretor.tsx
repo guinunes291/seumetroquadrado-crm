@@ -458,7 +458,7 @@ function CorretorCard({
           <span>{stats.emAtendimento} em atendimento</span>
         </div>
         <div className="flex items-center gap-2">
-          <UserCheck className="h-3.5 w-3.5 text-amber-600" />
+          <UserCheck className="h-3.5 w-3.5 text-warning" />
           <span>{stats.aguardando} aguardando</span>
         </div>
         <div className="flex items-center gap-2">
@@ -466,7 +466,7 @@ function CorretorCard({
           <span>{stats.ganhos} ganhos</span>
         </div>
         <div className="flex items-center gap-2">
-          <UserX className="h-3.5 w-3.5 text-rose-600" />
+          <UserX className="h-3.5 w-3.5 text-destructive" />
           <span>{stats.perdidos} perdidos</span>
         </div>
       </CardContent>

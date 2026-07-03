@@ -305,9 +305,9 @@ export function TarefasPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={<Clock className="h-4 w-4 text-amber-500" />} label="Pendentes" value={counts.pendentes} />
+        <StatCard icon={<Clock className="h-4 w-4 text-warning" />} label="Pendentes" value={counts.pendentes} />
         <StatCard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Em andamento" value={counts.em_andamento} />
-        <StatCard icon={<AlertTriangle className="h-4 w-4 text-red-500" />} label="Atrasadas" value={counts.atrasadas} />
+        <StatCard icon={<AlertTriangle className="h-4 w-4 text-destructive" />} label="Atrasadas" value={counts.atrasadas} />
         <StatCard icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} label="Concluídas hoje" value={counts.concluidas_hoje} />
       </div>
 

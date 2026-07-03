@@ -219,10 +219,10 @@ type Lead = {
 };
 
 function TempIcon({ temp }: { temp: string | null }) {
-  if (temp === "quente") return <Flame className="h-3.5 w-3.5 text-red-500" aria-label="Quente" />;
+  if (temp === "quente") return <Flame className="h-3.5 w-3.5 text-destructive" aria-label="Quente" />;
   if (temp === "morno")
-    return <Thermometer className="h-3.5 w-3.5 text-amber-500" aria-label="Morno" />;
-  if (temp === "frio") return <Snowflake className="h-3.5 w-3.5 text-sky-500" aria-label="Frio" />;
+    return <Thermometer className="h-3.5 w-3.5 text-warning" aria-label="Morno" />;
+  if (temp === "frio") return <Snowflake className="h-3.5 w-3.5 text-info" aria-label="Frio" />;
   return null;
 }
 
@@ -235,8 +235,8 @@ function InatividadeBadge({ lead }: { lead: Lead }) {
   if (dias < 2) return null;
   const tone =
     dias >= 5
-      ? "bg-red-500/15 text-red-700"
-      : "bg-amber-500/15 text-amber-700";
+      ? "bg-destructive/15 text-destructive"
+      : "bg-warning/15 text-warning";
   return (
     <Badge variant="secondary" className={`${tone} gap-1`} title={`Sem interação há ${dias} dias`}>
       <AlertCircle className="h-3 w-3" /> {dias}d parado
@@ -1371,21 +1371,21 @@ function LeadsPage() {
                             bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "quente" })
                           }
                         >
-                          <Flame className="h-4 w-4 mr-2 text-rose-500" /> Quente
+                          <Flame className="h-4 w-4 mr-2 text-destructive" /> Quente
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={() =>
                             bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "morno" })
                           }
                         >
-                          <Thermometer className="h-4 w-4 mr-2 text-amber-500" /> Morno
+                          <Thermometer className="h-4 w-4 mr-2 text-warning" /> Morno
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={() =>
                             bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "frio" })
                           }
                         >
-                          <Snowflake className="h-4 w-4 mr-2 text-sky-500" /> Frio
+                          <Snowflake className="h-4 w-4 mr-2 text-info" /> Frio
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -1524,7 +1524,7 @@ function LeadsPage() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                  className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
                                   title="Abrir WhatsApp com mensagem pronta"
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1537,7 +1537,7 @@ function LeadsPage() {
                                   asChild
                                   size="icon"
                                   variant="ghost"
-                                  className="h-7 w-7 text-sky-600 hover:text-sky-700 hover:bg-sky-500/10"
+                                  className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
                                   title="Ligar"
                                 >
                                   <a
@@ -1711,7 +1711,7 @@ function LeadsPage() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-emerald-600 hover:bg-emerald-500/10"
+                            className="h-7 w-7 text-success hover:bg-success/10"
                             title="Abrir WhatsApp com mensagem pronta"
                             onClick={() => abrirWhatsApp(l)}
                           >
@@ -1721,7 +1721,7 @@ function LeadsPage() {
                             asChild
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-sky-600 hover:bg-sky-500/10"
+                            className="h-7 w-7 text-info hover:bg-info/10"
                             title="Ligar"
                           >
                             <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
@@ -1847,7 +1847,7 @@ function LeadsPage() {
                   disabled={iniciarAtendimento.isPending}
                   className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
                 >
-                  <Phone className="h-10 w-10 text-sky-500" />
+                  <Phone className="h-10 w-10 text-info" />
                   <span className="font-medium">Ligação</span>
                 </button>
                 <button
@@ -1859,7 +1859,7 @@ function LeadsPage() {
                   disabled={iniciarAtendimento.isPending}
                   className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
                 >
-                  <MessageCircle className="h-10 w-10 text-emerald-500" />
+                  <MessageCircle className="h-10 w-10 text-success" />
                   <span className="font-medium">WhatsApp</span>
                 </button>
               </div>
