@@ -574,14 +574,14 @@ function RankingPanel() {
   const leadsQ = useQuery({
     queryKey: ["tv:leads"],
     queryFn: async () => {
-      const { data } = await supabase.from("leads").select("corretor_id, created_at, status, na_lixeira");
+      const { data } = await supabase.from("leads").select("corretor_id, created_at, status, na_lixeira").order("created_at", { ascending: false }).limit(10000);
       return (data ?? []).filter((l: any) => !l.na_lixeira);
     },
   });
   const transQ = useQuery({
     queryKey: ["tv:trans"],
     queryFn: async () => {
-      const { data } = await supabase.from("lead_status_transitions").select("corretor_id, para_status, created_at");
+      const { data } = await supabase.from("lead_status_transitions").select("corretor_id, para_status, created_at").order("created_at", { ascending: false }).limit(10000);
       return data ?? [];
     },
   });
@@ -590,21 +590,23 @@ function RankingPanel() {
     queryFn: async () => {
       const { data } = await supabase
         .from("vendas")
-        .select("corretor_id, data_assinatura, created_at, distrato, valor_venda");
+        .select("corretor_id, data_assinatura, created_at, distrato, valor_venda")
+        .order("created_at", { ascending: false })
+        .limit(10000);
       return data ?? [];
     },
   });
   const agendQ = useQuery({
     queryKey: ["tv:agend"],
     queryFn: async () => {
-      const { data } = await supabase.from("agendamentos").select("corretor_id, status, data_inicio, tipo");
+      const { data } = await supabase.from("agendamentos").select("corretor_id, status, data_inicio, tipo").order("data_inicio", { ascending: false }).limit(10000);
       return data ?? [];
     },
   });
   const interQ = useQuery({
     queryKey: ["tv:inter"],
     queryFn: async () => {
-      const { data } = await supabase.from("interacoes").select("autor_id, tipo, ocorreu_em").in("tipo", ["whatsapp", "ligacao"]);
+      const { data } = await supabase.from("interacoes").select("autor_id, tipo, ocorreu_em").in("tipo", ["whatsapp", "ligacao"]).order("ocorreu_em", { ascending: false }).limit(10000);
       return data ?? [];
     },
   });
