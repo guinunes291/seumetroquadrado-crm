@@ -866,6 +866,82 @@ function OfertaDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={atribuirOpen} onOpenChange={setAtribuirOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Atribuir lista a corretor(es)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Marque <strong>um corretor</strong> para trocar o dono da lista, ou{" "}
+              <strong>vários</strong> para dividir os {statsAll.total} leads igualmente entre
+              eles. Ao dividir, esta lista é arquivada e uma nova lista é criada para cada
+              corretor.
+            </p>
+            <div className="rounded-md border max-h-72 overflow-y-auto divide-y">
+              {corretoresQ.isLoading ? (
+                <div className="p-4 text-sm text-muted-foreground">Carregando…</div>
+              ) : (corretoresQ.data ?? []).length === 0 ? (
+                <div className="p-4 text-sm text-muted-foreground">Nenhum corretor.</div>
+              ) : (
+                (corretoresQ.data ?? []).map((c) => {
+                  const checked = corretorSel.has(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => {
+                          setCorretorSel((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(c.id)) next.delete(c.id);
+                            else next.add(c.id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <span className="text-sm">{c.nome ?? "(sem nome)"}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            {corretorSel.size > 1 && statsAll.total > 0 && (
+              <div className="rounded-md bg-muted/50 border p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Users className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>
+                  {statsAll.total} leads serão distribuídos igualmente:{" "}
+                  <strong>
+                    ~{Math.floor(statsAll.total / corretorSel.size)} por corretor
+                  </strong>
+                  {statsAll.total % corretorSel.size !== 0 &&
+                    ` (${statsAll.total % corretorSel.size} corretor(es) recebem 1 lead a mais).`}
+                </span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAtribuirOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={corretorSel.size === 0 || atribuirM.isPending}
+              onClick={() => atribuirM.mutate(Array.from(corretorSel))}
+            >
+              {atribuirM.isPending
+                ? "Atribuindo…"
+                : corretorSel.size <= 1
+                  ? "Atribuir"
+                  : `Dividir entre ${corretorSel.size} corretores`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       <AlertDialog open={!!confirmBulk} onOpenChange={(o) => !o && setConfirmBulk(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
