@@ -23,6 +23,7 @@ export type Database = {
           data_inicio: string
           deleted_at: string | null
           descricao: string | null
+          google_event_id: string | null
           id: string
           lead_id: string | null
           lembrete_minutos: number
@@ -43,6 +44,7 @@ export type Database = {
           data_inicio: string
           deleted_at?: string | null
           descricao?: string | null
+          google_event_id?: string | null
           id?: string
           lead_id?: string | null
           lembrete_minutos?: number
@@ -63,6 +65,7 @@ export type Database = {
           data_inicio?: string
           deleted_at?: string | null
           descricao?: string | null
+          google_event_id?: string | null
           id?: string
           lead_id?: string | null
           lembrete_minutos?: number
@@ -801,6 +804,74 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      google_calendar_connections: {
+        Row: {
+          access_token: string | null
+          access_token_expira_em: string | null
+          calendar_id: string
+          created_at: string
+          espelho_global: boolean
+          google_email: string | null
+          refresh_token: string
+          sync_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          access_token_expira_em?: string | null
+          calendar_id?: string
+          created_at?: string
+          espelho_global?: boolean
+          google_email?: string | null
+          refresh_token: string
+          sync_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          access_token_expira_em?: string | null
+          calendar_id?: string
+          created_at?: string
+          espelho_global?: boolean
+          google_email?: string | null
+          refresh_token?: string
+          sync_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_event_mirrors: {
+        Row: {
+          agendamento_id: string
+          created_at: string
+          google_event_id: string
+          user_id: string
+        }
+        Insert: {
+          agendamento_id: string
+          created_at?: string
+          google_event_id: string
+          user_id: string
+        }
+        Update: {
+          agendamento_id?: string
+          created_at?: string
+          google_event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_event_mirrors_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       historico_precos: {
         Row: {
@@ -2324,6 +2395,7 @@ export type Database = {
     }
     Functions: {
       _norm_bairro: { Args: { _t: string }; Returns: string }
+      _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
