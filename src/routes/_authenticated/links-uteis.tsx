@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,9 +25,11 @@ import {
   Link2, Plus, Pencil, Trash2, Eye, EyeOff, ExternalLink, Search, BarChart2, Loader2,
 } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/links-uteis")({
-  head: () => ({ meta: [{ title: "Links Úteis — Seu Metro Quadrado" }] }),
-  component: LinksUteisPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/projetos", search: { tab: "links" } });
+  },
 });
 
 type LinkUtil = {

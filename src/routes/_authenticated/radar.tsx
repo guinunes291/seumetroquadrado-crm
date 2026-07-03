@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,9 +20,11 @@ import {
 } from "@/lib/fechamento";
 import { Crosshair, Phone, MessageCircle, ArrowRight } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/radar")({
-  head: () => ({ meta: [{ title: "Radar de fechamento — Seu Metro Quadrado" }] }),
-  component: RadarFechamentoPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/projetos", search: { tab: "radar" } });
+  },
 });
 
 type LeadRadar = {

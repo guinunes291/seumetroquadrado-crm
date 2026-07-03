@@ -235,8 +235,8 @@ function InatividadeBadge({ lead }: { lead: Lead }) {
   if (dias < 2) return null;
   const tone =
     dias >= 5
-      ? "bg-red-500/15 text-red-700 dark:text-red-300"
-      : "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+      ? "bg-red-500/15 text-red-700"
+      : "bg-amber-500/15 text-amber-700";
   return (
     <Badge variant="secondary" className={`${tone} gap-1`} title={`Sem interação há ${dias} dias`}>
       <AlertCircle className="h-3 w-3" /> {dias}d parado

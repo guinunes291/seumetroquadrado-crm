@@ -30,9 +30,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/distribuicao")({
-  head: () => ({ meta: [{ title: "Distribuição — Seu Metro Quadrado" }] }),
-  component: DistribuicaoPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "distribuicao" } });
+  },
 });
 
 type FilaRow = {
@@ -277,8 +279,8 @@ export function DistribuicaoPage() {
                                 variant="outline"
                                 className={
                                   p.elegivel
-                                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                                    : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
+                                    : "border-amber-500/40 bg-amber-500/10 text-amber-700"
                                 }
                               >
                                 {p.elegivel ? "Elegível" : "Não elegível"}

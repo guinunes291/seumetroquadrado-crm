@@ -120,7 +120,7 @@ function MeuPerfilPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
             <span>Presença de hoje</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground"}`}>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
               {presenteHoje ? "Presente" : "Ausente"}
             </span>
           </CardTitle>

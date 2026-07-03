@@ -131,14 +131,14 @@ type SlaRow = {
 };
 
 const SLA_META: Record<string, { label: string; cls: string }> = {
-  estourado: { label: "SLA estourado", cls: "bg-rose-500/15 text-rose-700 dark:text-rose-300" },
-  atencao: { label: "Atenção", cls: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  ok: { label: "No prazo", cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" },
+  estourado: { label: "SLA estourado", cls: "bg-rose-500/15 text-rose-700" },
+  atencao: { label: "Atenção", cls: "bg-amber-500/15 text-amber-700" },
+  ok: { label: "No prazo", cls: "bg-emerald-500/15 text-emerald-700" },
 };
 const TEMP_CLS: Record<string, string> = {
-  quente: "bg-red-500/15 text-red-700 dark:text-red-300",
-  morno: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  frio: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+  quente: "bg-red-500/15 text-red-700",
+  morno: "bg-amber-500/15 text-amber-700",
+  frio: "bg-blue-500/15 text-blue-700",
 };
 
 function BlitzPage() {

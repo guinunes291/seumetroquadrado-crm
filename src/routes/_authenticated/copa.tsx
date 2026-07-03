@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,9 +8,11 @@ import { SEMANAS, semanaAtual as calcSemanaAtual, shortName } from "@/lib/copa";
 
 const EDICAO_ID = "a0000000-0000-4000-8000-000000000001";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/copa")({
-  head: () => ({ meta: [{ title: "Copa SMQ — Seu Metro Quadrado" }] }),
-  component: CopaPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/ranking", search: { tab: "competicao" } });
+  },
 });
 
 

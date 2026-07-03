@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Merge, Phone, Mail } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/duplicatas")({
-  component: DuplicatasPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "qualidade" } });
+  },
 });
 
 type Grupo = {
@@ -138,7 +141,7 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
       <CardContent className="space-y-2">
         {principal && (
           <div className="rounded-lg border bg-emerald-500/10 border-emerald-500/30 p-3">
-            <div className="text-[11px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">
+            <div className="text-[11px] uppercase tracking-wider text-emerald-600 mb-1">
               Lead-base (mais antigo)
             </div>
             <LeadLinha lead={principal} />

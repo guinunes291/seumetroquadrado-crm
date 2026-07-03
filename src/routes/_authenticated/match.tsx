@@ -413,7 +413,7 @@ function MatchList({
           </span>
         )}
         {semPreco > 0 && (
-          <span className="ml-1 text-amber-600 dark:text-amber-400">
+          <span className="ml-1 text-amber-600">
             ({semPreco} empreendimento{semPreco > 1 ? "s" : ""} sem preço cadastrado — não entram no match)
           </span>
         )}

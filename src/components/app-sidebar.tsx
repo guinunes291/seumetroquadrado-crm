@@ -10,16 +10,14 @@ import {
   CalendarClock,
   Zap,
   Trophy,
-  Gauge,
+  Sun,
   Building2,
   Megaphone,
-  Plug,
   Settings,
   LogOut,
   User as UserIcon,
-  Activity,
+  BarChart3,
   ChevronRight,
-  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,10 +40,10 @@ type Item = {
 // corretor vê 5 botões, gestor 6, admin 7.
 const NAV_ITEMS: Item[] = [
   {
+    // Analytics/Relatórios é a aba interna do próprio /hoje — sem subitem duplicado.
     to: "/hoje",
     label: "Hoje",
-    icon: Gauge,
-    children: [{ to: "/relatorios", label: "Relatórios", icon: LayoutDashboard }],
+    icon: Sun,
   },
   {
     to: "/leads",
@@ -86,23 +84,15 @@ const NAV_ITEMS: Item[] = [
     // internas do hub /painel-gestor — por isso o item é um único botão.
     to: "/painel-gestor",
     label: "Gestão",
-    icon: Activity,
+    icon: BarChart3,
     roles: ["admin", "gestor"],
   },
   {
+    // Integrações e Preferências são abas internas de /configuracoes.
+    to: "/configuracoes",
     label: "Configurações",
     icon: Settings,
     roles: ["admin"],
-    children: [
-      { to: "/integracoes", label: "Integrações", icon: Plug, comingSoon: true, roles: ["admin"] },
-      {
-        to: "/configuracoes",
-        label: "Preferências",
-        icon: ShieldCheck,
-        comingSoon: true,
-        roles: ["admin"],
-      },
-    ],
   },
 ];
 

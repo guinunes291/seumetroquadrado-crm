@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, isBefore } from "date-fns";
@@ -32,9 +32,11 @@ import {
   type TarefaStatus, type TarefaTipo, type TarefaPrioridade,
 } from "@/lib/tarefas";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/tarefas")({
-  head: () => ({ meta: [{ title: "Tarefas — Seu Metro Quadrado" }] }),
-  component: TarefasPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/agendamentos", search: { tab: "tarefas" } });
+  },
 });
 
 export function TarefasPage() {

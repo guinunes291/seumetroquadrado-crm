@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,9 +41,11 @@ import {
   type LeadStatus,
 } from "@/lib/leads";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/leads-por-corretor")({
-  head: () => ({ meta: [{ title: "Leads por Corretor — Seu Metro Quadrado" }] }),
-  component: LeadsPorCorretorPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "leads-corretor" } });
+  },
 });
 
 type Corretor = { id: string; nome: string; ativo: boolean };

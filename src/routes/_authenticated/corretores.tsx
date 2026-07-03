@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,11 +46,11 @@ import {
 import { toast } from "sonner";
 import { UserPlus, Search, AlertTriangle, Check, X, Pencil } from "lucide-react";
 
+// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/corretores")({
-  head: () => ({
-    meta: [{ title: "Corretores — Seu Metro Quadrado" }],
-  }),
-  component: CorretoresPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/painel-gestor", search: { tab: "pessoas" } });
+  },
 });
 
 type AppRole = "admin" | "gestor" | "corretor";
