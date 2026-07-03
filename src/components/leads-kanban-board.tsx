@@ -8,7 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FUNNEL_STAGES, LEAD_STATUS_LABEL, resolveStageAction, type LeadStatus } from "@/lib/leads";
+import {
+  FUNNEL_STAGES,
+  LEAD_STATUS_LABEL,
+  LEAD_STATUS_COLUMN_TONE,
+  resolveStageAction,
+  type LeadStatus,
+} from "@/lib/leads";
+import { temperaturaBadgeClass, TEMPERATURA_LABEL, type Temperatura } from "@/lib/status-tones";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
 import {
@@ -19,25 +26,10 @@ import {
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { SlaBadge } from "@/components/sla-badge";
 
-const COLUMN_TONE: Record<LeadStatus, string> = {
-  novo: "bg-blue-500/10 border-blue-500/30",
-  aguardando_atendimento: "bg-amber-500/10 border-amber-500/30",
-  aguardando_retorno: "bg-yellow-500/10 border-yellow-500/30",
-  em_atendimento: "bg-violet-500/10 border-violet-500/30",
-  qualificado: "bg-cyan-500/10 border-cyan-500/30",
-  agendado: "bg-indigo-500/10 border-indigo-500/30",
-  visita_realizada: "bg-emerald-500/10 border-emerald-500/30",
-  proposta_enviada: "bg-teal-500/10 border-teal-500/30",
-  analise_credito: "bg-orange-500/10 border-orange-500/30",
-  contrato_fechado: "bg-green-600/15 border-green-600/40",
-  pos_venda: "bg-lime-500/10 border-lime-500/30",
-  perdido: "bg-rose-500/10 border-rose-500/30",
-};
-
 const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
   label: LEAD_STATUS_LABEL[id],
-  tone: COLUMN_TONE[id],
+  tone: LEAD_STATUS_COLUMN_TONE[id],
 }));
 
 type Lead = {
@@ -282,15 +274,11 @@ export function KanbanBoard() {
                                   variant="secondary"
                                   className={cn(
                                     "text-[9px] uppercase",
-                                    lead.temperatura === "quente" &&
-                                      "bg-red-500/15 text-red-700 dark:text-red-300",
-                                    lead.temperatura === "morno" &&
-                                      "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-                                    lead.temperatura === "frio" &&
-                                      "bg-blue-500/15 text-blue-700 dark:text-blue-300",
+                                    temperaturaBadgeClass(lead.temperatura),
                                   )}
                                 >
-                                  {lead.temperatura}
+                                  {TEMPERATURA_LABEL[lead.temperatura as Temperatura] ??
+                                    lead.temperatura}
                                 </Badge>
                               )}
                             </div>

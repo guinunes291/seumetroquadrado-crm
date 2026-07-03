@@ -4,6 +4,8 @@
 // aqui o peso maior é a ETAPA do funil + o momento (recência), não a urgência.
 // Função pura e testável.
 
+import { INTENT_BADGE_BORDERED, INTENT_DOT } from "@/lib/status-tones";
+
 export type FechamentoInput = {
   status?: string | null;
   temperatura?: string | null;
@@ -119,13 +121,13 @@ export const FECHAMENTO_TIER_LABEL: Record<FechamentoTier, string> = {
 
 // Verde = perto da venda (oportunidade), não urgência.
 export const FECHAMENTO_TIER_TONE: Record<FechamentoTier, string> = {
-  alta: "bg-emerald-500/15 text-emerald-700 border-emerald-300",
-  media: "bg-amber-500/15 text-amber-700 border-amber-300",
-  baixa: "bg-slate-400/15 text-slate-600 border-slate-300",
+  alta: INTENT_BADGE_BORDERED.success,
+  media: INTENT_BADGE_BORDERED.warning,
+  baixa: INTENT_BADGE_BORDERED.neutral,
 };
 
 export const FECHAMENTO_TIER_DOT: Record<FechamentoTier, string> = {
-  alta: "bg-emerald-500",
-  media: "bg-amber-500",
-  baixa: "bg-slate-400",
+  alta: INTENT_DOT.success,
+  media: INTENT_DOT.warning,
+  baixa: INTENT_DOT.neutral,
 };

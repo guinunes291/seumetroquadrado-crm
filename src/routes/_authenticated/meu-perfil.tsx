@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PushOptInCard } from "@/components/push-opt-in-banner";
+import { maskPhoneBR } from "@/lib/masks";
 
 export const Route = createFileRoute("/_authenticated/meu-perfil")({
   head: () => ({ meta: [{ title: "Meu perfil — Seu Metro Quadrado" }] }),
@@ -165,8 +166,9 @@ function MeuPerfilPage() {
               </Label>
               <Input
                 id="tel"
+                inputMode="tel"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={(e) => setTelefone(maskPhoneBR(e.target.value))}
                 placeholder="(11) 90000-0000"
                 aria-invalid={!telefoneValido}
                 className={!telefoneValido ? "border-destructive" : undefined}

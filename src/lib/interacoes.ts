@@ -11,6 +11,7 @@ import {
   CircleDot,
   type LucideIcon,
 } from "lucide-react";
+import { HUE_BADGE, INTENT_BADGE } from "@/lib/status-tones";
 
 export type InteracaoTipo =
   | "ligacao"
@@ -53,16 +54,16 @@ export const INTERACAO_ICON: Record<InteracaoTipo, LucideIcon> = {
 };
 
 export const INTERACAO_TONE: Record<InteracaoTipo, string> = {
-  ligacao: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  whatsapp: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  email: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-  sms: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
-  visita: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  reuniao: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
-  nota: "bg-muted text-muted-foreground",
-  mudanca_status: "bg-slate-500/15 text-slate-700 dark:text-slate-300",
-  proposta: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  outro: "bg-muted text-muted-foreground",
+  ligacao: HUE_BADGE.blue,
+  whatsapp: HUE_BADGE.emerald,
+  email: HUE_BADGE.violet,
+  sms: HUE_BADGE.cyan,
+  visita: HUE_BADGE.amber,
+  reuniao: HUE_BADGE.indigo,
+  nota: INTENT_BADGE.neutral,
+  mudanca_status: HUE_BADGE.slate,
+  proposta: HUE_BADGE.orange,
+  outro: INTENT_BADGE.neutral,
 };
 
 export const DIRECAO_LABEL: Record<InteracaoDirecao, string> = {

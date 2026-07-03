@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { Clock, AlertTriangle, Flame } from "lucide-react";
 
 export type SlaStatus = "ok" | "atencao" | "estourado";
@@ -62,10 +63,10 @@ export function SlaBadge({ slaMinutos, referencia, compact, className }: SlaBadg
 
   const tone =
     status === "estourado"
-      ? "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/40"
+      ? INTENT_BADGE_BORDERED.danger
       : status === "atencao"
-        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/40"
-        : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40";
+        ? INTENT_BADGE_BORDERED.warning
+        : INTENT_BADGE_BORDERED.success;
 
   const Icon = status === "estourado" ? Flame : status === "atencao" ? AlertTriangle : Clock;
   const label =

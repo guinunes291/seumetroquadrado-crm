@@ -61,6 +61,7 @@ import {
   type InteracaoDirecao,
 } from "@/lib/interacoes";
 import { buildWhatsAppUrl, renderTemplate } from "@/lib/templates";
+import { maskPhoneBR, maskCPF } from "@/lib/masks";
 import {
   LEAD_STATUS_LABEL,
   FUNNEL_STAGES,
@@ -1111,8 +1112,10 @@ function LeadDetailPage() {
             <div>
               <Label>Telefone</Label>
               <Input
+                inputMode="tel"
+                placeholder="(11) 98765-4321"
                 value={editForm.telefone}
-                onChange={(e) => setEditForm({ ...editForm, telefone: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, telefone: maskPhoneBR(e.target.value) })}
                 maxLength={40}
               />
             </div>
@@ -1128,8 +1131,10 @@ function LeadDetailPage() {
             <div>
               <Label>CPF</Label>
               <Input
+                inputMode="numeric"
+                placeholder="123.456.789-09"
                 value={editForm.cpf}
-                onChange={(e) => setEditForm({ ...editForm, cpf: e.target.value })}
+                onChange={(e) => setEditForm({ ...editForm, cpf: maskCPF(e.target.value) })}
                 maxLength={20}
               />
             </div>

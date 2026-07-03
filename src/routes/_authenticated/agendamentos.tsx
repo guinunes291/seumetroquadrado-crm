@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HUE_BADGE, HUE_DOT, INTENT_BADGE } from "@/lib/status-tones";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TarefasPage } from "@/routes/_authenticated/tarefas";
 
@@ -95,20 +96,20 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_TONE: Record<string, string> = {
-  agendado: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  confirmado: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  realizado: "bg-green-600/20 text-green-700 dark:text-green-300",
-  cancelado: "bg-rose-500/15 text-rose-700 dark:text-rose-300",
-  nao_compareceu: "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-  remarcado: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
+  agendado: INTENT_BADGE.info,
+  confirmado: INTENT_BADGE.success,
+  realizado: HUE_BADGE.green,
+  cancelado: INTENT_BADGE.danger,
+  nao_compareceu: INTENT_BADGE.warning,
+  remarcado: HUE_BADGE.violet,
 };
 
 const TIPO_DOT: Record<string, string> = {
-  visita: "bg-blue-500",
-  reuniao: "bg-violet-500",
-  ligacao: "bg-emerald-500",
-  follow_up: "bg-amber-500",
-  outro: "bg-slate-400",
+  visita: HUE_DOT.blue,
+  reuniao: HUE_DOT.violet,
+  ligacao: HUE_DOT.emerald,
+  follow_up: HUE_DOT.amber,
+  outro: HUE_DOT.slate,
 };
 
 type Agendamento = {

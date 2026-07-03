@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchProjetosParaSelecao } from "@/lib/projetos";
 import { toast } from "sonner";
 import { Check, ChevronsUpDown, DollarSign } from "lucide-react";
+import { maskCurrencyBRL, parseCurrencyBRL } from "@/lib/masks";
 import {
   Dialog,
   DialogContent,
@@ -117,7 +118,7 @@ export function RegistrarVendaDialog() {
   const mut = useMutation({
     mutationFn: async () => {
       if (!lead) throw new Error("Selecione o lead que comprou");
-      const valorNum = Number(valor.replace(",", "."));
+      const valorNum = parseCurrencyBRL(valor) ?? NaN;
       if (!Number.isFinite(valorNum) || valorNum <= 0) {
         throw new Error("Informe um valor de venda válido");
       }
@@ -263,10 +264,10 @@ export function RegistrarVendaDialog() {
               <div className="space-y-1.5">
                 <Label>Valor da venda (VGV) *</Label>
                 <Input
-                  inputMode="decimal"
+                  inputMode="numeric"
                   value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  placeholder="Ex.: 350000"
+                  onChange={(e) => setValor(maskCurrencyBRL(e.target.value))}
+                  placeholder="R$ 350.000,00"
                 />
               </div>
               <div className="space-y-1.5">

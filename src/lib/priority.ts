@@ -2,6 +2,8 @@
 // e tempo parado para responder "quem atender primeiro". Função PURA e testável;
 // usada para ordenar filas (guardrail do Meu Dia, e reutilizável em Leads/Blitz).
 
+import { INTENT_DOT } from "@/lib/status-tones";
+
 export type ScoreInput = {
   temperatura?: string | null;
   status?: string | null;
@@ -80,9 +82,9 @@ function tierLabelLongo(t: ScoreTier): string {
 }
 
 export const TIER_DOT: Record<ScoreTier, string> = {
-  alta: "bg-rose-500",
-  media: "bg-amber-500",
-  baixa: "bg-slate-400",
+  alta: INTENT_DOT.danger,
+  media: INTENT_DOT.warning,
+  baixa: INTENT_DOT.neutral,
 };
 
 export const TIER_LABEL: Record<ScoreTier, string> = {

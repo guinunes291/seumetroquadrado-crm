@@ -107,6 +107,7 @@ import { ImportLeadsDialog } from "@/components/import-leads-dialog";
 import { KanbanBoard } from "@/components/leads-kanban-board";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail, normalizeSearch, onlyDigits } from "@/lib/validators";
+import { maskPhoneBR } from "@/lib/masks";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
@@ -2055,8 +2056,10 @@ function NovoLeadDialog({
           <div>
             <Label>Telefone *</Label>
             <Input
+              inputMode="tel"
+              placeholder="(11) 98765-4321"
               value={form.telefone}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+              onChange={(e) => setForm({ ...form, telefone: maskPhoneBR(e.target.value) })}
             />
           </div>
           <div>
