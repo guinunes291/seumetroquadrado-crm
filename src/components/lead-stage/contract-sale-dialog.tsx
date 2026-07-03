@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
+import { ComissaoSplitFields } from "@/components/comissao-split-fields";
+import { parseSplit, validarSplit, type SplitTexto } from "@/lib/comissoes";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -41,10 +43,12 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const [dataAssinatura, setDataAssinatura] = useState(hoje());
   const [projetoId, setProjetoId] = useState<string>(lead.projeto_id ?? "none");
   const [observacoes, setObservacoes] = useState("");
-  const [pComissao, setPComissao] = useState("3.50");
-  const [pCorretor, setPCorretor] = useState("1.85");
-  const [pGerente, setPGerente] = useState("0.50");
-  const [pSuper, setPSuper] = useState("0.30");
+  const [percentuais, setPercentuais] = useState<SplitTexto>({
+    total: "3.50",
+    corretor: "1.85",
+    gerente: "0.50",
+    superintendente: "0.30",
+  });
 
   // Só projetos ativos entram em uma nova venda (regra central em
   // fetchProjetosParaSelecao). Arquivados/inativos não são oferecidos.
@@ -73,6 +77,14 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       if (dataAssinatura > hoje()) {
         throw new Error("A data de assinatura não pode ser futura");
       }
+      const split = parseSplit(percentuais);
+      if (!split) {
+        throw new Error("Percentuais de comissão inválidos — revise os campos");
+      }
+      const splitCheck = validarSplit(split);
+      if (!splitCheck.ok) {
+        throw new Error(splitCheck.erros[0]);
+      }
 
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
@@ -89,10 +101,10 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
         projeto_nome: projetoNome,
         valor_venda: valorNum,
         data_assinatura: dataAssinatura,
-        percentual_comissao: Number(pComissao.replace(",", ".")) || 0,
-        percentual_corretor: Number(pCorretor.replace(",", ".")) || 0,
-        percentual_gerente: Number(pGerente.replace(",", ".")) || 0,
-        percentual_superintendente: Number(pSuper.replace(",", ".")) || 0,
+        percentual_comissao: split.total,
+        percentual_corretor: split.corretor,
+        percentual_gerente: split.gerente,
+        percentual_superintendente: split.superintendente,
         observacoes: observacoes.trim() || null,
       } as never);
       if (insErr) throw insErr;
@@ -107,6 +119,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       toast.success("Venda registrada · lead movido para Contrato fechado 🎉");
       qc.invalidateQueries({ queryKey: ["vendas"] });
       qc.invalidateQueries({ queryKey: ["comissoes"] });
+      qc.invalidateQueries({ queryKey: ["comissoes-vendas"] });
       qc.invalidateQueries({ queryKey: ["leads-para-venda"] });
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -168,43 +181,11 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Comissão (%)</Label>
-            <div className="grid grid-cols-4 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[11px]">Total</Label>
-                <Input
-                  inputMode="decimal"
-                  value={pComissao}
-                  onChange={(e) => setPComissao(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">Corretor</Label>
-                <Input
-                  inputMode="decimal"
-                  value={pCorretor}
-                  onChange={(e) => setPCorretor(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">Gerente</Label>
-                <Input
-                  inputMode="decimal"
-                  value={pGerente}
-                  onChange={(e) => setPGerente(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">Superint.</Label>
-                <Input
-                  inputMode="decimal"
-                  value={pSuper}
-                  onChange={(e) => setPSuper(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
+          <ComissaoSplitFields
+            valorVenda={parseCurrencyBRL(valor)}
+            valores={percentuais}
+            onChange={(campo, v) => setPercentuais((prev) => ({ ...prev, [campo]: v }))}
+          />
 
           <div className="space-y-1.5">
             <Label>Observações</Label>

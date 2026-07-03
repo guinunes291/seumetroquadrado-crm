@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeSearch, onlyDigits } from "@/lib/validators";
 import { renderTemplate } from "@/lib/templates";
+import { fetchAllPaged } from "@/lib/fetch-all-paged";
 import type { LeadStatus } from "@/lib/leads";
 
 export type OfertaStatus = "rascunho" | "ativa" | "concluida" | "arquivada";
@@ -242,20 +243,6 @@ export function statusVariant(s: string): "default" | "secondary" | "destructive
   if (s === "ativa") return "default";
   if (s === "concluida") return "secondary";
   return "outline";
-}
-
-/** Pagina além do teto de 1000 linhas do PostgREST. `fetchPage` deve ordenar de forma estável. */
-async function fetchAllPaged<T>(
-  fetchPage: (from: number, to: number) => Promise<T[]>,
-  pageSize = 1000,
-): Promise<T[]> {
-  const out: T[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const rows = await fetchPage(from, from + pageSize - 1);
-    out.push(...rows);
-    if (rows.length < pageSize) break;
-  }
-  return out;
 }
 
 /** Lista as ofertas com estatísticas. `arquivadas` filtra no servidor — evita
