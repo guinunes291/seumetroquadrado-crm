@@ -258,17 +258,15 @@ async function fetchAllPaged<T>(
   return out;
 }
 
-export async function listOfertas(incluirArquivadas = false): Promise<OfertaAtiva[]> {
-  const { data: ofertas, error } = await supabase
-    .from("ofertas_ativas")
-    .select("*")
-    .order("created_at", { ascending: false });
+/** Lista as ofertas com estatísticas. `arquivadas` filtra no servidor — evita
+ *  refazer o fetch paginado dos vínculos das listas da outra aba. */
+export async function listOfertas(arquivadas = false): Promise<OfertaAtiva[]> {
+  let query = supabase.from("ofertas_ativas").select("*").order("created_at", { ascending: false });
+  query = arquivadas ? query.eq("status", "arquivada") : query.neq("status", "arquivada");
+  const { data: ofertas, error } = await query;
   if (error) throw error;
 
-  const filtered = (ofertas ?? []).filter((o) =>
-    incluirArquivadas ? true : o.status !== "arquivada",
-  );
-
+  const filtered = ofertas ?? [];
   if (filtered.length === 0) return [];
 
   const ids = filtered.map((o) => o.id);

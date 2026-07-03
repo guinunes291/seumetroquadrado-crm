@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Plus, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Select,
   SelectContent,
@@ -41,7 +42,7 @@ export const Route = createFileRoute("/_authenticated/oferta-ativa/nova")({
 function NovaOfertaPage() {
   const navigate = useNavigate();
   const { de } = Route.useSearch();
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, loading: rolesLoading } = useUserRoles();
   const canManage = isAdmin || isGestor;
 
   const [nome, setNome] = useState("");
@@ -71,6 +72,14 @@ function NovaOfertaPage() {
     setCorretorId(origemQ.data.corretor_id ?? undefined);
     setFiltros(origemQ.data.filtros);
   }, [de, origemQ.data]);
+  useEffect(() => {
+    if (origemQ.isError) {
+      toast.error("Não foi possível carregar a lista de origem", {
+        description:
+          "Ela pode ter sido excluída ou você não tem acesso. Preencha o formulário manualmente.",
+      });
+    }
+  }, [origemQ.isError]);
 
   const debounced = useDebounce(filtros, 400);
   const debouncedCorretor = useDebounce(corretorId, 400);
@@ -135,6 +144,34 @@ function NovaOfertaPage() {
         ? prev.projetoId.filter((v) => v !== id)
         : [...prev.projetoId, id],
     }));
+  }
+
+  // Espera os papéis para não piscar "Acesso restrito" para gestor no 1º paint.
+  if (rolesLoading || (de && canManage && origemQ.isLoading)) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Criar listas é ação de gestão (o RPC create_oferta_ativa rejeita os demais).
+  if (!canManage) {
+    return (
+      <EmptyState
+        icon={Lock}
+        title="Acesso restrito"
+        description="A criação de listas de Oferta Ativa é exclusiva para gestores e administradores. Você trabalha as listas atribuídas a você na aba Oferta Ativa."
+        action={
+          <Button asChild variant="outline">
+            <Link to="/projetos" search={{ tab: "oferta" }}>
+              Voltar para Oferta Ativa
+            </Link>
+          </Button>
+        }
+        className="py-20"
+      />
+    );
   }
 
   return (

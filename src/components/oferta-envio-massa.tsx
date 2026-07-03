@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { buildMensagemOferta, type OfertaLeadRow } from "@/lib/oferta-ativa";
 import { buildWhatsAppUrl } from "@/lib/templates";
-import { leadStatusLabel } from "@/lib/leads";
+import { LEAD_STATUS_BADGE_TONE, leadStatusLabel } from "@/lib/leads";
 
 const TEMPLATE_PADRAO = "padrao";
 
@@ -48,6 +48,10 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
   const [etapa, setEtapa] = useState<Etapa>("config");
   const [templateId, setTemplateId] = useState(TEMPLATE_PADRAO);
   const [conteudo, setConteudo] = useState("");
+  // Snapshot da fila tirado ao iniciar: `rows` é derivado ao vivo da seleção e
+  // do cache (realtime refetch) e pode mudar no meio do envio — o snapshot
+  // mantém índice e contadores estáveis até o fim.
+  const [filaAtiva, setFilaAtiva] = useState<OfertaLeadRow[]>([]);
   const [indice, setIndice] = useState(0);
   const [enviados, setEnviados] = useState(0);
   const [pulados, setPulados] = useState(0);
@@ -57,6 +61,7 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
       setEtapa("config");
       setTemplateId(TEMPLATE_PADRAO);
       setConteudo("");
+      setFilaAtiva([]);
       setIndice(0);
       setEnviados(0);
       setPulados(0);
@@ -82,12 +87,12 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
   const semTelefone = rows.length - fila.length;
   const conteudoEfetivo = templateId === TEMPLATE_PADRAO ? undefined : conteudo;
 
-  const atual = fila[indice];
+  const atual = filaAtiva[indice];
 
   function avancar(pulou: boolean) {
     if (pulou) setPulados((n) => n + 1);
     else setEnviados((n) => n + 1);
-    if (indice + 1 >= fila.length) setEtapa("resumo");
+    if (indice + 1 >= filaAtiva.length) setEtapa("resumo");
     else setIndice((i) => i + 1);
   }
 
@@ -175,7 +180,13 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>
-              <Button onClick={() => setEtapa("fila")} disabled={fila.length === 0}>
+              <Button
+                onClick={() => {
+                  setFilaAtiva(fila);
+                  setEtapa("fila");
+                }}
+                disabled={fila.length === 0}
+              >
                 <MessageCircle className="w-4 h-4 mr-2" /> Iniciar envio
               </Button>
             </DialogFooter>
@@ -186,15 +197,17 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
           <>
             <DialogHeader>
               <DialogTitle>
-                Enviando {indice + 1} de {fila.length}
+                Enviando {indice + 1} de {filaAtiva.length}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <Progress value={(indice / fila.length) * 100} className="h-1.5" />
+              <Progress value={(indice / filaAtiva.length) * 100} className="h-1.5" />
               <div className="rounded-lg border p-3 space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-medium">{atual.lead.nome}</p>
-                  <Badge variant="outline">{leadStatusLabel(atual.lead.status)}</Badge>
+                  <Badge variant="secondary" className={LEAD_STATUS_BADGE_TONE[atual.lead.status]}>
+                    {leadStatusLabel(atual.lead.status)}
+                  </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{atual.lead.telefone}</p>
                 {atual.contatado && (

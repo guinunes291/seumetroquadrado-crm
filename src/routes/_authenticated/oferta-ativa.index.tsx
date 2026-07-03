@@ -59,7 +59,7 @@ export function OfertaAtivaPage() {
   });
   const arqQ = useQuery({
     queryKey: ["ofertas-ativas", "arquivadas"],
-    queryFn: () => listOfertas(true).then((all) => all.filter((o) => o.status === "arquivada")),
+    queryFn: () => listOfertas(true),
   });
 
   const archiveM = useMutation({

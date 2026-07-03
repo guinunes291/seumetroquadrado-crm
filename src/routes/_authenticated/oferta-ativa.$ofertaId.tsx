@@ -78,7 +78,7 @@ import {
   type OfertaLeadRow,
 } from "@/lib/oferta-ativa";
 import { buildWhatsAppUrl } from "@/lib/templates";
-import { leadStatusLabel } from "@/lib/leads";
+import { LEAD_STATUS_BADGE_TONE, leadStatusLabel } from "@/lib/leads";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserRoles } from "@/hooks/use-auth";
@@ -86,12 +86,65 @@ import { OfertaEnvioMassa } from "@/components/oferta-envio-massa";
 
 export const Route = createFileRoute("/_authenticated/oferta-ativa/$ofertaId")({
   head: () => ({ meta: [{ title: "Lista de Oferta Ativa — Seu Metro Quadrado" }] }),
+  // Remonta a página quando só o param muda (ex.: salto pelo histórico entre
+  // duas listas) — senão seleção/busca/filtros vazariam de uma lista à outra.
+  remountDeps: ({ params }) => params.ofertaId,
   component: OfertaDetailPage,
 });
 
 type DetailCache = Awaited<ReturnType<typeof getOferta>>;
 type ContatoFiltro = "todos" | "contatados" | "nao_contatados";
 const PAGINA_RENDER = 50;
+
+// Fora do componente de página: definidos dentro ganhariam identidade nova a
+// cada render e o React remontaria o DOM de todas as linhas visíveis.
+function ToggleContatado({
+  row,
+  onToggle,
+}: {
+  row: OfertaLeadRow;
+  onToggle: (row: OfertaLeadRow) => void;
+}) {
+  return (
+    <button
+      onClick={() => onToggle(row)}
+      title={row.contatado ? "Marcar como não contatado" : "Marcar como contatado"}
+    >
+      {row.contatado ? (
+        <CheckCircle2 className="w-5 h-5 text-green-600" />
+      ) : (
+        <Circle className="w-5 h-5 text-muted-foreground" />
+      )}
+    </button>
+  );
+}
+
+function LinhaAcoes({
+  row,
+  onWhatsApp,
+}: {
+  row: OfertaLeadRow;
+  onWhatsApp: (row: OfertaLeadRow) => void;
+}) {
+  const l = row.lead!;
+  return (
+    <div className="flex justify-end gap-1">
+      <Button size="sm" variant="outline" title="Enviar WhatsApp" onClick={() => onWhatsApp(row)}>
+        <MessageCircle className="w-4 h-4" />
+      </Button>
+      <Button size="sm" variant="outline" title="Ligar" asChild>
+        <a href={`tel:${l.telefone}`}>
+          <Phone className="w-4 h-4" />
+        </a>
+      </Button>
+      <Button size="sm" variant="outline" title="Abrir lead" asChild>
+        <Link to="/leads/$leadId" params={{ leadId: l.id }}>
+          <ExternalLink className="w-4 h-4" />
+        </Link>
+      </Button>
+    </div>
+  );
+}
 
 function OfertaDetailPage() {
   const { ofertaId } = Route.useParams();
@@ -138,9 +191,10 @@ function OfertaDetailPage() {
   }
 
   // Referência à própria mutação para o "Tentar novamente" do toast de erro.
-  const marcarRef = useRef<((vars: { ids: string[]; valor: boolean }) => void) | null>(null);
+  type MarcarVars = { ids: string[]; valor: boolean; origem?: "bulk" };
+  const marcarRef = useRef<((vars: MarcarVars) => void) | null>(null);
   const marcarM = useMutation({
-    mutationFn: ({ ids, valor }: { ids: string[]; valor: boolean }) =>
+    mutationFn: ({ ids, valor }: MarcarVars) =>
       ids.length === 1 ? marcarContatado(ids[0], valor) : marcarContatadosEmMassa(ids, valor),
     onMutate: async ({ ids, valor }) => {
       await qc.cancelQueries({ queryKey: ["oferta-detail", ofertaId] });
@@ -155,7 +209,7 @@ function OfertaDetailPage() {
       });
     },
     onSuccess: (_data, vars) => {
-      if (vars.ids.length > 1) {
+      if (vars.origem === "bulk") {
         toast.success(`${vars.ids.length} lead(s) atualizado(s)`);
         setSelecionados(new Set());
       }
@@ -266,11 +320,13 @@ function OfertaDetailPage() {
   }
 
   function bulkMarcar(valor: boolean) {
-    const ids = Array.from(selecionados);
+    // Interseção com as linhas atuais: descarta ids de vínculos que saíram
+    // da lista (realtime) ou de uma navegação anterior.
+    const ids = Array.from(selecionados).filter((id) => rowsComLead.some((r) => r.id === id));
     if (ids.length === 0) return;
     // Desmarcar sempre confirma; marcar só confirma em volumes grandes.
     if (!valor || ids.length > 20) setConfirmBulk({ ids, valor });
-    else marcarM.mutate({ ids, valor });
+    else marcarM.mutate({ ids, valor, origem: "bulk" });
   }
 
   function abrirWhatsApp(row: OfertaLeadRow) {
@@ -329,47 +385,8 @@ function OfertaDetailPage() {
 
   const { oferta } = q.data;
   const listaAtiva = oferta.status === "ativa";
-
-  function LinhaAcoes({ row }: { row: OfertaLeadRow }) {
-    const l = row.lead!;
-    return (
-      <div className="flex justify-end gap-1">
-        <Button
-          size="sm"
-          variant="outline"
-          title="Enviar WhatsApp"
-          onClick={() => abrirWhatsApp(row)}
-        >
-          <MessageCircle className="w-4 h-4" />
-        </Button>
-        <Button size="sm" variant="outline" title="Ligar" asChild>
-          <a href={`tel:${l.telefone}`}>
-            <Phone className="w-4 h-4" />
-          </a>
-        </Button>
-        <Button size="sm" variant="outline" title="Abrir lead" asChild>
-          <Link to="/leads/$leadId" params={{ leadId: l.id }}>
-            <ExternalLink className="w-4 h-4" />
-          </Link>
-        </Button>
-      </div>
-    );
-  }
-
-  function ToggleContatado({ row }: { row: OfertaLeadRow }) {
-    return (
-      <button
-        onClick={() => marcarM.mutate({ ids: [row.id], valor: !row.contatado })}
-        title={row.contatado ? "Marcar como não contatado" : "Marcar como contatado"}
-      >
-        {row.contatado ? (
-          <CheckCircle2 className="w-5 h-5 text-green-600" />
-        ) : (
-          <Circle className="w-5 h-5 text-muted-foreground" />
-        )}
-      </button>
-    );
-  }
+  const toggleContato = (row: OfertaLeadRow) =>
+    marcarM.mutate({ ids: [row.id], valor: !row.contatado });
 
   return (
     <div className="space-y-6">
@@ -593,7 +610,7 @@ function OfertaDetailPage() {
           }
           description={
             rowsComLead.length === 0
-              ? "Os leads que casarem com os filtros da lista aparecem aqui."
+              ? "Os leads desta lista foram excluídos ou estão fora do seu acesso."
               : "Ajuste a busca ou os filtros para encontrar os leads."
           }
           action={
@@ -608,6 +625,14 @@ function OfertaDetailPage() {
                 }}
               >
                 Limpar filtros
+              </Button>
+            ) : rowsComLead.length === 0 && canManage ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate({ to: "/oferta-ativa/nova", search: { de: ofertaId } })}
+              >
+                <Copy className="w-4 h-4 mr-2" /> Duplicar com os mesmos filtros
               </Button>
             ) : undefined
           }
@@ -652,7 +677,7 @@ function OfertaDetailPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <ToggleContatado row={row} />
+                        <ToggleContatado row={row} onToggle={toggleContato} />
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{l.nome}</div>
@@ -660,10 +685,12 @@ function OfertaDetailPage() {
                       </TableCell>
                       <TableCell className="text-sm">{l.projeto_nome ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{leadStatusLabel(l.status)}</Badge>
+                        <Badge variant="secondary" className={LEAD_STATUS_BADGE_TONE[l.status]}>
+                          {leadStatusLabel(l.status)}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <LinhaAcoes row={row} />
+                        <LinhaAcoes row={row} onWhatsApp={abrirWhatsApp} />
                       </TableCell>
                     </TableRow>
                   );
@@ -707,15 +734,17 @@ function OfertaDetailPage() {
                       <p className="font-medium leading-tight">{l.nome}</p>
                       <p className="text-xs text-muted-foreground">{l.telefone}</p>
                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                        <Badge variant="outline">{leadStatusLabel(l.status)}</Badge>
+                        <Badge variant="secondary" className={LEAD_STATUS_BADGE_TONE[l.status]}>
+                          {leadStatusLabel(l.status)}
+                        </Badge>
                         {l.projeto_nome && (
                           <span className="text-xs text-muted-foreground">{l.projeto_nome}</span>
                         )}
                       </div>
                     </div>
-                    <ToggleContatado row={row} />
+                    <ToggleContatado row={row} onToggle={toggleContato} />
                   </div>
-                  <LinhaAcoes row={row} />
+                  <LinhaAcoes row={row} onWhatsApp={abrirWhatsApp} />
                 </div>
               );
             })}
@@ -801,7 +830,12 @@ function OfertaDetailPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmBulk) marcarM.mutate({ ids: confirmBulk.ids, valor: confirmBulk.valor });
+                if (confirmBulk)
+                  marcarM.mutate({
+                    ids: confirmBulk.ids,
+                    valor: confirmBulk.valor,
+                    origem: "bulk",
+                  });
                 setConfirmBulk(null);
               }}
             >

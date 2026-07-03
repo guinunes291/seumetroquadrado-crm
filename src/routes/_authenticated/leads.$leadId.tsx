@@ -567,6 +567,7 @@ function LeadDetailPage() {
                           setWaMensagem(
                             renderTemplate(t.conteudo, {
                               nome: lead.nome,
+                              primeiro_nome: lead.nome.trim().split(/\s+/)[0] || lead.nome,
                               projeto: lead.projeto_nome ?? "",
                             }),
                           );
@@ -1115,7 +1116,9 @@ function LeadDetailPage() {
                 inputMode="tel"
                 placeholder="(11) 98765-4321"
                 value={editForm.telefone}
-                onChange={(e) => setEditForm({ ...editForm, telefone: maskPhoneBR(e.target.value) })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, telefone: maskPhoneBR(e.target.value) })
+                }
                 maxLength={40}
               />
             </div>
