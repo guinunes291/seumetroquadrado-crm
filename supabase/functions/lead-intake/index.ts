@@ -131,7 +131,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Campos do lead (tolerante a nomes do Facebook/Zapier).
   const first = pick("first_name", "primeiro_nome");
   const last = pick("last_name", "sobrenome");
-  const nome = pick("nome", "full_name", "name") ?? ([first, last].filter(Boolean).join(" ") || null);
+  const nome =
+    pick("nome", "full_name", "name") ?? ([first, last].filter(Boolean).join(" ") || null);
   const telefone = pick("telefone", "phone_number", "phone", "whatsapp", "celular");
   const email = pick("email", "e-mail", "email_address");
   const renda = pick(

@@ -22,7 +22,7 @@ export const Route = createFileRoute("/api/public/comissoes/")({
         let query = supabaseAdmin
           .from("comissoes")
           .select(
-            "id, venda_id, beneficiario_id, percentual, valor_comissao, valor_liquido, percentual_desconto, status, data_pagamento, created_at",
+            "id, venda_id, beneficiario_id, beneficiario_nome, tipo, percentual, valor_comissao, valor_liquido, percentual_desconto, status, data_pagamento, created_at",
             { count: "exact" },
           );
 
@@ -51,7 +51,9 @@ export const Route = createFileRoute("/api/public/comissoes/")({
           query = query.gte("data_pagamento", ini).lt("data_pagamento", proximo);
         }
 
-        query = query.order("data_pagamento", { ascending: false, nullsFirst: false }).range(offset, offset + limit - 1);
+        query = query
+          .order("data_pagamento", { ascending: false, nullsFirst: false })
+          .range(offset, offset + limit - 1);
 
         const { data, error, count } = await query;
         if (error) return jsonResponse({ error: error.message }, 500);
@@ -61,10 +63,15 @@ export const Route = createFileRoute("/api/public/comissoes/")({
           id: c.id,
           venda_id: c.venda_id,
           corretor_id: c.beneficiario_id,
+          beneficiario_id: c.beneficiario_id,
+          beneficiario_nome: c.beneficiario_nome,
+          tipo: c.tipo,
           percentual: c.percentual,
           valor_bruto: c.valor_comissao,
           valor: c.valor_comissao,
+          // `deducoes` é legado (na verdade é um percentual) — mantido por compat.
           deducoes: c.percentual_desconto,
+          percentual_desconto: c.percentual_desconto,
           valor_liquido: c.valor_liquido,
           status: c.status,
           data: c.data_pagamento,
