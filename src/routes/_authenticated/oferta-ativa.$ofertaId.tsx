@@ -172,6 +172,8 @@ function OfertaDetailPage() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [envioOpen, setEnvioOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [atribuirOpen, setAtribuirOpen] = useState(false);
+  const [corretorSel, setCorretorSel] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState<{ ids: string[]; valor: boolean } | null>(null);
   const [confirmConcluir, setConfirmConcluir] = useState(false);
   const [confirmExcluir, setConfirmExcluir] = useState(false);
