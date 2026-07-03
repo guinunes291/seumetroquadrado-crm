@@ -39,6 +39,22 @@ import {
   ExternalLink, Download,
 } from "lucide-react";
 import { buildGoogleCalendarUrl, downloadIcs, type CalendarEventInput } from "@/lib/calendar-links";
+import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
+
+// Espelha no Google Calendar em segundo plano — nunca bloqueia o fluxo do CRM.
+function syncGoogleEmBackground(agendamentoId: string) {
+  syncAgendamentoGoogle({ data: { agendamentoId } })
+    .then((r) => {
+      if (!r.synced && r.reason && !/não configurado|sem Google conectado/.test(r.reason)) {
+        toast.warning("Agendamento salvo, mas não sincronizou com o Google Agenda", {
+          description: r.reason,
+        });
+      }
+    })
+    .catch(() => {
+      /* silencioso: o agendamento em si já foi salvo */
+    });
+}
 import { cn } from "@/lib/utils";
 import { HUE_BADGE, HUE_DOT, INTENT_BADGE } from "@/lib/status-tones";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -230,16 +246,22 @@ function AgendaPanel() {
 
   const createMut = useMutation({
     mutationFn: async (payload: Partial<Agendamento>) => {
-      const { error } = await supabase.from("agendamentos").insert({
-        ...payload,
-        criado_por_id: user!.id,
-      } as never);
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .insert({
+          ...payload,
+          criado_por_id: user!.id,
+        } as never)
+        .select("id")
+        .single();
       if (error) throw error;
+      return data as { id: string };
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento criado");
       setOpenNew(false);
+      syncGoogleEmBackground(created.id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -248,11 +270,13 @@ function AgendaPanel() {
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<Agendamento> }) => {
       const { error } = await supabase.from("agendamentos").update(patch as never).eq("id", id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento atualizado");
       setEditing(null);
+      syncGoogleEmBackground(id);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -264,11 +288,13 @@ function AgendaPanel() {
         .update({ deleted_at: new Date().toISOString() } as never)
         .eq("id", id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (id) => {
       qc.invalidateQueries({ queryKey: ["agendamentos"] });
       toast.success("Agendamento movido para a lixeira");
       setEditing(null);
+      syncGoogleEmBackground(id);
     },
     onError: (e: Error) => toast.error(e.message),
   });

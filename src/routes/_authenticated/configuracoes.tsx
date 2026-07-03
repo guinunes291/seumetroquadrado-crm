@@ -7,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUserRoles } from "@/hooks/use-auth";
 import { INTENT_BADGE } from "@/lib/status-tones";
+import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import {
-  CalendarClock,
   Webhook,
   MessageCircle,
   Lock,
@@ -57,24 +57,7 @@ function ConfiguracoesPage() {
         </TabsList>
 
         <TabsContent value="integracoes" className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CalendarClock className="h-4 w-4 text-info" /> Google Agenda
-                <Badge className={INTENT_BADGE.success}>Link ativo</Badge>
-              </CardTitle>
-              <CardDescription>
-                Todo agendamento já oferece "Adicionar ao Google Agenda" e download .ics
-                (Apple/Outlook). A sincronização automática por corretor (OAuth) chega na
-                próxima fase — exigirá credenciais do Google Cloud.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" size="sm" disabled title="Requer credenciais Google Cloud">
-                Conectar conta Google — em breve
-              </Button>
-            </CardContent>
-          </Card>
+          <GoogleCalendarCard />
 
           <Card>
             <CardHeader>

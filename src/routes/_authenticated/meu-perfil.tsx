@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PushOptInCard } from "@/components/push-opt-in-banner";
+import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import { maskPhoneBR } from "@/lib/masks";
 
 export const Route = createFileRoute("/_authenticated/meu-perfil")({
@@ -144,6 +145,10 @@ function MeuPerfilPage() {
 
       <div className="mb-4">
         <PushOptInCard />
+      </div>
+
+      <div className="mb-4">
+        <GoogleCalendarCard />
       </div>
 
       <Card>
