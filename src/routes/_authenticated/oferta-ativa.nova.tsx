@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUserRoles } from "@/hooks/use-auth";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   STATUS_LEAD_OPTIONS,
   TEMPERATURA_OPTIONS,
@@ -24,25 +25,22 @@ import {
   ZONA_OPTIONS,
   previewFiltros,
   createOferta,
+  getOfertaResumo,
   type OfertaFiltros,
 } from "@/lib/oferta-ativa";
 
 export const Route = createFileRoute("/_authenticated/oferta-ativa/nova")({
+  // `de` = id de uma lista existente a duplicar (prefill do formulário).
+  validateSearch: (search: Record<string, unknown>): { de?: string } => ({
+    de: typeof search.de === "string" ? search.de : undefined,
+  }),
   head: () => ({ meta: [{ title: "Nova Lista — Oferta Ativa" }] }),
   component: NovaOfertaPage,
 });
 
-function useDebounce<T>(value: T, ms: number): T {
-  const [d, setD] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setD(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return d;
-}
-
 function NovaOfertaPage() {
   const navigate = useNavigate();
+  const { de } = Route.useSearch();
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
 
@@ -58,6 +56,21 @@ function NovaOfertaPage() {
     zona: [],
   });
 
+  // Duplicar: pré-preenche o builder com os dados da lista de origem (uma vez).
+  const origemQ = useQuery({
+    queryKey: ["oferta-origem", de],
+    enabled: !!de,
+    queryFn: () => getOfertaResumo(de!),
+  });
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!de || seeded.current || !origemQ.data) return;
+    seeded.current = true;
+    setNome(`${origemQ.data.nome} (cópia)`);
+    setDescricao(origemQ.data.descricao ?? "");
+    setCorretorId(origemQ.data.corretor_id ?? undefined);
+    setFiltros(origemQ.data.filtros);
+  }, [de, origemQ.data]);
 
   const debounced = useDebounce(filtros, 400);
   const debouncedCorretor = useDebounce(corretorId, 400);
@@ -80,10 +93,7 @@ function NovaOfertaPage() {
     queryKey: ["corretores-oa"],
     enabled: canManage,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nome")
-        .order("nome");
+      const { data, error } = await supabase.from("profiles").select("id, nome").order("nome");
       if (error) throw error;
       return data ?? [];
     },
@@ -135,7 +145,7 @@ function NovaOfertaPage() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
         </Button>
-        <PageHeader title="Nova Lista de Oferta Ativa" />
+        <PageHeader title={de ? "Duplicar Lista de Oferta Ativa" : "Nova Lista de Oferta Ativa"} />
       </div>
 
       <div className="bg-card border rounded-xl p-6 space-y-6">
@@ -256,7 +266,8 @@ function NovaOfertaPage() {
                 })}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Filtra leads pelos projetos cadastrados nessas zonas (inclui projetos vindos por importação).
+                Filtra leads pelos projetos cadastrados nessas zonas (inclui projetos vindos por
+                importação).
               </p>
             </div>
 
@@ -300,7 +311,6 @@ function NovaOfertaPage() {
                 </div>
               </div>
             )}
-
 
             <div>
               <Label className="text-sm font-medium">Sem interação há (dias)</Label>
@@ -351,23 +361,25 @@ function NovaOfertaPage() {
             </p>
           )}
           <div className="flex justify-end gap-3">
-          <Button variant="outline" asChild>
-            <Link to="/oferta-ativa">Cancelar</Link>
-          </Button>
-          <Button
-            onClick={() => createM.mutate()}
-            disabled={nome.trim().length < 2 || createM.isPending || (previewQ.data?.count ?? 0) === 0}
-          >
-            {createM.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 mr-2" /> Criar Lista
-              </>
-            )}
-          </Button>
+            <Button variant="outline" asChild>
+              <Link to="/oferta-ativa">Cancelar</Link>
+            </Button>
+            <Button
+              onClick={() => createM.mutate()}
+              disabled={
+                nome.trim().length < 2 || createM.isPending || (previewQ.data?.count ?? 0) === 0
+              }
+            >
+              {createM.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" /> Criar Lista
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>
