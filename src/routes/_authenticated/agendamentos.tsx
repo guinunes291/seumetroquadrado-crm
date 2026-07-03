@@ -32,7 +32,11 @@ import {
   DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from "lucide-react";
+import {
+  CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon,
+  ExternalLink, Download,
+} from "lucide-react";
+import { buildGoogleCalendarUrl, downloadIcs, type CalendarEventInput } from "@/lib/calendar-links";
 import { cn } from "@/lib/utils";
 import { HUE_BADGE, HUE_DOT, INTENT_BADGE } from "@/lib/status-tones";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -504,6 +508,24 @@ function AgendamentoForm({
   const [lembrete, setLembrete] = useState(initial?.lembrete_minutos ?? 30);
   const [motivoCancel, setMotivoCancel] = useState(initial?.motivo_cancelamento ?? "");
 
+  // Evento para exportação (Google/.ics) com o que está preenchido no form.
+  const calendarEvent = (): CalendarEventInput => {
+    const leadNome = leadId !== "none" ? leads.find((l) => l.id === leadId)?.nome : null;
+    const leadFone = leadId !== "none" ? leads.find((l) => l.id === leadId)?.telefone : null;
+    const detalhes = [
+      `Tipo: ${TIPO_LABEL[tipo]}`,
+      leadNome ? `Lead: ${leadNome}${leadFone ? ` (${leadFone})` : ""}` : null,
+      descricao.trim() || null,
+    ].filter(Boolean);
+    return {
+      titulo: titulo.trim() || "Compromisso",
+      inicio: new Date(dataInicio),
+      fim: new Date(dataFim),
+      local: local.trim() || null,
+      descricao: detalhes.join("\n"),
+    };
+  };
+
   const handle = () => {
     if (!titulo.trim()) return toast.error("Informe um título");
     if (new Date(dataFim) <= new Date(dataInicio)) return toast.error("Fim deve ser depois do início");
@@ -641,6 +663,28 @@ function AgendamentoForm({
           </div>
         )}
       </div>
+
+      {initial && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+          <span className="text-xs text-muted-foreground">Adicionar ao calendário:</span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(buildGoogleCalendarUrl(calendarEvent()), "_blank", "noopener")}
+          >
+            <ExternalLink className="mr-1 h-3.5 w-3.5" /> Google Agenda
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => downloadIcs(calendarEvent(), initial.id)}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" /> .ics (Apple/Outlook)
+          </Button>
+        </div>
+      )}
 
       <DialogFooter className="gap-2">
         {onDelete && (
