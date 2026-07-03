@@ -2395,6 +2395,7 @@ export type Database = {
     }
     Functions: {
       _norm_bairro: { Args: { _t: string }; Returns: string }
+      _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
