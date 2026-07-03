@@ -269,6 +269,42 @@ function OfertaDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const corretoresQ = useQuery({
+    queryKey: ["corretores-atribuir"],
+    enabled: canManage && atribuirOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const atribuirM = useMutation({
+    mutationFn: (ids: string[]) => atribuirOferta(ofertaId, ids),
+    onSuccess: (res) => {
+      if (res.modo === "single") {
+        toast.success("Lista atribuída ao corretor");
+        qc.invalidateQueries({ queryKey: ["oferta-detail", ofertaId] });
+        qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+        setAtribuirOpen(false);
+        setCorretorSel(new Set());
+      } else {
+        const n = res.criadas?.length ?? 0;
+        toast.success(
+          `Lista dividida em ${n} corretor(es). Original arquivada.`,
+        );
+        qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+        setAtribuirOpen(false);
+        setCorretorSel(new Set());
+        navigate({ to: "/projetos", search: { tab: "oferta" } });
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const rows = useMemo(() => q.data?.leads ?? [], [q.data]);
   // Vínculos cujo lead saiu do escopo (excluído) contam nos números,
   // mas não são acionáveis — ficam fora da tabela.
