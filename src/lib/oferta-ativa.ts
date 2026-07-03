@@ -357,6 +357,24 @@ export async function deleteOferta(id: string) {
   if (error) throw error;
 }
 
+/**
+ * Atribui a lista a um ou mais corretores.
+ * - 1 corretor: apenas troca o dono da lista.
+ * - N corretores: cria N novas listas ("… — parte i/N") com os leads divididos
+ *   igualmente ao acaso e arquiva a original.
+ */
+export async function atribuirOferta(
+  ofertaId: string,
+  corretorIds: string[],
+): Promise<{ modo: "single" | "split"; criadas?: string[]; total_leads?: number }> {
+  const { data, error } = await supabase.rpc("atribuir_oferta_ativa", {
+    _oferta_id: ofertaId,
+    _corretor_ids: corretorIds,
+  });
+  if (error) throw error;
+  return data as never;
+}
+
 /** Só a linha da oferta (sem vínculos) — usada no prefill do "Duplicar lista". */
 export async function getOfertaResumo(id: string) {
   const { data, error } = await supabase

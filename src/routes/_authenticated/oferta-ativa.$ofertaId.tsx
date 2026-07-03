@@ -19,6 +19,8 @@ import {
   Send,
   AlertTriangle,
   X,
+  UserPlus,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -70,6 +72,7 @@ import {
   concluirOferta,
   updateOferta,
   deleteOferta,
+  atribuirOferta,
   computeOfertaStats,
   filterOfertaLeads,
   buildMensagemOferta,
@@ -77,6 +80,7 @@ import {
   statusVariant,
   type OfertaLeadRow,
 } from "@/lib/oferta-ativa";
+import { supabase } from "@/integrations/supabase/client";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel } from "@/lib/leads";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
@@ -168,6 +172,8 @@ function OfertaDetailPage() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [envioOpen, setEnvioOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [atribuirOpen, setAtribuirOpen] = useState(false);
+  const [corretorSel, setCorretorSel] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState<{ ids: string[]; valor: boolean } | null>(null);
   const [confirmConcluir, setConfirmConcluir] = useState(false);
   const [confirmExcluir, setConfirmExcluir] = useState(false);
@@ -259,6 +265,42 @@ function OfertaDetailPage() {
       toast.success("Lista excluída");
       qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
       navigate({ to: "/projetos", search: { tab: "oferta" } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const corretoresQ = useQuery({
+    queryKey: ["corretores-atribuir"],
+    enabled: canManage && atribuirOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const atribuirM = useMutation({
+    mutationFn: (ids: string[]) => atribuirOferta(ofertaId, ids),
+    onSuccess: (res) => {
+      if (res.modo === "single") {
+        toast.success("Lista atribuída ao corretor");
+        qc.invalidateQueries({ queryKey: ["oferta-detail", ofertaId] });
+        qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+        setAtribuirOpen(false);
+        setCorretorSel(new Set());
+      } else {
+        const n = res.criadas?.length ?? 0;
+        toast.success(
+          `Lista dividida em ${n} corretor(es). Original arquivada.`,
+        );
+        qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+        setAtribuirOpen(false);
+        setCorretorSel(new Set());
+        navigate({ to: "/projetos", search: { tab: "oferta" } });
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -414,6 +456,18 @@ function OfertaDetailPage() {
                       <DropdownMenuItem onClick={() => setEditOpen(true)}>
                         <Pencil className="w-4 h-4 mr-2" /> Editar
                       </DropdownMenuItem>
+                      {oferta.status !== "arquivada" && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setCorretorSel(
+                              new Set(oferta.corretor_id ? [oferta.corretor_id] : []),
+                            );
+                            setAtribuirOpen(true);
+                          }}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" /> Atribuir a corretor(es)
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onClick={() =>
                           navigate({ to: "/oferta-ativa/nova", search: { de: ofertaId } })
@@ -811,6 +865,82 @@ function OfertaDetailPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={atribuirOpen} onOpenChange={setAtribuirOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Atribuir lista a corretor(es)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Marque <strong>um corretor</strong> para trocar o dono da lista, ou{" "}
+              <strong>vários</strong> para dividir os {statsAll.total} leads igualmente entre
+              eles. Ao dividir, esta lista é arquivada e uma nova lista é criada para cada
+              corretor.
+            </p>
+            <div className="rounded-md border max-h-72 overflow-y-auto divide-y">
+              {corretoresQ.isLoading ? (
+                <div className="p-4 text-sm text-muted-foreground">Carregando…</div>
+              ) : (corretoresQ.data ?? []).length === 0 ? (
+                <div className="p-4 text-sm text-muted-foreground">Nenhum corretor.</div>
+              ) : (
+                (corretoresQ.data ?? []).map((c) => {
+                  const checked = corretorSel.has(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => {
+                          setCorretorSel((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(c.id)) next.delete(c.id);
+                            else next.add(c.id);
+                            return next;
+                          });
+                        }}
+                      />
+                      <span className="text-sm">{c.nome ?? "(sem nome)"}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+            {corretorSel.size > 1 && statsAll.total > 0 && (
+              <div className="rounded-md bg-muted/50 border p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <Users className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>
+                  {statsAll.total} leads serão distribuídos igualmente:{" "}
+                  <strong>
+                    ~{Math.floor(statsAll.total / corretorSel.size)} por corretor
+                  </strong>
+                  {statsAll.total % corretorSel.size !== 0 &&
+                    ` (${statsAll.total % corretorSel.size} corretor(es) recebem 1 lead a mais).`}
+                </span>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAtribuirOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={corretorSel.size === 0 || atribuirM.isPending}
+              onClick={() => atribuirM.mutate(Array.from(corretorSel))}
+            >
+              {atribuirM.isPending
+                ? "Atribuindo…"
+                : corretorSel.size <= 1
+                  ? "Atribuir"
+                  : `Dividir entre ${corretorSel.size} corretores`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
       <AlertDialog open={!!confirmBulk} onOpenChange={(o) => !o && setConfirmBulk(null)}>
         <AlertDialogContent>
