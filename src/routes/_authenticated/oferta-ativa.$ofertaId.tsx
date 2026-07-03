@@ -72,6 +72,7 @@ import {
   concluirOferta,
   updateOferta,
   deleteOferta,
+  atribuirOferta,
   computeOfertaStats,
   filterOfertaLeads,
   buildMensagemOferta,
@@ -79,6 +80,7 @@ import {
   statusVariant,
   type OfertaLeadRow,
 } from "@/lib/oferta-ativa";
+import { supabase } from "@/integrations/supabase/client";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel } from "@/lib/leads";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
