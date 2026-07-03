@@ -803,7 +803,9 @@ function LeadsPage() {
     },
     onSuccess: async ({ corretorId, leadId }) => {
       if (!corretorId) {
-        toast.error("Nenhum corretor disponível na fila. Ative corretores em Distribuição.");
+        toast.error(
+          "Nenhum corretor elegível (≥90% da carteira trabalhada) com cota disponível. O lead fica na base e será distribuído automaticamente.",
+        );
       } else {
         toast.success("Lead atribuído via roleta");
         await supabase.functions.invoke("notify-lead-transfer", {

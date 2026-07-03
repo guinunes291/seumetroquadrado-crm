@@ -54,6 +54,14 @@ type Log = {
   created_at: string;
 };
 
+type ProdRow = {
+  corretor_id: string;
+  total_ativos: number;
+  aguardando: number;
+  pct_trabalhado: number;
+  elegivel: boolean;
+};
+
 export function DistribuicaoPage() {
   const { isAdmin, isGestor, loading } = useUserRoles();
   const qc = useQueryClient();
@@ -101,6 +109,26 @@ export function DistribuicaoPage() {
       return (data ?? []) as FilaRow[];
     },
   });
+
+  // Produtividade (% da carteira trabalhada) e elegibilidade de cada corretor da fila.
+  const { data: produtividade } = useQuery({
+    queryKey: ["fila-produtividade"],
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+        ) => Promise<{ data: ProdRow[] | null; error: unknown }>
+      )("produtividade_corretores");
+      if (error) throw error;
+      return (data ?? []) as ProdRow[];
+    },
+    refetchInterval: 30000,
+  });
+  const prodMap = useMemo(() => {
+    const m = new Map<string, ProdRow>();
+    (produtividade ?? []).forEach((p) => m.set(p.corretor_id, p));
+    return m;
+  }, [produtividade]);
 
   const { data: logs } = useQuery({
     queryKey: ["dist-log"],
@@ -177,7 +205,7 @@ export function DistribuicaoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Distribuição de Leads"
-        description="Roleta automática (a cada 5min) com regra de elegibilidade: presente hoje + ativo + dentro da cota + ≥90% da carteira fora de Aguardando atendimento."
+        description="Roleta automática (a cada 5 min) por produtividade: ativo + dentro da cota diária + ≥90% da carteira fora de Aguardando atendimento. Sem corretor elegível, o lead fica na base e é distribuído assim que alguém cruzar os 90%."
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -189,6 +217,7 @@ export function DistribuicaoPage() {
                 else {
                   toast.success("Distribuição executada");
                   qc.invalidateQueries({ queryKey: ["fila"] });
+                  qc.invalidateQueries({ queryKey: ["fila-produtividade"] });
                   qc.invalidateQueries({ queryKey: ["dist-log"] });
                 }
               }}
@@ -211,7 +240,7 @@ export function DistribuicaoPage() {
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Corretor</TableHead>
-                  <TableHead>Presença</TableHead>
+                  <TableHead>Produtividade</TableHead>
                   <TableHead>Ativo</TableHead>
                   <TableHead>Recebidos hoje</TableHead>
                   <TableHead>Máx/dia</TableHead>
@@ -239,16 +268,28 @@ export function DistribuicaoPage() {
                         <div className="text-xs text-muted-foreground">{c?.email ?? ""}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            c?.presente
-                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {c?.presente ? "Presente" : "Ausente"}
-                        </Badge>
+                        {(() => {
+                          const p = prodMap.get(row.corretor_id);
+                          if (!p) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <div className="flex flex-col gap-0.5">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  p.elegivel
+                                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                    : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                }
+                              >
+                                {p.elegivel ? "Elegível" : "Não elegível"}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {p.pct_trabalhado}% trabalhada · {p.aguardando} aguardando de{" "}
+                                {p.total_ativos}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <Switch
