@@ -456,6 +456,18 @@ function OfertaDetailPage() {
                       <DropdownMenuItem onClick={() => setEditOpen(true)}>
                         <Pencil className="w-4 h-4 mr-2" /> Editar
                       </DropdownMenuItem>
+                      {oferta.status !== "arquivada" && (
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setCorretorSel(
+                              new Set(oferta.corretor_id ? [oferta.corretor_id] : []),
+                            );
+                            setAtribuirOpen(true);
+                          }}
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" /> Atribuir a corretor(es)
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onClick={() =>
                           navigate({ to: "/oferta-ativa/nova", search: { de: ofertaId } })
