@@ -1,0 +1,126 @@
+// PATCH /api/public/leads/:id/corretor → troca o corretor do lead
+// Body: { corretor_id: uuid, motivo?: string, origem?: string }
+// Auth: header X-API-Key = READ_API_KEY
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  checkReadApiKey,
+  jsonResponse,
+  corsPreflight,
+  PUBLIC_LEAD_SELECT,
+  shapeLeadForPublic,
+} from "@/lib/public-api-auth";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const Route = createFileRoute("/api/public/leads/$id/corretor")({
+  server: {
+    handlers: {
+      OPTIONS: async () => corsPreflight(),
+
+      PATCH: async ({ request, params }) => {
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
+
+        const id = params.id;
+        if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
+
+        let body: Record<string, unknown>;
+        try {
+          body = (await request.json()) as Record<string, unknown>;
+        } catch {
+          return jsonResponse({ error: "JSON inválido" }, 400);
+        }
+        if (!body || typeof body !== "object") {
+          return jsonResponse({ error: "body deve ser objeto JSON" }, 400);
+        }
+
+        const corretorId = typeof body.corretor_id === "string" ? body.corretor_id.trim() : "";
+        if (!UUID_RE.test(corretorId)) {
+          return jsonResponse({ error: "corretor_id inválido (esperado UUID)" }, 422);
+        }
+
+        const motivo = typeof body.motivo === "string" ? body.motivo.trim() : "";
+        const origem =
+          typeof body.origem === "string" && body.origem.trim()
+            ? body.origem.trim()
+            : "realocacao-automatica";
+
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        const { data: lead, error: leadErr } = await supabaseAdmin
+          .from("leads")
+          .select("id, corretor_id, nome")
+          .eq("id", id)
+          .maybeSingle();
+        if (leadErr) return jsonResponse({ error: leadErr.message }, 500);
+        if (!lead) return jsonResponse({ error: "lead não encontrado" }, 404);
+
+        const { data: destino, error: destErr } = await supabaseAdmin
+          .from("profiles")
+          .select("id, nome, ativo")
+          .eq("id", corretorId)
+          .maybeSingle();
+        if (destErr) return jsonResponse({ error: destErr.message }, 500);
+        if (!destino) return jsonResponse({ error: "corretor destino não encontrado" }, 404);
+        if (!destino.ativo) {
+          return jsonResponse({ error: "corretor destino não está ativo" }, 422);
+        }
+
+        const anteriorId = lead.corretor_id as string | null;
+        let anteriorNome: string | null = null;
+        if (anteriorId) {
+          const { data: ant } = await supabaseAdmin
+            .from("profiles")
+            .select("nome")
+            .eq("id", anteriorId)
+            .maybeSingle();
+          anteriorNome = (ant?.nome as string | null) ?? null;
+        }
+
+        const { data: updated, error: upErr } = await supabaseAdmin
+          .from("leads")
+          .update({
+            corretor_id: corretorId,
+            updated_at: new Date().toISOString(),
+          } as never)
+          .eq("id", id)
+          .select(PUBLIC_LEAD_SELECT)
+          .single();
+        if (upErr) return jsonResponse({ error: upErr.message }, 500);
+
+        const conteudo = [
+          `Corretor alterado de ${anteriorNome ?? "(sem corretor)"} para ${destino.nome ?? corretorId}.`,
+          motivo ? `Motivo: ${motivo}` : null,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        await supabaseAdmin.from("interacoes").insert({
+          lead_id: id,
+          tipo: "nota",
+          direcao: "interna",
+          titulo: "Realocação de corretor",
+          conteudo,
+          metadata: {
+            fonte: "api_publica",
+            origem,
+            motivo: motivo || null,
+            corretor_anterior_id: anteriorId,
+            corretor_anterior_nome: anteriorNome,
+            corretor_novo_id: corretorId,
+            corretor_novo_nome: destino.nome ?? null,
+          },
+        });
+
+        return jsonResponse({
+          ok: true,
+          lead: shapeLeadForPublic(updated as unknown as Record<string, unknown>),
+          corretor_anterior: anteriorId
+            ? { id: anteriorId, nome: anteriorNome }
+            : null,
+          corretor_novo: { id: corretorId, nome: destino.nome ?? null },
+        });
+      },
+    },
+  },
+});
