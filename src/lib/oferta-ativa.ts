@@ -53,6 +53,7 @@ export type OfertaLeadInfo = {
   projeto_nome: string | null;
   projeto_id: string | null;
   corretor_id: string | null;
+  observacoes: string | null;
   status: LeadStatus;
 };
 
@@ -378,7 +379,7 @@ export async function getOferta(id: string) {
     const { data, error: e } = await supabase
       .from("oferta_ativa_leads")
       .select(
-        "id, contatado, contatado_em, avancado, lead:leads(id, nome, telefone, projeto_nome, projeto_id, corretor_id, status)",
+        "id, contatado, contatado_em, avancado, lead:leads(id, nome, telefone, projeto_nome, projeto_id, corretor_id, observacoes, status)",
       )
       .eq("oferta_id", id)
       .order("created_at", { ascending: true })

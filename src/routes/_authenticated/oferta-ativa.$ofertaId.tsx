@@ -146,6 +146,7 @@ function toStageLead(l: OfertaLeadInfo): StageLead {
     corretor_id: l.corretor_id,
     projeto_id: l.projeto_id,
     projeto_nome: l.projeto_nome,
+    observacoes: l.observacoes,
   };
 }
 
@@ -896,6 +897,10 @@ function OfertaDetailPage() {
         onModalOpenChange={(o) => !o && setModalState(null)}
         perdidoLead={perdidoLead}
         onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ["oferta-detail", ofertaId] });
+          qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+        }}
       />
 
       <OfertaEnvioMassa
