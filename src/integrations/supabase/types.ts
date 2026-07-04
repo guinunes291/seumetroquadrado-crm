@@ -2715,7 +2715,19 @@ export type Database = {
         Returns: boolean
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
-      isleadavancado_status: { Args: { _status: string }; Returns: boolean }
+      isleadavancado_status:
+        | {
+            Args: { _status: Database["public"]["Enums"]["lead_status"] }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { _status: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
       leads_com_sla: {
         Args: { _corretor?: string; _df?: string; _di?: string }
         Returns: {
