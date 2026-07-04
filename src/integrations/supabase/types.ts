@@ -1633,6 +1633,7 @@ export type Database = {
           foto_url: string | null
           google_calendar_enabled: boolean
           id: string
+          last_lead_assigned_at: string | null
           legacy_user_id: number | null
           limite_diario_leads: number
           limite_diario_webhook: number
@@ -1670,6 +1671,7 @@ export type Database = {
           foto_url?: string | null
           google_calendar_enabled?: boolean
           id: string
+          last_lead_assigned_at?: string | null
           legacy_user_id?: number | null
           limite_diario_leads?: number
           limite_diario_webhook?: number
@@ -1707,6 +1709,7 @@ export type Database = {
           foto_url?: string | null
           google_calendar_enabled?: boolean
           id?: string
+          last_lead_assigned_at?: string | null
           legacy_user_id?: number | null
           limite_diario_leads?: number
           limite_diario_webhook?: number
@@ -2683,6 +2686,7 @@ export type Database = {
         Returns: string
       }
       distribuir_lead_elegivel: { Args: { _lead_id: string }; Returns: string }
+      distribuir_lead_webhook: { Args: never; Returns: string }
       enqueue_push: {
         Args: {
           _body: string
@@ -2703,6 +2707,7 @@ export type Database = {
       }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
+      gestor_fallback_webhook: { Args: never; Returns: string }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
@@ -2929,6 +2934,7 @@ export type Database = {
         | "pos_venda"
         | "perdido"
         | "aguardando_retorno"
+        | "aguardando_corretor"
       lead_temperatura: "quente" | "morno" | "frio"
       tarefa_prioridade: "baixa" | "media" | "alta" | "urgente"
       tarefa_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
@@ -3136,6 +3142,7 @@ export const Constants = {
         "pos_venda",
         "perdido",
         "aguardando_retorno",
+        "aguardando_corretor",
       ],
       lead_temperatura: ["quente", "morno", "frio"],
       tarefa_prioridade: ["baixa", "media", "alta", "urgente"],

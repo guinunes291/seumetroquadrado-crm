@@ -32,6 +32,7 @@ const payloadSchema = z.object({
     .optional()
     .default("outro"),
   campanha: optStr(255),
+  empreendimento: optStr(255),
   observacoes: optStr(),
   observacao: optStr(),
   resumo: optStr(4000),
@@ -161,6 +162,40 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const fgtsTxt = (data.fgts ?? "").toLowerCase();
         const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
 
+        // --- ROLETA JUSTA: escolhe corretor ANTES do insert para gravar status correto ---
+        // Elegível: profiles.ativo=true, telefone preenchido, role='corretor' (exclui
+        // admin/gestor/docs-bot). Ordem por last_lead_assigned_at NULLS FIRST.
+        // Sem elegível: atribui ao gestor fallback com status 'aguardando_corretor'.
+        let corretorId: string | null = null;
+        let motivo: string | null = null;
+        let assignedToFallback = false;
+
+        if (data.distribuir) {
+          const { data: c } = await supabaseAdmin.rpc("distribuir_lead_webhook" as never);
+          corretorId = (c as string | null) ?? null;
+          if (!corretorId) {
+            const { data: g } = await supabaseAdmin.rpc("gestor_fallback_webhook" as never);
+            corretorId = (g as string | null) ?? null;
+            assignedToFallback = corretorId !== null;
+            motivo = corretorId ? "sem_corretor_disponivel_fallback_gestor" : "sem_corretor_disponivel";
+          }
+        }
+
+        // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
+        // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
+        const projetoNomeFinal =
+          (data.empreendimento?.trim() || null) ??
+          (data.empreendimentoInteresse?.trim() || null) ??
+          projeto.nome;
+
+        // Status: nunca "novo" neste webhook.
+        // com corretor elegível → em_atendimento; fallback ao gestor → aguardando_corretor.
+        const statusInicial: "em_atendimento" | "aguardando_corretor" | null = corretorId
+          ? assignedToFallback
+            ? "aguardando_corretor"
+            : "em_atendimento"
+          : null;
+
         const { data: lead, error } = await supabaseAdmin
           .from("leads")
           .insert({
@@ -169,7 +204,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             email: data.email ?? null,
             origem: data.origem,
             projeto_id: projeto.id,
-            projeto_nome: data.empreendimentoInteresse ?? projeto.nome,
+            projeto_nome: projetoNomeFinal,
             campanha: data.campanha ?? null,
             observacoes: observacoesFinais,
             renda_informada: data.faixaRenda ?? null,
@@ -180,7 +215,10 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
             utm_content: data.utm_content ?? null,
-          })
+            corretor_id: corretorId,
+            ...(statusInicial ? { status: statusInicial } : {}),
+            ...(corretorId ? { data_distribuicao: new Date().toISOString() } : {}),
+          } as never)
           .select("id")
           .single();
 
@@ -212,50 +250,42 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               decisor: data.decisor ?? null,
               finalidadeImovel: data.finalidadeImovel ?? null,
               empreendimentoInteresse: data.empreendimentoInteresse ?? null,
+              empreendimento: data.empreendimento ?? null,
               regiao: data.regiao ?? null,
               temperatura: data.temperatura ?? null,
             },
           });
         }
 
-        let corretorId: string | null = null;
-        let motivo: string | null = null;
+        // Enriquecimento de contato do corretor para a resposta (formato preservado).
         let corretorNome: string | null = null;
         let corretorTelefone: string | null = null;
         let corretorEmail: string | null = null;
         let distributed = false;
 
-        if (data.distribuir) {
-          const { data: c } = await supabaseAdmin.rpc("distribuir_lead", {
-            _lead_id: lead.id,
-            _tipo: "automatica",
-          });
-          corretorId = (c as string | null) ?? null;
-          if (!corretorId) {
-            motivo = "sem_corretor_disponivel";
+        if (corretorId) {
+          const { data: cor } = await supabaseAdmin
+            .from("profiles")
+            .select("nome, email, telefone")
+            .eq("id", corretorId)
+            .maybeSingle();
+          corretorNome = cor?.nome ?? null;
+          corretorEmail = cor?.email ?? null;
+          const tel = (cor?.telefone ?? "").replace(/\D/g, "");
+          if (!tel) {
+            corretorTelefone = null;
+            if (!motivo) motivo = "corretor_sem_telefone";
+            distributed = false;
           } else {
-            const { data: cor } = await supabaseAdmin
-              .from("profiles")
-              .select("nome, email, telefone")
-              .eq("id", corretorId)
-              .maybeSingle();
-            corretorNome = cor?.nome ?? null;
-            corretorEmail = cor?.email ?? null;
-            const tel = (cor?.telefone ?? "").replace(/\D/g, "");
-            if (!tel) {
-              corretorTelefone = null;
-              motivo = "corretor_sem_telefone";
-              distributed = false;
-            } else {
-              let norm = tel;
-              if (!norm.startsWith("55") && (norm.length === 10 || norm.length === 11)) {
-                norm = `55${norm}`;
-              }
-              corretorTelefone = norm;
-              distributed = true;
+            let norm = tel;
+            if (!norm.startsWith("55") && (norm.length === 10 || norm.length === 11)) {
+              norm = `55${norm}`;
             }
+            corretorTelefone = norm;
+            distributed = !assignedToFallback;
           }
         }
+
 
         // Sincroniza com Banco Operacional externo (idempotente por telefone_e164).
         // Falha aqui NÃO bloqueia a resposta — intake e roleta seguem intactos.
