@@ -197,7 +197,7 @@ export function TarefasPage() {
       tipo: fd.get("tipo"),
       status: fd.get("status"),
       prioridade: fd.get("prioridade"),
-      lead_id: (fd.get("lead_id") as string) || null,
+      lead_id: (() => { const v = fd.get("lead_id") as string; return v && v !== "__none__" ? v : null; })(),
       data_vencimento: fd.get("data_vencimento") ? new Date(fd.get("data_vencimento") as string).toISOString() : null,
     };
     if (canManageAll) payload.corretor_id = fd.get("corretor_id") || user?.id;
