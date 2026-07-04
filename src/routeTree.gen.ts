@@ -61,6 +61,7 @@ import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/c
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
+import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/public/leads/$id.corretor'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -338,6 +339,12 @@ const ApiPublicLeadsIdEventosRoute = ApiPublicLeadsIdEventosRouteImport.update({
   path: '/eventos',
   getParentRoute: () => ApiPublicLeadsIdRoute,
 } as any)
+const ApiPublicLeadsIdCorretorRoute =
+  ApiPublicLeadsIdCorretorRouteImport.update({
+    id: '/corretor',
+    path: '/corretor',
+    getParentRoute: () => ApiPublicLeadsIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -389,6 +396,7 @@ export interface FileRoutesByFullPath {
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -442,6 +450,7 @@ export interface FileRoutesByTo {
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas': typeof ApiPublicVendasIndexRoute
+  '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -497,6 +506,7 @@ export interface FileRoutesById {
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -552,6 +562,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/'
     | '/api/public/projetos/'
     | '/api/public/vendas/'
+    | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
@@ -605,6 +616,7 @@ export interface FileRouteTypes {
     | '/api/public/leads'
     | '/api/public/projetos'
     | '/api/public/vendas'
+    | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
     | '/api/public/webhooks/lead/$token'
   id:
@@ -659,6 +671,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/'
     | '/api/public/projetos/'
     | '/api/public/vendas/'
+    | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
@@ -1048,6 +1061,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeadsIdEventosRouteImport
       parentRoute: typeof ApiPublicLeadsIdRoute
     }
+    '/api/public/leads/$id/corretor': {
+      id: '/api/public/leads/$id/corretor'
+      path: '/corretor'
+      fullPath: '/api/public/leads/$id/corretor'
+      preLoaderRoute: typeof ApiPublicLeadsIdCorretorRouteImport
+      parentRoute: typeof ApiPublicLeadsIdRoute
+    }
   }
 }
 
@@ -1131,10 +1151,12 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface ApiPublicLeadsIdRouteChildren {
+  ApiPublicLeadsIdCorretorRoute: typeof ApiPublicLeadsIdCorretorRoute
   ApiPublicLeadsIdEventosRoute: typeof ApiPublicLeadsIdEventosRoute
 }
 
 const ApiPublicLeadsIdRouteChildren: ApiPublicLeadsIdRouteChildren = {
+  ApiPublicLeadsIdCorretorRoute: ApiPublicLeadsIdCorretorRoute,
   ApiPublicLeadsIdEventosRoute: ApiPublicLeadsIdEventosRoute,
 }
 
@@ -1162,13 +1184,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
