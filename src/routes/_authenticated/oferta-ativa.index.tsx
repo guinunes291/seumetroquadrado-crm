@@ -45,7 +45,9 @@ export function OfertaAtivaPage() {
   const [tab, setTab] = useState<"ativas" | "arquivadas">("ativas");
   const [confirmExcluir, setConfirmExcluir] = useState<OfertaAtiva | null>(null);
 
-  useRealtimeInvalidate(["ofertas_ativas", "oferta_ativa_leads"], [["ofertas-ativas"]]);
+  // `leads` entra na escuta porque o avanço acontece na carteira (kanban) e o
+  // trigger do banco reflete nos vínculos — assim os cards atualizam ao vivo.
+  useRealtimeInvalidate(["ofertas_ativas", "oferta_ativa_leads", "leads"], [["ofertas-ativas"]]);
 
   const ativasQ = useQuery({
     queryKey: ["ofertas-ativas", "ativas"],

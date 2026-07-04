@@ -44,12 +44,15 @@ export type OfertaPreview = {
   sample: { id: string; nome: string }[];
 };
 
-/** Dados do lead embutidos no vínculo (select estreito de `getOferta`). */
+/** Dados do lead embutidos no vínculo (select estreito de `getOferta`).
+ *  `corretor_id`/`projeto_id` alimentam os modais de etapa (StageLead). */
 export type OfertaLeadInfo = {
   id: string;
   nome: string;
   telefone: string;
   projeto_nome: string | null;
+  projeto_id: string | null;
+  corretor_id: string | null;
   status: LeadStatus;
 };
 
@@ -91,38 +94,6 @@ export const ORIGEM_OPTIONS_OA = [
   { value: "outro", label: "Outro" },
 ];
 
-/**
- * Status que contam como "avançado" (lead progrediu no funil após entrar na
- * lista). Deve espelhar o conjunto usado no snapshot de criação — migration
- * 20260703200000_oferta_ativa_avancado_set.sql. Inclui os status legados
- * (`qualificado`, `proposta_enviada`, `pos_venda`) presentes em leads antigos.
- */
-export const AVANCADO_STATUSES: readonly LeadStatus[] = [
-  "agendado",
-  "qualificado",
-  "visita_realizada",
-  "proposta_enviada",
-  "analise_credito",
-  "contrato_fechado",
-  "pos_venda",
-];
-
-export function isLeadAvancado(status: string | null | undefined): boolean {
-  return AVANCADO_STATUSES.includes(status as LeadStatus);
-}
-
-/**
- * "Avançado" ao vivo: deriva do status atual do lead quando ele está visível;
- * cai para a flag congelada no snapshot quando o lead saiu do escopo
- * (excluído/transferido para fora da visão RLS do corretor).
- */
-export function resolveAvancado(row: {
-  avancado: boolean;
-  lead?: { status: string } | null;
-}): boolean {
-  return row.lead ? isLeadAvancado(row.lead.status) : row.avancado;
-}
-
 export type OfertaStats = {
   total: number;
   contatados: number;
@@ -131,12 +102,20 @@ export type OfertaStats = {
   pctAvancados: number;
 };
 
+/**
+ * Estatísticas da campanha. `contatado`/`avancado` medem o progresso feito
+ * DEPOIS que o lead entrou na lista (semântica delta) e são mantidos pelo
+ * banco: o trigger `trg_oferta_sync_status` (migration
+ * 20260704230000_oferta_ativa_sync_carteira.sql) marca os vínculos a cada
+ * mudança de status do lead na carteira — sem depender do join com `leads`,
+ * que a RLS anula para corretores.
+ */
 export function computeOfertaStats(
-  rows: Array<{ contatado: boolean; avancado: boolean; lead?: { status: string } | null }>,
+  rows: Array<{ contatado: boolean; avancado: boolean }>,
 ): OfertaStats {
   const total = rows.length;
   const contatados = rows.filter((r) => r.contatado).length;
-  const avancados = rows.filter((r) => resolveAvancado(r)).length;
+  const avancados = rows.filter((r) => r.avancado).length;
   return {
     total,
     contatados,
@@ -261,12 +240,13 @@ export async function listOfertas(arquivadas = false): Promise<OfertaAtiva[]> {
     oferta_id: string;
     contatado: boolean;
     avancado: boolean;
-    lead: { status: string } | null;
   };
+  // Sem join com `leads`: as flags são mantidas pelo trigger de sincronização
+  // no banco, então a contagem é idêntica (e à prova de RLS) para todo papel.
   const leadsRows = await fetchAllPaged<VinculoStats>(async (from, to) => {
     const { data, error: e } = await supabase
       .from("oferta_ativa_leads")
-      .select("oferta_id, contatado, avancado, lead:leads(status)")
+      .select("oferta_id, contatado, avancado")
       .in("oferta_id", ids)
       .order("id")
       .range(from, to);
@@ -279,7 +259,7 @@ export async function listOfertas(arquivadas = false): Promise<OfertaAtiva[]> {
     const s = stats.get(row.oferta_id) ?? { total: 0, contatados: 0, avancados: 0 };
     s.total += 1;
     if (row.contatado) s.contatados += 1;
-    if (resolveAvancado(row)) s.avancados += 1;
+    if (row.avancado) s.avancados += 1;
     stats.set(row.oferta_id, s);
   }
 
@@ -398,7 +378,7 @@ export async function getOferta(id: string) {
     const { data, error: e } = await supabase
       .from("oferta_ativa_leads")
       .select(
-        "id, contatado, contatado_em, avancado, lead:leads(id, nome, telefone, projeto_nome, status)",
+        "id, contatado, contatado_em, avancado, lead:leads(id, nome, telefone, projeto_nome, projeto_id, corretor_id, status)",
       )
       .eq("oferta_id", id)
       .order("created_at", { ascending: true })
