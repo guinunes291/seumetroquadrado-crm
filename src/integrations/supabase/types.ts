@@ -2476,6 +2476,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      arquivar_leads_sem_contato_30d: { Args: never; Returns: number }
       atribuir_lead_a_corretor: {
         Args: { _corretor_id: string; _lead_id: string }
         Returns: undefined
