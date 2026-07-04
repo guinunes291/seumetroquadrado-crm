@@ -1813,6 +1813,8 @@ export type Database = {
           entrega_status: string | null
           fonte: string | null
           id: string
+          lat: number | null
+          lng: number | null
           logradouro: string | null
           mes_entrega: number | null
           metragem_max: number | null
@@ -1859,6 +1861,8 @@ export type Database = {
           entrega_status?: string | null
           fonte?: string | null
           id?: string
+          lat?: number | null
+          lng?: number | null
           logradouro?: string | null
           mes_entrega?: number | null
           metragem_max?: number | null
@@ -1905,6 +1909,8 @@ export type Database = {
           entrega_status?: string | null
           fonte?: string | null
           id?: string
+          lat?: number | null
+          lng?: number | null
           logradouro?: string | null
           mes_entrega?: number | null
           metragem_max?: number | null

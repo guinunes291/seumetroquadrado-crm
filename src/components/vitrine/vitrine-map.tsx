@@ -2,12 +2,14 @@ import { memo, useMemo } from "react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import {
   schematicProjection,
+  spGeographicProjection,
   pinColor,
   FAIXAS_PRECO,
   ZONA_LABELS,
-  type MapProjection,
 } from "@/lib/vitrine/map-projection";
 import { cn } from "@/lib/utils";
+
+export type MapMode = "schematic" | "geografico";
 
 type Props = {
   projetos: ProjetoRow[];
@@ -16,9 +18,9 @@ type Props = {
   selectedId: string | null;
   onHover: (id: string | null) => void;
   onSelect: (id: string) => void;
-  /** Projeção do mapa. Padrão: esquemático por zona. Troque por uma geográfica
-   *  (makeGeographicProjection) quando os projetos tiverem lat/lng. */
-  projection?: MapProjection;
+  /** "schematic": posições por zona (sempre funciona). "geografico": por lat/lng
+   *  real sobre o mapa de SP — pinos sem coordenada não aparecem. */
+  mode?: MapMode;
 };
 
 type PinPt = { p: ProjetoRow; x: number; y: number };
@@ -67,10 +69,50 @@ const PinsLayer = memo(function PinsLayer({
   );
 });
 
+/** Fundo esquemático (zonas desenhadas) — quando não há coordenadas. */
+function SchematicBackdrop() {
+  return (
+    <>
+      <rect x="0" y="0" width="100" height="100" fill="#F5F8FC" />
+      <path d="M18 34 Q40 20 62 12 L70 10 66 22 Q46 30 30 40 Z" fill="#E9EFF6" />
+      <path d="M8 40 Q26 40 40 44 L38 62 Q22 66 12 60 Z" fill="#ECF1F8" />
+      <path d="M42 44 Q54 42 62 48 L58 70 Q46 72 40 64 Z" fill="#EEF3F9" />
+      <path d="M62 26 Q80 34 92 46 L88 60 Q72 56 60 52 66 40 Z" fill="#E9EFF6" />
+      <path d="M30 62 Q50 60 62 66 L58 92 Q40 96 26 88 Z" fill="#ECF1F8" />
+    </>
+  );
+}
+
+/** Fundo geográfico: moldura da área urbana de SP + grade leve, norte para cima. */
+function GeoBackdrop() {
+  const grid = [20, 40, 60, 80];
+  return (
+    <>
+      <rect x="0" y="0" width="100" height="100" fill="#F5F8FC" />
+      <rect
+        x="6"
+        y="5"
+        width="88"
+        height="90"
+        rx="6"
+        fill="#EEF3F9"
+        stroke="#DCE5F0"
+        strokeWidth="0.6"
+      />
+      {grid.map((g) => (
+        <line key={`v${g}`} x1={g} y1="5" x2={g} y2="95" stroke="#E1E8F1" strokeWidth="0.4" />
+      ))}
+      {grid.map((g) => (
+        <line key={`h${g}`} x1="6" y1={g} x2="94" y2={g} stroke="#E1E8F1" strokeWidth="0.4" />
+      ))}
+    </>
+  );
+}
+
 /**
- * Mapa esquemático da Vitrine: desenho de SP por zonas com um pino por
- * empreendimento, colorido pela faixa de preço. Os pinos fora do filtro atual
- * ficam esmaecidos (o mapa nunca "some", só destaca o que casa).
+ * Mapa da Vitrine. Em "schematic", os pinos são posicionados por zona (sempre
+ * funciona). Em "geografico", por lat/lng real sobre o mapa de SP — pinos sem
+ * coordenada não aparecem (contamos quantos ficaram de fora).
  */
 export function VitrineMap({
   projetos,
@@ -79,8 +121,10 @@ export function VitrineMap({
   selectedId,
   onHover,
   onSelect,
-  projection = schematicProjection,
+  mode = "schematic",
 }: Props) {
+  const projection = mode === "geografico" ? spGeographicProjection : schematicProjection;
+
   const pins = useMemo<PinPt[]>(
     () =>
       projetos
@@ -92,6 +136,7 @@ export function VitrineMap({
     [projetos, projection],
   );
 
+  const semCoord = mode === "geografico" ? projetos.length - pins.length : 0;
   const activeId = hoveredId ?? selectedId;
   const active = activeId ? pins.find((pp) => pp.p.id === activeId) : undefined;
 
@@ -103,20 +148,7 @@ export function VitrineMap({
         preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <rect x="0" y="0" width="100" height="100" fill="#F5F8FC" />
-        <path d="M18 34 Q40 20 62 12 L70 10 66 22 Q46 30 30 40 Z" fill="#E9EFF6" />
-        <path d="M8 40 Q26 40 40 44 L38 62 Q22 66 12 60 Z" fill="#ECF1F8" />
-        <path d="M42 44 Q54 42 62 48 L58 70 Q46 72 40 64 Z" fill="#EEF3F9" />
-        <path d="M62 26 Q80 34 92 46 L88 60 Q72 56 60 52 66 40 Z" fill="#E9EFF6" />
-        <path d="M30 62 Q50 60 62 66 L58 92 Q40 96 26 88 Z" fill="#ECF1F8" />
-        <path
-          d="M6 46 Q40 40 70 30 92 44"
-          fill="none"
-          stroke="#CBD8E8"
-          strokeWidth="1.3"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
+        {mode === "geografico" ? <GeoBackdrop /> : <SchematicBackdrop />}
         {ZONA_LABELS.map((z) => (
           <text
             key={z.zona}
@@ -148,6 +180,19 @@ export function VitrineMap({
             background: pinColor(active.p.preco_a_partir),
           }}
         />
+      )}
+
+      {mode === "geografico" && pins.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+          Nenhum empreendimento tem coordenada ainda. Rode a geocodificação para
+          vê-los no mapa geográfico (ou use o modo Zonas).
+        </div>
+      )}
+
+      {mode === "geografico" && semCoord > 0 && pins.length > 0 && (
+        <div className="absolute right-3 top-3 rounded-md border bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+          {semCoord} sem localização
+        </div>
       )}
 
       <div className="absolute bottom-3 left-3 max-w-[190px] rounded-lg border bg-background/95 p-2.5 text-[11px] shadow-sm backdrop-blur">

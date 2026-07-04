@@ -95,6 +95,9 @@ export function ProjetoFormDialog({ open, onOpenChange, editing, onSubmit, isPen
       // Material comercial (Vitrine)
       book_url: strOrNull(fd.get("book_url")),
       tabela_precos_url: strOrNull(fd.get("tabela_precos_url")),
+      // Localização geográfica (mapa da Vitrine)
+      lat: numOrNull(fd.get("lat")),
+      lng: numOrNull(fd.get("lng")),
       // Outros
       observacoes: strOrNull(fd.get("observacoes")),
     });
@@ -198,6 +201,28 @@ export function ProjetoFormDialog({ open, onOpenChange, editing, onSubmit, isPen
                   <Label htmlFor="numero">Número</Label>
                   <Input id="numero" name="numero" defaultValue={editing?.numero ?? ""} />
                 </div>
+              </div>
+              <div>
+                <Label htmlFor="lat">Latitude</Label>
+                <Input
+                  id="lat"
+                  name="lat"
+                  type="number"
+                  step="any"
+                  placeholder="-23.55"
+                  defaultValue={editing?.lat ?? ""}
+                />
+              </div>
+              <div>
+                <Label htmlFor="lng">Longitude</Label>
+                <Input
+                  id="lng"
+                  name="lng"
+                  type="number"
+                  step="any"
+                  placeholder="-46.63"
+                  defaultValue={editing?.lng ?? ""}
+                />
               </div>
             </div>
           </section>

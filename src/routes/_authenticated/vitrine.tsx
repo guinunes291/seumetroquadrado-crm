@@ -15,10 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, X, LayoutList, Table as TableIcon, AlertTriangle, RefreshCw, User } from "lucide-react";
+import {
+  Search,
+  X,
+  LayoutList,
+  Table as TableIcon,
+  AlertTriangle,
+  RefreshCw,
+  User,
+  Layers,
+  MapPinned,
+} from "lucide-react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { formatBRL, formatDormsRange } from "@/lib/projetos";
-import { VitrineMap } from "@/components/vitrine/vitrine-map";
+import { VitrineMap, type MapMode } from "@/components/vitrine/vitrine-map";
 import { VitrinePanel, type VitrineLead } from "@/components/vitrine/vitrine-panel";
 import { EnviarVitrineDialog } from "@/components/vitrine/enviar-vitrine-dialog";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
@@ -53,6 +63,7 @@ function VitrinePage() {
 
   const [filters, setFilters] = useState<VitrineFilters>(emptyVitrineFilters);
   const [view, setView] = useState<"list" | "tabela">("list");
+  const [mapMode, setMapMode] = useState<MapMode>("schematic");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pickerProjeto, setPickerProjeto] = useState<ProjetoRow | null>(null);
@@ -90,6 +101,10 @@ function VitrinePage() {
   const zonas = useMemo(() => zonasDisponiveis(all), [all]);
   const filtered = useMemo(() => applyVitrineFilters(all, filters), [all, filters]);
   const visibleIds = useMemo(() => new Set(filtered.map((p) => p.id)), [filtered]);
+  const comCoord = useMemo(
+    () => all.filter((p) => p.lat != null && p.lng != null).length,
+    [all],
+  );
   const selected = useMemo(
     () => all.find((p) => p.id === selectedId) ?? null,
     [all, selectedId],
@@ -235,15 +250,34 @@ function VitrinePage() {
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Mapa */}
-          <div className="h-[340px] lg:sticky lg:top-4 lg:h-[560px]">
-            <VitrineMap
-              projetos={all}
-              visibleIds={visibleIds}
-              hoveredId={hoveredId}
-              selectedId={selectedId}
-              onHover={setHoveredId}
-              onSelect={setSelectedId}
-            />
+          <div className="space-y-2 lg:sticky lg:top-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex overflow-hidden rounded-md border">
+                <ViewButton active={mapMode === "schematic"} onClick={() => setMapMode("schematic")}>
+                  <Layers className="h-4 w-4" /> Zonas
+                </ViewButton>
+                <ViewButton
+                  active={mapMode === "geografico"}
+                  onClick={() => setMapMode("geografico")}
+                >
+                  <MapPinned className="h-4 w-4" /> Geográfico
+                </ViewButton>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {comCoord}/{all.length} com localização
+              </span>
+            </div>
+            <div className="h-[340px] lg:h-[560px]">
+              <VitrineMap
+                projetos={all}
+                visibleIds={visibleIds}
+                hoveredId={hoveredId}
+                selectedId={selectedId}
+                onHover={setHoveredId}
+                onSelect={setSelectedId}
+                mode={mapMode}
+              />
+            </div>
           </div>
 
           {/* Resultados */}
