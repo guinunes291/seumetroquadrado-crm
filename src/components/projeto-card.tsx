@@ -69,6 +69,8 @@ export type ProjetoRow = {
   entrega_status?: string | null;
   book_url?: string | null;
   tabela_precos_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 type Props = {

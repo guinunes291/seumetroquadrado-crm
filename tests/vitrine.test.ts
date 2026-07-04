@@ -10,6 +10,7 @@ import {
 } from "@/lib/vitrine/vitrine";
 import {
   schematicProjection,
+  spGeographicProjection,
   pinColor,
   normalizeZona,
 } from "@/lib/vitrine/map-projection";
@@ -165,6 +166,34 @@ describe("schematicProjection", () => {
       expect(pt.y).toBeGreaterThanOrEqual(4);
       expect(pt.y).toBeLessThanOrEqual(96);
     }
+  });
+});
+
+describe("spGeographicProjection", () => {
+  it("devolve null sem coordenadas", () => {
+    expect(spGeographicProjection(mk({ lat: null, lng: null }))).toBeNull();
+    expect(spGeographicProjection(mk({}))).toBeNull();
+  });
+
+  it("projeta um ponto central de SP dentro do mapa", () => {
+    // Praça da Sé, aproximadamente.
+    const pt = spGeographicProjection(mk({ lat: -23.55, lng: -46.63 }))!;
+    expect(pt.x).toBeGreaterThan(25);
+    expect(pt.x).toBeLessThan(60);
+    expect(pt.y).toBeGreaterThan(15);
+    expect(pt.y).toBeLessThan(60);
+  });
+
+  it("coloca o ponto mais a leste à direita", () => {
+    const oeste = spGeographicProjection(mk({ lat: -23.55, lng: -46.80 }))!;
+    const leste = spGeographicProjection(mk({ lat: -23.55, lng: -46.40 }))!;
+    expect(leste.x).toBeGreaterThan(oeste.x);
+  });
+
+  it("coloca o ponto mais ao norte mais acima (y menor)", () => {
+    const norte = spGeographicProjection(mk({ lat: -23.40, lng: -46.63 }))!;
+    const sul = spGeographicProjection(mk({ lat: -23.80, lng: -46.63 }))!;
+    expect(norte.y).toBeLessThan(sul.y);
   });
 });
 

@@ -127,11 +127,15 @@ export const schematicProjection: MapProjection = (p) => {
   };
 };
 
+/** Latitude → coordenada Y de Web Mercator (radianos projetados). */
+const mercatorY = (latDeg: number) =>
+  Math.log(Math.tan(Math.PI / 4 + (latDeg * Math.PI) / 360));
+
 /**
- * ESBOÇO do mapa geográfico real (ativar quando os projetos tiverem lat/lng):
- * recebe os limites geográficos visíveis (bounding box) e converte lat/lng em %.
- * Basta trocar `schematicProjection` por `makeGeographicProjection(bounds)` na
- * Vitrine — o resto da tela não muda.
+ * Mapa geográfico real: converte lat/lng em % (0–100) sobre um bounding box,
+ * usando Web Mercator no eixo Y (o mesmo dos mapas de rua). Devolve null quando
+ * o projeto não tem coordenada — no mapa geográfico esses pinos não aparecem.
+ * Trocar o esquemático pelo geográfico é só passar esta projeção à Vitrine.
  */
 export function makeGeographicProjection(bounds: {
   north: number;
@@ -140,13 +144,23 @@ export function makeGeographicProjection(bounds: {
   west: number;
 }): MapProjection {
   const { north, south, east, west } = bounds;
+  const yN = mercatorY(north);
+  const yS = mercatorY(south);
   return (p) => {
-    if (p.lat == null || p.lng == null) return null;
+    if (p.lat == null || p.lng == null || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) {
+      return null;
+    }
     const x = ((p.lng - west) / (east - west)) * 100;
-    const y = ((north - p.lat) / (north - south)) * 100;
-    return { x: clamp(x, 0, 100), y: clamp(y, 0, 100) };
+    const y = ((yN - mercatorY(p.lat)) / (yN - yS)) * 100;
+    return { x: clamp(x, 1, 99), y: clamp(y, 1, 99) };
   };
 }
+
+/** Bounding box do município de São Paulo (área urbana), norte para cima. */
+export const SP_BOUNDS = { north: -23.36, south: -23.83, east: -46.36, west: -46.83 };
+
+/** Projeção geográfica pronta para São Paulo (usada quando há lat/lng). */
+export const spGeographicProjection = makeGeographicProjection(SP_BOUNDS);
 
 // ---------------------------------------------------------------------------
 // Cor do pino por faixa de preço "a partir de" (compartilhada com a legenda)
