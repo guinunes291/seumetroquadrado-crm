@@ -163,9 +163,11 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
 
         // --- ROLETA JUSTA: escolhe corretor ANTES do insert para gravar status correto ---
-        // Elegível: profiles.ativo=true, telefone preenchido, role='corretor' (exclui
-        // admin/gestor/docs-bot). Ordem por last_lead_assigned_at NULLS FIRST.
-        // Sem elegível: atribui ao gestor fallback com status 'aguardando_corretor'.
+        // Elegível: profiles.ativo=true, telefone preenchido, role='corretor' e
+        // PRESENTE hoje ("Cheguei") — exclui admin/gestor/docs-bot. Este caminho
+        // NÃO aplica a trava dos 90%/cota (essas valem só p/ Facebook/cron via
+        // distribuir_lead). Ordem por last_lead_assigned_at NULLS FIRST.
+        // Sem corretor presente: atribui ao gestor fallback com status 'aguardando_corretor'.
         let corretorId: string | null = null;
         let motivo: string | null = null;
         let assignedToFallback = false;
