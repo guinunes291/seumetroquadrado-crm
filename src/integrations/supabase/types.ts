@@ -1050,6 +1050,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_perda: string | null
           decisor: string | null
           deleted_at: string | null
           desfecho: string | null
@@ -1114,6 +1115,7 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          data_perda?: string | null
           decisor?: string | null
           deleted_at?: string | null
           desfecho?: string | null
@@ -1178,6 +1180,7 @@ export type Database = {
           created_at?: string
           data_distribuicao?: string | null
           data_movido_lixeira?: string | null
+          data_perda?: string | null
           decisor?: string | null
           deleted_at?: string | null
           desfecho?: string | null
@@ -2413,6 +2416,7 @@ export type Database = {
           created_at: string
           data_distribuicao: string | null
           data_movido_lixeira: string | null
+          data_perda: string | null
           decisor: string | null
           deleted_at: string | null
           desfecho: string | null
