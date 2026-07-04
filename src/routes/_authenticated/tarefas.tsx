@@ -266,10 +266,10 @@ export function TarefasPage() {
                 </div>
                 <div>
                   <Label>Lead vinculado (opcional)</Label>
-                  <Select name="lead_id" defaultValue={editing?.lead_id ?? ""}>
+                  <Select name="lead_id" defaultValue={editing?.lead_id ?? "__none__"}>
                     <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="__none__">Nenhum</SelectItem>
                       {(leadsQuery.data ?? []).map((l: any) => (
                         <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>
                       ))}
