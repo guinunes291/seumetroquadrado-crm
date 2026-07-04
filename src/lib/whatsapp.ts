@@ -11,3 +11,35 @@ export function mensagemPrimeiroContato(nome: string, projetoNome?: string | nul
 }
 
 export const WHATSAPP_TITULO_PADRAO = "Mensagem enviada via WhatsApp";
+
+/**
+ * Mensagem de compartilhamento de um empreendimento (usada na Vitrine). Resume o
+ * imóvel e oferece o material — opcionalmente já com o link do book. Fonte única
+ * do texto que o corretor dispara ao cliente pelo painel da vitrine.
+ */
+export function mensagemEmpreendimento(
+  nomeLead: string,
+  empreendimento: {
+    nome: string;
+    bairro?: string | null;
+    zona?: string | null;
+    precoLabel?: string | null;
+    bookUrl?: string | null;
+  },
+): string {
+  const primeiroNome = nomeLead.split(" ")[0] ?? nomeLead;
+  const local = [empreendimento.bairro, empreendimento.zona ? `Zona ${empreendimento.zona}` : null]
+    .filter(Boolean)
+    .join(", ");
+  const detalhe = [local || null, empreendimento.precoLabel ? `a partir de ${empreendimento.precoLabel}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  const linha = `${empreendimento.nome}${detalhe ? ` (${detalhe})` : ""}`;
+  const book = empreendimento.bookUrl ? `\n\nBook do empreendimento: ${empreendimento.bookUrl}` : "";
+  return (
+    `Oi, ${primeiroNome}! Separei um empreendimento que combina com o que você procura: ${linha}.` +
+    ` Quer que eu te mande o book e a tabela completa?${book}`
+  );
+}
+
+export const WHATSAPP_TITULO_EMPREENDIMENTO = "Empreendimento enviado via WhatsApp";

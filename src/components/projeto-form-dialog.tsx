@@ -92,6 +92,9 @@ export function ProjetoFormDialog({ open, onOpenChange, editing, onSubmit, isPen
       status_entrega: strOrNull(fd.get("status_entrega")),
       mes_entrega: numOrNull(fd.get("mes_entrega")),
       ano_entrega: numOrNull(fd.get("ano_entrega")),
+      // Material comercial (Vitrine)
+      book_url: strOrNull(fd.get("book_url")),
+      tabela_precos_url: strOrNull(fd.get("tabela_precos_url")),
       // Outros
       observacoes: strOrNull(fd.get("observacoes")),
     });
@@ -350,6 +353,36 @@ export function ProjetoFormDialog({ open, onOpenChange, editing, onSubmit, isPen
                   min="2000"
                   max="2100"
                   defaultValue={editing?.ano_entrega ?? ""}
+                />
+              </div>
+            </div>
+          </section>
+
+          <Separator />
+
+          <section className="space-y-3">
+            <h3 className="text-sm font-medium text-muted-foreground">
+              Material comercial (Vitrine)
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="book_url">Link do Book (PDF/Drive)</Label>
+                <Input
+                  id="book_url"
+                  name="book_url"
+                  type="url"
+                  placeholder="https://…"
+                  defaultValue={editing?.book_url ?? ""}
+                />
+              </div>
+              <div>
+                <Label htmlFor="tabela_precos_url">Link da Tabela de preços</Label>
+                <Input
+                  id="tabela_precos_url"
+                  name="tabela_precos_url"
+                  type="url"
+                  placeholder="https://…"
+                  defaultValue={editing?.tabela_precos_url ?? ""}
                 />
               </div>
             </div>

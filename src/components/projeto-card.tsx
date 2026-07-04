@@ -59,6 +59,16 @@ export type ProjetoRow = {
   ano_entrega: number | null;
   fonte: string | null;
   zona_smq: string | null;
+  // Campos do detalhe comercial / Vitrine. Opcionais no tipo (a maioria das
+  // telas usa `select("*")`, mas nem todo consumidor projeta essas colunas) e
+  // lidos de forma defensiva. `book_url`/`tabela_precos_url` só existem após a
+  // migração 20260704230000.
+  perfil_ideal?: string | null;
+  argumentos_venda?: string[];
+  diferenciais?: string[];
+  entrega_status?: string | null;
+  book_url?: string | null;
+  tabela_precos_url?: string | null;
 };
 
 type Props = {
