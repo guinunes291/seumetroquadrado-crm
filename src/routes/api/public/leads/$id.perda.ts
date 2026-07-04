@@ -129,7 +129,12 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
           dataPerdaFinal = (lead.data_perda as string | null) ?? null;
         }
 
-        const patch: Record<string, unknown> = {
+        const patch: {
+          motivo_perda_categoria: MotivoValido;
+          motivo_perdido: string | null;
+          data_perda?: string;
+          status?: string;
+        } = {
           motivo_perda_categoria: categoria as MotivoValido,
           motivo_perdido: obsRaw ? obsRaw : null,
         };
@@ -138,7 +143,7 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
 
         const { data: updated, error: upErr } = await supabaseAdmin
           .from("leads")
-          .update(patch)
+          .update(patch as never)
           .eq("id", id)
           .select(PERDA_SELECT)
           .single();
