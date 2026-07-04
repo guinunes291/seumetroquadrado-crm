@@ -36,28 +36,32 @@ export type MapProjection = (p: MapProjetoInput) => MapPoint | null;
 export const MAP_ZONAS = ["Norte", "Oeste", "Centro", "Leste", "Sul"] as const;
 export type MapZona = (typeof MAP_ZONAS)[number];
 
-/** Centro e raio do "blob" de cada zona — onde os pinos daquela zona se espalham. */
-type ZonaBlob = { cx: number; cy: number; rx: number; ry: number };
+// Cada zona ocupa uma FAIXA ampla do mapa (retângulo em %), e os pinos daquela
+// zona se distribuem uniformemente dentro dela. Faixas grandes + distribuição
+// uniforme evitam o amontoado que aparece quando há centenas de projetos.
+type Band = { x0: number; y0: number; x1: number; y1: number };
 
-const ZONA_BLOBS: Record<MapZona, ZonaBlob> = {
-  Norte: { cx: 42, cy: 22, rx: 20, ry: 9 },
-  Oeste: { cx: 24, cy: 53, rx: 12, ry: 12 },
-  Centro: { cx: 50, cy: 51, rx: 8, ry: 7 },
-  Leste: { cx: 76, cy: 45, rx: 14, ry: 12 },
-  Sul: { cx: 40, cy: 82, rx: 18, ry: 10 },
+const ZONA_BANDS: Record<MapZona, Band> = {
+  Norte: { x0: 10, y0: 7, x1: 90, y1: 30 },
+  Oeste: { x0: 5, y0: 33, x1: 33, y1: 71 },
+  Centro: { x0: 36, y0: 37, x1: 64, y1: 65 },
+  Leste: { x0: 66, y0: 32, x1: 95, y1: 70 },
+  Sul: { x0: 10, y0: 72, x1: 90, y1: 93 },
 };
 
-/** Posição dos rótulos de zona no SVG (mesma referência dos blobs). */
-export const ZONA_LABELS: { zona: MapZona; x: number; y: number }[] = [
-  { zona: "Norte", x: 42, y: 18 },
-  { zona: "Oeste", x: 16, y: 54 },
-  { zona: "Centro", x: 50, y: 54 },
-  { zona: "Leste", x: 80, y: 40 },
-  { zona: "Sul", x: 40, y: 88 },
-];
+// Projetos sem zona reconhecida (a maioria hoje) se espalham pelo mapa TODO em
+// vez de amontoar num canto — assim a visão continua legível até que mais
+// projetos ganhem zona/coordenada.
+const DEFAULT_BAND: Band = { x0: 5, y0: 7, x1: 95, y1: 93 };
 
-/** Projetos sem zona reconhecida caem num "limbo" discreto fora dos clusters. */
-const SEM_ZONA_BLOB: ZonaBlob = { cx: 88, cy: 88, rx: 6, ry: 6 };
+/** Posição dos rótulos de zona no SVG. */
+export const ZONA_LABELS: { zona: MapZona; x: number; y: number }[] = [
+  { zona: "Norte", x: 50, y: 15 },
+  { zona: "Oeste", x: 14, y: 52 },
+  { zona: "Centro", x: 50, y: 51 },
+  { zona: "Leste", x: 83, y: 40 },
+  { zona: "Sul", x: 50, y: 89 },
+];
 
 const ZONA_ALIASES: Record<string, MapZona> = {
   norte: "Norte",
@@ -70,12 +74,20 @@ const ZONA_ALIASES: Record<string, MapZona> = {
 
 export function normalizeZona(zona: string | null | undefined): MapZona | null {
   if (!zona) return null;
-  const key = zona
+  const k = zona
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .trim();
-  return ZONA_ALIASES[key] ?? null;
+  // Correspondência exata primeiro; depois por substring, para casar valores
+  // como "Zona Sul", "Sul (SP)" ou "Centro-Sul" → Centro (checado antes de Sul).
+  if (ZONA_ALIASES[k]) return ZONA_ALIASES[k];
+  if (k.includes("centro") || k.includes("central")) return "Centro";
+  if (k.includes("norte")) return "Norte";
+  if (k.includes("sul")) return "Sul";
+  if (k.includes("leste")) return "Leste";
+  if (k.includes("oeste")) return "Oeste";
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,24 +106,24 @@ function hashStr(s: string): number {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/** Fração 0..1 estável a partir de um hash uint32. */
+const frac = (h: number) => (h & 0xffffff) / 0x1000000;
+
 /**
- * Posiciona um projeto dentro do blob da sua zona de forma determinística:
- * o id vira um ângulo + raio (distribuição uniforme em disco via √), então
- * projetos da mesma zona se espalham sem colar todos no centro.
+ * Posiciona um projeto dentro da faixa da sua zona de forma determinística e
+ * UNIFORME: dois hashes independentes (x e y) espalham os pinos por toda a
+ * faixa, sem concentrar no centro. Projetos sem zona reconhecida usam a faixa
+ * padrão (o mapa inteiro), evitando o amontoado num canto.
  */
 export const schematicProjection: MapProjection = (p) => {
   const zona = normalizeZona(p.zona_smq);
-  const blob = zona ? ZONA_BLOBS[zona] : SEM_ZONA_BLOB;
-
-  const h = hashStr(p.id || "");
-  const a = (h & 0xffff) / 0xffff; // 0..1
-  const b = ((h >>> 16) & 0xffff) / 0xffff; // 0..1
-  const theta = a * Math.PI * 2;
-  const r = Math.sqrt(b); // uniforme no disco
-
+  const band = zona ? ZONA_BANDS[zona] : DEFAULT_BAND;
+  const id = p.id || "";
+  const fx = frac(hashStr(id));
+  const fy = frac(hashStr(id + "#y"));
   return {
-    x: clamp(blob.cx + Math.cos(theta) * blob.rx * r, 3, 97),
-    y: clamp(blob.cy + Math.sin(theta) * blob.ry * r, 4, 96),
+    x: band.x0 + fx * (band.x1 - band.x0),
+    y: band.y0 + fy * (band.y1 - band.y0),
   };
 };
 

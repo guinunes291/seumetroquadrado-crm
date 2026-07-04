@@ -13,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { mensagemEmpreendimento, WHATSAPP_TITULO_EMPREENDIMENTO } from "@/lib/whatsapp";
 import { formatBRL } from "@/lib/projetos";
-import { normalizeZona } from "@/lib/vitrine/map-projection";
 import type { ProjetoRow } from "@/components/projeto-card";
 
 type LeadHit = { id: string; nome: string; telefone: string | null; status: string };
@@ -90,7 +89,7 @@ export function EnviarVitrineDialog({ projeto, onClose }: Props) {
     const msg = mensagemEmpreendimento(lead.nome, {
       nome: projeto.nome,
       bairro: projeto.bairro,
-      zona: normalizeZona(projeto.zona_smq),
+      zona: projeto.zona_smq,
       precoLabel,
       bookUrl: projeto.book_url,
     });

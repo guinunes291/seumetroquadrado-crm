@@ -23,7 +23,6 @@ import { VitrinePanel, type VitrineLead } from "@/components/vitrine/vitrine-pan
 import { EnviarVitrineDialog } from "@/components/vitrine/enviar-vitrine-dialog";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { mensagemEmpreendimento, WHATSAPP_TITULO_EMPREENDIMENTO } from "@/lib/whatsapp";
-import { normalizeZona, type MapZona } from "@/lib/vitrine/map-projection";
 import {
   applyVitrineFilters,
   deriveSituacao,
@@ -106,7 +105,7 @@ function VitrinePage() {
       const msg = mensagemEmpreendimento(lead.nome, {
         nome: p.nome,
         bairro: p.bairro,
-        zona: normalizeZona(p.zona_smq),
+        zona: p.zona_smq,
         precoLabel,
         bookUrl: p.book_url,
       });
@@ -196,9 +195,9 @@ function VitrinePage() {
           {zonas.length > 0 && (
             <FilterGroup label="Zona">
               <ChipRow
-                options={["Todas", ...zonas] as (MapZona | "Todas")[]}
+                options={["Todas", ...zonas]}
                 value={filters.zona}
-                onSelect={(v) => set({ zona: v as MapZona | "Todas" })}
+                onSelect={(v) => set({ zona: v })}
               />
             </FilterGroup>
           )}
@@ -386,7 +385,7 @@ function ResultsList({
   return (
     <div className="space-y-2.5">
       {projetos.map((p) => {
-        const zona = normalizeZona(p.zona_smq);
+        const zona = p.zona_smq?.trim();
         return (
           <article
             key={p.id}
@@ -449,7 +448,7 @@ function ResultsTable({
         </thead>
         <tbody>
           {projetos.map((p) => {
-            const zona = normalizeZona(p.zona_smq);
+            const zona = p.zona_smq?.trim();
             return (
               <tr
                 key={p.id}
