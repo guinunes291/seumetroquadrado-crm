@@ -137,27 +137,39 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
   analise_credito: { label: "Registrar venda", target: "contrato_fechado" },
 };
 
-/** Categorias de perda (espelham o `motivoPerdaCategoria` do CRM de origem). */
+/** Categorias oficiais de perda (11 valores, alinhadas ao CHECK do banco).
+ *  Ordem = ordem de exibição no dropdown. */
 export const MOTIVO_PERDA_CATEGORIAS = [
-  "sem_resposta",
-  "sem_interesse",
-  "sem_perfil_credito",
+  "sem_contato",
+  "sumiu_pos_proposta",
+  "credito_score",
+  "credito_renda",
+  "estourou_teto",
+  "ja_possui_imovel",
+  "preco_parcela",
   "comprou_concorrente",
-  "fora_regiao",
-  "duplicado",
-  "contato_invalido",
+  "timing_adiou",
+  "sem_perfil",
   "outro",
 ] as const;
 
 export type MotivoPerdaCategoria = (typeof MOTIVO_PERDA_CATEGORIAS)[number];
 
 export const MOTIVO_PERDA_LABEL: Record<MotivoPerdaCategoria, string> = {
-  sem_resposta: "Sem resposta / não atende",
-  sem_interesse: "Sem interesse",
-  sem_perfil_credito: "Sem perfil de crédito",
+  sem_contato: "Sumiu / não responde",
+  sumiu_pos_proposta: "Esfriou depois da proposta/visita",
+  credito_score: "Crédito: score/negativado",
+  credito_renda: "Crédito: renda (insuficiente/informal)",
+  estourou_teto: "Renda acima do teto MCMV",
+  ja_possui_imovel: "Já tem imóvel / usou FGTS",
+  preco_parcela: "Achou caro / parcela não cabe",
   comprou_concorrente: "Comprou com concorrente",
-  fora_regiao: "Fora da região de atuação",
-  duplicado: "Lead duplicado",
-  contato_invalido: "Contato inválido",
-  outro: "Outro motivo",
+  timing_adiou: "Adiou a decisão",
+  sem_perfil: "Sem perfil / curioso / lead errado",
+  outro: "Outro (descrever)",
 };
+
+export function motivoPerdaLabel(cat: string | null | undefined): string | null {
+  if (!cat) return null;
+  return MOTIVO_PERDA_LABEL[cat as MotivoPerdaCategoria] ?? cat;
+}
