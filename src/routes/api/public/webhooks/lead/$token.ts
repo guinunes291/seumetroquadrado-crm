@@ -32,6 +32,7 @@ const payloadSchema = z.object({
     .optional()
     .default("outro"),
   campanha: optStr(255),
+  empreendimento: optStr(255),
   observacoes: optStr(),
   observacao: optStr(),
   resumo: optStr(4000),
