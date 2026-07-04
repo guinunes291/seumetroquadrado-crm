@@ -33,17 +33,22 @@ type Props = {
   onDone?: () => void;
 };
 
-/** Diálogo de "Marcar como perdido": captura o motivo e chama a RPC que
- *  redistribui o lead (ou move para a lixeira se não houver corretor elegível). */
+/** Diálogo de "Marcar como perdido": exige categoria (sem default), força
+ *  observação quando "outro", grava motivo + status + data_perda via RPC e
+ *  redistribui o lead (ou envia para perdidos se ninguém elegível). */
 export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
   const qc = useQueryClient();
-  const [categoria, setCategoria] = useState<MotivoPerdaCategoria>("sem_interesse");
+  const [categoria, setCategoria] = useState<MotivoPerdaCategoria | "">("");
   const [detalhe, setDetalhe] = useState("");
+
+  const obsExigida = categoria === "outro";
+  const podeSalvar = categoria !== "" && (!obsExigida || detalhe.trim().length > 0);
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (categoria === "outro" && !detalhe.trim()) {
-        throw new Error("Descreva o motivo da perda");
+      if (!categoria) throw new Error("Escolha o motivo da perda");
+      if (obsExigida && !detalhe.trim()) {
+        throw new Error("Descreva o motivo em 'Observação'");
       }
       const { data, error } = await supabase.rpc(
         "marcar_lead_perdido" as never,
@@ -91,7 +96,7 @@ export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
               onValueChange={(v) => setCategoria(v as MotivoPerdaCategoria)}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Selecione o motivo…" />
               </SelectTrigger>
               <SelectContent>
                 {MOTIVO_PERDA_CATEGORIAS.map((c) => (
@@ -103,7 +108,7 @@ export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>{categoria === "outro" ? "Descreva o motivo *" : "Detalhes (opcional)"}</Label>
+            <Label>{obsExigida ? "Descreva o motivo *" : "Observação (opcional)"}</Label>
             <Textarea
               rows={3}
               value={detalhe}
@@ -117,7 +122,11 @@ export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button variant="destructive" onClick={() => mut.mutate()} disabled={mut.isPending}>
+          <Button
+            variant="destructive"
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending || !podeSalvar}
+          >
             {mut.isPending ? "Processando…" : "Marcar como perdido"}
           </Button>
         </DialogFooter>

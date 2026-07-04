@@ -67,6 +67,7 @@ import {
   FUNNEL_STAGES,
   PROXIMA_ACAO,
   leadStatusLabel,
+  motivoPerdaLabel,
   resolveStageAction,
   type StageLead,
   type LeadStatus,
@@ -768,6 +769,23 @@ function LeadDetailPage() {
                 />
               )}
             </div>
+            {lead.status === "perdido" &&
+              (lead as { motivo_perda_categoria?: string | null }).motivo_perda_categoria && (
+                <div className="text-xs text-muted-foreground">
+                  <Badge variant="destructive" className="text-xs">
+                    Perdido —{" "}
+                    {motivoPerdaLabel(
+                      (lead as { motivo_perda_categoria?: string | null })
+                        .motivo_perda_categoria,
+                    )}
+                  </Badge>
+                  {(lead as { motivo_perdido?: string | null }).motivo_perdido && (
+                    <p className="mt-1 whitespace-pre-wrap">
+                      {(lead as { motivo_perdido?: string | null }).motivo_perdido}
+                    </p>
+                  )}
+                </div>
+              )}
           </CardContent>
         </Card>
         <Card>
