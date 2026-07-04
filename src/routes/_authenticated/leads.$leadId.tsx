@@ -41,6 +41,7 @@ import {
   RefreshCw,
   User,
   Building2,
+  Map,
   MessageCircle,
   Pencil,
   Check,
@@ -1004,6 +1005,12 @@ function LeadDetailPage() {
             entradaInicial={lead.entrada_disponivel}
             rendaInicial={lead.renda_informada}
           />
+          <Button asChild variant="outline" className="w-full justify-start">
+            <Link to="/vitrine" search={{ leadId: lead.id }}>
+              <Map className="mr-2 h-4 w-4" />
+              Abrir Vitrine para este lead
+            </Link>
+          </Button>
           <EmpreendimentoRecomendado
             lead={{
               id: lead.id,

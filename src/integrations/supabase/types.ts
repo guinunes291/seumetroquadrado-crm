@@ -1800,6 +1800,7 @@ export type Database = {
           argumentos_venda: string[]
           ativo: boolean
           bairro: string | null
+          book_url: string | null
           cidade: string | null
           construtora: string | null
           created_at: string
@@ -1829,6 +1830,7 @@ export type Database = {
           status_entrega: string | null
           status_preco: string
           suites: number | null
+          tabela_precos_url: string | null
           tipo_extra: string | null
           tipologia: string | null
           updated_at: string
@@ -1844,6 +1846,7 @@ export type Database = {
           argumentos_venda?: string[]
           ativo?: boolean
           bairro?: string | null
+          book_url?: string | null
           cidade?: string | null
           construtora?: string | null
           created_at?: string
@@ -1873,6 +1876,7 @@ export type Database = {
           status_entrega?: string | null
           status_preco?: string
           suites?: number | null
+          tabela_precos_url?: string | null
           tipo_extra?: string | null
           tipologia?: string | null
           updated_at?: string
@@ -1888,6 +1892,7 @@ export type Database = {
           argumentos_venda?: string[]
           ativo?: boolean
           bairro?: string | null
+          book_url?: string | null
           cidade?: string | null
           construtora?: string | null
           created_at?: string
@@ -1917,6 +1922,7 @@ export type Database = {
           status_entrega?: string | null
           status_preco?: string
           suites?: number | null
+          tabela_precos_url?: string | null
           tipo_extra?: string | null
           tipologia?: string | null
           updated_at?: string

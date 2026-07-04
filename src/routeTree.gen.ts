@@ -22,6 +22,7 @@ import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authent
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
+import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authenticated/links-uteis'
@@ -127,6 +128,11 @@ const AuthenticatedMeuPainelRoute = AuthenticatedMeuPainelRouteImport.update({
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   id: '/metas',
   path: '/metas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedVitrineRoute = AuthenticatedVitrineRouteImport.update({
+  id: '/vitrine',
+  path: '/vitrine',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMatchRoute = AuthenticatedMatchRouteImport.update({
@@ -373,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
+  '/vitrine': typeof AuthenticatedVitrineRoute
   '/match': typeof AuthenticatedMatchRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -427,6 +434,7 @@ export interface FileRoutesByTo {
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
+  '/vitrine': typeof AuthenticatedVitrineRoute
   '/match': typeof AuthenticatedMatchRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -484,6 +492,7 @@ export interface FileRoutesById {
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/_authenticated/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
+  '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
   '/_authenticated/match': typeof AuthenticatedMatchRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -542,6 +551,7 @@ export interface FileRouteTypes {
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
+    | '/vitrine'
     | '/match'
     | '/metas'
     | '/meu-painel'
@@ -596,6 +606,7 @@ export interface FileRouteTypes {
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
+    | '/vitrine'
     | '/match'
     | '/metas'
     | '/meu-painel'
@@ -652,6 +663,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads-por-corretor'
     | '/_authenticated/links-uteis'
     | '/_authenticated/lixeira'
+    | '/_authenticated/vitrine'
     | '/_authenticated/match'
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
@@ -798,6 +810,13 @@ declare module '@tanstack/react-router' {
       path: '/metas'
       fullPath: '/metas'
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/vitrine': {
+      id: '/_authenticated/vitrine'
+      path: '/vitrine'
+      fullPath: '/vitrine'
+      preLoaderRoute: typeof AuthenticatedVitrineRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/match': {
@@ -1108,6 +1127,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
   AuthenticatedLinksUteisRoute: typeof AuthenticatedLinksUteisRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
+  AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
   AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
@@ -1146,6 +1166,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,
   AuthenticatedLinksUteisRoute: AuthenticatedLinksUteisRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
+  AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,
   AuthenticatedMatchRoute: AuthenticatedMatchRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,

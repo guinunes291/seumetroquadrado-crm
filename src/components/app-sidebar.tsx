@@ -12,6 +12,7 @@ import {
   Trophy,
   Sun,
   Building2,
+  Map,
   Megaphone,
   Settings,
   LogOut,
@@ -72,6 +73,7 @@ const NAV_ITEMS: Item[] = [
     to: "/projetos",
     label: "Negócios & Carteira",
     icon: Building2,
+    children: [{ to: "/vitrine", label: "Vitrine (mapa)", icon: Map }],
   },
   {
     // Metas, Copa e Conquistas agora são abas internas do hub /ranking.
