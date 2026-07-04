@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.distribuir_lead_elegivel(uuid);

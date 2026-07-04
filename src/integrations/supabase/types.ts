@@ -2685,12 +2685,10 @@ export type Database = {
         }
         Returns: string
       }
-      distribuir_lead_elegivel:
-        | { Args: { _lead_id: string }; Returns: string }
-        | {
-            Args: { _contar_como_novo?: boolean; _lead_id: string }
-            Returns: string
-          }
+      distribuir_lead_elegivel: {
+        Args: { _contar_como_novo?: boolean; _lead_id: string }
+        Returns: string
+      }
       distribuir_lead_webhook: { Args: never; Returns: string }
       enqueue_push: {
         Args: {
