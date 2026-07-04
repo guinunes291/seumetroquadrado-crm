@@ -171,9 +171,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         let assignedToFallback = false;
 
         if (data.distribuir) {
-          const { data: c } = await supabaseAdmin.rpc("distribuir_lead_webhook", {
-            _lead_id: null as unknown as string,
-          } as never);
+          const { data: c } = await supabaseAdmin.rpc("distribuir_lead_webhook" as never);
           corretorId = (c as string | null) ?? null;
           if (!corretorId) {
             const { data: g } = await supabaseAdmin.rpc("gestor_fallback_webhook" as never);
