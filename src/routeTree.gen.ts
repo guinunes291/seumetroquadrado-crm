@@ -60,6 +60,7 @@ import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
+import { Route as ApiPublicLeadsIdPerdaRouteImport } from './routes/api/public/leads/$id.perda'
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
 import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/public/leads/$id.corretor'
 
@@ -334,6 +335,11 @@ const ApiPublicWebhooksLeadTokenRoute =
     path: '/api/public/webhooks/lead/$token',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicLeadsIdPerdaRoute = ApiPublicLeadsIdPerdaRouteImport.update({
+  id: '/perda',
+  path: '/perda',
+  getParentRoute: () => ApiPublicLeadsIdRoute,
+} as any)
 const ApiPublicLeadsIdEventosRoute = ApiPublicLeadsIdEventosRouteImport.update({
   id: '/eventos',
   path: '/eventos',
@@ -398,6 +404,7 @@ export interface FileRoutesByFullPath {
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
+  '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesByTo {
@@ -452,6 +459,7 @@ export interface FileRoutesByTo {
   '/api/public/vendas': typeof ApiPublicVendasIndexRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
+  '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRoutesById {
@@ -508,6 +516,7 @@ export interface FileRoutesById {
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
+  '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
 }
 export interface FileRouteTypes {
@@ -564,6 +573,7 @@ export interface FileRouteTypes {
     | '/api/public/vendas/'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
+    | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -618,6 +628,7 @@ export interface FileRouteTypes {
     | '/api/public/vendas'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
+    | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
   id:
     | '__root__'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/api/public/vendas/'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
+    | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
   fileRoutesById: FileRoutesById
 }
@@ -1054,6 +1066,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksLeadTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leads/$id/perda': {
+      id: '/api/public/leads/$id/perda'
+      path: '/perda'
+      fullPath: '/api/public/leads/$id/perda'
+      preLoaderRoute: typeof ApiPublicLeadsIdPerdaRouteImport
+      parentRoute: typeof ApiPublicLeadsIdRoute
+    }
     '/api/public/leads/$id/eventos': {
       id: '/api/public/leads/$id/eventos'
       path: '/eventos'
@@ -1153,11 +1172,13 @@ const AuthenticatedRouteRouteWithChildren =
 interface ApiPublicLeadsIdRouteChildren {
   ApiPublicLeadsIdCorretorRoute: typeof ApiPublicLeadsIdCorretorRoute
   ApiPublicLeadsIdEventosRoute: typeof ApiPublicLeadsIdEventosRoute
+  ApiPublicLeadsIdPerdaRoute: typeof ApiPublicLeadsIdPerdaRoute
 }
 
 const ApiPublicLeadsIdRouteChildren: ApiPublicLeadsIdRouteChildren = {
   ApiPublicLeadsIdCorretorRoute: ApiPublicLeadsIdCorretorRoute,
   ApiPublicLeadsIdEventosRoute: ApiPublicLeadsIdEventosRoute,
+  ApiPublicLeadsIdPerdaRoute: ApiPublicLeadsIdPerdaRoute,
 }
 
 const ApiPublicLeadsIdRouteWithChildren =
