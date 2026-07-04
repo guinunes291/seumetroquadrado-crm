@@ -88,27 +88,18 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
           .single();
         if (upErr) return jsonResponse({ error: upErr.message }, 500);
 
-        const conteudo = [
-          `Corretor alterado de ${anteriorNome ?? "(sem corretor)"} para ${destino.nome ?? corretorId}.`,
-          motivo ? `Motivo: ${motivo}` : null,
-        ]
-          .filter(Boolean)
-          .join(" ");
+        const conteudo = `Lead realocado.${motivo ? ` Motivo: ${motivo}` : ""}`;
 
         await supabaseAdmin.from("interacoes").insert({
           lead_id: id,
           tipo: "nota",
           direcao: "interna",
-          titulo: "Realocação de corretor",
+          titulo: "Lead realocado",
           conteudo,
           metadata: {
             fonte: "api_publica",
             origem,
             motivo: motivo || null,
-            corretor_anterior_id: anteriorId,
-            corretor_anterior_nome: anteriorNome,
-            corretor_novo_id: corretorId,
-            corretor_novo_nome: destino.nome ?? null,
           },
         });
 
