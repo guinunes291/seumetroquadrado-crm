@@ -846,13 +846,15 @@ function LeadsPage() {
       if (!ids.length) throw new Error("Selecione ao menos um lead.");
       if (!corretorId) throw new Error("Selecione o corretor de destino.");
 
+      // RPC canônica: além do corretor_id, renova data_distribuicao (sem isso o
+      // job de redistribuição desfazia a transferência) e registra no log.
       const batchSize = 100;
       for (let i = 0; i < ids.length; i += batchSize) {
         const lote = ids.slice(i, i + batchSize);
-        const { error } = await supabase
-          .from("leads")
-          .update({ corretor_id: corretorId })
-          .in("id", lote);
+        const { error } = await supabase.rpc(
+          "transferir_leads" as never,
+          { _ids: lote, _corretor: corretorId } as never,
+        );
         if (error) {
           console.error("[bulkTransferir]", { error, loteInicio: i, loteTamanho: lote.length });
           throw error;

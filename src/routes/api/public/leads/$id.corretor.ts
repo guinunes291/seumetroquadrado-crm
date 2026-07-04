@@ -77,16 +77,21 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
           anteriorNome = (ant?.nome as string | null) ?? null;
         }
 
-        const { data: updated, error: upErr } = await supabaseAdmin
-          .from("leads")
-          .update({
-            corretor_id: corretorId,
-            updated_at: new Date().toISOString(),
-          } as never)
-          .eq("id", id)
-          .select(PUBLIC_LEAD_SELECT)
-          .single();
+        // RPC canônica de transferência: além do corretor_id, renova
+        // data_distribuicao (sem isso o job de redistribuição de parados
+        // desfazia a realocação em minutos) e registra em distribution_log.
+        const { error: upErr } = await supabaseAdmin.rpc(
+          "transferir_leads" as never,
+          { _ids: [id], _corretor: corretorId } as never,
+        );
         if (upErr) return jsonResponse({ error: upErr.message }, 500);
+
+        const { data: updated, error: selErr } = await supabaseAdmin
+          .from("leads")
+          .select(PUBLIC_LEAD_SELECT)
+          .eq("id", id)
+          .single();
+        if (selErr) return jsonResponse({ error: selErr.message }, 500);
 
         const conteudo = [
           `Corretor alterado de ${anteriorNome ?? "(sem corretor)"} para ${destino.nome ?? corretorId}.`,

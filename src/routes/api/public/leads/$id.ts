@@ -64,13 +64,11 @@ const PATCHABLE: Record<string, Kind> = {
   tipo_renda: "text",
   decisor: "text",
   temperatura: "enum",
-  status: "enum",
   estado: "enum",
   etapa: "text",
   motivo_handoff: "text",
   observacoes: "text",
   resumo_qualificacao: "text",
-  corretor_id: "uuid",
   proxima_acao: "text",
   proximo_followup: "timestamp",
   consentimento_lgpd: "boolean",
@@ -92,19 +90,6 @@ const PATCHABLE: Record<string, Kind> = {
 // em vez de retornar 500/422.
 const ENUM_VALUES: Record<string, string[]> = {
   temperatura: ["frio", "morno", "quente"],
-  status: [
-    "novo",
-    "aguardando_atendimento",
-    "em_atendimento",
-    "aguardando_retorno",
-    "qualificado",
-    "agendado",
-    "visita_realizada",
-    "analise_credito",
-    "contrato_fechado",
-    "pos_venda",
-    "perdido",
-  ],
   estado: ["novo", "com_corretor"],
   origem: [
     "facebook",
@@ -246,6 +231,22 @@ export const Route = createFileRoute("/api/public/leads/$id")({
           const valForCrm = rawKey === "temperatura" ? normTempLower(rawVal) : rawVal;
 
           const realKey = FIELD_MAP[rawKey] ?? rawKey;
+
+          // Atribuição e status são do motor de distribuição/funil interno do
+          // CRM: rejeição explícita (não silenciosa) para o integrador saber.
+          if (realKey === "corretor_id" || realKey === "status") {
+            return jsonResponse(
+              {
+                error:
+                  realKey === "corretor_id"
+                    ? "corretor_id não é aceito neste endpoint — use PATCH /api/public/leads/:id/corretor para realocação"
+                    : "status é gerenciado pelo funil interno do CRM e não pode ser alterado via API pública",
+                campo: rawKey,
+              },
+              422,
+            );
+          }
+
           const kind = PATCHABLE[realKey];
 
           if (kind) {

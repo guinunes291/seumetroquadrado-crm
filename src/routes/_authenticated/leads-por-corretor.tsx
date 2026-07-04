@@ -106,6 +106,29 @@ export function LeadsPorCorretorPage() {
     },
   });
 
+  // Churn de redistribuição automática dos últimos 7 dias, por corretor — para
+  // o gestor VER quando uma carteira está sendo movida pelo job de parados.
+  const { data: redistLog } = useQuery({
+    queryKey: ["redistribuicoes-7d"],
+    queryFn: async () => {
+      const desde = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const { data, error } = await supabase
+        .from("distribution_log")
+        .select("corretor_id")
+        .eq("tipo", "redistribuicao")
+        .gte("created_at", desde);
+      if (error) throw error;
+      return (data ?? []) as { corretor_id: string | null }[];
+    },
+  });
+  const redistMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (redistLog ?? []).forEach((r) => {
+      if (r.corretor_id) m.set(r.corretor_id, (m.get(r.corretor_id) ?? 0) + 1);
+    });
+    return m;
+  }, [redistLog]);
+
   const statsByCorretor = useMemo(() => {
     const map = new Map<string, Stats>();
     (leads ?? []).forEach((l) => {
@@ -151,10 +174,12 @@ export function LeadsPorCorretorPage() {
 
   const transferMutation = useMutation({
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
-      const { error } = await supabase
-        .from("leads")
-        .update({ corretor_id: corretorId })
-        .in("id", ids);
+      // RPC canônica: renova data_distribuicao (sem isso o job de redistribuição
+      // desfazia a transferência em minutos) e registra em distribution_log.
+      const { error } = await supabase.rpc(
+        "transferir_leads" as never,
+        { _ids: ids, _corretor: corretorId } as never,
+      );
       if (error) throw error;
       // Notifica via WhatsApp os leads com origem=facebook (uma chamada por lead).
       await Promise.allSettled(
@@ -237,6 +262,7 @@ export function LeadsPorCorretorPage() {
               key={c.id}
               nome={c.nome}
               stats={s}
+              redistribuidos={redistMap.get(c.id) ?? 0}
               selected={selectedCorretor === c.id}
               onClick={() => setSelectedCorretor(selectedCorretor === c.id ? null : c.id)}
             />
@@ -429,12 +455,14 @@ export function LeadsPorCorretorPage() {
 function CorretorCard({
   nome,
   stats,
+  redistribuidos,
   selected,
   onClick,
   muted,
 }: {
   nome: string;
   stats: Stats;
+  redistribuidos?: number;
   selected: boolean;
   onClick: () => void;
   muted?: boolean;
@@ -469,6 +497,15 @@ function CorretorCard({
           <UserX className="h-3.5 w-3.5 text-destructive" />
           <span>{stats.perdidos} perdidos</span>
         </div>
+        {(redistribuidos ?? 0) > 0 && (
+          <div
+            className="flex items-center gap-2 text-muted-foreground"
+            title="Movimentações do job automático de leads parados nos últimos 7 dias"
+          >
+            <ArrowRightLeft className="h-3.5 w-3.5 text-amber-600" />
+            <span>{redistribuidos} redistribuições (7d)</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

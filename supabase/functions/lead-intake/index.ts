@@ -5,8 +5,9 @@
 //  2) resolve o PROJETO (cada Zap manda 'projeto' = slug/nome, ou 'projeto_token'
 //     = webhook_token do projeto) -> grava projeto_id + projeto_nome no lead;
 //  3) cria o lead (origem=facebook) — sempre cria novo;
-//  4) DISTRIBUI em RODÍZIO PURO (distribuir_lead: roleta por posição, sem exigir
-//     presença/elegibilidade);
+//  4) DISTRIBUI via distribuir_lead (roleta por posição, restrita a corretores
+//     elegíveis: ativos na fila, dentro da cota e com ≥90% da carteira
+//     trabalhada — sem elegível, o lead fica na base para o cron);
 //  5) notifica o corretor via Z-API no WhatsApp, SEM o telefone do lead
 //     (apenas nome, projeto, faixa de renda e link do lead no CRM).
 //
@@ -250,7 +251,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: "insert_failed", detail: insertError?.message }, 500);
   }
 
-  // 5) Distribuição em RODÍZIO PURO (sem exigir presença/elegibilidade).
+  // 5) Distribuição via roleta de elegíveis (fila + cota + ≥90% trabalhado).
   let corretor_id: string | null = null;
   const { data: dist, error: distError } = await supabase.rpc("distribuir_lead", {
     _lead_id: lead.id,
