@@ -67,6 +67,7 @@ import {
   FUNNEL_STAGES,
   PROXIMA_ACAO,
   leadStatusLabel,
+  motivoPerdaLabel,
   resolveStageAction,
   type StageLead,
   type LeadStatus,
