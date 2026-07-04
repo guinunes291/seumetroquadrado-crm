@@ -12,7 +12,6 @@ import {
   formatEntrega,
 } from "@/lib/projetos";
 import { deriveSituacao } from "@/lib/vitrine/vitrine";
-import { normalizeZona } from "@/lib/vitrine/map-projection";
 import { cn } from "@/lib/utils";
 
 export type VitrineLead = {
@@ -44,7 +43,7 @@ function Spec({ k, v }: { k: string; v: string }) {
 }
 
 export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props) {
-  const zona = p ? normalizeZona(p.zona_smq) : null;
+  const zona = p?.zona_smq?.trim() || null;
   const diferenciais = p ? [...(p.diferenciais ?? []), ...(p.argumentos_venda ?? [])] : [];
   // Só mostramos a linha de endereço quando há logradouro — bairro e zona já
   // aparecem no cabeçalho, então sem rua não há o que acrescentar.

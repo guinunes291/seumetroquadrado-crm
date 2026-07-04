@@ -3,7 +3,6 @@
 // orquestra estado e renderização.
 
 import type { ProjetoRow } from "@/components/projeto-card";
-import { normalizeZona, type MapZona } from "@/lib/vitrine/map-projection";
 
 export type Situacao = "Pronto" | "Em obras" | "Lançamento" | "A confirmar";
 
@@ -39,7 +38,8 @@ export type VitrineSort = "preco-asc" | "preco-desc" | "az";
 
 export type VitrineFilters = {
   q: string;
-  zona: MapZona | "Todas";
+  /** Valor bruto de `zona_smq` (ou "Todas"). Os chips vêm dos dados reais. */
+  zona: string;
   situacao: Situacao | "Todas";
   dorm: DormFiltro;
   budget: number | null;
@@ -75,7 +75,7 @@ const norm = (s: string) =>
 export function applyVitrineFilters(projetos: ProjetoRow[], f: VitrineFilters): ProjetoRow[] {
   const q = norm(f.q.trim());
   const out = projetos.filter((p) => {
-    if (f.zona !== "Todas" && normalizeZona(p.zona_smq) !== f.zona) return false;
+    if (f.zona !== "Todas" && (p.zona_smq?.trim() ?? "") !== f.zona) return false;
     if (f.situacao !== "Todas" && deriveSituacao(p) !== f.situacao) return false;
     if (!matchDorm(p, f.dorm)) return false;
     if (f.budget != null && (p.preco_a_partir == null || p.preco_a_partir > f.budget)) return false;
@@ -98,13 +98,26 @@ export function applyVitrineFilters(projetos: ProjetoRow[], f: VitrineFilters): 
   return out;
 }
 
-/** Zonas presentes no catálogo (para montar os chips), na ordem geográfica. */
-export function zonasDisponiveis(projetos: ProjetoRow[]): MapZona[] {
-  const ordem: MapZona[] = ["Norte", "Sul", "Leste", "Oeste", "Centro"];
-  const set = new Set<MapZona>();
+/**
+ * Zonas presentes no catálogo (valores brutos de `zona_smq`) para montar os
+ * chips. As zonas cardeais conhecidas vêm primeiro, na ordem geográfica; as
+ * demais em ordem alfabética.
+ */
+export function zonasDisponiveis(projetos: ProjetoRow[]): string[] {
+  const set = new Set<string>();
   for (const p of projetos) {
-    const z = normalizeZona(p.zona_smq);
+    const z = p.zona_smq?.trim();
     if (z) set.add(z);
   }
-  return ordem.filter((z) => set.has(z));
+  const ORDEM = ["Norte", "Sul", "Leste", "Oeste", "Centro"];
+  return Array.from(set).sort((a, b) => {
+    const ia = ORDEM.indexOf(a);
+    const ib = ORDEM.indexOf(b);
+    if (ia !== -1 || ib !== -1) {
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    }
+    return a.localeCompare(b, "pt");
+  });
 }

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import {
   schematicProjection,
@@ -21,6 +21,52 @@ type Props = {
   projection?: MapProjection;
 };
 
+type PinPt = { p: ProjetoRow; x: number; y: number };
+
+// Camada de pinos memoizada: NÃO depende de hover/seleção, então mover o mouse
+// (que muda o estado do pai) não re-renderiza os ~900 pinos — só o destaque, que
+// é um único elemento sobreposto. Sem isso o hover trava em catálogos grandes.
+const PinsLayer = memo(function PinsLayer({
+  pins,
+  visibleIds,
+  onHover,
+  onSelect,
+}: {
+  pins: PinPt[];
+  visibleIds: Set<string>;
+  onHover: (id: string | null) => void;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <>
+      {pins.map(({ p, x, y }) => {
+        const visible = visibleIds.has(p.id);
+        return (
+          <button
+            key={p.id}
+            type="button"
+            title={p.nome}
+            aria-label={p.nome}
+            tabIndex={visible ? 0 : -1}
+            onClick={() => onSelect(p.id)}
+            onMouseEnter={() => onHover(p.id)}
+            onMouseLeave={() => onHover(null)}
+            onFocus={() => onHover(p.id)}
+            onBlur={() => onHover(null)}
+            className={cn(
+              "absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white",
+              "shadow-sm outline-none transition-opacity hover:z-20",
+              "focus-visible:ring-2 focus-visible:ring-amber-400",
+              visible ? "opacity-90 hover:opacity-100" : "pointer-events-none opacity-[0.1]",
+            )}
+            style={{ left: `${x}%`, top: `${y}%`, background: pinColor(p.preco_a_partir) }}
+          />
+        );
+      })}
+    </>
+  );
+});
+
 /**
  * Mapa esquemático da Vitrine: desenho de SP por zonas com um pino por
  * empreendimento, colorido pela faixa de preço. Os pinos fora do filtro atual
@@ -35,23 +81,26 @@ export function VitrineMap({
   onSelect,
   projection = schematicProjection,
 }: Props) {
-  const pins = useMemo(
+  const pins = useMemo<PinPt[]>(
     () =>
       projetos
         .map((p) => {
           const pt = projection(p);
-          return pt ? { p, pt } : null;
+          return pt ? { p, x: pt.x, y: pt.y } : null;
         })
-        .filter((v): v is { p: ProjetoRow; pt: { x: number; y: number } } => v != null),
+        .filter((v): v is PinPt => v != null),
     [projetos, projection],
   );
+
+  const activeId = hoveredId ?? selectedId;
+  const active = activeId ? pins.find((pp) => pp.p.id === activeId) : undefined;
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border bg-card">
       <svg
         className="absolute inset-0 h-full w-full"
         viewBox="0 0 100 100"
-        preserveAspectRatio="xMidYMid slice"
+        preserveAspectRatio="none"
         aria-hidden="true"
       >
         <rect x="0" y="0" width="100" height="100" fill="#F5F8FC" />
@@ -66,13 +115,7 @@ export function VitrineMap({
           stroke="#CBD8E8"
           strokeWidth="1.3"
           strokeLinecap="round"
-        />
-        <path
-          d="M40 96 Q50 66 58 50"
-          fill="none"
-          stroke="#CBD8E8"
-          strokeWidth="1.1"
-          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
         />
         {ZONA_LABELS.map((z) => (
           <text
@@ -84,7 +127,7 @@ export function VitrineMap({
               fontSize: 3,
               fill: "#9AAAC1",
               fontWeight: 800,
-              letterSpacing: "0.2em",
+              letterSpacing: "0.15em",
               textTransform: "uppercase",
             }}
           >
@@ -93,31 +136,19 @@ export function VitrineMap({
         ))}
       </svg>
 
-      {pins.map(({ p, pt }) => {
-        const visible = visibleIds.has(p.id);
-        const active = hoveredId === p.id || selectedId === p.id;
-        return (
-          <button
-            key={p.id}
-            type="button"
-            title={p.nome}
-            aria-label={p.nome}
-            onClick={() => onSelect(p.id)}
-            onMouseEnter={() => onHover(p.id)}
-            onMouseLeave={() => onHover(null)}
-            onFocus={() => onHover(p.id)}
-            onBlur={() => onHover(null)}
-            className={cn(
-              "absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white",
-              "shadow-[0_1px_4px_rgba(15,42,74,0.4)] outline-none transition-transform",
-              "focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-1",
-              active ? "z-20 scale-150 border-amber-400" : "z-10",
-              !visible && "pointer-events-none opacity-[0.14]",
-            )}
-            style={{ left: `${pt.x}%`, top: `${pt.y}%`, background: pinColor(p.preco_a_partir) }}
-          />
-        );
-      })}
+      <PinsLayer pins={pins} visibleIds={visibleIds} onHover={onHover} onSelect={onSelect} />
+
+      {active && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute z-30 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-amber-400 shadow-[0_0_0_3px_rgba(224,164,53,0.35)]"
+          style={{
+            left: `${active.x}%`,
+            top: `${active.y}%`,
+            background: pinColor(active.p.preco_a_partir),
+          }}
+        />
+      )}
 
       <div className="absolute bottom-3 left-3 max-w-[190px] rounded-lg border bg-background/95 p-2.5 text-[11px] shadow-sm backdrop-blur">
         <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
