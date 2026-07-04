@@ -2686,7 +2686,7 @@ export type Database = {
         Returns: string
       }
       distribuir_lead_elegivel: { Args: { _lead_id: string }; Returns: string }
-      distribuir_lead_webhook: { Args: { _lead_id: string }; Returns: string }
+      distribuir_lead_webhook: { Args: never; Returns: string }
       enqueue_push: {
         Args: {
           _body: string
