@@ -13,6 +13,9 @@ type Props = {
   onModalOpenChange: (open: boolean) => void;
   perdidoLead: PerdidoState;
   onPerdidoOpenChange: (open: boolean) => void;
+  /** Disparado quando qualquer um dos diálogos conclui com sucesso — para a
+   *  página invalidar queries próprias (ex.: detalhe da Oferta Ativa). */
+  onDone?: () => void;
 };
 
 /** Renderiza, no nível da página, o modal correspondente à etapa escolhida —
@@ -22,22 +25,41 @@ export function LeadStageModals({
   onModalOpenChange,
   perdidoLead,
   onPerdidoOpenChange,
+  onDone,
 }: Props) {
   return (
     <>
       {modalState?.modal === "agendado" && (
-        <AppointmentStageDialog lead={modalState.lead} onOpenChange={onModalOpenChange} />
+        <AppointmentStageDialog
+          lead={modalState.lead}
+          onOpenChange={onModalOpenChange}
+          onDone={onDone}
+        />
       )}
       {modalState?.modal === "visita_realizada" && (
-        <VisitFeedbackDialog lead={modalState.lead} onOpenChange={onModalOpenChange} />
+        <VisitFeedbackDialog
+          lead={modalState.lead}
+          onOpenChange={onModalOpenChange}
+          onDone={onDone}
+        />
       )}
       {modalState?.modal === "analise_credito" && (
-        <CreditAnalysisDialog lead={modalState.lead} onOpenChange={onModalOpenChange} />
+        <CreditAnalysisDialog
+          lead={modalState.lead}
+          onOpenChange={onModalOpenChange}
+          onDone={onDone}
+        />
       )}
       {modalState?.modal === "contrato_fechado" && (
-        <ContractSaleDialog lead={modalState.lead} onOpenChange={onModalOpenChange} />
+        <ContractSaleDialog
+          lead={modalState.lead}
+          onOpenChange={onModalOpenChange}
+          onDone={onDone}
+        />
       )}
-      {perdidoLead && <PerdidoDialog lead={perdidoLead} onOpenChange={onPerdidoOpenChange} />}
+      {perdidoLead && (
+        <PerdidoDialog lead={perdidoLead} onOpenChange={onPerdidoOpenChange} onDone={onDone} />
+      )}
     </>
   );
 }

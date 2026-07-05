@@ -49,7 +49,10 @@ const payloadSchema = z.object({
   fgts: optStr(255),
   decisor: optStr(255),
   temperatura: z
-    .union([z.enum(["FRIO", "MORNO", "QUENTE", "PRONTO", "frio", "morno", "quente", "pronto"]), z.literal("")])
+    .union([
+      z.enum(["FRIO", "MORNO", "QUENTE", "PRONTO", "frio", "morno", "quente", "pronto"]),
+      z.literal(""),
+    ])
     .optional()
     .nullable(),
   motivoHandoff: z.enum(["analise", "visita", "humano"]).optional().nullable(),
@@ -179,7 +182,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             const { data: g } = await supabaseAdmin.rpc("gestor_fallback_webhook" as never);
             corretorId = (g as string | null) ?? null;
             assignedToFallback = corretorId !== null;
-            motivo = corretorId ? "sem_corretor_disponivel_fallback_gestor" : "sem_corretor_disponivel";
+            motivo = corretorId
+              ? "sem_corretor_disponivel_fallback_gestor"
+              : "sem_corretor_disponivel";
           }
         }
 
@@ -191,11 +196,14 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           projeto.nome;
 
         // Status: nunca "novo" neste webhook.
-        // com corretor elegível → em_atendimento; fallback ao gestor → aguardando_corretor.
-        const statusInicial: "em_atendimento" | "aguardando_corretor" | null = corretorId
+        // Com corretor da roleta → aguardando_atendimento (o corretor precisa
+        // "Iniciar atendimento"; se ficar N min parado, o SLA repassa ao próximo
+        // da roleta — redistribuir_sla_webhook). Fallback ao gestor →
+        // aguardando_corretor.
+        const statusInicial: "aguardando_atendimento" | "aguardando_corretor" | null = corretorId
           ? assignedToFallback
             ? "aguardando_corretor"
-            : "em_atendimento"
+            : "aguardando_atendimento"
           : null;
 
         const { data: lead, error } = await supabaseAdmin
@@ -230,10 +238,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         // Registra interação com o resumo da IA para aparecer no histórico do lead.
         if (resumo || blocoQualif) {
-          const conteudo = [
-            resumo ? resumo : null,
-            blocoQualif ? `\n${blocoQualif}` : null,
-          ]
+          const conteudo = [resumo ? resumo : null, blocoQualif ? `\n${blocoQualif}` : null]
             .filter(Boolean)
             .join("\n");
           await supabaseAdmin.from("interacoes").insert({
@@ -288,13 +293,11 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           }
         }
 
-
         // Sincroniza com Banco Operacional externo (idempotente por telefone_e164).
         // Falha aqui NÃO bloqueia a resposta — intake e roleta seguem intactos.
         try {
-          const { syncLeadToExternal, logEventoFunilExternal } = await import(
-            "@/lib/external-supabase.server"
-          );
+          const { syncLeadToExternal, logEventoFunilExternal } =
+            await import("@/lib/external-supabase.server");
           await syncLeadToExternal({
             crmLeadId: lead.id,
             telefone: data.telefone,

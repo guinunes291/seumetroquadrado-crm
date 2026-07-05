@@ -45,6 +45,9 @@ export function OfertaAtivaPage() {
   const [tab, setTab] = useState<"ativas" | "arquivadas">("ativas");
   const [confirmExcluir, setConfirmExcluir] = useState<OfertaAtiva | null>(null);
 
+  // O avanço na carteira chega via `oferta_ativa_leads`: o trigger do banco
+  // escreve no vínculo quando uma flag muda, então escutar `leads` aqui seria
+  // redundante (refetch pesado a cada update de qualquer lead do CRM).
   useRealtimeInvalidate(["ofertas_ativas", "oferta_ativa_leads"], [["ofertas-ativas"]]);
 
   const ativasQ = useQuery({
@@ -116,7 +119,9 @@ export function OfertaAtivaPage() {
         <div className="space-y-2 mb-3">
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Contatados</span>
+              <span title="Marcados na aba ou trabalhados na carteira desde a criação da lista">
+                Contatados
+              </span>
               <span>
                 {lista.totalContatados}/{lista.totalLeads} ({pctContatados}%)
               </span>
@@ -125,7 +130,9 @@ export function OfertaAtivaPage() {
           </div>
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span>Avançados</span>
+              <span title="Leads que progrediram de etapa na carteira desde a criação da lista">
+                Avançados
+              </span>
               <span>
                 {lista.totalAvancados} ({pctAvancados}%)
               </span>

@@ -207,7 +207,7 @@ export function DistribuicaoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Distribuição de Leads"
-        description="Roleta automática (a cada 5 min) por produtividade: ativo + dentro da cota diária + ≥90% da carteira fora de Aguardando atendimento. Sem corretor elegível, o lead fica na base e é distribuído assim que alguém cruzar os 90%."
+        description="Roleta automática (a cada minuto) por produtividade: ativo + dentro da cota diária + ≥90% da carteira fora de Aguardando atendimento. Leads de webhook/chatbot chegam como Aguardando atendimento e, se ficarem 5 min sem atendimento, são repassados ao próximo corretor presente (máx. 3 repasses). Sem corretor elegível, o lead fica na base e é distribuído assim que alguém cruzar os 90%."
         actions={
           <div className="flex items-center gap-2">
             <Button

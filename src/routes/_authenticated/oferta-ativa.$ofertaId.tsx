@@ -82,11 +82,25 @@ import {
 } from "@/lib/oferta-ativa";
 import { supabase } from "@/integrations/supabase/client";
 import { buildWhatsAppUrl } from "@/lib/templates";
-import { LEAD_STATUS_BADGE_TONE, leadStatusLabel } from "@/lib/leads";
+import {
+  LEAD_STATUS_BADGE_TONE,
+  leadStatusLabel,
+  type LeadStatus,
+  type StageLead,
+  type StageModal,
+} from "@/lib/leads";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useUserRoles } from "@/hooks/use-auth";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { OfertaEnvioMassa } from "@/components/oferta-envio-massa";
+import { LeadStageMenu } from "@/components/lead-stage-menu";
+import {
+  LeadStageModals,
+  type StageModalState,
+  type PerdidoState,
+} from "@/components/lead-stage/lead-stage-modals";
+import type { OfertaLeadInfo } from "@/lib/oferta-ativa";
 
 export const Route = createFileRoute("/_authenticated/oferta-ativa/$ofertaId")({
   head: () => ({ meta: [{ title: "Lista de Oferta Ativa — Seu Metro Quadrado" }] }),
@@ -123,16 +137,35 @@ function ToggleContatado({
   );
 }
 
+/** Monta o shape mínimo que os modais de etapa esperam a partir do embed. */
+function toStageLead(l: OfertaLeadInfo): StageLead {
+  return {
+    id: l.id,
+    nome: l.nome,
+    status: l.status,
+    corretor_id: l.corretor_id,
+    projeto_id: l.projeto_id,
+    projeto_nome: l.projeto_nome,
+    observacoes: l.observacoes,
+  };
+}
+
 function LinhaAcoes({
   row,
   onWhatsApp,
+  onPickDirect,
+  onPickModal,
+  onPickPerdido,
 }: {
   row: OfertaLeadRow;
   onWhatsApp: (row: OfertaLeadRow) => void;
+  onPickDirect: (row: OfertaLeadRow, target: LeadStatus) => void;
+  onPickModal: (row: OfertaLeadRow, modal: StageModal) => void;
+  onPickPerdido: (row: OfertaLeadRow) => void;
 }) {
   const l = row.lead!;
   return (
-    <div className="flex justify-end gap-1">
+    <div className="flex items-center justify-end gap-1">
       <Button size="sm" variant="outline" title="Enviar WhatsApp" onClick={() => onWhatsApp(row)}>
         <MessageCircle className="w-4 h-4" />
       </Button>
@@ -146,6 +179,13 @@ function LinhaAcoes({
           <ExternalLink className="w-4 h-4" />
         </Link>
       </Button>
+      {/* Avançar a etapa sem sair da lista — mesmo fluxo do kanban/carteira. */}
+      <LeadStageMenu
+        lead={l}
+        onPickDirect={(target) => onPickDirect(row, target)}
+        onPickModal={(modal) => onPickModal(row, modal)}
+        onPickPerdido={() => onPickPerdido(row)}
+      />
     </div>
   );
 }
@@ -157,7 +197,28 @@ function OfertaDetailPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
 
-  useRealtimeInvalidate(["oferta_ativa_leads", "ofertas_ativas"], [["oferta-detail", ofertaId]]);
+  // `leads` na escuta: o avanço na carteira reflete aqui via trigger do banco.
+  useRealtimeInvalidate(
+    ["oferta_ativa_leads", "ofertas_ativas", "leads"],
+    [["oferta-detail", ofertaId]],
+  );
+
+  // Avançar etapa direto da lista — mesmo roteamento do kanban: etapas com
+  // modal capturam dados; as demais mudam o status direto (otimista no hook).
+  const [modalState, setModalState] = useState<StageModalState>(null);
+  const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+  const statusM = useLeadStatusMutation({
+    invalidateKeys: [["oferta-detail", ofertaId], ["ofertas-ativas"], ["leads"], ["leads-kanban"]],
+  });
+  const avancarDireto = (row: OfertaLeadRow, target: LeadStatus) => {
+    if (row.lead) statusM.mutate({ id: row.lead.id, status: target });
+  };
+  const abrirModalEtapa = (row: OfertaLeadRow, modal: StageModal) => {
+    if (row.lead) setModalState({ modal, lead: toStageLead(row.lead) });
+  };
+  const marcarPerdido = (row: OfertaLeadRow) => {
+    if (row.lead) setPerdidoLead(toStageLead(row.lead));
+  };
 
   const q = useQuery({
     queryKey: ["oferta-detail", ofertaId],
@@ -273,10 +334,7 @@ function OfertaDetailPage() {
     queryKey: ["corretores-atribuir"],
     enabled: canManage && atribuirOpen,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nome")
-        .order("nome");
+      const { data, error } = await supabase.from("profiles").select("id, nome").order("nome");
       if (error) throw error;
       return data ?? [];
     },
@@ -293,9 +351,7 @@ function OfertaDetailPage() {
         setCorretorSel(new Set());
       } else {
         const n = res.criadas?.length ?? 0;
-        toast.success(
-          `Lista dividida em ${n} corretor(es). Original arquivada.`,
-        );
+        toast.success(`Lista dividida em ${n} corretor(es). Original arquivada.`);
         qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
         setAtribuirOpen(false);
         setCorretorSel(new Set());
@@ -459,9 +515,7 @@ function OfertaDetailPage() {
                       {oferta.status !== "arquivada" && (
                         <DropdownMenuItem
                           onClick={() => {
-                            setCorretorSel(
-                              new Set(oferta.corretor_id ? [oferta.corretor_id] : []),
-                            );
+                            setCorretorSel(new Set(oferta.corretor_id ? [oferta.corretor_id] : []));
                             setAtribuirOpen(true);
                           }}
                         >
@@ -525,7 +579,12 @@ function OfertaDetailPage() {
           <p className="text-2xl font-semibold">{statsAll.total}</p>
         </div>
         <div className="bg-card border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">Contatados</p>
+          <p
+            className="text-xs text-muted-foreground"
+            title="Marcados na aba ou trabalhados na carteira desde a criação da lista"
+          >
+            Contatados <span className="opacity-70">· desde a criação</span>
+          </p>
           <p className="text-2xl font-semibold">
             {statsAll.contatados}{" "}
             <span className="text-sm text-muted-foreground">({statsAll.pctContatados}%)</span>
@@ -533,7 +592,12 @@ function OfertaDetailPage() {
           <Progress value={statsAll.pctContatados} className="h-1.5 mt-2" />
         </div>
         <div className="bg-card border rounded-xl p-4">
-          <p className="text-xs text-muted-foreground">Avançados</p>
+          <p
+            className="text-xs text-muted-foreground"
+            title="Leads que progrediram de etapa na carteira desde a criação da lista"
+          >
+            Avançados <span className="opacity-70">· desde a criação</span>
+          </p>
           <p className="text-2xl font-semibold">
             {statsAll.avancados}{" "}
             <span className="text-sm text-muted-foreground">({statsAll.pctAvancados}%)</span>
@@ -744,7 +808,13 @@ function OfertaDetailPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <LinhaAcoes row={row} onWhatsApp={abrirWhatsApp} />
+                        <LinhaAcoes
+                          row={row}
+                          onWhatsApp={abrirWhatsApp}
+                          onPickDirect={avancarDireto}
+                          onPickModal={abrirModalEtapa}
+                          onPickPerdido={marcarPerdido}
+                        />
                       </TableCell>
                     </TableRow>
                   );
@@ -798,7 +868,13 @@ function OfertaDetailPage() {
                     </div>
                     <ToggleContatado row={row} onToggle={toggleContato} />
                   </div>
-                  <LinhaAcoes row={row} onWhatsApp={abrirWhatsApp} />
+                  <LinhaAcoes
+                    row={row}
+                    onWhatsApp={abrirWhatsApp}
+                    onPickDirect={avancarDireto}
+                    onPickModal={abrirModalEtapa}
+                    onPickPerdido={marcarPerdido}
+                  />
                 </div>
               );
             })}
@@ -813,6 +889,19 @@ function OfertaDetailPage() {
           )}
         </>
       )}
+
+      {/* Modais das etapas que exigem dados (agendar, visita, crédito, contrato)
+          + "perdido" — os mesmos do kanban, mudando o status real na carteira. */}
+      <LeadStageModals
+        modalState={modalState}
+        onModalOpenChange={(o) => !o && setModalState(null)}
+        perdidoLead={perdidoLead}
+        onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+        onDone={() => {
+          qc.invalidateQueries({ queryKey: ["oferta-detail", ofertaId] });
+          qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
+        }}
+      />
 
       <OfertaEnvioMassa
         open={envioOpen}
@@ -874,9 +963,8 @@ function OfertaDetailPage() {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Marque <strong>um corretor</strong> para trocar o dono da lista, ou{" "}
-              <strong>vários</strong> para dividir os {statsAll.total} leads igualmente entre
-              eles. Ao dividir, esta lista é arquivada e uma nova lista é criada para cada
-              corretor.
+              <strong>vários</strong> para dividir os {statsAll.total} leads igualmente entre eles.
+              Ao dividir, esta lista é arquivada e uma nova lista é criada para cada corretor.
             </p>
             <div className="rounded-md border max-h-72 overflow-y-auto divide-y">
               {corretoresQ.isLoading ? (
@@ -913,9 +1001,7 @@ function OfertaDetailPage() {
                 <Users className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>
                   {statsAll.total} leads serão distribuídos igualmente:{" "}
-                  <strong>
-                    ~{Math.floor(statsAll.total / corretorSel.size)} por corretor
-                  </strong>
+                  <strong>~{Math.floor(statsAll.total / corretorSel.size)} por corretor</strong>
                   {statsAll.total % corretorSel.size !== 0 &&
                     ` (${statsAll.total % corretorSel.size} corretor(es) recebem 1 lead a mais).`}
                 </span>
@@ -939,8 +1025,6 @@ function OfertaDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
 
       <AlertDialog open={!!confirmBulk} onOpenChange={(o) => !o && setConfirmBulk(null)}>
         <AlertDialogContent>

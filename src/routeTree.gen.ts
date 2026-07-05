@@ -13,6 +13,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
@@ -22,7 +23,6 @@ import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authent
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
-import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authenticated/links-uteis'
@@ -84,6 +84,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedVitrineRoute = AuthenticatedVitrineRouteImport.update({
+  id: '/vitrine',
+  path: '/vitrine',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTemplatesRoute = AuthenticatedTemplatesRouteImport.update({
   id: '/templates',
   path: '/templates',
@@ -128,11 +133,6 @@ const AuthenticatedMeuPainelRoute = AuthenticatedMeuPainelRouteImport.update({
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   id: '/metas',
   path: '/metas',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedVitrineRoute = AuthenticatedVitrineRouteImport.update({
-  id: '/vitrine',
-  path: '/vitrine',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMatchRoute = AuthenticatedMatchRouteImport.update({
@@ -379,7 +379,6 @@ export interface FileRoutesByFullPath {
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
-  '/vitrine': typeof AuthenticatedVitrineRoute
   '/match': typeof AuthenticatedMatchRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -390,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/vitrine': typeof AuthenticatedVitrineRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -434,7 +434,6 @@ export interface FileRoutesByTo {
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
-  '/vitrine': typeof AuthenticatedVitrineRoute
   '/match': typeof AuthenticatedMatchRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -445,6 +444,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/vitrine': typeof AuthenticatedVitrineRoute
   '/': typeof AuthenticatedIndexRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
@@ -492,7 +492,6 @@ export interface FileRoutesById {
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/_authenticated/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
-  '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
   '/_authenticated/match': typeof AuthenticatedMatchRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
@@ -503,6 +502,7 @@ export interface FileRoutesById {
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
+  '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
@@ -551,7 +551,6 @@ export interface FileRouteTypes {
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
-    | '/vitrine'
     | '/match'
     | '/metas'
     | '/meu-painel'
@@ -562,6 +561,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/tarefas'
     | '/templates'
+    | '/vitrine'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
@@ -606,7 +606,6 @@ export interface FileRouteTypes {
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
-    | '/vitrine'
     | '/match'
     | '/metas'
     | '/meu-painel'
@@ -617,6 +616,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/tarefas'
     | '/templates'
+    | '/vitrine'
     | '/'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
@@ -663,7 +663,6 @@ export interface FileRouteTypes {
     | '/_authenticated/leads-por-corretor'
     | '/_authenticated/links-uteis'
     | '/_authenticated/lixeira'
-    | '/_authenticated/vitrine'
     | '/_authenticated/match'
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
@@ -674,6 +673,7 @@ export interface FileRouteTypes {
     | '/_authenticated/relatorios'
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
+    | '/_authenticated/vitrine'
     | '/_authenticated/'
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/oferta-ativa/$ofertaId'
@@ -749,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/vitrine': {
+      id: '/_authenticated/vitrine'
+      path: '/vitrine'
+      fullPath: '/vitrine'
+      preLoaderRoute: typeof AuthenticatedVitrineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/templates': {
       id: '/_authenticated/templates'
       path: '/templates'
@@ -810,13 +817,6 @@ declare module '@tanstack/react-router' {
       path: '/metas'
       fullPath: '/metas'
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/vitrine': {
-      id: '/_authenticated/vitrine'
-      path: '/vitrine'
-      fullPath: '/vitrine'
-      preLoaderRoute: typeof AuthenticatedVitrineRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/match': {
@@ -1127,7 +1127,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
   AuthenticatedLinksUteisRoute: typeof AuthenticatedLinksUteisRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
-  AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
   AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
@@ -1138,6 +1137,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
+  AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
   AuthenticatedOfertaAtivaOfertaIdRoute: typeof AuthenticatedOfertaAtivaOfertaIdRoute
@@ -1166,7 +1166,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,
   AuthenticatedLinksUteisRoute: AuthenticatedLinksUteisRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
-  AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,
   AuthenticatedMatchRoute: AuthenticatedMatchRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
@@ -1177,6 +1176,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
+  AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
   AuthenticatedOfertaAtivaOfertaIdRoute: AuthenticatedOfertaAtivaOfertaIdRoute,
@@ -1226,3 +1226,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

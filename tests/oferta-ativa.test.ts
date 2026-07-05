@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  AVANCADO_STATUSES,
-  isLeadAvancado,
-  resolveAvancado,
   computeOfertaStats,
   filterOfertaLeads,
   normalizeOfertaFiltros,
@@ -25,49 +22,19 @@ function vinculo(over: Partial<OfertaLeadRow> & { status?: LeadStatus } = {}): O
       nome: "João da Silva",
       telefone: "(11) 98765-4321",
       projeto_nome: "Residencial Aurora",
+      projeto_id: "p1",
+      corretor_id: "u1",
+      observacoes: null,
       status: status ?? "novo",
     },
     ...resto,
   };
 }
 
-describe("isLeadAvancado", () => {
-  it("considera avançados os status do funil a partir de agendado (incluindo legados)", () => {
-    for (const s of AVANCADO_STATUSES) expect(isLeadAvancado(s)).toBe(true);
-    expect(isLeadAvancado("qualificado")).toBe(true);
-    expect(isLeadAvancado("proposta_enviada")).toBe(true);
-    expect(isLeadAvancado("pos_venda")).toBe(true);
-  });
-
-  it("não considera avançados os status iniciais, perdido ou valores nulos", () => {
-    for (const s of [
-      "novo",
-      "aguardando_atendimento",
-      "aguardando_retorno",
-      "em_atendimento",
-      "perdido",
-    ])
-      expect(isLeadAvancado(s)).toBe(false);
-    expect(isLeadAvancado(null)).toBe(false);
-    expect(isLeadAvancado(undefined)).toBe(false);
-    expect(isLeadAvancado("")).toBe(false);
-  });
-});
-
-describe("resolveAvancado", () => {
-  it("deriva do status atual do lead quando ele está visível (ignora a flag congelada)", () => {
-    expect(resolveAvancado(vinculo({ avancado: false, status: "agendado" }))).toBe(true);
-    expect(resolveAvancado(vinculo({ avancado: true, status: "novo" }))).toBe(false);
-  });
-
-  it("cai para a flag do snapshot quando o lead saiu do escopo", () => {
-    expect(resolveAvancado({ avancado: true, lead: null })).toBe(true);
-    expect(resolveAvancado({ avancado: false, lead: null })).toBe(false);
-    expect(resolveAvancado({ avancado: true })).toBe(true);
-  });
-});
-
 describe("computeOfertaStats", () => {
+  // Semântica delta: `contatado`/`avancado` medem o progresso feito depois que
+  // o lead entrou na lista e são mantidos pelo banco (trg_oferta_sync_status),
+  // independentes do status atual visível no embed.
   it("retorna zeros para lista vazia (sem divisão por zero)", () => {
     expect(computeOfertaStats([])).toEqual({
       total: 0,
@@ -78,30 +45,35 @@ describe("computeOfertaStats", () => {
     });
   });
 
-  it("conta e arredonda percentuais", () => {
+  it("conta pelas flags mantidas pelo banco e arredonda percentuais", () => {
     const rows = [
-      vinculo({ id: "a", contatado: true, status: "agendado" }),
-      vinculo({ id: "b", contatado: false, status: "novo" }),
-      vinculo({ id: "c", contatado: false, status: "perdido" }),
+      vinculo({ id: "a", contatado: true, avancado: true, status: "agendado" }),
+      vinculo({ id: "b", contatado: false, avancado: false, status: "novo" }),
+      vinculo({ id: "c", contatado: true, avancado: false, status: "perdido" }),
     ];
     const s = computeOfertaStats(rows);
     expect(s.total).toBe(3);
-    expect(s.contatados).toBe(1);
+    expect(s.contatados).toBe(2);
     expect(s.avancados).toBe(1);
-    expect(s.pctContatados).toBe(33); // 1/3 arredondado
-    expect(s.pctAvancados).toBe(33);
+    expect(s.pctContatados).toBe(67); // 2/3 arredondado
+    expect(s.pctAvancados).toBe(33); // 1/3 arredondado
+  });
+
+  it("não deriva do status atual do lead — a flag é a verdade", () => {
+    // Lead atualmente em status avançado, mas que já estava assim ao entrar na
+    // lista (flag false) → não conta como avanço da campanha.
+    const rows = [
+      vinculo({ id: "a", avancado: false, status: "agendado" }),
+      // Lead fora do escopo RLS (embed null) com avanço registrado pelo banco.
+      { id: "b", contatado: true, contatado_em: null, avancado: true, lead: null },
+    ];
+    const s = computeOfertaStats(rows);
+    expect(s.avancados).toBe(1);
   });
 
   it("chega a 100% quando todos contatados", () => {
     const rows = [vinculo({ id: "a", contatado: true }), vinculo({ id: "b", contatado: true })];
     expect(computeOfertaStats(rows).pctContatados).toBe(100);
-  });
-
-  it("usa a flag congelada para vínculos sem lead visível", () => {
-    const rows = [{ contatado: true, avancado: true, lead: null }, vinculo({ status: "novo" })];
-    const s = computeOfertaStats(rows);
-    expect(s.total).toBe(2);
-    expect(s.avancados).toBe(1);
   });
 });
 
@@ -117,6 +89,9 @@ describe("filterOfertaLeads", () => {
         nome: "Maria José",
         telefone: "(21) 91234-5678",
         projeto_nome: null,
+        projeto_id: null,
+        corretor_id: null,
+        observacoes: null,
         status: "agendado",
       },
     }),
