@@ -91,7 +91,7 @@ export function KanbanBoard() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, created_at",
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, created_at",
         )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
