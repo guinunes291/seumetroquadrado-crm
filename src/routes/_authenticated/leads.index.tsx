@@ -744,6 +744,44 @@ function LeadsPage() {
     [filtered, pageSafe],
   );
 
+  // Timeouts de repasse (5 min p/ chatbot/webhook etc.) e infos por lead
+  // (data_distribuicao + tentativas) para o timer visual no card/linha.
+  const transferTimeouts = useTransferTimeouts();
+  const aguardandoIds = useMemo(
+    () =>
+      paginated
+        .filter((l) => l.status === "aguardando_atendimento")
+        .map((l) => l.id),
+    [paginated],
+  );
+  const { data: transferInfoRows } = useQuery({
+    queryKey: ["leads-transfer-info", aguardandoIds],
+    enabled: aguardandoIds.length > 0,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, data_distribuicao, tentativas_redistribuicao")
+        .in("id", aguardandoIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const transferInfoMap = useMemo(() => {
+    const m = new Map<
+      string,
+      { data_distribuicao: string | null; tentativas_redistribuicao: number | null }
+    >();
+    (transferInfoRows ?? []).forEach((r) =>
+      m.set(r.id as string, {
+        data_distribuicao: (r.data_distribuicao as string | null) ?? null,
+        tentativas_redistribuicao:
+          (r.tentativas_redistribuicao as number | null) ?? null,
+      }),
+    );
+    return m;
+  }, [transferInfoRows]);
+
   // Volta para a 1ª página quando os filtros mudam.
   useEffect(() => {
     setPage(1);
