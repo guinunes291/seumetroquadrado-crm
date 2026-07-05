@@ -1607,6 +1607,7 @@ function LeadsPage() {
                                 if (!info) return null;
                                 return (
                                   <TransferSlaBadge
+                                    leadId={l.id}
                                     origem={l.origem}
                                     status={l.status}
                                     dataDistribuicao={info.data_distribuicao}
@@ -1733,6 +1734,7 @@ function LeadsPage() {
                           if (!info) return null;
                           return (
                             <TransferSlaBadge
+                              leadId={l.id}
                               origem={l.origem}
                               status={l.status}
                               dataDistribuicao={info.data_distribuicao}

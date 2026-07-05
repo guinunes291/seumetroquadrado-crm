@@ -276,6 +276,7 @@ export function KanbanBoard() {
                               <TransferSlaBadge
                                 compact
                                 showBar
+                                leadId={lead.id}
                                 origem={lead.origem}
                                 status={lead.status}
                                 dataDistribuicao={lead.data_distribuicao}

@@ -2701,6 +2701,10 @@ export type Database = {
           tipo: string
         }[]
       }
+      disparar_repasse_sla_lead: {
+        Args: { _lead_id: string }
+        Returns: boolean
+      }
       distribuir_lead: {
         Args: {
           _distribuido_por?: string
