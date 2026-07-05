@@ -638,18 +638,21 @@ export type Database = {
           origem: Database["public"]["Enums"]["lead_origem"]
           sla_minutos: number
           timeout_horas: number
+          timeout_minutos: number | null
           updated_at: string
         }
         Insert: {
           origem: Database["public"]["Enums"]["lead_origem"]
           sla_minutos?: number
           timeout_horas?: number
+          timeout_minutos?: number | null
           updated_at?: string
         }
         Update: {
           origem?: Database["public"]["Enums"]["lead_origem"]
           sla_minutos?: number
           timeout_horas?: number
+          timeout_minutos?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -1099,6 +1102,7 @@ export type Database = {
           utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          via_webhook: boolean
           visita_data: string | null
           visita_empreendimento: string | null
           visita_hora: string | null
@@ -1164,6 +1168,7 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          via_webhook?: boolean
           visita_data?: string | null
           visita_empreendimento?: string | null
           visita_hora?: string | null
@@ -1229,6 +1234,7 @@ export type Database = {
           utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
+          via_webhook?: boolean
           visita_data?: string | null
           visita_empreendimento?: string | null
           visita_hora?: string | null
@@ -2477,6 +2483,7 @@ export type Database = {
           utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
+          via_webhook: boolean
           visita_data: string | null
           visita_empreendimento: string | null
           visita_hora: string | null
@@ -2753,19 +2760,33 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
-      leads_com_sla: {
-        Args: { _corretor?: string; _df?: string; _di?: string }
-        Returns: {
-          lead_id: string
-          minutos_decorridos: number
-          nome: string
-          sla_minutos: number
-          sla_status: string
-          status: string
-          telefone: string
-          temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
-        }[]
-      }
+      leads_com_sla:
+        | {
+            Args: { _corretor?: string }
+            Returns: {
+              lead_id: string
+              minutos_decorridos: number
+              nome: string
+              sla_minutos: number
+              sla_status: string
+              status: string
+              telefone: string
+              temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
+            }[]
+          }
+        | {
+            Args: { _corretor?: string; _df?: string; _di?: string }
+            Returns: {
+              lead_id: string
+              minutos_decorridos: number
+              nome: string
+              sla_minutos: number
+              sla_status: string
+              status: string
+              telefone: string
+              temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
+            }[]
+          }
       leads_filtered: {
         Args: {
           _corretor?: string
@@ -2835,6 +2856,7 @@ export type Database = {
       processar_distribuicao_automatica: { Args: never; Returns: Json }
       recalcular_temperatura_leads: { Args: never; Returns: number }
       redistribuir_leads_parados: { Args: never; Returns: number }
+      redistribuir_sla_webhook: { Args: never; Returns: number }
       regenerar_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
@@ -2889,6 +2911,10 @@ export type Database = {
           tempo_mediana_min: number
           tempo_medio_min: number
         }[]
+      }
+      transferir_leads: {
+        Args: { _corretor: string; _ids: string[] }
+        Returns: number
       }
     }
     Enums: {
