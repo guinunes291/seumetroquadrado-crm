@@ -122,6 +122,8 @@ export function KanbanBoard() {
     (slaRows ?? []).forEach((r) => m.set(r.lead_id, r));
     return m;
   }, [slaRows]);
+  const transferTimeouts = useTransferTimeouts();
+
 
   // Substitui polling por realtime
   useRealtimeInvalidate("leads", [["leads-kanban"], ["leads-sla"]]);
