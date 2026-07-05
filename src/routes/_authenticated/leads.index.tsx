@@ -1728,6 +1728,21 @@ function LeadsPage() {
                             {leadStatusLabel(l.status)}
                           </Badge>
                         </div>
+                        {(() => {
+                          const info = transferInfoMap.get(l.id);
+                          if (!info) return null;
+                          return (
+                            <TransferSlaBadge
+                              origem={l.origem}
+                              status={l.status}
+                              dataDistribuicao={info.data_distribuicao}
+                              tentativas={info.tentativas_redistribuicao}
+                              timeouts={transferTimeouts}
+                              showBar
+                            />
+                          );
+                        })()}
+
 
                         <div className="text-xs text-muted-foreground capitalize">
                           {l.projeto_nome || "Sem empreendimento"} · {l.origem.replace(/_/g, " ")}
