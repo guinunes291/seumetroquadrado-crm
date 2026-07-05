@@ -146,21 +146,24 @@ export function TransferSlaBadge({
     if (Date.now() - ultimo > 60_000) {
       firingRef.current = true;
       disparadoEm.set(leadId, Date.now());
-      void supabase
-        .rpc("disparar_repasse_sla_lead" as never, { _lead_id: leadId } as never)
-        .then(({ data }: { data: unknown }) => {
+      (async () => {
+        try {
+          const { data } = await supabase.rpc(
+            "disparar_repasse_sla_lead" as never,
+            { _lead_id: leadId } as never,
+          );
           if (data === true) {
             qc.invalidateQueries({ queryKey: ["leads"] });
             qc.invalidateQueries({ queryKey: ["leads-transfer-info"] });
             qc.invalidateQueries({ queryKey: ["kanban-leads"] });
           }
-        })
-        .catch(() => {
+        } catch {
           /* silencioso — cron de 1 min segue como fallback */
-        })
-        .finally(() => {
+        } finally {
           firingRef.current = false;
-        });
+        }
+      })();
+
     }
   }
 
