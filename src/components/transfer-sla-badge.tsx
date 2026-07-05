@@ -139,6 +139,32 @@ export function TransferSlaBadge({
   const restanteSec = Math.ceil(restanteMs / 1000);
   const ratio = decorridosMs / Math.max(totalMs, 1);
 
+  // Ao chegar em 0:00, dispara o repasse imediato (RPC idempotente com os
+  // mesmos guarda-corpos do cron). Dedup: 60s por lead + por sessão.
+  if (leadId && ratio >= 1 && !firingRef.current) {
+    const ultimo = disparadoEm.get(leadId) ?? 0;
+    if (Date.now() - ultimo > 60_000) {
+      firingRef.current = true;
+      disparadoEm.set(leadId, Date.now());
+      void supabase
+        .rpc("disparar_repasse_sla_lead" as never, { _lead_id: leadId } as never)
+        .then(({ data }: { data: unknown }) => {
+          if (data === true) {
+            qc.invalidateQueries({ queryKey: ["leads"] });
+            qc.invalidateQueries({ queryKey: ["leads-transfer-info"] });
+            qc.invalidateQueries({ queryKey: ["kanban-leads"] });
+          }
+        })
+        .catch(() => {
+          /* silencioso — cron de 1 min segue como fallback */
+        })
+        .finally(() => {
+          firingRef.current = false;
+        });
+    }
+  }
+
+
   const status_ = ratio >= 1 ? "estourado" : ratio > 0.6 ? "atencao" : "ok";
   const tone =
     status_ === "estourado"
