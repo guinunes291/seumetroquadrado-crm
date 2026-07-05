@@ -23,6 +23,9 @@ import { supabase } from "@/integrations/supabase/client";
  *   timeout_minutos` estoura.
  * - Máximo de 3 repasses (`tentativas_redistribuicao < 3`); depois disso
  *   o lead fica com o último corretor e cai na triagem manual.
+ *
+ * O contador tica de segundo em segundo (MM:SS) e opcionalmente exibe uma
+ * barra linear com o tempo restante — para o corretor sentir o tempo passar.
  */
 
 type Row = { origem: string; timeout_minutos: number };
@@ -56,15 +59,17 @@ interface TransferSlaBadgeProps {
   /** Map origem→timeout, para evitar 1 query por card. */
   timeouts: Map<string, number>;
   compact?: boolean;
+  /** Exibe uma barra linear com o tempo restante embaixo do badge. */
+  showBar?: boolean;
   className?: string;
 }
 
-function fmt(min: number) {
-  const abs = Math.abs(min);
-  if (abs < 60) return `${abs}m`;
-  const h = Math.floor(abs / 60);
-  const m = abs % 60;
-  return m > 0 ? `${h}h${m}m` : `${h}h`;
+function mmss(totalSeconds: number) {
+  const sign = totalSeconds < 0 ? "-" : "";
+  const s = Math.abs(Math.floor(totalSeconds));
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${sign}${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
 export function TransferSlaBadge({
@@ -74,12 +79,14 @@ export function TransferSlaBadge({
   tentativas,
   timeouts,
   compact,
+  showBar,
   className,
 }: TransferSlaBadgeProps) {
   const [, force] = useState(0);
 
   useEffect(() => {
-    const id = setInterval(() => force((t) => t + 1), 15000);
+    // Tica de 1s — mostrar 4:59, 4:58, 4:57… realmente contando.
+    const id = setInterval(() => force((t) => (t + 1) % 1_000_000), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -117,47 +124,58 @@ export function TransferSlaBadge({
     );
   }
 
-  const ref = new Date(dataDistribuicao);
-  const decorridos = Math.max(0, Math.floor((Date.now() - ref.getTime()) / 60000));
-  const restante = timeoutMin - decorridos;
-  const ratio = decorridos / Math.max(timeoutMin, 1);
+  const ref = new Date(dataDistribuicao).getTime();
+  const totalMs = timeoutMin * 60_000;
+  const decorridosMs = Math.max(0, Date.now() - ref);
+  const restanteMs = totalMs - decorridosMs;
+  const restanteSec = Math.ceil(restanteMs / 1000);
+  const ratio = decorridosMs / Math.max(totalMs, 1);
 
-  const status_ =
-    ratio > 1 ? "estourado" : ratio > 0.6 ? "atencao" : "ok";
+  const status_ = ratio >= 1 ? "estourado" : ratio > 0.6 ? "atencao" : "ok";
   const tone =
     status_ === "estourado"
       ? INTENT_BADGE_BORDERED.danger
       : status_ === "atencao"
         ? INTENT_BADGE_BORDERED.warning
         : INTENT_BADGE_BORDERED.success;
+  const barTone =
+    status_ === "estourado"
+      ? "bg-destructive"
+      : status_ === "atencao"
+        ? "bg-warning"
+        : "bg-success";
   const Icon = status_ === "estourado" ? Flame : status_ === "atencao" ? AlertTriangle : Timer;
 
-  const restanteLabel = status_ === "estourado" ? `−${fmt(restante)}` : fmt(restante);
+  const label = mmss(restanteSec);
+  // Barra: enche de 100% → 0% conforme o tempo escoa.
+  const pct = Math.max(0, Math.min(100, (1 - ratio) * 100));
 
-  return (
+  const badge = (
+    <Badge
+      variant="outline"
+      className={cn(
+        "gap-1 px-1.5 py-0 h-5 text-[10px] font-mono border tabular-nums",
+        tone,
+        className,
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {compact ? label : <span>Repasse {label}</span>}
+    </Badge>
+  );
+
+  const content = (
     <TooltipProvider delayDuration={150}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge
-            variant="outline"
-            className={cn(
-              "gap-1 px-1.5 py-0 h-5 text-[10px] font-mono border",
-              tone,
-              className,
-            )}
-          >
-            <Icon className="h-3 w-3" />
-            {compact ? restanteLabel : <span>Repasse {restanteLabel}</span>}
-          </Badge>
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="text-xs space-y-0.5">
           <div className="font-medium">Repasse automático em {timeoutMin} min</div>
           <div>Origem: {origem}</div>
-          <div>Decorrido: {fmt(decorridos)}</div>
+          <div>Restante: {label}</div>
           <div>
             {status_ === "estourado"
-              ? `Estourado há ${fmt(restante)} — repasse no próximo ciclo (~1 min)`
-              : `Falta ${fmt(restante)} para repassar`}
+              ? `Estourado há ${label.replace("-", "")} — repasse no próximo ciclo (~1 min)`
+              : `Falta ${label} para repassar`}
           </div>
           <div className="text-muted-foreground">
             Repasses feitos: {tentativasNum}/3
@@ -165,5 +183,26 @@ export function TransferSlaBadge({
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+
+  if (!showBar) return content;
+
+  return (
+    <div className={cn("inline-flex flex-col gap-1 min-w-[92px]", className)}>
+      {content}
+      <div
+        className="h-1 w-full rounded-full bg-muted overflow-hidden"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(pct)}
+        aria-label={`Tempo restante ${label}`}
+      >
+        <div
+          className={cn("h-full transition-[width] duration-700 ease-linear", barTone)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
   );
 }
