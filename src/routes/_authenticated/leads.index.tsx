@@ -1595,12 +1595,29 @@ function LeadsPage() {
                             {l.origem.replace(/_/g, " ")}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
-                              variant="secondary"
-                            >
-                              {leadStatusLabel(l.status)}
-                            </Badge>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
+                                variant="secondary"
+                              >
+                                {leadStatusLabel(l.status)}
+                              </Badge>
+                              {(() => {
+                                const info = transferInfoMap.get(l.id);
+                                if (!info) return null;
+                                return (
+                                  <TransferSlaBadge
+                                    origem={l.origem}
+                                    status={l.status}
+                                    dataDistribuicao={info.data_distribuicao}
+                                    tentativas={info.tentativas_redistribuicao}
+                                    timeouts={transferTimeouts}
+                                    compact
+                                    showBar
+                                  />
+                                );
+                              })()}
+                            </div>
                           </TableCell>
                           <TableCell className="text-sm">
                             {l.corretor_id ? (
