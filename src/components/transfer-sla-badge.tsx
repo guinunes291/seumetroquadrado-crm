@@ -62,7 +62,12 @@ interface TransferSlaBadgeProps {
   /** Exibe uma barra linear com o tempo restante embaixo do badge. */
   showBar?: boolean;
   className?: string;
+  /** Se informado, dispara o repasse automático quando o timer chega a 0:00. */
+  leadId?: string;
 }
+
+/** Dedup global: cada lead só dispara a RPC uma vez por sessão + cooldown. */
+const disparadoEm = new Map<string, number>();
 
 function mmss(totalSeconds: number) {
   const sign = totalSeconds < 0 ? "-" : "";
