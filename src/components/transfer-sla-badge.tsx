@@ -86,8 +86,11 @@ export function TransferSlaBadge({
   compact,
   showBar,
   className,
+  leadId,
 }: TransferSlaBadgeProps) {
   const [, force] = useState(0);
+  const qc = useQueryClient();
+  const firingRef = useRef(false);
 
   useEffect(() => {
     // Tica de 1s — mostrar 4:59, 4:58, 4:57… realmente contando.
