@@ -46,6 +46,7 @@ type Lead = {
   temperatura: string | null;
   origem: string | null;
   data_distribuicao: string | null;
+  tentativas_redistribuicao: number | null;
   created_at: string;
 };
 
