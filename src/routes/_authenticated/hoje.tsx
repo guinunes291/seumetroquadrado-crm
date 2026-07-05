@@ -152,7 +152,8 @@ function MeuPainelPage() {
     return { ini: ini.toISOString(), fim: fim.toISOString() };
   }, []);
 
-  // Leads com SLA estourado (tempo por origem: Facebook 5min, demais 30min).
+  // Leads com SLA estourado (Facebook e leads chegados pelo webhook: 5min;
+  // demais: 30min — prazo efetivo calculado por leads_com_sla).
   const slaQ = useLeadsComSla(user?.id ?? null, !!user);
 
   // Leads quentes do corretor que ainda estão no funil ativo (prioridade nº 1).
@@ -685,11 +686,12 @@ function MeuPainelPage() {
                 })
               )}
               <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <Link to="/agendamentos" search={{ tab: "tarefas" }}>ver todas as tarefas</Link>
+                <Link to="/agendamentos" search={{ tab: "tarefas" }}>
+                  ver todas as tarefas
+                </Link>
               </Button>
             </CardContent>
           </Card>
-
         </div>
 
         {/* Guardrail anti-perda: leads ativos sem um próximo passo definido */}
@@ -810,7 +812,11 @@ function MeuPainelPage() {
               </>
             }
             hint={
-              <Link to="/ranking" search={{ tab: "conquistas" }} className="text-primary hover:underline">
+              <Link
+                to="/ranking"
+                search={{ tab: "conquistas" }}
+                className="text-primary hover:underline"
+              >
                 ver medalhas
               </Link>
             }

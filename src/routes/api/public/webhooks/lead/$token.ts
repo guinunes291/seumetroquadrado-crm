@@ -226,6 +226,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             utm_campaign: data.utm_campaign ?? null,
             utm_content: data.utm_content ?? null,
             corretor_id: corretorId,
+            // Canal de chegada: só leads via_webhook entram no SLA de minutos
+            // (redistribuir_sla_webhook). Incondicional — toda esta rota é webhook.
+            via_webhook: true,
             ...(statusInicial ? { status: statusInicial } : {}),
             ...(corretorId ? { data_distribuicao: new Date().toISOString() } : {}),
           } as never)
