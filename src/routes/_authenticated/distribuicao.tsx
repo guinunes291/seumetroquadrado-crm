@@ -211,6 +211,23 @@ export function DistribuicaoPage() {
     },
   });
 
+  const marcarPresenca = useMutation({
+    mutationFn: async ({ corretor_id, presente }: { corretor_id: string; presente: boolean }) => {
+      const { error } = await supabase.rpc("marcar_presenca_admin" as never, {
+        _corretor_id: corretor_id,
+        _presente: presente,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["corretores-min"] });
+      toast.success("Presença atualizada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const syncTokenFn = useServerFn(syncMetricWebhookTokenFn);
+
   const swap = (a: FilaRow, b: FilaRow) => {
     updateFila.mutate({ id: a.id, patch: { posicao: b.posicao } });
     updateFila.mutate({ id: b.id, patch: { posicao: a.posicao } });
@@ -218,6 +235,33 @@ export function DistribuicaoPage() {
 
   const corretoresNaFila = new Set((fila ?? []).map((f) => f.corretor_id));
   const corretoresForaDaFila = (corretores ?? []).filter((c) => !corretoresNaFila.has(c.id));
+
+  // "Próximo da vez": rodízio do webhook (presentes por last_lead_assigned_at)
+  // e motor interno (por posição na fila).
+  const proximoWebhookId = useMemo(() => {
+    const candidatos = (fila ?? [])
+      .filter((f) => f.ativo && f.leads_recebidos_hoje < f.max_leads_dia)
+      .map((f) => ({ f, c: corretoresMap.get(f.corretor_id) }))
+      .filter((x) => !!x.c && x.c!.presente);
+    candidatos.sort((a, b) => {
+      const la = a.c!.last_lead_assigned_at ? new Date(a.c!.last_lead_assigned_at).getTime() : 0;
+      const lb = b.c!.last_lead_assigned_at ? new Date(b.c!.last_lead_assigned_at).getTime() : 0;
+      return la - lb;
+    });
+    return candidatos[0]?.f.corretor_id ?? null;
+  }, [fila, corretoresMap]);
+
+  const proximoInternoId = useMemo(() => {
+    const elegiveis = (fila ?? [])
+      .filter(
+        (f) =>
+          f.ativo &&
+          f.leads_recebidos_hoje < f.max_leads_dia &&
+          (prodMap.get(f.corretor_id)?.elegivel ?? false),
+      )
+      .sort((a, b) => a.posicao - b.posicao);
+    return elegiveis[0]?.corretor_id ?? null;
+  }, [fila, prodMap]);
 
   return (
     <div className="space-y-6">
