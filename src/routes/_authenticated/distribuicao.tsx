@@ -334,9 +334,6 @@ export function DistribuicaoPage() {
             </div>
           </div>
 
-      <Card>
-        <CardContent className="pt-6 space-y-3">
-          <h2 className="text-sm font-semibold">Fila da roleta</h2>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -344,30 +341,62 @@ export function DistribuicaoPage() {
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Corretor</TableHead>
                   <TableHead>Produtividade</TableHead>
-                  <TableHead>Ativo</TableHead>
+                  <TableHead>
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-help underline decoration-dotted">
+                        Na roleta
+                      </TooltipTrigger>
+                      <TooltipContent>Participa da distribuição automática</TooltipContent>
+                    </Tooltip>
+                  </TableHead>
+                  <TableHead>
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-help underline decoration-dotted">
+                        Presente hoje
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        "Cheguei" marcado hoje — prioridade no rodízio do webhook
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableHead>
                   <TableHead>Recebidos hoje</TableHead>
                   <TableHead>Máx/dia</TableHead>
                   <TableHead>Última distribuição</TableHead>
+                  <TableHead>Última atribuição</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(fila ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       Nenhum corretor na fila. Adicione um abaixo.
                     </TableCell>
                   </TableRow>
                 )}
                 {(fila ?? []).map((row, idx, arr) => {
                   const c = corretoresMap.get(row.corretor_id);
+                  const isNextWebhook = row.corretor_id === proximoWebhookId;
+                  const isNextInterno = row.corretor_id === proximoInternoId;
                   return (
-                    <TableRow key={row.id}>
+                    <TableRow key={row.id} className={isNextWebhook ? "bg-emerald-500/5" : ""}>
                       <TableCell>
                         <Badge variant="outline">{idx + 1}</Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{c?.nome ?? "—"}</div>
+                        <div className="font-medium text-sm flex items-center gap-1">
+                          {c?.nome ?? "—"}
+                          {isNextWebhook && (
+                            <Badge className="ml-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/40">
+                              Próximo webhook
+                            </Badge>
+                          )}
+                          {isNextInterno && !isNextWebhook && (
+                            <Badge className="ml-1 bg-indigo-500/15 text-indigo-700 border-indigo-500/40">
+                              Próximo interno
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">{c?.email ?? ""}</div>
                       </TableCell>
                       <TableCell>
@@ -403,6 +432,21 @@ export function DistribuicaoPage() {
                         />
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={!!c?.presente}
+                            onCheckedChange={(v) =>
+                              marcarPresenca.mutate({ corretor_id: row.corretor_id, presente: v })
+                            }
+                          />
+                          {c?.presente && (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/40">
+                              hoje
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant={
                             row.leads_recebidos_hoje >= row.max_leads_dia
@@ -430,6 +474,11 @@ export function DistribuicaoPage() {
                       <TableCell className="text-xs text-muted-foreground">
                         {row.ultima_distribuicao
                           ? new Date(row.ultima_distribuicao).toLocaleString("pt-BR")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {c?.last_lead_assigned_at
+                          ? new Date(c.last_lead_assigned_at).toLocaleString("pt-BR")
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right space-x-1">
