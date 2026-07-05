@@ -286,12 +286,53 @@ export function DistribuicaoPage() {
             >
               Rodar agora
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const res = await syncTokenFn();
+                if (!res?.ok) {
+                  if (res?.reason === "missing_secret")
+                    toast.error("Secret N8N_METRICS_TOKEN não configurado");
+                  else if (res?.reason === "forbidden") toast.error("Sem permissão");
+                  else toast.error("Falha ao sincronizar token");
+                } else toast.success("Token do webhook n8n sincronizado");
+              }}
+            >
+              <Webhook className="h-3.5 w-3.5 mr-1" /> Sincronizar token n8n
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)}>
               Zerar cotas do dia
             </Button>
           </div>
         }
       />
+
+      <TooltipProvider delayDuration={200}>
+      <Card>
+        <CardContent className="pt-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Fila da roleta</h2>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <RadioTower className="h-3.5 w-3.5" />
+                Próximo webhook:{" "}
+                <strong className="text-foreground">
+                  {proximoWebhookId
+                    ? (corretoresMap.get(proximoWebhookId)?.nome ?? "—")
+                    : "sem presentes"}
+                </strong>
+              </span>
+              <span className="text-muted-foreground">
+                Próximo interno:{" "}
+                <strong className="text-foreground">
+                  {proximoInternoId
+                    ? (corretoresMap.get(proximoInternoId)?.nome ?? "—")
+                    : "sem elegíveis"}
+                </strong>
+              </span>
+            </div>
+          </div>
 
       <Card>
         <CardContent className="pt-6 space-y-3">
