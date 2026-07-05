@@ -125,6 +125,7 @@ import {
   type StageModalState,
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
+import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
