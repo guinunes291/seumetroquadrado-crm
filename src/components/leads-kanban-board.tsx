@@ -273,6 +273,14 @@ export function KanbanBoard() {
                                     referencia={lead.data_distribuicao ?? lead.created_at}
                                   />
                                 )}
+                              <TransferSlaBadge
+                                compact
+                                origem={lead.origem}
+                                status={lead.status}
+                                dataDistribuicao={lead.data_distribuicao}
+                                tentativas={lead.tentativas_redistribuicao}
+                                timeouts={transferTimeouts}
+                              />
                               {lead.temperatura && (
                                 <Badge
                                   variant="secondary"
