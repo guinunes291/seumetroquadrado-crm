@@ -770,6 +770,18 @@ function LeadDetailPage() {
                   }
                 />
               )}
+              <TransferSlaBadge
+                origem={lead.origem}
+                status={lead.status}
+                dataDistribuicao={
+                  (lead as { data_distribuicao?: string | null }).data_distribuicao ?? null
+                }
+                tentativas={
+                  (lead as { tentativas_redistribuicao?: number | null })
+                    .tentativas_redistribuicao ?? 0
+                }
+                timeouts={transferTimeouts}
+              />
             </div>
             {lead.status === "perdido" &&
               (lead as { motivo_perda_categoria?: string | null }).motivo_perda_categoria && (
