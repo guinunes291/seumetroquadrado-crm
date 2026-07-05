@@ -773,6 +773,7 @@ function LeadDetailPage() {
                 />
               )}
               <TransferSlaBadge
+                leadId={lead.id}
                 origem={lead.origem}
                 status={lead.status}
                 dataDistribuicao={
