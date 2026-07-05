@@ -391,6 +391,8 @@ function LeadDetailPage() {
 
   // SLA do lead (mesma fonte do Kanban: view leads_com_sla). O RPC aceita
   // `_corretor` e filtra no banco — evita varrer todos os leads para 1 badge.
+  const transferTimeouts = useTransferTimeouts();
+
   const { data: slaInfo } = useQuery({
     queryKey: ["lead-sla", leadId, lead?.corretor_id ?? null],
     enabled: !!lead,
