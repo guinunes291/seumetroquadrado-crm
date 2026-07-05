@@ -18,7 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowUp, ArrowDown, UserPlus2 } from "lucide-react";
+import { ArrowUp, ArrowDown, UserPlus2, RadioTower, Webhook } from "lucide-react";
+import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,7 +85,7 @@ export function DistribuicaoPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, nome, email, presente, presente_em")
+        .select("id, nome, email, presente, presente_em, last_lead_assigned_at")
         .eq("ativo", true)
         .order("nome");
       return data ?? [];
@@ -87,7 +95,13 @@ export function DistribuicaoPage() {
   const corretoresMap = useMemo(() => {
     const m = new Map<
       string,
-      { nome: string; email: string; presente: boolean; presente_em: string | null }
+      {
+        nome: string;
+        email: string;
+        presente: boolean;
+        presente_em: string | null;
+        last_lead_assigned_at: string | null;
+      }
     >();
     (corretores ?? []).forEach((c) =>
       m.set(c.id, {
@@ -98,6 +112,8 @@ export function DistribuicaoPage() {
           !!c.presente_em &&
           new Date(c.presente_em).toDateString() === new Date().toDateString(),
         presente_em: c.presente_em,
+        last_lead_assigned_at:
+          (c as { last_lead_assigned_at?: string | null }).last_lead_assigned_at ?? null,
       }),
     );
     return m;
