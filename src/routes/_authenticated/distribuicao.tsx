@@ -547,6 +547,7 @@ export function DistribuicaoPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </TooltipProvider>
     </div>
   );
 }
