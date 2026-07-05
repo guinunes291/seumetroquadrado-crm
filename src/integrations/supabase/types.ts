@@ -1495,6 +1495,30 @@ export type Database = {
           },
         ]
       }
+      metric_webhook_settings: {
+        Row: {
+          enabled: boolean
+          id: number
+          token: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          token?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          token?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       objecoes: {
         Row: {
           ativo: boolean
@@ -2848,6 +2872,10 @@ export type Database = {
         Returns: string
       }
       marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
+      marcar_presenca_admin: {
+        Args: { _corretor_id: string; _presente: boolean }
+        Returns: undefined
+      }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
@@ -2906,6 +2934,7 @@ export type Database = {
         Args: { _id: string; _tabela: string }
         Returns: boolean
       }
+      set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {

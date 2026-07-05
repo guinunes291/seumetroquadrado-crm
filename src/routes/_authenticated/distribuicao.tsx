@@ -18,7 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowUp, ArrowDown, UserPlus2 } from "lucide-react";
+import { ArrowUp, ArrowDown, UserPlus2, RadioTower, Webhook } from "lucide-react";
+import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,7 +85,7 @@ export function DistribuicaoPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, nome, email, presente, presente_em")
+        .select("id, nome, email, presente, presente_em, last_lead_assigned_at")
         .eq("ativo", true)
         .order("nome");
       return data ?? [];
@@ -87,7 +95,13 @@ export function DistribuicaoPage() {
   const corretoresMap = useMemo(() => {
     const m = new Map<
       string,
-      { nome: string; email: string; presente: boolean; presente_em: string | null }
+      {
+        nome: string;
+        email: string;
+        presente: boolean;
+        presente_em: string | null;
+        last_lead_assigned_at: string | null;
+      }
     >();
     (corretores ?? []).forEach((c) =>
       m.set(c.id, {
@@ -98,6 +112,8 @@ export function DistribuicaoPage() {
           !!c.presente_em &&
           new Date(c.presente_em).toDateString() === new Date().toDateString(),
         presente_em: c.presente_em,
+        last_lead_assigned_at:
+          (c as { last_lead_assigned_at?: string | null }).last_lead_assigned_at ?? null,
       }),
     );
     return m;
@@ -195,6 +211,23 @@ export function DistribuicaoPage() {
     },
   });
 
+  const marcarPresenca = useMutation({
+    mutationFn: async ({ corretor_id, presente }: { corretor_id: string; presente: boolean }) => {
+      const { error } = await supabase.rpc("marcar_presenca_admin" as never, {
+        _corretor_id: corretor_id,
+        _presente: presente,
+      } as never);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["corretores-min"] });
+      toast.success("Presença atualizada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const syncTokenFn = useServerFn(syncMetricWebhookTokenFn);
+
   const swap = (a: FilaRow, b: FilaRow) => {
     updateFila.mutate({ id: a.id, patch: { posicao: b.posicao } });
     updateFila.mutate({ id: b.id, patch: { posicao: a.posicao } });
@@ -202,6 +235,33 @@ export function DistribuicaoPage() {
 
   const corretoresNaFila = new Set((fila ?? []).map((f) => f.corretor_id));
   const corretoresForaDaFila = (corretores ?? []).filter((c) => !corretoresNaFila.has(c.id));
+
+  // "Próximo da vez": rodízio do webhook (presentes por last_lead_assigned_at)
+  // e motor interno (por posição na fila).
+  const proximoWebhookId = useMemo(() => {
+    const candidatos = (fila ?? [])
+      .filter((f) => f.ativo && f.leads_recebidos_hoje < f.max_leads_dia)
+      .map((f) => ({ f, c: corretoresMap.get(f.corretor_id) }))
+      .filter((x) => !!x.c && x.c!.presente);
+    candidatos.sort((a, b) => {
+      const la = a.c!.last_lead_assigned_at ? new Date(a.c!.last_lead_assigned_at).getTime() : 0;
+      const lb = b.c!.last_lead_assigned_at ? new Date(b.c!.last_lead_assigned_at).getTime() : 0;
+      return la - lb;
+    });
+    return candidatos[0]?.f.corretor_id ?? null;
+  }, [fila, corretoresMap]);
+
+  const proximoInternoId = useMemo(() => {
+    const elegiveis = (fila ?? [])
+      .filter(
+        (f) =>
+          f.ativo &&
+          f.leads_recebidos_hoje < f.max_leads_dia &&
+          (prodMap.get(f.corretor_id)?.elegivel ?? false),
+      )
+      .sort((a, b) => a.posicao - b.posicao);
+    return elegiveis[0]?.corretor_id ?? null;
+  }, [fila, prodMap]);
 
   return (
     <div className="space-y-6">
@@ -226,6 +286,21 @@ export function DistribuicaoPage() {
             >
               Rodar agora
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const res = await syncTokenFn();
+                if (!res?.ok) {
+                  if (res?.reason === "missing_secret")
+                    toast.error("Secret N8N_METRICS_TOKEN não configurado");
+                  else if (res?.reason === "forbidden") toast.error("Sem permissão");
+                  else toast.error("Falha ao sincronizar token");
+                } else toast.success("Token do webhook n8n sincronizado");
+              }}
+            >
+              <Webhook className="h-3.5 w-3.5 mr-1" /> Sincronizar token n8n
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setConfirmReset(true)}>
               Zerar cotas do dia
             </Button>
@@ -233,9 +308,32 @@ export function DistribuicaoPage() {
         }
       />
 
+      <TooltipProvider delayDuration={200}>
       <Card>
         <CardContent className="pt-6 space-y-3">
-          <h2 className="text-sm font-semibold">Fila da roleta</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Fila da roleta</h2>
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <RadioTower className="h-3.5 w-3.5" />
+                Próximo webhook:{" "}
+                <strong className="text-foreground">
+                  {proximoWebhookId
+                    ? (corretoresMap.get(proximoWebhookId)?.nome ?? "—")
+                    : "sem presentes"}
+                </strong>
+              </span>
+              <span className="text-muted-foreground">
+                Próximo interno:{" "}
+                <strong className="text-foreground">
+                  {proximoInternoId
+                    ? (corretoresMap.get(proximoInternoId)?.nome ?? "—")
+                    : "sem elegíveis"}
+                </strong>
+              </span>
+            </div>
+          </div>
+
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -243,30 +341,62 @@ export function DistribuicaoPage() {
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Corretor</TableHead>
                   <TableHead>Produtividade</TableHead>
-                  <TableHead>Ativo</TableHead>
+                  <TableHead>
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-help underline decoration-dotted">
+                        Na roleta
+                      </TooltipTrigger>
+                      <TooltipContent>Participa da distribuição automática</TooltipContent>
+                    </Tooltip>
+                  </TableHead>
+                  <TableHead>
+                    <Tooltip>
+                      <TooltipTrigger className="cursor-help underline decoration-dotted">
+                        Presente hoje
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        "Cheguei" marcado hoje — prioridade no rodízio do webhook
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableHead>
                   <TableHead>Recebidos hoje</TableHead>
                   <TableHead>Máx/dia</TableHead>
                   <TableHead>Última distribuição</TableHead>
+                  <TableHead>Última atribuição</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(fila ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       Nenhum corretor na fila. Adicione um abaixo.
                     </TableCell>
                   </TableRow>
                 )}
                 {(fila ?? []).map((row, idx, arr) => {
                   const c = corretoresMap.get(row.corretor_id);
+                  const isNextWebhook = row.corretor_id === proximoWebhookId;
+                  const isNextInterno = row.corretor_id === proximoInternoId;
                   return (
-                    <TableRow key={row.id}>
+                    <TableRow key={row.id} className={isNextWebhook ? "bg-emerald-500/5" : ""}>
                       <TableCell>
                         <Badge variant="outline">{idx + 1}</Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium text-sm">{c?.nome ?? "—"}</div>
+                        <div className="font-medium text-sm flex items-center gap-1">
+                          {c?.nome ?? "—"}
+                          {isNextWebhook && (
+                            <Badge className="ml-1 bg-emerald-500/15 text-emerald-700 border-emerald-500/40">
+                              Próximo webhook
+                            </Badge>
+                          )}
+                          {isNextInterno && !isNextWebhook && (
+                            <Badge className="ml-1 bg-indigo-500/15 text-indigo-700 border-indigo-500/40">
+                              Próximo interno
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">{c?.email ?? ""}</div>
                       </TableCell>
                       <TableCell>
@@ -302,6 +432,21 @@ export function DistribuicaoPage() {
                         />
                       </TableCell>
                       <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={!!c?.presente}
+                            onCheckedChange={(v) =>
+                              marcarPresenca.mutate({ corretor_id: row.corretor_id, presente: v })
+                            }
+                          />
+                          {c?.presente && (
+                            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/40">
+                              hoje
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant={
                             row.leads_recebidos_hoje >= row.max_leads_dia
@@ -329,6 +474,11 @@ export function DistribuicaoPage() {
                       <TableCell className="text-xs text-muted-foreground">
                         {row.ultima_distribuicao
                           ? new Date(row.ultima_distribuicao).toLocaleString("pt-BR")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {c?.last_lead_assigned_at
+                          ? new Date(c.last_lead_assigned_at).toLocaleString("pt-BR")
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right space-x-1">
@@ -446,6 +596,7 @@ export function DistribuicaoPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </TooltipProvider>
     </div>
   );
 }

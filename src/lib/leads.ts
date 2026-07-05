@@ -5,6 +5,7 @@ import { HUE_BADGE, HUE_COLUMN, type Hue } from "@/lib/status-tones";
 
 export type LeadStatus =
   | "novo"
+  | "aguardando_corretor"
   | "aguardando_atendimento"
   | "aguardando_retorno"
   | "em_atendimento"
@@ -33,6 +34,7 @@ export const LEAD_STATUS_ORDER: LeadStatus[] = [
 
 export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   novo: "Novo",
+  aguardando_corretor: "Aguardando corretor",
   aguardando_atendimento: "Aguardando atendimento",
   aguardando_retorno: "Aguardando retorno",
   em_atendimento: "Em atendimento",
@@ -50,6 +52,7 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
  *  busca, blitz) e coluna do kanban derivam daqui via lib/status-tones. */
 export const LEAD_STATUS_HUE: Record<LeadStatus, Hue> = {
   novo: "blue",
+  aguardando_corretor: "slate",
   aguardando_atendimento: "amber",
   aguardando_retorno: "yellow",
   em_atendimento: "violet",

@@ -262,7 +262,7 @@ export function CorretoresPage() {
                 <TableHead>Telefone</TableHead>
                 <TableHead>Equipe</TableHead>
                 <TableHead>Papel</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead title="Bloqueia o login/uso — não é a roleta">Conta ativa</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
