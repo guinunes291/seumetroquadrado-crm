@@ -25,6 +25,7 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { SlaBadge } from "@/components/sla-badge";
+import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 
 const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
@@ -45,6 +46,7 @@ type Lead = {
   temperatura: string | null;
   origem: string | null;
   data_distribuicao: string | null;
+  tentativas_redistribuicao: number | null;
   created_at: string;
 };
 
@@ -89,7 +91,7 @@ export function KanbanBoard() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, created_at",
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, created_at",
         )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
@@ -120,6 +122,8 @@ export function KanbanBoard() {
     (slaRows ?? []).forEach((r) => m.set(r.lead_id, r));
     return m;
   }, [slaRows]);
+  const transferTimeouts = useTransferTimeouts();
+
 
   // Substitui polling por realtime
   useRealtimeInvalidate("leads", [["leads-kanban"], ["leads-sla"]]);
@@ -269,6 +273,14 @@ export function KanbanBoard() {
                                     referencia={lead.data_distribuicao ?? lead.created_at}
                                   />
                                 )}
+                              <TransferSlaBadge
+                                compact
+                                origem={lead.origem}
+                                status={lead.status}
+                                dataDistribuicao={lead.data_distribuicao}
+                                tentativas={lead.tentativas_redistribuicao}
+                                timeouts={transferTimeouts}
+                              />
                               {lead.temperatura && (
                                 <Badge
                                   variant="secondary"

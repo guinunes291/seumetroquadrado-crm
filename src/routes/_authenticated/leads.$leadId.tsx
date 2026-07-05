@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { SlaBadge } from "@/components/sla-badge";
+import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -390,6 +391,8 @@ function LeadDetailPage() {
 
   // SLA do lead (mesma fonte do Kanban: view leads_com_sla). O RPC aceita
   // `_corretor` e filtra no banco — evita varrer todos os leads para 1 badge.
+  const transferTimeouts = useTransferTimeouts();
+
   const { data: slaInfo } = useQuery({
     queryKey: ["lead-sla", leadId, lead?.corretor_id ?? null],
     enabled: !!lead,
@@ -769,6 +772,18 @@ function LeadDetailPage() {
                   }
                 />
               )}
+              <TransferSlaBadge
+                origem={lead.origem}
+                status={lead.status}
+                dataDistribuicao={
+                  (lead as { data_distribuicao?: string | null }).data_distribuicao ?? null
+                }
+                tentativas={
+                  (lead as { tentativas_redistribuicao?: number | null })
+                    .tentativas_redistribuicao ?? 0
+                }
+                timeouts={transferTimeouts}
+              />
             </div>
             {lead.status === "perdido" &&
               (lead as { motivo_perda_categoria?: string | null }).motivo_perda_categoria && (
