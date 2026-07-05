@@ -25,6 +25,7 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { SlaBadge } from "@/components/sla-badge";
+import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 
 const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
