@@ -4,3 +4,8 @@ project_id = "rldnprwjlomjmjvinxuh"
 # não por JWT do Supabase.
 [functions.lead-intake]
 verify_jwt = false
+
+# Fase 2 Sami — chamada server-to-server do n8n. Autenticação via header x-sami-key
+# (secret SAMI_WRITE_KEY), não por JWT do Supabase.
+[functions.sami-agendar-visita]
+verify_jwt = false
