@@ -9,3 +9,6 @@ verify_jwt = false
 # (secret SAMI_WRITE_KEY), não por JWT do Supabase.
 [functions.sami-agendar-visita]
 verify_jwt = false
+
+[functions.sami-consultar-agenda]
+verify_jwt = false
