@@ -82,6 +82,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
       { name: "author", content: "Lovable" },
       { name: "theme-color", content: "#0F172A" },
+      // Impede tradução automática (Google Translate / Chrome). O tradutor troca
+      // nós de texto por <font> e quebra a reconciliação do React → o app
+      // crasha ("removeChild"/"insertBefore") para corretores com tradução ativa.
+      { name: "google", content: "notranslate" },
+      { httpEquiv: "Content-Language", content: "pt-BR" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Seu m²" },
