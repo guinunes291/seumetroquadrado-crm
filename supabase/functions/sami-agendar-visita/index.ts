@@ -83,6 +83,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // 7) INSERT (whitelist de campos)
+    const fim = new Date(quando.getTime() + 60 * 60 * 1000);
     const registro: Record<string, unknown> = {
       lead_id: lead.id,
       corretor_id: corretor.id,
@@ -90,8 +91,10 @@ Deno.serve(async (req: Request) => {
       status: STATUS_NOVA,
       titulo,
       [COL_DATA]: quando.toISOString(),
+      data_fim: fim.toISOString(),
     };
-    if (observacao) registro["observacao"] = observacao;
+    if (observacao) registro["descricao"] = observacao;
+    if (empreendimento) registro["local"] = empreendimento;
 
     const { data, error } = await supabase.from(AGENDA_TABLE).insert(registro).select("id").single();
     if (error) return json({ ok: false, erro: "crm_erro", detalhe: error.message });
