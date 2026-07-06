@@ -2430,6 +2430,30 @@ export type Database = {
           },
         ]
       }
+      metric_webhook_status: {
+        Row: {
+          enabled: boolean | null
+          id: number | null
+          token_set: boolean | null
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          enabled?: boolean | null
+          id?: number | null
+          token_set?: never
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          enabled?: boolean | null
+          id?: number | null
+          token_set?: never
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: []
+      }
       projetos_alternativa_regiao: {
         Row: {
           alternativa_bairro: string | null
