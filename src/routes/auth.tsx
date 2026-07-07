@@ -17,19 +17,38 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Acesso ao CRM Seu Metro Quadrado." },
     ],
   }),
+  // Preserva um destino relativo mesmo-origem (ex.: tela de consentimento OAuth).
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : "",
+  }),
   component: AuthPage,
 });
 
+/** Só aceita destinos relativos mesmo-origem — evita open redirect. */
+function safeNext(next: string): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
+  return next;
+}
+
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const destino = safeNext(next);
   const [loading, setLoading] = useState(false);
 
-  // Se já estiver logado, manda para /
+  // Se já estiver logado, respeita o destino preservado.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (data.session) {
+        if (destino.startsWith("/") && destino !== "/") {
+          window.location.href = destino;
+        } else {
+          navigate({ to: "/" });
+        }
+      }
     });
-  }, [navigate]);
+  }, [navigate, destino]);
+
 
   // Form state
   const [loginEmail, setLoginEmail] = useState("");
