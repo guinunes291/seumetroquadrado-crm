@@ -17,19 +17,38 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Acesso ao CRM Seu Metro Quadrado." },
     ],
   }),
+  // Preserva um destino relativo mesmo-origem (ex.: tela de consentimento OAuth).
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : "",
+  }),
   component: AuthPage,
 });
 
+/** Só aceita destinos relativos mesmo-origem — evita open redirect. */
+function safeNext(next: string): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
+  return next;
+}
+
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const destino = safeNext(next);
   const [loading, setLoading] = useState(false);
 
-  // Se já estiver logado, manda para /
+  // Se já estiver logado, respeita o destino preservado.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/" });
+      if (data.session) {
+        if (destino.startsWith("/") && destino !== "/") {
+          window.location.href = destino;
+        } else {
+          navigate({ to: "/" });
+        }
+      }
     });
-  }, [navigate]);
+  }, [navigate, destino]);
+
 
   // Form state
   const [loginEmail, setLoginEmail] = useState("");
@@ -51,17 +70,25 @@ function AuthPage() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: "/" });
+    if (destino !== "/") {
+      window.location.href = destino;
+    } else {
+      navigate({ to: "/" });
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const emailRedirectTo =
+      destino !== "/"
+        ? `${window.location.origin}/auth?next=${encodeURIComponent(destino)}`
+        : window.location.origin;
     const { error } = await supabase.auth.signUp({
       email: signupEmail,
       password: signupPwd,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo,
         data: { nome: signupNome },
       },
     });
@@ -77,8 +104,13 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setLoading(true);
+    // Preserva o `next` no round-trip do Google devolvendo p/ /auth?next=...
+    const redirectUri =
+      destino !== "/"
+        ? `${window.location.origin}/auth?next=${encodeURIComponent(destino)}`
+        : window.location.origin;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       setLoading(false);
@@ -88,8 +120,13 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/" });
+    if (destino !== "/") {
+      window.location.href = destino;
+    } else {
+      navigate({ to: "/" });
+    }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.22_0.05_250)] to-[oklch(0.32_0.06_250)] p-4">

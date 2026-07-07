@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
@@ -41,6 +42,8 @@ import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authen
 import { Route as AuthenticatedComissoesRouteImport } from './routes/_authenticated/comissoes'
 import { Route as AuthenticatedBlitzRouteImport } from './routes/_authenticated/blitz'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
@@ -49,6 +52,8 @@ import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_au
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicVendasIndexRouteImport } from './routes/api/public/vendas/index'
 import { Route as ApiPublicProjetosIndexRouteImport } from './routes/api/public/projetos/index'
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
@@ -70,6 +75,11 @@ import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/publi
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -232,6 +242,18 @@ const AuthenticatedAgendamentosRoute =
     path: '/agendamentos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedProjetosIndexRoute =
   AuthenticatedProjetosIndexRouteImport.update({
     id: '/projetos/',
@@ -278,6 +300,17 @@ const AuthenticatedLeadsLeadIdRoute =
     path: '/leads/$leadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVendasIndexRoute = ApiPublicVendasIndexRouteImport.update({
   id: '/api/public/vendas/',
   path: '/api/public/vendas/',
@@ -373,7 +406,10 @@ const ApiPublicLeadsIdCorretorRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/blitz': typeof AuthenticatedBlitzRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
@@ -402,6 +438,8 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -430,7 +468,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/blitz': typeof AuthenticatedBlitzRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
@@ -460,6 +501,8 @@ export interface FileRoutesByTo {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
   '/': typeof AuthenticatedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -490,7 +533,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/_authenticated/blitz': typeof AuthenticatedBlitzRoute
   '/_authenticated/comissoes': typeof AuthenticatedComissoesRoute
@@ -520,6 +566,8 @@ export interface FileRoutesById {
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -551,7 +599,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/mcp'
     | '/reset-password'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/agendamentos'
     | '/blitz'
     | '/comissoes'
@@ -580,6 +631,8 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
@@ -608,7 +661,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/mcp'
     | '/reset-password'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/agendamentos'
     | '/blitz'
     | '/comissoes'
@@ -638,6 +694,8 @@ export interface FileRouteTypes {
     | '/templates'
     | '/vitrine'
     | '/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
@@ -667,7 +725,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/mcp'
     | '/reset-password'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/agendamentos'
     | '/_authenticated/blitz'
     | '/_authenticated/comissoes'
@@ -697,6 +758,8 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
     | '/_authenticated/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
@@ -727,7 +790,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
@@ -752,6 +820,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -971,6 +1046,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgendamentosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/projetos/': {
       id: '/_authenticated/projetos/'
       path: '/projetos'
@@ -1026,6 +1115,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/leads/$leadId'
       preLoaderRoute: typeof AuthenticatedLeadsLeadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/vendas/': {
       id: '/api/public/vendas/'
@@ -1248,7 +1351,13 @@ const ApiPublicLeadsIdRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
@@ -1268,3 +1377,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
