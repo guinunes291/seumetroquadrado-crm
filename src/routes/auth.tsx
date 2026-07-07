@@ -70,17 +70,25 @@ function AuthPage() {
       return;
     }
     toast.success("Bem-vindo de volta!");
-    navigate({ to: "/" });
+    if (destino !== "/") {
+      window.location.href = destino;
+    } else {
+      navigate({ to: "/" });
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const emailRedirectTo =
+      destino !== "/"
+        ? `${window.location.origin}/auth?next=${encodeURIComponent(destino)}`
+        : window.location.origin;
     const { error } = await supabase.auth.signUp({
       email: signupEmail,
       password: signupPwd,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo,
         data: { nome: signupNome },
       },
     });
@@ -96,8 +104,13 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setLoading(true);
+    // Preserva o `next` no round-trip do Google devolvendo p/ /auth?next=...
+    const redirectUri =
+      destino !== "/"
+        ? `${window.location.origin}/auth?next=${encodeURIComponent(destino)}`
+        : window.location.origin;
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: redirectUri,
     });
     if (result.error) {
       setLoading(false);
@@ -107,8 +120,13 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/" });
+    if (destino !== "/") {
+      window.location.href = destino;
+    } else {
+      navigate({ to: "/" });
+    }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.22_0.05_250)] to-[oklch(0.32_0.06_250)] p-4">
