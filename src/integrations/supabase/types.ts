@@ -175,6 +175,63 @@ export type Database = {
           },
         ]
       }
+      api_escrita_log: {
+        Row: {
+          acao: string | null
+          agente: string | null
+          http_status: number | null
+          id: string
+          ip: string | null
+          lead_id: string | null
+          payload: Json | null
+          resultado: string | null
+          ts: string
+        }
+        Insert: {
+          acao?: string | null
+          agente?: string | null
+          http_status?: number | null
+          id?: string
+          ip?: string | null
+          lead_id?: string | null
+          payload?: Json | null
+          resultado?: string | null
+          ts?: string
+        }
+        Update: {
+          acao?: string | null
+          agente?: string | null
+          http_status?: number | null
+          id?: string
+          ip?: string | null
+          lead_id?: string | null
+          payload?: Json | null
+          resultado?: string | null
+          ts?: string
+        }
+        Relationships: []
+      }
+      api_escrita_permissoes: {
+        Row: {
+          acao: string
+          agente: string
+          ativo: boolean
+          created_at: string
+        }
+        Insert: {
+          acao: string
+          agente: string
+          ativo?: boolean
+          created_at?: string
+        }
+        Update: {
+          acao?: string
+          agente?: string
+          ativo?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           created_at: string
@@ -2905,6 +2962,10 @@ export type Database = {
         Returns: boolean
       }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
+      pode_escrever: {
+        Args: { _acao: string; _agente: string }
+        Returns: boolean
+      }
       preview_oferta_ativa: {
         Args: { _corretor?: string; _filtros: Json }
         Returns: Json
