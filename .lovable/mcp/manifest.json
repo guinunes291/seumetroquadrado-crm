@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://rldnprwjlomjmjvinxuh.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "seu-metro-quadrado-crm",
+      "version": "0.1.0",
+      "title": "Seu Metro Quadrado — CRM"
+    },
+    "tools": [
+      {
+        "name": "list_meus_leads",
+        "title": "Listar meus leads",
+        "description": "Retorna leads do usuário autenticado no CRM Seu Metro Quadrado. Filtra por status opcional, ordena por atualização mais recente.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Status do lead (ex.: novo, em_atendimento, agendado, visita_realizada, analise_credito, contrato_fechado, perdido).",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Máximo de leads a retornar. Padrão 25, máximo 100.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_lead",
+        "title": "Detalhes de um lead",
+        "description": "Retorna os dados completos de um lead do CRM pelo id (UUID). Só devolve o lead se o usuário autenticado tem permissão.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "lead_id": {
+              "type": "string",
+              "description": "UUID do lead."
+            }
+          },
+          "required": [
+            "lead_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_meus_agendamentos",
+        "title": "Listar meus agendamentos",
+        "description": "Retorna os próximos agendamentos (visitas, ligações) do usuário autenticado, ordenados pela data de início.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "dias": {
+              "description": "Janela para frente em dias a partir de agora. Padrão 7, máximo 60.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "limit": {
+              "description": "Máximo de itens. Padrão 25, máximo 100.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_minhas_tarefas",
+        "title": "Listar minhas tarefas",
+        "description": "Retorna as tarefas do usuário autenticado. Por padrão só pendentes, ordenadas pela data de vencimento.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "incluir_concluidas": {
+              "description": "Se true, também retorna tarefas concluídas. Padrão false.",
+              "type": "boolean"
+            },
+            "limit": {
+              "description": "Máximo de tarefas. Padrão 25, máximo 100.",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
