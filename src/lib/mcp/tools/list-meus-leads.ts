@@ -37,7 +37,7 @@ export default defineTool({
       .is("deleted_at", null)
       .order("updated_at", { ascending: false })
       .limit(take);
-    if (status && status.trim()) q = q.eq("status", status.trim());
+    if (status && status.trim()) q = q.eq("status", status.trim() as never);
     const { data, error } = await q;
     if (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
