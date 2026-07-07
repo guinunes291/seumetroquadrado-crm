@@ -58,6 +58,8 @@ import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/publi
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/public/hooks/copiloto-handoff'
+import { Route as ApiPublicEscritaPingRouteImport } from './routes/api/public/escrita/ping'
+import { Route as ApiPublicEscritaHealthRouteImport } from './routes/api/public/escrita/health'
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
@@ -325,6 +327,16 @@ const ApiPublicHooksCopilotoHandoffRoute =
     path: '/api/public/hooks/copiloto-handoff',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicEscritaPingRoute = ApiPublicEscritaPingRouteImport.update({
+  id: '/api/public/escrita/ping',
+  path: '/api/public/escrita/ping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicEscritaHealthRoute = ApiPublicEscritaHealthRouteImport.update({
+  id: '/api/public/escrita/health',
+  path: '/api/public/escrita/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCorretoresIdRoute = ApiPublicCorretoresIdRouteImport.update({
   id: '/api/public/corretores/$id',
   path: '/api/public/corretores/$id',
@@ -400,6 +412,8 @@ export interface FileRoutesByFullPath {
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
+  '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
+  '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
@@ -456,6 +470,8 @@ export interface FileRoutesByTo {
   '/projetos': typeof AuthenticatedProjetosIndexRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
+  '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
+  '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
@@ -514,6 +530,8 @@ export interface FileRoutesById {
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
+  '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
+  '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
@@ -572,6 +590,8 @@ export interface FileRouteTypes {
     | '/projetos/'
     | '/api/google/oauth/callback'
     | '/api/public/corretores/$id'
+    | '/api/public/escrita/health'
+    | '/api/public/escrita/ping'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
@@ -628,6 +648,8 @@ export interface FileRouteTypes {
     | '/projetos'
     | '/api/google/oauth/callback'
     | '/api/public/corretores/$id'
+    | '/api/public/escrita/health'
+    | '/api/public/escrita/ping'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
@@ -685,6 +707,8 @@ export interface FileRouteTypes {
     | '/_authenticated/projetos/'
     | '/api/google/oauth/callback'
     | '/api/public/corretores/$id'
+    | '/api/public/escrita/health'
+    | '/api/public/escrita/ping'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
@@ -707,6 +731,8 @@ export interface RootRouteChildren {
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
+  ApiPublicEscritaHealthRoute: typeof ApiPublicEscritaHealthRoute
+  ApiPublicEscritaPingRoute: typeof ApiPublicEscritaPingRoute
   ApiPublicHooksCopilotoHandoffRoute: typeof ApiPublicHooksCopilotoHandoffRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
   ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRouteWithChildren
@@ -1064,6 +1090,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksCopilotoHandoffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/escrita/ping': {
+      id: '/api/public/escrita/ping'
+      path: '/api/public/escrita/ping'
+      fullPath: '/api/public/escrita/ping'
+      preLoaderRoute: typeof ApiPublicEscritaPingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/escrita/health': {
+      id: '/api/public/escrita/health'
+      path: '/api/public/escrita/health'
+      fullPath: '/api/public/escrita/health'
+      preLoaderRoute: typeof ApiPublicEscritaHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/corretores/$id': {
       id: '/api/public/corretores/$id'
       path: '/api/public/corretores/$id'
@@ -1212,6 +1252,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
+  ApiPublicEscritaHealthRoute: ApiPublicEscritaHealthRoute,
+  ApiPublicEscritaPingRoute: ApiPublicEscritaPingRoute,
   ApiPublicHooksCopilotoHandoffRoute: ApiPublicHooksCopilotoHandoffRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
   ApiPublicLeadsIdRoute: ApiPublicLeadsIdRouteWithChildren,
@@ -1226,13 +1268,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
