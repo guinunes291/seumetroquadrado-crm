@@ -59,6 +59,7 @@ import { Route as ApiPublicProjetosIndexRouteImport } from './routes/api/public/
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
 import { Route as ApiPublicComissoesIndexRouteImport } from './routes/api/public/comissoes/index'
+import { Route as ApiPublicWebhooksSimulacaoRouteImport } from './routes/api/public/webhooks/simulacao'
 import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
@@ -337,6 +338,12 @@ const ApiPublicComissoesIndexRoute = ApiPublicComissoesIndexRouteImport.update({
   path: '/api/public/comissoes/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksSimulacaoRoute =
+  ApiPublicWebhooksSimulacaoRouteImport.update({
+    id: '/api/public/webhooks/simulacao',
+    path: '/api/public/webhooks/simulacao',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksLandingRoute =
   ApiPublicWebhooksLandingRouteImport.update({
     id: '/api/public/webhooks/landing',
@@ -456,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/webhooks/simulacao': typeof ApiPublicWebhooksSimulacaoRoute
   '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
@@ -519,6 +527,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/webhooks/simulacao': typeof ApiPublicWebhooksSimulacaoRoute
   '/api/public/comissoes': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
@@ -584,6 +593,7 @@ export interface FileRoutesById {
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/webhooks/simulacao': typeof ApiPublicWebhooksSimulacaoRoute
   '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
@@ -649,6 +659,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/webhooks/simulacao'
     | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
@@ -712,6 +723,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/webhooks/simulacao'
     | '/api/public/comissoes'
     | '/api/public/corretores'
     | '/api/public/leads'
@@ -776,6 +788,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/push-dispatch'
     | '/api/public/leads/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/webhooks/simulacao'
     | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
@@ -805,6 +818,7 @@ export interface RootRouteChildren {
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
   ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRouteWithChildren
   ApiPublicWebhooksLandingRoute: typeof ApiPublicWebhooksLandingRoute
+  ApiPublicWebhooksSimulacaoRoute: typeof ApiPublicWebhooksSimulacaoRoute
   ApiPublicComissoesIndexRoute: typeof ApiPublicComissoesIndexRoute
   ApiPublicCorretoresIndexRoute: typeof ApiPublicCorretoresIndexRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
@@ -1165,6 +1179,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicComissoesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/simulacao': {
+      id: '/api/public/webhooks/simulacao'
+      path: '/api/public/webhooks/simulacao'
+      fullPath: '/api/public/webhooks/simulacao'
+      preLoaderRoute: typeof ApiPublicWebhooksSimulacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/landing': {
       id: '/api/public/webhooks/landing'
       path: '/api/public/webhooks/landing'
@@ -1367,6 +1388,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
   ApiPublicLeadsIdRoute: ApiPublicLeadsIdRouteWithChildren,
   ApiPublicWebhooksLandingRoute: ApiPublicWebhooksLandingRoute,
+  ApiPublicWebhooksSimulacaoRoute: ApiPublicWebhooksSimulacaoRoute,
   ApiPublicComissoesIndexRoute: ApiPublicComissoesIndexRoute,
   ApiPublicCorretoresIndexRoute: ApiPublicCorretoresIndexRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
