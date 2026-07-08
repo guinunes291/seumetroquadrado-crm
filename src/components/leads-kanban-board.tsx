@@ -12,6 +12,7 @@ import {
   FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
   LEAD_STATUS_COLUMN_TONE,
+  PROXIMA_ACAO,
   resolveStageAction,
   type LeadStatus,
 } from "@/lib/leads";
@@ -297,6 +298,21 @@ export function KanbanBoard() {
                                 </Badge>
                               )}
                             </div>
+                            {PROXIMA_ACAO[lead.status as LeadStatus] && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="mt-2 h-6 w-full text-[11px]"
+                                disabled={updateStatus.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const acao = PROXIMA_ACAO[lead.status as LeadStatus]!;
+                                  routeStage(lead, acao.target);
+                                }}
+                              >
+                                {PROXIMA_ACAO[lead.status as LeadStatus]!.label}
+                              </Button>
+                            )}
                           </div>
                           <LeadStageMenu
                             lead={lead}
@@ -306,6 +322,7 @@ export function KanbanBoard() {
                             onPickModal={(modal) => setModalState({ modal, lead })}
                             onPickPerdido={() => setPerdidoLead(lead)}
                           />
+
                         </div>
                       </Card>
                     ))}
