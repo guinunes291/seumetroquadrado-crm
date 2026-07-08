@@ -11,7 +11,7 @@ import type { TarefaTipo, TarefaPrioridade } from "@/lib/tarefas";
 import { supabase } from "@/integrations/supabase/client";
 
 const DIA_MS = 24 * 60 * 60 * 1000;
-const _HORA_MS_UNUSED = 60 * 60 * 1000;
+const HORA_MS = 60 * 60 * 1000;
 
 export type FollowUpTemplate = {
   titulo: string;
