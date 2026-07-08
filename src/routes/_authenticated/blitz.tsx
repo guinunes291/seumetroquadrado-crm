@@ -13,6 +13,8 @@ import { buildWhatsAppUrl } from "@/lib/templates";
 import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
+  PROXIMA_ACAO,
+  resolveStageAction,
   type LeadStatus,
   type StageLead,
 } from "@/lib/leads";
@@ -397,6 +399,27 @@ function BlitzPage() {
             <Button className="w-full" onClick={() => setContatoOpen(true)}>
               <PhoneCall className="mr-1 h-4 w-4" /> Registrar contato
             </Button>
+            {(() => {
+              const proxima = PROXIMA_ACAO[current.status as LeadStatus];
+              if (!proxima) return null;
+              return (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  disabled={updateStatus.isPending}
+                  onClick={() => {
+                    const action = resolveStageAction(proxima.target);
+                    if (action.kind === "modal")
+                      setModalState({ modal: action.modal, lead: current as StageLead });
+                    else if (action.kind === "perdido")
+                      setPerdidoLead(current as StageLead);
+                    else updateStatus.mutate({ id: current.id, status: proxima.target });
+                  }}
+                >
+                  {proxima.label}
+                </Button>
+              );
+            })()}
             <div className="grid grid-cols-3 gap-2">
               <Button variant="outline" onClick={ligar}>
                 <Phone className="mr-1 h-4 w-4" /> Ligar
@@ -412,6 +435,7 @@ function BlitzPage() {
                 <CalendarCheck className="mr-1 h-4 w-4" /> Agendar
               </Button>
             </div>
+
 
             <div className="flex items-center justify-between border-t pt-4">
               <Button variant="ghost" onClick={prev} disabled={index === 0}>
