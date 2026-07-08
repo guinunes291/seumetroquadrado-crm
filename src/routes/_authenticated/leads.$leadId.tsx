@@ -361,6 +361,44 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Concluir/adiar tarefas direto da aba Tarefas — evita ir até /agendamentos
+  // só para bater "feito". Mesma semântica do card do Hoje: grava data_conclusao
+  // para entrar no "Concluídas hoje".
+  const concluirTarefa = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ status: "concluida", data_conclusao: new Date().toISOString() } as never)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa concluída");
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const adiarTarefa = useMutation({
+    mutationFn: async ({ id, ms }: { id: string; ms: number }) => {
+      const novo = new Date(Date.now() + ms).toISOString();
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ data_vencimento: novo } as never)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa adiada");
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   // Nota rápida: registra uma interação (nota interna) em 1 passo, sem o modal completo.
   const criarNotaRapida = useMutation({
     mutationFn: async () => {
