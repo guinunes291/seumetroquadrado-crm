@@ -269,9 +269,9 @@ function LeadDetailPage() {
     entrada_disponivel: "",
     usa_fgts: false,
     projeto_nome: "",
-    proximo_followup: "",
     observacoes: "",
   });
+
 
   // "+ Tarefa" inline: cria uma tarefa já vinculada a este lead, sem ir até a página de Tarefas.
   const [tarefaOpen, setTarefaOpen] = useState(false);
@@ -293,9 +293,6 @@ function LeadDetailPage() {
       entrada_disponivel: lead.entrada_disponivel ?? "",
       usa_fgts: !!lead.usa_fgts,
       projeto_nome: lead.projeto_nome ?? "",
-      proximo_followup: lead.proximo_followup
-        ? new Date(lead.proximo_followup).toISOString().slice(0, 16)
-        : "",
       observacoes: lead.observacoes ?? "",
     });
     setEditOpen(true);
@@ -309,6 +306,8 @@ function LeadDetailPage() {
       if (telefone.replace(/\D/g, "").length < 8) throw new Error("Telefone inválido.");
       const email = editForm.email.trim();
       if (email && !email.includes("@")) throw new Error("E-mail inválido.");
+      // Nota: `proximo_followup` é derivado das tarefas (trigger do banco) e
+      // não é editável aqui — o corretor mexe criando/adiando tarefas.
       const payload = {
         nome,
         telefone,
@@ -319,9 +318,6 @@ function LeadDetailPage() {
         usa_fgts: editForm.usa_fgts,
         projeto_nome: editForm.projeto_nome.trim() || null,
         observacoes: editForm.observacoes.trim() || null,
-        proximo_followup: editForm.proximo_followup
-          ? new Date(editForm.proximo_followup).toISOString()
-          : null,
       };
       const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
       if (error) throw error;
@@ -1208,12 +1204,16 @@ function LeadDetailPage() {
             </div>
             <div>
               <Label>Próximo follow-up</Label>
-              <Input
-                type="datetime-local"
-                value={editForm.proximo_followup}
-                onChange={(e) => setEditForm({ ...editForm, proximo_followup: e.target.value })}
-              />
+              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                {lead.proximo_followup
+                  ? new Date(lead.proximo_followup).toLocaleString("pt-BR")
+                  : "—"}
+                <div className="text-[11px] mt-0.5">
+                  Derivado das tarefas. Crie/adie uma tarefa para alterar.
+                </div>
+              </div>
             </div>
+
             <div className="flex items-center gap-2 pt-6">
               <Switch
                 checked={editForm.usa_fgts}

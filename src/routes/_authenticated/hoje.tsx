@@ -213,18 +213,24 @@ function MeuPainelPage() {
 
   const concluirTarefa = useMutation({
     mutationFn: async (id: string) => {
+      // `data_conclusao` é o que alimenta o card "Concluídas hoje"; sem isso,
+      // marcar como concluída pelo Hoje ficava fora do resumo do dia.
       const { error } = await supabase
         .from("tarefas")
-        .update({ status: "concluida" } as never)
+        .update({ status: "concluida", data_conclusao: new Date().toISOString() } as never)
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Tarefa concluída");
       qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
+      qc.invalidateQueries({ queryKey: ["meu-dia:atividades"] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   // Guardrail anti-perda: leads ativos do corretor SEM próxima ação — nenhuma
   // tarefa aberta, nenhum agendamento futuro e sem follow-up agendado. São os que
