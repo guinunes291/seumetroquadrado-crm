@@ -3020,6 +3020,7 @@ export type Database = {
         Returns: boolean
       }
       set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
+      sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
