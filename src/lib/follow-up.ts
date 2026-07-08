@@ -11,7 +11,7 @@ import type { TarefaTipo, TarefaPrioridade } from "@/lib/tarefas";
 import { supabase } from "@/integrations/supabase/client";
 
 const DIA_MS = 24 * 60 * 60 * 1000;
-const HORA_MS = 60 * 60 * 1000;
+const _HORA_MS_UNUSED = 60 * 60 * 1000;
 
 export type FollowUpTemplate = {
   titulo: string;
@@ -115,21 +115,42 @@ export async function criarFollowUpAutomatico(args: CriarFollowUpArgs): Promise<
   });
   if (!tpl) return false;
 
-  // Dedup: já existe uma tarefa aberta com o mesmo título para este lead?
+  // Dedup por (lead_id, tipo, janela ±1 dia): se já existe tarefa aberta do
+  // mesmo tipo com vencimento próximo, atualizamos ela em vez de criar outra.
+  // Evita a enxurrada de follow-ups duplicados quando o corretor reentra na
+  // mesma etapa ou o motor dispara duas vezes por race.
+  const vencMs = Date.parse(tpl.vencimento);
+  const janelaIni = new Date(vencMs - 24 * 60 * 60 * 1000).toISOString();
+  const janelaFim = new Date(vencMs + 24 * 60 * 60 * 1000).toISOString();
   const { data: abertas, error: selErr } = await supabase
     .from("tarefas")
     .select("id")
     .eq("lead_id", args.leadId)
-    .eq("titulo", tpl.titulo)
+    .eq("tipo", tpl.tipo)
     .in("status", ["pendente", "em_andamento"])
+    .gte("data_vencimento", janelaIni)
+    .lte("data_vencimento", janelaFim)
     .limit(1);
   if (selErr) throw selErr;
-  if (abertas && abertas.length > 0) return false;
 
   let criadoPor = args.criadoPorId ?? null;
   if (!criadoPor) {
     const { data: u } = await supabase.auth.getUser();
     criadoPor = u.user?.id ?? null;
+  }
+
+  if (abertas && abertas.length > 0) {
+    // Atualiza a existente (título/prioridade/vencimento) — mantém a mesma linha.
+    const { error: updErr } = await supabase
+      .from("tarefas")
+      .update({
+        titulo: tpl.titulo,
+        prioridade: tpl.prioridade,
+        data_vencimento: tpl.vencimento,
+      } as never)
+      .eq("id", abertas[0].id);
+    if (updErr) throw updErr;
+    return false;
   }
 
   const { error: insErr } = await supabase.from("tarefas").insert({
@@ -145,3 +166,4 @@ export async function criarFollowUpAutomatico(args: CriarFollowUpArgs): Promise<
   if (insErr) throw insErr;
   return true;
 }
+
