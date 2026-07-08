@@ -28,6 +28,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -269,9 +275,9 @@ function LeadDetailPage() {
     entrada_disponivel: "",
     usa_fgts: false,
     projeto_nome: "",
-    proximo_followup: "",
     observacoes: "",
   });
+
 
   // "+ Tarefa" inline: cria uma tarefa já vinculada a este lead, sem ir até a página de Tarefas.
   const [tarefaOpen, setTarefaOpen] = useState(false);
@@ -293,9 +299,6 @@ function LeadDetailPage() {
       entrada_disponivel: lead.entrada_disponivel ?? "",
       usa_fgts: !!lead.usa_fgts,
       projeto_nome: lead.projeto_nome ?? "",
-      proximo_followup: lead.proximo_followup
-        ? new Date(lead.proximo_followup).toISOString().slice(0, 16)
-        : "",
       observacoes: lead.observacoes ?? "",
     });
     setEditOpen(true);
@@ -309,6 +312,8 @@ function LeadDetailPage() {
       if (telefone.replace(/\D/g, "").length < 8) throw new Error("Telefone inválido.");
       const email = editForm.email.trim();
       if (email && !email.includes("@")) throw new Error("E-mail inválido.");
+      // Nota: `proximo_followup` é derivado das tarefas (trigger do banco) e
+      // não é editável aqui — o corretor mexe criando/adiando tarefas.
       const payload = {
         nome,
         telefone,
@@ -319,9 +324,6 @@ function LeadDetailPage() {
         usa_fgts: editForm.usa_fgts,
         projeto_nome: editForm.projeto_nome.trim() || null,
         observacoes: editForm.observacoes.trim() || null,
-        proximo_followup: editForm.proximo_followup
-          ? new Date(editForm.proximo_followup).toISOString()
-          : null,
       };
       const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
       if (error) throw error;
@@ -364,6 +366,44 @@ function LeadDetailPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Concluir/adiar tarefas direto da aba Tarefas — evita ir até /agendamentos
+  // só para bater "feito". Mesma semântica do card do Hoje: grava data_conclusao
+  // para entrar no "Concluídas hoje".
+  const concluirTarefa = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ status: "concluida", data_conclusao: new Date().toISOString() } as never)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa concluída");
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const adiarTarefa = useMutation({
+    mutationFn: async ({ id, ms }: { id: string; ms: number }) => {
+      const novo = new Date(Date.now() + ms).toISOString();
+      const { error } = await supabase
+        .from("tarefas")
+        .update({ data_vencimento: novo } as never)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Tarefa adiada");
+      qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   // Nota rápida: registra uma interação (nota interna) em 1 passo, sem o modal completo.
   const criarNotaRapida = useMutation({
@@ -1055,25 +1095,84 @@ function LeadDetailPage() {
           ) : (
             <Card>
               <CardContent className="py-4 divide-y">
-                {tarefas.map((t) => (
-                  <div key={t.id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">{t.titulo}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {t.data_vencimento
-                          ? new Date(t.data_vencimento).toLocaleString("pt-BR")
-                          : "Sem prazo"}
+                {tarefas.map((t) => {
+                  const venc = t.data_vencimento ? new Date(t.data_vencimento) : null;
+                  const aberta = t.status === "pendente" || t.status === "em_andamento";
+                  const atrasada = aberta && !!venc && venc.getTime() < Date.now();
+                  const diasAtraso = venc
+                    ? Math.floor((Date.now() - venc.getTime()) / (24 * 60 * 60 * 1000))
+                    : 0;
+                  return (
+                    <div key={t.id} className="py-3 flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{t.titulo}</div>
+                        <div
+                          className={cn(
+                            "text-xs text-muted-foreground",
+                            atrasada && "text-destructive font-medium",
+                          )}
+                        >
+                          {venc
+                            ? atrasada
+                              ? `atrasada há ${diasAtraso === 0 ? "hoje" : `${diasAtraso}d`} · ${venc.toLocaleString("pt-BR")}`
+                              : venc.toLocaleString("pt-BR")
+                            : "Sem prazo"}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline">{t.status}</Badge>
+                        <Badge variant="outline">{t.prioridade}</Badge>
+                        {aberta && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7"
+                              disabled={concluirTarefa.isPending}
+                              onClick={() => concluirTarefa.mutate(t.id)}
+                            >
+                              Concluir
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-7">
+                                  Adiar
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    adiarTarefa.mutate({ id: t.id, ms: 60 * 60 * 1000 })
+                                  }
+                                >
+                                  +1 hora
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    adiarTarefa.mutate({ id: t.id, ms: 24 * 60 * 60 * 1000 })
+                                  }
+                                >
+                                  +1 dia
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    adiarTarefa.mutate({ id: t.id, ms: 7 * 24 * 60 * 60 * 1000 })
+                                  }
+                                >
+                                  +1 semana
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <div className="flex gap-1">
-                      <Badge variant="outline">{t.status}</Badge>
-                      <Badge variant="outline">{t.prioridade}</Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
+
         </TabsContent>
 
         <TabsContent value="agendamentos" className="mt-4">
@@ -1208,12 +1307,16 @@ function LeadDetailPage() {
             </div>
             <div>
               <Label>Próximo follow-up</Label>
-              <Input
-                type="datetime-local"
-                value={editForm.proximo_followup}
-                onChange={(e) => setEditForm({ ...editForm, proximo_followup: e.target.value })}
-              />
+              <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                {lead.proximo_followup
+                  ? new Date(lead.proximo_followup).toLocaleString("pt-BR")
+                  : "—"}
+                <div className="text-[11px] mt-0.5">
+                  Derivado das tarefas. Crie/adie uma tarefa para alterar.
+                </div>
+              </div>
             </div>
+
             <div className="flex items-center gap-2 pt-6">
               <Switch
                 checked={editForm.usa_fgts}

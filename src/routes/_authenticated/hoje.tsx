@@ -213,18 +213,24 @@ function MeuPainelPage() {
 
   const concluirTarefa = useMutation({
     mutationFn: async (id: string) => {
+      // `data_conclusao` é o que alimenta o card "Concluídas hoje"; sem isso,
+      // marcar como concluída pelo Hoje ficava fora do resumo do dia.
       const { error } = await supabase
         .from("tarefas")
-        .update({ status: "concluida" } as never)
+        .update({ status: "concluida", data_conclusao: new Date().toISOString() } as never)
         .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Tarefa concluída");
       qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
+      qc.invalidateQueries({ queryKey: ["meu-dia:atividades"] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   // Guardrail anti-perda: leads ativos do corretor SEM próxima ação — nenhuma
   // tarefa aberta, nenhum agendamento futuro e sem follow-up agendado. São os que
@@ -644,8 +650,11 @@ function MeuPainelPage() {
                 <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
               ) : (
                 tarefas.slice(0, 10).map((t) => {
-                  const atrasada =
-                    !!t.data_vencimento && new Date(t.data_vencimento).getTime() < Date.now();
+                  const venc = t.data_vencimento ? new Date(t.data_vencimento) : null;
+                  const atrasada = !!venc && venc.getTime() < Date.now();
+                  const diasAtraso = venc
+                    ? Math.floor((Date.now() - venc.getTime()) / (24 * 60 * 60 * 1000))
+                    : 0;
                   return (
                     <div
                       key={t.id}
@@ -653,11 +662,14 @@ function MeuPainelPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium">{t.titulo}</div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
                           <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
-                          {t.data_vencimento && (
+                          {venc && (
                             <span className={cn(atrasada && "text-destructive font-medium")}>
-                              · {atrasada ? "atrasada" : hora(t.data_vencimento)}
+                              ·{" "}
+                              {atrasada
+                                ? `atrasada há ${diasAtraso === 0 ? "hoje" : `${diasAtraso}d`} (${venc.toLocaleDateString("pt-BR")})`
+                                : hora(t.data_vencimento!)}
                             </span>
                           )}
                           {t.lead_id && (
@@ -690,6 +702,7 @@ function MeuPainelPage() {
                   ver todas as tarefas
                 </Link>
               </Button>
+
             </CardContent>
           </Card>
         </div>

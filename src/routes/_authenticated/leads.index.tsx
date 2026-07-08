@@ -942,15 +942,33 @@ function LeadsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Define o próximo follow-up de todos os leads selecionados.
+  // Define o próximo follow-up dos leads selecionados: cria uma tarefa por
+  // lead (a única fonte de verdade). `leads.proximo_followup` é espelho
+  // derivado — atualizado sozinho pelo trigger do banco.
   const bulkFollowup = useMutation({
     mutationFn: async ({ ids, iso }: { ids: string[]; iso: string }) => {
-      const { error } = await supabase
+      const { data: u } = await supabase.auth.getUser();
+      const autor = u.user?.id ?? null;
+      // Carrega nome/corretor para gerar tarefas com título + dono corretos.
+      const { data: leadsData, error: lErr } = await supabase
         .from("leads")
-        .update({ proximo_followup: iso })
+        .select("id, nome, corretor_id")
         .in("id", ids);
+      if (lErr) throw lErr;
+      const rows = (leadsData ?? []).map((l) => ({
+        titulo: `Follow-up com ${l.nome}`,
+        tipo: "follow_up" as const,
+        prioridade: "media" as const,
+        status: "pendente" as const,
+        lead_id: l.id,
+        corretor_id: l.corretor_id ?? autor,
+        criado_por: autor,
+        data_vencimento: iso,
+      }));
+      if (rows.length === 0) return 0;
+      const { error } = await supabase.from("tarefas").insert(rows as never);
       if (error) throw error;
-      return ids.length;
+      return rows.length;
     },
     onSuccess: (n) => {
       toast.success(`Follow-up definido em ${n} lead(s)`);
@@ -958,9 +976,12 @@ function LeadsPage() {
       setBulkFollowupOpen(false);
       setBulkFollowupData("");
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   // Registra uma ligação (interação) para todos os leads selecionados de uma vez.
   const bulkRegistrarLigacao = useMutation({
@@ -1395,7 +1416,15 @@ function LeadsPage() {
                       size="sm"
                       variant="outline"
                       disabled={bulkRegistrarLigacao.isPending}
-                      onClick={() => bulkRegistrarLigacao.mutate(Array.from(selectedIds))}
+                      onClick={() => {
+                        const n = selectedIds.size;
+                        if (
+                          window.confirm(
+                            `Registrar ligação em ${n} lead${n > 1 ? "s" : ""} selecionado${n > 1 ? "s" : ""}?`,
+                          )
+                        )
+                          bulkRegistrarLigacao.mutate(Array.from(selectedIds));
+                      }}
                     >
                       <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
                     </Button>
@@ -1407,27 +1436,40 @@ function LeadsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
-                        <DropdownMenuItem
-                          onSelect={() =>
-                            bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "quente" })
-                          }
-                        >
-                          <Flame className="h-4 w-4 mr-2 text-destructive" /> Quente
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() =>
-                            bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "morno" })
-                          }
-                        >
-                          <Thermometer className="h-4 w-4 mr-2 text-warning" /> Morno
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() =>
-                            bulkTemperatura.mutate({ ids: Array.from(selectedIds), temp: "frio" })
-                          }
-                        >
-                          <Snowflake className="h-4 w-4 mr-2 text-info" /> Frio
-                        </DropdownMenuItem>
+                        {(
+                          [
+                            { key: "quente", label: "Quente" },
+                            { key: "morno", label: "Morno" },
+                            { key: "frio", label: "Frio" },
+                          ] as const
+                        ).map((opt) => (
+                          <DropdownMenuItem
+                            key={opt.key}
+                            onSelect={() => {
+                              const n = selectedIds.size;
+                              if (
+                                window.confirm(
+                                  `Marcar ${n} lead${n > 1 ? "s" : ""} como ${opt.label}?`,
+                                )
+                              )
+                                bulkTemperatura.mutate({
+                                  ids: Array.from(selectedIds),
+                                  temp: opt.key,
+                                });
+                            }}
+                          >
+                            {opt.key === "quente" && (
+                              <Flame className="h-4 w-4 mr-2 text-destructive" />
+                            )}
+                            {opt.key === "morno" && (
+                              <Thermometer className="h-4 w-4 mr-2 text-warning" />
+                            )}
+                            {opt.key === "frio" && (
+                              <Snowflake className="h-4 w-4 mr-2 text-info" />
+                            )}
+                            {opt.label}
+                          </DropdownMenuItem>
+                        ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
@@ -1445,18 +1487,22 @@ function LeadsPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            moverLixeira.mutate({
-                              ids: Array.from(selectedIds),
-                              lixeira: !showLixeira,
-                            })
-                          }
+                          onClick={() => {
+                            const n = selectedIds.size;
+                            const acao = showLixeira ? "Restaurar" : "Mover p/ lixeira";
+                            if (window.confirm(`${acao} ${n} lead${n > 1 ? "s" : ""}?`))
+                              moverLixeira.mutate({
+                                ids: Array.from(selectedIds),
+                                lixeira: !showLixeira,
+                              });
+                          }}
                         >
                           <Trash2 className="h-3.5 w-3.5 mr-1" />
                           {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
                         </Button>
                       </>
                     )}
+
                     <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
                       Limpar
                     </Button>

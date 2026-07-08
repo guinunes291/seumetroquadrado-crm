@@ -90,28 +90,45 @@ export function RegistrarContatoDialog({
       });
       if (iErr) throw iErr;
 
-      // 2) Próximo follow-up (tarefa + proximo_followup), se escolhido.
+      // 2) Próximo follow-up: só a tarefa. `leads.proximo_followup` é espelho
+      //    derivado no banco (trigger em `tarefas`) — não escrevemos direto.
       const fu = FOLLOWUPS.find((f) => f.key === followup) ?? FOLLOWUPS[0];
       let comFollowUp = false;
       if (fu.dias != null) {
         const venc = new Date();
         venc.setDate(venc.getDate() + fu.dias);
         const vencIso = venc.toISOString();
-        const { error: tErr } = await supabase.from("tarefas").insert({
-          titulo: `Follow-up com ${lead.nome}`,
-          tipo: "follow_up",
-          prioridade: "media",
-          status: "pendente",
-          lead_id: lead.id,
-          corretor_id: lead.corretor_id ?? uid,
-          criado_por: uid,
-          data_vencimento: vencIso,
-        } as never);
-        if (tErr) throw tErr;
-        await supabase
-          .from("leads")
-          .update({ proximo_followup: vencIso } as never)
-          .eq("id", lead.id);
+        // Dedup por (lead, tipo=follow_up, ±1 dia): atualiza a existente.
+        const janelaIni = new Date(venc.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        const janelaFim = new Date(venc.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        const { data: abertas } = await supabase
+          .from("tarefas")
+          .select("id")
+          .eq("lead_id", lead.id)
+          .eq("tipo", "follow_up")
+          .in("status", ["pendente", "em_andamento"])
+          .gte("data_vencimento", janelaIni)
+          .lte("data_vencimento", janelaFim)
+          .limit(1);
+        if (abertas && abertas.length > 0) {
+          const { error: uErr } = await supabase
+            .from("tarefas")
+            .update({ data_vencimento: vencIso, titulo: `Follow-up com ${lead.nome}` } as never)
+            .eq("id", abertas[0].id);
+          if (uErr) throw uErr;
+        } else {
+          const { error: tErr } = await supabase.from("tarefas").insert({
+            titulo: `Follow-up com ${lead.nome}`,
+            tipo: "follow_up",
+            prioridade: "media",
+            status: "pendente",
+            lead_id: lead.id,
+            corretor_id: lead.corretor_id ?? uid,
+            criado_por: uid,
+            data_vencimento: vencIso,
+          } as never);
+          if (tErr) throw tErr;
+        }
         comFollowUp = true;
       }
       return { comFollowUp };
