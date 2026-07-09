@@ -21,12 +21,12 @@ import {
   type Filters,
 } from "@/components/projetos-filters";
 import { OfertaAtivaPage } from "@/routes/_authenticated/oferta-ativa.index";
-import { RadarFechamentoPage } from "@/routes/_authenticated/radar";
 import { ComissoesPage } from "@/routes/_authenticated/comissoes";
 import { LinksUteisPage } from "@/routes/_authenticated/links-uteis";
 
-type NegociosTab = "catalogo" | "oferta" | "radar" | "comissoes" | "links";
-const NEGOCIOS_TABS: NegociosTab[] = ["catalogo", "oferta", "radar", "comissoes", "links"];
+// O antigo "Radar" virou o Modo Fechamento do /pipeline.
+type NegociosTab = "catalogo" | "oferta" | "comissoes" | "links";
+const NEGOCIOS_TABS: NegociosTab[] = ["catalogo", "oferta", "comissoes", "links"];
 
 export const Route = createFileRoute("/_authenticated/projetos/")({
   // `tab` permite abrir/linkar direto uma aba do hub de Negócios & Carteira.
@@ -56,7 +56,6 @@ function NegociosPage() {
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
           <TabsTrigger value="oferta">Oferta Ativa</TabsTrigger>
-          <TabsTrigger value="radar">Radar</TabsTrigger>
           <TabsTrigger value="comissoes">Comissões</TabsTrigger>
           <TabsTrigger value="links">Links Úteis</TabsTrigger>
         </TabsList>
@@ -71,9 +70,6 @@ function NegociosPage() {
       </TabsContent>
       <TabsContent value="oferta">
         <OfertaAtivaPage />
-      </TabsContent>
-      <TabsContent value="radar">
-        <RadarFechamentoPage />
       </TabsContent>
       <TabsContent value="comissoes">
         <ComissoesPage />
@@ -118,10 +114,15 @@ function CatalogoPanel() {
   const saveMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       if (editing?.id) {
-        const { error } = await supabase.from("projetos").update(payload as never).eq("id", editing.id);
+        const { error } = await supabase
+          .from("projetos")
+          .update(payload as never)
+          .eq("id", editing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("projetos").insert({ ...payload, criado_por: user?.id } as never);
+        const { error } = await supabase
+          .from("projetos")
+          .insert({ ...payload, criado_por: user?.id } as never);
         if (error) throw error;
       }
     },
@@ -137,7 +138,10 @@ function CatalogoPanel() {
   const loadToken = async (id: string): Promise<string | null> => {
     if (tokens[id]) return tokens[id];
     const { data, error } = await supabase.rpc("get_projeto_webhook_token", { _projeto_id: id });
-    if (error) { toast.error(error.message); return null; }
+    if (error) {
+      toast.error(error.message);
+      return null;
+    }
     const t = (data as string) ?? "";
     setTokens((s) => ({ ...s, [id]: t }));
     return t;
@@ -178,16 +182,25 @@ function CatalogoPanel() {
             ? "Catálogo de empreendimentos. Cada projeto tem seu próprio webhook para receber leads externos."
             : "Catálogo de empreendimentos disponíveis para indicação."
         }
-        actions={canManage && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />Importar projetos
-            </Button>
-            <Button onClick={() => { setEditing(null); setOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />Novo projeto
-            </Button>
-          </div>
-        )}
+        actions={
+          canManage && (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Importar projetos
+              </Button>
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Novo projeto
+              </Button>
+            </div>
+          )
+        }
       />
 
       <ImportProjetosDialog open={importOpen} onOpenChange={setImportOpen} />
@@ -195,7 +208,10 @@ function CatalogoPanel() {
       {canManage && (
         <ProjetoFormDialog
           open={open}
-          onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}
+          onOpenChange={(o) => {
+            setOpen(o);
+            if (!o) setEditing(null);
+          }}
           editing={editing}
           isPending={saveMutation.isPending}
           onSubmit={(payload) => saveMutation.mutate(payload)}
@@ -205,25 +221,37 @@ function CatalogoPanel() {
       {projetosQ.isLoading ? (
         <CatalogoSkeleton />
       ) : projetosQ.isError ? (
-        <Card><CardContent className="py-12 text-center space-y-3">
-          <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
-          <p className="text-sm text-muted-foreground">
-            Não foi possível carregar os projetos. Verifique sua conexão e tente novamente.
-          </p>
-          <Button variant="outline" size="sm" onClick={() => projetosQ.refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" />Tentar novamente
-          </Button>
-        </CardContent></Card>
-      ) : all.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground space-y-3">
-          <Building2 className="h-10 w-10 mx-auto opacity-40" />
-          <p>Nenhum projeto cadastrado ainda.</p>
-          {canManage && (
-            <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" />Novo projeto
+        <Card>
+          <CardContent className="py-12 text-center space-y-3">
+            <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+            <p className="text-sm text-muted-foreground">
+              Não foi possível carregar os projetos. Verifique sua conexão e tente novamente.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => projetosQ.refetch()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Tentar novamente
             </Button>
-          )}
-        </CardContent></Card>
+          </CardContent>
+        </Card>
+      ) : all.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground space-y-3">
+            <Building2 className="h-10 w-10 mx-auto opacity-40" />
+            <p>Nenhum projeto cadastrado ainda.</p>
+            {canManage && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Novo projeto
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         <>
           <ProjetosFilters projetos={all} filters={filters} onChange={setFilters} />
@@ -237,13 +265,16 @@ function CatalogoPanel() {
           </div>
 
           {filtered.length === 0 ? (
-            <Card><CardContent className="py-12 text-center text-muted-foreground space-y-3">
-              <Building2 className="h-10 w-10 mx-auto opacity-40" />
-              <p>Nenhum projeto corresponde aos filtros aplicados.</p>
-              <Button variant="outline" size="sm" onClick={() => setFilters(emptyFilters)}>
-                <X className="h-4 w-4 mr-2" />Limpar filtros
-              </Button>
-            </CardContent></Card>
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground space-y-3">
+                <Building2 className="h-10 w-10 mx-auto opacity-40" />
+                <p>Nenhum projeto corresponde aos filtros aplicados.</p>
+                <Button variant="outline" size="sm" onClick={() => setFilters(emptyFilters)}>
+                  <X className="h-4 w-4 mr-2" />
+                  Limpar filtros
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
               {filtered.map((p) => {
@@ -257,7 +288,10 @@ function CatalogoPanel() {
                     token={token}
                     revealed={!!revealed[p.id]}
                     onToggleAtivo={(ativo) => toggleAtivo.mutate({ id: p.id, ativo })}
-                    onEdit={() => { setEditing(p); setOpen(true); }}
+                    onEdit={() => {
+                      setEditing(p);
+                      setOpen(true);
+                    }}
                     onLoadToken={() => loadToken(p.id)}
                     onRegen={() => regenMutation.mutate(p.id)}
                     onToggleReveal={() => setRevealed((r) => ({ ...r, [p.id]: !r[p.id] }))}

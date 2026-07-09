@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// "Relatórios" foi consolidado como a aba "Analytics" dentro de /hoje (Fase 1).
-// Mantemos a rota como redirect de compatibilidade para não quebrar links/atalhos.
+// "Relatórios" virou a página Inteligência (insights + evidência). Redirect de
+// compatibilidade para não quebrar links/atalhos salvos.
 export const Route = createFileRoute("/_authenticated/relatorios")({
   beforeLoad: () => {
-    throw redirect({ to: "/hoje", search: { tab: "analytics" } });
+    throw redirect({ to: "/inteligencia" });
   },
 });

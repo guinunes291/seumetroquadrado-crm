@@ -54,6 +54,7 @@ import {
   Check,
   Sparkles,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -87,6 +88,10 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
+import { GlassCard } from "@/components/ui/glass-card";
+import { ScoreRing } from "@/components/ui/score-ring";
+import { TemperatureChip } from "@/components/ui/temperature-chip";
+import { diasDesde, scoreLead } from "@/lib/priority";
 import { DocumentacaoTab } from "@/components/documentacao-tab";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
@@ -278,7 +283,6 @@ function LeadDetailPage() {
     observacoes: "",
   });
 
-
   // "+ Tarefa" inline: cria uma tarefa já vinculada a este lead, sem ir até a página de Tarefas.
   const [tarefaOpen, setTarefaOpen] = useState(false);
   const [tarefaForm, setTarefaForm] = useState({
@@ -404,7 +408,6 @@ function LeadDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-
   // Nota rápida: registra uma interação (nota interna) em 1 passo, sem o modal completo.
   const criarNotaRapida = useMutation({
     mutationFn: async () => {
@@ -450,6 +453,21 @@ function LeadDetailPage() {
       return (data ?? []).find((r) => r.lead_id === leadId) ?? null;
     },
     staleTime: 60_000,
+  });
+
+  // Badge de risco do resumo executivo: documentos pendentes/reprovados.
+  const { data: docsPendentes = 0 } = useQuery({
+    queryKey: ["lead-docs-pendentes", leadId],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("documentacoes")
+        .select("id", { count: "exact", head: true })
+        .eq("lead_id", leadId)
+        .in("status", ["pendente", "reprovado"]);
+      if (error) throw error;
+      return count ?? 0;
+    },
   });
 
   const enviarWhatsapp = useMutation({
@@ -567,6 +585,14 @@ function LeadDetailPage() {
   const acaoSugerida = PROXIMA_ACAO[lead.status as LeadStatus] ?? null;
 
   const telHref = `tel:${(lead.telefone ?? "").replace(/[^\d+]/g, "")}`;
+
+  // Instrumentos do resumo executivo: score de prioridade + sinais de risco.
+  const scoreInfo = scoreLead({
+    temperatura: lead.temperatura,
+    status: lead.status,
+    ultimaInteracao: lead.ultima_interacao,
+  });
+  const diasSemContato = diasDesde(lead.ultima_interacao ?? lead.created_at, new Date());
 
   return (
     <div>
@@ -727,31 +753,72 @@ function LeadDetailPage() {
         }
       />
 
-      {/* Faixa "Próxima melhor ação" — orienta o corretor sobre o próximo passo. */}
-      <Card className="mb-6 border-primary/40 bg-primary/5">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-          <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+      {/* Resumo executivo — quem é, quão urgente, o que fazer agora e o
+          briefing por IA, tudo em um painel só (dossiê inteligente). */}
+      <GlassCard className="mb-6 overflow-hidden">
+        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center md:p-5">
+          <ScoreRing
+            value={scoreInfo.score}
+            size={52}
+            intent={
+              scoreInfo.tier === "alta"
+                ? "danger"
+                : scoreInfo.tier === "media"
+                  ? "warning"
+                  : "neutral"
+            }
+            title={`Score de prioridade ${scoreInfo.score} — ${scoreInfo.motivo}`}
+          />
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Próxima melhor ação
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+              <Sparkles className="h-3.5 w-3.5" /> Próxima melhor ação
             </div>
-            <div className="text-sm font-medium">
+            <div className="font-display text-base font-semibold tracking-tight md:text-lg">
               {acaoSugerida ? acaoSugerida.label : "Registrar um contato e definir o próximo passo"}
             </div>
+            {/* Sinais de risco: temperatura + tempo parado + documentação */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <TemperatureChip temperatura={lead.temperatura} size="sm" />
+              {diasSemContato !== null && diasSemContato >= 2 && (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    "gap-1",
+                    diasSemContato >= 5
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-warning/15 text-warning",
+                  )}
+                >
+                  <AlertTriangle className="h-3 w-3" /> {diasSemContato}d sem contato
+                </Badge>
+              )}
+              {docsPendentes > 0 && (
+                <Badge variant="secondary" className="gap-1 bg-warning/15 text-warning">
+                  <FileText className="h-3 w-3" /> {docsPendentes} doc pendente
+                  {docsPendentes > 1 ? "s" : ""}
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground">{scoreInfo.motivo}</span>
+            </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             {acaoSugerida && (
               <Button
                 size="sm"
                 disabled={mudarStatus.isPending}
+                className="bg-gradient-gold text-navy-900 hover:opacity-90"
                 onClick={() => goToStage(acaoSugerida.target)}
               >
                 {acaoSugerida.label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        {/* Briefing por IA — promovido da aba Timeline para o topo do dossiê. */}
+        <div className="border-t border-glass-border px-4 py-3 md:px-5">
+          <ResumoIA leadId={leadId} />
+        </div>
+      </GlassCard>
 
       <Card className="mb-6">
         <CardHeader className="pb-2">
@@ -832,8 +899,7 @@ function LeadDetailPage() {
                   <Badge variant="destructive" className="text-xs">
                     Perdido —{" "}
                     {motivoPerdaLabel(
-                      (lead as { motivo_perda_categoria?: string | null })
-                        .motivo_perda_categoria,
+                      (lead as { motivo_perda_categoria?: string | null }).motivo_perda_categoria,
                     )}
                   </Badge>
                   {(lead as { motivo_perdido?: string | null }).motivo_perdido && (
@@ -884,10 +950,6 @@ function LeadDetailPage() {
         </TabsList>
 
         <TabsContent value="timeline" className="mt-4">
-          {/* Briefing do lead por IA — mesmo resumo do Modo Blitz, agora no detalhe. */}
-          <div className="mb-4">
-            <ResumoIA leadId={leadId} />
-          </div>
           {/* Nota rápida: registra em 1 passo, sem abrir o modal de interação. */}
           <Card className="mb-4">
             <CardContent className="pt-4 space-y-2">
@@ -1172,7 +1234,6 @@ function LeadDetailPage() {
               </CardContent>
             </Card>
           )}
-
         </TabsContent>
 
         <TabsContent value="agendamentos" className="mt-4">

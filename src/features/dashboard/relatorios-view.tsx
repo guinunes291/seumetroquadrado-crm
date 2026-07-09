@@ -339,16 +339,31 @@ function SerieChart({
         <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
         <Tooltip />
         <Legend wrapperStyle={{ fontSize: 12 }} />
+        {/* Cores em tokens do design system: os antigos hsl(var(--primary)) eram
+            CSS inválido com oklch (stroke caía no fallback) e os hex fixos não
+            acompanhavam o tema. */}
+        <Line type="monotone" dataKey="leads" stroke="var(--chart-2)" strokeWidth={2} dot={false} />
         <Line
           type="monotone"
-          dataKey="leads"
-          stroke="hsl(var(--primary))"
+          dataKey="agendamentos"
+          stroke="var(--chart-3)"
           strokeWidth={2}
           dot={false}
         />
-        <Line type="monotone" dataKey="agendamentos" stroke="#06b6d4" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="visitas" stroke="#f59e0b" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="vendas" stroke="#10b981" strokeWidth={2} dot={false} />
+        <Line
+          type="monotone"
+          dataKey="visitas"
+          stroke="var(--chart-1)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="vendas"
+          stroke="var(--success)"
+          strokeWidth={2}
+          dot={false}
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -495,7 +510,7 @@ function MotivosChart({ data }: { data: Array<{ motivo: string; quantidade: numb
         <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
         <YAxis type="category" dataKey="motivo" tick={{ fontSize: 11 }} width={140} interval={0} />
         <Tooltip />
-        <Bar dataKey="quantidade" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+        <Bar dataKey="quantidade" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

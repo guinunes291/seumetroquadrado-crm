@@ -126,6 +126,8 @@ import {
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
+import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
+import { TemperatureChip } from "@/components/ui/temperature-chip";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
@@ -220,7 +222,8 @@ type Lead = {
 };
 
 function TempIcon({ temp }: { temp: string | null }) {
-  if (temp === "quente") return <Flame className="h-3.5 w-3.5 text-destructive" aria-label="Quente" />;
+  if (temp === "quente")
+    return <Flame className="h-3.5 w-3.5 text-destructive" aria-label="Quente" />;
   if (temp === "morno")
     return <Thermometer className="h-3.5 w-3.5 text-warning" aria-label="Morno" />;
   if (temp === "frio") return <Snowflake className="h-3.5 w-3.5 text-info" aria-label="Frio" />;
@@ -234,10 +237,7 @@ function InatividadeBadge({ lead }: { lead: Lead }) {
   if (!ref) return null;
   const dias = Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
   if (dias < 2) return null;
-  const tone =
-    dias >= 5
-      ? "bg-destructive/15 text-destructive"
-      : "bg-warning/15 text-warning";
+  const tone = dias >= 5 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning";
   return (
     <Badge variant="secondary" className={`${tone} gap-1`} title={`Sem interação há ${dias} dias`}>
       <AlertCircle className="h-3 w-3" /> {dias}d parado
@@ -442,13 +442,27 @@ function LeadsPage() {
     invalidateKeys: [["leads"], ["leads-status-counts"]],
   });
 
+  // Dossiê-relâmpago: clique no corpo da linha/card abre o peek (elementos
+  // interativos — links, botões, checkbox — continuam com o comportamento deles).
+  const [peekLead, setPeekLead] = useState<Lead | null>(null);
+  const handlePeekClick = (e: React.MouseEvent, l: Lead) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("a,button,input,[role='menuitem'],[data-no-peek]")) return;
+    setPeekLead(l);
+  };
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const { status: statusParam, view } = Route.useSearch();
   const navigate = Route.useNavigate();
   const activeView: "lista" | "kanban" = view ?? "lista";
   const setView = (v: "lista" | "kanban") =>
-    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, view: v === "kanban" ? "kanban" : undefined }) });
+    navigate({
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
+        view: v === "kanban" ? "kanban" : undefined,
+      }),
+    });
   const statusParamValido =
     statusParam && (LEAD_STATUS_ORDER as readonly string[]).includes(statusParam)
       ? statusParam
@@ -749,10 +763,7 @@ function LeadsPage() {
   // (data_distribuicao + tentativas) para o timer visual no card/linha.
   const transferTimeouts = useTransferTimeouts();
   const aguardandoIds = useMemo(
-    () =>
-      paginated
-        .filter((l) => l.status === "aguardando_atendimento")
-        .map((l) => l.id),
+    () => paginated.filter((l) => l.status === "aguardando_atendimento").map((l) => l.id),
     [paginated],
   );
   const { data: transferInfoRows } = useQuery({
@@ -776,8 +787,7 @@ function LeadsPage() {
     (transferInfoRows ?? []).forEach((r) =>
       m.set(r.id as string, {
         data_distribuicao: (r.data_distribuicao as string | null) ?? null,
-        tentativas_redistribuicao:
-          (r.tentativas_redistribuicao as number | null) ?? null,
+        tentativas_redistribuicao: (r.tentativas_redistribuicao as number | null) ?? null,
       }),
     );
     return m;
@@ -904,11 +914,13 @@ function LeadsPage() {
       const notifyBatchSize = 20;
       for (let i = 0; i < ids.length; i += notifyBatchSize) {
         const lote = ids.slice(i, i + notifyBatchSize);
-        await Promise.allSettled(lote.map((id) =>
-          supabase.functions.invoke("notify-lead-transfer", {
-            body: { lead_id: id, corretor_id: corretorId },
-          }),
-        ));
+        await Promise.allSettled(
+          lote.map((id) =>
+            supabase.functions.invoke("notify-lead-transfer", {
+              body: { lead_id: id, corretor_id: corretorId },
+            }),
+          ),
+        );
       }
       return ids.length;
     },
@@ -922,7 +934,6 @@ function LeadsPage() {
     },
     onError: (e: Error) => toast.error(e.message || "Falha ao transferir leads."),
   });
-
 
   // Muda a temperatura de todos os leads selecionados de uma vez.
   const bulkTemperatura = useMutation({
@@ -981,7 +992,6 @@ function LeadsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
 
   // Registra uma ligação (interação) para todos os leads selecionados de uma vez.
   const bulkRegistrarLigacao = useMutation({
@@ -1464,9 +1474,7 @@ function LeadsPage() {
                             {opt.key === "morno" && (
                               <Thermometer className="h-4 w-4 mr-2 text-warning" />
                             )}
-                            {opt.key === "frio" && (
-                              <Snowflake className="h-4 w-4 mr-2 text-info" />
-                            )}
+                            {opt.key === "frio" && <Snowflake className="h-4 w-4 mr-2 text-info" />}
                             {opt.label}
                           </DropdownMenuItem>
                         ))}
@@ -1572,6 +1580,8 @@ function LeadsPage() {
                         <TableRow
                           key={l.id}
                           data-state={selectedIds.has(l.id) ? "selected" : undefined}
+                          className="cursor-pointer"
+                          onClick={(e) => handlePeekClick(e, l)}
                         >
                           <TableCell>
                             <Checkbox
@@ -1749,7 +1759,8 @@ function LeadsPage() {
                     return (
                       <div
                         key={l.id}
-                        className={`rounded-lg border p-3 space-y-2 ${
+                        onClick={(e) => handlePeekClick(e, l)}
+                        className={`rounded-lg border bg-card p-3 space-y-2 cursor-pointer shadow-elev-1 transition-shadow hover:shadow-elev-2 ${
                           selectedIds.has(l.id) ? "ring-2 ring-primary" : ""
                         }`}
                       >
@@ -1760,7 +1771,7 @@ function LeadsPage() {
                             aria-label={`Selecionar ${l.nome}`}
                             className="mt-0.5"
                           />
-                          <TempIcon temp={l.temperatura} />
+                          <TemperatureChip temperatura={l.temperatura} size="sm" pulse={false} />
                           <Link
                             to="/leads/$leadId"
                             params={{ leadId: l.id }}
@@ -1790,7 +1801,6 @@ function LeadsPage() {
                             />
                           );
                         })()}
-
 
                         <div className="text-xs text-muted-foreground capitalize">
                           {l.projeto_nome || "Sem empreendimento"} · {l.origem.replace(/_/g, " ")}
@@ -1907,8 +1917,9 @@ function LeadsPage() {
               {/* Teto de segurança da RPC: sem aviso, o corte de 1000 seria silencioso. */}
               {totalLeadsCount > 1000 && (
                 <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                  Mostrando os 1.000 leads mais relevantes de {totalLeadsCount.toLocaleString("pt-BR")}.
-                  Refine os filtros (status, período, corretor) para ver o restante.
+                  Mostrando os 1.000 leads mais relevantes de{" "}
+                  {totalLeadsCount.toLocaleString("pt-BR")}. Refine os filtros (status, período,
+                  corretor) para ver o restante.
                 </p>
               )}
 
@@ -1948,6 +1959,26 @@ function LeadsPage() {
             onModalOpenChange={(o) => !o && setModalState(null)}
             perdidoLead={perdidoLead}
             onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+          />
+
+          {/* Dossiê-relâmpago (peek) — contexto e ação sem abrir a página do lead */}
+          <LeadPeekDrawer
+            lead={peekLead}
+            onOpenChange={(o) => !o && setPeekLead(null)}
+            corretorNome={
+              peekLead?.corretor_id ? corretoresMap.get(peekLead.corretor_id) : undefined
+            }
+            onWhatsApp={(pl) => abrirWhatsApp(pl as Lead)}
+            onProximaAcao={(pl) => {
+              const l = pl as Lead;
+              const acao = PROXIMA_ACAO[l.status as LeadStatus];
+              if (!acao) return;
+              const action = resolveStageAction(acao.target);
+              setPeekLead(null);
+              if (action.kind === "modal") setModalState({ modal: action.modal, lead: l });
+              else if (action.kind === "perdido") setPerdidoLead(l);
+              else updateStatus.mutate({ id: l.id, status: acao.target });
+            }}
           />
 
           {/* Tipo de contato ao iniciar atendimento */}

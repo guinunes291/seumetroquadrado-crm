@@ -119,11 +119,13 @@ export function ProjetoCard({
   const url = token ? webhookUrl(origin, token) : "";
 
   return (
-    <Card className={`flex flex-col ${!p.ativo ? "opacity-60" : ""}`}>
+    <Card
+      className={`flex flex-col transition-shadow hover:shadow-elev-2 ${!p.ativo ? "opacity-60" : ""}`}
+    >
       <CardContent className="p-4 flex-1 flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          <div className="h-11 w-11 rounded-md bg-muted flex items-center justify-center shrink-0">
-            <Building2 className="h-5 w-5 text-muted-foreground" />
+          <div className="h-11 w-11 rounded-md bg-gradient-command flex items-center justify-center shrink-0 shadow-elev-1">
+            <Building2 className="h-5 w-5 text-gold-400" />
           </div>
           <div className="flex-1 min-w-0">
             <Link
@@ -199,7 +201,7 @@ export function ProjetoCard({
         {precoLabel && (
           <div className="mt-auto">
             <p className="text-xs text-muted-foreground">A partir de</p>
-            <p className="text-lg font-semibold">{precoLabel}</p>
+            <p className="font-display text-lg font-semibold tabular-nums">{precoLabel}</p>
           </div>
         )}
 
@@ -239,11 +241,7 @@ export function ProjetoCard({
               <div className="p-3 pt-0 space-y-2">
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-xs bg-background border rounded px-2 py-1.5 font-mono truncate">
-                    {token
-                      ? isRevealed
-                        ? url
-                        : webhookUrl(origin, maskToken(token))
-                      : "••••••"}
+                    {token ? (isRevealed ? url : webhookUrl(origin, maskToken(token))) : "••••••"}
                   </code>
                   <Button
                     size="icon"
@@ -254,18 +252,9 @@ export function ProjetoCard({
                     }}
                     title={isRevealed ? "Ocultar" : "Mostrar"}
                   >
-                    {isRevealed ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
+                    {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={onCopyUrl}
-                    title="Copiar URL"
-                  >
+                  <Button size="icon" variant="ghost" onClick={onCopyUrl} title="Copiar URL">
                     <Copy className="h-4 w-4" />
                   </Button>
                   <Button

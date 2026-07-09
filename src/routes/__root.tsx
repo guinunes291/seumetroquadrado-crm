@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { registerServiceWorker } from "../lib/pwa/register-sw";
+import { THEME_COLORS, THEME_INIT_SCRIPT } from "../lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -79,9 +80,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Seu Metro Quadrado CRM" },
-      { name: "description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
+      {
+        name: "description",
+        content: "Gestão inteligente para corretores venderem mais e melhor!",
+      },
       { name: "author", content: "Lovable" },
-      { name: "theme-color", content: "#0F172A" },
+      // Padrão = Modo Comando (escuro); applyTheme() atualiza em runtime se o
+      // usuário preferir o tema claro.
+      { name: "theme-color", content: THEME_COLORS.dark },
       // Impede tradução automática (Google Translate / Chrome). O tradutor troca
       // nós de texto por <font> e quebra a reconciliação do React → o app
       // crasha ("removeChild"/"insertBefore") para corretores com tradução ativa.
@@ -92,15 +98,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-title", content: "Seu m²" },
       { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:title", content: "Seu Metro Quadrado CRM" },
-      { property: "og:description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
+      {
+        property: "og:description",
+        content: "Gestão inteligente para corretores venderem mais e melhor!",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Seu Metro Quadrado CRM" },
-      { name: "twitter:description", content: "Gestão inteligente para corretores venderem mais e melhor!" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sgOGHcSX2lYQWbrwsTekWBSJEuJ2/social-images/social-1781539340665-IMG_2740.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/sgOGHcSX2lYQWbrwsTekWBSJEuJ2/social-images/social-1781539340665-IMG_2740.webp" },
+      {
+        name: "twitter:description",
+        content: "Gestão inteligente para corretores venderem mais e melhor!",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/sgOGHcSX2lYQWbrwsTekWBSJEuJ2/social-images/social-1781539340665-IMG_2740.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/sgOGHcSX2lYQWbrwsTekWBSJEuJ2/social-images/social-1781539340665-IMG_2740.webp",
+      },
     ],
+    // Roda ANTES do primeiro paint para aplicar o tema salvo sem piscar
+    // (dark é o padrão do produto). Framework-free e idempotente.
+    // Nota: a chave é `scripts`, mas o router a renderiza no <head> via
+    // HeadContent (match.headScripts ← headFnContent.scripts).
+    scripts: [{ children: THEME_INIT_SCRIPT }],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },

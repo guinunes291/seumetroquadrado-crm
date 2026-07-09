@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw } from "lucide-react";
+import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   FUNNEL_STAGES,
@@ -16,7 +16,7 @@ import {
   resolveStageAction,
   type LeadStatus,
 } from "@/lib/leads";
-import { temperaturaBadgeClass, TEMPERATURA_LABEL, type Temperatura } from "@/lib/status-tones";
+import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
 import {
@@ -33,6 +33,16 @@ const COLUMNS = FUNNEL_STAGES.map((id) => ({
   label: LEAD_STATUS_LABEL[id],
   tone: LEAD_STATUS_COLUMN_TONE[id],
 }));
+
+// Dias sem interação — o sinal de urgência do card. Só vale para etapas
+// "vivas" (mesma regra do badge de inatividade da listagem).
+const ETAPAS_SEM_INATIVIDADE = ["novo", "contrato_fechado", "perdido", "pos_venda"];
+function diasParado(lead: { status: string; ultima_interacao: string | null; created_at: string }) {
+  if (ETAPAS_SEM_INATIVIDADE.includes(lead.status)) return 0;
+  const ref = lead.ultima_interacao ?? lead.created_at;
+  if (!ref) return 0;
+  return Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
+}
 
 type Lead = {
   id: string;
@@ -51,7 +61,6 @@ type Lead = {
   created_at: string;
   ultima_interacao: string | null;
 };
-
 
 type SlaRow = {
   lead_id: string;
@@ -127,7 +136,6 @@ export function KanbanBoard() {
   }, [slaRows]);
   const transferTimeouts = useTransferTimeouts();
 
-
   // Substitui polling por realtime
   useRealtimeInvalidate("leads", [["leads-kanban"], ["leads-sla"]]);
 
@@ -161,7 +169,8 @@ export function KanbanBoard() {
       emAtend.sort((a, b) => {
         const ta = a.ultima_interacao ? Date.parse(a.ultima_interacao) : NaN;
         const tb = b.ultima_interacao ? Date.parse(b.ultima_interacao) : NaN;
-        if (Number.isNaN(ta) && Number.isNaN(tb)) return Date.parse(a.created_at) - Date.parse(b.created_at);
+        if (Number.isNaN(ta) && Number.isNaN(tb))
+          return Date.parse(a.created_at) - Date.parse(b.created_at);
         if (Number.isNaN(ta)) return 1;
         if (Number.isNaN(tb)) return -1;
         return ta - tb;
@@ -169,7 +178,6 @@ export function KanbanBoard() {
     }
     return map;
   }, [leads, search]);
-
 
   return (
     <div className="space-y-4">
@@ -241,9 +249,24 @@ export function KanbanBoard() {
                 >
                   <div className="flex items-center justify-between px-1 py-2">
                     <div className="font-semibold text-sm">{col.label}</div>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {items.length}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        // Gargalo visível: quantos cards estão parados há 3+ dias.
+                        const parados = items.filter((l) => diasParado(l) >= 3).length;
+                        return parados > 0 ? (
+                          <Badge
+                            variant="secondary"
+                            className="gap-0.5 bg-warning/15 text-[10px] text-warning"
+                            title={`${parados} lead(s) parados há 3+ dias nesta etapa`}
+                          >
+                            <AlertCircle className="h-3 w-3" /> {parados}
+                          </Badge>
+                        ) : null;
+                      })()}
+                      <Badge variant="secondary" className="text-[10px]">
+                        {items.length}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="space-y-2 min-h-[100px]">
                     {items.map((lead) => (
@@ -302,18 +325,28 @@ export function KanbanBoard() {
                                 timeouts={transferTimeouts}
                               />
 
-                              {lead.temperatura && (
-                                <Badge
-                                  variant="secondary"
-                                  className={cn(
-                                    "text-[9px] uppercase",
-                                    temperaturaBadgeClass(lead.temperatura),
-                                  )}
-                                >
-                                  {TEMPERATURA_LABEL[lead.temperatura as Temperatura] ??
-                                    lead.temperatura}
-                                </Badge>
-                              )}
+                              <TemperatureChip
+                                temperatura={lead.temperatura}
+                                size="sm"
+                                pulse={false}
+                              />
+                              {(() => {
+                                const dias = diasParado(lead);
+                                return dias >= 2 ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      "gap-0.5 text-[9px]",
+                                      dias >= 5
+                                        ? "bg-destructive/15 text-destructive"
+                                        : "bg-warning/15 text-warning",
+                                    )}
+                                    title={`Sem interação há ${dias} dias`}
+                                  >
+                                    <AlertCircle className="h-2.5 w-2.5" /> {dias}d
+                                  </Badge>
+                                ) : null;
+                              })()}
                             </div>
                             {PROXIMA_ACAO[lead.status as LeadStatus] && (
                               <Button
@@ -339,7 +372,6 @@ export function KanbanBoard() {
                             onPickModal={(modal) => setModalState({ modal, lead })}
                             onPickPerdido={() => setPerdidoLead(lead)}
                           />
-
                         </div>
                       </Card>
                     ))}

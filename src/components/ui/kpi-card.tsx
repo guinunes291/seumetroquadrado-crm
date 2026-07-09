@@ -68,10 +68,10 @@ export function KpiCard({
           </>
         ) : (
           <>
-            <div className="text-2xl font-semibold tracking-tight">{value}</div>
-            {hint !== undefined && (
-              <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-            )}
+            <div className="font-display text-2xl font-semibold tracking-tight tabular-nums">
+              {value}
+            </div>
+            {hint !== undefined && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
           </>
         )}
       </CardContent>
@@ -80,6 +80,14 @@ export function KpiCard({
 }
 
 /** Grid padrão de KPIs: 1 col no mobile, 2 no sm, 4 no xl. */
-export function KpiGrid({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>;
+export function KpiGrid({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("grid gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>
+  );
 }
