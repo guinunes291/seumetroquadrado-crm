@@ -20,6 +20,7 @@ import {
   ListTodo,
   LayoutDashboard,
   Building2,
+  Headset,
 } from "lucide-react";
 
 type LeadHit = { id: string; nome: string; telefone: string | null; status: string };
@@ -92,6 +93,7 @@ export function CommandPalette() {
   const navItems = [
     { label: "Central de Comando", icon: Gauge, go: () => navigate({ to: "/hoje" }) },
     { label: "Leads", icon: Users, go: () => navigate({ to: "/leads" }) },
+    { label: "Atendimento", icon: Headset, go: () => navigate({ to: "/atendimento" }) },
     { label: "Pipeline (Funil)", icon: Trello, go: () => navigate({ to: "/pipeline" }) },
     {
       label: "Modo Fechamento",

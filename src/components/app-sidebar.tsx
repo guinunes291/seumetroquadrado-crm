@@ -19,6 +19,7 @@ import {
   User as UserIcon,
   BarChart3,
   ChevronRight,
+  Headset,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,10 +62,11 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
-    // Tarefas agora é uma aba do hub /agendamentos.
-    to: "/agendamentos",
-    label: "Agenda & Tarefas",
-    icon: CalendarClock,
+    // Filas de resposta/follow-up/reaquecimento/documentação priorizadas.
+    to: "/atendimento",
+    label: "Atendimento",
+    icon: Headset,
+    children: [{ to: "/agendamentos", label: "Agenda & Tarefas", icon: CalendarClock }],
   },
   {
     // Funil (kanban) + Modo Fechamento na mesma central.

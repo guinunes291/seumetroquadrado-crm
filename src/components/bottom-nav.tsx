@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Sun, Users, Search, CalendarClock, Trello } from "lucide-react";
+import { Sun, Users, Search, Headset, Trello } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Slot = {
@@ -15,7 +15,7 @@ const LEFT: Slot[] = [
   { to: "/leads", label: "Leads", icon: Users },
 ];
 const RIGHT: Slot[] = [
-  { to: "/agendamentos", label: "Agenda", icon: CalendarClock },
+  { to: "/atendimento", label: "Atender", icon: Headset },
   { to: "/pipeline", label: "Pipeline", icon: Trello },
 ];
 

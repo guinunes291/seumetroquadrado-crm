@@ -42,6 +42,7 @@ import { Route as AuthenticatedConquistasRouteImport } from './routes/_authentic
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedComissoesRouteImport } from './routes/_authenticated/comissoes'
 import { Route as AuthenticatedBlitzRouteImport } from './routes/_authenticated/blitz'
+import { Route as AuthenticatedAtendimentoRouteImport } from './routes/_authenticated/atendimento'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -242,6 +243,12 @@ const AuthenticatedBlitzRoute = AuthenticatedBlitzRouteImport.update({
   path: '/blitz',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAtendimentoRoute =
+  AuthenticatedAtendimentoRouteImport.update({
+    id: '/atendimento',
+    path: '/atendimento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgendamentosRoute =
   AuthenticatedAgendamentosRouteImport.update({
     id: '/agendamentos',
@@ -417,6 +424,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
+  '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/blitz': typeof AuthenticatedBlitzRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -480,6 +488,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
+  '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/blitz': typeof AuthenticatedBlitzRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -546,6 +555,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
+  '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
   '/_authenticated/blitz': typeof AuthenticatedBlitzRoute
   '/_authenticated/comissoes': typeof AuthenticatedComissoesRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
@@ -613,6 +623,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agendamentos'
+    | '/atendimento'
     | '/blitz'
     | '/comissoes'
     | '/configuracoes'
@@ -676,6 +687,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agendamentos'
+    | '/atendimento'
     | '/blitz'
     | '/comissoes'
     | '/configuracoes'
@@ -741,6 +753,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/agendamentos'
+    | '/_authenticated/atendimento'
     | '/_authenticated/blitz'
     | '/_authenticated/comissoes'
     | '/_authenticated/configuracoes'
@@ -1058,6 +1071,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBlitzRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/atendimento': {
+      id: '/_authenticated/atendimento'
+      path: '/atendimento'
+      fullPath: '/atendimento'
+      preLoaderRoute: typeof AuthenticatedAtendimentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agendamentos': {
       id: '/_authenticated/agendamentos'
       path: '/agendamentos'
@@ -1273,6 +1293,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendamentosRoute: typeof AuthenticatedAgendamentosRoute
+  AuthenticatedAtendimentoRoute: typeof AuthenticatedAtendimentoRoute
   AuthenticatedBlitzRoute: typeof AuthenticatedBlitzRoute
   AuthenticatedComissoesRoute: typeof AuthenticatedComissoesRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
@@ -1313,6 +1334,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendamentosRoute: AuthenticatedAgendamentosRoute,
+  AuthenticatedAtendimentoRoute: AuthenticatedAtendimentoRoute,
   AuthenticatedBlitzRoute: AuthenticatedBlitzRoute,
   AuthenticatedComissoesRoute: AuthenticatedComissoesRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
