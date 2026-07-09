@@ -68,21 +68,21 @@ export type Hue =
   | "rose"
   | "slate";
 
-/** Badge: fundo 15% + texto 700. */
+/** Badge: fundo 15% + texto 700 (300 no dark, para contraste sobre navy). */
 export const HUE_BADGE: Record<Hue, string> = {
-  blue: "bg-blue-500/15 text-blue-700",
-  amber: "bg-amber-500/15 text-amber-700",
-  yellow: "bg-yellow-500/15 text-yellow-700",
-  violet: "bg-violet-500/15 text-violet-700",
-  cyan: "bg-cyan-500/15 text-cyan-700",
-  indigo: "bg-indigo-500/15 text-indigo-700",
-  emerald: "bg-emerald-500/15 text-emerald-700",
-  teal: "bg-teal-500/15 text-teal-700",
-  orange: "bg-orange-500/15 text-orange-700",
-  green: "bg-green-600/20 text-green-800",
-  lime: "bg-lime-500/15 text-lime-700",
-  rose: "bg-rose-500/15 text-rose-700",
-  slate: "bg-slate-500/15 text-slate-700",
+  blue: "bg-blue-500/15 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300",
+  amber: "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
+  yellow: "bg-yellow-500/15 text-yellow-700 dark:bg-yellow-400/15 dark:text-yellow-300",
+  violet: "bg-violet-500/15 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  cyan: "bg-cyan-500/15 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300",
+  indigo: "bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300",
+  emerald: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+  teal: "bg-teal-500/15 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300",
+  orange: "bg-orange-500/15 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300",
+  green: "bg-green-600/20 text-green-800 dark:bg-green-500/20 dark:text-green-300",
+  lime: "bg-lime-500/15 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300",
+  rose: "bg-rose-500/15 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
+  slate: "bg-slate-500/15 text-slate-700 dark:bg-slate-400/15 dark:text-slate-300",
 };
 
 /** Coluna do kanban: fundo 10% + borda 30%. Derivado do MESMO hue do badge. */

@@ -4,6 +4,7 @@ import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { NotificationBell } from "@/components/notification-bell";
 import { CommandPalette } from "@/components/command-palette";
 import { RegistrarVendaDialog } from "@/components/registrar-venda-dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
@@ -63,6 +64,7 @@ function AuthenticatedLayout() {
               </kbd>
             </Button>
             <RegistrarVendaDialog />
+            <ThemeToggle />
             <NotificationBell />
           </div>
         </header>

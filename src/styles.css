@@ -3,10 +3,26 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Sora Variable (display) — vendorizada em public/fonts para não alterar o
+   bun.lock (o registro privado exige token no CI). Subset latin cobre pt-BR.
+   Uso restrito: títulos de página, valores de KPI, timer do Sprint e números
+   do ranking — sempre com tabular-nums. Corpo continua Inter. */
+@font-face {
+  font-family: "Sora Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url(/fonts/sora-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Sora Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -55,10 +71,50 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --color-gold: var(--gold);
   --color-navy: var(--navy);
+
+  /* Escalas de marca (absolutas, iguais nos dois temas) → bg-navy-800, text-gold-400… */
+  --color-navy-50: oklch(0.97 0.005 250);
+  --color-navy-100: oklch(0.94 0.01 250);
+  --color-navy-200: oklch(0.88 0.02 250);
+  --color-navy-300: oklch(0.78 0.03 250);
+  --color-navy-400: oklch(0.62 0.04 250);
+  --color-navy-500: oklch(0.5 0.05 250);
+  --color-navy-600: oklch(0.4 0.06 250);
+  --color-navy-700: oklch(0.32 0.06 250);
+  --color-navy-800: oklch(0.26 0.05 250);
+  --color-navy-900: oklch(0.22 0.05 250);
+  --color-navy-950: oklch(0.15 0.03 250);
+  --color-gold-50: oklch(0.97 0.02 90);
+  --color-gold-100: oklch(0.93 0.04 88);
+  --color-gold-200: oklch(0.88 0.07 87);
+  --color-gold-300: oklch(0.82 0.1 86);
+  --color-gold-400: oklch(0.77 0.11 85);
+  --color-gold-500: oklch(0.72 0.12 85);
+  --color-gold-600: oklch(0.63 0.12 83);
+  --color-gold-700: oklch(0.55 0.11 80);
+  --color-gold-800: oklch(0.45 0.09 78);
+  --color-gold-900: oklch(0.36 0.07 75);
+
+  /* Superfícies glass (variam por tema) */
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+
+  /* Elevação → shadow-elev-1..4, shadow-glow-gold */
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
+  --shadow-elev-3: var(--elev-3);
+  --shadow-elev-4: var(--elev-4);
+  --shadow-glow-gold: var(--glow-gold);
+
+  /* Microinterações → animate-pulse-glow, animate-shimmer, animate-slide-fade, animate-count-pop */
+  --animate-pulse-glow: pulse-glow 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.8s linear infinite;
+  --animate-slide-fade: slide-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-count-pop: count-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 :root {
-  /* Seu Metro Quadrado — navy + gold */
+  /* Seu Metro Quadrado — navy + gold · tema "Clareza" (light) */
   --radius: 0.65rem;
   --navy: oklch(0.22 0.05 250);
   --gold: oklch(0.72 0.12 85);
@@ -73,76 +129,208 @@
   --secondary: oklch(0.96 0.01 250);
   --secondary-foreground: oklch(0.32 0.05 250);
   --muted: oklch(0.95 0.01 250);
-  --muted-foreground: oklch(0.50 0.03 250);
+  --muted-foreground: oklch(0.5 0.03 250);
   --accent: oklch(0.92 0.02 85);
   --accent-foreground: oklch(0.22 0.05 250);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
   --success: oklch(0.55 0.14 150);
   --success-foreground: oklch(0.985 0 0);
-  --warning: oklch(0.60 0.13 65);
+  --warning: oklch(0.6 0.13 65);
   --warning-foreground: oklch(0.985 0 0);
   --info: oklch(0.55 0.16 255);
   --info-foreground: oklch(0.985 0 0);
-  --border: oklch(0.90 0.01 250);
-  --input: oklch(0.90 0.01 250);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.9 0.01 250);
   --ring: oklch(0.72 0.12 85);
   --chart-1: oklch(0.72 0.12 85);
   --chart-2: oklch(0.32 0.06 250);
   --chart-3: oklch(0.42 0.06 250);
   --chart-4: oklch(0.52 0.06 250);
-  --chart-5: oklch(0.62 0.10 85);
+  --chart-5: oklch(0.62 0.1 85);
   --sidebar: oklch(0.22 0.05 250);
   --sidebar-foreground: oklch(0.95 0.01 85);
   --sidebar-primary: oklch(0.72 0.12 85);
-  --sidebar-primary-foreground: oklch(0.20 0.05 250);
+  --sidebar-primary-foreground: oklch(0.2 0.05 250);
   --sidebar-accent: oklch(0.28 0.05 250);
   --sidebar-accent-foreground: oklch(0.95 0.01 85);
-  --sidebar-border: oklch(0.30 0.04 250);
+  --sidebar-border: oklch(0.3 0.04 250);
   --sidebar-ring: oklch(0.72 0.12 85);
+
+  /* Glass — leve véu branco sobre conteúdo claro */
+  --glass: oklch(1 0 0 / 0.65);
+  --glass-border: oklch(0.9 0.01 250 / 0.6);
+
+  /* Elevação — sombras tintadas de navy (nunca preto puro no claro) */
+  --elev-1: 0 1px 2px oklch(0.22 0.05 250 / 0.06), 0 1px 3px oklch(0.22 0.05 250 / 0.08);
+  --elev-2: 0 4px 16px -4px oklch(0.22 0.05 250 / 0.1), 0 1px 2px oklch(0.22 0.05 250 / 0.06);
+  --elev-3: 0 8px 28px -6px oklch(0.22 0.05 250 / 0.14), 0 2px 6px oklch(0.22 0.05 250 / 0.06);
+  --elev-4: 0 16px 48px -8px oklch(0.22 0.05 250 / 0.2), 0 4px 12px oklch(0.22 0.05 250 / 0.08);
+  --glow-gold: 0 0 0 1px oklch(0.72 0.12 85 / 0.35), 0 0 24px -6px oklch(0.72 0.12 85 / 0.45);
+
+  /* Gradientes de marca */
+  --gradient-command: linear-gradient(
+    165deg,
+    oklch(0.26 0.055 252) 0%,
+    oklch(0.22 0.05 250) 45%,
+    oklch(0.17 0.04 258) 100%
+  );
+  --gradient-gold: linear-gradient(135deg, oklch(0.77 0.11 85) 0%, oklch(0.63 0.12 83) 100%);
+  --gradient-surface: linear-gradient(180deg, oklch(1 0 0) 0%, oklch(0.98 0.005 250) 100%);
 }
 
 .dark {
-  --navy: oklch(0.15 0.03 250);
+  /* Tema "Modo Comando" (padrão) — navy profundo premium */
+  --navy: oklch(0.14 0.025 250);
   --gold: oklch(0.72 0.12 85);
-  --background: oklch(0.15 0.03 250);
-  --foreground: oklch(0.92 0.01 85);
-  --card: oklch(0.20 0.04 250);
-  --card-foreground: oklch(0.92 0.01 85);
-  --popover: oklch(0.20 0.04 250);
-  --popover-foreground: oklch(0.92 0.01 85);
+  --background: oklch(0.14 0.025 250);
+  --foreground: oklch(0.93 0.01 85);
+  --card: oklch(0.19 0.035 250);
+  --card-foreground: oklch(0.93 0.01 85);
+  --popover: oklch(0.19 0.035 250);
+  --popover-foreground: oklch(0.93 0.01 85);
   --primary: oklch(0.72 0.12 85);
   --primary-foreground: oklch(0.15 0.03 250);
-  --secondary: oklch(0.25 0.04 250);
+  --secondary: oklch(0.24 0.04 250);
   --secondary-foreground: oklch(0.85 0.02 85);
-  --muted: oklch(0.28 0.04 250);
-  --muted-foreground: oklch(0.65 0.02 250);
-  --accent: oklch(0.30 0.05 85);
-  --accent-foreground: oklch(0.92 0.01 85);
+  --muted: oklch(0.27 0.04 250);
+  --muted-foreground: oklch(0.66 0.02 250);
+  --accent: oklch(0.3 0.05 85);
+  --accent-foreground: oklch(0.93 0.01 85);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.985 0 0);
   --success: oklch(0.72 0.15 150);
   --success-foreground: oklch(0.15 0.03 250);
   --warning: oklch(0.78 0.14 75);
   --warning-foreground: oklch(0.15 0.03 250);
-  --info: oklch(0.70 0.14 255);
+  --info: oklch(0.7 0.14 255);
   --info-foreground: oklch(0.15 0.03 250);
-  --border: oklch(0.30 0.03 250);
-  --input: oklch(0.30 0.03 250);
+  --border: oklch(0.29 0.03 250);
+  --input: oklch(0.29 0.03 250);
   --ring: oklch(0.72 0.12 85);
   --chart-1: oklch(0.72 0.12 85);
   --chart-2: oklch(0.45 0.06 250);
   --chart-3: oklch(0.55 0.06 250);
   --chart-4: oklch(0.65 0.06 250);
-  --chart-5: oklch(0.62 0.10 85);
-  --sidebar: oklch(0.18 0.03 250);
-  --sidebar-foreground: oklch(0.92 0.01 85);
+  --chart-5: oklch(0.62 0.1 85);
+  --sidebar: oklch(0.165 0.03 250);
+  --sidebar-foreground: oklch(0.93 0.01 85);
   --sidebar-primary: oklch(0.72 0.12 85);
   --sidebar-primary-foreground: oklch(0.15 0.03 250);
-  --sidebar-accent: oklch(0.25 0.04 250);
-  --sidebar-accent-foreground: oklch(0.92 0.01 85);
-  --sidebar-border: oklch(0.30 0.03 250);
+  --sidebar-accent: oklch(0.24 0.04 250);
+  --sidebar-accent-foreground: oklch(0.93 0.01 85);
+  --sidebar-border: oklch(0.28 0.03 250);
   --sidebar-ring: oklch(0.72 0.12 85);
+
+  /* Glass — véu navy translúcido com fio dourado sutil */
+  --glass: oklch(0.2 0.04 250 / 0.55);
+  --glass-border: oklch(0.95 0.01 85 / 0.1);
+
+  /* Elevação — sombra preta + realce interno no topo (sensação de relevo) */
+  --elev-1: 0 1px 2px oklch(0 0 0 / 0.35), inset 0 1px 0 oklch(1 0 0 / 0.04);
+  --elev-2: 0 4px 16px -4px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.05);
+  --elev-3: 0 8px 28px -6px oklch(0 0 0 / 0.55), inset 0 1px 0 oklch(1 0 0 / 0.06);
+  --elev-4: 0 16px 48px -8px oklch(0 0 0 / 0.65), inset 0 1px 0 oklch(1 0 0 / 0.07);
+  --glow-gold: 0 0 0 1px oklch(0.72 0.12 85 / 0.4), 0 0 28px -6px oklch(0.72 0.12 85 / 0.5);
+
+  --gradient-command: linear-gradient(
+    165deg,
+    oklch(0.21 0.05 252) 0%,
+    oklch(0.16 0.035 250) 45%,
+    oklch(0.13 0.03 258) 100%
+  );
+  --gradient-gold: linear-gradient(135deg, oklch(0.77 0.11 85) 0%, oklch(0.63 0.12 83) 100%);
+  --gradient-surface: linear-gradient(180deg, oklch(0.21 0.04 250) 0%, oklch(0.185 0.035 250) 100%);
+}
+
+/* --------------------------------------------------------------------------
+   Microinterações — usadas via animate-pulse-glow etc. (tokens no @theme).
+   Sempre acompanhadas de motion-reduce:animate-none nos componentes.
+   -------------------------------------------------------------------------- */
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.72 0.12 85 / 0);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px oklch(0.72 0.12 85 / 0.18),
+      0 0 18px -4px oklch(0.72 0.12 85 / 0.45);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes slide-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes count-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utilitários de marca
+   -------------------------------------------------------------------------- */
+
+/* Superfície glass — usar com moderação (sidebar, header, bottom-nav, SamiQ). */
+@utility glass-panel {
+  background-color: var(--color-glass);
+  border: 1px solid var(--color-glass-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  @supports not (backdrop-filter: blur(1px)) {
+    background-color: var(--color-card);
+  }
+}
+
+@utility bg-gradient-command {
+  background-image: var(--gradient-command);
+}
+
+@utility bg-gradient-gold {
+  background-image: var(--gradient-gold);
+}
+
+@utility bg-gradient-surface {
+  background-image: var(--gradient-surface);
+}
+
+/* Skeleton premium: base muted + varredura shimmer. */
+@utility shimmer-surface {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    oklch(1 0 0 / 0.06) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
 }
 
 @layer base {

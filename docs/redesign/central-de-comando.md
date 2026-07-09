@@ -29,7 +29,7 @@
 
 O CRM da SMQ já resolvia parte disso (fila de ação, score, SLA, follow-up automático, Match IA) —
 mas com aparência genérica, dark mode dormante, sem copiloto na interface e sem uma experiência
-que *guie* o dia. Esta proposta fecha esse ciclo.
+que _guie_ o dia. Esta proposta fecha esse ciclo.
 
 ## 2. Novo conceito geral — Central de Comando SMQ
 
@@ -84,14 +84,14 @@ Camada de tokens em `src/styles.css` (Tailwind v4 CSS-first), só adição — n
 
 ## 5. Paleta de cores
 
-| Papel | Light ("Clareza") | Dark ("Modo Comando" — padrão) |
-|---|---|---|
-| Fundo | branco-azulado `oklch(0.99 0.002 250)` | navy profundo `oklch(0.14 0.03 250)` |
-| Card | branco puro | navy elevado `oklch(0.19 0.04 250)` + inset highlight |
-| Primário | navy `oklch(0.32 0.06 250)` | **dourado** `oklch(0.72 0.12 85)` |
-| Destaque | dourado | dourado (glow) |
-| Semânticas | success/warning/info/destructive já tokenizadas | versões clareadas p/ contraste |
-| Temperatura | quente=danger, morno=warning, frio=info (chips com `dark:` variantes) | idem |
+| Papel       | Light ("Clareza")                                                     | Dark ("Modo Comando" — padrão)                        |
+| ----------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| Fundo       | branco-azulado `oklch(0.99 0.002 250)`                                | navy profundo `oklch(0.14 0.03 250)`                  |
+| Card        | branco puro                                                           | navy elevado `oklch(0.19 0.04 250)` + inset highlight |
+| Primário    | navy `oklch(0.32 0.06 250)`                                           | **dourado** `oklch(0.72 0.12 85)`                     |
+| Destaque    | dourado                                                               | dourado (glow)                                        |
+| Semânticas  | success/warning/info/destructive já tokenizadas                       | versões clareadas p/ contraste                        |
+| Temperatura | quente=danger, morno=warning, frio=info (chips com `dark:` variantes) | idem                                                  |
 
 O dourado é **moeda rara**: só para prioridade máxima, conquistas e o SamiQ. Se tudo brilha, nada brilha.
 
@@ -104,20 +104,20 @@ O dourado é **moeda rara**: só para prioridade máxima, conquistas e o SamiQ. 
 
 ## 7. Componentes principais (novos)
 
-| Componente | Papel |
-|---|---|
-| `ui/glass-card` | superfície glass com elevação e glow opcional |
-| `ui/stat-tile` | KPI premium: valor em Sora, delta, sparkline, glow por intent |
-| `ui/score-ring` | anel SVG 0–100 do score de prioridade / probabilidade de fechamento |
-| `ui/temperature-chip` | chip de temperatura; pulse-glow apenas em `quente` |
-| `ui/sparkline` | tendência em SVG puro (sem lib) |
-| `ui/section-header` | eyebrow + título + ação — hierarquia consistente |
-| `command-center/next-best-action` | a faixa "Próxima Melhor Ação" com botão de execução |
-| `command-center/mission-queue` | fila de missões priorizada com ações inline |
-| `leads/lead-peek-drawer` | dossiê-relâmpago sem sair da lista |
-| `samiq/*` | launcher flutuante + painel do copiloto |
-| `sprint/*` | HUD de sprint com countdown e progresso |
-| `bottom-nav` | navegação mobile com FAB SamiQ |
+| Componente                        | Papel                                                               |
+| --------------------------------- | ------------------------------------------------------------------- |
+| `ui/glass-card`                   | superfície glass com elevação e glow opcional                       |
+| `ui/stat-tile`                    | KPI premium: valor em Sora, delta, sparkline, glow por intent       |
+| `ui/score-ring`                   | anel SVG 0–100 do score de prioridade / probabilidade de fechamento |
+| `ui/temperature-chip`             | chip de temperatura; pulse-glow apenas em `quente`                  |
+| `ui/sparkline`                    | tendência em SVG puro (sem lib)                                     |
+| `ui/section-header`               | eyebrow + título + ação — hierarquia consistente                    |
+| `command-center/next-best-action` | a faixa "Próxima Melhor Ação" com botão de execução                 |
+| `command-center/mission-queue`    | fila de missões priorizada com ações inline                         |
+| `leads/lead-peek-drawer`          | dossiê-relâmpago sem sair da lista                                  |
+| `samiq/*`                         | launcher flutuante + painel do copiloto                             |
+| `sprint/*`                        | HUD de sprint com countdown e progresso                             |
+| `bottom-nav`                      | navegação mobile com FAB SamiQ                                      |
 
 ## 8. Layout — Central de Comando (home)
 
@@ -206,14 +206,14 @@ A pergunta que a home responde: **"o que eu faço agora, e o que falta para bate
 
 ## 18. Redução de cliques
 
-| Ação | Antes | Agora |
-|---|---|---|
-| Saber quem chamar primeiro | rolar listas, decidir sozinho | 0 clique — NBA na home |
-| Ver contexto de um lead | abrir página inteira (3–4 cliques) | 1 clique — peek drawer |
-| Mandar mensagem certa | procurar template, adaptar | 1–2 cliques — SamiQ/script sugerido |
-| Copiar pitch de um projeto | montar na mão | 1 clique — copiar mensagem de venda |
-| Achar quem precisa de ajuda (gestor) | 6–8 telas | 0 clique — Visão geral da Gestão |
-| Alternar contexto (qualquer coisa) | navegar menus | ⌘K → ação direta |
+| Ação                                 | Antes                              | Agora                               |
+| ------------------------------------ | ---------------------------------- | ----------------------------------- |
+| Saber quem chamar primeiro           | rolar listas, decidir sozinho      | 0 clique — NBA na home              |
+| Ver contexto de um lead              | abrir página inteira (3–4 cliques) | 1 clique — peek drawer              |
+| Mandar mensagem certa                | procurar template, adaptar         | 1–2 cliques — SamiQ/script sugerido |
+| Copiar pitch de um projeto           | montar na mão                      | 1 clique — copiar mensagem de venda |
+| Achar quem precisa de ajuda (gestor) | 6–8 telas                          | 0 clique — Visão geral da Gestão    |
+| Alternar contexto (qualquer coisa)   | navegar menus                      | ⌘K → ação direta                    |
 
 ## 19. Por que dá vontade de usar todos os dias
 
@@ -263,18 +263,18 @@ projeto-card · leads-kanban-board · resumo-ia · command-palette · notificati
 
 ## 25. Plano de execução em fases
 
-| Fase | Entrega | Status |
-|---|---|---|
-| 0 | Este documento | ✅ |
-| 1 | Fundação: tokens, Sora, tema escuro padrão + switcher | — |
-| 2 | Shell (sidebar/header/bottom-nav) + primitives novos | — |
-| 3 | Central de Comando (home) | — |
-| 4 | Leads: cards + peek drawer | — |
-| 5 | Pipeline (Funil + Fechamento) + navegação final | — |
-| 6 | Atendimento (tela nova) | — |
-| 7 | Dossiê do cliente | — |
-| 8 | SamiQ na interface | — |
-| 9 | Sprint + gamificação + Inteligência | — |
-| 10 | Gestão cockpit + Projetos + polish final | — |
+| Fase | Entrega                                               | Status |
+| ---- | ----------------------------------------------------- | ------ |
+| 0    | Este documento                                        | ✅     |
+| 1    | Fundação: tokens, Sora, tema escuro padrão + switcher | —      |
+| 2    | Shell (sidebar/header/bottom-nav) + primitives novos  | —      |
+| 3    | Central de Comando (home)                             | —      |
+| 4    | Leads: cards + peek drawer                            | —      |
+| 5    | Pipeline (Funil + Fechamento) + navegação final       | —      |
+| 6    | Atendimento (tela nova)                               | —      |
+| 7    | Dossiê do cliente                                     | —      |
+| 8    | SamiQ na interface                                    | —      |
+| 9    | Sprint + gamificação + Inteligência                   | —      |
+| 10   | Gestão cockpit + Projetos + polish final              | —      |
 
 Cada fase termina com `build` + `test` verdes e commit próprio — o sistema nunca fica quebrado.
