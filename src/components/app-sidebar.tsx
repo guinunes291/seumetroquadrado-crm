@@ -39,13 +39,14 @@ type Item = {
 // Navegação por INTENÇÃO com TETO DE 7 BOTÕES principais (Fase 1 da reestruturação).
 // Cada botão é um "destino" que agrupa as rotas relacionadas como subitens recolhíveis.
 // Nenhuma rota foi removida — tudo continua acessível, só consolidado em 7 grupos:
-// corretor vê 5 botões, gestor 6, admin 7.
+// corretor vê 6 botões, gestor/admin 7 (Configurações vive no rodapé).
 const NAV_ITEMS: Item[] = [
   {
-    // Analytics/Relatórios é a aba interna do próprio /hoje — sem subitem duplicado.
+    // A home é a Central de Comando; Desempenho (ranking/metas/copa) é filho.
     to: "/hoje",
-    label: "Hoje",
+    label: "Início",
     icon: Sun,
+    children: [{ to: "/ranking", label: "Desempenho", icon: Trophy }],
   },
   {
     to: "/leads",
@@ -75,18 +76,12 @@ const NAV_ITEMS: Item[] = [
     icon: Trello,
   },
   {
-    // Catálogo, Oferta, Radar, Comissões e Links são abas do hub /projetos.
+    // Catálogo, Oferta, Comissões e Links são abas do hub /projetos.
     // Match IA continua acessível pelo botão no hub e pela página do lead.
     to: "/projetos",
-    label: "Negócios & Carteira",
+    label: "Projetos",
     icon: Building2,
     children: [{ to: "/vitrine", label: "Vitrine (mapa)", icon: Map }],
-  },
-  {
-    // Metas, Copa e Conquistas agora são abas internas do hub /ranking.
-    to: "/ranking",
-    label: "Desempenho",
-    icon: Trophy,
   },
   {
     // As sub-áreas (Distribuição, Pessoas, Comunicação, Qualidade…) agora são abas
@@ -97,11 +92,10 @@ const NAV_ITEMS: Item[] = [
     roles: ["admin", "gestor"],
   },
   {
-    // Integrações e Preferências são abas internas de /configuracoes.
-    to: "/configuracoes",
-    label: "Configurações",
-    icon: Settings,
-    roles: ["admin"],
+    // Insights em linguagem de negócio + relatórios completos.
+    to: "/inteligencia",
+    label: "Inteligência",
+    icon: LayoutDashboard,
   },
 ];
 
@@ -232,6 +226,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <UserIcon className="h-4 w-4" />
           Meu perfil
         </Link>
+        {isAdmin && (
+          <Link
+            to="/configuracoes"
+            onClick={onNavigate}
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <Settings className="h-4 w-4" />
+            Configurações
+          </Link>
+        )}
         <Button
           variant="ghost"
           onClick={handleSignOut}

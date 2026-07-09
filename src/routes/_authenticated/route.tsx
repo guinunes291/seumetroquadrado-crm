@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { SamiQLauncher } from "@/components/samiq/samiq-launcher";
+import { SprintGlobal } from "@/features/sprint/sprint-global";
 import { NotificationBell } from "@/components/notification-bell";
 import { CommandPalette } from "@/components/command-palette";
 import { RegistrarVendaDialog } from "@/components/registrar-venda-dialog";
@@ -77,6 +78,7 @@ function AuthenticatedLayout() {
       </main>
       <BottomNav />
       <SamiQLauncher />
+      <SprintGlobal />
       <CommandPalette />
       <Toaster richColors closeButton />
     </div>

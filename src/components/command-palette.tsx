@@ -22,6 +22,7 @@ import {
   Building2,
   Headset,
   Sparkles,
+  Zap,
 } from "lucide-react";
 
 type LeadHit = { id: string; nome: string; telefone: string | null; status: string };
@@ -103,8 +104,16 @@ export function CommandPalette() {
     },
     { label: "Agendamentos", icon: CalendarClock, go: () => navigate({ to: "/agendamentos" }) },
     { label: "Tarefas", icon: ListTodo, go: () => navigate({ to: "/tarefas" }) },
-    { label: "Relatórios", icon: LayoutDashboard, go: () => navigate({ to: "/relatorios" }) },
-    { label: "Empreendimentos", icon: Building2, go: () => navigate({ to: "/projetos" }) },
+    {
+      label: "Inteligência (Relatórios)",
+      icon: LayoutDashboard,
+      go: () => navigate({ to: "/inteligencia" }),
+    },
+    {
+      label: "Projetos / Empreendimentos",
+      icon: Building2,
+      go: () => navigate({ to: "/projetos" }),
+    },
   ];
 
   const buscando = debounced.length >= 2;
@@ -162,6 +171,13 @@ export function CommandPalette() {
               >
                 <Sparkles className="text-primary" />
                 Abrir SamiQ (⌘J)
+              </CommandItem>
+              <CommandItem
+                value="Iniciar Sprint prospecção"
+                onSelect={() => run(() => window.dispatchEvent(new Event("open-sprint")))}
+              >
+                <Zap className="text-primary" />
+                Iniciar Sprint
               </CommandItem>
             </CommandGroup>
 

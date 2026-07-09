@@ -31,6 +31,7 @@ import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authentic
 import { Route as AuthenticatedLeadsPorCorretorRouteImport } from './routes/_authenticated/leads-por-corretor'
 import { Route as AuthenticatedLeadsLandingRouteImport } from './routes/_authenticated/leads-landing'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
+import { Route as AuthenticatedInteligenciaRouteImport } from './routes/_authenticated/inteligencia'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
@@ -186,6 +187,12 @@ const AuthenticatedKanbanRoute = AuthenticatedKanbanRouteImport.update({
   path: '/kanban',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInteligenciaRoute =
+  AuthenticatedInteligenciaRouteImport.update({
+    id: '/inteligencia',
+    path: '/inteligencia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   id: '/hoje',
   path: '/hoje',
@@ -436,6 +443,7 @@ export interface FileRoutesByFullPath {
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
@@ -500,6 +508,7 @@ export interface FileRoutesByTo {
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
@@ -567,6 +576,7 @@ export interface FileRoutesById {
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads-landing': typeof AuthenticatedLeadsLandingRoute
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
@@ -635,6 +645,7 @@ export interface FileRouteTypes {
     | '/duplicatas'
     | '/equipes'
     | '/hoje'
+    | '/inteligencia'
     | '/kanban'
     | '/leads-landing'
     | '/leads-por-corretor'
@@ -699,6 +710,7 @@ export interface FileRouteTypes {
     | '/duplicatas'
     | '/equipes'
     | '/hoje'
+    | '/inteligencia'
     | '/kanban'
     | '/leads-landing'
     | '/leads-por-corretor'
@@ -765,6 +777,7 @@ export interface FileRouteTypes {
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
     | '/_authenticated/hoje'
+    | '/_authenticated/inteligencia'
     | '/_authenticated/kanban'
     | '/_authenticated/leads-landing'
     | '/_authenticated/leads-por-corretor'
@@ -992,6 +1005,13 @@ declare module '@tanstack/react-router' {
       path: '/kanban'
       fullPath: '/kanban'
       preLoaderRoute: typeof AuthenticatedKanbanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inteligencia': {
+      id: '/_authenticated/inteligencia'
+      path: '/inteligencia'
+      fullPath: '/inteligencia'
+      preLoaderRoute: typeof AuthenticatedInteligenciaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/hoje': {
@@ -1305,6 +1325,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedInteligenciaRoute: typeof AuthenticatedInteligenciaRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsLandingRoute: typeof AuthenticatedLeadsLandingRoute
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
@@ -1346,6 +1367,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedInteligenciaRoute: AuthenticatedInteligenciaRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsLandingRoute: AuthenticatedLeadsLandingRoute,
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,

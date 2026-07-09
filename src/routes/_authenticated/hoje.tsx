@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,17 +32,18 @@ import {
   CheckCircle2,
   ArrowRight,
   Radar,
+  Zap,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RelatoriosView } from "@/features/dashboard/relatorios-view";
-
-type HojeTab = "acao" | "analytics";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
-  // `tab` permite abrir direto a aba Analytics (ex.: redirect de /relatorios).
-  validateSearch: (search: Record<string, unknown>): { tab?: HojeTab } => ({
-    tab: search.tab === "analytics" ? "analytics" : undefined,
+  // A antiga aba Analytics virou a página /inteligencia — links salvos com
+  // ?tab=analytics continuam funcionando via redirect.
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.tab === "analytics") throw redirect({ to: "/inteligencia" });
+  },
   head: () => ({ meta: [{ title: "Central de Comando — Seu Metro Quadrado" }] }),
   component: CommandCenterPage,
 });
@@ -91,11 +92,6 @@ function saudacao(): string {
 
 function CommandCenterPage() {
   const { user } = useAuth();
-  const { tab } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const activeTab: HojeTab = tab ?? "acao";
-  const onTabChange = (v: string) =>
-    navigate({ search: { tab: v === "analytics" ? "analytics" : undefined } });
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const { di, df } = useMemo(() => intervalo(periodo), [periodo]);
 
@@ -479,343 +475,339 @@ function CommandCenterPage() {
     "corretor";
 
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-6">
-      <TabsList>
-        <TabsTrigger value="acao">Ação</TabsTrigger>
-        <TabsTrigger value="analytics">Analytics</TabsTrigger>
-      </TabsList>
-      <TabsContent value="acao" className="space-y-6">
-        <PageHeader
-          title="Central de Comando"
-          description={`${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`}
-        />
+    <div className="space-y-6">
+      <PageHeader
+        title="Central de Comando"
+        description={`${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`}
+      />
 
-        {/* ----- Hero: a próxima melhor ação, executável em 1 clique ----- */}
-        <NextBestAction
-          mission={missoes[0] ?? null}
+      {/* ----- Hero: a próxima melhor ação, executável em 1 clique ----- */}
+      <NextBestAction
+        mission={missoes[0] ?? null}
+        loading={filaCarregando}
+        onWhatsApp={abrirWhats}
+        extra={
+          <Button
+            variant="outline"
+            onClick={() => window.dispatchEvent(new Event("open-sprint"))}
+            title="Bloco de prospecção focada com fila automática e cronômetro"
+          >
+            <Zap className="h-4 w-4 text-primary" /> Iniciar Sprint
+          </Button>
+        }
+      />
+
+      {/* ----- Cockpit: missões | hoje | instrumentos ----- */}
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        {/* Coluna 1 — fila de missões */}
+        <MissionQueue
+          missions={missoes}
           loading={filaCarregando}
           onWhatsApp={abrirWhats}
+          onFollowUp={(m) => criarFollowUpRapido.mutate({ id: m.leadId, nome: m.nome })}
+          followUpPending={criarFollowUpRapido.isPending}
         />
 
-        {/* ----- Cockpit: missões | hoje | instrumentos ----- */}
-        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {/* Coluna 1 — fila de missões */}
-          <MissionQueue
-            missions={missoes}
-            loading={filaCarregando}
-            onWhatsApp={abrirWhats}
-            onFollowUp={(m) => criarFollowUpRapido.mutate({ id: m.leadId, nome: m.nome })}
-            followUpPending={criarFollowUpRapido.isPending}
-          />
-
-          {/* Coluna 2 — o dia: agenda + tarefas */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <CalendarCheck className="h-4 w-4 text-info" /> Agenda de hoje
-                  {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {agendaQ.isLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : agenda.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
-                ) : (
-                  agenda.map((a) => {
-                    const row = (
-                      <>
-                        <div className="text-sm font-medium">
-                          <span className="font-display tabular-nums text-muted-foreground">
-                            {hora(a.data_inicio)}
-                          </span>{" "}
-                          {a.titulo}
-                        </div>
-                        <div className="text-xs text-muted-foreground capitalize">
-                          {a.tipo}
-                          {a.local ? ` · ${a.local}` : ""}
-                        </div>
-                      </>
-                    );
-                    return (
-                      <div key={a.id} className="rounded-md border p-2">
-                        {a.lead_id ? (
-                          <Link
-                            to="/leads/$leadId"
-                            params={{ leadId: a.lead_id }}
-                            className="block"
-                          >
-                            {row}
-                          </Link>
-                        ) : (
-                          row
-                        )}
+        {/* Coluna 2 — o dia: agenda + tarefas */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <CalendarCheck className="h-4 w-4 text-info" /> Agenda de hoje
+                {agenda.length > 0 && <Badge variant="secondary">{agenda.length}</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {agendaQ.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : agenda.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sem compromissos hoje.</p>
+              ) : (
+                agenda.map((a) => {
+                  const row = (
+                    <>
+                      <div className="text-sm font-medium">
+                        <span className="font-display tabular-nums text-muted-foreground">
+                          {hora(a.data_inicio)}
+                        </span>{" "}
+                        {a.titulo}
                       </div>
-                    );
-                  })
-                )}
-                <Button asChild variant="link" className="h-auto p-0 text-xs">
-                  <Link to="/agendamentos">ver agenda completa</Link>
-                </Button>
-              </CardContent>
-            </Card>
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {a.tipo}
+                        {a.local ? ` · ${a.local}` : ""}
+                      </div>
+                    </>
+                  );
+                  return (
+                    <div key={a.id} className="rounded-md border p-2">
+                      {a.lead_id ? (
+                        <Link to="/leads/$leadId" params={{ leadId: a.lead_id }} className="block">
+                          {row}
+                        </Link>
+                      ) : (
+                        row
+                      )}
+                    </div>
+                  );
+                })
+              )}
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <Link to="/agendamentos">ver agenda completa</Link>
+              </Button>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-warning" /> Tarefas & follow-ups
-                  {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
-                  {tarefasAtrasadas > 0 && (
-                    <Badge variant="secondary" className="bg-destructive/15 text-destructive">
-                      {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {tarefasQ.isLoading ? (
-                  <>
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </>
-                ) : tarefas.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
-                ) : (
-                  tarefas.slice(0, 8).map((t) => {
-                    const venc = t.data_vencimento ? new Date(t.data_vencimento) : null;
-                    const atrasada = !!venc && venc.getTime() < Date.now();
-                    const diasAtraso = venc
-                      ? Math.floor((Date.now() - venc.getTime()) / (24 * 60 * 60 * 1000))
-                      : 0;
-                    return (
-                      <div
-                        key={t.id}
-                        className="flex items-center justify-between gap-2 rounded-md border p-2"
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-warning" /> Tarefas & follow-ups
+                {tarefas.length > 0 && <Badge variant="secondary">{tarefas.length}</Badge>}
+                {tarefasAtrasadas > 0 && (
+                  <Badge variant="secondary" className="bg-destructive/15 text-destructive">
+                    {tarefasAtrasadas} atrasada{tarefasAtrasadas > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {tarefasQ.isLoading ? (
+                <>
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </>
+              ) : tarefas.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nada pendente. 🎉</p>
+              ) : (
+                tarefas.slice(0, 8).map((t) => {
+                  const venc = t.data_vencimento ? new Date(t.data_vencimento) : null;
+                  const atrasada = !!venc && venc.getTime() < Date.now();
+                  const diasAtraso = venc
+                    ? Math.floor((Date.now() - venc.getTime()) / (24 * 60 * 60 * 1000))
+                    : 0;
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{t.titulo}</div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
+                          <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
+                          {venc && (
+                            <span className={cn(atrasada && "text-destructive font-medium")}>
+                              ·{" "}
+                              {atrasada
+                                ? `atrasada há ${diasAtraso === 0 ? "hoje" : `${diasAtraso}d`} (${venc.toLocaleDateString("pt-BR")})`
+                                : hora(t.data_vencimento!)}
+                            </span>
+                          )}
+                          {t.lead_id && (
+                            <Link
+                              to="/leads/$leadId"
+                              params={{ leadId: t.lead_id }}
+                              className="text-primary hover:underline inline-flex items-center"
+                            >
+                              · lead <ArrowRight className="h-3 w-3" />
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-success hover:bg-success/10"
+                        title="Concluir"
+                        disabled={concluirTarefa.isPending}
+                        onClick={() => concluirTarefa.mutate(t.id)}
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">{t.titulo}</div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
-                            <span className="capitalize">{t.tipo.replace(/_/g, " ")}</span>
-                            {venc && (
-                              <span className={cn(atrasada && "text-destructive font-medium")}>
-                                ·{" "}
-                                {atrasada
-                                  ? `atrasada há ${diasAtraso === 0 ? "hoje" : `${diasAtraso}d`} (${venc.toLocaleDateString("pt-BR")})`
-                                  : hora(t.data_vencimento!)}
-                              </span>
-                            )}
-                            {t.lead_id && (
-                              <Link
-                                to="/leads/$leadId"
-                                params={{ leadId: t.lead_id }}
-                                className="text-primary hover:underline inline-flex items-center"
-                              >
-                                · lead <ArrowRight className="h-3 w-3" />
-                              </Link>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-success hover:bg-success/10"
-                          title="Concluir"
-                          disabled={concluirTarefa.isPending}
-                          onClick={() => concluirTarefa.mutate(t.id)}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    );
-                  })
-                )}
-                <Button asChild variant="link" className="h-auto p-0 text-xs">
-                  <Link to="/agendamentos" search={{ tab: "tarefas" }}>
-                    ver todas as tarefas
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Coluna 3 — instrumentos: metas do dia + radar de risco */}
-          <div className="space-y-4 lg:col-span-2 xl:col-span-1">
-            <DayGoals
-              items={cards.filter((c) => c.key !== "documentacoes")}
-              streak={streakQ.data ?? 0}
-              loading={atividadesQ.isLoading || metaQ.isLoading}
-              showMeta={mostrarMeta}
-            />
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-1.5">
-                  <Radar className="h-4 w-4 text-destructive" /> Radar de risco
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex items-center justify-between rounded-md border p-2">
-                  <span className="text-muted-foreground">SLA estourado</span>
-                  <Badge
-                    variant="secondary"
-                    className={cn(slaEstourados > 0 && "bg-destructive/15 text-destructive")}
-                  >
-                    {slaEstourados}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between rounded-md border p-2">
-                  <span className="text-muted-foreground">Sem próxima ação</span>
-                  <Badge
-                    variant="secondary"
-                    className={cn(semAcaoCount > 0 && "bg-warning/15 text-warning")}
-                  >
-                    {semAcaoCount}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between rounded-md border p-2">
-                  <span className="text-muted-foreground">Tarefas atrasadas</span>
-                  <Badge
-                    variant="secondary"
-                    className={cn(tarefasAtrasadas > 0 && "bg-warning/15 text-warning")}
-                  >
-                    {tarefasAtrasadas}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Tudo isso já está priorizado na fila de missões ao lado.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+                        <CheckCircle2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+              <Button asChild variant="link" className="h-auto p-0 text-xs">
+                <Link to="/agendamentos" search={{ tab: "tarefas" }}>
+                  ver todas as tarefas
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* ----- Minha produtividade ----- */}
-        <SectionHeader
-          eyebrow="Desempenho"
-          title="Minha produtividade"
-          action={
-            <div className="inline-flex rounded-md border bg-card p-0.5">
-              {(["hoje", "semana", "mes"] as const).map((p) => (
-                <Button
-                  key={p}
-                  size="sm"
-                  variant={periodo === p ? "default" : "ghost"}
-                  onClick={() => setPeriodo(p)}
-                  className="capitalize"
+        {/* Coluna 3 — instrumentos: metas do dia + radar de risco */}
+        <div className="space-y-4 lg:col-span-2 xl:col-span-1">
+          <DayGoals
+            items={cards.filter((c) => c.key !== "documentacoes")}
+            streak={streakQ.data ?? 0}
+            loading={atividadesQ.isLoading || metaQ.isLoading}
+            showMeta={mostrarMeta}
+          />
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <Radar className="h-4 w-4 text-destructive" /> Radar de risco
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex items-center justify-between rounded-md border p-2">
+                <span className="text-muted-foreground">SLA estourado</span>
+                <Badge
+                  variant="secondary"
+                  className={cn(slaEstourados > 0 && "bg-destructive/15 text-destructive")}
                 >
-                  {p === "mes" ? "Mês" : p}
-                </Button>
-              ))}
-            </div>
-          }
-          className="pt-2"
-        />
+                  {slaEstourados}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-2">
+                <span className="text-muted-foreground">Sem próxima ação</span>
+                <Badge
+                  variant="secondary"
+                  className={cn(semAcaoCount > 0 && "bg-warning/15 text-warning")}
+                >
+                  {semAcaoCount}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between rounded-md border p-2">
+                <span className="text-muted-foreground">Tarefas atrasadas</span>
+                <Badge
+                  variant="secondary"
+                  className={cn(tarefasAtrasadas > 0 && "bg-warning/15 text-warning")}
+                >
+                  {tarefasAtrasadas}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tudo isso já está priorizado na fila de missões ao lado.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
-        <KpiGrid className="lg:grid-cols-4 xl:grid-cols-4">
-          <KpiCard
-            title="Pontuação"
-            icon={Star}
-            intent="warning"
-            loading={atividadesQ.isLoading}
-            value={totais.pontos.toLocaleString("pt-BR")}
-            hint="pontos no período"
-            className="bg-gradient-to-br from-primary/10 to-transparent"
-          />
-          <KpiCard
-            title="VGV"
-            icon={DollarSign}
-            intent="success"
-            loading={atividadesQ.isLoading}
-            value={fmtBRL(totais.vgv)}
-            hint={`${totais.vendas} venda(s)`}
-          />
-          <KpiCard
-            title="Conquistas"
-            icon={Trophy}
-            loading={conquistasQ.isLoading}
-            value={
-              <>
-                {conquistasQ.data?.ganhas ?? 0}
-                <span className="text-base text-muted-foreground">
-                  /{conquistasQ.data?.total ?? 0}
-                </span>
-              </>
-            }
-            hint={
-              <Link
-                to="/ranking"
-                search={{ tab: "conquistas" }}
-                className="text-primary hover:underline"
+      {/* ----- Minha produtividade ----- */}
+      <SectionHeader
+        eyebrow="Desempenho"
+        title="Minha produtividade"
+        action={
+          <div className="inline-flex rounded-md border bg-card p-0.5">
+            {(["hoje", "semana", "mes"] as const).map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={periodo === p ? "default" : "ghost"}
+                onClick={() => setPeriodo(p)}
+                className="capitalize"
               >
-                ver medalhas
-              </Link>
-            }
-          />
-          <KpiCard
-            title="Atividades"
-            loading={atividadesQ.isLoading}
-            value={totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
-            hint="contatos + agendas + visitas"
-          />
-        </KpiGrid>
+                {p === "mes" ? "Mês" : p}
+              </Button>
+            ))}
+          </div>
+        }
+        className="pt-2"
+      />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {cards.map((c) => {
-            const Icon = c.icon;
-            const pct =
-              mostrarMeta && c.meta ? Math.min(100, Math.round((c.value / c.meta) * 100)) : null;
-            return (
-              <Card key={c.key}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Icon className="h-4 w-4" /> {c.label}
-                    </div>
-                    {pct !== null && (
-                      <Badge
-                        variant="secondary"
-                        className={cn(pct >= 100 && "bg-success/15 text-success")}
-                      >
-                        {pct}% da meta
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="font-display mt-1 text-2xl font-bold tabular-nums">
-                    {c.value}
-                    {mostrarMeta && c.meta ? (
-                      <span className="text-sm font-normal text-muted-foreground"> / {c.meta}</span>
-                    ) : null}
+      <KpiGrid className="lg:grid-cols-4 xl:grid-cols-4">
+        <KpiCard
+          title="Pontuação"
+          icon={Star}
+          intent="warning"
+          loading={atividadesQ.isLoading}
+          value={totais.pontos.toLocaleString("pt-BR")}
+          hint="pontos no período"
+          className="bg-gradient-to-br from-primary/10 to-transparent"
+        />
+        <KpiCard
+          title="VGV"
+          icon={DollarSign}
+          intent="success"
+          loading={atividadesQ.isLoading}
+          value={fmtBRL(totais.vgv)}
+          hint={`${totais.vendas} venda(s)`}
+        />
+        <KpiCard
+          title="Conquistas"
+          icon={Trophy}
+          loading={conquistasQ.isLoading}
+          value={
+            <>
+              {conquistasQ.data?.ganhas ?? 0}
+              <span className="text-base text-muted-foreground">
+                /{conquistasQ.data?.total ?? 0}
+              </span>
+            </>
+          }
+          hint={
+            <Link
+              to="/ranking"
+              search={{ tab: "conquistas" }}
+              className="text-primary hover:underline"
+            >
+              ver medalhas
+            </Link>
+          }
+        />
+        <KpiCard
+          title="Atividades"
+          loading={atividadesQ.isLoading}
+          value={totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
+          hint="contatos + agendas + visitas"
+        />
+      </KpiGrid>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((c) => {
+          const Icon = c.icon;
+          const pct =
+            mostrarMeta && c.meta ? Math.min(100, Math.round((c.value / c.meta) * 100)) : null;
+          return (
+            <Card key={c.key}>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Icon className="h-4 w-4" /> {c.label}
                   </div>
                   {pct !== null && (
-                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          pct >= 100 ? "bg-success" : "bg-primary",
-                        )}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(pct >= 100 && "bg-success/15 text-success")}
+                    >
+                      {pct}% da meta
+                    </Badge>
                   )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                </div>
+                <div className="font-display mt-1 text-2xl font-bold tabular-nums">
+                  {c.value}
+                  {mostrarMeta && c.meta ? (
+                    <span className="text-sm font-normal text-muted-foreground"> / {c.meta}</span>
+                  ) : null}
+                </div>
+                {pct !== null && (
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        pct >= 100 ? "bg-success" : "bg-primary",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-        {!metaQ.data && (
-          <p className="text-sm text-muted-foreground">
-            Defina suas metas diárias para acompanhar o progresso (peça ao gestor em “Metas”).
-          </p>
-        )}
-      </TabsContent>
-      <TabsContent value="analytics">
-        <RelatoriosView />
-      </TabsContent>
-    </Tabs>
+      {!metaQ.data && (
+        <p className="text-sm text-muted-foreground">
+          Defina suas metas diárias para acompanhar o progresso (peça ao gestor em “Metas”).
+        </p>
+      )}
+    </div>
   );
 }
