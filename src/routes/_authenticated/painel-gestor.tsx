@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,7 +36,6 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoGeralPanel } from "@/features/gestao/visao-geral";
-import { DistribuicaoPage } from "@/routes/_authenticated/distribuicao";
 import { CorretoresPage } from "@/routes/_authenticated/corretores";
 import { EquipesPage } from "@/routes/_authenticated/equipes";
 import { LeadsPorCorretorPage } from "@/routes/_authenticated/leads-por-corretor";
@@ -47,7 +46,6 @@ import { LixeiraPage } from "@/routes/_authenticated/lixeira";
 type GestaoTab =
   | "visao"
   | "saude"
-  | "distribuicao"
   | "leads-corretor"
   | "pessoas"
   | "comunicacao"
@@ -55,7 +53,6 @@ type GestaoTab =
 const GESTAO_TABS: GestaoTab[] = [
   "visao",
   "saude",
-  "distribuicao",
   "leads-corretor",
   "pessoas",
   "comunicacao",
@@ -64,9 +61,22 @@ const GESTAO_TABS: GestaoTab[] = [
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
   // `tab` permite abrir/linkar direto uma aba do hub de Gestão.
-  validateSearch: (search: Record<string, unknown>): { tab?: GestaoTab } => ({
-    tab: GESTAO_TABS.includes(search.tab as GestaoTab) ? (search.tab as GestaoTab) : undefined,
+  // A antiga aba "distribuicao" virou a página /distribuicao — o valor passa
+  // pelo validateSearch para o beforeLoad redirecionar (deep-links antigos
+  // continuam funcionando).
+  validateSearch: (search: Record<string, unknown>): { tab?: GestaoTab | "distribuicao" } => ({
+    tab:
+      search.tab === "distribuicao"
+        ? "distribuicao"
+        : GESTAO_TABS.includes(search.tab as GestaoTab)
+          ? (search.tab as GestaoTab)
+          : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.tab === "distribuicao") {
+      throw redirect({ to: "/distribuicao", search: {} });
+    }
+  },
   head: () => ({ meta: [{ title: "Gestão — Seu Metro Quadrado" }] }),
   component: PainelGestorPage,
 });
@@ -79,7 +89,7 @@ function PainelGestorPage() {
   const podeVer = isAdmin || isGestor;
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const activeTab: GestaoTab = tab ?? "visao";
+  const activeTab: GestaoTab = tab && tab !== "distribuicao" ? tab : "visao";
   const onTabChange = (v: string) =>
     navigate({ search: { tab: v === "visao" ? undefined : (v as GestaoTab) } });
 
@@ -90,7 +100,6 @@ function PainelGestorPage() {
       <TabsList className="h-auto flex-wrap justify-start">
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
-        <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
         <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
         <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
@@ -101,9 +110,6 @@ function PainelGestorPage() {
       </TabsContent>
       <TabsContent value="saude">
         <SaudePanel />
-      </TabsContent>
-      <TabsContent value="distribuicao">
-        <DistribuicaoPage />
       </TabsContent>
       <TabsContent value="leads-corretor">
         <LeadsPorCorretorPage />

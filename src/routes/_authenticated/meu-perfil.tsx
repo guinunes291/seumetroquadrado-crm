@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PushOptInCard } from "@/components/push-opt-in-banner";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
+import { MinhaElegibilidadeCard } from "@/components/minha-elegibilidade-card";
 import { maskPhoneBR } from "@/lib/masks";
 
 export const Route = createFileRoute("/_authenticated/meu-perfil")({
@@ -142,6 +143,10 @@ function MeuPerfilPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <div className="mb-4">
+        <MinhaElegibilidadeCard />
+      </div>
 
       <div className="mb-4">
         <PushOptInCard />
