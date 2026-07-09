@@ -316,6 +316,57 @@ export function useDistribuicaoConfig(enabled = true) {
   });
 }
 
+/** Recebidos na semana (7 dias) por corretor em uma roleta — para a aba Landing. */
+export function useRecebidosSemana(slug: string, enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:recebidos-semana", slug],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const desde = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const { data, error } = await supabase
+        .from("distribution_log")
+        .select("corretor_id")
+        .eq("roleta_slug", slug)
+        .eq("resultado", "sucesso")
+        .gte("created_at", desde)
+        .limit(2000);
+      if (error) throw error;
+      const m = new Map<string, number>();
+      for (const row of data ?? []) {
+        if (row.corretor_id) m.set(row.corretor_id, (m.get(row.corretor_id) ?? 0) + 1);
+      }
+      return m;
+    },
+  });
+}
+
+/** Corretores ativos (role corretor) — para o dialog de inclusão na roleta. */
+export function useCorretoresDisponiveis(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:corretores-disponiveis"],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data: roles, error: er } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "corretor");
+      if (er) throw er;
+      const ids = (roles ?? []).map((r) => r.user_id);
+      if (ids.length === 0) return [] as Array<{ id: string; nome: string }>;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome, ativo")
+        .in("id", ids)
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []).map((p) => ({ id: p.id, nome: p.nome }));
+    },
+  });
+}
+
 /** Nomes dos corretores/gestores (mapa id → nome) para logs e tabelas. */
 export function useNomesPerfis(enabled = true) {
   return useQuery({
@@ -486,8 +537,10 @@ export function useAtualizarConfigOrigem() {
   return useMutation({
     mutationFn: async (args: {
       origem: LeadOrigem;
+      /** null = desvincular de roleta (leads vão para exceção); undefined = manter. */
       roletaSlug?: string | null;
       timeoutHoras?: number;
+      /** null = origem sem repasse por minutos; undefined = manter. */
       timeoutMinutos?: number | null;
       slaMinutos?: number;
     }) => {
@@ -495,9 +548,11 @@ export function useAtualizarConfigOrigem() {
         "atualizar_distribuicao_config",
         {
           _origem: args.origem,
-          _roleta_slug: args.roletaSlug,
+          _roleta_slug: args.roletaSlug ?? undefined,
+          _limpar_roleta: args.roletaSlug === null,
           _timeout_horas: args.timeoutHoras,
-          _timeout_minutos: args.timeoutMinutos,
+          _timeout_minutos: args.timeoutMinutos ?? undefined,
+          _limpar_timeout_minutos: args.timeoutMinutos === null,
           _sla_minutos: args.slaMinutos,
         },
       );
