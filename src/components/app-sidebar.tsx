@@ -132,12 +132,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     window.location.href = "/auth";
   };
 
+  // Item ativo: trilho dourado à esquerda + texto/ícone dourados sobre um véu
+  // sutil — o dourado é acento, não bloco (moeda rara do design system).
   const leafClasses = (active: boolean) =>
     cn(
-      "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+      "relative flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
       active
-        ? "bg-sidebar-primary text-sidebar-primary-foreground font-medium"
-        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        ? "bg-white/[0.06] font-medium text-sidebar-primary before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-gradient-gold"
+        : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
     );
 
   const renderLeaf = (it: Item, opts?: { nested?: boolean }) => {
@@ -179,16 +181,18 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   };
 
   return (
-    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
+    <div className="flex h-full flex-col bg-gradient-command text-sidebar-foreground">
+      <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border/60">
         <img
           src={logoM2.url}
           alt="Seu Metro Quadrado"
-          className="h-9 w-9 rounded-md object-contain bg-white"
+          className="h-9 w-9 rounded-md object-contain bg-white shadow-elev-1"
         />
         <div className="leading-tight">
-          <div className="font-semibold text-sm">Seu Metro Quadrado</div>
-          <div className="text-[11px] text-sidebar-foreground/60">CRM Imobiliário</div>
+          <div className="font-display font-semibold text-sm">Seu Metro Quadrado</div>
+          <div className="text-[11px] tracking-wide text-sidebar-primary/90">
+            Central de Comando
+          </div>
         </div>
       </div>
 

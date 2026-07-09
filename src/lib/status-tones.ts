@@ -40,6 +40,15 @@ export const INTENT_OUTLINE: Record<Intent, string> = {
   neutral: "border-muted text-muted-foreground",
 };
 
+/** Só o texto/stroke na cor do intent (score-ring, ícones, números). */
+export const INTENT_TEXT: Record<Intent, string> = {
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-destructive",
+  info: "text-info",
+  neutral: "text-muted-foreground",
+};
+
 /** Bolinha de prioridade/tier. */
 export const INTENT_DOT: Record<Intent, string> = {
   success: "bg-success",
