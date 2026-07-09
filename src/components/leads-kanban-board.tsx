@@ -49,7 +49,9 @@ type Lead = {
   data_distribuicao: string | null;
   tentativas_redistribuicao: number | null;
   created_at: string;
+  ultima_interacao: string | null;
 };
+
 
 type SlaRow = {
   lead_id: string;
