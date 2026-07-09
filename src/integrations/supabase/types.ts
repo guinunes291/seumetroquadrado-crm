@@ -2868,6 +2868,10 @@ export type Database = {
         Args: { _corretor_ids: string[]; _oferta_id: string }
         Returns: Json
       }
+      atualizar_distribuicao_setting: {
+        Args: { _chave: string; _valor: Json }
+        Returns: Json
+      }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
@@ -3081,7 +3085,39 @@ export type Database = {
         Args: { _contar_como_novo?: boolean; _lead_id: string }
         Returns: string
       }
+      distribuir_lead_v3: {
+        Args: {
+          _corretor_id?: string
+          _gatilho?: string
+          _lead_id: string
+          _roleta_slug?: string
+          _tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Returns: Json
+      }
       distribuir_lead_webhook: { Args: never; Returns: string }
+      elegibilidade_roleta: {
+        Args: { _slug: string }
+        Returns: {
+          aguardando: number
+          apto: boolean
+          carteira_total: number
+          corretor_id: string
+          incluido_em: string | null
+          incluido_por: string | null
+          limite_diario: number
+          motivo_pausa: string | null
+          motivos: string[]
+          nome: string
+          participante_ativo: boolean
+          pausado: boolean
+          pct_trabalhado: number
+          presente: boolean
+          recebidos_hoje: number
+          recebidos_mes: number
+          ultimo_lead_em: string | null
+        }[]
+      }
       enqueue_push: {
         Args: {
           _body: string
@@ -3102,6 +3138,17 @@ export type Database = {
       }
       gerar_pushes_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_pushes_lembretes_visita: { Args: never; Returns: undefined }
+      gerenciar_participante_roleta: {
+        Args: {
+          _acao: string
+          _corretor_id: string
+          _limite?: number
+          _motivo?: string
+          _pausado_ate?: string
+          _slug: string
+        }
+        Returns: Json
+      }
       gestor_fallback_webhook: { Args: never; Returns: string }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
@@ -3216,6 +3263,7 @@ export type Database = {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined
       }
+      minha_elegibilidade: { Args: never; Returns: Json }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
@@ -3229,7 +3277,13 @@ export type Database = {
         Args: { _corretor?: string; _filtros: Json }
         Returns: Json
       }
+      painel_distribuicao_resumo: { Args: never; Returns: Json }
       processar_distribuicao_automatica: { Args: never; Returns: Json }
+      reprocessar_excecao: { Args: { _excecao_id: string }; Returns: Json }
+      resolver_excecao: {
+        Args: { _acao: string; _excecao_id: string; _params?: Json }
+        Returns: Json
+      }
       recalcular_temperatura_leads: { Args: never; Returns: number }
       redistribuir_leads_parados: { Args: never; Returns: number }
       redistribuir_sla_webhook: { Args: never; Returns: number }
@@ -3290,9 +3344,21 @@ export type Database = {
           tempo_medio_min: number
         }[]
       }
+      triar_e_distribuir_lead: {
+        Args: { _gatilho?: string; _lead_id: string }
+        Returns: Json
+      }
       transferir_leads: {
         Args: { _corretor: string; _ids: string[] }
         Returns: number
+      }
+      vendas_mes_anterior: {
+        Args: never
+        Returns: {
+          corretor_id: string
+          qtd: number
+          total: number
+        }[]
       }
     }
     Enums: {
