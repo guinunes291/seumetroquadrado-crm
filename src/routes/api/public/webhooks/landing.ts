@@ -110,8 +110,89 @@ export const Route = createFileRoute("/api/public/webhooks/landing")({
           console.error("[webhooks/landing] insert error:", error);
           return jsonResp({ ok: false, error: error.message }, 500);
         }
+        const stagingId = (data as any).id as string;
 
-        return jsonResp({ ok: true, id: (data as any).id });
+        // --- Distribuição v3: a landing deixa de ser só staging ---
+        // Cria o lead real (origem 'site' → roleta Landing Page) e passa pela
+        // triagem única. Sem corretor apto → fila de exceções com alerta.
+        // Qualquer falha aqui NÃO derruba a resposta do formulário: o staging
+        // já está salvo e pode ser reprocessado.
+        let leadId: string | null = null;
+        let corretorId: string | null = null;
+        try {
+          // Dedup global por telefone (dígitos): retorno do mesmo cliente não
+          // duplica lead — vincula o staging ao lead existente.
+          const { data: dupId } = await supabaseAdmin.rpc(
+            "buscar_lead_por_telefone" as never,
+            { _telefone: digits } as never,
+          );
+          const existingId = (dupId as string | null) ?? null;
+
+          if (existingId) {
+            leadId = existingId;
+            await supabaseAdmin
+              .from("leads_landing" as any)
+              .update({ lead_id: existingId } as any)
+              .eq("id", stagingId);
+          } else {
+            const simResumo = [
+              row.sim_renda != null ? `Renda: R$ ${row.sim_renda}` : null,
+              row.sim_faixa != null ? `Faixa MCMV: ${row.sim_faixa}` : null,
+              row.sim_subsidio != null ? `Subsídio estimado: R$ ${row.sim_subsidio}` : null,
+              row.sim_teto_imovel != null ? `Teto do imóvel: R$ ${row.sim_teto_imovel}` : null,
+              row.sim_parcela != null ? `Parcela estimada: R$ ${row.sim_parcela}` : null,
+              body?.regiao ? `Região de interesse: ${body.regiao}` : null,
+            ]
+              .filter(Boolean)
+              .join("\n");
+
+            const { data: leadIns, error: leadErr } = await supabaseAdmin
+              .from("leads")
+              .insert({
+                nome,
+                telefone: digits,
+                origem: "site",
+                canal_entrada: "webhook_landing",
+                via_webhook: true,
+                renda_informada: row.renda ?? null,
+                observacoes: simResumo
+                  ? `📥 Lead da Landing Page (simulador)\n${simResumo}`
+                  : "📥 Lead da Landing Page",
+                utm_source: (row.utm_source as string | null) ?? "landing",
+                utm_medium: row.utm_medium ?? null,
+                utm_campaign: row.utm_campaign ?? null,
+                utm_content: row.utm_content ?? null,
+                campanha: row.utm_campaign ?? null,
+              } as never)
+              .select("id")
+              .single();
+
+            if (leadErr) {
+              console.error("[webhooks/landing] lead insert error:", leadErr);
+            } else if (leadIns) {
+              leadId = leadIns.id;
+              await supabaseAdmin
+                .from("leads_landing" as any)
+                .update({ lead_id: leadIns.id } as any)
+                .eq("id", stagingId);
+
+              const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
+                "triar_e_distribuir_lead",
+                { _lead_id: leadIns.id, _gatilho: "webhook_landing" },
+              );
+              if (triagemErr) {
+                console.error("[webhooks/landing] triagem falhou:", triagemErr);
+              } else {
+                const res = triagem as { ok?: boolean; corretor_id?: string } | null;
+                if (res?.ok && res.corretor_id) corretorId = res.corretor_id;
+              }
+            }
+          }
+        } catch (e) {
+          console.error("[webhooks/landing] distribuição falhou (staging preservado):", e);
+        }
+
+        return jsonResp({ ok: true, id: stagingId, lead_id: leadId, corretor_id: corretorId });
       },
     },
   },

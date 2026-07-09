@@ -1,8 +1,9 @@
 # lead-intake — Facebook Lead Ads → Zapier → CRM
 
-Recebe leads do **Facebook ADS** via Zapier, cria o lead (`origem=facebook`) **com o
-projeto correto**, distribui em **rodízio puro** e **notifica o corretor no WhatsApp
-(Z-API)** — sem expor o telefone do lead.
+Recebe leads do **Facebook ADS** via Zapier, cria o lead (`origem=facebook`,
+`canal_entrada=edge_facebook`) **com o projeto correto**, distribui pela
+**Roleta Plantão** (distribuição v3 — `triar_e_distribuir_lead`) e **notifica o
+corretor no WhatsApp (Z-API)** — sem expor o telefone do lead.
 
 ## Secrets (Cloud → Secrets)
 
@@ -50,9 +51,14 @@ URL de invoke: `https://<PROJECT_REF>.supabase.co/functions/v1/lead-intake`
 
 ## Comportamento
 
-- **Sempre cria lead novo** (duplicatas tratadas na tela *Duplicatas*).
-- **Rodízio puro** (`distribuir_lead`): roleta por posição entre corretores **ativos na
-  fila**, respeitando o cap diário — **não exige** "presença" nem elegibilidade.
+- **Dedup por telefone no projeto** (`buscar_lead_duplicado`); duplicata retorna
+  `deduplicado: true` sem criar lead novo.
+- **Roleta Plantão** (`triar_e_distribuir_lead`, distribuição v3): rodízio
+  "há mais tempo sem receber" entre corretores **presentes no plantão**, dentro
+  da **cota diária**, não pausados e com **% de leads trabalhados ≥ mínimo**
+  (padrão 90%). Sem corretor apto → o lead entra na **fila de exceções** com
+  alerta ao gestor e o cron re-tenta a cada minuto. Toda decisão fica auditada
+  em `distribution_log` + `distribuicao_log_contexto`.
 - **Notificação ao corretor** (só quando há corretor atribuído): WhatsApp via Z-API com
   **nome, projeto, faixa de renda e link** `APP_BASE_URL/leads/<id>`. **Sem o telefone do lead.**
 

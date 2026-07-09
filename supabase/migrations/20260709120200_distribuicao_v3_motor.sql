@@ -362,7 +362,10 @@ CREATE OR REPLACE FUNCTION public._distribuir_lead_v3(
   _corretor_id uuid DEFAULT NULL,
   _distribuido_por uuid DEFAULT NULL,
   _gatilho text DEFAULT 'manual',
-  _contexto_extra jsonb DEFAULT '{}'::jsonb
+  _contexto_extra jsonb DEFAULT '{}'::jsonb,
+  -- false: fluxos que têm seu próprio desfecho de falha (ex.: marcar lead
+  -- perdido) — loga 'sem_corretor' mas não abre exceção nem alerta.
+  _registrar_excecao boolean DEFAULT true
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -516,8 +519,10 @@ BEGIN
       _motivo_log := 'Roleta ' || _slug || ' sem corretor apto no momento — lead na fila de exceções';
     END IF;
 
-    _excecao_id := public._registrar_excecao_distribuicao(
-      _lead_id, _motivo_falha, _motivo_log, _slug, _contexto);
+    IF _registrar_excecao THEN
+      _excecao_id := public._registrar_excecao_distribuicao(
+        _lead_id, _motivo_falha, _motivo_log, _slug, _contexto);
+    END IF;
 
     INSERT INTO public.distribution_log
       (lead_id, corretor_id, tipo, motivo, distribuido_por_id, roleta_slug, regra_aplicada, resultado)
@@ -596,8 +601,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb, boolean) TO service_role;
 
 -- Wrapper público com gate (UI de gestão / service role).
 CREATE OR REPLACE FUNCTION public.distribuir_lead_v3(
@@ -1147,7 +1152,7 @@ GRANT EXECUTE ON FUNCTION public.painel_distribuicao_resumo() TO authenticated;
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
-  IF to_regprocedure('public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb)') IS NULL THEN
+  IF to_regprocedure('public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb, boolean)') IS NULL THEN
     RAISE EXCEPTION 'motor _distribuir_lead_v3 ausente';
   END IF;
   IF to_regprocedure('public.triar_e_distribuir_lead(uuid, text)') IS NULL THEN
