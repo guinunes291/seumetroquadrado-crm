@@ -48,10 +48,9 @@ const NAV_ITEMS: Item[] = [
   },
   {
     to: "/leads",
-    label: "Meus Leads",
+    label: "Leads",
     icon: Users,
     children: [
-      { to: "/kanban", label: "Funil (Kanban)", icon: Trello },
       { to: "/blitz", label: "Modo Blitz", icon: Zap },
       {
         to: "/leads-landing",
@@ -66,6 +65,12 @@ const NAV_ITEMS: Item[] = [
     to: "/agendamentos",
     label: "Agenda & Tarefas",
     icon: CalendarClock,
+  },
+  {
+    // Funil (kanban) + Modo Fechamento na mesma central.
+    to: "/pipeline",
+    label: "Pipeline",
+    icon: Trello,
   },
   {
     // Catálogo, Oferta, Radar, Comissões e Links são abas do hub /projetos.

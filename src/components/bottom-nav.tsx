@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Sun, Users, Search, CalendarClock, Building2 } from "lucide-react";
+import { Sun, Users, Search, CalendarClock, Trello } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Slot = {
@@ -16,7 +16,7 @@ const LEFT: Slot[] = [
 ];
 const RIGHT: Slot[] = [
   { to: "/agendamentos", label: "Agenda", icon: CalendarClock },
-  { to: "/projetos", label: "Projetos", icon: Building2 },
+  { to: "/pipeline", label: "Pipeline", icon: Trello },
 ];
 
 function isActive(pathname: string, to: string) {

@@ -65,10 +65,7 @@ export function CommandPalette() {
       const { normalizeSearch, onlyDigits } = await import("@/lib/validators");
       const s = normalizeSearch(debounced).replace(/[%,]/g, "");
       const digits = onlyDigits(debounced);
-      let q = supabase
-        .from("leads")
-        .select("id, nome, telefone, status")
-        .eq("na_lixeira", false);
+      let q = supabase.from("leads").select("id, nome, telefone, status").eq("na_lixeira", false);
       if (digits.length >= 3) {
         q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
       } else {
@@ -93,9 +90,14 @@ export function CommandPalette() {
   };
 
   const navItems = [
-    { label: "Hoje", icon: Gauge, go: () => navigate({ to: "/hoje" }) },
+    { label: "Central de Comando", icon: Gauge, go: () => navigate({ to: "/hoje" }) },
     { label: "Leads", icon: Users, go: () => navigate({ to: "/leads" }) },
-    { label: "Kanban", icon: Trello, go: () => navigate({ to: "/kanban" }) },
+    { label: "Pipeline (Funil)", icon: Trello, go: () => navigate({ to: "/pipeline" }) },
+    {
+      label: "Modo Fechamento",
+      icon: Trello,
+      go: () => navigate({ to: "/pipeline", search: { tab: "fechamento" } }),
+    },
     { label: "Agendamentos", icon: CalendarClock, go: () => navigate({ to: "/agendamentos" }) },
     { label: "Tarefas", icon: ListTodo, go: () => navigate({ to: "/tarefas" }) },
     { label: "Relatórios", icon: LayoutDashboard, go: () => navigate({ to: "/relatorios" }) },
