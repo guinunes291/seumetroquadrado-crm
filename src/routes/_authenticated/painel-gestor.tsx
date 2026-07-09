@@ -6,7 +6,12 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -30,6 +35,7 @@ import {
   Timer,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { VisaoGeralPanel } from "@/features/gestao/visao-geral";
 import { DistribuicaoPage } from "@/routes/_authenticated/distribuicao";
 import { CorretoresPage } from "@/routes/_authenticated/corretores";
 import { EquipesPage } from "@/routes/_authenticated/equipes";
@@ -39,6 +45,7 @@ import { DuplicatasPage } from "@/routes/_authenticated/duplicatas";
 import { LixeiraPage } from "@/routes/_authenticated/lixeira";
 
 type GestaoTab =
+  | "visao"
   | "saude"
   | "distribuicao"
   | "leads-corretor"
@@ -46,6 +53,7 @@ type GestaoTab =
   | "comunicacao"
   | "qualidade";
 const GESTAO_TABS: GestaoTab[] = [
+  "visao",
   "saude",
   "distribuicao",
   "leads-corretor",
@@ -71,15 +79,16 @@ function PainelGestorPage() {
   const podeVer = isAdmin || isGestor;
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const activeTab: GestaoTab = tab ?? "saude";
+  const activeTab: GestaoTab = tab ?? "visao";
   const onTabChange = (v: string) =>
-    navigate({ search: { tab: v === "saude" ? undefined : (v as GestaoTab) } });
+    navigate({ search: { tab: v === "visao" ? undefined : (v as GestaoTab) } });
 
   if (!podeVer) return <SaudePanel />;
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
       <TabsList className="h-auto flex-wrap justify-start">
+        <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
         <TabsTrigger value="distribuicao">Distribuição</TabsTrigger>
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
@@ -87,6 +96,9 @@ function PainelGestorPage() {
         <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
         {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
+      <TabsContent value="visao">
+        <VisaoGeralPanel />
+      </TabsContent>
       <TabsContent value="saude">
         <SaudePanel />
       </TabsContent>
@@ -362,7 +374,9 @@ function SaudePanel() {
                       <TableCell className="text-right font-semibold text-success">
                         {c.fechados}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">{c.perdidos}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {c.perdidos}
+                      </TableCell>
                       <TableCell
                         className={cn(
                           "text-right",
@@ -434,7 +448,9 @@ function SaudePanel() {
                         <TableCell className="text-right">{l.ligacao}</TableCell>
                         <TableCell className="text-right">{l.whatsapp}</TableCell>
                         <TableCell className="text-right">{l.visita}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{l.outras}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {l.outras}
+                        </TableCell>
                         <TableCell className="text-right font-semibold">{l.total}</TableCell>
                       </TableRow>
                     ))}
@@ -509,7 +525,10 @@ function SaudePanel() {
                       {leadStatusLabel(u.status)} · {u.corretor_nome || "sem corretor"}
                     </div>
                   </div>
-                  <Badge variant="secondary" className="shrink-0 bg-destructive/15 text-destructive">
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 bg-destructive/15 text-destructive"
+                  >
                     {formatDuracaoParado(u.minutos_parado)}
                   </Badge>
                 </Link>

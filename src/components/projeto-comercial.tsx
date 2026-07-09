@@ -16,18 +16,33 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Pencil, Target, Wallet, Sparkles, MessageSquareQuote } from "lucide-react";
+import { Pencil, Target, Wallet, Sparkles, MessageSquareQuote, Copy } from "lucide-react";
 
 /** Campos comerciais do empreendimento. Chegam via migration 20260629140000;
  *  ficam opcionais para a UI degradar com segurança antes da coluna existir. */
 export type ProjetoComercialData = {
+  nome?: string | null;
   renda_minima?: number | null;
   perfil_ideal?: string | null;
   diferenciais?: string[] | null;
   argumentos_venda?: string[] | null;
   status_preco?: string | null;
   zona_smq?: string | null;
+  preco_a_partir?: number | null;
 };
+
+/** Mensagem de venda pronta para o WhatsApp, montada da munição comercial. */
+export function montarMensagemVenda(p: ProjetoComercialData): string {
+  const linhas: string[] = [];
+  linhas.push(`🏠 *${p.nome ?? "Empreendimento"}*`);
+  if (p.preco_a_partir != null) linhas.push(`A partir de ${brl(p.preco_a_partir)}.`);
+  const diferenciais = (p.diferenciais ?? []).slice(0, 4);
+  if (diferenciais.length > 0) linhas.push(diferenciais.map((d) => `✔️ ${d}`).join("\n"));
+  const argumento = (p.argumentos_venda ?? [])[0];
+  if (argumento) linhas.push(argumento);
+  linhas.push("Quer que eu te mande o book e simule as condições para o seu perfil?");
+  return linhas.join("\n\n");
+}
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -85,7 +100,7 @@ export function ProjetoComercial({
     const renda = fd.get("renda_minima");
     salvar.mutate({
       renda_minima: renda && String(renda).trim() ? Number(renda) : null,
-      perfil_ideal: (String(fd.get("perfil_ideal") ?? "")).trim() || null,
+      perfil_ideal: String(fd.get("perfil_ideal") ?? "").trim() || null,
       diferenciais: emLinhas(String(fd.get("diferenciais") ?? "")),
       argumentos_venda: emLinhas(String(fd.get("argumentos_venda") ?? "")),
     });
@@ -97,74 +112,93 @@ export function ProjetoComercial({
         <CardTitle className="text-sm flex items-center gap-1.5">
           <Sparkles className="h-4 w-4 text-primary" /> Munição comercial
         </CardTitle>
-        {canManage && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Munição comercial do empreendimento</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={onSubmit} className="space-y-3">
-                <div>
-                  <Label htmlFor="renda_minima">Renda mínima sugerida (R$)</Label>
-                  <Input
-                    id="renda_minima"
-                    name="renda_minima"
-                    type="number"
-                    inputMode="numeric"
-                    defaultValue={projeto.renda_minima ?? ""}
-                    placeholder="ex.: 3000"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="perfil_ideal">Perfil ideal do cliente</Label>
-                  <Textarea
-                    id="perfil_ideal"
-                    name="perfil_ideal"
-                    rows={2}
-                    defaultValue={projeto.perfil_ideal ?? ""}
-                    placeholder="ex.: família jovem, primeiro imóvel, usa FGTS, busca lazer completo"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="diferenciais">Diferenciais (um por linha)</Label>
-                  <Textarea
-                    id="diferenciais"
-                    name="diferenciais"
-                    rows={3}
-                    defaultValue={diferenciais.join("\n")}
-                    placeholder={"Lazer completo\nPróximo ao metrô\nPet place"}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="argumentos_venda">Argumentos de venda (um por linha)</Label>
-                  <Textarea
-                    id="argumentos_venda"
-                    name="argumentos_venda"
-                    rows={3}
-                    defaultValue={argumentos.join("\n")}
-                    placeholder={"Entrada facilitada em até 60x\nValorização da região\nEntrega em 2026"}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit" disabled={salvar.isPending}>
-                    {salvar.isPending ? "Salvando…" : "Salvar"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+        <div className="flex items-center gap-2">
+          {temAlgo && (
+            <Button
+              size="sm"
+              className="bg-gradient-gold text-navy-900 hover:opacity-90"
+              title="Copia uma mensagem de venda pronta (nome, preço, diferenciais e argumento) para colar no WhatsApp"
+              onClick={() => {
+                navigator.clipboard.writeText(montarMensagemVenda(projeto));
+                toast.success("Mensagem de venda copiada — cole no WhatsApp e personalize.");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5 mr-1" /> Copiar mensagem de venda
+            </Button>
+          )}
+          {canManage && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Munição comercial do empreendimento</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={onSubmit} className="space-y-3">
+                  <div>
+                    <Label htmlFor="renda_minima">Renda mínima sugerida (R$)</Label>
+                    <Input
+                      id="renda_minima"
+                      name="renda_minima"
+                      type="number"
+                      inputMode="numeric"
+                      defaultValue={projeto.renda_minima ?? ""}
+                      placeholder="ex.: 3000"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="perfil_ideal">Perfil ideal do cliente</Label>
+                    <Textarea
+                      id="perfil_ideal"
+                      name="perfil_ideal"
+                      rows={2}
+                      defaultValue={projeto.perfil_ideal ?? ""}
+                      placeholder="ex.: família jovem, primeiro imóvel, usa FGTS, busca lazer completo"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="diferenciais">Diferenciais (um por linha)</Label>
+                    <Textarea
+                      id="diferenciais"
+                      name="diferenciais"
+                      rows={3}
+                      defaultValue={diferenciais.join("\n")}
+                      placeholder={"Lazer completo\nPróximo ao metrô\nPet place"}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="argumentos_venda">Argumentos de venda (um por linha)</Label>
+                    <Textarea
+                      id="argumentos_venda"
+                      name="argumentos_venda"
+                      rows={3}
+                      defaultValue={argumentos.join("\n")}
+                      placeholder={
+                        "Entrada facilitada em até 60x\nValorização da região\nEntrega em 2026"
+                      }
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" disabled={salvar.isPending}>
+                      {salvar.isPending ? "Salvando…" : "Salvar"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         {!temAlgo && (
           <p className="text-xs text-muted-foreground">
             Sem munição comercial cadastrada.
-            {canManage ? " Use “Editar” para adicionar renda mínima, perfil ideal e argumentos." : ""}
+            {canManage
+              ? " Use “Editar” para adicionar renda mínima, perfil ideal e argumentos."
+              : ""}
           </p>
         )}
 

@@ -266,15 +266,25 @@ projeto-card · leads-kanban-board · resumo-ia · command-palette · notificati
 | Fase | Entrega                                               | Status |
 | ---- | ----------------------------------------------------- | ------ |
 | 0    | Este documento                                        | ✅     |
-| 1    | Fundação: tokens, Sora, tema escuro padrão + switcher | —      |
-| 2    | Shell (sidebar/header/bottom-nav) + primitives novos  | —      |
-| 3    | Central de Comando (home)                             | —      |
-| 4    | Leads: cards + peek drawer                            | —      |
-| 5    | Pipeline (Funil + Fechamento) + navegação final       | —      |
-| 6    | Atendimento (tela nova)                               | —      |
-| 7    | Dossiê do cliente                                     | —      |
-| 8    | SamiQ na interface                                    | —      |
-| 9    | Sprint + gamificação + Inteligência                   | —      |
-| 10   | Gestão cockpit + Projetos + polish final              | —      |
+| 1    | Fundação: tokens, Sora, tema escuro padrão + switcher | ✅     |
+| 2    | Shell (sidebar/header/bottom-nav) + primitives novos  | ✅     |
+| 3    | Central de Comando (home)                             | ✅     |
+| 4    | Leads: cards + peek drawer                            | ✅     |
+| 5    | Pipeline (Funil + Fechamento) + navegação final       | ✅     |
+| 6    | Atendimento (tela nova)                               | ✅     |
+| 7    | Dossiê do cliente                                     | ✅     |
+| 8    | SamiQ na interface                                    | ✅     |
+| 9    | Sprint + gamificação + Inteligência                   | ✅     |
+| 10   | Gestão cockpit + Projetos + polish final              | ✅     |
 
-Cada fase termina com `build` + `test` verdes e commit próprio — o sistema nunca fica quebrado.
+Cada fase terminou com `build` + `test` verdes e commit próprio — o sistema nunca ficou quebrado.
+
+### Próximos passos sugeridos (fora deste escopo)
+
+- **WhatsApp API oficial** (Meta Cloud/Z-API via n8n): captura de mensagens recebidas em tempo
+  real — hoje a fila "Responder agora" usa as interações registradas no CRM.
+- **Streak por corretor no Ranking TV** (exige liberar leitura de `atividades_diarias` entre
+  corretores via RLS/view agregada).
+- **SamiQ proativo**: notificações do copiloto (ex.: "3 leads esfriando") via push existente.
+- Regenerar os types do Supabase para eliminar os casts `as never` herdados das tabelas de
+  gamificação.
