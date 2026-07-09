@@ -122,6 +122,8 @@ export const GATILHO_LABEL: Record<string, string> = {
   excecao_manual: "Exceção — atribuição manual",
   excecao_roleta_forcada: "Exceção — roleta escolhida",
   excecao_corrigir_origem: "Exceção — origem corrigida",
+  manual_roleta: "Roleta manual (lista de leads)",
+  manual_criacao: "Criação manual de lead",
   reprocesso: "Reprocessamento",
   teste: "Teste",
 };

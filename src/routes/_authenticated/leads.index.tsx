@@ -844,17 +844,20 @@ function LeadsPage() {
 
   const distribuir = useMutation({
     mutationFn: async (leadId: string) => {
-      const { data, error } = await supabase.rpc(
-        "distribuir_lead" as never,
-        { _lead_id: leadId, _tipo: "manual" } as never,
-      );
+      // Distribuição v3: triagem única (origem → roleta → corretor apto).
+      const { data, error } = await supabase.rpc("triar_e_distribuir_lead", {
+        _lead_id: leadId,
+        _gatilho: "manual_roleta",
+      });
       if (error) throw error;
-      return { corretorId: data as string | null, leadId };
+      const res = data as { ok?: boolean; corretor_id?: string; motivo?: string } | null;
+      return { corretorId: res?.ok ? (res.corretor_id ?? null) : null, leadId, res };
     },
-    onSuccess: async ({ corretorId, leadId }) => {
+    onSuccess: async ({ corretorId, leadId, res }) => {
       if (!corretorId) {
-        toast.error(
-          "Nenhum corretor elegível (≥90% da carteira trabalhada) com cota disponível. O lead fica na base e será distribuído automaticamente.",
+        toast.warning(
+          "Nenhum corretor apto na roleta agora — o lead entrou na fila de exceções da Distribuição e o sistema re-tenta a cada minuto." +
+            (res?.motivo ? ` (${res.motivo})` : ""),
         );
       } else {
         toast.success("Lead atribuído via roleta");
@@ -2174,14 +2177,17 @@ function NovoLeadDialog({
       if (error) throw error;
 
       if (canManage && distribuirAuto && data?.id) {
-        const { data: corretor } = await supabase.rpc(
-          "distribuir_lead" as never,
-          {
-            _lead_id: data.id,
-            _tipo: "inicial",
-          } as never,
-        );
-        return { id: data.id, corretor, selfAssigned: false };
+        // Distribuição v3: triagem única (origem → roleta → corretor apto).
+        const { data: triagem } = await supabase.rpc("triar_e_distribuir_lead", {
+          _lead_id: data.id,
+          _gatilho: "manual_criacao",
+        });
+        const res = triagem as { ok?: boolean; corretor_id?: string } | null;
+        return {
+          id: data.id,
+          corretor: res?.ok ? (res.corretor_id ?? null) : null,
+          selfAssigned: false,
+        };
       }
       return { id: data!.id, corretor: null, selfAssigned: !canManage };
     },
