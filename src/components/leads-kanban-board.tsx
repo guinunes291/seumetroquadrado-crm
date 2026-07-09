@@ -49,7 +49,9 @@ type Lead = {
   data_distribuicao: string | null;
   tentativas_redistribuicao: number | null;
   created_at: string;
+  ultima_interacao: string | null;
 };
+
 
 type SlaRow = {
   lead_id: string;
@@ -92,7 +94,7 @@ export function KanbanBoard() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, created_at",
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, created_at, ultima_interacao",
         )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
@@ -151,8 +153,23 @@ export function KanbanBoard() {
       if (s && !l.nome.toLowerCase().includes(s) && !l.telefone.includes(s)) return;
       map.get(l.status)?.push(l);
     });
+    // Em "Em atendimento", quem está há mais tempo sem interação sobe pro topo
+    // — o corretor ataca primeiro quem está esfriando. Sem interação registrada
+    // (recém-iniciado) cai pro fim da coluna. Fallback: created_at.
+    const emAtend = map.get("em_atendimento");
+    if (emAtend) {
+      emAtend.sort((a, b) => {
+        const ta = a.ultima_interacao ? Date.parse(a.ultima_interacao) : NaN;
+        const tb = b.ultima_interacao ? Date.parse(b.ultima_interacao) : NaN;
+        if (Number.isNaN(ta) && Number.isNaN(tb)) return Date.parse(a.created_at) - Date.parse(b.created_at);
+        if (Number.isNaN(ta)) return 1;
+        if (Number.isNaN(tb)) return -1;
+        return ta - tb;
+      });
+    }
     return map;
   }, [leads, search]);
+
 
   return (
     <div className="space-y-4">
