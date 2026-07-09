@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Sun, Users, Search, Headset, Trello } from "lucide-react";
+import { Sun, Users, Sparkles, Headset, Trello } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Slot = {
@@ -8,8 +8,8 @@ type Slot = {
   icon: typeof Sun;
 };
 
-// Os 4 destinos de polegar do corretor. O slot central (dourado) abre a busca
-// global até a Fase do SamiQ, quando passa a invocar o copiloto.
+// Os 4 destinos de polegar do corretor. O slot central (dourado) invoca o
+// SamiQ — o copiloto fica literalmente sob o polegar do corretor em campo.
 const LEFT: Slot[] = [
   { to: "/hoje", label: "Início", icon: Sun },
   { to: "/leads", label: "Leads", icon: Users },
@@ -57,11 +57,11 @@ export function BottomNav() {
         ))}
         <button
           type="button"
-          aria-label="Buscar"
-          onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+          aria-label="Abrir SamiQ"
+          onClick={() => window.dispatchEvent(new Event("open-samiq"))}
           className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full bg-gradient-gold text-navy-900 shadow-glow-gold transition-transform active:scale-95"
         >
-          <Search className="h-5 w-5" />
+          <Sparkles className="h-5 w-5" />
         </button>
         {RIGHT.map((s) => (
           <NavSlot key={s.to} slot={s} active={isActive(pathname, s.to)} />

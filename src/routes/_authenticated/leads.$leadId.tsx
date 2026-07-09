@@ -54,6 +54,7 @@ import {
   Check,
   Sparkles,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";

@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   Building2,
   Headset,
+  Sparkles,
 } from "lucide-react";
 
 type LeadHit = { id: string; nome: string; telefone: string | null; status: string };
@@ -153,6 +154,16 @@ export function CommandPalette() {
                 )}
               </CommandGroup>
             )}
+
+            <CommandGroup heading="Ações">
+              <CommandItem
+                value="Abrir SamiQ copiloto"
+                onSelect={() => run(() => window.dispatchEvent(new Event("open-samiq")))}
+              >
+                <Sparkles className="text-primary" />
+                Abrir SamiQ (⌘J)
+              </CommandItem>
+            </CommandGroup>
 
             <CommandGroup heading="Ir para">
               {navItems.map((n) => {
