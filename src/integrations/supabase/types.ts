@@ -693,6 +693,7 @@ export type Database = {
       distribuicao_config: {
         Row: {
           origem: Database["public"]["Enums"]["lead_origem"]
+          roleta_slug: string | null
           sla_minutos: number
           timeout_horas: number
           timeout_minutos: number | null
@@ -700,6 +701,7 @@ export type Database = {
         }
         Insert: {
           origem: Database["public"]["Enums"]["lead_origem"]
+          roleta_slug?: string | null
           sla_minutos?: number
           timeout_horas?: number
           timeout_minutos?: number | null
@@ -707,6 +709,7 @@ export type Database = {
         }
         Update: {
           origem?: Database["public"]["Enums"]["lead_origem"]
+          roleta_slug?: string | null
           sla_minutos?: number
           timeout_horas?: number
           timeout_minutos?: number | null
@@ -714,32 +717,150 @@ export type Database = {
         }
         Relationships: []
       }
+      distribuicao_excecoes: {
+        Row: {
+          contexto: Json | null
+          created_at: string
+          detalhe: string | null
+          id: string
+          lead_id: string
+          motivo: string
+          resolucao: string | null
+          resolvida_em: string | null
+          resolvida_por: string | null
+          roleta_slug: string | null
+          status: string
+          tentativas: number
+          ultimo_erro: string | null
+          updated_at: string
+        }
+        Insert: {
+          contexto?: Json | null
+          created_at?: string
+          detalhe?: string | null
+          id?: string
+          lead_id: string
+          motivo: string
+          resolucao?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          roleta_slug?: string | null
+          status?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contexto?: Json | null
+          created_at?: string
+          detalhe?: string | null
+          id?: string
+          lead_id?: string
+          motivo?: string
+          resolucao?: string | null
+          resolvida_em?: string | null
+          resolvida_por?: string | null
+          roleta_slug?: string | null
+          status?: string
+          tentativas?: number
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribuicao_log_contexto: {
+        Row: {
+          contexto: Json
+          created_at: string
+          log_id: string
+        }
+        Insert: {
+          contexto: Json
+          created_at?: string
+          log_id: string
+        }
+        Update: {
+          contexto?: Json
+          created_at?: string
+          log_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribuicao_log_contexto_log_id_fkey"
+            columns: ["log_id"]
+            isOneToOne: true
+            referencedRelation: "distribution_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distribuicao_settings: {
+        Row: {
+          chave: string
+          descricao: string | null
+          updated_at: string
+          updated_por: string | null
+          valor: Json
+        }
+        Insert: {
+          chave: string
+          descricao?: string | null
+          updated_at?: string
+          updated_por?: string | null
+          valor: Json
+        }
+        Update: {
+          chave?: string
+          descricao?: string | null
+          updated_at?: string
+          updated_por?: string | null
+          valor?: Json
+        }
+        Relationships: []
+      }
       distribution_log: {
         Row: {
-          corretor_id: string
+          corretor_id: string | null
           created_at: string
           distribuido_por_id: string | null
           id: string
           lead_id: string
           motivo: string | null
+          regra_aplicada: string | null
+          resultado: string
+          roleta_slug: string | null
           tipo: Database["public"]["Enums"]["distribuicao_tipo"]
         }
         Insert: {
-          corretor_id: string
+          corretor_id?: string | null
           created_at?: string
           distribuido_por_id?: string | null
           id?: string
           lead_id: string
           motivo?: string | null
+          regra_aplicada?: string | null
+          resultado?: string
+          roleta_slug?: string | null
           tipo: Database["public"]["Enums"]["distribuicao_tipo"]
         }
         Update: {
-          corretor_id?: string
+          corretor_id?: string | null
           created_at?: string
           distribuido_por_id?: string | null
           id?: string
           lead_id?: string
           motivo?: string | null
+          regra_aplicada?: string | null
+          resultado?: string
+          roleta_slug?: string | null
           tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
         }
         Relationships: [
@@ -1100,6 +1221,7 @@ export type Database = {
       leads: {
         Row: {
           campanha: string | null
+          canal_entrada: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -1166,6 +1288,7 @@ export type Database = {
         }
         Insert: {
           campanha?: string | null
+          canal_entrada?: string | null
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -1232,6 +1355,7 @@ export type Database = {
         }
         Update: {
           campanha?: string | null
+          canal_entrada?: string | null
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -1326,6 +1450,7 @@ export type Database = {
           fbclid: string | null
           gclid: string | null
           id: string
+          lead_id: string | null
           nome: string | null
           origem: string | null
           pagina: string | null
@@ -1362,6 +1487,7 @@ export type Database = {
           fbclid?: string | null
           gclid?: string | null
           id?: string
+          lead_id?: string | null
           nome?: string | null
           origem?: string | null
           pagina?: string | null
@@ -1398,6 +1524,7 @@ export type Database = {
           fbclid?: string | null
           gclid?: string | null
           id?: string
+          lead_id?: string | null
           nome?: string | null
           origem?: string | null
           pagina?: string | null
@@ -2091,6 +2218,138 @@ export type Database = {
           updated_at?: string
           user_agent?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      roleta_participantes: {
+        Row: {
+          ativo: boolean
+          corretor_id: string
+          id: string
+          incluido_em: string
+          incluido_por: string | null
+          limite_diario: number | null
+          motivo_pausa: string | null
+          pausado_ate: string | null
+          roleta_id: string
+          ultimo_lead_em: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          corretor_id: string
+          id?: string
+          incluido_em?: string
+          incluido_por?: string | null
+          limite_diario?: number | null
+          motivo_pausa?: string | null
+          pausado_ate?: string | null
+          roleta_id: string
+          ultimo_lead_em?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          corretor_id?: string
+          id?: string
+          incluido_em?: string
+          incluido_por?: string | null
+          limite_diario?: number | null
+          motivo_pausa?: string | null
+          pausado_ate?: string | null
+          roleta_id?: string
+          ultimo_lead_em?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roleta_participantes_roleta_id_fkey"
+            columns: ["roleta_id"]
+            isOneToOne: false
+            referencedRelation: "roletas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_participantes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roleta_participantes_log: {
+        Row: {
+          acao: string
+          corretor_id: string
+          created_at: string
+          feito_por: string | null
+          id: string
+          motivo: string | null
+          roleta_id: string
+        }
+        Insert: {
+          acao: string
+          corretor_id: string
+          created_at?: string
+          feito_por?: string | null
+          id?: string
+          motivo?: string | null
+          roleta_id: string
+        }
+        Update: {
+          acao?: string
+          corretor_id?: string
+          created_at?: string
+          feito_por?: string | null
+          id?: string
+          motivo?: string | null
+          roleta_id?: string
+        }
+        Relationships: []
+      }
+      roletas: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criterio_participacao: string
+          descricao: string | null
+          exigir_presenca: boolean
+          horario_fim: string | null
+          horario_inicio: string | null
+          id: string
+          nome: string
+          permitir_fora_horario: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criterio_participacao?: string
+          descricao?: string | null
+          exigir_presenca?: boolean
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          nome: string
+          permitir_fora_horario?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criterio_participacao?: string
+          descricao?: string | null
+          exigir_presenca?: boolean
+          horario_fim?: string | null
+          horario_inicio?: string | null
+          id?: string
+          nome?: string
+          permitir_fora_horario?: boolean
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3051,6 +3310,7 @@ export type Database = {
         | "agendamento_proximo"
         | "follow_up"
         | "sistema"
+        | "distribuicao"
       app_role: "admin" | "gestor" | "corretor" | "superintendente"
       distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
       interacao_direcao: "entrada" | "saida" | "interna"
@@ -3255,6 +3515,7 @@ export const Constants = {
         "agendamento_proximo",
         "follow_up",
         "sistema",
+        "distribuicao",
       ],
       app_role: ["admin", "gestor", "corretor", "superintendente"],
       distribuicao_tipo: ["automatica", "manual", "inicial", "redistribuicao"],
