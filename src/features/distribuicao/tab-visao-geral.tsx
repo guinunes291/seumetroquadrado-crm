@@ -65,7 +65,7 @@ function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
 }
 
 export function TabVisaoGeral({ onVerExcecoes }: { onVerExcecoes: () => void }) {
-  const logQ = useHistoricoDistribuicao({ dias: 1 });
+  const logQ = useHistoricoDistribuicao({ dias: 1, limite: 20 });
   const nomesQ = useNomesPerfis();
   const nomes = nomesQ.data;
   const decisoes = (logQ.data ?? []).slice(0, 12);

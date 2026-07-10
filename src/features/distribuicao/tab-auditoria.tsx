@@ -28,11 +28,13 @@ export function TabAuditoria() {
   const logQ = useParticipantesLog(null);
   const roletasQ = useRoletas();
   const nomesQ = useNomesPerfis();
-  const falhasQ = useHistoricoDistribuicao({ dias: 30 });
+  // Filtro no servidor: num sistema saudável, 300 linhas de sucesso
+  // esconderiam justamente as falhas que esta aba existe para mostrar.
+  const falhasQ = useHistoricoDistribuicao({ dias: 30, apenasFalhas: true, limite: 100 });
 
   const nomes = nomesQ.data;
   const roletaPorId = new Map((roletasQ.data ?? []).map((r) => [r.id, r.slug]));
-  const falhas = (falhasQ.data ?? []).filter((l) => l.resultado !== "sucesso").slice(0, 100);
+  const falhas = falhasQ.data ?? [];
 
   return (
     <div className="space-y-4">

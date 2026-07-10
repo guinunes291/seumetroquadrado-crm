@@ -211,6 +211,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         let corretorId: string | null = null;
         let motivo: string | null = null;
+        let excecaoMotivo: string | null = null;
 
         if (data.distribuir) {
           const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
@@ -219,13 +220,17 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           );
           if (triagemErr) {
             console.error("[webhooks/lead] triagem falhou:", triagemErr);
-            motivo = "falha_triagem_reprocesso_automatico";
+            motivo = "sem_corretor_disponivel";
+            excecaoMotivo = "falha_triagem_reprocesso_automatico";
           } else {
             const res = triagem as { ok?: boolean; corretor_id?: string; motivo?: string } | null;
             if (res?.ok && res.corretor_id) {
               corretorId = res.corretor_id;
             } else {
-              motivo = res?.motivo ? `excecao:${res.motivo}` : "sem_corretor_disponivel";
+              // Contrato com o n8n: motivo mantém a string legada; o detalhe
+              // v3 (motivo da exceção) vai num campo novo.
+              motivo = "sem_corretor_disponivel";
+              excecaoMotivo = res?.motivo ?? null;
             }
           }
         }
@@ -325,6 +330,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             corretor_email: corretorEmail,
             distributed,
             motivo,
+            excecao_motivo: excecaoMotivo,
           },
           { headers: corsHeaders },
         );

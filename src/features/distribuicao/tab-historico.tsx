@@ -40,6 +40,7 @@ import {
   resumoDecisao,
   roletaLabel,
   RESULTADO_LABEL,
+  ROLETA_LABEL,
 } from "@/lib/distribuicao";
 import {
   useDecisaoContexto,
@@ -95,9 +96,11 @@ export function TabHistorico() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={TODOS}>Todas as roletas</SelectItem>
-            <SelectItem value="plantao">Plantão</SelectItem>
-            <SelectItem value="marquinhos">Marquinhos</SelectItem>
-            <SelectItem value="landing">Landing Page</SelectItem>
+            {Object.entries(ROLETA_LABEL).map(([slug, label]) => (
+              <SelectItem key={slug} value={slug}>
+                {label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={resultado} onValueChange={setResultado}>

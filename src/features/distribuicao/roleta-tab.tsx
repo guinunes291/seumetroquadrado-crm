@@ -82,6 +82,7 @@ import {
   useCorretoresDisponiveis,
   useElegibilidadeRoleta,
   useGerenciarParticipante,
+  useMarcarPresencaAdmin,
   useNomesPerfis,
   useRecebidosSemana,
   useVendasMesAnterior,
@@ -105,6 +106,7 @@ export function RoletaTab({
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
   const nomesQ = useNomesPerfis();
   const gerenciar = useGerenciarParticipante();
+  const presencaAdmin = useMarcarPresencaAdmin();
 
   const [incluirAberto, setIncluirAberto] = useState(false);
   const [pausarAlvo, setPausarAlvo] = useState<ElegibilidadeLinha | null>(null);
@@ -318,6 +320,26 @@ export function RoletaTab({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {ehPlantao && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    presencaAdmin.mutate({
+                                      corretorId: l.corretor_id,
+                                      presente: !l.presente,
+                                    })
+                                  }
+                                >
+                                  {l.presente ? (
+                                    <>
+                                      <UserX className="mr-2 h-4 w-4" /> Marcar ausente
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="mr-2 h-4 w-4" /> Marcar presente hoje
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                              )}
                               {l.participante_ativo && !l.pausado && (
                                 <DropdownMenuItem onClick={() => setPausarAlvo(l)}>
                                   <PauseCircle className="mr-2 h-4 w-4" /> Pausar temporariamente

@@ -183,6 +183,8 @@ export function useExcecoes(status: "abertas" | "todas" = "abertas", enabled = t
     queryKey: ["distribuicao:excecoes", status],
     enabled,
     staleTime: 10_000,
+    // Fallback do realtime: exceção nova precisa aparecer mesmo se o canal cair.
+    refetchInterval: 60_000,
     queryFn: async () => {
       let q = supabase
         .from("distribuicao_excecoes")
@@ -204,6 +206,10 @@ export interface FiltrosHistorico {
   tipo?: string | null;
   busca?: string | null;
   dias?: number;
+  /** Máximo de linhas trazidas do servidor (default 300). */
+  limite?: number;
+  /** Só decisões com falha (resultado ≠ sucesso) — filtro no servidor. */
+  apenasFalhas?: boolean;
 }
 
 export function useHistoricoDistribuicao(filtros: FiltrosHistorico, enabled = true) {
@@ -216,10 +222,11 @@ export function useHistoricoDistribuicao(filtros: FiltrosHistorico, enabled = tr
         .from("distribution_log")
         .select("*, leads(nome)")
         .order("created_at", { ascending: false })
-        .limit(300);
+        .limit(filtros.limite ?? 300);
       if (filtros.roleta) q = q.eq("roleta_slug", filtros.roleta);
       if (filtros.corretor) q = q.eq("corretor_id", filtros.corretor);
       if (filtros.resultado) q = q.eq("resultado", filtros.resultado);
+      if (filtros.apenasFalhas) q = q.neq("resultado", "sucesso");
       if (filtros.tipo)
         q = q.eq("tipo", filtros.tipo as Database["public"]["Enums"]["distribuicao_tipo"]);
       if (filtros.dias)
@@ -396,6 +403,8 @@ export const DISTRIBUICAO_KEYS = [
   ["distribuicao:settings"],
   ["distribuicao:config"],
   ["distribuicao:minha-elegibilidade"],
+  ["distribuicao:recebidos-semana"],
+  ["distribuicao:vendas-mes-anterior"],
 ] as const;
 
 function useInvalidateDistribuicao() {
@@ -435,24 +444,43 @@ export function useGerenciarParticipante() {
   });
 }
 
+/** Notifica o corretor via WhatsApp (edge fn) — paridade com as demais
+ *  atribuições manuais do CRM; falha nunca bloqueia a ação. */
+async function notificarCorretorTransferencia(leadId: string, corretorId: string) {
+  try {
+    await supabase.functions.invoke("notify-lead-transfer", {
+      body: { lead_id: leadId, corretor_id: corretorId },
+    });
+  } catch (e) {
+    console.warn("[distribuicao] notificação WhatsApp falhou:", e);
+  }
+}
+
 export function useResolverExcecao() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
-    mutationFn: async (args: { excecaoId: string; acao: string; params?: Json }) => {
+    mutationFn: async (args: { excecaoId: string; leadId: string; acao: string; params?: Json }) => {
       const { data, error } = await supabase.rpc("resolver_excecao", {
         _excecao_id: args.excecaoId,
         _acao: args.acao,
         _params: args.params ?? {},
       });
       if (error) throw error;
-      return data as { ok?: boolean; motivo?: string; corretor_nome?: string } | null;
+      return data as {
+        ok?: boolean;
+        motivo?: string;
+        corretor_id?: string;
+        corretor_nome?: string;
+      } | null;
     },
-    onSuccess: (res) => {
+    onSuccess: (res, args) => {
       invalidate();
       if (res && res.ok === false) {
         toast.warning(
           `Ainda sem corretor apto${res.motivo ? ` (${res.motivo})` : ""} — exceção mantida.`,
         );
+      } else if (res?.ok && res.corretor_id) {
+        void notificarCorretorTransferencia(args.leadId, res.corretor_id);
       }
     },
     onError: (e: Error) => toast.error(`Falha ao resolver exceção: ${e.message}`),
@@ -476,14 +504,42 @@ export function useDistribuirManual() {
         _gatilho: args.gatilho ?? "manual",
       });
       if (error) throw error;
-      return data as { ok?: boolean; corretor_nome?: string; motivo?: string } | null;
+      return data as {
+        ok?: boolean;
+        corretor_id?: string;
+        corretor_nome?: string;
+        motivo?: string;
+      } | null;
     },
-    onSuccess: (res) => {
+    onSuccess: (res, args) => {
       invalidate();
-      if (res?.ok) toast.success(`Lead distribuído para ${res.corretor_nome ?? "corretor"}.`);
-      else toast.warning(`Sem corretor apto (${res?.motivo ?? "?"}) — lead na fila de exceções.`);
+      if (res?.ok) {
+        toast.success(`Lead distribuído para ${res.corretor_nome ?? "corretor"}.`);
+        if (res.corretor_id) void notificarCorretorTransferencia(args.leadId, res.corretor_id);
+      } else {
+        toast.warning(`Sem corretor apto (${res?.motivo ?? "?"}) — lead na fila de exceções.`);
+      }
     },
     onError: (e: Error) => toast.error(`Falha na distribuição: ${e.message}`),
+  });
+}
+
+/** Gestor marca presença de outro corretor (capacidade da página antiga). */
+export function useMarcarPresencaAdmin() {
+  const invalidate = useInvalidateDistribuicao();
+  return useMutation({
+    mutationFn: async (args: { corretorId: string; presente: boolean }) => {
+      const { error } = await supabase.rpc("marcar_presenca_admin", {
+        _corretor_id: args.corretorId,
+        _presente: args.presente,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_res, args) => {
+      invalidate();
+      toast.success(args.presente ? "Presença marcada." : "Presença removida.");
+    },
+    onError: (e: Error) => toast.error(`Falha ao marcar presença: ${e.message}`),
   });
 }
 

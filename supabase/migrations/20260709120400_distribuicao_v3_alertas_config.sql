@@ -56,8 +56,12 @@ BEGIN
 
   SELECT to_jsonb(r) INTO _depois FROM public.roletas r WHERE r.slug = _slug;
 
-  INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
-  VALUES ('roletas', (_depois->>'id')::uuid, 'UPDATE', _caller, _antes, _depois);
+  -- Sem mudança efetiva (blur sem edição) → sem ruído na auditoria.
+  -- (updated_at muda em todo UPDATE — fica fora da comparação.)
+  IF (_antes - 'updated_at') IS DISTINCT FROM (_depois - 'updated_at') THEN
+    INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
+    VALUES ('roletas', (_depois->>'id')::uuid, 'UPDATE', _caller, _antes, _depois);
+  END IF;
 
   RETURN jsonb_build_object('ok', true, 'roleta', _depois);
 END;
@@ -113,8 +117,12 @@ BEGIN
 
   SELECT to_jsonb(c) INTO _depois FROM public.distribuicao_config c WHERE c.origem = _origem;
 
-  INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
-  VALUES ('distribuicao_config', gen_random_uuid(), 'UPDATE', _caller, _antes, _depois);
+  -- Sem mudança efetiva (blur sem edição) → sem ruído na auditoria.
+  -- (updated_at muda em todo UPDATE — fica fora da comparação.)
+  IF (_antes - 'updated_at') IS DISTINCT FROM (_depois - 'updated_at') THEN
+    INSERT INTO public.audit_log (tabela, registro_id, operacao, usuario_id, valores_antigos, valores_novos)
+    VALUES ('distribuicao_config', gen_random_uuid(), 'UPDATE', _caller, _antes, _depois);
+  END IF;
 
   RETURN jsonb_build_object('ok', true, 'config', _depois);
 END;
@@ -194,25 +202,19 @@ BEGIN
         AND a.ref_id = l.id AND a.lida = false
     );
 
-  -- Gestores (resumo por lead, mesmo dedupe)
-  INSERT INTO public.alertas (user_id, tipo, titulo, mensagem, link, ref_id)
-  SELECT DISTINCT ur.user_id, 'distribuicao'::alerta_tipo,
-         'Lead sem atendimento: ' || l.nome,
-         'Com ' || coalesce(p.nome, 'corretor') || ' há mais de ' || _max_min || ' min sem atendimento.',
-         '/leads/' || l.id, l.id
+  -- Gestores: reusa o helper canônico (mesmo dedupe por não-lido) — política
+  -- de alerta de gestão vive num lugar só.
+  PERFORM public._alertar_gestores_distribuicao(
+    'Lead sem atendimento: ' || l.nome,
+    'Com ' || coalesce(p.nome, 'corretor') || ' há mais de ' || _max_min || ' min sem atendimento.',
+    l.id,
+    '/leads/' || l.id)
   FROM public.leads l
   JOIN public.profiles p ON p.id = l.corretor_id
-  CROSS JOIN public.user_roles ur
-  WHERE ur.role IN ('admin','gestor')
-    AND l.status = 'aguardando_atendimento'
+  WHERE l.status = 'aguardando_atendimento'
     AND l.deleted_at IS NULL AND l.na_lixeira = false
     AND l.corretor_id IS NOT NULL
-    AND COALESCE(l.data_distribuicao, l.created_at) < now() - (_max_min || ' minutes')::interval
-    AND NOT EXISTS (
-      SELECT 1 FROM public.alertas a
-      WHERE a.user_id = ur.user_id AND a.tipo = 'distribuicao'
-        AND a.ref_id = l.id AND a.lida = false
-    );
+    AND COALESCE(l.data_distribuicao, l.created_at) < now() - (_max_min || ' minutes')::interval;
 END;
 $$;
 
@@ -229,7 +231,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _hoje date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
+  -- Janela sargável do dia BRT (usa dlog_created_idx em vez de varrer o log).
+  _dia_ini timestamptz := date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')
+                          AT TIME ZONE 'America/Sao_Paulo';
+  _dia_fim timestamptz := (date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')
+                           + interval '1 day') AT TIME ZONE 'America/Sao_Paulo';
   _media numeric;
   _r record;
 BEGIN
@@ -238,7 +244,7 @@ BEGIN
     FROM public.distribution_log dl
     WHERE dl.resultado = 'sucesso'
       AND dl.corretor_id IS NOT NULL
-      AND (dl.created_at AT TIME ZONE 'America/Sao_Paulo')::date = _hoje
+      AND dl.created_at >= _dia_ini AND dl.created_at < _dia_fim
     GROUP BY dl.corretor_id
   ) t;
 
@@ -249,7 +255,7 @@ BEGIN
     FROM public.distribution_log dl
     WHERE dl.resultado = 'sucesso'
       AND dl.corretor_id IS NOT NULL
-      AND (dl.created_at AT TIME ZONE 'America/Sao_Paulo')::date = _hoje
+      AND dl.created_at >= _dia_ini AND dl.created_at < _dia_fim
     GROUP BY dl.corretor_id
     HAVING count(*) >= 5 AND count(*) > 2 * _media
   LOOP

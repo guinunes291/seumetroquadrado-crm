@@ -47,13 +47,26 @@ BEGIN
       AND l.status IN ('novo', 'aguardando_atendimento')
       AND l.deleted_at IS NULL
       AND l.na_lixeira = false
-      -- Exceção aberta que já esgotou as tentativas automáticas: espera ação
-      -- humana na fila de exceções (reprocessar/corrigir/atribuir).
+      -- Exceção aberta que esgotou as tentativas: BACKOFF de 30 min em vez de
+      -- congelar para sempre — quando corretores voltarem a ficar aptos
+      -- (manhã seguinte, pós-almoço), o lead se recupera SOZINHO.
       AND NOT EXISTS (
         SELECT 1 FROM public.distribuicao_excecoes e
         WHERE e.lead_id = l.id
           AND e.status IN ('pendente','em_analise')
           AND e.tentativas >= _max_tent
+          AND e.updated_at > now() - interval '30 minutes'
+      )
+      -- Exceção ARQUIVADA depois da última movimentação do lead = decisão
+      -- humana de deixá-lo sem corretor; o cron respeita (re-triagem manual
+      -- pela roleta/lista continua possível).
+      AND NOT EXISTS (
+        SELECT 1 FROM public.distribuicao_excecoes e
+        WHERE e.lead_id = l.id
+          AND e.status = 'arquivada'
+          -- >= : arquivamento na MESMA transação da última movimentação
+          -- ainda conta como posterior (now() é constante por transação).
+          AND e.resolvida_em >= COALESCE(l.data_distribuicao, l.created_at)
       )
     ORDER BY l.created_at ASC
     LIMIT 200
@@ -115,6 +128,7 @@ BEGIN
         WHERE e.lead_id = l.id
           AND e.status IN ('pendente','em_analise')
           AND e.tentativas >= _max_tent
+          AND e.updated_at > now() - interval '30 minutes'
       )
     ORDER BY l.data_distribuicao ASC
     LIMIT 50
@@ -187,6 +201,7 @@ BEGIN
           WHERE e.lead_id = l.id
             AND e.status IN ('pendente','em_analise')
             AND e.tentativas >= _max_tent
+            AND e.updated_at > now() - interval '30 minutes'
         )
     )
     SELECT id, corretor_id, data_distribuicao, timeout_horas
@@ -450,9 +465,12 @@ LANGUAGE sql
 STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
+  -- na_lixeira = false: lead na lixeira NÃO conta como duplicata — cliente
+  -- retornante com lead descartado gera lead NOVO (senão o retorno some).
   SELECT l.id
   FROM public.leads l
   WHERE l.deleted_at IS NULL
+    AND l.na_lixeira = false
     AND length(regexp_replace(COALESCE(_telefone, ''), '\D', '', 'g')) >= 8
     AND regexp_replace(l.telefone, '\D', '', 'g')
           = regexp_replace(_telefone, '\D', '', 'g')

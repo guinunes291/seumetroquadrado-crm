@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
-import { useDistribuicaoResumo, useRodarDistribuicao } from "./queries";
+import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "./queries";
 import { TabVisaoGeral } from "./tab-visao-geral";
 import { RoletaTab } from "./roleta-tab";
 import { TabExcecoes } from "./tab-excecoes";
@@ -77,16 +77,14 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
     onError: (e: Error) => toast.error(`Falha ao sincronizar token: ${e.message}`),
   });
 
-  // Push em vez de polling: qualquer mudança nas tabelas da distribuição
-  // invalida as queries da central.
+  // Push em vez de polling: eventos das tabelas da distribuição (publicadas
+  // no realtime pela migration 20260709120600) invalidam as queries da
+  // central. A tabela `leads` fica de fora de propósito: cada drag/edição de
+  // lead org-wide re-executaria o resumo pesado — o distribution_log já
+  // captura toda transição relevante para esta página.
   useRealtimeInvalidate(
-    ["leads", "distribution_log", "distribuicao_excecoes", "roleta_participantes"],
-    [
-      ["distribuicao:resumo"],
-      ["distribuicao:elegibilidade"],
-      ["distribuicao:excecoes"],
-      ["distribuicao:historico"],
-    ],
+    ["distribution_log", "distribuicao_excecoes", "roleta_participantes"],
+    DISTRIBUICAO_KEYS.map((k) => [...k]),
   );
 
   const r = resumoQ.data;

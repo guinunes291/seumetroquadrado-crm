@@ -121,12 +121,16 @@ export const Route = createFileRoute("/api/public/webhooks/landing")({
         let corretorId: string | null = null;
         try {
           // Dedup global por telefone (dígitos): retorno do mesmo cliente não
-          // duplica lead — vincula o staging ao lead existente.
-          const { data: dupId } = await supabaseAdmin.rpc(
+          // duplica lead — vincula o staging ao lead existente. Falha no RPC
+          // NUNCA descarta o lead: loga e segue criando um novo.
+          const { data: dupId, error: dupErr } = await supabaseAdmin.rpc(
             "buscar_lead_por_telefone" as never,
             { _telefone: digits } as never,
           );
-          const existingId = (dupId as string | null) ?? null;
+          if (dupErr) {
+            console.error("[webhooks/landing] dedup falhou (criando lead novo):", dupErr);
+          }
+          const existingId = dupErr ? null : ((dupId as string | null) ?? null);
 
           if (existingId) {
             leadId = existingId;
@@ -134,6 +138,22 @@ export const Route = createFileRoute("/api/public/webhooks/landing")({
               .from("leads_landing" as any)
               .update({ lead_id: existingId } as any)
               .eq("id", stagingId);
+
+            // Resgate: lead existente SEM corretor volta para a triagem —
+            // um retorno quente não pode ficar órfão só por já existir.
+            const { data: existente } = await supabaseAdmin
+              .from("leads")
+              .select("corretor_id")
+              .eq("id", existingId)
+              .maybeSingle();
+            if (existente && !existente.corretor_id) {
+              const { data: triagem } = await supabaseAdmin.rpc("triar_e_distribuir_lead", {
+                _lead_id: existingId,
+                _gatilho: "webhook_landing",
+              });
+              const res = triagem as { ok?: boolean; corretor_id?: string } | null;
+              if (res?.ok && res.corretor_id) corretorId = res.corretor_id;
+            }
           } else {
             const simResumo = [
               row.sim_renda != null ? `Renda: R$ ${row.sim_renda}` : null,

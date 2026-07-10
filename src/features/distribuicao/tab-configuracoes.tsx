@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LEAD_STATUS_ORDER, leadStatusLabel, type LeadStatus } from "@/lib/leads";
-import { roletaLabel } from "@/lib/distribuicao";
+import { roletaLabel, ROLETA_LABEL } from "@/lib/distribuicao";
 import type { Json } from "@/integrations/supabase/types";
 import {
   useAtualizarConfigOrigem,
@@ -37,6 +37,7 @@ import {
   useDistribuicaoConfig,
   useDistribuicaoSettings,
   useRoletas,
+  type RoletaRow,
 } from "./queries";
 
 const SEM_ROLETA = "__nenhuma__";
@@ -83,10 +84,14 @@ function SettingNumero({
           {mudou && (
             <Button
               size="sm"
-              onClick={() => {
-                salvar.mutate({ chave, valor: Number(valor) as unknown as Json });
-                setValor(null);
-              }}
+              onClick={() =>
+                // Rascunho só é limpo no sucesso — sem flicker do valor antigo
+                // enquanto a invalidação não volta.
+                salvar.mutate(
+                  { chave, valor: Number(valor) as unknown as Json },
+                  { onSuccess: () => setValor(null) },
+                )
+              }
               disabled={salvar.isPending}
             >
               <Save className="mr-1 h-3.5 w-3.5" /> Salvar
@@ -94,6 +99,55 @@ function SettingNumero({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Janela início–fim salva ATOMICAMENTE (um RPC com os dois campos) — dois
+ *  onBlur separados criavam uma janela overnight fantasma no meio do caminho. */
+function HorarioRoletaCell({ roleta }: { roleta: RoletaRow }) {
+  const atualizarRoleta = useAtualizarRoleta();
+  const [inicio, setInicio] = useState<string | null>(null);
+  const [fim, setFim] = useState<string | null>(null);
+  const inicioAtual = roleta.horario_inicio?.slice(0, 5) ?? "";
+  const fimAtual = roleta.horario_fim?.slice(0, 5) ?? "";
+  const vInicio = inicio ?? inicioAtual;
+  const vFim = fim ?? fimAtual;
+  const mudou = vInicio !== inicioAtual || vFim !== fimAtual;
+  // Janela precisa dos dois lados (ou nenhum — 24h).
+  const valido = (vInicio === "" && vFim === "") || (vInicio !== "" && vFim !== "");
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Input
+        type="time"
+        className="w-28"
+        value={vInicio}
+        onChange={(e) => setInicio(e.target.value)}
+      />
+      <span className="text-muted-foreground">–</span>
+      <Input type="time" className="w-28" value={vFim} onChange={(e) => setFim(e.target.value)} />
+      {mudou && (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!valido || atualizarRoleta.isPending}
+          title={valido ? undefined : "Preencha início e fim (ou limpe os dois para 24h)"}
+          onClick={() =>
+            atualizarRoleta.mutate(
+              { slug: roleta.slug, horarioInicio: vInicio, horarioFim: vFim },
+              {
+                onSuccess: () => {
+                  setInicio(null);
+                  setFim(null);
+                },
+              },
+            )
+          }
+        >
+          <Save className="mr-1 h-3.5 w-3.5" /> Salvar
+        </Button>
+      )}
     </div>
   );
 }
@@ -268,32 +322,7 @@ export function TabConfiguracoes() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Input
-                          type="time"
-                          className="w-28"
-                          defaultValue={r.horario_inicio?.slice(0, 5) ?? ""}
-                          onBlur={(e) =>
-                            atualizarRoleta.mutate({
-                              slug: r.slug,
-                              // '' limpa a janela (24h); valor define o início.
-                              horarioInicio: e.target.value,
-                            })
-                          }
-                        />
-                        <span className="text-muted-foreground">–</span>
-                        <Input
-                          type="time"
-                          className="w-28"
-                          defaultValue={r.horario_fim?.slice(0, 5) ?? ""}
-                          onBlur={(e) =>
-                            atualizarRoleta.mutate({
-                              slug: r.slug,
-                              horarioFim: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
+                      <HorarioRoletaCell roleta={r} />
                     </TableCell>
                     <TableCell>
                       <label className="flex items-center gap-2 text-xs">
@@ -355,9 +384,11 @@ export function TabConfiguracoes() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="plantao">Roleta Plantão</SelectItem>
-                          <SelectItem value="marquinhos">Roleta Marquinhos</SelectItem>
-                          <SelectItem value="landing">Roleta Landing Page</SelectItem>
+                          {Object.entries(ROLETA_LABEL).map(([slug, label]) => (
+                            <SelectItem key={slug} value={slug}>
+                              {label}
+                            </SelectItem>
+                          ))}
                           <SelectItem value={SEM_ROLETA}>
                             Nenhuma (vai para exceção)
                           </SelectItem>
@@ -386,12 +417,13 @@ export function TabConfiguracoes() {
                         min={1}
                         className="ml-auto w-24 text-right"
                         defaultValue={c.timeout_horas}
-                        onBlur={(e) =>
-                          atualizarOrigem.mutate({
-                            origem: c.origem,
-                            timeoutHoras: Number(e.target.value) || 24,
-                          })
-                        }
+                        onBlur={(e) => {
+                          // Campo vazio/valor inválido não muda nada (antes
+                          // coagia silenciosamente para 24h).
+                          const n = Number(e.target.value);
+                          if (!Number.isInteger(n) || n < 1 || n === c.timeout_horas) return;
+                          atualizarOrigem.mutate({ origem: c.origem, timeoutHoras: n });
+                        }}
                       />
                     </TableCell>
                   </TableRow>

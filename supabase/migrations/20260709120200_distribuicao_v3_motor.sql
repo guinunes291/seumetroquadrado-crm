@@ -80,7 +80,9 @@ GRANT EXECUTE ON FUNCTION public._resolver_roleta_lead(text, public.lead_origem)
 --    UI (via wrapper com gate). Uma linha por participante da roleta, com
 --    motivos de inaptidão legíveis e auditáveis.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public._elegibilidade_roleta(_slug text)
+-- _corretor_id opcional: restringe o cálculo a UM corretor (minha_elegibilidade)
+-- sem pagar o custo da roleta inteira.
+CREATE OR REPLACE FUNCTION public._elegibilidade_roleta(_slug text, _corretor_id uuid DEFAULT NULL)
 RETURNS TABLE (
   corretor_id uuid,
   nome text,
@@ -145,6 +147,7 @@ AS $$
     JOIN public.profiles p ON p.id = rp.corretor_id
     CROSS JOIN cfg
     WHERE lower(coalesce(p.nome, '')) <> 'docs-bot'
+      AND (_corretor_id IS NULL OR rp.corretor_id = _corretor_id)
   ),
   carteira AS (
     SELECT b.corretor_id,
@@ -160,7 +163,9 @@ AS $$
   ),
   recebidos AS (
     -- Contadores derivados do LOG (fonte auditável) em dia/mês BRT — nada de
-    -- contador mutável com cron de reset.
+    -- contador mutável com cron de reset. Linhas legadas (roleta_slug NULL,
+    -- anteriores ao cutover) contam em TODAS as roletas: conservador — impede
+    -- cota dupla no dia da virada; param de crescer após o cutover.
     SELECT b.corretor_id,
            (count(dl.id) FILTER (
               WHERE (dl.created_at AT TIME ZONE 'America/Sao_Paulo')::date = b.hoje_brt))::int AS hoje_n,
@@ -169,7 +174,7 @@ AS $$
     LEFT JOIN public.distribution_log dl
       ON dl.corretor_id = b.corretor_id
      AND dl.resultado = 'sucesso'
-     AND dl.roleta_slug = _slug
+     AND (dl.roleta_slug = _slug OR dl.roleta_slug IS NULL)
      AND (dl.tipo IN ('automatica','inicial')
           OR (b.conta_redist AND dl.tipo = 'redistribuicao'))
      AND dl.created_at >= (date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo')
@@ -223,8 +228,8 @@ AS $$
   JOIN recebidos rec ON rec.corretor_id = b.corretor_id;
 $$;
 
-REVOKE ALL ON FUNCTION public._elegibilidade_roleta(text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public._elegibilidade_roleta(text) TO service_role;
+REVOKE ALL ON FUNCTION public._elegibilidade_roleta(text, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._elegibilidade_roleta(text, uuid) TO service_role;
 
 -- Wrapper com gate: gestão vê tudo; corretor vê só a própria linha.
 CREATE OR REPLACE FUNCTION public.elegibilidade_roleta(_slug text)
@@ -398,8 +403,26 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'erro', 'lead_nao_encontrado');
   END IF;
 
+  -- Lead na lixeira/excluído NUNCA é distribuído; exceção aberta (se houver)
+  -- é arquivada para não assombrar a fila.
+  IF _lead.deleted_at IS NOT NULL OR _lead.na_lixeira THEN
+    UPDATE public.distribuicao_excecoes
+       SET status = 'arquivada', resolvida_em = now(),
+           resolvida_por = COALESCE(_distribuido_por, auth.uid()),
+           resolucao = 'Lead está na lixeira — distribuição bloqueada'
+     WHERE lead_id = _lead_id AND status IN ('pendente','em_analise');
+    RETURN jsonb_build_object('ok', false, 'erro', 'lead_na_lixeira');
+  END IF;
+
   -- Idempotência: distribuição automática nunca rouba lead já atribuído.
+  -- Fecha exceção aberta órfã (lead ganhou dono por um caminho que não fecha
+  -- exceções, ex.: janela de deploy) — senão "Reprocessar" vira beco sem saída.
   IF _lead.corretor_id IS NOT NULL AND _tipo = 'automatica' AND _corretor_id IS NULL THEN
+    UPDATE public.distribuicao_excecoes
+       SET status = 'resolvida', resolvida_em = now(),
+           resolvida_por = COALESCE(_distribuido_por, auth.uid()),
+           resolucao = 'Lead já estava atribuído'
+     WHERE lead_id = _lead_id AND status IN ('pendente','em_analise');
     RETURN jsonb_build_object('ok', true, 'ja_atribuido', true, 'corretor_id', _lead.corretor_id);
   END IF;
 
@@ -426,9 +449,11 @@ BEGIN
         'roleta', NULL, 'gatilho', _gatilho, 'origem', _lead.origem::text,
         'canal_entrada', _lead.canal_entrada
       ) || COALESCE(_contexto_extra, '{}'::jsonb);
-      _excecao_id := public._registrar_excecao_distribuicao(
-        _lead_id, _motivo_falha,
-        'Origem "' || _lead.origem::text || '" sem roleta vinculada', NULL, _contexto);
+      IF _registrar_excecao THEN
+        _excecao_id := public._registrar_excecao_distribuicao(
+          _lead_id, _motivo_falha,
+          'Origem "' || _lead.origem::text || '" sem roleta vinculada', NULL, _contexto);
+      END IF;
       INSERT INTO public.distribution_log
         (lead_id, corretor_id, tipo, motivo, distribuido_por_id, roleta_slug, regra_aplicada, resultado)
       VALUES
@@ -658,17 +683,34 @@ DECLARE
   _excecao_id uuid;
   _log_id uuid;
 BEGIN
+  -- Gate FORA do bloco com handler: 'forbidden' precisa estourar para o
+  -- chamador, nunca virar exceção 'falha_tecnica' (senão qualquer
+  -- authenticated pollui a fila/alertas e mascara bugs de permissão).
   IF _caller IS NOT NULL
      AND NOT public.has_role(_caller, 'admin')
      AND NOT public.has_role(_caller, 'gestor') THEN
     RAISE EXCEPTION 'forbidden';
   END IF;
 
+  BEGIN
   SELECT * INTO _lead FROM public.leads WHERE id = _lead_id FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('ok', false, 'erro', 'lead_nao_encontrado');
   END IF;
+  IF _lead.deleted_at IS NOT NULL OR _lead.na_lixeira THEN
+    UPDATE public.distribuicao_excecoes
+       SET status = 'arquivada', resolvida_em = now(), resolvida_por = _caller,
+           resolucao = 'Lead está na lixeira — distribuição bloqueada'
+     WHERE lead_id = _lead_id AND status IN ('pendente','em_analise');
+    RETURN jsonb_build_object('ok', false, 'erro', 'lead_na_lixeira');
+  END IF;
   IF _lead.corretor_id IS NOT NULL THEN
+    -- Fecha exceção órfã (lead ganhou dono fora do motor) para o
+    -- "Reprocessar" da fila nunca virar beco sem saída.
+    UPDATE public.distribuicao_excecoes
+       SET status = 'resolvida', resolvida_em = now(), resolvida_por = _caller,
+           resolucao = 'Lead já estava atribuído'
+     WHERE lead_id = _lead_id AND status IN ('pendente','em_analise');
     RETURN jsonb_build_object('ok', true, 'ja_atribuido', true, 'corretor_id', _lead.corretor_id);
   END IF;
 
@@ -717,16 +759,17 @@ BEGIN
 
   RETURN public._distribuir_lead_v3(_lead_id, 'automatica', NULL, NULL, _caller, _gatilho, _ctx_extra);
 
-EXCEPTION WHEN OTHERS THEN
-  -- Falha técnica: o lead vai para a fila de exceções em vez de sumir.
-  _excecao_id := public._registrar_excecao_distribuicao(
-    _lead_id, 'falha_tecnica', SQLERRM, NULL,
-    jsonb_build_object('gatilho', _gatilho, 'sqlstate', SQLSTATE));
-  INSERT INTO public.distribution_log
-    (lead_id, corretor_id, tipo, motivo, roleta_slug, regra_aplicada, resultado)
-  VALUES (_lead_id, NULL, 'automatica', 'Falha técnica na distribuição: ' || SQLERRM,
-          NULL, 'triagem', 'erro');
-  RETURN jsonb_build_object('ok', false, 'excecao_id', _excecao_id, 'motivo', 'falha_tecnica', 'erro', SQLERRM);
+  EXCEPTION WHEN OTHERS THEN
+    -- Falha técnica: o lead vai para a fila de exceções em vez de sumir.
+    _excecao_id := public._registrar_excecao_distribuicao(
+      _lead_id, 'falha_tecnica', SQLERRM, NULL,
+      jsonb_build_object('gatilho', _gatilho, 'sqlstate', SQLSTATE));
+    INSERT INTO public.distribution_log
+      (lead_id, corretor_id, tipo, motivo, roleta_slug, regra_aplicada, resultado)
+    VALUES (_lead_id, NULL, 'automatica', 'Falha técnica na distribuição: ' || SQLERRM,
+            NULL, 'triagem', 'erro');
+    RETURN jsonb_build_object('ok', false, 'excecao_id', _excecao_id, 'motivo', 'falha_tecnica', 'erro', SQLERRM);
+  END;
 END;
 $$;
 
@@ -994,7 +1037,7 @@ BEGIN
   END IF;
 
   FOR _r IN SELECT slug, nome FROM public.roletas ORDER BY slug LOOP
-    SELECT * INTO _linha FROM public._elegibilidade_roleta(_r.slug) e WHERE e.corretor_id = _uid;
+    SELECT * INTO _linha FROM public._elegibilidade_roleta(_r.slug, _uid) e;
     IF FOUND THEN
       _out := _out || jsonb_build_object(
         'roleta_slug', _r.slug,
@@ -1075,8 +1118,14 @@ SET search_path = public
 AS $$
 DECLARE
   _caller uuid := auth.uid();
-  _hoje date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
   _max_min int := (public.get_dist_setting('max_minutos_sem_atendimento') #>> '{}')::int;
+  -- Fronteiras do dia BRT como timestamptz: predicados sargáveis no log.
+  _dia_ini timestamptz := date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')
+                          AT TIME ZONE 'America/Sao_Paulo';
+  _dia_fim timestamptz := (date_trunc('day', now() AT TIME ZONE 'America/Sao_Paulo')
+                           + interval '1 day') AT TIME ZONE 'America/Sao_Paulo';
+  _aptos_plantao int;
+  _pct_medio numeric;
   _out jsonb;
 BEGIN
   IF _caller IS NOT NULL
@@ -1086,11 +1135,17 @@ BEGIN
     RAISE EXCEPTION 'forbidden';
   END IF;
 
+  -- Uma única passada no plantão alimenta os dois cards.
+  SELECT count(*) FILTER (WHERE e.apto),
+         COALESCE(round(avg(e.pct_trabalhado) FILTER (WHERE e.participante_ativo), 1), 100)
+    INTO _aptos_plantao, _pct_medio
+  FROM public._elegibilidade_roleta('plantao') e;
+
   SELECT jsonb_build_object(
     'distribuidos_hoje', (
       SELECT count(*) FROM public.distribution_log dl
       WHERE dl.resultado = 'sucesso'
-        AND (dl.created_at AT TIME ZONE 'America/Sao_Paulo')::date = _hoje
+        AND dl.created_at >= _dia_ini AND dl.created_at < _dia_fim
     ),
     'aguardando_distribuicao', (
       SELECT count(*) FROM public.leads l
@@ -1102,9 +1157,7 @@ BEGIN
       SELECT count(*) FROM public.distribuicao_excecoes e
       WHERE e.status IN ('pendente','em_analise')
     ),
-    'aptos_plantao', (
-      SELECT count(*) FROM public._elegibilidade_roleta('plantao') e WHERE e.apto
-    ),
+    'aptos_plantao', _aptos_plantao,
     'aptos_marquinhos', (
       SELECT count(*) FROM public._elegibilidade_roleta('marquinhos') e WHERE e.apto
     ),
@@ -1127,11 +1180,7 @@ BEGIN
         AND COALESCE(l.data_distribuicao, l.created_at)
               < now() - (COALESCE(dc.timeout_horas, 24) || ' hours')::interval
     ),
-    'pct_medio_trabalhado', (
-      SELECT COALESCE(round(avg(e.pct_trabalhado), 1), 100)
-      FROM public._elegibilidade_roleta('plantao') e
-      WHERE e.participante_ativo
-    ),
+    'pct_medio_trabalhado', _pct_medio,
     'erros_24h', (
       SELECT count(*) FROM public.distribution_log dl
       WHERE dl.resultado IN ('sem_corretor','erro','excecao')

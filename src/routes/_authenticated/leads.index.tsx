@@ -773,7 +773,7 @@ function LeadsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, data_distribuicao, tentativas_redistribuicao")
+        .select("id, data_distribuicao, tentativas_redistribuicao, via_webhook")
         .in("id", aguardandoIds);
       if (error) throw error;
       return data ?? [];
@@ -782,12 +782,17 @@ function LeadsPage() {
   const transferInfoMap = useMemo(() => {
     const m = new Map<
       string,
-      { data_distribuicao: string | null; tentativas_redistribuicao: number | null }
+      {
+        data_distribuicao: string | null;
+        tentativas_redistribuicao: number | null;
+        via_webhook: boolean;
+      }
     >();
     (transferInfoRows ?? []).forEach((r) =>
       m.set(r.id as string, {
         data_distribuicao: (r.data_distribuicao as string | null) ?? null,
         tentativas_redistribuicao: (r.tentativas_redistribuicao as number | null) ?? null,
+        via_webhook: (r.via_webhook as boolean | null) ?? false,
       }),
     );
     return m;
@@ -1672,6 +1677,7 @@ function LeadsPage() {
                                     dataDistribuicao={info.data_distribuicao}
                                     tentativas={info.tentativas_redistribuicao}
                                     timeouts={transferTimeouts}
+                                    viaWebhook={info.via_webhook}
                                     compact
                                     showBar
                                   />
@@ -1800,6 +1806,7 @@ function LeadsPage() {
                               dataDistribuicao={info.data_distribuicao}
                               tentativas={info.tentativas_redistribuicao}
                               timeouts={transferTimeouts}
+                              viaWebhook={info.via_webhook}
                               showBar
                             />
                           );

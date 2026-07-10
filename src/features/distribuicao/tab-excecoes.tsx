@@ -41,7 +41,9 @@ import {
   EXCECAO_STATUS_LABEL,
   motivoExcecaoLabel,
   roletaLabel,
+  ROLETA_LABEL,
 } from "@/lib/distribuicao";
+import { Constants } from "@/integrations/supabase/types";
 import {
   useCorretoresDisponiveis,
   useExcecoes,
@@ -50,20 +52,8 @@ import {
   type ExcecaoLinha,
 } from "./queries";
 
-const ORIGENS = [
-  "facebook",
-  "google_sheets",
-  "site",
-  "indicacao",
-  "captacao_corretor",
-  "whatsapp",
-  "telefone",
-  "plantao",
-  "agendamento_self_service",
-  "chatbot",
-  "outro",
-  "importacao",
-] as const;
+// Fonte única: o enum gerado do banco (nunca uma cópia manual que diverge).
+const ORIGENS = Constants.public.Enums.lead_origem;
 
 export function TabExcecoes({ somenteLeitura }: { somenteLeitura: boolean }) {
   const [visao, setVisao] = useState<"abertas" | "todas">("abertas");
@@ -211,7 +201,7 @@ function ResolverExcecaoDialog({
     if (acao === "escolher_roleta") params.roleta_slug = roleta;
     if (acao === "corrigir_origem") params.origem = origem;
     resolver.mutate(
-      { excecaoId: alvo.id, acao, params },
+      { excecaoId: alvo.id, leadId: alvo.lead_id, acao, params },
       { onSuccess: () => onFechar() },
     );
   };
@@ -281,9 +271,11 @@ function ResolverExcecaoDialog({
                   <SelectValue placeholder="Selecione a roleta" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="plantao">Roleta Plantão</SelectItem>
-                  <SelectItem value="marquinhos">Roleta Marquinhos</SelectItem>
-                  <SelectItem value="landing">Roleta Landing Page</SelectItem>
+                  {Object.entries(ROLETA_LABEL).map(([slug, label]) => (
+                    <SelectItem key={slug} value={slug}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

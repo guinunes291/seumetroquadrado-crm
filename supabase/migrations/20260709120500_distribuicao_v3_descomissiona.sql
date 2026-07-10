@@ -144,8 +144,25 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'erro', 'lead_nao_encontrado');
   END IF;
 
+  -- Lead na lixeira/excluído NUNCA é distribuído; exceção aberta (se houver)
+  -- é arquivada para não assombrar a fila.
+  IF _lead.deleted_at IS NOT NULL OR _lead.na_lixeira THEN
+    UPDATE public.distribuicao_excecoes
+       SET status = 'arquivada', resolvida_em = now(),
+           resolvida_por = COALESCE(_distribuido_por, auth.uid()),
+           resolucao = 'Lead está na lixeira — distribuição bloqueada'
+     WHERE lead_id = _lead_id AND status IN ('pendente','em_analise');
+    RETURN jsonb_build_object('ok', false, 'erro', 'lead_na_lixeira');
+  END IF;
+
   -- Idempotência: distribuição automática nunca rouba lead já atribuído.
+  -- Fecha exceção aberta órfã — senão "Reprocessar" vira beco sem saída.
   IF _lead.corretor_id IS NOT NULL AND _tipo = 'automatica' AND _corretor_id IS NULL THEN
+    UPDATE public.distribuicao_excecoes
+       SET status = 'resolvida', resolvida_em = now(),
+           resolvida_por = COALESCE(_distribuido_por, auth.uid()),
+           resolucao = 'Lead já estava atribuído'
+     WHERE lead_id = _lead_id AND status IN ('pendente','em_analise');
     RETURN jsonb_build_object('ok', true, 'ja_atribuido', true, 'corretor_id', _lead.corretor_id);
   END IF;
 
