@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
+import { decidirDisposicao } from "@/lib/push/outbox";
 
 // Comparação de segredos em tempo constante (evita timing attack).
 function safeEqual(a: string, b: string): boolean {
@@ -41,7 +42,8 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         } else {
           // Fallback legado: anon/publishable key. Trocar assim que o segredo
           // dedicado for provisionado (PUSH_DISPATCH_SECRET).
-          const legacy = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
+          const legacy =
+            process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
           authorized = !!legacy && safeEqual(request.headers.get("apikey") || "", legacy);
           if (authorized) {
             console.warn(
@@ -57,19 +59,24 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           import("@/integrations/supabase/client.server"),
           import("web-push"),
         ]);
-        const webpush = (webPushMod as { default?: typeof import("web-push") }).default ?? webPushMod;
+        const webpush =
+          (webPushMod as { default?: typeof import("web-push") }).default ?? webPushMod;
 
-        const publicKey = "BLq4iOTPtY6ZOr_HyH-mv5KB9nttpHi0ewqR1jyrMnwWdeyFK2POYMf3qBzN6f3eAdNeT0hSCn-Gy0rc7ZwqqlY";
+        const publicKey =
+          "BLq4iOTPtY6ZOr_HyH-mv5KB9nttpHi0ewqR1jyrMnwWdeyFK2POYMf3qBzN6f3eAdNeT0hSCn-Gy0rc7ZwqqlY";
         const privateKey = process.env.VAPID_PRIVATE_KEY || "";
         const subject = process.env.VAPID_SUBJECT || "mailto:contato@seumetroquadrado.com.br";
         if (!privateKey) return new Response("missing VAPID_PRIVATE_KEY", { status: 500 });
         webpush.setVapidDetails(subject, publicKey, privateKey);
 
-        // Pega até 100 pendentes
+        // Pega até 100 pendentes cujo próximo horário de tentativa já passou
+        // (ou que nunca foram tentados).
+        const nowIso = new Date().toISOString();
         const { data: pending, error: pErr } = await supabaseAdmin
           .from("push_outbox")
-          .select("id, user_id, title, body, url, tag")
+          .select("id, user_id, title, body, url, tag, attempts")
           .is("sent_at", null)
+          .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
           .order("created_at", { ascending: true })
           .limit(100);
 
@@ -89,7 +96,10 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           .select("user_id, endpoint, p256dh, auth")
           .in("user_id", userIds);
 
-        const subsByUser = new Map<string, Array<{ endpoint: string; p256dh: string; auth: string }>>();
+        const subsByUser = new Map<
+          string,
+          Array<{ endpoint: string; p256dh: string; auth: string }>
+        >();
         (subs ?? []).forEach((s) => {
           const arr = subsByUser.get(s.user_id) ?? [];
           arr.push({ endpoint: s.endpoint, p256dh: s.p256dh, auth: s.auth });
@@ -99,8 +109,19 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         const sentIds: string[] = [];
         const deadEndpoints: string[] = [];
         let sentCount = 0;
+        let retryCount = 0;
+        let discardCount = 0;
+        const nowMs = Date.now();
 
-        for (const item of pending) {
+        for (const item of pending as Array<{
+          id: string;
+          user_id: string;
+          title: string;
+          body: string;
+          url: string | null;
+          tag: string | null;
+          attempts: number | null;
+        }>) {
           const userSubs = subsByUser.get(item.user_id) ?? [];
           const payload = JSON.stringify({
             title: item.title,
@@ -108,6 +129,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             url: item.url,
             tag: item.tag,
           });
+          let delivered = 0;
           for (const s of userSubs) {
             try {
               await webpush.sendNotification(
@@ -115,6 +137,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
                 payload,
                 { TTL: 60 * 60 * 24 },
               );
+              delivered++;
               sentCount++;
             } catch (err: unknown) {
               const status = (err as { statusCode?: number }).statusCode;
@@ -122,7 +145,37 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               else console.warn("[push] send error", status, (err as Error).message);
             }
           }
-          sentIds.push(item.id);
+
+          const disp = decidirDisposicao(
+            { attempts: item.attempts ?? 0 },
+            { delivered, subscriptions: userSubs.length },
+            nowMs,
+          );
+          if (disp.acao === "sent") {
+            sentIds.push(item.id);
+          } else if (disp.acao === "retry") {
+            retryCount++;
+            await supabaseAdmin
+              .from("push_outbox")
+              .update({
+                attempts: disp.attempts,
+                next_attempt_at: disp.nextAttemptAt,
+                last_error: disp.lastError,
+              } as never)
+              .eq("id", item.id);
+          } else {
+            // discard: para de tentar (marca sent_at) e registra o motivo.
+            discardCount++;
+            console.warn("[push] descartado", item.id, disp.lastError);
+            await supabaseAdmin
+              .from("push_outbox")
+              .update({
+                sent_at: new Date().toISOString(),
+                attempts: disp.attempts,
+                last_error: disp.lastError,
+              } as never)
+              .eq("id", item.id);
+          }
         }
 
         if (sentIds.length) {
@@ -136,7 +189,14 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         }
 
         return new Response(
-          JSON.stringify({ processed: pending.length, sent: sentCount, dead: deadEndpoints.length }),
+          JSON.stringify({
+            processed: pending.length,
+            sent: sentCount,
+            delivered_items: sentIds.length,
+            retried: retryCount,
+            discarded: discardCount,
+            dead: deadEndpoints.length,
+          }),
           { headers: { "Content-Type": "application/json" } },
         );
       },
