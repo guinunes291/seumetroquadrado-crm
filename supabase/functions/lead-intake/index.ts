@@ -4,10 +4,12 @@
 //  1) valida o secret (header x-webhook-secret == LEAD_INTAKE_SECRET);
 //  2) resolve o PROJETO (cada Zap manda 'projeto' = slug/nome, ou 'projeto_token'
 //     = webhook_token do projeto) -> grava projeto_id + projeto_nome no lead;
-//  3) cria o lead (origem=facebook) — sempre cria novo;
-//  4) DISTRIBUI via distribuir_lead (roleta por posição, restrita a corretores
-//     elegíveis: ativos na fila, dentro da cota e com ≥90% da carteira
-//     trabalhada — sem elegível, o lead fica na base para o cron);
+//  3) cria o lead (origem=facebook, canal_entrada=edge_facebook);
+//  4) DISTRIBUI via triar_e_distribuir_lead (distribuição v3): a triagem
+//     resolve a roleta pela origem (facebook → Plantão), exige corretor
+//     presente, dentro da cota, não pausado e com % de leads trabalhados
+//     acima do mínimo; sem corretor apto, o lead entra na FILA DE EXCEÇÕES
+//     com alerta ao gestor (e o cron re-tenta a cada minuto);
 //  5) notifica o corretor via Z-API no WhatsApp, SEM o telefone do lead
 //     (apenas nome, projeto, faixa de renda e link do lead no CRM).
 //
@@ -242,6 +244,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       utm_content: pick("utm_content", "ad_name"),
       observacoes: observacoes || null,
       timestamp_recebimento: new Date().toISOString(),
+      canal_entrada: "edge_facebook",
     })
     .select("id")
     .single();
@@ -251,15 +254,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: "insert_failed", detail: insertError?.message }, 500);
   }
 
-  // 5) Distribuição via roleta de elegíveis (fila + cota + ≥90% trabalhado).
+  // 5) Distribuição v3: triagem única → roleta Plantão (presença + cota +
+  //    % trabalhado). Sem corretor apto → fila de exceções + alerta; o cron
+  //    re-tenta a cada minuto. Falha do RPC não perde o lead.
   let corretor_id: string | null = null;
-  const { data: dist, error: distError } = await supabase.rpc("distribuir_lead", {
+  const { data: dist, error: distError } = await supabase.rpc("triar_e_distribuir_lead", {
     _lead_id: lead.id,
+    _gatilho: "edge_facebook",
   });
   if (distError) {
     console.error("lead-intake distribute_failed:", distError);
   } else {
-    corretor_id = (dist as string | null) ?? null;
+    const res = dist as { ok?: boolean; corretor_id?: string } | null;
+    corretor_id = res?.ok && res.corretor_id ? res.corretor_id : null;
   }
 
   // 6) Notifica o corretor (Z-API), sem o telefone do lead.

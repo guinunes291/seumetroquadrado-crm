@@ -891,6 +891,7 @@ function LeadDetailPage() {
                     .tentativas_redistribuicao ?? 0
                 }
                 timeouts={transferTimeouts}
+                viaWebhook={(lead as { via_webhook?: boolean | null }).via_webhook ?? null}
               />
             </div>
             {lead.status === "perdido" &&

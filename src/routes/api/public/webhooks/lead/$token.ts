@@ -165,29 +165,6 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const fgtsTxt = (data.fgts ?? "").toLowerCase();
         const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
 
-        // --- ROLETA JUSTA: escolhe corretor ANTES do insert para gravar status correto ---
-        // Elegível: profiles.ativo=true, telefone preenchido, role='corretor' e
-        // PRESENTE hoje ("Cheguei") — exclui admin/gestor/docs-bot. Este caminho
-        // NÃO aplica a trava dos 90%/cota (essas valem só p/ Facebook/cron via
-        // distribuir_lead). Ordem por last_lead_assigned_at NULLS FIRST.
-        // Sem corretor presente: atribui ao gestor fallback com status 'aguardando_corretor'.
-        let corretorId: string | null = null;
-        let motivo: string | null = null;
-        let assignedToFallback = false;
-
-        if (data.distribuir) {
-          const { data: c } = await supabaseAdmin.rpc("distribuir_lead_webhook" as never);
-          corretorId = (c as string | null) ?? null;
-          if (!corretorId) {
-            const { data: g } = await supabaseAdmin.rpc("gestor_fallback_webhook" as never);
-            corretorId = (g as string | null) ?? null;
-            assignedToFallback = corretorId !== null;
-            motivo = corretorId
-              ? "sem_corretor_disponivel_fallback_gestor"
-              : "sem_corretor_disponivel";
-          }
-        }
-
         // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
         // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
         const projetoNomeFinal =
@@ -195,17 +172,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           (data.empreendimentoInteresse?.trim() || null) ??
           projeto.nome;
 
-        // Status: nunca "novo" neste webhook.
-        // Com corretor da roleta → aguardando_atendimento (o corretor precisa
-        // "Iniciar atendimento"; se ficar N min parado, o SLA repassa ao próximo
-        // da roleta — redistribuir_sla_webhook). Fallback ao gestor →
-        // aguardando_corretor.
-        const statusInicial: "aguardando_atendimento" | "aguardando_corretor" | null = corretorId
-          ? assignedToFallback
-            ? "aguardando_corretor"
-            : "aguardando_atendimento"
-          : null;
-
+        // --- INSERT-THEN-TRIAGE (distribuição v3) ---
+        // O lead nasce SEM corretor e passa pela triagem única
+        // (triar_e_distribuir_lead): origem → roleta (chatbot → Marquinhos) →
+        // corretor apto (presente, dentro da cota, não pausado). Se a roleta
+        // não tiver ninguém apto, o lead vai para a FILA DE EXCEÇÕES com
+        // alerta ao gestor — nunca some e nunca cai num gestor às cegas.
+        // Falha no RPC também não perde o lead: o cron re-triará em 1 min.
         const { data: lead, error } = await supabaseAdmin
           .from("leads")
           .insert({
@@ -225,18 +198,41 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
             utm_content: data.utm_content ?? null,
-            corretor_id: corretorId,
-            // Canal de chegada: só leads via_webhook entram no SLA de minutos
-            // (redistribuir_sla_webhook). Incondicional — toda esta rota é webhook.
+            // Canal de chegada: só leads via_webhook entram no SLA de minutos.
             via_webhook: true,
-            ...(statusInicial ? { status: statusInicial } : {}),
-            ...(corretorId ? { data_distribuicao: new Date().toISOString() } : {}),
+            canal_entrada: "webhook_chatbot",
           } as never)
           .select("id")
           .single();
 
         if (error) {
           return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+        }
+
+        let corretorId: string | null = null;
+        let motivo: string | null = null;
+        let excecaoMotivo: string | null = null;
+
+        if (data.distribuir) {
+          const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
+            "triar_e_distribuir_lead",
+            { _lead_id: lead.id, _gatilho: "webhook" },
+          );
+          if (triagemErr) {
+            console.error("[webhooks/lead] triagem falhou:", triagemErr);
+            motivo = "sem_corretor_disponivel";
+            excecaoMotivo = "falha_triagem_reprocesso_automatico";
+          } else {
+            const res = triagem as { ok?: boolean; corretor_id?: string; motivo?: string } | null;
+            if (res?.ok && res.corretor_id) {
+              corretorId = res.corretor_id;
+            } else {
+              // Contrato com o n8n: motivo mantém a string legada; o detalhe
+              // v3 (motivo da exceção) vai num campo novo.
+              motivo = "sem_corretor_disponivel";
+              excecaoMotivo = res?.motivo ?? null;
+            }
+          }
         }
 
         // Registra interação com o resumo da IA para aparecer no histórico do lead.
@@ -292,7 +288,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               norm = `55${norm}`;
             }
             corretorTelefone = norm;
-            distributed = !assignedToFallback;
+            distributed = true;
           }
         }
 
@@ -334,6 +330,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             corretor_email: corretorEmail,
             distributed,
             motivo,
+            excecao_motivo: excecaoMotivo,
           },
           { headers: corsHeaders },
         );

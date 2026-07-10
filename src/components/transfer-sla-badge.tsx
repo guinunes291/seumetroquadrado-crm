@@ -58,6 +58,12 @@ interface TransferSlaBadgeProps {
   tentativas?: number | null;
   /** Map origem→timeout, para evitar 1 query por card. */
   timeouts: Map<string, number>;
+  /**
+   * O SLA de minutos só vale para leads chegados por webhook. `false`
+   * (transferido manualmente / criado à mão) esconde o contador — o RPC de
+   * repasse recusaria de qualquer forma e o corretor veria uma promessa falsa.
+   */
+  viaWebhook?: boolean | null;
   compact?: boolean;
   /** Exibe uma barra linear com o tempo restante embaixo do badge. */
   showBar?: boolean;
@@ -83,6 +89,7 @@ export function TransferSlaBadge({
   dataDistribuicao,
   tentativas,
   timeouts,
+  viaWebhook,
   compact,
   showBar,
   className,
@@ -99,6 +106,7 @@ export function TransferSlaBadge({
   }, []);
 
   if (status !== "aguardando_atendimento") return null;
+  if (viaWebhook === false) return null;
   if (!origem || !dataDistribuicao) return null;
   const timeoutMin = timeouts.get(origem);
   if (!timeoutMin) return null;

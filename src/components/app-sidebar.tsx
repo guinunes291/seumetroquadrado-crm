@@ -20,6 +20,7 @@ import {
   BarChart3,
   ChevronRight,
   Headset,
+  Shuffle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -84,12 +85,15 @@ const NAV_ITEMS: Item[] = [
     children: [{ to: "/vitrine", label: "Vitrine (mapa)", icon: Map }],
   },
   {
-    // As sub-áreas (Distribuição, Pessoas, Comunicação, Qualidade…) agora são abas
-    // internas do hub /painel-gestor — por isso o item é um único botão.
+    // As sub-áreas (Pessoas, Comunicação, Qualidade…) são abas internas do hub
+    // /painel-gestor. A Distribuição (3 roletas + exceções) tem página própria.
     to: "/painel-gestor",
     label: "Gestão",
     icon: BarChart3,
     roles: ["admin", "gestor"],
+    children: [
+      { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
+    ],
   },
   {
     // Insights em linguagem de negócio + relatórios completos.

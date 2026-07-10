@@ -58,6 +58,7 @@ type Lead = {
   origem: string | null;
   data_distribuicao: string | null;
   tentativas_redistribuicao: number | null;
+  via_webhook: boolean | null;
   created_at: string;
   ultima_interacao: string | null;
 };
@@ -103,7 +104,7 @@ export function KanbanBoard() {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, created_at, ultima_interacao",
+          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, via_webhook, created_at, ultima_interacao",
         )
         .eq("na_lixeira", false)
         .is("deleted_at", null)
@@ -323,6 +324,7 @@ export function KanbanBoard() {
                                 dataDistribuicao={lead.data_distribuicao}
                                 tentativas={lead.tentativas_redistribuicao}
                                 timeouts={transferTimeouts}
+                                viaWebhook={lead.via_webhook}
                               />
 
                               <TemperatureChip
