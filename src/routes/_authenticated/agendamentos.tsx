@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -221,7 +222,13 @@ function AgendaPanel() {
   const rangeStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const rangeEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const { data: agendamentos = [], isLoading: agLoading } = useQuery({
+  const {
+    data: agendamentos = [],
+    isLoading: agLoading,
+    isError: agError,
+    error: agErrorObj,
+    refetch: agRefetch,
+  } = useQuery({
     queryKey: [
       "agendamentos",
       rangeStart.toISOString(),
@@ -434,7 +441,13 @@ function AgendaPanel() {
         </CardContent>
       </Card>
 
-      {view === "calendar" ? (
+      {agError ? (
+        <QueryErrorState
+          title="Não foi possível carregar a agenda."
+          error={agErrorObj}
+          onRetry={() => agRefetch()}
+        />
+      ) : view === "calendar" ? (
         <Card>
           <CardContent className="p-0">
             <div className="grid grid-cols-7 border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">

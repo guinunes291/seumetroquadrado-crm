@@ -11,10 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Target, Trash2 } from "lucide-react";
@@ -64,10 +73,16 @@ export function MetasPage() {
       const equipeIds = Array.from(new Set(rows.map((r: any) => r.equipe_id).filter(Boolean)));
       const [profilesRes, equipesRes] = await Promise.all([
         corretorIds.length
-          ? supabase.from("profiles").select("id, nome").in("id", corretorIds as string[])
+          ? supabase
+              .from("profiles")
+              .select("id, nome")
+              .in("id", corretorIds as string[])
           : Promise.resolve({ data: [] as any[] }),
         equipeIds.length
-          ? supabase.from("equipes").select("id, nome").in("id", equipeIds as string[])
+          ? supabase
+              .from("equipes")
+              .select("id, nome")
+              .in("id", equipeIds as string[])
           : Promise.resolve({ data: [] as any[] }),
       ]);
       const profMap = new Map((profilesRes.data ?? []).map((p: any) => [p.id, p.nome]));
@@ -79,7 +94,6 @@ export function MetasPage() {
       }));
     },
   });
-
 
   const corretoresQ = useQuery({
     queryKey: ["metas:corretores"],
@@ -109,10 +123,27 @@ export function MetasPage() {
       const iniDate = `${ano}-${pad(mes)}-01`;
       const fimDate = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${pad(mes + 1)}-01`;
       const [leadsRes, agendRes, transRes, vendasRes, profsRes] = await Promise.all([
-        supabase.from("leads").select("status, corretor_id, created_at").gte("created_at", ini).lt("created_at", fim),
-        supabase.from("agendamentos").select("status, corretor_id, data_inicio").gte("data_inicio", ini).lt("data_inicio", fim),
-        supabase.from("lead_status_transitions").select("para_status, corretor_id, created_at").gte("created_at", ini).lt("created_at", fim),
-        supabase.from("vendas").select("corretor_id, valor_venda, data_assinatura, distrato").eq("distrato", false).gte("data_assinatura", iniDate).lt("data_assinatura", fimDate),
+        supabase
+          .from("leads")
+          .select("status, corretor_id, created_at")
+          .gte("created_at", ini)
+          .lt("created_at", fim),
+        supabase
+          .from("agendamentos")
+          .select("status, corretor_id, data_inicio")
+          .gte("data_inicio", ini)
+          .lt("data_inicio", fim),
+        supabase
+          .from("lead_status_transitions")
+          .select("para_status, corretor_id, created_at")
+          .gte("created_at", ini)
+          .lt("created_at", fim),
+        supabase
+          .from("vendas")
+          .select("corretor_id, valor_venda, data_assinatura, distrato")
+          .eq("distrato", false)
+          .gte("data_assinatura", iniDate)
+          .lt("data_assinatura", fimDate),
         supabase.from("profiles").select("id, equipe_id"),
       ]);
       const map = computeAgentMetrics(
@@ -124,7 +155,10 @@ export function MetasPage() {
       );
       // VGV realizado por corretor (vendas não-distratadas no mês).
       const vgvMap = new Map<string, number>();
-      for (const v of (vendasRes.data ?? []) as Array<{ corretor_id: string | null; valor_venda: number | string }>) {
+      for (const v of (vendasRes.data ?? []) as Array<{
+        corretor_id: string | null;
+        valor_venda: number | string;
+      }>) {
         if (!v.corretor_id) continue;
         vgvMap.set(v.corretor_id, (vgvMap.get(v.corretor_id) ?? 0) + (Number(v.valor_venda) || 0));
       }
@@ -138,7 +172,10 @@ export function MetasPage() {
       const porEquipe = new Map<string, RealizadoView>();
       const getEq = (id: string) => {
         let e = porEquipe.get(id);
-        if (!e) { e = zero(); porEquipe.set(id, e); }
+        if (!e) {
+          e = zero();
+          porEquipe.set(id, e);
+        }
         return e;
       };
       for (const m of map.values()) {
@@ -214,11 +251,25 @@ export function MetasPage() {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const escopo = fd.get("escopo") as string;
+    const corretorId = (fd.get("corretor_id") as string) || "";
+    const equipeId = (fd.get("equipe_id") as string) || "";
+
+    // Valida o escopo no cliente: sem isso um escopo "corretor"/"equipe" sem
+    // seleção mandava corretor_id/equipe_id="" ao banco (erro cru de UUID).
+    if (escopo === "corretor" && !corretorId) {
+      toast.error("Selecione o corretor da meta.");
+      return;
+    }
+    if (escopo === "equipe" && !equipeId) {
+      toast.error("Selecione a equipe da meta.");
+      return;
+    }
+
     const payload: any = {
       ano,
       mes,
-      corretor_id: escopo === "corretor" ? fd.get("corretor_id") : null,
-      equipe_id: escopo === "equipe" ? fd.get("equipe_id") : null,
+      corretor_id: escopo === "corretor" ? corretorId : null,
+      equipe_id: escopo === "equipe" ? equipeId : null,
       meta_leads_atendidos: Number(fd.get("meta_leads_atendidos") || 0),
       meta_visitas: Number(fd.get("meta_visitas") || 0),
       meta_vendas: Number(fd.get("meta_vendas") || 0),
@@ -229,9 +280,11 @@ export function MetasPage() {
   };
 
   const escopoLabel = (m: any) =>
-    m.corretor_id ? `Corretor: ${m.profiles?.nome ?? "—"}`
-    : m.equipe_id ? `Equipe: ${m.equipes?.nome ?? "—"}`
-    : "Global";
+    m.corretor_id
+      ? `Corretor: ${m.profiles?.nome ?? "—"}`
+      : m.equipe_id
+        ? `Equipe: ${m.equipes?.nome ?? "—"}`
+        : "Global";
 
   return (
     <div className="p-6 space-y-6">
@@ -241,31 +294,63 @@ export function MetasPage() {
         actions={
           <div className="flex gap-2">
             <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-36">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {MESES_PT.map((m, i) => <SelectItem key={i} value={String(i + 1)}>{m}</SelectItem>)}
+                {MESES_PT.map((m, i) => (
+                  <SelectItem key={i} value={String(i + 1)}>
+                    {m}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
-                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {canManage && (
-              <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+              <Dialog
+                open={open}
+                onOpenChange={(o) => {
+                  setOpen(o);
+                  if (!o) setEditing(null);
+                }}
+              >
                 <DialogTrigger asChild>
-                  <Button><Plus className="h-4 w-4 mr-2" />Nova meta</Button>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova meta
+                  </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
-                  <DialogHeader><DialogTitle>{editing ? "Editar meta" : "Nova meta"}</DialogTitle></DialogHeader>
+                  <DialogHeader>
+                    <DialogTitle>{editing ? "Editar meta" : "Nova meta"}</DialogTitle>
+                  </DialogHeader>
                   <form onSubmit={handleSubmit} className="space-y-3">
                     <div>
                       <Label>Escopo</Label>
-                      <Select name="escopo" defaultValue={editing?.corretor_id ? "corretor" : editing?.equipe_id ? "equipe" : "global"}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <Select
+                        name="escopo"
+                        defaultValue={
+                          editing?.corretor_id
+                            ? "corretor"
+                            : editing?.equipe_id
+                              ? "equipe"
+                              : "global"
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="global">Global</SelectItem>
                           <SelectItem value="corretor">Corretor</SelectItem>
@@ -277,10 +362,14 @@ export function MetasPage() {
                       <div>
                         <Label>Corretor (se aplicável)</Label>
                         <Select name="corretor_id" defaultValue={editing?.corretor_id ?? ""}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectTrigger>
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
                           <SelectContent>
                             {(corretoresQ.data ?? []).map((c: any) => (
-                              <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.nome}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -288,10 +377,14 @@ export function MetasPage() {
                       <div>
                         <Label>Equipe (se aplicável)</Label>
                         <Select name="equipe_id" defaultValue={editing?.equipe_id ?? ""}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectTrigger>
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
                           <SelectContent>
                             {(equipesQ.data ?? []).map((e: any) => (
-                              <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                              <SelectItem key={e.id} value={e.id}>
+                                {e.nome}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -300,24 +393,49 @@ export function MetasPage() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <Label>Atendimentos</Label>
-                        <Input type="number" name="meta_leads_atendidos" min={0} defaultValue={editing?.meta_leads_atendidos ?? 0} />
+                        <Input
+                          type="number"
+                          name="meta_leads_atendidos"
+                          min={0}
+                          defaultValue={editing?.meta_leads_atendidos ?? 0}
+                        />
                       </div>
                       <div>
                         <Label>Visitas</Label>
-                        <Input type="number" name="meta_visitas" min={0} defaultValue={editing?.meta_visitas ?? 0} />
+                        <Input
+                          type="number"
+                          name="meta_visitas"
+                          min={0}
+                          defaultValue={editing?.meta_visitas ?? 0}
+                        />
                       </div>
                       <div>
                         <Label>Vendas</Label>
-                        <Input type="number" name="meta_vendas" min={0} defaultValue={editing?.meta_vendas ?? 0} />
+                        <Input
+                          type="number"
+                          name="meta_vendas"
+                          min={0}
+                          defaultValue={editing?.meta_vendas ?? 0}
+                        />
                       </div>
                       <div>
                         <Label>GMV (R$)</Label>
-                        <Input type="number" step="0.01" name="meta_gmv" min={0} defaultValue={editing?.meta_gmv ?? 0} />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          name="meta_gmv"
+                          min={0}
+                          defaultValue={editing?.meta_gmv ?? 0}
+                        />
                       </div>
                     </div>
                     <div>
                       <Label>Observações</Label>
-                      <Textarea name="observacoes" rows={2} defaultValue={editing?.observacoes ?? ""} />
+                      <Textarea
+                        name="observacoes"
+                        rows={2}
+                        defaultValue={editing?.observacoes ?? ""}
+                      />
                     </div>
                     <DialogFooter>
                       <Button type="submit" disabled={saveMutation.isPending}>
@@ -339,7 +457,9 @@ export function MetasPage() {
           ) : (metasQ.data ?? []).length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Target className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Nenhuma meta cadastrada para {MESES_PT[mes - 1]}/{ano}.</p>
+              <p className="text-sm">
+                Nenhuma meta cadastrada para {MESES_PT[mes - 1]}/{ano}.
+              </p>
               {canManage && (
                 <Button
                   className="mt-3"
@@ -360,14 +480,20 @@ export function MetasPage() {
                   <div className="flex-1">
                     <div className="font-medium flex items-center gap-2">
                       {escopoLabel(m)}
-                      <Badge variant="outline">{MESES_PT[m.mes - 1]}/{m.ano}</Badge>
+                      <Badge variant="outline">
+                        {MESES_PT[m.mes - 1]}/{m.ano}
+                      </Badge>
                     </div>
                     {(() => {
                       const r = realizadoDaMeta(m);
                       const fmtBRL = (n: number) =>
                         `R$ ${Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
                       const bars = [
-                        { label: "Atendidos", real: r.leads_atendidos, meta: Number(m.meta_leads_atendidos) || 0 },
+                        {
+                          label: "Atendidos",
+                          real: r.leads_atendidos,
+                          meta: Number(m.meta_leads_atendidos) || 0,
+                        },
                         { label: "Visitas", real: r.visitas, meta: Number(m.meta_visitas) || 0 },
                         { label: "Vendas", real: r.vendas, meta: Number(m.meta_vendas) || 0 },
                         { label: "GMV", real: r.vgv, meta: Number(m.meta_gmv) || 0, money: true },
@@ -394,7 +520,16 @@ export function MetasPage() {
                   </div>
                   {canManage && (
                     <>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditing(m); setOpen(true); }}>Editar</Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditing(m);
+                          setOpen(true);
+                        }}
+                      >
+                        Editar
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(m.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
