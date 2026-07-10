@@ -108,6 +108,7 @@ import { KanbanBoard } from "@/components/leads-kanban-board";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail, normalizeSearch, onlyDigits } from "@/lib/validators";
 import { maskPhoneBR } from "@/lib/masks";
+import { notaSistemaPayload } from "@/lib/interacoes";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
@@ -918,6 +919,23 @@ function LeadsPage() {
         }
       }
 
+      // Histórico: a transferência em lote pela UI só registrava no
+      // distribution_log; agora deixa nota na timeline de cada lead (mesmo
+      // rastro da realocação individual via API).
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id ?? null;
+      await supabase.from("interacoes").insert(
+        ids.map((id) =>
+          notaSistemaPayload({
+            leadId: id,
+            autorId: uid,
+            titulo: "Lead transferido",
+            conteudo: "Lead realocado em lote para outro corretor.",
+            metadata: { acao: "transferencia_lote", corretor_novo: corretorId },
+          }),
+        ) as never,
+      );
+
       // Notifica via WhatsApp leads com origem=facebook (best-effort).
       const notifyBatchSize = 20;
       for (let i = 0; i < ids.length; i += notifyBatchSize) {
@@ -951,6 +969,21 @@ function LeadsPage() {
         .update({ temperatura: temp as never })
         .in("id", ids);
       if (error) throw error;
+
+      // Histórico: mudança de temperatura em lote não deixava rastro.
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id ?? null;
+      await supabase.from("interacoes").insert(
+        ids.map((id) =>
+          notaSistemaPayload({
+            leadId: id,
+            autorId: uid,
+            titulo: "Temperatura alterada",
+            conteudo: `Temperatura definida como "${temp}" (ação em lote).`,
+            metadata: { acao: "temperatura_lote", temperatura: temp },
+          }),
+        ) as never,
+      );
       return ids.length;
     },
     onSuccess: (n) => {

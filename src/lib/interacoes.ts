@@ -76,6 +76,32 @@ export function isContactInteraction(tipo: InteracaoTipo): boolean {
   return ["ligacao", "whatsapp", "email", "sms", "visita", "reuniao", "proposta"].includes(tipo);
 }
 
+export type NotaSistemaInput = {
+  leadId: string;
+  titulo: string;
+  conteudo: string;
+  autorId?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+/**
+ * Monta o objeto de insert de uma NOTA DE SISTEMA (interna) na timeline do lead.
+ * Puro — o chamador insere com `supabase` (cliente) ou `supabaseAdmin` (server).
+ * Serve para dar rastro consistente às ações que hoje não geram histórico
+ * (mudança de temperatura em lote, transferência em lote, lixeira/restauração).
+ */
+export function notaSistemaPayload(input: NotaSistemaInput) {
+  return {
+    lead_id: input.leadId,
+    autor_id: input.autorId ?? null,
+    tipo: "nota" as const,
+    direcao: "interna" as const,
+    titulo: input.titulo,
+    conteudo: input.conteudo,
+    metadata: { fonte: "sistema", ...(input.metadata ?? {}) },
+  };
+}
+
 export function describeInteracao(tipo: InteracaoTipo, direcao: InteracaoDirecao): string {
   const base = INTERACAO_LABEL[tipo];
   if (tipo === "nota" || tipo === "mudanca_status") return base;
