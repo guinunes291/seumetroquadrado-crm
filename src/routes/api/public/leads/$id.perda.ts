@@ -5,13 +5,15 @@
 //   data_perda?: string ISO,            // fallback: now() quando marcar perdido / lead já perdido sem data
 //   marcar_status_perdido?: boolean     // default false — só grava campos de perda
 // }
-// Auth: header X-API-Key = READ_API_KEY
+// Auth: header X-API-Key = MCP_WRITE_API_KEY (READ_API_KEY aceita em transição).
 import { createFileRoute } from "@tanstack/react-router";
+import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import {
-  checkReadApiKey,
-  jsonResponse,
-  corsPreflight,
-} from "@/lib/public-api-auth";
+  requireWriteKeyOrLegacy,
+  writeAgentLabel,
+  auditarEscrita,
+  clientIp,
+} from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -39,8 +41,10 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
       OPTIONS: async () => corsPreflight(),
 
       PATCH: async ({ request, params }) => {
-        const authErr = checkReadApiKey(request);
-        if (authErr) return authErr;
+        const auth = requireWriteKeyOrLegacy(request);
+        if (auth instanceof Response) return auth;
+        const agente = writeAgentLabel(auth.mode);
+        const ip = clientIp(request);
 
         const id = params.id;
         if (!UUID_RE.test(id)) {
@@ -58,9 +62,7 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
         }
 
         const categoria =
-          typeof body.motivo_perda_categoria === "string"
-            ? body.motivo_perda_categoria.trim()
-            : "";
+          typeof body.motivo_perda_categoria === "string" ? body.motivo_perda_categoria.trim() : "";
         if (!categoria) {
           return jsonResponse(
             {
@@ -80,12 +82,12 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
           );
         }
 
-        const obsRaw = typeof body.motivo_perda_obs === "string" ? body.motivo_perda_obs.trim() : "";
+        const obsRaw =
+          typeof body.motivo_perda_obs === "string" ? body.motivo_perda_obs.trim() : "";
         if (categoria === "outro" && !obsRaw) {
           return jsonResponse(
             {
-              error:
-                "motivo_perda_obs é obrigatório quando motivo_perda_categoria = 'outro'",
+              error: "motivo_perda_obs é obrigatório quando motivo_perda_categoria = 'outro'",
             },
             422,
           );
@@ -147,11 +149,20 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
           .eq("id", id)
           .select(PERDA_SELECT)
           .single();
-        if (upErr) return jsonResponse({ error: upErr.message }, 500);
+        if (upErr) {
+          await auditarEscrita({
+            agente,
+            acao: "lead.perda",
+            lead_id: id,
+            payload: { categoria, marcar_status_perdido: marcarPerdido },
+            resultado: "erro",
+            http_status: 500,
+            ip,
+          });
+          return jsonResponse({ error: upErr.message }, 500);
+        }
 
         // Auditoria: registra no histórico do lead sem expor a chave.
-        const apiKey = request.headers.get("x-api-key") ?? "";
-        const apiKeyLabel = apiKey ? `api_key:${apiKey.slice(0, 6)}…` : "api_key:desconhecida";
         await supabaseAdmin.from("interacoes").insert({
           lead_id: id,
           tipo: "nota",
@@ -161,10 +172,20 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
           metadata: {
             fonte: "api_publica",
             endpoint: "leads/:id/perda",
-            api_key_label: apiKeyLabel,
+            auth_mode: auth.mode,
             marcar_status_perdido: marcarPerdido,
             registrado_em: new Date().toISOString(),
           },
+        });
+
+        await auditarEscrita({
+          agente,
+          acao: "lead.perda",
+          lead_id: id,
+          payload: { categoria, obs: obsRaw || null, marcar_status_perdido: marcarPerdido },
+          resultado: "ok",
+          http_status: 200,
+          ip,
         });
 
         return jsonResponse({ ok: true, lead: updated });

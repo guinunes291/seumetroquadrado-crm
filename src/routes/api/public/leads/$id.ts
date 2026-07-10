@@ -1,7 +1,8 @@
-// GET /api/public/leads/:id          → lead + interações
-// PATCH /api/public/leads/:id        → atualização parcial
+// GET /api/public/leads/:id          → lead + interações       (READ_API_KEY)
+// PATCH /api/public/leads/:id        → atualização parcial      (MCP_WRITE_API_KEY)
 // OPTIONS                             → CORS preflight
-// Auth: header X-API-Key = READ_API_KEY
+// GET usa a chave de leitura; PATCH usa a chave de escrita (READ_API_KEY aceita
+// em transição — ver requireWriteKeyOrLegacy) e é auditado em api_escrita_log.
 import { createFileRoute } from "@tanstack/react-router";
 import {
   checkReadApiKey,
@@ -10,6 +11,12 @@ import {
   PUBLIC_LEAD_SELECT,
   shapeLeadForPublic,
 } from "@/lib/public-api-auth";
+import {
+  requireWriteKeyOrLegacy,
+  writeAgentLabel,
+  auditarEscrita,
+  clientIp,
+} from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -115,12 +122,16 @@ function normTempLower(v: unknown): unknown {
   return v;
 }
 
-function coerce(value: unknown, kind: Kind): { ok: true; value: unknown } | { ok: false; err: string } {
+function coerce(
+  value: unknown,
+  kind: Kind,
+): { ok: true; value: unknown } | { ok: false; err: string } {
   if (value === null) return { ok: true, value: null };
   switch (kind) {
     case "text":
       if (typeof value === "string") return { ok: true, value };
-      if (typeof value === "number" || typeof value === "boolean") return { ok: true, value: String(value) };
+      if (typeof value === "number" || typeof value === "boolean")
+        return { ok: true, value: String(value) };
       return { ok: false, err: "esperado string" };
     case "enum":
       if (typeof value !== "string") return { ok: false, err: "esperado string" };
@@ -140,7 +151,8 @@ function coerce(value: unknown, kind: Kind): { ok: true; value: unknown } | { ok
       if (value === "false" || value === 0) return { ok: true, value: false };
       return { ok: false, err: "esperado boolean" };
     case "uuid":
-      if (typeof value !== "string" || !UUID_RE.test(value)) return { ok: false, err: "uuid inválido" };
+      if (typeof value !== "string" || !UUID_RE.test(value))
+        return { ok: false, err: "uuid inválido" };
       return { ok: true, value };
     case "timestamp":
       if (typeof value !== "string") return { ok: false, err: "esperado ISO 8601" };
@@ -204,8 +216,10 @@ export const Route = createFileRoute("/api/public/leads/$id")({
       },
 
       PATCH: async ({ request, params }) => {
-        const authErr = checkReadApiKey(request);
-        if (authErr) return authErr;
+        const auth = requireWriteKeyOrLegacy(request);
+        if (auth instanceof Response) return auth;
+        const agente = writeAgentLabel(auth.mode);
+        const ip = clientIp(request);
 
         const id = params.id;
         if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
@@ -289,10 +303,7 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         }
 
         if (Object.keys(update).length === 0 && Object.keys(externalFields).length === 0) {
-          return jsonResponse(
-            { error: "nenhum campo válido para atualizar", ignored },
-            400,
-          );
+          return jsonResponse({ error: "nenhum campo válido para atualizar", ignored }, 400);
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -318,9 +329,36 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             // Nunca 500 por enum/coluna restrita — devolve 422 limpo.
             const msg = error.message || "";
             const status = /invalid input value for enum|violates check/i.test(msg) ? 422 : 500;
+            await auditarEscrita({
+              agente,
+              acao: "lead.patch",
+              lead_id: id,
+              payload: { campos: Object.keys(update), erro: msg },
+              resultado: "erro",
+              http_status: status,
+              ip,
+            });
             return jsonResponse({ error: msg, ignored }, status);
           }
           updated = data as unknown as Record<string, unknown>;
+
+          // Histórico: PATCH de PII/qualificação passa a deixar rastro no lead.
+          const campos = Object.keys(update).filter((k) => k !== "updated_at");
+          if (campos.length > 0) {
+            await supabaseAdmin.from("interacoes").insert({
+              lead_id: id,
+              tipo: "nota",
+              direcao: "interna",
+              titulo: "Dados do lead atualizados (API)",
+              conteudo: `Campos alterados: ${campos.join(", ")}`,
+              metadata: {
+                fonte: "api_publica",
+                endpoint: "leads/:id",
+                auth_mode: auth.mode,
+                campos,
+              },
+            });
+          }
         } else {
           // Garante leitura atualizada
           const { data } = await supabaseAdmin
@@ -339,9 +377,8 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         };
         if (Object.keys(externalFields).length > 0) {
           try {
-            const { replicateLeadFieldsToExternal } = await import(
-              "@/lib/external-supabase.server"
-            );
+            const { replicateLeadFieldsToExternal } =
+              await import("@/lib/external-supabase.server");
             externalSync = await replicateLeadFieldsToExternal({
               crmLeadId: id,
               telefone: existing.telefone,
@@ -357,6 +394,19 @@ export const Route = createFileRoute("/api/public/leads/$id")({
             };
           }
         }
+
+        await auditarEscrita({
+          agente,
+          acao: "lead.patch",
+          lead_id: id,
+          payload: {
+            campos: Object.keys(update).filter((k) => k !== "updated_at"),
+            external: Object.keys(externalFields),
+          },
+          resultado: "ok",
+          http_status: 200,
+          ip,
+        });
 
         return jsonResponse({
           ok: true,

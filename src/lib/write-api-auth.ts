@@ -6,7 +6,7 @@
 // Ordem de defesa (obrigatória): guard (401) → allowlist (403) → validação (422)
 // → escreve → audita. Guard e allowlist devolvem Response; auditoria é fire-and-log.
 import { timingSafeEqual } from "crypto";
-import { PUBLIC_API_CORS_HEADERS } from "@/lib/public-api-auth";
+import { PUBLIC_API_CORS_HEADERS, checkRateLimit } from "@/lib/public-api-auth";
 
 // ------------------------ tipos utilitários ------------------------
 
@@ -52,10 +52,7 @@ export function clientIp(request: Request): string | null {
 export function requireWriteKey(request: Request): Response | null {
   const expected = process.env.MCP_WRITE_API_KEY;
   if (!expected) {
-    return json(
-      { ok: false, erro: "MCP_WRITE_API_KEY não configurada no servidor" },
-      500,
-    );
+    return json({ ok: false, erro: "MCP_WRITE_API_KEY não configurada no servidor" }, 500);
   }
   const provided = request.headers.get("x-api-key") ?? "";
   const a = Buffer.from(provided);
@@ -66,6 +63,74 @@ export function requireWriteKey(request: Request): Response | null {
   return null;
 }
 
+// ------------------------ guard dual-key (transição sem downtime) ------------------------
+
+export type WriteAuthMode = "write_key" | "legacy_read_key";
+
+function keyMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * Guard dos endpoints de escrita de negócio (leads/:id, /corretor, /perda,
+ * /eventos). Historicamente esses endpoints usavam a chave de LEITURA, o que
+ * dava poder de escrita a quem só deveria ler. Este guard migra a auth sem
+ * quebrar integrações em produção:
+ *
+ *  - Aceita `MCP_WRITE_API_KEY` (timing-safe) → mode "write_key" (destino final).
+ *  - Aceita `READ_API_KEY` ENQUANTO `PUBLIC_WRITE_ALLOW_READ_KEY !== "false"`
+ *    → mode "legacy_read_key". Toda escrita nesse modo é auditada e logada,
+ *    para que o gestor veja quem ainda usa a chave errada e possa cortar
+ *    (setar `PUBLIC_WRITE_ALLOW_READ_KEY=false`) sem novo deploy.
+ *  - Aplica rate limit em ambos os casos.
+ *
+ * Retorna `{ mode }` quando OK, ou `Response` (401/429/500) quando barra.
+ */
+export function requireWriteKeyOrLegacy(request: Request): { mode: WriteAuthMode } | Response {
+  const writeKey = process.env.MCP_WRITE_API_KEY;
+  const readKey = process.env.READ_API_KEY;
+  const allowLegacy = process.env.PUBLIC_WRITE_ALLOW_READ_KEY !== "false";
+
+  if (!writeKey && !(readKey && allowLegacy)) {
+    return json(
+      {
+        ok: false,
+        erro: "chave de escrita não configurada no servidor (MCP_WRITE_API_KEY)",
+      },
+      500,
+    );
+  }
+
+  const provided = request.headers.get("x-api-key") ?? "";
+  let mode: WriteAuthMode | null = null;
+  if (writeKey && keyMatches(provided, writeKey)) {
+    mode = "write_key";
+  } else if (allowLegacy && readKey && keyMatches(provided, readKey)) {
+    mode = "legacy_read_key";
+  }
+  if (!mode) {
+    return json({ ok: false, erro: "api key inválida" }, 401);
+  }
+
+  const rl = checkRateLimit(request);
+  if (rl) return rl;
+
+  if (mode === "legacy_read_key") {
+    console.warn(
+      "[write-api] escrita autenticada com READ_API_KEY (legado). " +
+        "Migre o cliente para MCP_WRITE_API_KEY e defina PUBLIC_WRITE_ALLOW_READ_KEY=false.",
+    );
+  }
+  return { mode };
+}
+
+/** Rótulo de agente para auditoria a partir do modo de auth. */
+export function writeAgentLabel(mode: WriteAuthMode): string {
+  return mode === "legacy_read_key" ? "legacy-read-key" : "mcp-write-key";
+}
+
 // ------------------------ allowlist agente × ação ------------------------
 
 /** Confere agente na allowlist. Devolve { ok: true } ou Response 403/422. */
@@ -74,10 +139,7 @@ export async function requireAgentePermitido(
   acao: string,
 ): Promise<{ ok: true; agente: string } | Response> {
   if (typeof agente !== "string" || !agente.trim()) {
-    return json(
-      { ok: false, erro: "campo 'agente' é obrigatório no corpo da requisição" },
-      422,
-    );
+    return json({ ok: false, erro: "campo 'agente' é obrigatório no corpo da requisição" }, 422);
   }
   const nome = agente.trim().toLowerCase();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -89,10 +151,7 @@ export async function requireAgentePermitido(
     return json({ ok: false, erro: "falha ao verificar permissão", detalhe: error.message }, 500);
   }
   if (!data) {
-    return json(
-      { ok: false, erro: `agente '${nome}' não autorizado para '${acao}'` },
-      403,
-    );
+    return json({ ok: false, erro: `agente '${nome}' não autorizado para '${acao}'` }, 403);
   }
   return { ok: true, agente: nome };
 }
