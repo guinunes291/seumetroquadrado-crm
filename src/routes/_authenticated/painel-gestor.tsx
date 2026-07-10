@@ -43,13 +43,7 @@ import { TemplatesPage } from "@/routes/_authenticated/templates";
 import { DuplicatasPage } from "@/routes/_authenticated/duplicatas";
 import { LixeiraPage } from "@/routes/_authenticated/lixeira";
 
-type GestaoTab =
-  | "visao"
-  | "saude"
-  | "leads-corretor"
-  | "pessoas"
-  | "comunicacao"
-  | "qualidade";
+type GestaoTab = "visao" | "saude" | "leads-corretor" | "pessoas" | "comunicacao" | "qualidade";
 const GESTAO_TABS: GestaoTab[] = [
   "visao",
   "saude",
@@ -85,7 +79,7 @@ export const Route = createFileRoute("/_authenticated/painel-gestor")({
 // e qualidade de dados em abas internas (Fase 1). Cada aba reaproveita a página
 // já existente; as rotas antigas seguem válidas para deep-link/compatibilidade.
 function PainelGestorPage() {
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, loading } = useUserRoles();
   const podeVer = isAdmin || isGestor;
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -93,7 +87,14 @@ function PainelGestorPage() {
   const onTabChange = (v: string) =>
     navigate({ search: { tab: v === "visao" ? undefined : (v as GestaoTab) } });
 
-  if (!podeVer) return <SaudePanel />;
+  // Guarda real: corretor não acessa o hub de Gestão (antes recebia um painel
+  // vazio). Enquanto os papéis carregam, evita o flash redirecionando só depois.
+  if (!loading && !podeVer) {
+    throw redirect({ to: "/" });
+  }
+  if (loading) {
+    return <Skeleton className="h-40 w-full" />;
+  }
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">

@@ -31,7 +31,7 @@ type Item = {
   to?: string;
   label: string;
   icon: typeof LayoutDashboard;
-  roles?: ("admin" | "gestor" | "corretor")[];
+  roles?: ("admin" | "gestor" | "corretor" | "superintendente")[];
   comingSoon?: boolean;
   /** Subitens recolhíveis — usados para consolidar o menu sem esconder rotas. */
   children?: Item[];
@@ -96,10 +96,11 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
-    // Insights em linguagem de negócio + relatórios completos.
+    // Insights em linguagem de negócio + relatórios completos (org-wide) → gestão.
     to: "/inteligencia",
     label: "Inteligência",
     icon: LayoutDashboard,
+    roles: ["admin", "gestor", "superintendente"],
   },
 ];
 

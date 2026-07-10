@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
 import { parseSplit, validarSplit, type SplitTexto } from "@/lib/comissoes";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -57,6 +58,10 @@ type LeadOption = {
 export function RegistrarVendaDialog() {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  // Gestão vê todos os leads; um corretor só pode registrar venda dos SEUS.
+  const podeVerTodos = isAdmin || isGestor || isSuperintendente;
 
   const [leadPickerOpen, setLeadPickerOpen] = useState(false);
   const [lead, setLead] = useState<LeadOption | null>(null);
@@ -80,16 +85,20 @@ export function RegistrarVendaDialog() {
   };
 
   const { data: leads = [], isLoading: loadingLeads } = useQuery({
-    queryKey: ["leads-para-venda"],
+    queryKey: ["leads-para-venda", podeVerTodos ? "todos" : (user?.id ?? "none")],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("leads")
         .select("id, nome, corretor_id, projeto_id, projeto_nome, status")
         .neq("status", "perdido")
         .is("deleted_at", null)
         .order("ultima_interacao", { ascending: false, nullsFirst: false })
         .limit(500);
+      // Corretor só enxerga os próprios leads no seletor (alinhado à policy de
+      // INSERT de vendas: ele só pode registrar venda de lead que é dele).
+      if (!podeVerTodos && user?.id) q = q.eq("corretor_id", user.id);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as LeadOption[];
     },
