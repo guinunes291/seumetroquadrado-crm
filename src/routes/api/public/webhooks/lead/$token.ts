@@ -206,6 +206,20 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           .single();
 
         if (error) {
+          // Corrida: o índice único (projeto, telefone) barrou um insert
+          // concorrente. Trata como duplicado — devolve o lead já existente.
+          if ((error as { code?: string }).code === "23505") {
+            const { data: dupId2 } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
+              _projeto_id: projeto.id,
+              _telefone: data.telefone,
+            });
+            if (dupId2) {
+              return Response.json(
+                { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId2 },
+                { headers: corsHeaders },
+              );
+            }
+          }
           return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
         }
 
