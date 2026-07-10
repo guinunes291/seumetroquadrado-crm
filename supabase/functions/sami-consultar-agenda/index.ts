@@ -93,10 +93,15 @@ function semana(deIn?: string, ateIn?: string): { de: string; ate: string } {
 }
 async function resolverCorretor(supabase: any, telefone: string) {
   const dig = soDigitos(telefone);
-  const suf = dig.slice(-9).length >= 8 ? dig.slice(-9) : dig.slice(-8);
+  if (dig.length < 8) return null;
+  // Sufixo estável (9 dígitos p/ celular, 8 p/ fixo) comparado por igualdade —
+  // não o match frouxo antigo (endsWith em ambos os sentidos), que podia casar
+  // o corretor errado. E só resolve se a correspondência for ÚNICA.
+  const suf = dig.length >= 9 ? dig.slice(-9) : dig.slice(-8);
   const { data } = await supabase.from("profiles").select("id,nome,telefone,ativo").eq("ativo", true);
-  return (data ?? []).find((p: any) => {
+  const casam = (data ?? []).filter((p: any) => {
     const pd = soDigitos(p.telefone ?? "");
-    return pd && (pd.endsWith(suf) || suf.endsWith(pd.slice(-8)));
-  }) ?? null;
+    return pd.length >= suf.length && pd.slice(-suf.length) === suf;
+  });
+  return casam.length === 1 ? casam[0] : null;
 }

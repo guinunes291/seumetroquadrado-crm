@@ -168,13 +168,17 @@ function fmtHumano(d: Date): string {
 
 async function resolverCorretor(supabase: any, telefone: string) {
   const dig = soDigitos(telefone);
-  const suf = dig.slice(-9).length >= 8 ? dig.slice(-9) : dig.slice(-8);
+  if (dig.length < 8) return null;
+  // Sufixo estável (9 dígitos p/ celular, 8 p/ fixo) comparado por igualdade —
+  // não o match frouxo antigo, que podia casar o corretor errado. Só resolve se
+  // a correspondência for ÚNICA (senão devolve null → corretor_nao_encontrado).
+  const suf = dig.length >= 9 ? dig.slice(-9) : dig.slice(-8);
   const { data } = await supabase.from("profiles").select("id,nome,telefone,ativo").eq("ativo", true);
-  const alvo = (data ?? []).find((p: any) => {
+  const casam = (data ?? []).filter((p: any) => {
     const pd = soDigitos(p.telefone ?? "");
-    return pd && (pd.endsWith(suf) || suf.endsWith(pd.slice(-8)));
+    return pd.length >= suf.length && pd.slice(-suf.length) === suf;
   });
-  return alvo ?? null;
+  return casam.length === 1 ? casam[0] : null;
 }
 
 async function resolverLead(supabase: any, ref: string, corretorId: string): Promise<{ lead?: any; erro?: string; detalhe?: string; opcoes?: any[] }> {
