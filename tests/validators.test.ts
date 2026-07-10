@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { onlyDigits, isValidBrazilPhone, isValidEmail, isValidCPF } from "@/lib/validators";
+import {
+  onlyDigits,
+  isValidBrazilPhone,
+  isValidEmail,
+  isValidCPF,
+  escapeLike,
+} from "@/lib/validators";
+
+describe("escapeLike", () => {
+  it("escapa curingas do LIKE/ILIKE", () => {
+    expect(escapeLike("100%")).toBe("100\\%");
+    expect(escapeLike("a_b")).toBe("a\\_b");
+    expect(escapeLike("c:\\temp")).toBe("c:\\\\temp");
+    expect(escapeLike("normal")).toBe("normal");
+    expect(escapeLike(null)).toBe("");
+  });
+});
 
 describe("validators", () => {
   it("onlyDigits remove não-dígitos", () => {

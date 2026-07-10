@@ -6,6 +6,15 @@ export function onlyDigits(v: string | null | undefined): string {
 }
 
 /**
+ * Escapa os curingas do LIKE/ILIKE (`%`, `_`, `\`) para que a entrada do usuário
+ * seja tratada como literal. Sem isso, um `%` na busca vira wildcard e um termo
+ * como "100%" ou "a_b" casa muito além do esperado.
+ */
+export function escapeLike(v: string | null | undefined): string {
+  return (v ?? "").replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/**
  * Normaliza um termo de busca: remove acentos, baixa caixa e colapsa espaços.
  * Usado para casar com a coluna `search_text` no banco (lower(unaccent(...))).
  */
