@@ -26,32 +26,41 @@ job de build/test com `LOVABLE_NPM_TOKEN` — ver "Pendências").
 | ---- | ----------- |
 | M2 `refactor(follow-up)` | `garantirFollowUpAberto` como fonte única de dedup de follow-up. |
 | M3 `feat(historico)` | `notaSistemaPayload`; nota na timeline para temperatura em lote e transferência em lote. |
-| M4 `fix(edge)` | sami-*/admin-reset: comparação timing-safe (SHA-256), dedup de visita, `listUsers` paginado + rate limit. |
+| M4 `fix(edge)` | sami-*/admin-reset: comparação timing-safe (SHA-256), dedup de visita, `listUsers` paginado + rate limit; resolução de corretor por sufixo exato com correspondência única (não o match frouxo). |
 | M6/B1/B2 `fix(estabilidade)` | FK guardada em `leads.corretor_anterior_id`; `escapeLike` nos ILIKE públicos; fim do `.catch(()=>{})` na documentação; `tests/migrations.test.ts`. |
+| M6 `fix(estabilidade)` | Migração `20260710124000`: dedup de alertas por dia em `America/Sao_Paulo` (era UTC). |
 
 ### Etapa 4 — UX/UI
 | Área | O que mudou |
 | ---- | ----------- |
 | FE#6/#9/#7/#4 `fix(ux)` | `<QueryErrorState>` (retry) em Tarefas/Agenda; anti-duplo-clique ao concluir tarefa; validação de escopo em Metas; WhatsApp sem falso sucesso; remove input morto. |
+| FE#10 `refactor(vendas)` | `validarVenda` + `registrarVenda` (com compensação) em `src/lib/vendas.ts`; os 2 dialogs de venda consomem a fonte única. |
+
+### Infra
+| Área | O que mudou |
+| ---- | ----------- |
+| CI `ci` | Job de build/test via `npm ci` (registro público) — roda sempre, sem depender de `LOVABLE_NPM_TOKEN`. Lint informativo. |
 
 ### Etapa 5 — Testes
-`write-api-auth`, `push-outbox`, `agendamentos`, `landing-webhook`, `migrations` (estático) +
-ampliações (`validators/escapeLike`, `interacoes/notaSistemaPayload`, `follow-up`).
+`write-api-auth`, `push-outbox`, `agendamentos`, `landing-webhook`, `migrations` (estático),
+`vendas` + ampliações (`validators/escapeLike`, `interacoes/notaSistemaPayload`, `follow-up`).
+Suíte final: 42 arquivos, 374 testes.
 
 ## Pendências (exigem ação do usuário ou banco vivo)
 
-1. **Aplicar as migrações novas** no Supabase (`20260710120000/121000/122000/123000`).
+1. **Aplicar as migrações novas** no Supabase (`20260710120000/121000/122000/123000/124000`).
 2. **Deploy das edge functions** alteradas: `sami-agendar-visita`, `sami-consultar-agenda`,
    `admin-reset-password`, `lead-intake` (`supabase functions deploy`).
 3. **Secrets:** `MCP_WRITE_API_KEY` nos clientes de escrita (n8n/MCP); quando migrados, definir
    `PUBLIC_WRITE_ALLOW_READ_KEY=false`; opcional `LANDING_WEBHOOK_SECRET`. Conferir o uso legado
    em `api_escrita_log` (agente `legacy-read-key`) antes de cortar.
-4. **CI:** configurar `LOVABLE_NPM_TOKEN` **ou** trocar o job para `npm ci` (o `package-lock.json`
-   resolve tudo no registro público) — hoje o job de build/test não roda sem o token.
-5. **Duplicatas de telefone:** consultar `vw_leads_telefone_duplicado`, resolver e então rodar
+4. **Duplicatas de telefone:** consultar `vw_leads_telefone_duplicado`, resolver e então rodar
    `VALIDATE`/recriar o índice único.
-6. **Não feito nesta rodada (documentado):** consolidar as migrações duplicadas de
-   `comissoes`/`vendas`/`analises_credito` (schemas divergentes — precisa de introspecção do
-   banco vivo para não recriar o schema errado num `db reset`); ajustar timezone dos dedups de
-   alerta (baixa severidade); isolar redistribuição por equipe (decisão de produto); WhatsApp API
-   oficial. Posso executar a consolidação de migrações via MCP Supabase mediante aprovação.
+5. **Consolidação das migrações duplicadas** de `comissoes`/`vendas`/`analises_credito` (schemas
+   divergentes que quebram `supabase db reset`): **tentei via MCP Supabase mas o token não tem
+   acesso ao projeto do CRM** (`rldnprwjlomjmjvinxuh`; a org acessível só tem o banco operacional
+   externo e o de documentação). Precisa de acesso ao projeto do CRM (conceder ao MCP ou fazer
+   internamente) para introspectar o schema vivo e escrever a migração consolidadora sem risco de
+   recriar o schema errado.
+6. **Decisão de produto (fora de escopo técnico):** isolar redistribuição por equipe; WhatsApp API
+   oficial.
