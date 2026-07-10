@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
-import { criarFollowUpAutomatico } from "@/lib/follow-up";
+import { criarAgendamento, invalidateAgendamentoQueries } from "@/lib/agendamentos";
 import { buildGoogleCalendarUrl } from "@/lib/calendar-links";
 import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
 
@@ -95,60 +95,33 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (!titulo.trim()) throw new Error("Informe um título");
       const inicio = new Date(dataInicio);
       const fim = dataFim ? new Date(dataFim) : new Date(inicio.getTime() + 60 * 60 * 1000);
-      if (fim <= inicio) throw new Error("O fim deve ser depois do início");
 
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
 
-      const { data: criado, error: insErr } = await supabase
-        .from("agendamentos")
-        .insert({
-          lead_id: lead.id,
-          corretor_id: lead.corretor_id ?? uid,
-          criado_por_id: uid,
+      // Helper único: insere o agendamento e move o lead com compensação
+      // (se o update do lead falhar, desfaz o agendamento), + follow-up.
+      const res = await criarAgendamento(
+        {
+          leadId: lead.id,
+          leadNome: lead.nome,
+          corretorId: lead.corretor_id ?? uid,
+          criadoPorId: uid,
           tipo,
-          status: "agendado",
-          titulo: titulo.trim(),
-          descricao: descricao.trim() || null,
-          local: local.trim() || null,
-          data_inicio: inicio.toISOString(),
-          data_fim: fim.toISOString(),
-          timezone: "America/Sao_Paulo",
-          lembrete_minutos: 30,
-        } as never)
-        .select("id")
-        .single();
-      if (insErr) throw insErr;
-
-      // Espelha na agenda Google do corretor (se conectada) sem travar o fluxo.
-      syncAgendamentoGoogle({ data: { agendamentoId: (criado as { id: string }).id } }).catch(
-        () => {},
+          titulo,
+          descricao,
+          local,
+          dataInicio: inicio.toISOString(),
+          dataFim: fim.toISOString(),
+        },
+        { moverLeadPara: "agendado", criarFollowUp: true },
       );
 
-      const { error: updErr } = await supabase
-        .from("leads")
-        .update({ status: "agendado", ultima_interacao: new Date().toISOString() } as never)
-        .eq("id", lead.id);
-      if (updErr) throw updErr;
-
-      // Motor anti-perda: garante o próximo passo (confirmar a visita ~1 dia antes).
-      let followUp = false;
-      try {
-        followUp = await criarFollowUpAutomatico({
-          leadId: lead.id,
-          nome: lead.nome,
-          corretorId: lead.corretor_id ?? uid,
-          status: "agendado",
-          dataInicio: inicio.toISOString(),
-          criadoPorId: uid,
-        });
-      } catch (e) {
-        console.warn("follow-up automático (agendado) falhou", e);
-      }
-      return { followUp };
+      // Espelha na agenda Google do corretor (se conectada) sem travar o fluxo.
+      syncAgendamentoGoogle({ data: { agendamentoId: res.agendamentoId } }).catch(() => {});
+      return res;
     },
     onSuccess: (res) => {
       const gcalUrl = buildGoogleCalendarUrl({
@@ -160,7 +133,7 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
       });
       toast.success(
         "Agendamento criado · lead movido para Agendado" +
-          (res?.followUp ? " · tarefa de confirmação criada" : ""),
+          (res?.followUpCriado ? " · tarefa de confirmação criada" : ""),
         {
           action: {
             label: "Google Agenda",
@@ -169,14 +142,8 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
           duration: 8000,
         },
       );
-      qc.invalidateQueries({ queryKey: ["agendamentos"] });
-      qc.invalidateQueries({ queryKey: ["agendamentos-lead", lead.id] });
-      qc.invalidateQueries({ queryKey: ["leads-kanban"] });
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["lead", lead.id] });
-      qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
-      qc.invalidateQueries({ queryKey: ["tarefas"] });
-      qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
+      res.avisos.forEach((a) => toast.warning(a));
+      invalidateAgendamentoQueries(qc, lead.id);
       onDone?.();
       onOpenChange(false);
     },
@@ -243,7 +210,10 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label>Horário</Label>
-              <Select value={COMMON_TIMES.includes(horaAtual) ? horaAtual : ""} onValueChange={setHora}>
+              <Select
+                value={COMMON_TIMES.includes(horaAtual) ? horaAtual : ""}
+                onValueChange={setHora}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Escolha o horário" />
                 </SelectTrigger>
