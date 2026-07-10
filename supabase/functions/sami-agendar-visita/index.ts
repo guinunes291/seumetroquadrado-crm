@@ -30,10 +30,11 @@ const TIPO_VISITA = "visita";          // valor de tipo
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // 1) Auth por key (comparação simples; a key é longa e aleatória)
+  // 1) Auth por key (comparação em tempo constante — não vaza o tamanho/prefixo)
   const key = req.headers.get("x-sami-key") ?? "";
   const esperado = Deno.env.get("SAMI_WRITE_KEY") ?? "";
-  if (!esperado || key !== esperado) return json({ ok: false, erro: "auth", detalhe: "x-sami-key ausente ou inválida" }, 401);
+  if (!esperado || !(await timingSafeEqualStr(key, esperado)))
+    return json({ ok: false, erro: "auth", detalhe: "x-sami-key ausente ou inválida" }, 401);
 
   let body: any;
   try { body = await req.json(); } catch { return json({ ok: false, erro: "body_invalido", detalhe: "JSON inválido" }); }
@@ -82,6 +83,31 @@ Deno.serve(async (req: Request) => {
       }, 200);
     }
 
+    // 6.1) Dedup: retries do n8n com o mesmo lead + mesmo horário não podem
+    //      criar visitas duplicadas. Se já existe agendamento não-cancelado
+    //      para (lead, data_inicio), devolve o existente.
+    const { data: jaExiste } = await supabase
+      .from(AGENDA_TABLE)
+      .select("id")
+      .eq("lead_id", lead.id)
+      .eq(COL_DATA, quando.toISOString())
+      .neq("status", "cancelado")
+      .is("deleted_at", null)
+      .limit(1);
+    if (jaExiste && jaExiste.length) {
+      return json({
+        ok: true,
+        dry_run: false,
+        dedup: true,
+        agendamento_id: jaExiste[0].id,
+        quando: quando.toISOString(),
+        quando_humano: quandoHumano,
+        lead: { id: lead.id, nome: lead.nome, telefone: lead.telefone ?? lead.telefone_e164 },
+        corretor: { id: corretor.id, nome: corretor.nome },
+        titulo,
+      }, 200);
+    }
+
     // 7) INSERT (whitelist de campos)
     const fim = new Date(quando.getTime() + 60 * 60 * 1000);
     const registro: Record<string, unknown> = {
@@ -115,6 +141,21 @@ Deno.serve(async (req: Request) => {
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+
+// Compara dois segredos em tempo constante. Usa SHA-256 antes do XOR para que
+// nem o tamanho nem o prefixo da chave vazem pelo tempo de resposta.
+async function timingSafeEqualStr(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(ha);
+  const vb = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
 }
 
 const soDigitos = (s: string) => (s || "").replace(/\D/g, "");

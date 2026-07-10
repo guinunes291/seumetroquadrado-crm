@@ -15,7 +15,8 @@ Deno.serve(async (req: Request) => {
 
   const key = req.headers.get("x-sami-key") ?? "";
   const esperado = Deno.env.get("SAMI_WRITE_KEY") ?? "";
-  if (!esperado || key !== esperado) return json({ ok: false, erro: "auth" }, 401);
+  if (!esperado || !(await timingSafeEqualStr(key, esperado)))
+    return json({ ok: false, erro: "auth" }, 401);
 
   let body: any = {};
   try { body = await req.json(); } catch { /* corpo opcional */ }
@@ -62,6 +63,19 @@ Deno.serve(async (req: Request) => {
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
+// Comparação de segredo em tempo constante (SHA-256 antes do XOR).
+async function timingSafeEqualStr(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(ha);
+  const vb = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
 }
 const soDigitos = (s: string) => (s || "").replace(/\D/g, "");
 function fmtHumano(d: Date): string {
