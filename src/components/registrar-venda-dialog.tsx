@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
-import { parseSplit, validarSplit, type SplitTexto } from "@/lib/comissoes";
+import { parseSplit, type SplitTexto } from "@/lib/comissoes";
+import { validarVenda, registrarVenda } from "@/lib/vendas";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -128,53 +129,28 @@ export function RegistrarVendaDialog() {
     mutationFn: async () => {
       if (!lead) throw new Error("Selecione o lead que comprou");
       const valorNum = parseCurrencyBRL(valor) ?? NaN;
-      if (!Number.isFinite(valorNum) || valorNum <= 0) {
-        throw new Error("Informe um valor de venda válido");
-      }
-      if (dataAssinatura > hoje()) {
-        throw new Error("A data de assinatura não pode ser futura");
-      }
       const split = parseSplit(percentuais);
-      if (!split) {
-        throw new Error("Percentuais de comissão inválidos — revise os campos");
-      }
-      const splitCheck = validarSplit(split);
-      if (!splitCheck.ok) {
-        throw new Error(splitCheck.erros[0]);
-      }
+      const erro = validarVenda({ valorVenda: valorNum, dataAssinatura, hoje: hoje(), split });
+      if (erro) throw new Error(erro);
 
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
-      const projetoFinal = projetoId !== "none" ? projetoId : lead.projeto_id;
       const projetoNome =
         projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
           : lead.projeto_nome;
 
-      const { error: insErr } = await supabase.from("vendas" as never).insert({
-        lead_id: lead.id,
-        corretor_id: lead.corretor_id ?? uid,
-        criado_por_id: uid,
-        projeto_id: projetoFinal,
-        projeto_nome: projetoNome,
-        valor_venda: valorNum,
-        data_assinatura: dataAssinatura,
-        percentual_comissao: split.total,
-        percentual_corretor: split.corretor,
-        percentual_gerente: split.gerente,
-        percentual_superintendente: split.superintendente,
-        observacoes: observacoes.trim() || null,
-      } as never);
-      if (insErr) throw insErr;
-
-      const { error: updErr } = await supabase
-        .from("leads")
-        .update({
-          status: "contrato_fechado",
-          ultima_interacao: new Date().toISOString(),
-        } as never)
-        .eq("id", lead.id);
-      if (updErr) throw updErr;
+      await registrarVenda({
+        leadId: lead.id,
+        corretorId: lead.corretor_id ?? uid,
+        criadoPorId: uid,
+        projetoId: projetoId !== "none" ? projetoId : lead.projeto_id,
+        projetoNome,
+        valorVenda: valorNum,
+        dataAssinatura,
+        split: split!,
+        observacoes,
+      });
     },
     onSuccess: () => {
       toast.success("Venda registrada · lead movido para Contrato fechado 🎉");
