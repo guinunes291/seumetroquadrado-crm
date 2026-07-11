@@ -66,3 +66,35 @@ jobs:
 
       - name: Auditoria de dependências de produção
         run: npm audit --omit=dev --audit-level=high
+
+  # Smoke do ARTEFATO DE PRODUÇÃO num navegador real. É o gate que faltava: build
+  # verde não garante que o app renderiza. Boota o build (preset node-server, cujo
+  # bundle client é idêntico ao Cloudflare) e reprova em tela branca, erro de
+  # console fatal (useSyncExternalStore/ChunkLoadError/hidratação), chunk 404,
+  # /auth sem formulário, `/` sem redirect, ou segredo no bundle. Sem credenciais.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Instalar navegador do Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build (preset node-server, para bootar o artefato)
+        run: npm run build
+        env:
+          NITRO_PRESET: node-server
+
+      - name: Smoke no navegador
+        run: npm run smoke
