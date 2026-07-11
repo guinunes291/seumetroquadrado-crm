@@ -23,7 +23,13 @@
 //   order=asc|desc (default desc)
 //   limit=50 (max 200), offset=0
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse, PUBLIC_LEAD_SELECT, shapeLeadForPublic } from "@/lib/public-api-auth";
+import {
+  checkReadApiKey,
+  jsonResponse,
+  PUBLIC_LEAD_SELECT,
+  shapeLeadForPublic,
+} from "@/lib/public-api-auth";
+import { escapeLike } from "@/lib/validators";
 
 const PARADOS_RE = /^(\d+)d$/i;
 const ORDER_BY_ALLOWED = new Set(["created_at", "updated_at", "ultima_interacao", "temperatura"]);
@@ -37,7 +43,10 @@ function parseBool(v: string | null): boolean | null {
 }
 
 function csv(v: string | null): string[] {
-  return (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return (v ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function plusOneDay(ymd: string): string {
@@ -108,10 +117,10 @@ export const Route = createFileRoute("/api/public/leads/")({
         if (projetoId) query = query.eq("projeto_id", projetoId);
 
         const empreendimento = q.get("empreendimento");
-        if (empreendimento) query = query.ilike("projeto_nome", `%${empreendimento}%`);
+        if (empreendimento) query = query.ilike("projeto_nome", `%${escapeLike(empreendimento)}%`);
 
         const campanha = q.get("campanha");
-        if (campanha) query = query.ilike("campanha", `%${campanha}%`);
+        if (campanha) query = query.ilike("campanha", `%${escapeLike(campanha)}%`);
 
         const handoff = parseBool(q.get("handoff"));
         if (handoff === true) query = query.not("handoff_em", "is", null);
@@ -123,11 +132,10 @@ export const Route = createFileRoute("/api/public/leads/")({
         // Busca textual
         const qText = q.get("q");
         if (qText && qText.trim()) {
-          const s = qText.trim().replace(/[,()]/g, " ");
+          // Remove separadores do PostgREST .or() e escapa curingas do ILIKE.
+          const s = escapeLike(qText.trim().replace(/[,()]/g, " "));
           const like = `%${s}%`;
-          query = query.or(
-            `nome.ilike.${like},email.ilike.${like},telefone.ilike.${like}`,
-          );
+          query = query.or(`nome.ilike.${like},email.ilike.${like},telefone.ilike.${like}`);
         }
 
         // Datas
@@ -155,7 +163,9 @@ export const Route = createFileRoute("/api/public/leads/")({
           total: count ?? data?.length ?? 0,
           limit,
           offset,
-          data: (data ?? []).map((l) => shapeLeadForPublic(l as unknown as Record<string, unknown>)),
+          data: (data ?? []).map((l) =>
+            shapeLeadForPublic(l as unknown as Record<string, unknown>),
+          ),
         });
       },
     },

@@ -8,28 +8,49 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { Plus, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  TAREFA_STATUS, TAREFA_TIPOS, TAREFA_PRIORIDADES,
-  STATUS_LABEL, TIPO_LABEL, PRIORIDADE_LABEL,
-  isAtrasada, statusBadgeClass, prioridadeBadgeClass,
-  type TarefaStatus, type TarefaTipo, type TarefaPrioridade,
+  TAREFA_STATUS,
+  TAREFA_TIPOS,
+  TAREFA_PRIORIDADES,
+  STATUS_LABEL,
+  TIPO_LABEL,
+  PRIORIDADE_LABEL,
+  isAtrasada,
+  statusBadgeClass,
+  prioridadeBadgeClass,
+  type TarefaStatus,
+  type TarefaTipo,
+  type TarefaPrioridade,
 } from "@/lib/tarefas";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
@@ -67,11 +88,15 @@ export function TarefasPage() {
 
   useRealtimeInvalidate("tarefas", [["tarefas"]]);
 
-
   const leadsQuery = useQuery({
     queryKey: ["tarefas:leads-opt"],
     queryFn: async () => {
-      const { data } = await supabase.from("leads").select("id, nome").is("deleted_at", null).order("nome").limit(200);
+      const { data } = await supabase
+        .from("leads")
+        .select("id, nome")
+        .is("deleted_at", null)
+        .order("nome")
+        .limit(200);
       return data ?? [];
     },
   });
@@ -101,10 +126,11 @@ export function TarefasPage() {
       pendentes: list.filter((t: any) => t.status === "pendente").length,
       em_andamento: list.filter((t: any) => t.status === "em_andamento").length,
       atrasadas: list.filter((t: any) => isAtrasada(t)).length,
-      concluidas_hoje: list.filter((t: any) =>
-        t.status === "concluida" &&
-        t.data_conclusao &&
-        new Date(t.data_conclusao).toDateString() === new Date().toDateString(),
+      concluidas_hoje: list.filter(
+        (t: any) =>
+          t.status === "concluida" &&
+          t.data_conclusao &&
+          new Date(t.data_conclusao).toDateString() === new Date().toDateString(),
       ).length,
     };
   }, [tarefasQuery.data]);
@@ -197,8 +223,13 @@ export function TarefasPage() {
       tipo: fd.get("tipo"),
       status: fd.get("status"),
       prioridade: fd.get("prioridade"),
-      lead_id: (() => { const v = fd.get("lead_id") as string; return v && v !== "__none__" ? v : null; })(),
-      data_vencimento: fd.get("data_vencimento") ? new Date(fd.get("data_vencimento") as string).toISOString() : null,
+      lead_id: (() => {
+        const v = fd.get("lead_id") as string;
+        return v && v !== "__none__" ? v : null;
+      })(),
+      data_vencimento: fd.get("data_vencimento")
+        ? new Date(fd.get("data_vencimento") as string).toISOString()
+        : null,
     };
     if (canManageAll) payload.corretor_id = fd.get("corretor_id") || user?.id;
     saveMutation.mutate(payload);
@@ -210,9 +241,18 @@ export function TarefasPage() {
         title="Tarefas"
         description="Centralize follow-ups e atividades do seu funil."
         actions={
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(o) => {
+              setDialogOpen(o);
+              if (!o) setEditing(null);
+            }}
+          >
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />Nova tarefa</Button>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova tarefa
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg">
               <DialogHeader>
@@ -227,19 +267,30 @@ export function TarefasPage() {
                   <div>
                     <Label>Tipo</Label>
                     <Select name="tipo" defaultValue={editing?.tipo ?? "follow_up"}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {TAREFA_TIPOS.map((t) => <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>)}
+                        {TAREFA_TIPOS.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {TIPO_LABEL[t]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <input type="hidden" name="tipo" />
                   </div>
                   <div>
                     <Label>Prioridade</Label>
                     <Select name="prioridade" defaultValue={editing?.prioridade ?? "media"}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {TAREFA_PRIORIDADES.map((p) => <SelectItem key={p} value={p}>{PRIORIDADE_LABEL[p]}</SelectItem>)}
+                        {TAREFA_PRIORIDADES.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {PRIORIDADE_LABEL[p]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -248,9 +299,15 @@ export function TarefasPage() {
                   <div>
                     <Label>Status</Label>
                     <Select name="status" defaultValue={editing?.status ?? "pendente"}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {TAREFA_STATUS.map((s) => <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>)}
+                        {TAREFA_STATUS.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {STATUS_LABEL[s]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -260,18 +317,26 @@ export function TarefasPage() {
                       id="data_vencimento"
                       name="data_vencimento"
                       type="datetime-local"
-                      defaultValue={editing?.data_vencimento ? format(parseISO(editing.data_vencimento), "yyyy-MM-dd'T'HH:mm") : ""}
+                      defaultValue={
+                        editing?.data_vencimento
+                          ? format(parseISO(editing.data_vencimento), "yyyy-MM-dd'T'HH:mm")
+                          : ""
+                      }
                     />
                   </div>
                 </div>
                 <div>
                   <Label>Lead vinculado (opcional)</Label>
                   <Select name="lead_id" defaultValue={editing?.lead_id ?? "__none__"}>
-                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nenhum" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Nenhum</SelectItem>
                       {(leadsQuery.data ?? []).map((l: any) => (
-                        <SelectItem key={l.id} value={l.id}>{l.nome}</SelectItem>
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.nome}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -280,10 +345,14 @@ export function TarefasPage() {
                   <div>
                     <Label>Atribuir ao corretor</Label>
                     <Select name="corretor_id" defaultValue={editing?.corretor_id ?? user?.id}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {(corretoresQuery.data ?? []).map((c: any) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -291,7 +360,12 @@ export function TarefasPage() {
                 )}
                 <div>
                   <Label htmlFor="descricao">Descrição</Label>
-                  <Textarea id="descricao" name="descricao" rows={3} defaultValue={editing?.descricao ?? ""} />
+                  <Textarea
+                    id="descricao"
+                    name="descricao"
+                    rows={3}
+                    defaultValue={editing?.descricao ?? ""}
+                  />
                 </div>
                 <DialogFooter>
                   <Button type="submit" disabled={saveMutation.isPending}>
@@ -305,10 +379,26 @@ export function TarefasPage() {
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={<Clock className="h-4 w-4 text-warning" />} label="Pendentes" value={counts.pendentes} />
-        <StatCard icon={<Clock className="h-4 w-4 text-blue-500" />} label="Em andamento" value={counts.em_andamento} />
-        <StatCard icon={<AlertTriangle className="h-4 w-4 text-destructive" />} label="Atrasadas" value={counts.atrasadas} />
-        <StatCard icon={<CheckCircle2 className="h-4 w-4 text-green-500" />} label="Concluídas hoje" value={counts.concluidas_hoje} />
+        <StatCard
+          icon={<Clock className="h-4 w-4 text-warning" />}
+          label="Pendentes"
+          value={counts.pendentes}
+        />
+        <StatCard
+          icon={<Clock className="h-4 w-4 text-blue-500" />}
+          label="Em andamento"
+          value={counts.em_andamento}
+        />
+        <StatCard
+          icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
+          label="Atrasadas"
+          value={counts.atrasadas}
+        />
+        <StatCard
+          icon={<CheckCircle2 className="h-4 w-4 text-green-500" />}
+          label="Concluídas hoje"
+          value={counts.concluidas_hoje}
+        />
       </div>
 
       <Card>
@@ -333,27 +423,52 @@ export function TarefasPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Input placeholder="Buscar..." value={busca} onChange={(e) => setBusca(e.target.value)} className="max-w-xs" />
+            <Input
+              placeholder="Buscar..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="max-w-xs"
+            />
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos status</SelectItem>
-                {TAREFA_STATUS.map((s) => <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>)}
+                {TAREFA_STATUS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos tipos</SelectItem>
-                {TAREFA_TIPOS.map((t) => <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>)}
+                {TAREFA_TIPOS.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {TIPO_LABEL[t]}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
           {tarefasQuery.isLoading ? (
             <div className="text-sm text-muted-foreground py-8 text-center">Carregando...</div>
+          ) : tarefasQuery.isError ? (
+            <QueryErrorState
+              title="Não foi possível carregar as tarefas."
+              error={tarefasQuery.error}
+              onRetry={() => tarefasQuery.refetch()}
+            />
           ) : tarefasFiltradas.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-8 text-center">Nenhuma tarefa encontrada.</div>
+            <div className="text-sm text-muted-foreground py-8 text-center">
+              Nenhuma tarefa encontrada.
+            </div>
           ) : (
             <ul className="divide-y">
               {tarefasFiltradas.map((t: any) => {
@@ -362,7 +477,7 @@ export function TarefasPage() {
                   <li key={t.id} className="py-3 flex items-start gap-3">
                     <button
                       onClick={() => concluirMutation.mutate({ id: t.id })}
-                      disabled={t.status === "concluida"}
+                      disabled={t.status === "concluida" || concluirMutation.isPending}
                       className={cn(
                         "mt-1 h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0",
                         t.status === "concluida"
@@ -375,7 +490,12 @@ export function TarefasPage() {
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={cn("font-medium", t.status === "concluida" && "line-through text-muted-foreground")}>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            t.status === "concluida" && "line-through text-muted-foreground",
+                          )}
+                        >
                           {t.titulo}
                         </span>
                         <Badge variant="outline" className={statusBadgeClass(t.status)}>
@@ -387,13 +507,22 @@ export function TarefasPage() {
                         <Badge variant="secondary">{TIPO_LABEL[t.tipo as TarefaTipo]}</Badge>
                         {atrasada && <Badge variant="destructive">Atrasada</Badge>}
                       </div>
-                      {t.descricao && <p className="text-sm text-muted-foreground mt-0.5">{t.descricao}</p>}
+                      {t.descricao && (
+                        <p className="text-sm text-muted-foreground mt-0.5">{t.descricao}</p>
+                      )}
                       <div className="text-xs text-muted-foreground mt-1 flex gap-3 flex-wrap">
                         {t.data_vencimento && (
-                          <span>Vence: {format(parseISO(t.data_vencimento), "dd/MM/yyyy HH:mm", { locale: ptBR })}</span>
+                          <span>
+                            Vence:{" "}
+                            {format(parseISO(t.data_vencimento), "dd/MM/yyyy HH:mm", {
+                              locale: ptBR,
+                            })}
+                          </span>
                         )}
                         {t.leads?.nome && <span>Lead: {t.leads.nome}</span>}
-                        {canManageAll && t.profiles?.nome && <span>Corretor: {t.profiles.nome}</span>}
+                        {canManageAll && t.profiles?.nome && (
+                          <span>Corretor: {t.profiles.nome}</span>
+                        )}
                       </div>
                     </div>
                     {t.status !== "concluida" && (
@@ -404,19 +533,36 @@ export function TarefasPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 60 * 60 * 1000 })}>
+                          <DropdownMenuItem
+                            onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 60 * 60 * 1000 })}
+                          >
                             Adiar 1 hora
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 24 * 60 * 60 * 1000 })}>
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              snoozeMutation.mutate({ id: t.id, ms: 24 * 60 * 60 * 1000 })
+                            }
+                          >
                             Adiar 1 dia
                           </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={() => snoozeMutation.mutate({ id: t.id, ms: 7 * 24 * 60 * 60 * 1000 })}>
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              snoozeMutation.mutate({ id: t.id, ms: 7 * 24 * 60 * 60 * 1000 })
+                            }
+                          >
                             Adiar 1 semana
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => { setEditing(t); setDialogOpen(true); }}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditing(t);
+                        setDialogOpen(true);
+                      }}
+                    >
                       Editar
                     </Button>
                   </li>

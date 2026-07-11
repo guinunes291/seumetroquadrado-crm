@@ -4,7 +4,34 @@ import {
   formatRelativeTime,
   isContactInteraction,
   INTERACAO_LABEL,
+  notaSistemaPayload,
 } from "@/lib/interacoes";
+
+describe("notaSistemaPayload", () => {
+  it("monta uma nota interna de sistema com metadata de origem", () => {
+    const p = notaSistemaPayload({
+      leadId: "lead-1",
+      titulo: "Temperatura alterada",
+      conteudo: 'Temperatura definida como "quente".',
+      autorId: "u1",
+      metadata: { acao: "temperatura_lote", temperatura: "quente" },
+    });
+    expect(p).toMatchObject({
+      lead_id: "lead-1",
+      autor_id: "u1",
+      tipo: "nota",
+      direcao: "interna",
+      titulo: "Temperatura alterada",
+      metadata: { fonte: "sistema", acao: "temperatura_lote", temperatura: "quente" },
+    });
+  });
+
+  it("usa autor_id null quando ausente", () => {
+    const p = notaSistemaPayload({ leadId: "l", titulo: "t", conteudo: "c" });
+    expect(p.autor_id).toBeNull();
+    expect(p.metadata).toEqual({ fonte: "sistema" });
+  });
+});
 
 describe("interacoes helpers", () => {
   it("rotula tipos conhecidos", () => {

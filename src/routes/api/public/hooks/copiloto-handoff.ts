@@ -81,10 +81,21 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
         // Carrega lead + corretor + projeto + alternativa
         // Cast: colunas estado/etapa/motivo_handoff/copiloto_notificado_em ainda
         // não estão no types.ts gerado.
-        const { data: leadRaw, error: leadErr } = await (supabaseAdmin
-          .from("leads") as unknown as {
-            select: (s: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }> } };
-          })
+        const { data: leadRaw, error: leadErr } = await (
+          supabaseAdmin.from("leads") as unknown as {
+            select: (s: string) => {
+              eq: (
+                k: string,
+                v: string,
+              ) => {
+                maybeSingle: () => Promise<{
+                  data: Record<string, unknown> | null;
+                  error: { message: string } | null;
+                }>;
+              };
+            };
+          }
+        )
           .select(
             "id, nome, telefone, temperatura, status, etapa, estado, motivo_handoff, " +
               "renda_informada, usa_fgts, entrada_disponivel, observacoes, " +
@@ -112,8 +123,33 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
           copiloto_notificado_em: string | null;
         };
 
-        // Idempotência
+        // Idempotência via CLAIM ATÔMICO: marca copiloto_notificado_em ANTES de
+        // disparar, condicionado a estar NULL. Dois disparos concorrentes (trigger
+        // pg_net + reprocessamento) não podem mais notificar o n8n em dobro —
+        // só um vence o UPDATE ... WHERE copiloto_notificado_em IS NULL.
         if (lead.copiloto_notificado_em) {
+          return Response.json({ ok: true, already_notified: true });
+        }
+        const claim = await (
+          supabaseAdmin.from("leads") as unknown as {
+            update: (v: Record<string, unknown>) => {
+              eq: (
+                k: string,
+                v: string,
+              ) => {
+                is: (
+                  k: string,
+                  v: null,
+                ) => { select: (s: string) => Promise<{ data: { id: string }[] | null }> };
+              };
+            };
+          }
+        )
+          .update({ copiloto_notificado_em: new Date().toISOString() })
+          .eq("id", lead.id)
+          .is("copiloto_notificado_em", null)
+          .select("id");
+        if (!claim.data || claim.data.length === 0) {
           return Response.json({ ok: true, already_notified: true });
         }
 
@@ -124,32 +160,67 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
                 .select("id, nome, telefone, ativo")
                 .eq("id", lead.corretor_id)
                 .maybeSingle()
-            : Promise.resolve({ data: null as { id: string; nome: string | null; telefone: string | null; ativo: boolean | null } | null }),
+            : Promise.resolve({
+                data: null as {
+                  id: string;
+                  nome: string | null;
+                  telefone: string | null;
+                  ativo: boolean | null;
+                } | null,
+              }),
           lead.projeto_id
             ? supabaseAdmin
                 .from("projetos")
                 .select("id, nome, preco_a_partir, zona_smq, bairro, ano_entrega, mes_entrega")
                 .eq("id", lead.projeto_id)
                 .maybeSingle()
-            : Promise.resolve({ data: null as { id: string; nome: string; preco_a_partir: number | null; zona_smq: string | null; bairro: string | null; ano_entrega: number | null; mes_entrega: number | null } | null }),
+            : Promise.resolve({
+                data: null as {
+                  id: string;
+                  nome: string;
+                  preco_a_partir: number | null;
+                  zona_smq: string | null;
+                  bairro: string | null;
+                  ano_entrega: number | null;
+                  mes_entrega: number | null;
+                } | null,
+              }),
         ]);
 
-        let alt: { alternativa_nome: string | null; alternativa_bairro: string | null; alternativa_preco: number | null } | null = null;
+        let alt: {
+          alternativa_nome: string | null;
+          alternativa_bairro: string | null;
+          alternativa_preco: number | null;
+        } | null = null;
         if (projeto?.id) {
           // view não tipada
-          const r = await (supabaseAdmin.from as unknown as (n: string) => {
-            select: (s: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: { alternativa_nome: string | null; alternativa_bairro: string | null; alternativa_preco: number | null } | null }> } };
-          })("projetos_alternativa_regiao")
+          const r = await (
+            supabaseAdmin.from as unknown as (n: string) => {
+              select: (s: string) => {
+                eq: (
+                  k: string,
+                  v: string,
+                ) => {
+                  maybeSingle: () => Promise<{
+                    data: {
+                      alternativa_nome: string | null;
+                      alternativa_bairro: string | null;
+                      alternativa_preco: number | null;
+                    } | null;
+                  }>;
+                };
+              };
+            }
+          )("projetos_alternativa_regiao")
             .select("alternativa_nome, alternativa_bairro, alternativa_preco")
             .eq("projeto_id", projeto.id)
             .maybeSingle();
           alt = r.data;
         }
 
-        const previsao =
-          projeto?.ano_entrega
-            ? `${projeto.mes_entrega ? String(projeto.mes_entrega).padStart(2, "0") + "/" : ""}${projeto.ano_entrega}`
-            : "";
+        const previsao = projeto?.ano_entrega
+          ? `${projeto.mes_entrega ? String(projeto.mes_entrega).padStart(2, "0") + "/" : ""}${projeto.ano_entrega}`
+          : "";
 
         const fields = {
           nome: lead.nome ?? "",
@@ -194,7 +265,11 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
             ok = r.ok;
             await supabaseAdmin.from("copiloto_eventos").insert({
               lead_id: lead.id,
-              payload: { ...payload, telefone: maskPhone(payload.telefone), corretor_telefone: maskPhone(payload.corretor_telefone) },
+              payload: {
+                ...payload,
+                telefone: maskPhone(payload.telefone),
+                corretor_telefone: maskPhone(payload.corretor_telefone),
+              },
               status_http: r.status,
               resposta: r.body,
               tentativa: attempt,
@@ -205,7 +280,11 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
             lastErr = e instanceof Error ? e.message : String(e);
             await supabaseAdmin.from("copiloto_eventos").insert({
               lead_id: lead.id,
-              payload: { ...payload, telefone: maskPhone(payload.telefone), corretor_telefone: maskPhone(payload.corretor_telefone) },
+              payload: {
+                ...payload,
+                telefone: maskPhone(payload.telefone),
+                corretor_telefone: maskPhone(payload.corretor_telefone),
+              },
               status_http: null,
               resposta: lastErr,
               tentativa: attempt,
@@ -216,13 +295,21 @@ export const Route = createFileRoute("/api/public/hooks/copiloto-handoff")({
         }
 
         if (ok) {
-          await (supabaseAdmin.from("leads") as unknown as {
-            update: (v: Record<string, unknown>) => { eq: (k: string, v: string) => Promise<unknown> };
-          })
-            .update({ copiloto_notificado_em: new Date().toISOString() })
-            .eq("id", lead.id);
+          // O claim já marcou copiloto_notificado_em no início — nada a fazer.
           return Response.json({ ok: true });
         }
+        // Falhou após os retries: libera o claim (volta a NULL) para que um
+        // reprocessamento futuro possa tentar de novo — senão o lead ficaria
+        // "notificado" sem nunca ter sido, e nunca mais dispararia.
+        await (
+          supabaseAdmin.from("leads") as unknown as {
+            update: (v: Record<string, unknown>) => {
+              eq: (k: string, v: string) => Promise<unknown>;
+            };
+          }
+        )
+          .update({ copiloto_notificado_em: null })
+          .eq("id", lead.id);
         return Response.json(
           { ok: false, last_status: lastStatus, last_body: lastBody, last_error: lastErr },
           { status: 502 },

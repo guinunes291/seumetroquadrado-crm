@@ -15,7 +15,8 @@ Deno.serve(async (req: Request) => {
 
   const key = req.headers.get("x-sami-key") ?? "";
   const esperado = Deno.env.get("SAMI_WRITE_KEY") ?? "";
-  if (!esperado || key !== esperado) return json({ ok: false, erro: "auth" }, 401);
+  if (!esperado || !(await timingSafeEqualStr(key, esperado)))
+    return json({ ok: false, erro: "auth" }, 401);
 
   let body: any = {};
   try { body = await req.json(); } catch { /* corpo opcional */ }
@@ -63,6 +64,19 @@ Deno.serve(async (req: Request) => {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
+// Comparação de segredo em tempo constante (SHA-256 antes do XOR).
+async function timingSafeEqualStr(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ha, hb] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(ha);
+  const vb = new Uint8Array(hb);
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
+}
 const soDigitos = (s: string) => (s || "").replace(/\D/g, "");
 function fmtHumano(d: Date): string {
   const f = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -79,10 +93,15 @@ function semana(deIn?: string, ateIn?: string): { de: string; ate: string } {
 }
 async function resolverCorretor(supabase: any, telefone: string) {
   const dig = soDigitos(telefone);
-  const suf = dig.slice(-9).length >= 8 ? dig.slice(-9) : dig.slice(-8);
+  if (dig.length < 8) return null;
+  // Sufixo estável (9 dígitos p/ celular, 8 p/ fixo) comparado por igualdade —
+  // não o match frouxo antigo (endsWith em ambos os sentidos), que podia casar
+  // o corretor errado. E só resolve se a correspondência for ÚNICA.
+  const suf = dig.length >= 9 ? dig.slice(-9) : dig.slice(-8);
   const { data } = await supabase.from("profiles").select("id,nome,telefone,ativo").eq("ativo", true);
-  return (data ?? []).find((p: any) => {
+  const casam = (data ?? []).filter((p: any) => {
     const pd = soDigitos(p.telefone ?? "");
-    return pd && (pd.endsWith(suf) || suf.endsWith(pd.slice(-8)));
-  }) ?? null;
+    return pd.length >= suf.length && pd.slice(-suf.length) === suf;
+  });
+  return casam.length === 1 ? casam[0] : null;
 }

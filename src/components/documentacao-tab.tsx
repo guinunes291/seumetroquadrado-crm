@@ -94,7 +94,9 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
       return criarDocs(leadId, lead.corretor_id ?? user?.id ?? null, novos);
     },
     onSuccess: (qtd) => {
-      toast.success(qtd > 0 ? `${qtd} documento(s) adicionado(s) ao checklist` : "Checklist já está completo");
+      toast.success(
+        qtd > 0 ? `${qtd} documento(s) adicionado(s) ao checklist` : "Checklist já está completo",
+      );
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -117,7 +119,12 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   const anexar = useMutation({
     mutationFn: async ({ doc, file }: { doc: Documentacao; file: File }) => {
-      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.url).catch(() => {});
+      if (doc.url && !isLinkExterno(doc.url))
+        await removerDocArquivo(doc.url).catch((e) =>
+          // Não bloqueia a ação principal, mas não engole a falha: arquivo
+          // órfão no storage precisa ficar visível no log.
+          console.warn("[documentacao] falha ao remover arquivo antigo do storage:", e),
+        );
       const path = await uploadDocArquivo(leadId, doc.id, file);
       await atualizarDoc(doc.id, {
         url: path,
@@ -133,7 +140,12 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   const limparArquivo = useMutation({
     mutationFn: async (doc: Documentacao) => {
-      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.url).catch(() => {});
+      if (doc.url && !isLinkExterno(doc.url))
+        await removerDocArquivo(doc.url).catch((e) =>
+          // Não bloqueia a ação principal, mas não engole a falha: arquivo
+          // órfão no storage precisa ficar visível no log.
+          console.warn("[documentacao] falha ao remover arquivo antigo do storage:", e),
+        );
       await atualizarDoc(doc.id, { url: null });
     },
     onSuccess: invalidate,
@@ -142,7 +154,12 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   const remover = useMutation({
     mutationFn: async (doc: Documentacao) => {
-      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.url).catch(() => {});
+      if (doc.url && !isLinkExterno(doc.url))
+        await removerDocArquivo(doc.url).catch((e) =>
+          // Não bloqueia a ação principal, mas não engole a falha: arquivo
+          // órfão no storage precisa ficar visível no log.
+          console.warn("[documentacao] falha ao remover arquivo antigo do storage:", e),
+        );
       await removerDoc(doc.id);
     },
     onSuccess: invalidate,
@@ -186,12 +203,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
   // Abre o WhatsApp e registra a interação na timeline (antes o envio do
   // checklist/cobrança não deixava rastro no histórico do lead).
   const abrirWa = useWhatsAppLead();
-  const abrirWhatsapp = (
-    linhas: Documentacao[],
-    intro: string,
-    vazio: string,
-    titulo: string,
-  ) => {
+  const abrirWhatsapp = (linhas: Documentacao[], intro: string, vazio: string, titulo: string) => {
     if (linhas.length === 0) {
       toast.info(vazio);
       return;
@@ -292,7 +304,10 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className={cn("h-full rounded-full", resolvidos === total ? "bg-green-500" : "bg-primary")}
+                className={cn(
+                  "h-full rounded-full",
+                  resolvidos === total ? "bg-green-500" : "bg-primary",
+                )}
                 style={{ width: `${total > 0 ? (resolvidos / total) * 100 : 0}%` }}
               />
             </div>
@@ -510,8 +525,18 @@ function DocRow({
         <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-sm">
           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="truncate flex-1">{nomeArquivo(doc.url!)}</span>
-          <Button size="sm" variant="ghost" className="h-7" onClick={abrirArquivo} disabled={abrindo}>
-            {abrindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7"
+            onClick={abrirArquivo}
+            disabled={abrindo}
+          >
+            {abrindo ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="h-4 w-4" />
+            )}
           </Button>
           <Button
             size="icon"
@@ -559,7 +584,11 @@ function DocRow({
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
           >
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Paperclip className="h-4 w-4" />
+            )}
             <span className="ml-1 hidden sm:inline">Anexar</span>
           </Button>
         </div>

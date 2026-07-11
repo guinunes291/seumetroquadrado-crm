@@ -87,6 +87,68 @@ export function followUpParaStatus(
   }
 }
 
+export type GarantirFollowUpArgs = {
+  leadId: string;
+  tipo: TarefaTipo;
+  titulo: string;
+  prioridade: TarefaPrioridade;
+  /** Vencimento em ISO 8601. */
+  vencimento: string;
+  corretorId: string | null;
+  criadoPorId: string | null;
+};
+
+/**
+ * Dedup por (lead, tipo, janela ±1 dia): se já existe uma tarefa ABERTA do mesmo
+ * tipo com vencimento próximo, atualiza-a; senão insere uma nova. Fonte única do
+ * "garante um follow-up sem duplicar" — antes reimplementado em dois lugares.
+ *
+ * Retorna `true` se criou uma tarefa nova, `false` se atualizou uma existente.
+ * Lança apenas em erro de banco.
+ */
+export async function garantirFollowUpAberto(args: GarantirFollowUpArgs): Promise<boolean> {
+  const vencMs = Date.parse(args.vencimento);
+  const janelaIni = new Date(vencMs - DIA_MS).toISOString();
+  const janelaFim = new Date(vencMs + DIA_MS).toISOString();
+
+  const { data: abertas, error: selErr } = await supabase
+    .from("tarefas")
+    .select("id")
+    .eq("lead_id", args.leadId)
+    .eq("tipo", args.tipo)
+    .in("status", ["pendente", "em_andamento"])
+    .gte("data_vencimento", janelaIni)
+    .lte("data_vencimento", janelaFim)
+    .limit(1);
+  if (selErr) throw selErr;
+
+  if (abertas && abertas.length > 0) {
+    const { error: updErr } = await supabase
+      .from("tarefas")
+      .update({
+        titulo: args.titulo,
+        prioridade: args.prioridade,
+        data_vencimento: args.vencimento,
+      } as never)
+      .eq("id", abertas[0].id);
+    if (updErr) throw updErr;
+    return false;
+  }
+
+  const { error: insErr } = await supabase.from("tarefas").insert({
+    titulo: args.titulo,
+    tipo: args.tipo,
+    status: "pendente",
+    prioridade: args.prioridade,
+    lead_id: args.leadId,
+    corretor_id: args.corretorId ?? args.criadoPorId,
+    criado_por: args.criadoPorId,
+    data_vencimento: args.vencimento,
+  } as never);
+  if (insErr) throw insErr;
+  return true;
+}
+
 export type CriarFollowUpArgs = {
   leadId: string;
   nome: string;
@@ -115,55 +177,22 @@ export async function criarFollowUpAutomatico(args: CriarFollowUpArgs): Promise<
   });
   if (!tpl) return false;
 
-  // Dedup por (lead_id, tipo, janela ±1 dia): se já existe tarefa aberta do
-  // mesmo tipo com vencimento próximo, atualizamos ela em vez de criar outra.
-  // Evita a enxurrada de follow-ups duplicados quando o corretor reentra na
-  // mesma etapa ou o motor dispara duas vezes por race.
-  const vencMs = Date.parse(tpl.vencimento);
-  const janelaIni = new Date(vencMs - 24 * 60 * 60 * 1000).toISOString();
-  const janelaFim = new Date(vencMs + 24 * 60 * 60 * 1000).toISOString();
-  const { data: abertas, error: selErr } = await supabase
-    .from("tarefas")
-    .select("id")
-    .eq("lead_id", args.leadId)
-    .eq("tipo", tpl.tipo)
-    .in("status", ["pendente", "em_andamento"])
-    .gte("data_vencimento", janelaIni)
-    .lte("data_vencimento", janelaFim)
-    .limit(1);
-  if (selErr) throw selErr;
-
   let criadoPor = args.criadoPorId ?? null;
   if (!criadoPor) {
     const { data: u } = await supabase.auth.getUser();
     criadoPor = u.user?.id ?? null;
   }
 
-  if (abertas && abertas.length > 0) {
-    // Atualiza a existente (título/prioridade/vencimento) — mantém a mesma linha.
-    const { error: updErr } = await supabase
-      .from("tarefas")
-      .update({
-        titulo: tpl.titulo,
-        prioridade: tpl.prioridade,
-        data_vencimento: tpl.vencimento,
-      } as never)
-      .eq("id", abertas[0].id);
-    if (updErr) throw updErr;
-    return false;
-  }
-
-  const { error: insErr } = await supabase.from("tarefas").insert({
-    titulo: tpl.titulo,
+  // Dedup + insert/update: fonte única em garantirFollowUpAberto (evita a
+  // enxurrada de follow-ups duplicados quando o corretor reentra na etapa ou o
+  // motor dispara duas vezes por race).
+  return garantirFollowUpAberto({
+    leadId: args.leadId,
     tipo: tpl.tipo,
-    status: "pendente",
+    titulo: tpl.titulo,
     prioridade: tpl.prioridade,
-    lead_id: args.leadId,
-    corretor_id: args.corretorId ?? criadoPor,
-    criado_por: criadoPor,
-    data_vencimento: tpl.vencimento,
-  } as never);
-  if (insErr) throw insErr;
-  return true;
+    vencimento: tpl.vencimento,
+    corretorId: args.corretorId,
+    criadoPorId: criadoPor,
+  });
 }
-

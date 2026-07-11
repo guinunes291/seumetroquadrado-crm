@@ -250,6 +250,22 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .single();
 
   if (insertError || !lead) {
+    // Corrida: o índice único (projeto, telefone) barrou um insert concorrente
+    // (retry do Zapier). Trata como deduplicado — devolve o lead existente.
+    if (
+      (insertError as { code?: string } | null)?.code === "23505" &&
+      projeto_id &&
+      telefoneDigits &&
+      telefoneDigits.length >= 8
+    ) {
+      const { data: dupId2 } = await supabase.rpc("buscar_lead_duplicado", {
+        _projeto_id: projeto_id,
+        _telefone: telefoneDigits,
+      });
+      if (dupId2) {
+        return json({ ok: true, deduplicado: true, lead_id: dupId2 as string, projeto_id });
+      }
+    }
     console.error("lead-intake insert_failed:", insertError);
     return json({ error: "insert_failed", detail: insertError?.message }, 500);
   }

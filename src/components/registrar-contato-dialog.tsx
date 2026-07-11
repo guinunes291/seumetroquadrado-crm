@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { InteracaoTipo } from "@/lib/interacoes";
+import { garantirFollowUpAberto } from "@/lib/follow-up";
 
 // Resultado do contato vira o título da interação na timeline.
 const RESULTADOS = [
@@ -97,44 +98,24 @@ export function RegistrarContatoDialog({
       if (fu.dias != null) {
         const venc = new Date();
         venc.setDate(venc.getDate() + fu.dias);
-        const vencIso = venc.toISOString();
-        // Dedup por (lead, tipo=follow_up, ±1 dia): atualiza a existente.
-        const janelaIni = new Date(venc.getTime() - 24 * 60 * 60 * 1000).toISOString();
-        const janelaFim = new Date(venc.getTime() + 24 * 60 * 60 * 1000).toISOString();
-        const { data: abertas } = await supabase
-          .from("tarefas")
-          .select("id")
-          .eq("lead_id", lead.id)
-          .eq("tipo", "follow_up")
-          .in("status", ["pendente", "em_andamento"])
-          .gte("data_vencimento", janelaIni)
-          .lte("data_vencimento", janelaFim)
-          .limit(1);
-        if (abertas && abertas.length > 0) {
-          const { error: uErr } = await supabase
-            .from("tarefas")
-            .update({ data_vencimento: vencIso, titulo: `Follow-up com ${lead.nome}` } as never)
-            .eq("id", abertas[0].id);
-          if (uErr) throw uErr;
-        } else {
-          const { error: tErr } = await supabase.from("tarefas").insert({
-            titulo: `Follow-up com ${lead.nome}`,
-            tipo: "follow_up",
-            prioridade: "media",
-            status: "pendente",
-            lead_id: lead.id,
-            corretor_id: lead.corretor_id ?? uid,
-            criado_por: uid,
-            data_vencimento: vencIso,
-          } as never);
-          if (tErr) throw tErr;
-        }
+        // Dedup por (lead, tipo=follow_up, ±1 dia) — fonte única compartilhada.
+        await garantirFollowUpAberto({
+          leadId: lead.id,
+          tipo: "follow_up",
+          titulo: `Follow-up com ${lead.nome}`,
+          prioridade: "media",
+          vencimento: venc.toISOString(),
+          corretorId: lead.corretor_id ?? uid,
+          criadoPorId: uid,
+        });
         comFollowUp = true;
       }
       return { comFollowUp };
     },
     onSuccess: (r) => {
-      toast.success(r?.comFollowUp ? "Contato registrado · follow-up agendado" : "Contato registrado");
+      toast.success(
+        r?.comFollowUp ? "Contato registrado · follow-up agendado" : "Contato registrado",
+      );
       setConteudo("");
       onOpenChange(false);
       qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });

@@ -1,14 +1,20 @@
 // PATCH /api/public/leads/:id/corretor → troca o corretor do lead
 // Body: { corretor_id: uuid, motivo?: string, origem?: string }
-// Auth: header X-API-Key = READ_API_KEY
+// Auth: header X-API-Key = MCP_WRITE_API_KEY (READ_API_KEY aceita em transição —
+// ver requireWriteKeyOrLegacy). Toda escrita é auditada em api_escrita_log.
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  checkReadApiKey,
   jsonResponse,
   corsPreflight,
   PUBLIC_LEAD_SELECT,
   shapeLeadForPublic,
 } from "@/lib/public-api-auth";
+import {
+  requireWriteKeyOrLegacy,
+  writeAgentLabel,
+  auditarEscrita,
+  clientIp,
+} from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -18,8 +24,10 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
       OPTIONS: async () => corsPreflight(),
 
       PATCH: async ({ request, params }) => {
-        const authErr = checkReadApiKey(request);
-        if (authErr) return authErr;
+        const auth = requireWriteKeyOrLegacy(request);
+        if (auth instanceof Response) return auth;
+        const agente = writeAgentLabel(auth.mode);
+        const ip = clientIp(request);
 
         const id = params.id;
         if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
@@ -84,7 +92,18 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
           "transferir_leads" as never,
           { _ids: [id], _corretor: corretorId } as never,
         );
-        if (upErr) return jsonResponse({ error: upErr.message }, 500);
+        if (upErr) {
+          await auditarEscrita({
+            agente,
+            acao: "lead.corretor",
+            lead_id: id,
+            payload: { corretor_id: corretorId, motivo: motivo || null, origem },
+            resultado: "erro",
+            http_status: 500,
+            ip,
+          });
+          return jsonResponse({ error: upErr.message }, 500);
+        }
 
         const { data: updated, error: selErr } = await supabaseAdmin
           .from("leads")
@@ -105,15 +124,29 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
             fonte: "api_publica",
             origem,
             motivo: motivo || null,
+            auth_mode: auth.mode,
           },
+        });
+
+        await auditarEscrita({
+          agente,
+          acao: "lead.corretor",
+          lead_id: id,
+          payload: {
+            corretor_anterior: anteriorId,
+            corretor_novo: corretorId,
+            motivo: motivo || null,
+            origem,
+          },
+          resultado: "ok",
+          http_status: 200,
+          ip,
         });
 
         return jsonResponse({
           ok: true,
           lead: shapeLeadForPublic(updated as unknown as Record<string, unknown>),
-          corretor_anterior: anteriorId
-            ? { id: anteriorId, nome: anteriorNome }
-            : null,
+          corretor_anterior: anteriorId ? { id: anteriorId, nome: anteriorNome } : null,
           corretor_novo: { id: corretorId, nome: destino.nome ?? null },
         });
       },

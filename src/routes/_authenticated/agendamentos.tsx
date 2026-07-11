@@ -21,25 +21,41 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  CalendarPlus, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon,
-  ExternalLink, Download,
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  CalendarDays,
+  List as ListIcon,
+  ExternalLink,
+  Download,
 } from "lucide-react";
 import { buildGoogleCalendarUrl, downloadIcs, type CalendarEventInput } from "@/lib/calendar-links";
 import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
+import { invalidateAgendamentoQueries } from "@/lib/agendamentos";
 
 // Espelha no Google Calendar em segundo plano — nunca bloqueia o fluxo do CRM.
 function syncGoogleEmBackground(agendamentoId: string) {
@@ -98,7 +114,14 @@ function CompromissosPage() {
 }
 
 const TIPO_OPTIONS = ["visita", "reuniao", "ligacao", "follow_up", "outro"] as const;
-const STATUS_OPTIONS = ["agendado", "confirmado", "realizado", "cancelado", "nao_compareceu", "remarcado"] as const;
+const STATUS_OPTIONS = [
+  "agendado",
+  "confirmado",
+  "realizado",
+  "cancelado",
+  "nao_compareceu",
+  "remarcado",
+] as const;
 
 const TIPO_LABEL: Record<string, string> = {
   visita: "Visita",
@@ -171,7 +194,10 @@ function AgendaPanel() {
   const { data: corretores = [] } = useQuery({
     queryKey: ["profiles-min"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, nome, email").order("nome");
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome, email")
+        .order("nome");
       if (error) throw error;
       return data ?? [];
     },
@@ -196,8 +222,20 @@ function AgendaPanel() {
   const rangeStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const rangeEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
-  const { data: agendamentos = [], isLoading: agLoading } = useQuery({
-    queryKey: ["agendamentos", rangeStart.toISOString(), rangeEnd.toISOString(), filtroCorretor, filtroStatus],
+  const {
+    data: agendamentos = [],
+    isLoading: agLoading,
+    isError: agError,
+    error: agErrorObj,
+    refetch: agRefetch,
+  } = useQuery({
+    queryKey: [
+      "agendamentos",
+      rangeStart.toISOString(),
+      rangeEnd.toISOString(),
+      filtroCorretor,
+      filtroStatus,
+    ],
     queryFn: async () => {
       let q = supabase
         .from("agendamentos")
@@ -216,12 +254,9 @@ function AgendaPanel() {
 
   useRealtimeInvalidate("agendamentos", [["agendamentos"]]);
 
-
-
-  const corretorNome = (id: string | null) =>
-    corretores.find((c) => c.id === id)?.nome ?? "—";
+  const corretorNome = (id: string | null) => corretores.find((c) => c.id === id)?.nome ?? "—";
   const leadNome = (id: string | null) =>
-    id ? leads.find((l) => l.id === id)?.nome ?? "Lead" : "—";
+    id ? (leads.find((l) => l.id === id)?.nome ?? "Lead") : "—";
 
   const days = useMemo(() => {
     const out: Date[] = [];
@@ -255,10 +290,12 @@ function AgendaPanel() {
         .select("id")
         .single();
       if (error) throw error;
-      return data as { id: string };
+      return { id: (data as { id: string }).id, leadId: payload.lead_id ?? null };
     },
     onSuccess: (created) => {
-      qc.invalidateQueries({ queryKey: ["agendamentos"] });
+      // Invalida também as queries do detalhe do lead (a aba Agendamentos do
+      // lead ficava desatualizada quando criado por aqui).
+      invalidateAgendamentoQueries(qc, created.leadId);
       toast.success("Agendamento criado");
       setOpenNew(false);
       syncGoogleEmBackground(created.id);
@@ -267,13 +304,24 @@ function AgendaPanel() {
   });
 
   const updateMut = useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Agendamento> }) => {
-      const { error } = await supabase.from("agendamentos").update(patch as never).eq("id", id);
+    mutationFn: async ({
+      id,
+      patch,
+      leadId,
+    }: {
+      id: string;
+      patch: Partial<Agendamento>;
+      leadId: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("agendamentos")
+        .update(patch as never)
+        .eq("id", id);
       if (error) throw error;
-      return id;
+      return { id, leadId: patch.lead_id ?? leadId };
     },
-    onSuccess: (id) => {
-      qc.invalidateQueries({ queryKey: ["agendamentos"] });
+    onSuccess: ({ id, leadId }) => {
+      invalidateAgendamentoQueries(qc, leadId);
       toast.success("Agendamento atualizado");
       setEditing(null);
       syncGoogleEmBackground(id);
@@ -282,16 +330,16 @@ function AgendaPanel() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, leadId }: { id: string; leadId: string | null }) => {
       const { error } = await supabase
         .from("agendamentos")
         .update({ deleted_at: new Date().toISOString() } as never)
         .eq("id", id);
       if (error) throw error;
-      return id;
+      return { id, leadId };
     },
-    onSuccess: (id) => {
-      qc.invalidateQueries({ queryKey: ["agendamentos"] });
+    onSuccess: ({ id, leadId }) => {
+      invalidateAgendamentoQueries(qc, leadId);
       toast.success("Agendamento movido para a lixeira");
       setEditing(null);
       syncGoogleEmBackground(id);
@@ -363,21 +411,29 @@ function AgendaPanel() {
           <div className="flex flex-wrap items-center gap-2">
             {(isAdmin || isGestor) && (
               <Select value={filtroCorretor} onValueChange={setFiltroCorretor}>
-                <SelectTrigger className="w-[200px]"><SelectValue placeholder="Corretor" /></SelectTrigger>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Corretor" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos os corretores</SelectItem>
                   {corretores.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome ?? c.email}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome ?? c.email}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-[170px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-[170px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos os status</SelectItem>
                 {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                  <SelectItem key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -385,12 +441,20 @@ function AgendaPanel() {
         </CardContent>
       </Card>
 
-      {view === "calendar" ? (
+      {agError ? (
+        <QueryErrorState
+          title="Não foi possível carregar a agenda."
+          error={agErrorObj}
+          onRetry={() => agRefetch()}
+        />
+      ) : view === "calendar" ? (
         <Card>
           <CardContent className="p-0">
             <div className="grid grid-cols-7 border-b bg-muted/30 text-xs uppercase tracking-wider text-muted-foreground">
               {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                <div key={d} className="px-2 py-2 text-center font-medium">{d}</div>
+                <div key={d} className="px-2 py-2 text-center font-medium">
+                  {d}
+                </div>
               ))}
             </div>
             <div className="grid grid-cols-7">
@@ -407,10 +471,12 @@ function AgendaPanel() {
                       !inMonth && "bg-muted/20 text-muted-foreground",
                     )}
                   >
-                    <div className={cn(
-                      "flex items-center justify-between",
-                      today && "font-bold text-primary",
-                    )}>
+                    <div
+                      className={cn(
+                        "flex items-center justify-between",
+                        today && "font-bold text-primary",
+                      )}
+                    >
                       <span>{format(d, "d")}</span>
                       {items.length > 0 && (
                         <span className="text-[10px] text-muted-foreground">{items.length}</span>
@@ -423,14 +489,18 @@ function AgendaPanel() {
                         className="w-full text-left rounded px-1.5 py-1 bg-card hover:bg-accent border truncate flex items-center gap-1.5"
                         title={a.titulo}
                       >
-                        <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", TIPO_DOT[a.tipo])} />
+                        <span
+                          className={cn("h-1.5 w-1.5 rounded-full shrink-0", TIPO_DOT[a.tipo])}
+                        />
                         <span className="truncate">
                           {format(parseISO(a.data_inicio), "HH:mm")} {a.titulo}
                         </span>
                       </button>
                     ))}
                     {items.length > 3 && (
-                      <div className="text-[10px] text-muted-foreground px-1">+{items.length - 3} mais</div>
+                      <div className="text-[10px] text-muted-foreground px-1">
+                        +{items.length - 3} mais
+                      </div>
                     )}
                   </div>
                 );
@@ -472,7 +542,8 @@ function AgendaPanel() {
                     {format(parseISO(a.data_inicio), "EEE, d 'de' MMM", { locale: ptBR })}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {format(parseISO(a.data_inicio), "HH:mm")} – {format(parseISO(a.data_fim), "HH:mm")}
+                    {format(parseISO(a.data_inicio), "HH:mm")} –{" "}
+                    {format(parseISO(a.data_fim), "HH:mm")}
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -504,11 +575,14 @@ function AgendaPanel() {
             leads={leads}
             isAdminOrGestor={isAdmin || isGestor}
             currentUserId={user!.id}
-            onSubmit={(patch) => updateMut.mutate({ id: editing.id, patch })}
+            onSubmit={(patch) =>
+              updateMut.mutate({ id: editing.id, patch, leadId: editing.lead_id ?? null })
+            }
             onDelete={() => {
-              if (confirm("Remover este agendamento?")) deleteMut.mutate(editing.id);
+              if (confirm("Remover este agendamento?"))
+                deleteMut.mutate({ id: editing.id, leadId: editing.lead_id ?? null });
             }}
-            pending={updateMut.isPending}
+            pending={updateMut.isPending || deleteMut.isPending}
           />
         </Dialog>
       )}
@@ -520,7 +594,12 @@ type FormProps = {
   title: string;
   initial?: Agendamento;
   corretores: Array<{ id: string; nome: string | null; email: string }>;
-  leads: Array<{ id: string; nome: string | null; telefone: string | null; corretor_id: string | null }>;
+  leads: Array<{
+    id: string;
+    nome: string | null;
+    telefone: string | null;
+    corretor_id: string | null;
+  }>;
   isAdminOrGestor: boolean;
   currentUserId: string;
   onSubmit: (payload: Partial<Agendamento>) => void;
@@ -529,7 +608,15 @@ type FormProps = {
 };
 
 function AgendamentoForm({
-  title, initial, corretores, leads, isAdminOrGestor, currentUserId, onSubmit, onDelete, pending,
+  title,
+  initial,
+  corretores,
+  leads,
+  isAdminOrGestor,
+  currentUserId,
+  onSubmit,
+  onDelete,
+  pending,
 }: FormProps) {
   const now = new Date();
   const inOneHour = new Date(now.getTime() + 60 * 60 * 1000);
@@ -571,7 +658,8 @@ function AgendamentoForm({
 
   const handle = () => {
     if (!titulo.trim()) return toast.error("Informe um título");
-    if (new Date(dataFim) <= new Date(dataInicio)) return toast.error("Fim deve ser depois do início");
+    if (new Date(dataFim) <= new Date(dataInicio))
+      return toast.error("Fim deve ser depois do início");
 
     onSubmit({
       titulo: titulo.trim(),
@@ -600,15 +688,25 @@ function AgendamentoForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2 space-y-1.5">
           <Label>Título</Label>
-          <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ex.: Visita Apto 1204" />
+          <Input
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ex.: Visita Apto 1204"
+          />
         </div>
 
         <div className="space-y-1.5">
           <Label>Tipo</Label>
           <Select value={tipo} onValueChange={(v) => setTipo(v as Agendamento["tipo"])}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {TIPO_OPTIONS.map((t) => <SelectItem key={t} value={t}>{TIPO_LABEL[t]}</SelectItem>)}
+              {TIPO_OPTIONS.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {TIPO_LABEL[t]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -616,26 +714,42 @@ function AgendamentoForm({
         <div className="space-y-1.5">
           <Label>Status</Label>
           <Select value={status} onValueChange={(v) => setStatus(v as Agendamento["status"])}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {STATUS_OPTIONS.map((s) => <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>)}
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-1.5">
           <Label>Início</Label>
-          <Input type="datetime-local" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+          <Input
+            type="datetime-local"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
           <Label>Fim</Label>
-          <Input type="datetime-local" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+          <Input
+            type="datetime-local"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+          />
         </div>
 
         <div className="space-y-1.5">
           <Label>Lead</Label>
           <Select value={leadId} onValueChange={setLeadId}>
-            <SelectTrigger><SelectValue placeholder="Sem lead" /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Sem lead" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">— Sem lead vinculado —</SelectItem>
               {leads.map((l) => (
@@ -649,15 +763,15 @@ function AgendamentoForm({
 
         <div className="space-y-1.5">
           <Label>Corretor responsável</Label>
-          <Select
-            value={corretorId}
-            onValueChange={setCorretorId}
-            disabled={!isAdminOrGestor}
-          >
-            <SelectTrigger><SelectValue /></SelectTrigger>
+          <Select value={corretorId} onValueChange={setCorretorId} disabled={!isAdminOrGestor}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {corretores.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.nome ?? c.email}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>
+                  {c.nome ?? c.email}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -670,7 +784,11 @@ function AgendamentoForm({
 
         <div className="md:col-span-2 space-y-1.5">
           <Label>Local</Label>
-          <Input value={local} onChange={(e) => setLocal(e.target.value)} placeholder="Endereço, sala, link..." />
+          <Input
+            value={local}
+            onChange={(e) => setLocal(e.target.value)}
+            placeholder="Endereço, sala, link..."
+          />
         </div>
 
         <div className="md:col-span-2 space-y-1.5">
@@ -714,7 +832,9 @@ function AgendamentoForm({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => window.open(buildGoogleCalendarUrl(calendarEvent()), "_blank", "noopener")}
+            onClick={() =>
+              window.open(buildGoogleCalendarUrl(calendarEvent()), "_blank", "noopener")
+            }
           >
             <ExternalLink className="mr-1 h-3.5 w-3.5" /> Google Agenda
           </Button>

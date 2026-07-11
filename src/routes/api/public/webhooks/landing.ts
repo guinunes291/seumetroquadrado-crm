@@ -1,19 +1,43 @@
 // POST /api/public/webhooks/landing
-// Webhook público (sem auth) para receber leads da landing page externa.
+// Webhook da landing page externa. Postado direto do browser (CORS *), então
+// o form não carrega segredo: a proteção é rate limit por IP + honeypot +
+// validação. Quando a landing ganhar um proxy server-side, defina
+// LANDING_WEBHOOK_SECRET para exigir o header x-landing-secret.
 import { createFileRoute } from "@tanstack/react-router";
+import { timingSafeEqual } from "crypto";
+import { rateLimit } from "@/lib/rate-limit";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "content-type, accept",
+  "Access-Control-Allow-Headers": "content-type, accept, x-landing-secret",
   "Access-Control-Max-Age": "86400",
 };
+
+// Máx. de posts por IP por minuto e teto de tamanho do corpo.
+const LANDING_RATE_MAX = Number(process.env.LANDING_RATE_LIMIT ?? 12);
+const LANDING_RATE_WINDOW_MS = 60_000;
+const MAX_LANDING_BYTES = 32_768;
 
 function jsonResp(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });
+}
+
+function clientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function secretMatches(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 function onlyDigits(v: unknown): string {
@@ -33,14 +57,98 @@ function boolOrNull(v: unknown): boolean | null {
   return null;
 }
 
+export type LandingParse =
+  | { ok: true; nome: string; digits: string; row: Record<string, unknown> }
+  | { ok: false; error: string };
+
+/**
+ * Valida e normaliza o corpo do webhook da landing. Função pura (sem I/O),
+ * exportada para teste. NÃO trata honeypot nem rate limit — isso fica no
+ * handler.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseLandingPayload(body: any): LandingParse {
+  const nome = String(body?.nome ?? "").trim();
+  const whatsapp = String(body?.whatsapp ?? "").trim();
+  const digits = onlyDigits(whatsapp);
+
+  if (nome.length < 3) return { ok: false, error: "nome_invalido" };
+  if (digits.length < 10 || digits.length > 11) return { ok: false, error: "whatsapp_invalido" };
+
+  const sim = body?.simulacao ?? null;
+  const mk = body?.marketing ?? {};
+
+  const row: Record<string, unknown> = {
+    tipo: body?.tipo ?? null,
+    nome,
+    whatsapp,
+    renda: body?.renda != null ? String(body.renda) : null,
+    regiao: body?.regiao ?? null,
+    origem: body?.origem ?? null,
+    pagina: body?.pagina ?? null,
+    referrer: body?.referrer ?? null,
+    timestamp_cliente: body?.timestamp_cliente ?? null,
+    utm_source: mk?.utm_source || null,
+    utm_medium: mk?.utm_medium || null,
+    utm_campaign: mk?.utm_campaign || null,
+    utm_term: mk?.utm_term || null,
+    utm_content: mk?.utm_content || null,
+    gclid: mk?.gclid || null,
+    fbclid: mk?.fbclid || null,
+    raw: body,
+  };
+
+  if (sim && typeof sim === "object") {
+    row.sim_renda = numOrNull(sim.renda);
+    row.sim_tem_dependente = boolOrNull(sim.temDependente);
+    row.sim_carteira36m = boolOrNull(sim.carteira36m);
+    row.sim_fgts = numOrNull(sim.fgts);
+    row.sim_entrada = numOrNull(sim.entrada);
+    row.sim_aluguel = numOrNull(sim.aluguelAtual);
+    row.sim_faixa = numOrNull(sim.faixa);
+    row.sim_segmento = sim.segmento ?? null;
+    row.sim_subsidio = numOrNull(sim.subsidio);
+    row.sim_financiamento = numOrNull(sim.financiamento);
+    row.sim_parcela = numOrNull(sim.parcela);
+    row.sim_teto_imovel = numOrNull(sim.tetoImovel);
+  }
+
+  return { ok: true, nome, digits, row };
+}
+
 export const Route = createFileRoute("/api/public/webhooks/landing")({
   server: {
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request }) => {
+        // Rate limit por IP (anti-spam/enumeração).
+        const ip = clientIp(request);
+        const rl = rateLimit(`landing:${ip}`, LANDING_RATE_MAX, LANDING_RATE_WINDOW_MS);
+        if (!rl.allowed) {
+          return jsonResp(
+            { ok: false, error: "rate_limit_exceeded", retry_after_s: rl.retryAfterS },
+            429,
+          );
+        }
+
+        // Secret opcional: só exigido quando LANDING_WEBHOOK_SECRET está setado.
+        const secret = process.env.LANDING_WEBHOOK_SECRET;
+        if (secret) {
+          const provided = request.headers.get("x-landing-secret") ?? "";
+          if (!secretMatches(provided, secret)) {
+            return jsonResp({ ok: false, error: "unauthorized" }, 401);
+          }
+        }
+
+        // Teto de tamanho do corpo antes de parsear.
+        const raw = await request.text();
+        if (raw.length > MAX_LANDING_BYTES) {
+          return jsonResp({ ok: false, error: "payload_too_large" }, 413);
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let body: any;
         try {
-          body = await request.json();
+          body = JSON.parse(raw);
         } catch {
           return jsonResp({ ok: false, error: "invalid_json" }, 400);
         }
@@ -50,54 +158,11 @@ export const Route = createFileRoute("/api/public/webhooks/landing")({
           return jsonResp({ ok: true, id: null });
         }
 
-        const nome = String(body?.nome ?? "").trim();
-        const whatsapp = String(body?.whatsapp ?? "").trim();
-        const digits = onlyDigits(whatsapp);
-
-        if (nome.length < 3) {
-          return jsonResp({ ok: false, error: "nome_invalido" }, 400);
+        const parsed = parseLandingPayload(body);
+        if (!parsed.ok) {
+          return jsonResp({ ok: false, error: parsed.error }, 400);
         }
-        if (digits.length < 10 || digits.length > 11) {
-          return jsonResp({ ok: false, error: "whatsapp_invalido" }, 400);
-        }
-
-        const sim = body?.simulacao ?? null;
-        const mk = body?.marketing ?? {};
-
-        const row: Record<string, unknown> = {
-          tipo: body?.tipo ?? null,
-          nome,
-          whatsapp,
-          renda: body?.renda != null ? String(body.renda) : null,
-          regiao: body?.regiao ?? null,
-          origem: body?.origem ?? null,
-          pagina: body?.pagina ?? null,
-          referrer: body?.referrer ?? null,
-          timestamp_cliente: body?.timestamp_cliente ?? null,
-          utm_source: mk?.utm_source || null,
-          utm_medium: mk?.utm_medium || null,
-          utm_campaign: mk?.utm_campaign || null,
-          utm_term: mk?.utm_term || null,
-          utm_content: mk?.utm_content || null,
-          gclid: mk?.gclid || null,
-          fbclid: mk?.fbclid || null,
-          raw: body,
-        };
-
-        if (sim && typeof sim === "object") {
-          row.sim_renda = numOrNull(sim.renda);
-          row.sim_tem_dependente = boolOrNull(sim.temDependente);
-          row.sim_carteira36m = boolOrNull(sim.carteira36m);
-          row.sim_fgts = numOrNull(sim.fgts);
-          row.sim_entrada = numOrNull(sim.entrada);
-          row.sim_aluguel = numOrNull(sim.aluguelAtual);
-          row.sim_faixa = numOrNull(sim.faixa);
-          row.sim_segmento = sim.segmento ?? null;
-          row.sim_subsidio = numOrNull(sim.subsidio);
-          row.sim_financiamento = numOrNull(sim.financiamento);
-          row.sim_parcela = numOrNull(sim.parcela);
-          row.sim_teto_imovel = numOrNull(sim.tetoImovel);
-        }
+        const { nome, digits, row } = parsed;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await supabaseAdmin
@@ -212,7 +277,9 @@ export const Route = createFileRoute("/api/public/webhooks/landing")({
           console.error("[webhooks/landing] distribuição falhou (staging preservado):", e);
         }
 
-        return jsonResp({ ok: true, id: stagingId, lead_id: leadId, corretor_id: corretorId });
+        // Não expõe corretor_id na resposta pública (endpoint sem auth).
+        void corretorId;
+        return jsonResp({ ok: true, id: stagingId, lead_id: leadId });
       },
     },
   },
