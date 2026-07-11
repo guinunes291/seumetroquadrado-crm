@@ -36,7 +36,8 @@ type Props = {
   onDone?: () => void;
 };
 
-/** Modal de proposta de fechamento: registra a venda para aprovação gerencial. */
+/** Modal de "Contrato fechado": registra a venda (VGV) na tabela `vendas` e move
+ *  o lead para `contrato_fechado`. */
 export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const qc = useQueryClient();
   const [valor, setValor] = useState("");
@@ -95,7 +96,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       });
     },
     onSuccess: () => {
-      toast.success("Venda enviada para aprovação da gestão");
+      toast.success("Venda registrada · lead movido para Contrato fechado 🎉");
       qc.invalidateQueries({ queryKey: ["vendas"] });
       qc.invalidateQueries({ queryKey: ["comissoes"] });
       qc.invalidateQueries({ queryKey: ["comissoes-vendas"] });
@@ -116,7 +117,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
         <DialogHeader>
           <DialogTitle>Fechar contrato — {lead.nome}</DialogTitle>
           <DialogDescription>
-            Registre o valor da venda (VGV). O lead só será fechado após aprovação da gestão.
+            Registre o valor da venda (VGV). O lead será movido para "Contrato fechado".
           </DialogDescription>
         </DialogHeader>
 
@@ -181,7 +182,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
             Cancelar
           </Button>
           <Button onClick={() => mut.mutate()} disabled={mut.isPending}>
-            {mut.isPending ? "Enviando…" : "Enviar para aprovação"}
+            {mut.isPending ? "Salvando…" : "Fechar contrato"}
           </Button>
         </DialogFooter>
       </DialogContent>

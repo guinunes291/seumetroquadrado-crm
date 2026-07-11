@@ -65,7 +65,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   motivoInaptidaoLabel,
   participacaoPercentual,
@@ -89,7 +94,13 @@ function fmtDataHora(iso: string | null): string {
   return format(parseISO(iso), "dd/MM HH:mm", { locale: ptBR });
 }
 
-export function RoletaTab({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
+export function RoletaTab({
+  slug,
+  somenteLeitura,
+}: {
+  slug: RoletaSlug;
+  somenteLeitura: boolean;
+}) {
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
@@ -119,309 +130,297 @@ export function RoletaTab({ slug, somenteLeitura }: { slug: RoletaSlug; somenteL
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            {ehPlantao &&
-              "Participação automática por presença: recebe quem está no plantão hoje, dentro da cota e com % de leads trabalhados acima do mínimo."}
-            {ehMarquinhos &&
-              "Participação MANUAL: inclua apenas corretores com venda no mês anterior (badge abaixo). Toda inclusão/remoção fica auditada."}
-            {ehLanding &&
-              "Exclusiva para leads da Landing Page (origem site). Configure os participantes e acompanhe o equilíbrio da distribuição."}
-          </p>
-          {!somenteLeitura && (
-            <Button size="sm" onClick={() => setIncluirAberto(true)}>
-              <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
-            </Button>
-          )}
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          {ehPlantao &&
+            "Participação automática por presença: recebe quem está no plantão hoje, dentro da cota e com % de leads trabalhados acima do mínimo."}
+          {ehMarquinhos &&
+            "Participação MANUAL: inclua apenas corretores com venda no mês anterior (badge abaixo). Toda inclusão/remoção fica auditada."}
+          {ehLanding &&
+            "Exclusiva para leads da Landing Page (origem site). Configure os participantes e acompanhe o equilíbrio da distribuição."}
+        </p>
+        {!somenteLeitura && (
+          <Button size="sm" onClick={() => setIncluirAberto(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
+          </Button>
+        )}
+      </div>
 
-        <Card>
-          <CardContent className="overflow-x-auto pt-4">
-            {q.isLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-              </div>
-            ) : linhas.length === 0 ? (
-              <EmptyState
-                icon={UserX}
-                title={`Nenhum participante na ${roletaLabel(slug)}`}
-                description="Sem participantes ativos, todo lead desta roleta vai para a fila de exceções."
-                action={
-                  somenteLeitura ? undefined : (
-                    <Button size="sm" onClick={() => setIncluirAberto(true)}>
-                      <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
-                    </Button>
-                  )
-                }
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Corretor</TableHead>
-                    {ehPlantao && <TableHead>Presença</TableHead>}
-                    <TableHead>Status na roleta</TableHead>
-                    {ehPlantao && <TableHead className="text-right">Carteira</TableHead>}
-                    {ehPlantao && <TableHead className="text-right">% trabalhado</TableHead>}
-                    {ehMarquinhos && <TableHead>Venda mês anterior</TableHead>}
-                    {ehMarquinhos && <TableHead>Incluído por</TableHead>}
-                    <TableHead className="text-right">Hoje</TableHead>
-                    {ehLanding && <TableHead className="text-right">Semana</TableHead>}
-                    <TableHead className="text-right">Mês</TableHead>
-                    {ehLanding && <TableHead className="text-right">Participação</TableHead>}
-                    <TableHead>Último lead</TableHead>
-                    {!somenteLeitura && <TableHead className="w-10" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {linhas.map((l) => {
-                    const ehProximo = proximo?.corretor_id === l.corretor_id;
-                    const venda = vendasMap.get(l.corretor_id);
-                    return (
-                      <TableRow
-                        key={l.corretor_id}
-                        className={ehProximo ? "bg-primary/5" : undefined}
-                      >
-                        <TableCell className="font-medium">
-                          <span className="inline-flex items-center gap-1.5">
-                            {ehProximo && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Crown className="h-3.5 w-3.5 text-gold-500" />
-                                </TooltipTrigger>
-                                <TooltipContent>Próximo da vez nesta roleta</TooltipContent>
-                              </Tooltip>
-                            )}
-                            {l.nome}
-                          </span>
-                        </TableCell>
-                        {ehPlantao && (
-                          <TableCell>
-                            {l.presente ? (
-                              <StatusBadge intent="success">Presente</StatusBadge>
-                            ) : (
-                              <StatusBadge intent="neutral">Ausente</StatusBadge>
-                            )}
-                          </TableCell>
-                        )}
-                        <TableCell>
-                          <div className="flex flex-wrap items-center gap-1">
-                            {l.apto ? (
-                              <StatusBadge intent="success">Apto</StatusBadge>
-                            ) : (
-                              <StatusBadge intent={l.participante_ativo ? "warning" : "neutral"}>
-                                Inapto
-                              </StatusBadge>
-                            )}
-                            {!l.apto &&
-                              l.motivos.map((m) => (
-                                <Tooltip key={m}>
-                                  <TooltipTrigger asChild>
-                                    <span className="max-w-44 truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                                      {motivoInaptidaoLabel(m)}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{motivoInaptidaoLabel(m)}</TooltipContent>
-                                </Tooltip>
-                              ))}
-                            {l.pausado && l.motivo_pausa && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="text-[11px] text-muted-foreground">
-                                    ({l.motivo_pausa})
-                                  </span>
-                                </TooltipTrigger>
-                                <TooltipContent>Motivo da pausa: {l.motivo_pausa}</TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </TableCell>
-                        {ehPlantao && (
-                          <TableCell className="text-right text-xs tabular-nums">
+      <Card>
+        <CardContent className="overflow-x-auto pt-4">
+          {q.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : linhas.length === 0 ? (
+            <EmptyState
+              icon={UserX}
+              title={`Nenhum participante na ${roletaLabel(slug)}`}
+              description="Sem participantes ativos, todo lead desta roleta vai para a fila de exceções."
+              action={
+                somenteLeitura ? undefined : (
+                  <Button size="sm" onClick={() => setIncluirAberto(true)}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Corretor</TableHead>
+                  {ehPlantao && <TableHead>Presença</TableHead>}
+                  <TableHead>Status na roleta</TableHead>
+                  {ehPlantao && <TableHead className="text-right">Carteira</TableHead>}
+                  {ehPlantao && <TableHead className="text-right">% trabalhado</TableHead>}
+                  {ehMarquinhos && <TableHead>Venda mês anterior</TableHead>}
+                  {ehMarquinhos && <TableHead>Incluído por</TableHead>}
+                  <TableHead className="text-right">Hoje</TableHead>
+                  {ehLanding && <TableHead className="text-right">Semana</TableHead>}
+                  <TableHead className="text-right">Mês</TableHead>
+                  {ehLanding && <TableHead className="text-right">Participação</TableHead>}
+                  <TableHead>Último lead</TableHead>
+                  {!somenteLeitura && <TableHead className="w-10" />}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.map((l) => {
+                  const ehProximo = proximo?.corretor_id === l.corretor_id;
+                  const venda = vendasMap.get(l.corretor_id);
+                  return (
+                    <TableRow key={l.corretor_id} className={ehProximo ? "bg-primary/5" : undefined}>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          {ehProximo && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span>
-                                  {l.carteira_total - l.aguardando}/{l.carteira_total}
+                                <Crown className="h-3.5 w-3.5 text-gold-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>Próximo da vez nesta roleta</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {l.nome}
+                        </span>
+                      </TableCell>
+                      {ehPlantao && (
+                        <TableCell>
+                          {l.presente ? (
+                            <StatusBadge intent="success">Presente</StatusBadge>
+                          ) : (
+                            <StatusBadge intent="neutral">Ausente</StatusBadge>
+                          )}
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-1">
+                          {l.apto ? (
+                            <StatusBadge intent="success">Apto</StatusBadge>
+                          ) : (
+                            <StatusBadge intent={l.participante_ativo ? "warning" : "neutral"}>
+                              Inapto
+                            </StatusBadge>
+                          )}
+                          {!l.apto &&
+                            l.motivos.map((m) => (
+                              <Tooltip key={m}>
+                                <TooltipTrigger asChild>
+                                  <span className="max-w-44 truncate rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                    {motivoInaptidaoLabel(m)}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>{motivoInaptidaoLabel(m)}</TooltipContent>
+                              </Tooltip>
+                            ))}
+                          {l.pausado && l.motivo_pausa && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-[11px] text-muted-foreground">
+                                  ({l.motivo_pausa})
                                 </span>
                               </TooltipTrigger>
-                              <TooltipContent>
-                                {l.carteira_total} leads ativos · {l.carteira_total - l.aguardando}{" "}
-                                trabalhados · {l.aguardando} aguardando atendimento
-                              </TooltipContent>
+                              <TooltipContent>Motivo da pausa: {l.motivo_pausa}</TooltipContent>
                             </Tooltip>
-                          </TableCell>
-                        )}
-                        {ehPlantao && (
-                          <TableCell className="text-right tabular-nums">
-                            <span
-                              className={
-                                l.pct_trabalhado < 90
-                                  ? "font-semibold text-warning"
-                                  : "text-success"
-                              }
-                            >
-                              {l.pct_trabalhado}%
-                            </span>
-                          </TableCell>
-                        )}
-                        {ehMarquinhos && (
-                          <TableCell>
-                            {venda ? (
-                              <StatusBadge intent="success">
-                                <BadgeCheck className="mr-1 h-3 w-3" />
-                                Sim ({venda.qtd})
-                              </StatusBadge>
-                            ) : (
-                              <StatusBadge intent="warning">Não</StatusBadge>
-                            )}
-                          </TableCell>
-                        )}
-                        {ehMarquinhos && (
-                          <TableCell className="text-xs text-muted-foreground">
-                            {l.incluido_por
-                              ? (nomesQ.data?.get(l.incluido_por) ?? "—")
-                              : "migração"}
-                            {l.incluido_em ? ` · ${fmtDataHora(l.incluido_em)}` : ""}
-                          </TableCell>
-                        )}
+                          )}
+                        </div>
+                      </TableCell>
+                      {ehPlantao && (
+                        <TableCell className="text-right text-xs tabular-nums">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                {l.carteira_total - l.aguardando}/{l.carteira_total}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {l.carteira_total} leads ativos · {l.carteira_total - l.aguardando}{" "}
+                              trabalhados · {l.aguardando} aguardando atendimento
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
+                      )}
+                      {ehPlantao && (
                         <TableCell className="text-right tabular-nums">
-                          {l.recebidos_hoje}
-                          <span className="text-muted-foreground">/{l.limite_diario}</span>
+                          <span
+                            className={
+                              l.pct_trabalhado < 90
+                                ? "font-semibold text-warning"
+                                : "text-success"
+                            }
+                          >
+                            {l.pct_trabalhado}%
+                          </span>
                         </TableCell>
-                        {ehLanding && (
-                          <TableCell className="text-right tabular-nums">
-                            {semanaQ.data?.get(l.corretor_id) ?? 0}
-                          </TableCell>
-                        )}
-                        <TableCell className="text-right tabular-nums">{l.recebidos_mes}</TableCell>
-                        {ehLanding && (
-                          <TableCell className="text-right tabular-nums">
-                            {participacaoPercentual(l.recebidos_mes, totalMesRoleta)}%
-                          </TableCell>
-                        )}
-                        <TableCell className="text-xs text-muted-foreground tabular-nums">
-                          {fmtDataHora(l.ultimo_lead_em)}
+                      )}
+                      {ehMarquinhos && (
+                        <TableCell>
+                          {venda ? (
+                            <StatusBadge intent="success">
+                              <BadgeCheck className="mr-1 h-3 w-3" />
+                              Sim ({venda.qtd})
+                            </StatusBadge>
+                          ) : (
+                            <StatusBadge intent="warning">Não</StatusBadge>
+                          )}
                         </TableCell>
-                        {!somenteLeitura && (
-                          <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-11 w-11"
-                                  aria-label={`Ações de ${l.nome}`}
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {ehPlantao && (
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      presencaAdmin.mutate({
-                                        corretorId: l.corretor_id,
-                                        presente: !l.presente,
-                                      })
-                                    }
-                                  >
-                                    {l.presente ? (
-                                      <>
-                                        <UserX className="mr-2 h-4 w-4" /> Marcar ausente
-                                      </>
-                                    ) : (
-                                      <>
-                                        <UserCheck className="mr-2 h-4 w-4" /> Marcar presente hoje
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                )}
-                                {l.participante_ativo && !l.pausado && (
-                                  <DropdownMenuItem onClick={() => setPausarAlvo(l)}>
-                                    <PauseCircle className="mr-2 h-4 w-4" /> Pausar temporariamente
-                                  </DropdownMenuItem>
-                                )}
-                                {(l.pausado || !l.participante_ativo) && (
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      gerenciar.mutate({
-                                        slug,
-                                        corretorId: l.corretor_id,
-                                        acao: "reativar",
-                                        motivo: "Reativado pela gestão",
-                                      })
-                                    }
-                                  >
-                                    <PlayCircle className="mr-2 h-4 w-4" /> Reativar
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={() => setLimiteAlvo(l)}>
-                                  <UserCheck className="mr-2 h-4 w-4" /> Ajustar limite diário
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                      )}
+                      {ehMarquinhos && (
+                        <TableCell className="text-xs text-muted-foreground">
+                          {l.incluido_por ? (nomesQ.data?.get(l.incluido_por) ?? "—") : "migração"}
+                          {l.incluido_em ? ` · ${fmtDataHora(l.incluido_em)}` : ""}
+                        </TableCell>
+                      )}
+                      <TableCell className="text-right tabular-nums">
+                        {l.recebidos_hoje}
+                        <span className="text-muted-foreground">/{l.limite_diario}</span>
+                      </TableCell>
+                      {ehLanding && (
+                        <TableCell className="text-right tabular-nums">
+                          {semanaQ.data?.get(l.corretor_id) ?? 0}
+                        </TableCell>
+                      )}
+                      <TableCell className="text-right tabular-nums">{l.recebidos_mes}</TableCell>
+                      {ehLanding && (
+                        <TableCell className="text-right tabular-nums">
+                          {participacaoPercentual(l.recebidos_mes, totalMesRoleta)}%
+                        </TableCell>
+                      )}
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">
+                        {fmtDataHora(l.ultimo_lead_em)}
+                      </TableCell>
+                      {!somenteLeitura && (
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {ehPlantao && (
                                 <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setRemoverAlvo(l)}
+                                  onClick={() =>
+                                    presencaAdmin.mutate({
+                                      corretorId: l.corretor_id,
+                                      presente: !l.presente,
+                                    })
+                                  }
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Remover da roleta
+                                  {l.presente ? (
+                                    <>
+                                      <UserX className="mr-2 h-4 w-4" /> Marcar ausente
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="mr-2 h-4 w-4" /> Marcar presente hoje
+                                    </>
+                                  )}
                                 </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                              )}
+                              {l.participante_ativo && !l.pausado && (
+                                <DropdownMenuItem onClick={() => setPausarAlvo(l)}>
+                                  <PauseCircle className="mr-2 h-4 w-4" /> Pausar temporariamente
+                                </DropdownMenuItem>
+                              )}
+                              {(l.pausado || !l.participante_ativo) && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    gerenciar.mutate({
+                                      slug,
+                                      corretorId: l.corretor_id,
+                                      acao: "reativar",
+                                      motivo: "Reativado pela gestão",
+                                    })
+                                  }
+                                >
+                                  <PlayCircle className="mr-2 h-4 w-4" /> Reativar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem onClick={() => setLimiteAlvo(l)}>
+                                <UserCheck className="mr-2 h-4 w-4" /> Ajustar limite diário
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setRemoverAlvo(l)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Remover da roleta
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-        <IncluirParticipanteDialog
-          slug={slug}
-          aberto={incluirAberto}
-          onFechar={() => setIncluirAberto(false)}
-          participantesAtuais={linhas}
-        />
-        <PausarDialog slug={slug} alvo={pausarAlvo} onFechar={() => setPausarAlvo(null)} />
-        <LimiteDialog slug={slug} alvo={limiteAlvo} onFechar={() => setLimiteAlvo(null)} />
+      <IncluirParticipanteDialog
+        slug={slug}
+        aberto={incluirAberto}
+        onFechar={() => setIncluirAberto(false)}
+        participantesAtuais={linhas}
+      />
+      <PausarDialog slug={slug} alvo={pausarAlvo} onFechar={() => setPausarAlvo(null)} />
+      <LimiteDialog slug={slug} alvo={limiteAlvo} onFechar={() => setLimiteAlvo(null)} />
 
-        <AlertDialog open={!!removerAlvo} onOpenChange={(o) => !o && setRemoverAlvo(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                Remover {removerAlvo?.nome} da {roletaLabel(slug)}?
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                O corretor deixa de receber leads desta roleta imediatamente. A remoção fica
-                registrada na auditoria com seu usuário e pode ser desfeita incluindo-o de novo.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  if (removerAlvo) {
-                    gerenciar.mutate({
-                      slug,
-                      corretorId: removerAlvo.corretor_id,
-                      acao: "remover",
-                      motivo: "Removido pela gestão",
-                    });
-                  }
-                  setRemoverAlvo(null);
-                }}
-              >
-                Remover
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      <AlertDialog open={!!removerAlvo} onOpenChange={(o) => !o && setRemoverAlvo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover {removerAlvo?.nome} da {roletaLabel(slug)}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O corretor deixa de receber leads desta roleta imediatamente. A remoção fica
+              registrada na auditoria com seu usuário e pode ser desfeita incluindo-o de novo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (removerAlvo) {
+                  gerenciar.mutate({
+                    slug,
+                    corretorId: removerAlvo.corretor_id,
+                    acao: "remover",
+                    motivo: "Removido pela gestão",
+                  });
+                }
+                setRemoverAlvo(null);
+              }}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
     </TooltipProvider>
   );
 }
@@ -511,8 +510,8 @@ function IncluirParticipanteDialog({
           </div>
           {slug === "marquinhos" && corretorId && !vendaSelecionado && (
             <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-              Este corretor não tem venda registrada no mês anterior. A inclusão é permitida, mas
-              ficará marcada na auditoria.
+              Este corretor não tem venda registrada no mês anterior. A inclusão é permitida,
+              mas ficará marcada na auditoria.
             </p>
           )}
           <div className="space-y-1.5">

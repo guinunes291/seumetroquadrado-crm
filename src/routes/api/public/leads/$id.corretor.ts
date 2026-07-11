@@ -1,6 +1,7 @@
 // PATCH /api/public/leads/:id/corretor → troca o corretor do lead
 // Body: { corretor_id: uuid, motivo?: string, origem?: string }
-// Auth: cliente com escopo leads:write. Toda escrita é auditada em api_escrita_log.
+// Auth: header X-API-Key = MCP_WRITE_API_KEY (READ_API_KEY aceita em transição —
+// ver requireWriteKeyOrLegacy). Toda escrita é auditada em api_escrita_log.
 import { createFileRoute } from "@tanstack/react-router";
 import {
   jsonResponse,
@@ -9,12 +10,11 @@ import {
   shapeLeadForPublic,
 } from "@/lib/public-api-auth";
 import {
-  apiClientAgent,
-  requireApiClientScope,
-  requireApiLeadAccess,
-  restrictedCorretorIds,
-} from "@/lib/api-client-auth.server";
-import { auditarEscrita, clientIp } from "@/lib/write-api-auth";
+  requireWriteKeyOrLegacy,
+  writeAgentLabel,
+  auditarEscrita,
+  clientIp,
+} from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,15 +24,13 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
       OPTIONS: async () => corsPreflight(),
 
       PATCH: async ({ request, params }) => {
-        const auth = await requireApiClientScope(request, "leads:write");
+        const auth = requireWriteKeyOrLegacy(request);
         if (auth instanceof Response) return auth;
-        const agente = apiClientAgent(auth);
+        const agente = writeAgentLabel(auth.mode);
         const ip = clientIp(request);
 
         const id = params.id;
         if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
-        const accessError = await requireApiLeadAccess(auth, id);
-        if (accessError) return accessError;
 
         let body: Record<string, unknown>;
         try {
@@ -47,10 +45,6 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
         const corretorId = typeof body.corretor_id === "string" ? body.corretor_id.trim() : "";
         if (!UUID_RE.test(corretorId)) {
           return jsonResponse({ error: "corretor_id inválido (esperado UUID)" }, 422);
-        }
-        const equipeCorretorIds = await restrictedCorretorIds(auth);
-        if (equipeCorretorIds && !equipeCorretorIds.includes(corretorId)) {
-          return jsonResponse({ error: "corretor destino não encontrado" }, 404);
         }
 
         const motivo = typeof body.motivo === "string" ? body.motivo.trim() : "";
@@ -71,12 +65,12 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
 
         const { data: destino, error: destErr } = await supabaseAdmin
           .from("profiles")
-          .select("id, nome, ativo, status_conta")
+          .select("id, nome, ativo")
           .eq("id", corretorId)
           .maybeSingle();
         if (destErr) return jsonResponse({ error: destErr.message }, 500);
         if (!destino) return jsonResponse({ error: "corretor destino não encontrado" }, 404);
-        if (!destino.ativo || destino.status_conta !== "ativa") {
+        if (!destino.ativo) {
           return jsonResponse({ error: "corretor destino não está ativo" }, 422);
         }
 

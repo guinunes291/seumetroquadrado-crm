@@ -1,11 +1,5 @@
 project_id = "rldnprwjlomjmjvinxuh"
 
-# O CRM e somente por convite. Replicar esta configuracao no projeto Supabase
-# vivo durante o rollout; a migration tambem mantém contas nao convidadas
-# pendentes e sem papel como segunda camada de defesa.
-[auth]
-enable_signup = false
-
 # Webhook público do Zapier (Facebook Lead Ads). Autenticação via LEAD_INTAKE_SECRET,
 # não por JWT do Supabase.
 [functions.lead-intake]
@@ -18,6 +12,3 @@ verify_jwt = false
 
 [functions.sami-consultar-agenda]
 verify_jwt = false
-
-[functions.crm-convites]
-verify_jwt = true

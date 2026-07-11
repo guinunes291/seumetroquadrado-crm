@@ -36,13 +36,6 @@ const strOrNull = (v: FormDataEntryValue | null): string | null => {
   return s || null;
 };
 
-const lines = (v: FormDataEntryValue | null): string[] =>
-  String(v ?? "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 12);
-
 /**
  * Formulário completo de cadastro/edição de empreendimento. Cobre todos os
  * campos que alimentam o card e os filtros do catálogo (localização, specs,
@@ -102,10 +95,6 @@ export function ProjetoFormDialog({ open, onOpenChange, editing, onSubmit, isPen
       // Material comercial (Vitrine)
       book_url: strOrNull(fd.get("book_url")),
       tabela_precos_url: strOrNull(fd.get("tabela_precos_url")),
-      capa_url: strOrNull(fd.get("capa_url")),
-      galeria_urls: lines(fd.get("galeria_urls")),
-      percentual_comissao: numOrNull(fd.get("percentual_comissao")),
-      disponibilidade_resumo: strOrNull(fd.get("disponibilidade_resumo")),
       // Localização geográfica (mapa da Vitrine)
       lat: numOrNull(fd.get("lat")),
       lng: numOrNull(fd.get("lng")),
@@ -419,47 +408,6 @@ export function ProjetoFormDialog({ open, onOpenChange, editing, onSubmit, isPen
                   type="url"
                   placeholder="https://…"
                   defaultValue={editing?.tabela_precos_url ?? ""}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="capa_url">Imagem de capa (HTTPS)</Label>
-                <Input
-                  id="capa_url"
-                  name="capa_url"
-                  type="url"
-                  placeholder="https://…"
-                  defaultValue={editing?.capa_url ?? ""}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="galeria_urls">Galeria (uma URL HTTPS por linha; até 12)</Label>
-                <Textarea
-                  id="galeria_urls"
-                  name="galeria_urls"
-                  rows={3}
-                  defaultValue={(editing?.galeria_urls ?? []).join("\n")}
-                />
-              </div>
-              <div>
-                <Label htmlFor="percentual_comissao">Comissão do projeto (%)</Label>
-                <Input
-                  id="percentual_comissao"
-                  name="percentual_comissao"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.001"
-                  defaultValue={editing?.percentual_comissao ?? ""}
-                />
-              </div>
-              <div>
-                <Label htmlFor="disponibilidade_resumo">Disponibilidade</Label>
-                <Input
-                  id="disponibilidade_resumo"
-                  name="disponibilidade_resumo"
-                  maxLength={160}
-                  placeholder="ex.: últimas 8 unidades"
-                  defaultValue={editing?.disponibilidade_resumo ?? ""}
                 />
               </div>
             </div>

@@ -19,7 +19,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { PageHeader } from "@/components/page-header";
-import { PendingSalesApproval } from "@/components/pending-sales-approval";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,7 +80,6 @@ import {
   type ComissaoRow,
   type ComissaoStatus,
 } from "@/lib/comissoes";
-import { exportRowsXlsx } from "@/lib/spreadsheets";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/comissoes")({
@@ -289,10 +287,11 @@ export function ComissoesPage() {
 
   async function exportarXlsx() {
     try {
-      await exportRowsXlsx(buildExportRows(filtered), {
-        sheetName: "Comissões",
-        fileName: `comissoes-${mes === "todos" ? "todas" : mes}.xlsx`,
-      });
+      const XLSX = await import("xlsx");
+      const ws = XLSX.utils.json_to_sheet(buildExportRows(filtered));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Comissões");
+      XLSX.writeFile(wb, `comissoes-${mes === "todos" ? "todas" : mes}.xlsx`);
     } catch {
       toast.error("Não foi possível exportar a planilha. Verifique a conexão e tente novamente.");
     }
@@ -358,11 +357,9 @@ export function ComissoesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Comissões"
-        description="Geradas somente após a aprovação gerencial da venda."
+        description="Geradas automaticamente a cada venda registrada, uma linha por beneficiário."
         actions={filtros}
       />
-
-      {canManage && <PendingSalesApproval />}
 
       <KpiGrid>
         <KpiCard
@@ -423,7 +420,7 @@ export function ComissoesPage() {
           description={
             rows.length > 0
               ? "Nenhuma comissão com os filtros escolhidos — ajuste o período, o status ou o beneficiário."
-              : "As comissões aparecem depois que a gestão aprova uma venda pendente."
+              : 'As comissões são geradas automaticamente quando uma venda é registrada (etapa "Contrato fechado"). Registre uma venda para vê-las aqui.'
           }
           action={
             rows.length > 0 ? (

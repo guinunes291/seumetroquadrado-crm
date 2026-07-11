@@ -1,28 +1,27 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { timingSafeEqual } from "crypto";
 import { rateLimit } from "@/lib/rate-limit";
-import { checkPushDispatchAuth } from "@/lib/push/dispatch-auth";
 import { decidirDisposicao } from "@/lib/push/outbox";
-import type { Database } from "@/integrations/supabase/types";
 
-type PushOutboxUpdate = Database["public"]["Tables"]["push_outbox"]["Update"];
+// Comparação de segredos em tempo constante (evita timing attack).
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
 
 /**
- * Cron-driven endpoint. Claims pending rows from `push_outbox`, sends Web Push
- * to each subscription of the target user, and persists the disposition while
- * the worker still owns the lease.
+ * Cron-driven endpoint. Reads pending rows from `push_outbox`, sends Web Push
+ * to each subscription of the target user, and marks them as sent.
  *
  * Auth: header `x-push-secret` == PUSH_DISPATCH_SECRET (segredo dedicado).
- * Chaves anon/publishable nunca autenticam este endpoint.
+ * Compatibilidade: enquanto PUSH_DISPATCH_SECRET não estiver provisionado,
+ * cai para a anon key no header `apikey` (comportamento legado), logando aviso.
  */
 export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const pushSecret = process.env.PUSH_DISPATCH_SECRET;
-        if (!pushSecret) {
-          return new Response("missing PUSH_DISPATCH_SECRET", { status: 500 });
-        }
-
         // Rate limit por origem (o endpoint é chamado pelo cron; limite generoso).
         const ip =
           request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -36,7 +35,23 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           });
         }
 
-        if (checkPushDispatchAuth(request, pushSecret) !== "authorized") {
+        const pushSecret = process.env.PUSH_DISPATCH_SECRET || "";
+        let authorized = false;
+        if (pushSecret) {
+          authorized = safeEqual(request.headers.get("x-push-secret") || "", pushSecret);
+        } else {
+          // Fallback legado: anon/publishable key. Trocar assim que o segredo
+          // dedicado for provisionado (PUSH_DISPATCH_SECRET).
+          const legacy =
+            process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
+          authorized = !!legacy && safeEqual(request.headers.get("apikey") || "", legacy);
+          if (authorized) {
+            console.warn(
+              "[push-dispatch] usando auth legada (anon key). Defina PUSH_DISPATCH_SECRET para endurecer.",
+            );
+          }
+        }
+        if (!authorized) {
           return new Response("unauthorized", { status: 401 });
         }
 
@@ -54,12 +69,16 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
         if (!privateKey) return new Response("missing VAPID_PRIVATE_KEY", { status: 500 });
         webpush.setVapidDetails(subject, publicKey, privateKey);
 
-        // Claim atômico: workers concorrentes recebem lotes distintos. A lease
-        // de 10 min libera o item automaticamente se este processo cair.
-        const { data: pending, error: pErr } = await supabaseAdmin.rpc("claim_push_outbox", {
-          _limit: 100,
-          _lease_seconds: 600,
-        });
+        // Pega até 100 pendentes cujo próximo horário de tentativa já passou
+        // (ou que nunca foram tentados).
+        const nowIso = new Date().toISOString();
+        const { data: pending, error: pErr } = await supabaseAdmin
+          .from("push_outbox")
+          .select("id, user_id, title, body, url, tag, attempts")
+          .is("sent_at", null)
+          .or(`next_attempt_at.is.null,next_attempt_at.lte.${nowIso}`)
+          .order("created_at", { ascending: true })
+          .limit(100);
 
         if (pErr) {
           return new Response(JSON.stringify({ error: pErr.message }), { status: 500 });
@@ -87,40 +106,22 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
           subsByUser.set(s.user_id, arr);
         });
 
-        const deadEndpoints = new Set<string>();
+        const sentIds: string[] = [];
+        const deadEndpoints: string[] = [];
         let sentCount = 0;
-        let deliveredItemCount = 0;
         let retryCount = 0;
         let discardCount = 0;
-        let persistenceErrors = 0;
         const nowMs = Date.now();
 
-        async function persistDisposition(
-          id: string,
-          leaseToken: string,
-          patch: PushOutboxUpdate,
-        ): Promise<boolean> {
-          const { data, error } = await supabaseAdmin
-            .from("push_outbox")
-            .update(patch)
-            .eq("id", id)
-            .eq("lease_token", leaseToken)
-            .select("id")
-            .maybeSingle();
-          if (error) {
-            console.error("[push] falha ao persistir disposição", id, error.message);
-            persistenceErrors++;
-            return false;
-          }
-          if (!data) {
-            console.warn("[push] lease perdida antes de persistir disposição", id);
-            persistenceErrors++;
-            return false;
-          }
-          return true;
-        }
-
-        for (const item of pending) {
+        for (const item of pending as Array<{
+          id: string;
+          user_id: string;
+          title: string;
+          body: string;
+          url: string | null;
+          tag: string | null;
+          attempts: number | null;
+        }>) {
           const userSubs = subsByUser.get(item.user_id) ?? [];
           const payload = JSON.stringify({
             title: item.title,
@@ -140,7 +141,7 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
               sentCount++;
             } catch (err: unknown) {
               const status = (err as { statusCode?: number }).statusCode;
-              if (status === 404 || status === 410) deadEndpoints.add(s.endpoint);
+              if (status === 404 || status === 410) deadEndpoints.push(s.endpoint);
               else console.warn("[push] send error", status, (err as Error).message);
             }
           }
@@ -151,57 +152,52 @@ export const Route = createFileRoute("/api/public/hooks/push-dispatch")({
             nowMs,
           );
           if (disp.acao === "sent") {
-            const persisted = await persistDisposition(item.id, item.lease_token, {
-              sent_at: new Date().toISOString(),
-              last_error: null,
-              lease_token: null,
-              lease_expires_at: null,
-            });
-            if (persisted) deliveredItemCount++;
+            sentIds.push(item.id);
           } else if (disp.acao === "retry") {
-            const persisted = await persistDisposition(item.id, item.lease_token, {
-              attempts: disp.attempts,
-              next_attempt_at: disp.nextAttemptAt,
-              last_error: disp.lastError,
-              lease_token: null,
-              lease_expires_at: null,
-            });
-            if (persisted) retryCount++;
+            retryCount++;
+            await supabaseAdmin
+              .from("push_outbox")
+              .update({
+                attempts: disp.attempts,
+                next_attempt_at: disp.nextAttemptAt,
+                last_error: disp.lastError,
+              } as never)
+              .eq("id", item.id);
           } else {
             // discard: para de tentar (marca sent_at) e registra o motivo.
+            discardCount++;
             console.warn("[push] descartado", item.id, disp.lastError);
-            const persisted = await persistDisposition(item.id, item.lease_token, {
-              sent_at: new Date().toISOString(),
-              attempts: disp.attempts,
-              last_error: disp.lastError,
-              lease_token: null,
-              lease_expires_at: null,
-            });
-            if (persisted) discardCount++;
+            await supabaseAdmin
+              .from("push_outbox")
+              .update({
+                sent_at: new Date().toISOString(),
+                attempts: disp.attempts,
+                last_error: disp.lastError,
+              } as never)
+              .eq("id", item.id);
           }
         }
 
-        if (deadEndpoints.size) {
+        if (sentIds.length) {
           await supabaseAdmin
-            .from("push_subscriptions")
-            .delete()
-            .in("endpoint", Array.from(deadEndpoints));
+            .from("push_outbox")
+            .update({ sent_at: new Date().toISOString() })
+            .in("id", sentIds);
+        }
+        if (deadEndpoints.length) {
+          await supabaseAdmin.from("push_subscriptions").delete().in("endpoint", deadEndpoints);
         }
 
         return new Response(
           JSON.stringify({
             processed: pending.length,
             sent: sentCount,
-            delivered_items: deliveredItemCount,
+            delivered_items: sentIds.length,
             retried: retryCount,
             discarded: discardCount,
-            dead: deadEndpoints.size,
-            persistence_errors: persistenceErrors,
+            dead: deadEndpoints.length,
           }),
-          {
-            status: persistenceErrors > 0 ? 500 : 200,
-            headers: { "Content-Type": "application/json" },
-          },
+          { headers: { "Content-Type": "application/json" } },
         );
       },
     },

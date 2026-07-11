@@ -43,7 +43,7 @@ function ResetPasswordPage() {
     if (error) return toast.error("Erro", { description: error.message });
     toast.success("Senha redefinida! Entre novamente.");
     await supabase.auth.signOut();
-    navigate({ to: "/auth", search: { next: "" } });
+    navigate({ to: "/auth" });
   };
 
   return (
@@ -62,23 +62,11 @@ function ResetPasswordPage() {
             <form onSubmit={submit} className="space-y-3">
               <div className="space-y-1">
                 <Label htmlFor="pwd">Nova senha</Label>
-                <Input
-                  id="pwd"
-                  type="password"
-                  value={pwd}
-                  onChange={(e) => setPwd(e.target.value)}
-                  required
-                />
+                <Input id="pwd" type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} required />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="pwd2">Confirmar</Label>
-                <Input
-                  id="pwd2"
-                  type="password"
-                  value={pwd2}
-                  onChange={(e) => setPwd2(e.target.value)}
-                  required
-                />
+                <Input id="pwd2" type="password" value={pwd2} onChange={(e) => setPwd2(e.target.value)} required />
               </div>
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? "Atualizando…" : "Atualizar senha"}

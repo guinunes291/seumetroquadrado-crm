@@ -1,16 +1,15 @@
 // GET /api/public/projetos
 // Auth: X-API-Key. Filtros: construtora, zona, bairro, dorms, status_preco, ativo, limit, offset.
 import { createFileRoute } from "@tanstack/react-router";
-import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
-import { requireApiClientScope } from "@/lib/api-client-auth.server";
+import { checkReadApiKey, jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 
 export const Route = createFileRoute("/api/public/projetos/")({
   server: {
     handlers: {
       OPTIONS: async () => corsPreflight(),
       GET: async ({ request }) => {
-        const auth = await requireApiClientScope(request, "leads:read");
-        if (auth instanceof Response) return auth;
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
 
         const url = new URL(request.url);
         const q = url.searchParams;
@@ -25,8 +24,6 @@ export const Route = createFileRoute("/api/public/projetos/")({
             { count: "exact" },
           )
           .is("deleted_at", null);
-
-        if (auth.projetoId) query = query.eq("id", auth.projetoId);
 
         const construtora = q.get("construtora");
         if (construtora) query = query.ilike("construtora", `%${construtora}%`);
@@ -67,14 +64,14 @@ export const Route = createFileRoute("/api/public/projetos/")({
                 ? String(p.dorms_min)
                 : `${p.dorms_min}-${p.dorms_max}`
               : p.dorms_min != null
-                ? String(p.dorms_min)
-                : null;
+              ? String(p.dorms_min)
+              : null;
           const metragem =
             p.metragem_min != null && p.metragem_max != null
               ? p.metragem_min === p.metragem_max
                 ? Number(p.metragem_min)
                 : `${p.metragem_min}-${p.metragem_max}`
-              : (p.metragem_min ?? null);
+              : p.metragem_min ?? null;
           return {
             projeto_id: p.id,
             id: p.id,

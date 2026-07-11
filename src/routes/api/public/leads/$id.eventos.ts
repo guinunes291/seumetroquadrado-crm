@@ -2,13 +2,13 @@
 // POST /api/public/leads/:id/eventos → cria evento
 // Auth: X-API-Key
 import { createFileRoute } from "@tanstack/react-router";
-import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
+import { checkReadApiKey, jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import {
-  apiClientAgent,
-  requireApiClientScope,
-  requireApiLeadAccess,
-} from "@/lib/api-client-auth.server";
-import { auditarEscrita, clientIp } from "@/lib/write-api-auth";
+  requireWriteKeyOrLegacy,
+  writeAgentLabel,
+  auditarEscrita,
+  clientIp,
+} from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIPO_RE = /^[a-z0-9_.-]{1,64}$/i;
@@ -20,11 +20,9 @@ export const Route = createFileRoute("/api/public/leads/$id/eventos")({
       OPTIONS: async () => corsPreflight(),
 
       GET: async ({ request, params }) => {
-        const auth = await requireApiClientScope(request, "leads:read");
-        if (auth instanceof Response) return auth;
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
         if (!UUID_RE.test(params.id)) return jsonResponse({ error: "id inválido" }, 400);
-        const accessError = await requireApiLeadAccess(auth, params.id);
-        if (accessError) return accessError;
 
         const url = new URL(request.url);
         const limit = Math.min(Number(url.searchParams.get("limit")) || 100, 500);
@@ -43,13 +41,11 @@ export const Route = createFileRoute("/api/public/leads/$id/eventos")({
       },
 
       POST: async ({ request, params }) => {
-        const auth = await requireApiClientScope(request, "events:write");
+        const auth = requireWriteKeyOrLegacy(request);
         if (auth instanceof Response) return auth;
-        const agente = apiClientAgent(auth);
+        const agente = writeAgentLabel(auth.mode);
         const ip = clientIp(request);
         if (!UUID_RE.test(params.id)) return jsonResponse({ error: "id inválido" }, 400);
-        const accessError = await requireApiLeadAccess(auth, params.id);
-        if (accessError) return accessError;
 
         let body: Record<string, unknown>;
         try {
@@ -93,7 +89,7 @@ export const Route = createFileRoute("/api/public/leads/$id/eventos")({
             lead_id: params.id,
             tipo,
             descricao: typeof body.descricao === "string" ? body.descricao : null,
-            agente,
+            agente: typeof body.agente === "string" ? body.agente : null,
             payload: payload as never,
           })
           .select()
@@ -116,7 +112,7 @@ export const Route = createFileRoute("/api/public/leads/$id/eventos")({
           agente,
           acao: "lead.evento",
           lead_id: params.id,
-          payload: { tipo },
+          payload: { tipo, agente_evento: typeof body.agente === "string" ? body.agente : null },
           resultado: "ok",
           http_status: 201,
           ip,

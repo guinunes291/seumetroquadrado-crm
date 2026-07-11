@@ -34,7 +34,7 @@ import {
   progressoMeta,
   type LeadSlim,
   type AgendamentoSlim,
-  type VendaAprovadaSlim,
+  type TransicaoSlim,
 } from "@/lib/metas";
 
 // Realizado agregado aplicável a uma meta (corretor, equipe ou global).
@@ -119,7 +119,10 @@ export function MetasPage() {
     queryFn: async () => {
       const ini = new Date(ano, mes - 1, 1).toISOString();
       const fim = new Date(ano, mes, 1).toISOString();
-      const [leadsRes, agendRes, vendasRes, profsRes] = await Promise.all([
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const iniDate = `${ano}-${pad(mes)}-01`;
+      const fimDate = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${pad(mes + 1)}-01`;
+      const [leadsRes, agendRes, transRes, vendasRes, profsRes] = await Promise.all([
         supabase
           .from("leads")
           .select("status, corretor_id, created_at")
@@ -131,11 +134,16 @@ export function MetasPage() {
           .gte("data_inicio", ini)
           .lt("data_inicio", fim),
         supabase
+          .from("lead_status_transitions")
+          .select("para_status, corretor_id, created_at")
+          .gte("created_at", ini)
+          .lt("created_at", fim),
+        supabase
           .from("vendas")
-          .select("status_venda, corretor_id, valor_venda, aprovado_em")
-          .eq("status_venda", "aprovada")
-          .gte("aprovado_em", ini)
-          .lt("aprovado_em", fim),
+          .select("corretor_id, valor_venda, data_assinatura, distrato")
+          .eq("distrato", false)
+          .gte("data_assinatura", iniDate)
+          .lt("data_assinatura", fimDate),
         supabase.from("profiles").select("id, equipe_id"),
       ]);
       const map = computeAgentMetrics(
@@ -143,9 +151,9 @@ export function MetasPage() {
         (agendRes.data ?? []) as AgendamentoSlim[],
         ano,
         mes,
-        (vendasRes.data ?? []) as VendaAprovadaSlim[],
+        (transRes.data ?? []) as TransicaoSlim[],
       );
-      // VGV realizado por corretor: somente vendas aprovadas no mês.
+      // VGV realizado por corretor (vendas não-distratadas no mês).
       const vgvMap = new Map<string, number>();
       for (const v of (vendasRes.data ?? []) as Array<{
         corretor_id: string | null;

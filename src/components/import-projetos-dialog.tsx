@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,14 +22,18 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Upload,
+  FileSpreadsheet,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   importarProjetos,
   type ImportProjetosResult,
   type ImportProjetoRow,
 } from "@/lib/projetos-import.functions";
-import { readTabularFile } from "@/lib/spreadsheets";
 
 type Step = "upload" | "mapear" | "resultado";
 const NONE = "__none__";
@@ -227,6 +232,7 @@ function toNum(v: unknown): number | null {
   return negative ? -n : n;
 }
 
+
 function toBool(v: unknown): boolean {
   if (v == null) return false;
   const s = norm(String(v));
@@ -261,7 +267,14 @@ export function ImportProjetosDialog({
 
   async function handleFile(file: File) {
     try {
-      const rows = await readTabularFile(file);
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", raw: false, FS: ";" });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+        defval: "",
+        raw: false,
+      });
       if (rows.length === 0) {
         toast.error("Planilha vazia");
         return;
@@ -378,7 +391,9 @@ export function ImportProjetosDialog({
                   className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 cursor-pointer hover:border-muted-foreground/60 transition-colors"
                 >
                   <Upload className="h-8 w-8 text-muted-foreground" />
-                  <span className="text-sm font-medium">Clique para selecionar uma planilha</span>
+                  <span className="text-sm font-medium">
+                    Clique para selecionar uma planilha
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     .xlsx, .xls ou .csv (UTF-8, separador ;)
                   </span>
@@ -386,7 +401,7 @@ export function ImportProjetosDialog({
                     id="file-upload-projetos"
                     type="file"
                     className="hidden"
-                    accept=".xlsx,.csv"
+                    accept=".xlsx,.xls,.csv"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) handleFile(f);
@@ -409,8 +424,8 @@ export function ImportProjetosDialog({
         {step === "mapear" && parsed && (
           <div className="space-y-4">
             <div className="text-sm">
-              <strong>{fileName}</strong> · {parsed.rows.length} linhas · {parsed.headers.length}{" "}
-              colunas
+              <strong>{fileName}</strong> · {parsed.rows.length} linhas ·{" "}
+              {parsed.headers.length} colunas
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -454,24 +469,12 @@ export function ImportProjetosDialog({
                     <tbody>
                       {preview.map((r, i) => (
                         <tr key={i} className="border-t">
-                          <td className="p-2">
-                            {r.nome || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.construtora || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.bairro || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.dorms || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.metr || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.preco || <em className="text-muted-foreground">—</em>}
-                          </td>
+                          <td className="p-2">{r.nome || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.construtora || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.bairro || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.dorms || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.metr || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.preco || <em className="text-muted-foreground">—</em>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -504,38 +507,28 @@ export function ImportProjetosDialog({
         {step === "resultado" && resultado && (
           <div className="space-y-4">
             <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-green-600">{resultado.inseridos}</div>
-                  <div className="text-xs text-muted-foreground">Inseridos</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-blue-600">{resultado.atualizados}</div>
-                  <div className="text-xs text-muted-foreground">Atualizados</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-amber-600">{resultado.duplicados}</div>
-                  <div className="text-xs text-muted-foreground">Duplicados</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-rose-600">
-                    {resultado.invalidos + resultado.erros}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Inválidos / erros</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-muted-foreground">{resultado.total}</div>
-                  <div className="text-xs text-muted-foreground">Total no arquivo</div>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-green-600">{resultado.inseridos}</div>
+                <div className="text-xs text-muted-foreground">Inseridos</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-blue-600">{resultado.atualizados}</div>
+                <div className="text-xs text-muted-foreground">Atualizados</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-amber-600">{resultado.duplicados}</div>
+                <div className="text-xs text-muted-foreground">Duplicados</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-rose-600">
+                  {resultado.invalidos + resultado.erros}
+                </div>
+                <div className="text-xs text-muted-foreground">Inválidos / erros</div>
+              </CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="text-2xl font-bold text-muted-foreground">{resultado.total}</div>
+                <div className="text-xs text-muted-foreground">Total no arquivo</div>
+              </CardContent></Card>
             </div>
 
             {resultado.detalhes.length > 0 && (

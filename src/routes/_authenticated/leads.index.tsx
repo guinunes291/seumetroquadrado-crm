@@ -96,6 +96,7 @@ import {
   Rows3,
   ChevronLeft,
   ChevronRight,
+  X,
   CalendarDays,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/templates";
@@ -119,7 +120,6 @@ import {
   type StageModal,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
-import { transicionarLead } from "@/lib/lead-transitions";
 import { LeadStageMenuItems } from "@/components/lead-stage-menu";
 import {
   LeadStageModals,
@@ -129,9 +129,6 @@ import {
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
-import { FilterBar } from "@/components/ui/filter-bar";
-import { BulkActionBar } from "@/components/ui/bulk-action-bar";
-import { EntityCard, EntityRow } from "@/components/ui/entity-card";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
@@ -328,7 +325,7 @@ function LeadRowMenu({
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0"
+          className="h-7 w-7 shrink-0"
           aria-label="Mais ações"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
@@ -446,9 +443,14 @@ function LeadsPage() {
     invalidateKeys: [["leads"], ["leads-status-counts"]],
   });
 
-  // Dossiê-relâmpago: EntityCard/Row preservam as ações internas e oferecem
-  // ativação por clique, Enter e Espaço na superfície da entidade.
+  // Dossiê-relâmpago: clique no corpo da linha/card abre o peek (elementos
+  // interativos — links, botões, checkbox — continuam com o comportamento deles).
   const [peekLead, setPeekLead] = useState<Lead | null>(null);
+  const handlePeekClick = (e: React.MouseEvent, l: Lead) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("a,button,input,[role='menuitem'],[data-no-peek]")) return;
+    setPeekLead(l);
+  };
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -480,9 +482,7 @@ function LeadsPage() {
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"tabela" | "cards">(() => {
     if (typeof window === "undefined") return "tabela";
-    const saved = window.localStorage.getItem("smq:leads-view-mode");
-    if (saved === "cards" || saved === "tabela") return saved;
-    return window.matchMedia("(max-width: 767px)").matches ? "cards" : "tabela";
+    return window.localStorage.getItem("smq:leads-view-mode") === "cards" ? "cards" : "tabela";
   });
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -576,12 +576,7 @@ function LeadsPage() {
   ]);
 
   // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
-  const {
-    data: followupIds,
-    isLoading: followupLoading,
-    isError: followupError,
-    refetch: refetchFollowups,
-  } = useQuery({
+  const { data: followupIds } = useQuery({
     queryKey: ["followup-lead-ids", user?.id, canManage],
     enabled: contatoFilter === "com_followup",
     queryFn: async () => {
@@ -648,13 +643,7 @@ function LeadsPage() {
     showLixeira,
     canManage,
     uid: user?.id,
-    contatoFilter,
-    page,
   };
-
-  // Filtros de contato ainda dependem do conjunto completo. Os demais usam
-  // paginação real no banco para que o lead 1.001 continue acessível.
-  const serverPaginated = contatoFilter === "all";
 
   const periodoRange = useMemo(() => {
     if (periodoFilter === "custom") {
@@ -686,8 +675,8 @@ function LeadsPage() {
         _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
         _search: sNorm,
         _search_digits: sDig,
-        _limit: serverPaginated ? LEADS_PAGE_SIZE : 1000,
-        _offset: serverPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
+        _limit: 1000,
+        _offset: 0,
       });
       if (error) throw error;
       return (data ?? []) as unknown as Lead[];
@@ -698,11 +687,7 @@ function LeadsPage() {
   useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]]);
 
   // Contagens reais por status — respeita filtros e usa data_assinatura para Venda.
-  const {
-    data: statusCountsData,
-    isError: statusCountsError,
-    refetch: refetchStatusCounts,
-  } = useQuery({
+  const { data: statusCountsData } = useQuery({
     queryKey: ["leads-status-counts", baseQueryKey],
     queryFn: async () => {
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
@@ -730,11 +715,7 @@ function LeadsPage() {
   });
 
   const statusCounts = statusCountsData?.counts ?? {};
-  const leadQueryTotal = Number(leadsAll?.[0]?.total_count ?? leadsAll?.length ?? 0);
-  const totalLeadsCount = statusCountsData?.total ?? leadQueryTotal;
-  const followupFilterFailed = contatoFilter === "com_followup" && followupError;
-  const listError = leadsError || statusCountsError || followupFilterFailed;
-  const listLoading = isLoading || (contatoFilter === "com_followup" && followupLoading);
+  const totalLeadsCount = statusCountsData?.total ?? 0;
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
@@ -770,25 +751,14 @@ function LeadsPage() {
     });
   }, [leadsAll, contatoFilter, followupIds]);
 
-  const currentStatusTotal = statusCountsData
-    ? statusFilter === "all"
-      ? totalLeadsCount
-      : (statusCounts[statusFilter] ?? 0)
-    : leadQueryTotal;
-  const visibleTotal = serverPaginated ? currentStatusTotal : filtered.length;
-  const totalPages = Math.max(1, Math.ceil(visibleTotal / LEADS_PAGE_SIZE));
+  // Paginação (50/página, lado cliente). As contagens por status continuam vindo
+  // de `statusCounts`/`filtered` (conjunto inteiro), não da página atual.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / LEADS_PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
   const paginated = useMemo(
-    () =>
-      serverPaginated
-        ? filtered
-        : filtered.slice((pageSafe - 1) * LEADS_PAGE_SIZE, pageSafe * LEADS_PAGE_SIZE),
-    [filtered, pageSafe, serverPaginated],
+    () => filtered.slice((pageSafe - 1) * LEADS_PAGE_SIZE, pageSafe * LEADS_PAGE_SIZE),
+    [filtered, pageSafe],
   );
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
 
   // Timeouts de repasse (5 min p/ chatbot/webhook etc.) e infos por lead
   // (data_distribuicao + tentativas) para o timer visual no card/linha.
@@ -1103,7 +1073,11 @@ function LeadsPage() {
         conteudo: `Atendimento iniciado pelo corretor (${tipo}).`,
       });
       if (e1) throw e1;
-      await transicionarLead({ id: lead.id, nome: lead.nome, status: "em_atendimento" });
+      const { error: e2 } = await supabase
+        .from("leads")
+        .update({ status: "em_atendimento" as never })
+        .eq("id", lead.id);
+      if (e2) throw e2;
       return { lead, tipo };
     },
     onSuccess: ({ lead, tipo }) => {
@@ -1145,12 +1119,11 @@ function LeadsPage() {
         title="Leads"
         description="Funil de leads, distribuição e qualificação."
         actions={
-          <div className="flex max-w-full items-center gap-2 overflow-x-auto [&_a]:min-h-11 [&_button]:min-h-11">
+          <div className="flex items-center gap-2">
             <div className="inline-flex rounded-md border bg-card p-0.5">
               <Button
                 size="sm"
                 variant={activeView === "lista" ? "default" : "ghost"}
-                aria-pressed={activeView === "lista"}
                 onClick={() => setView("lista")}
               >
                 <List className="h-4 w-4 mr-1" /> Lista
@@ -1158,7 +1131,6 @@ function LeadsPage() {
               <Button
                 size="sm"
                 variant={activeView === "kanban" ? "default" : "ghost"}
-                aria-pressed={activeView === "kanban"}
                 onClick={() => setView("kanban")}
               >
                 <Trello className="h-4 w-4 mr-1" /> Kanban
@@ -1202,25 +1174,23 @@ function LeadsPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("all")}
-              aria-pressed={statusFilter === "all"}
-              className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
                 statusFilter === "all"
                   ? "bg-primary text-primary-foreground border-primary"
                   : "bg-background hover:bg-muted"
               }`}
             >
-              Todos · {statusCountsData ? totalLeadsCount : "—"}
+              Todos · {totalLeadsCount}
             </button>
             {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
-              const n = statusCountsData ? (statusCounts[s] ?? 0) : "—";
+              const n = statusCounts[s] ?? 0;
               const active = statusFilter === s;
               return (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setStatusFilter(active ? "all" : s)}
-                  aria-pressed={active}
-                  className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border whitespace-nowrap transition ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition ${
                     active
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background hover:bg-muted"
@@ -1241,8 +1211,7 @@ function LeadsPage() {
                   key={o.value}
                   type="button"
                   onClick={() => setContatoFilter(active ? "all" : o.value)}
-                  aria-pressed={active}
-                  className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
                     active
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-background hover:bg-muted"
@@ -1255,7 +1224,7 @@ function LeadsPage() {
             <div className="ml-auto">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="min-h-11">
+                  <Button variant="outline" size="sm" className="h-8">
                     <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
                     <ChevronDown className="h-3.5 w-3.5 ml-1" />
                   </Button>
@@ -1281,7 +1250,7 @@ function LeadsPage() {
                           <button
                             type="button"
                             aria-label={`Excluir visão ${v.nome}`}
-                            className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-destructive"
+                            className="text-muted-foreground hover:text-destructive"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -1358,264 +1327,251 @@ function LeadsPage() {
 
           <Card>
             <CardContent className="pt-6 space-y-4">
-              <FilterBar
-                activeCount={activeFiltersCount}
-                onClear={limparFiltros}
-                resultsLabel={
-                  listError
-                    ? "Não foi possível calcular os resultados"
-                    : listLoading
-                      ? "Carregando leads…"
-                      : `${visibleTotal} lead(s)`
-                }
-                className="shadow-none"
-                primary={
-                  <div className="relative max-w-xl">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      aria-label="Buscar leads"
-                      placeholder="Buscar por nome, email ou telefone…"
-                      className="pl-9"
-                    />
-                  </div>
-                }
-                actions={
-                  <div className="flex items-center gap-2">
-                    <div className="inline-flex rounded-md border p-0.5">
-                      <Button
-                        size="icon"
-                        variant={viewMode === "tabela" ? "default" : "ghost"}
-                        aria-label="Ver leads em tabela"
-                        aria-pressed={viewMode === "tabela"}
-                        title="Ver em tabela"
-                        onClick={() => setViewMode("tabela")}
-                      >
-                        <Rows3 aria-hidden="true" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant={viewMode === "cards" ? "default" : "ghost"}
-                        aria-label="Ver leads em cards"
-                        aria-pressed={viewMode === "cards"}
-                        title="Ver em cards"
-                        onClick={() => setViewMode("cards")}
-                      >
-                        <LayoutGrid aria-hidden="true" />
-                      </Button>
-                    </div>
-                    {canManage && (
-                      <Button
-                        variant="ghost"
-                        className="min-h-11"
-                        aria-pressed={showLixeira}
-                        onClick={() => setShowLixeira(!showLixeira)}
-                      >
-                        {showLixeira ? "Ver ativos" : "Ver lixeira"}
-                      </Button>
-                    )}
-                  </div>
-                }
-              >
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <>
-                    <Select value={origemFilter} onValueChange={setOrigemFilter}>
+              <div className="grid gap-3 md:grid-cols-6">
+                <div className="md:col-span-2 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por nome, email ou telefone…"
+                    className="pl-9"
+                  />
+                </div>
+                <div className="md:col-span-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Select value={origemFilter} onValueChange={setOrigemFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Origem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as origens</SelectItem>
+                      {ORIGEM_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>
+                          {o.replace(/_/g, " ")}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={temperaturaFilter} onValueChange={setTemperaturaFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Temperatura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas temperaturas</SelectItem>
+                      <SelectItem value="quente">🔥 Quente</SelectItem>
+                      <SelectItem value="morno">🌡️ Morno</SelectItem>
+                      <SelectItem value="frio">❄️ Frio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={periodoFilter}
+                    onValueChange={(v) => setPeriodoFilter(v as Periodo)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Período" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PERIODO_OPTIONS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {canManage && (
+                    <Select value={corretorFilter} onValueChange={setCorretorFilter}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Origem" />
+                        <SelectValue placeholder="Corretor" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Todas as origens</SelectItem>
-                        {ORIGEM_OPTIONS.map((o) => (
-                          <SelectItem key={o} value={o}>
-                            {o.replace(/_/g, " ")}
+                        <SelectItem value="all">Todos os corretores</SelectItem>
+                        <SelectItem value="unassigned">Sem corretor</SelectItem>
+                        {(corretores ?? []).map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Select value={temperaturaFilter} onValueChange={setTemperaturaFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Temperatura" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas temperaturas</SelectItem>
-                        <SelectItem value="quente">🔥 Quente</SelectItem>
-                        <SelectItem value="morno">🌡️ Morno</SelectItem>
-                        <SelectItem value="frio">❄️ Frio</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={periodoFilter}
-                      onValueChange={(v) => setPeriodoFilter(v as Periodo)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Período" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PERIODO_OPTIONS.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>
-                            {p.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {canManage && (
-                      <Select value={corretorFilter} onValueChange={setCorretorFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Corretor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os corretores</SelectItem>
-                          <SelectItem value="unassigned">Sem corretor</SelectItem>
-                          {(corretores ?? []).map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </>
-                  {periodoFilter === "custom" && (
-                    <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-4">
-                      <div className="relative">
-                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="date"
-                          value={dataInicioFilter}
-                          onChange={(e) => setDataInicioFilter(e.target.value)}
-                          className="pl-9"
-                          aria-label="Data inicial"
-                        />
-                      </div>
-                      <div className="relative">
-                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="date"
-                          value={dataFimFilter}
-                          onChange={(e) => setDataFimFilter(e.target.value)}
-                          className="pl-9"
-                          aria-label="Data final"
-                        />
-                      </div>
-                    </div>
                   )}
                 </div>
-              </FilterBar>
+                {periodoFilter === "custom" && (
+                  <div className="md:col-span-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        value={dataInicioFilter}
+                        onChange={(e) => setDataInicioFilter(e.target.value)}
+                        className="pl-9"
+                        aria-label="Data inicial"
+                      />
+                    </div>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="date"
+                        value={dataFimFilter}
+                        onChange={(e) => setDataFimFilter(e.target.value)}
+                        className="pl-9"
+                        aria-label="Data final"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {isLoading ? "Carregando…" : `${filtered.length} lead(s)`}
+                  {activeFiltersCount > 0 && (
+                    <Button variant="ghost" size="sm" className="ml-2 h-7" onClick={limparFiltros}>
+                      <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros ({activeFiltersCount})
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-md border p-0.5">
+                    <Button
+                      size="icon"
+                      variant={viewMode === "tabela" ? "default" : "ghost"}
+                      className="h-7 w-7"
+                      title="Ver em tabela"
+                      onClick={() => setViewMode("tabela")}
+                    >
+                      <Rows3 className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant={viewMode === "cards" ? "default" : "ghost"}
+                      className="h-7 w-7"
+                      title="Ver em cards"
+                      onClick={() => setViewMode("cards")}
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  {canManage && (
+                    <Button variant="ghost" size="sm" onClick={() => setShowLixeira(!showLixeira)}>
+                      {showLixeira ? "Ver ativos" : "Ver lixeira"}
+                    </Button>
+                  )}
+                </div>
+              </div>
 
               {/* Barra de ações em lote */}
-              <BulkActionBar
-                selectedCount={selectedIds.size}
-                entityLabel="lead"
-                onClear={() => setSelectedIds(new Set())}
-              >
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={bulkRegistrarLigacao.isPending}
-                  onClick={() => {
-                    const n = selectedIds.size;
-                    if (
-                      window.confirm(
-                        `Registrar ligação em ${n} lead${n > 1 ? "s" : ""} selecionado${n > 1 ? "s" : ""}?`,
-                      )
-                    )
-                      bulkRegistrarLigacao.mutate(Array.from(selectedIds));
-                  }}
-                >
-                  <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="outline" disabled={bulkTemperatura.isPending}>
-                      <Thermometer className="h-3.5 w-3.5 mr-1" /> Temperatura
-                      <ChevronDown className="h-3.5 w-3.5 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {(
-                      [
-                        { key: "quente", label: "Quente" },
-                        { key: "morno", label: "Morno" },
-                        { key: "frio", label: "Frio" },
-                      ] as const
-                    ).map((opt) => (
-                      <DropdownMenuItem
-                        key={opt.key}
-                        onSelect={() => {
-                          const n = selectedIds.size;
-                          if (
-                            window.confirm(`Marcar ${n} lead${n > 1 ? "s" : ""} como ${opt.label}?`)
-                          )
-                            bulkTemperatura.mutate({
-                              ids: Array.from(selectedIds),
-                              temp: opt.key,
-                            });
-                        }}
-                      >
-                        {opt.key === "quente" && (
-                          <Flame className="h-4 w-4 mr-2 text-destructive" />
-                        )}
-                        {opt.key === "morno" && (
-                          <Thermometer className="h-4 w-4 mr-2 text-warning" />
-                        )}
-                        {opt.key === "frio" && <Snowflake className="h-4 w-4 mr-2 text-info" />}
-                        {opt.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
-                  <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
-                </Button>
-                {canManage && (
-                  <>
-                    <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
-                      <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
-                    </Button>
+              {selectedIds.size > 0 && (
+                <div className="flex items-center justify-between rounded-md border bg-muted/40 p-2">
+                  <div className="text-sm font-medium">{selectedIds.size} selecionado(s)</div>
+                  <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={bulkRegistrarLigacao.isPending}
                       onClick={() => {
                         const n = selectedIds.size;
-                        const acao = showLixeira ? "Restaurar" : "Mover p/ lixeira";
-                        if (window.confirm(`${acao} ${n} lead${n > 1 ? "s" : ""}?`))
-                          moverLixeira.mutate({
-                            ids: Array.from(selectedIds),
-                            lixeira: !showLixeira,
-                          });
+                        if (
+                          window.confirm(
+                            `Registrar ligação em ${n} lead${n > 1 ? "s" : ""} selecionado${n > 1 ? "s" : ""}?`,
+                          )
+                        )
+                          bulkRegistrarLigacao.mutate(Array.from(selectedIds));
                       }}
                     >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                      <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
                     </Button>
-                  </>
-                )}
-              </BulkActionBar>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" disabled={bulkTemperatura.isPending}>
+                          <Thermometer className="h-3.5 w-3.5 mr-1" /> Temperatura
+                          <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {(
+                          [
+                            { key: "quente", label: "Quente" },
+                            { key: "morno", label: "Morno" },
+                            { key: "frio", label: "Frio" },
+                          ] as const
+                        ).map((opt) => (
+                          <DropdownMenuItem
+                            key={opt.key}
+                            onSelect={() => {
+                              const n = selectedIds.size;
+                              if (
+                                window.confirm(
+                                  `Marcar ${n} lead${n > 1 ? "s" : ""} como ${opt.label}?`,
+                                )
+                              )
+                                bulkTemperatura.mutate({
+                                  ids: Array.from(selectedIds),
+                                  temp: opt.key,
+                                });
+                            }}
+                          >
+                            {opt.key === "quente" && (
+                              <Flame className="h-4 w-4 mr-2 text-destructive" />
+                            )}
+                            {opt.key === "morno" && (
+                              <Thermometer className="h-4 w-4 mr-2 text-warning" />
+                            )}
+                            {opt.key === "frio" && <Snowflake className="h-4 w-4 mr-2 text-info" />}
+                            {opt.label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
+                      <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
+                    </Button>
+                    {canManage && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setBulkTransferOpen(true)}
+                        >
+                          <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const n = selectedIds.size;
+                            const acao = showLixeira ? "Restaurar" : "Mover p/ lixeira";
+                            if (window.confirm(`${acao} ${n} lead${n > 1 ? "s" : ""}?`))
+                              moverLixeira.mutate({
+                                ids: Array.from(selectedIds),
+                                lixeira: !showLixeira,
+                              });
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" />
+                          {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
+                        </Button>
+                      </>
+                    )}
 
-              {listError ? (
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+                      Limpar
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {leadsError ? (
                 <Card>
                   <CardContent className="py-12 text-center space-y-3">
                     <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
                     <p className="text-sm text-muted-foreground">
-                      Não foi possível carregar os leads ou seus filtros. Verifique sua conexão e
-                      tente novamente.
+                      Não foi possível carregar os leads. Verifique sua conexão e tente novamente.
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="min-h-11"
-                      onClick={() => {
-                        void refetchLeads();
-                        void refetchStatusCounts();
-                        if (contatoFilter === "com_followup") void refetchFollowups();
-                      }}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => refetchLeads()}>
                       <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
                     </Button>
                   </CardContent>
                 </Card>
-              ) : listLoading ? (
+              ) : isLoading ? (
                 viewMode === "tabela" ? (
                   <div className="space-y-2">
                     {Array.from({ length: 8 }).map((_, i) => (
@@ -1651,7 +1607,7 @@ function LeadsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.length === 0 && !listLoading && (
+                      {filtered.length === 0 && !isLoading && (
                         <TableRow>
                           <TableCell
                             colSpan={8}
@@ -1662,186 +1618,179 @@ function LeadsPage() {
                         </TableRow>
                       )}
                       {paginated.map((l) => (
-                        <EntityRow
+                        <TableRow
                           key={l.id}
-                          asChild
-                          selected={selectedIds.has(l.id)}
-                          onActivate={() => setPeekLead(l)}
-                          aria-label={`Abrir visão rápida de ${l.nome}`}
+                          data-state={selectedIds.has(l.id) ? "selected" : undefined}
+                          className="cursor-pointer"
+                          onClick={(e) => handlePeekClick(e, l)}
                         >
-                          <TableRow>
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedIds.has(l.id)}
-                                onCheckedChange={() => toggleOne(l.id)}
-                                aria-label={`Selecionar ${l.nome}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <TempIcon temp={l.temperatura} />
-                                <Link
-                                  to="/leads/$leadId"
-                                  params={{ leadId: l.id }}
-                                  className="font-medium hover:underline"
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.has(l.id)}
+                              onCheckedChange={() => toggleOne(l.id)}
+                              aria-label={`Selecionar ${l.nome}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <TempIcon temp={l.temperatura} />
+                              <Link
+                                to="/leads/$leadId"
+                                params={{ leadId: l.id }}
+                                className="font-medium hover:underline"
+                              >
+                                {l.nome}
+                              </Link>
+                              <FinanceiroPopover lead={l} />
+                            </div>
+                            {l.projeto_nome && (
+                              <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
+                            )}
+                            <div className="mt-1">
+                              <InatividadeBadge lead={l} />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="min-w-0">
+                                <div className="text-sm">{l.telefone}</div>
+                                <div className="text-xs text-muted-foreground truncate">
+                                  {l.email ?? "—"}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                                  title="Abrir WhatsApp com mensagem pronta"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    abrirWhatsApp(l);
+                                  }}
                                 >
-                                  {l.nome}
-                                </Link>
-                                <FinanceiroPopover lead={l} />
+                                  <MessageCircle className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  asChild
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
+                                  title="Ligar"
+                                >
+                                  <a
+                                    href={`tel:${l.telefone.replace(/\D/g, "")}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Phone className="h-4 w-4" />
+                                  </a>
+                                </Button>
                               </div>
-                              {l.projeto_nome && (
-                                <div className="text-xs text-muted-foreground">
-                                  {l.projeto_nome}
-                                </div>
-                              )}
-                              <div className="mt-1">
-                                <InatividadeBadge lead={l} />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="min-w-0">
-                                  <div className="text-sm">{l.telefone}</div>
-                                  <div className="text-xs text-muted-foreground truncate">
-                                    {l.email ?? "—"}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
+                            </div>
+                          </TableCell>
+                          <TableCell className="capitalize text-sm">
+                            {l.origem.replace(/_/g, " ")}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
+                                variant="secondary"
+                              >
+                                {leadStatusLabel(l.status)}
+                              </Badge>
+                              {(() => {
+                                const info = transferInfoMap.get(l.id);
+                                if (!info) return null;
+                                return (
+                                  <TransferSlaBadge
+                                    leadId={l.id}
+                                    origem={l.origem}
+                                    status={l.status}
+                                    dataDistribuicao={info.data_distribuicao}
+                                    tentativas={info.tentativas_redistribuicao}
+                                    timeouts={transferTimeouts}
+                                    viaWebhook={info.via_webhook}
+                                    compact
+                                    showBar
+                                  />
+                                );
+                              })()}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {l.corretor_id ? (
+                              (corretoresMap.get(l.corretor_id) ?? "—")
+                            ) : (
+                              <span className="text-muted-foreground italic">sem corretor</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {l.status === "contrato_fechado" && l.data_venda
+                              ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
+                              : new Date(l.created_at).toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {!l.na_lixeira &&
+                                l.status === "aguardando_atendimento" &&
+                                (canManage || l.corretor_id === user?.id) && (
+                                  <IniciarSplitButton
+                                    lead={l}
+                                    lastContactType={lastContactType}
+                                    pending={iniciarAtendimento.isPending}
+                                    onIniciar={iniciarComTipo}
+                                    onEscolher={setContactLead}
+                                  />
+                                )}
+                              {!l.na_lixeira &&
+                                (canManage || l.corretor_id === user?.id) &&
+                                l.status !== "aguardando_atendimento" &&
+                                PROXIMA_ACAO[l.status as LeadStatus] && (
                                   <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-success hover:text-success hover:bg-success/10"
-                                    aria-label={`Abrir WhatsApp de ${l.nome}`}
-                                    title="Abrir WhatsApp com mensagem pronta"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      abrirWhatsApp(l);
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={updateStatus.isPending}
+                                    onClick={() => {
+                                      const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
+                                      const action = resolveStageAction(acao.target);
+                                      if (action.kind === "modal")
+                                        setModalState({ modal: action.modal, lead: l });
+                                      else if (action.kind === "perdido") setPerdidoLead(l);
+                                      else updateStatus.mutate({ id: l.id, status: acao.target });
                                     }}
                                   >
-                                    <MessageCircle className="h-4 w-4" />
+                                    {PROXIMA_ACAO[l.status as LeadStatus]!.label}
                                   </Button>
-                                  <Button
-                                    asChild
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-info hover:text-info hover:bg-info/10"
-                                    aria-label={`Ligar para ${l.nome}`}
-                                    title="Ligar"
-                                  >
-                                    <a
-                                      href={`tel:${l.telefone.replace(/\D/g, "")}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <Phone className="h-4 w-4" />
-                                    </a>
-                                  </Button>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="capitalize text-sm">
-                              {l.origem.replace(/_/g, " ")}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1">
-                                <Badge
-                                  className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
-                                  variant="secondary"
-                                >
-                                  {leadStatusLabel(l.status)}
-                                </Badge>
-                                {(() => {
-                                  const info = transferInfoMap.get(l.id);
-                                  if (!info) return null;
-                                  return (
-                                    <TransferSlaBadge
-                                      leadId={l.id}
-                                      origem={l.origem}
-                                      status={l.status}
-                                      dataDistribuicao={info.data_distribuicao}
-                                      tentativas={info.tentativas_redistribuicao}
-                                      timeouts={transferTimeouts}
-                                      viaWebhook={info.via_webhook}
-                                      compact
-                                      showBar
-                                    />
-                                  );
-                                })()}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {l.corretor_id ? (
-                                (corretoresMap.get(l.corretor_id) ?? "—")
-                              ) : (
-                                <span className="text-muted-foreground italic">sem corretor</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {l.status === "contrato_fechado" && l.data_venda
-                                ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
-                                : new Date(l.created_at).toLocaleDateString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                {!l.na_lixeira &&
-                                  l.status === "aguardando_atendimento" &&
-                                  (canManage || l.corretor_id === user?.id) && (
-                                    <IniciarSplitButton
-                                      lead={l}
-                                      lastContactType={lastContactType}
-                                      pending={iniciarAtendimento.isPending}
-                                      onIniciar={iniciarComTipo}
-                                      onEscolher={setContactLead}
-                                    />
-                                  )}
-                                {!l.na_lixeira &&
-                                  (canManage || l.corretor_id === user?.id) &&
-                                  l.status !== "aguardando_atendimento" &&
-                                  PROXIMA_ACAO[l.status as LeadStatus] && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={updateStatus.isPending}
-                                      onClick={() => {
-                                        const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
-                                        const action = resolveStageAction(acao.target);
-                                        if (action.kind === "modal")
-                                          setModalState({ modal: action.modal, lead: l });
-                                        else if (action.kind === "perdido") setPerdidoLead(l);
-                                        else updateStatus.mutate({ id: l.id, status: acao.target });
-                                      }}
-                                    >
-                                      {PROXIMA_ACAO[l.status as LeadStatus]!.label}
-                                    </Button>
-                                  )}
-                                <LeadRowMenu
-                                  lead={l}
-                                  canManage={canManage}
-                                  canAct={canManage || l.corretor_id === user?.id}
-                                  onPickDirect={(target) =>
-                                    updateStatus.mutate({ id: l.id, status: target })
-                                  }
-                                  onPickModal={(modal) => setModalState({ modal, lead: l })}
-                                  onPickPerdido={() => setPerdidoLead(l)}
-                                  onRoleta={() => distribuir.mutate(l.id)}
-                                  onTransferir={() => {
-                                    setSelectedIds(new Set([l.id]));
-                                    setBulkTransferOpen(true);
-                                  }}
-                                  onLixeira={() =>
-                                    moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
-                                  }
-                                />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        </EntityRow>
+                                )}
+                              <LeadRowMenu
+                                lead={l}
+                                canManage={canManage}
+                                canAct={canManage || l.corretor_id === user?.id}
+                                onPickDirect={(target) =>
+                                  updateStatus.mutate({ id: l.id, status: target })
+                                }
+                                onPickModal={(modal) => setModalState({ modal, lead: l })}
+                                onPickPerdido={() => setPerdidoLead(l)}
+                                onRoleta={() => distribuir.mutate(l.id)}
+                                onTransferir={() => {
+                                  setSelectedIds(new Set([l.id]));
+                                  setBulkTransferOpen(true);
+                                }}
+                                onLixeira={() =>
+                                  moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
+                                }
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {paginated.length === 0 && !listLoading && (
+                  {paginated.length === 0 && !isLoading && (
                     <div className="col-span-full text-center text-muted-foreground py-10">
                       Nenhum lead encontrado.
                     </div>
@@ -1850,13 +1799,12 @@ function LeadsPage() {
                     const proxima = PROXIMA_ACAO[l.status as LeadStatus];
                     const canAct = canManage || l.corretor_id === user?.id;
                     return (
-                      <EntityCard
+                      <div
                         key={l.id}
-                        aria-label={`Abrir visão rápida de ${l.nome}`}
-                        activationLabel={`Abrir visão rápida de ${l.nome}`}
-                        selected={selectedIds.has(l.id)}
-                        onActivate={() => setPeekLead(l)}
-                        className="space-y-2"
+                        onClick={(e) => handlePeekClick(e, l)}
+                        className={`rounded-lg border bg-card p-3 space-y-2 cursor-pointer shadow-elev-1 transition-shadow hover:shadow-elev-2 ${
+                          selectedIds.has(l.id) ? "ring-2 ring-primary" : ""
+                        }`}
                       >
                         <div className="flex items-start gap-2">
                           <Checkbox
@@ -1937,8 +1885,7 @@ function LeadsPage() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="text-success hover:bg-success/10"
-                            aria-label={`Abrir WhatsApp de ${l.nome}`}
+                            className="h-7 w-7 text-success hover:bg-success/10"
                             title="Abrir WhatsApp com mensagem pronta"
                             onClick={() => abrirWhatsApp(l)}
                           >
@@ -1948,8 +1895,7 @@ function LeadsPage() {
                             asChild
                             size="icon"
                             variant="ghost"
-                            className="text-info hover:bg-info/10"
-                            aria-label={`Ligar para ${l.nome}`}
+                            className="h-7 w-7 text-info hover:bg-info/10"
                             title="Ligar"
                           >
                             <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
@@ -1973,7 +1919,7 @@ function LeadsPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="min-h-11"
+                                className="h-7"
                                 disabled={updateStatus.isPending}
                                 onClick={() => {
                                   const action = resolveStageAction(proxima.target);
@@ -2005,32 +1951,32 @@ function LeadsPage() {
                             }
                           />
                         </div>
-                      </EntityCard>
+                      </div>
                     );
                   })}
                 </div>
               )}
 
               {/* Teto de segurança da RPC: sem aviso, o corte de 1000 seria silencioso. */}
-              {!serverPaginated && totalLeadsCount > 1000 && (
+              {totalLeadsCount > 1000 && (
                 <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                  O filtro de contato analisa no máximo 1.000 leads. Refine status, período ou
-                  corretor para reduzir o conjunto antes de usar este filtro.
+                  Mostrando os 1.000 leads mais relevantes de{" "}
+                  {totalLeadsCount.toLocaleString("pt-BR")}. Refine os filtros (status, período,
+                  corretor) para ver o restante.
                 </p>
               )}
 
               {/* Paginação (50 por página) */}
-              {visibleTotal > LEADS_PAGE_SIZE && (
+              {filtered.length > LEADS_PAGE_SIZE && (
                 <div className="flex items-center justify-between pt-1">
                   <div className="text-xs text-muted-foreground">
-                    Página {pageSafe} de {totalPages} · {visibleTotal.toLocaleString("pt-BR")}{" "}
-                    lead(s)
+                    Página {pageSafe} de {totalPages} · {filtered.length} lead(s)
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="min-h-11"
+                      className="h-8"
                       disabled={pageSafe <= 1}
                       onClick={() => setPage(pageSafe - 1)}
                     >
@@ -2039,7 +1985,7 @@ function LeadsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="min-h-11"
+                      className="h-8"
                       disabled={pageSafe >= totalPages}
                       onClick={() => setPage(pageSafe + 1)}
                     >

@@ -1,12 +1,11 @@
 // GET /api/public/metricas
-// Auth: cliente X-API-Key com escopo metrics:read.
+// Auth: header X-API-Key = READ_API_KEY
 // Query params (opcionais):
 //   desde=YYYY-MM-DD  ate=YYYY-MM-DD  (default: m\u00eas corrente)
 // Retorna agregados sem PII: contagens por status / temperatura / origem / corretor,
 // total de leads no per\u00edodo, vendas e VGV do per\u00edodo.
 import { createFileRoute } from "@tanstack/react-router";
-import { jsonResponse } from "@/lib/public-api-auth";
-import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { checkReadApiKey, jsonResponse } from "@/lib/public-api-auth";
 
 function monthRange() {
   const now = new Date();
@@ -19,8 +18,8 @@ export const Route = createFileRoute("/api/public/metricas")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const auth = await requireApiClientScope(request, "metrics:read");
-        if (auth instanceof Response) return auth;
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
 
         const url = new URL(request.url);
         const def = monthRange();
@@ -35,50 +34,23 @@ export const Route = createFileRoute("/api/public/metricas")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        let leadsQuery = supabaseAdmin
-          .from("leads")
-          .select("status,temperatura,origem,corretor_id,created_at")
-          .eq("na_lixeira", false)
-          .is("deleted_at", null)
-          .gte("created_at", desde)
-          .lt("created_at", ateExclusivo);
-        let vendasQuery = supabaseAdmin
-          .from("vendas")
-          .select("valor_venda,corretor_id,projeto_id,aprovado_em")
-          .eq("status_venda", "aprovada")
-          .gte("aprovado_em", desde)
-          .lt("aprovado_em", ateExclusivo);
-        let distratosQuery = supabaseAdmin
-          .from("vendas")
-          .select("id,corretor_id,projeto_id,status_venda_updated_at")
-          .eq("status_venda", "cancelada")
-          .gte("status_venda_updated_at", desde)
-          .lt("status_venda_updated_at", ateExclusivo);
-
-        if (auth.projetoId) {
-          leadsQuery = leadsQuery.eq("projeto_id", auth.projetoId);
-          vendasQuery = vendasQuery.eq("projeto_id", auth.projetoId);
-          distratosQuery = distratosQuery.eq("projeto_id", auth.projetoId);
-        }
-        const equipeCorretorIds = await restrictedCorretorIds(auth);
-        if (equipeCorretorIds) {
-          const ids = equipeCorretorIds.length
-            ? equipeCorretorIds
-            : ["00000000-0000-0000-0000-000000000000"];
-          leadsQuery = leadsQuery.in("corretor_id", ids);
-          vendasQuery = vendasQuery.in("corretor_id", ids);
-          distratosQuery = distratosQuery.in("corretor_id", ids);
-        }
-
-        const [leadsRes, vendasRes, distratosRes] = await Promise.all([
-          leadsQuery,
-          vendasQuery,
-          distratosQuery,
+        const [leadsRes, vendasRes] = await Promise.all([
+          supabaseAdmin
+            .from("leads")
+            .select("status,temperatura,origem,corretor_id,created_at")
+            .eq("na_lixeira", false)
+            .is("deleted_at", null)
+            .gte("created_at", desde)
+            .lt("created_at", ateExclusivo),
+          supabaseAdmin
+            .from("vendas")
+            .select("valor_venda,corretor_id,projeto_id,data_assinatura,distrato")
+            .gte("data_assinatura", desde)
+            .lt("data_assinatura", ateExclusivo),
         ]);
 
         if (leadsRes.error) return jsonResponse({ error: leadsRes.error.message }, 500);
         if (vendasRes.error) return jsonResponse({ error: vendasRes.error.message }, 500);
-        if (distratosRes.error) return jsonResponse({ error: distratosRes.error.message }, 500);
 
         const bump = (m: Record<string, number>, k: string | null | undefined) => {
           const key = k ?? "(vazio)";
@@ -98,7 +70,12 @@ export const Route = createFileRoute("/api/public/metricas")({
         const vendasPorCorretor: Record<string, { qtd: number; vgv: number }> = {};
         let vendasQtd = 0;
         let vgv = 0;
+        let distratos = 0;
         for (const v of vendasRes.data ?? []) {
+          if (v.distrato) {
+            distratos++;
+            continue;
+          }
           vendasQtd++;
           const valor = Number(v.valor_venda) || 0;
           vgv += valor;
@@ -119,7 +96,7 @@ export const Route = createFileRoute("/api/public/metricas")({
           },
           vendas: {
             total: vendasQtd,
-            distratos: distratosRes.data?.length ?? 0,
+            distratos,
             vgv,
             por_corretor: vendasPorCorretor,
           },

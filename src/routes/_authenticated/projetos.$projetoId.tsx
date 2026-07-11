@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,27 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Star, Trash2 } from "lucide-react";
@@ -72,10 +57,7 @@ function ProjetoDetalhePage() {
     queryKey: ["projeto", projetoId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("projetos")
-        .select(PROJETO_CRM_SELECT)
-        .eq("id", projetoId)
-        .maybeSingle();
+        .from("projetos").select("*").eq("id", projetoId).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -85,9 +67,7 @@ function ProjetoDetalhePage() {
     queryKey: ["unidades", projetoId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("unidades")
-        .select("*")
-        .eq("projeto_id", projetoId)
+        .from("unidades").select("*").eq("projeto_id", projetoId)
         .is("deleted_at", null)
         .order("bloco", { ascending: true })
         .order("identificador", { ascending: true });
@@ -114,9 +94,7 @@ function ProjetoDetalhePage() {
     queryKey: ["projeto-foco", projetoId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("projeto_foco")
-        .select("*")
-        .eq("projeto_id", projetoId)
+        .from("projeto_foco").select("*").eq("projeto_id", projetoId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -132,17 +110,14 @@ function ProjetoDetalhePage() {
         if (error) throw error;
       } else {
         const { error } = await supabase.from("unidades").insert({
-          ...payload,
-          projeto_id: projetoId,
-          criado_por: user?.id,
+          ...payload, projeto_id: projetoId, criado_por: user?.id,
         });
         if (error) throw error;
       }
     },
     onSuccess: () => {
       toast.success(editing ? "Unidade atualizada" : "Unidade criada");
-      setUnidadeOpen(false);
-      setEditing(null);
+      setUnidadeOpen(false); setEditing(null);
       qc.invalidateQueries({ queryKey: ["unidades", projetoId] });
       qc.invalidateQueries({ queryKey: ["historico-precos", projetoId] });
     },
@@ -176,15 +151,10 @@ function ProjetoDetalhePage() {
   const ativarFoco = useMutation({
     mutationFn: async (payload: any) => {
       // Desativa foco anterior do projeto
-      await supabase
-        .from("projeto_foco")
-        .update({ ativo: false, fim: new Date().toISOString() })
-        .eq("projeto_id", projetoId)
-        .eq("ativo", true);
+      await supabase.from("projeto_foco").update({ ativo: false, fim: new Date().toISOString() })
+        .eq("projeto_id", projetoId).eq("ativo", true);
       const { error } = await supabase.from("projeto_foco").insert({
-        projeto_id: projetoId,
-        ...payload,
-        criado_por: user?.id,
+        projeto_id: projetoId, ...payload, criado_por: user?.id,
       });
       if (error) throw error;
     },
@@ -198,10 +168,8 @@ function ProjetoDetalhePage() {
 
   const desativarFoco = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("projeto_foco")
-        .update({ ativo: false, fim: new Date().toISOString() })
-        .eq("id", id);
+      const { error } = await supabase.from("projeto_foco")
+        .update({ ativo: false, fim: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -268,10 +236,7 @@ function ProjetoDetalhePage() {
         description={subParts.join(" — ") || "Gestão completa do empreendimento"}
         actions={
           <Button variant="outline" size="sm" asChild>
-            <Link to="/projetos">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Projetos
-            </Link>
+            <Link to="/projetos"><ArrowLeft className="h-4 w-4 mr-1" />Projetos</Link>
           </Button>
         }
       />
@@ -303,12 +268,7 @@ function ProjetoDetalhePage() {
                   : "—"}
             </InfoLine>
             <InfoLine label="Status entrega">
-              {[
-                projeto.status_entrega,
-                projeto.ano_entrega
-                  ? `${projeto.mes_entrega ? String(projeto.mes_entrega).padStart(2, "0") + "/" : ""}${projeto.ano_entrega}`
-                  : null,
-              ]
+              {[projeto.status_entrega, projeto.ano_entrega ? `${projeto.mes_entrega ? String(projeto.mes_entrega).padStart(2, "0") + "/" : ""}${projeto.ano_entrega}` : null]
                 .filter(Boolean)
                 .join(" · ") || "—"}
             </InfoLine>
@@ -316,9 +276,7 @@ function ProjetoDetalhePage() {
             <InfoLine label="Status do preço">{projeto.status_preco || "—"}</InfoLine>
             <InfoLine label="Zona SMQ">{projeto.zona_smq || "—"}</InfoLine>
             <InfoLine label="Endereço">
-              {[projeto.logradouro, projeto.numero].filter(Boolean).join(", ") ||
-                projeto.endereco ||
-                "—"}
+              {[projeto.logradouro, projeto.numero].filter(Boolean).join(", ") || projeto.endereco || "—"}
             </InfoLine>
             <InfoLine label="Fonte">{projeto.fonte || "—"}</InfoLine>
           </CardContent>
@@ -356,18 +314,9 @@ function ProjetoDetalhePage() {
         <TabsContent value="unidades" className="space-y-3">
           {canManage && (
             <div className="flex justify-end">
-              <Dialog
-                open={unidadeOpen}
-                onOpenChange={(o) => {
-                  setUnidadeOpen(o);
-                  if (!o) setEditing(null);
-                }}
-              >
+              <Dialog open={unidadeOpen} onOpenChange={(o) => { setUnidadeOpen(o); if (!o) setEditing(null); }}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nova unidade
-                  </Button>
+                  <Button size="sm"><Plus className="h-4 w-4 mr-1" />Nova unidade</Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-xl">
                   <DialogHeader>
@@ -376,94 +325,36 @@ function ProjetoDetalhePage() {
                   <form onSubmit={handleSubmitUnidade} className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
                       <Label htmlFor="identificador">Identificador *</Label>
-                      <Input
-                        id="identificador"
-                        name="identificador"
-                        required
-                        defaultValue={editing?.identificador}
-                        placeholder="ex.: 101, Apto 12A"
-                      />
+                      <Input id="identificador" name="identificador" required
+                        defaultValue={editing?.identificador} placeholder="ex.: 101, Apto 12A" />
                     </div>
-                    <div>
-                      <Label>Bloco</Label>
-                      <Input name="bloco" defaultValue={editing?.bloco ?? ""} />
-                    </div>
-                    <div>
-                      <Label>Andar</Label>
-                      <Input name="andar" defaultValue={editing?.andar ?? ""} />
-                    </div>
-                    <div className="col-span-2">
-                      <Label>Tipologia</Label>
-                      <Input
-                        name="tipologia"
-                        defaultValue={editing?.tipologia ?? ""}
-                        placeholder="ex.: 2 dorm c/ suíte"
-                      />
-                    </div>
-                    <div>
-                      <Label>Dormitórios</Label>
-                      <Input
-                        name="dormitorios"
-                        type="number"
-                        min="0"
-                        defaultValue={editing?.dormitorios ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Suítes</Label>
-                      <Input
-                        name="suites"
-                        type="number"
-                        min="0"
-                        defaultValue={editing?.suites ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Vagas</Label>
-                      <Input
-                        name="vagas"
-                        type="number"
-                        min="0"
-                        defaultValue={editing?.vagas ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Área privativa (m²)</Label>
-                      <Input
-                        name="area_privativa"
-                        type="number"
-                        step="0.01"
-                        defaultValue={editing?.area_privativa ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Valor (R$)</Label>
-                      <Input
-                        name="valor"
-                        type="number"
-                        step="0.01"
-                        defaultValue={editing?.valor ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Status</Label>
+                    <div><Label>Bloco</Label><Input name="bloco" defaultValue={editing?.bloco ?? ""} /></div>
+                    <div><Label>Andar</Label><Input name="andar" defaultValue={editing?.andar ?? ""} /></div>
+                    <div className="col-span-2"><Label>Tipologia</Label>
+                      <Input name="tipologia" defaultValue={editing?.tipologia ?? ""}
+                        placeholder="ex.: 2 dorm c/ suíte" /></div>
+                    <div><Label>Dormitórios</Label>
+                      <Input name="dormitorios" type="number" min="0" defaultValue={editing?.dormitorios ?? ""} /></div>
+                    <div><Label>Suítes</Label>
+                      <Input name="suites" type="number" min="0" defaultValue={editing?.suites ?? ""} /></div>
+                    <div><Label>Vagas</Label>
+                      <Input name="vagas" type="number" min="0" defaultValue={editing?.vagas ?? ""} /></div>
+                    <div><Label>Área privativa (m²)</Label>
+                      <Input name="area_privativa" type="number" step="0.01" defaultValue={editing?.area_privativa ?? ""} /></div>
+                    <div><Label>Valor (R$)</Label>
+                      <Input name="valor" type="number" step="0.01" defaultValue={editing?.valor ?? ""} /></div>
+                    <div><Label>Status</Label>
                       <Select name="status" defaultValue={editing?.status ?? "disponivel"}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {STATUS_OPCOES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {UNIDADE_STATUS_LABEL[s]}
-                            </SelectItem>
+                          {STATUS_OPCOES.map(s => (
+                            <SelectItem key={s} value={s}>{UNIDADE_STATUS_LABEL[s]}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="col-span-2">
-                      <Label>Observações</Label>
-                      <Input name="observacoes" defaultValue={editing?.observacoes ?? ""} />
-                    </div>
+                    <div className="col-span-2"><Label>Observações</Label>
+                      <Input name="observacoes" defaultValue={editing?.observacoes ?? ""} /></div>
                     <DialogFooter className="col-span-2">
                       <Button type="submit" disabled={saveUnidade.isPending}>
                         {saveUnidade.isPending ? "Salvando..." : "Salvar"}
@@ -484,15 +375,11 @@ function ProjetoDetalhePage() {
                 className="max-w-xs"
               />
               <Select value={unidadeStatusFiltro} onValueChange={setUnidadeStatusFiltro}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos os status</SelectItem>
                   {STATUS_OPCOES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {UNIDADE_STATUS_LABEL[s]}
-                    </SelectItem>
+                    <SelectItem key={s} value={s}>{UNIDADE_STATUS_LABEL[s]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -535,8 +422,7 @@ function ProjetoDetalhePage() {
                           {u.tipologia || "—"}
                           {u.dormitorios ? (
                             <span className="text-xs text-muted-foreground ml-1">
-                              ({u.dormitorios}d{u.suites ? `/${u.suites}s` : ""}
-                              {u.vagas ? `/${u.vagas}v` : ""})
+                              ({u.dormitorios}d{u.suites ? `/${u.suites}s` : ""}{u.vagas ? `/${u.vagas}v` : ""})
                             </span>
                           ) : null}
                         </TableCell>
@@ -546,9 +432,7 @@ function ProjetoDetalhePage() {
                           {canManage ? (
                             <Select
                               value={u.status}
-                              onValueChange={(v) =>
-                                updateStatus.mutate({ id: u.id, status: v as UnidadeStatus })
-                              }
+                              onValueChange={(v) => updateStatus.mutate({ id: u.id, status: v as UnidadeStatus })}
                             >
                               <SelectTrigger className="h-8 w-36">
                                 <span className="flex items-center gap-2">
@@ -562,10 +446,8 @@ function ProjetoDetalhePage() {
                                 </span>
                               </SelectTrigger>
                               <SelectContent>
-                                {STATUS_OPCOES.map((s) => (
-                                  <SelectItem key={s} value={s}>
-                                    {UNIDADE_STATUS_LABEL[s]}
-                                  </SelectItem>
+                                {STATUS_OPCOES.map(s => (
+                                  <SelectItem key={s} value={s}>{UNIDADE_STATUS_LABEL[s]}</SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -581,23 +463,12 @@ function ProjetoDetalhePage() {
                         {canManage && (
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditing(u);
-                                  setUnidadeOpen(true);
-                                }}
-                              >
+                              <Button size="sm" variant="ghost"
+                                onClick={() => { setEditing(u); setUnidadeOpen(true); }}>
                                 Editar
                               </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  if (confirm("Remover unidade?")) deleteUnidade.mutate(u.id);
-                                }}
-                              >
+                              <Button size="icon" variant="ghost"
+                                onClick={() => { if (confirm("Remover unidade?")) deleteUnidade.mutate(u.id); }}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -648,20 +519,14 @@ function ProjetoDetalhePage() {
                       return (
                         <TableRow key={h.id}>
                           <TableCell className="font-medium">
-                            {h.unidade?.bloco ? `${h.unidade.bloco}/` : ""}
-                            {h.unidade?.identificador ?? "—"}
+                            {h.unidade?.bloco ? `${h.unidade.bloco}/` : ""}{h.unidade?.identificador ?? "—"}
                           </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatBRL(h.valor_anterior)}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatBRL(h.valor_novo)}
-                          </TableCell>
+                          <TableCell className="font-mono text-sm">{formatBRL(h.valor_anterior)}</TableCell>
+                          <TableCell className="font-mono text-sm">{formatBRL(h.valor_novo)}</TableCell>
                           <TableCell>
                             {variacao !== null && (
                               <span className={variacao >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                {variacao >= 0 ? "+" : ""}
-                                {variacao.toFixed(1)}%
+                                {variacao >= 0 ? "+" : ""}{variacao.toFixed(1)}%
                               </span>
                             )}
                           </TableCell>
@@ -683,28 +548,17 @@ function ProjetoDetalhePage() {
             <div className="flex justify-end">
               <Dialog open={focoOpen} onOpenChange={setFocoOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Star className="h-4 w-4 mr-1" />
-                    Ativar foco
-                  </Button>
+                  <Button size="sm"><Star className="h-4 w-4 mr-1" />Ativar foco</Button>
                 </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Ativar projeto em foco</DialogTitle>
-                  </DialogHeader>
+                  <DialogHeader><DialogTitle>Ativar projeto em foco</DialogTitle></DialogHeader>
                   <form onSubmit={handleSubmitFoco} className="space-y-3">
-                    <div>
-                      <Label htmlFor="motivo">Motivo / campanha</Label>
-                      <Input id="motivo" name="motivo" placeholder="ex.: Lançamento, meta do mês" />
-                    </div>
-                    <div>
-                      <Label htmlFor="fim">Encerrar em (opcional)</Label>
-                      <Input id="fim" name="fim" type="datetime-local" />
-                    </div>
+                    <div><Label htmlFor="motivo">Motivo / campanha</Label>
+                      <Input id="motivo" name="motivo" placeholder="ex.: Lançamento, meta do mês" /></div>
+                    <div><Label htmlFor="fim">Encerrar em (opcional)</Label>
+                      <Input id="fim" name="fim" type="datetime-local" /></div>
                     <DialogFooter>
-                      <Button type="submit" disabled={ativarFoco.isPending}>
-                        Ativar
-                      </Button>
+                      <Button type="submit" disabled={ativarFoco.isPending}>Ativar</Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -735,27 +589,18 @@ function ProjetoDetalhePage() {
                     {(focoQ.data ?? []).map((f: any) => (
                       <TableRow key={f.id}>
                         <TableCell>{f.motivo || "—"}</TableCell>
-                        <TableCell className="text-xs">
-                          {new Date(f.inicio).toLocaleString("pt-BR")}
-                        </TableCell>
+                        <TableCell className="text-xs">{new Date(f.inicio).toLocaleString("pt-BR")}</TableCell>
                         <TableCell className="text-xs">
                           {f.fim ? new Date(f.fim).toLocaleString("pt-BR") : "—"}
                         </TableCell>
                         <TableCell>
-                          {f.ativo ? (
-                            <Badge>Ativo</Badge>
-                          ) : (
-                            <Badge variant="outline">Encerrado</Badge>
-                          )}
+                          {f.ativo ? <Badge>Ativo</Badge> : <Badge variant="outline">Encerrado</Badge>}
                         </TableCell>
                         {canManage && (
                           <TableCell>
                             {f.ativo && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => desativarFoco.mutate(f.id)}
-                              >
+                              <Button size="sm" variant="ghost"
+                                onClick={() => desativarFoco.mutate(f.id)}>
                                 Encerrar
                               </Button>
                             )}

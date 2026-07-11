@@ -100,7 +100,7 @@ export function LeadStageMenu({
         <Button
           variant="ghost"
           size="icon"
-          className={cn("h-11 w-11 shrink-0", triggerClassName)}
+          className={cn("h-7 w-7 shrink-0", triggerClassName)}
           disabled={disabled}
           aria-label="Mudar etapa do lead"
           // Não deixar o clique iniciar drag no card nem navegar pelo link da linha.

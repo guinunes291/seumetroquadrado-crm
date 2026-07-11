@@ -4,47 +4,47 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { LeadStatus } from "@/lib/leads";
 import { criarFollowUpAutomatico, followUpParaStatus } from "@/lib/follow-up";
-import { transicionarLead } from "@/lib/lead-transitions";
 
-type Vars = {
-  id: string;
-  status: LeadStatus;
-  motivo?: string | null;
-  proximaAcao?: string | null;
-  proximoFollowup?: string | null;
-};
+type Vars = { id: string; status: LeadStatus };
 
 type Options = {
   /** Chaves de query cujo array de leads em cache deve receber patch otimista. */
   optimisticKeys?: readonly unknown[][];
   /** Chaves a invalidar ao concluir (default: as mesmas de optimisticKeys). */
   invalidateKeys?: readonly unknown[][];
+  /** Atualiza também `ultima_interacao` (true em mudanças diretas; false quando
+   *  uma interação será inserida à parte, pois o trigger do banco já atualiza). */
+  touchUltimaInteracao?: boolean;
   onSuccess?: (vars: Vars) => void;
 };
 
 /**
  * Mutação reutilizável para mudar o status (etapa do funil) de um lead.
  * Centraliza o padrão otimista + invalidação usado no Kanban e na lista de Leads.
- * A RPC valida a máquina de estados e grava etapa, próxima ação, follow-up e
- * timeline na mesma transação. Nenhuma tela deve atualizar `leads.status`
- * diretamente.
+ * O histórico/timeline é gravado automaticamente pelo trigger
+ * `trg_registrar_transicao_status` — não logar nada aqui.
  */
 export function useLeadStatusMutation(opts: Options = {}) {
   const qc = useQueryClient();
-  const { optimisticKeys = [], invalidateKeys = optimisticKeys, onSuccess } = opts;
+  const {
+    optimisticKeys = [],
+    invalidateKeys = optimisticKeys,
+    touchUltimaInteracao = true,
+    onSuccess,
+  } = opts;
 
   // Referência à própria mutação para permitir "Tentar novamente" no toast de erro.
   const mutateRef = useRef<((vars: Vars) => void) | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async ({ id, status, motivo, proximaAcao, proximoFollowup }: Vars) => {
-      await transicionarLead({
-        id,
-        status,
-        motivo,
-        proximaAcao,
-        proximoFollowup,
-      });
+    mutationFn: async ({ id, status }: Vars) => {
+      const patch: Record<string, unknown> = { status };
+      if (touchUltimaInteracao) patch.ultima_interacao = new Date().toISOString();
+      const { error } = await supabase
+        .from("leads")
+        .update(patch as never)
+        .eq("id", id);
+      if (error) throw error;
     },
     onMutate: async ({ id, status }) => {
       const snapshots: Array<{ key: readonly unknown[]; data: unknown }> = [];

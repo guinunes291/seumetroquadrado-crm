@@ -9,14 +9,11 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VitrinePublicaRouteImport } from './routes/vitrine-publica'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
-import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
@@ -25,7 +22,6 @@ import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
-import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authenticated/modo-visita'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
@@ -54,7 +50,6 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
-import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
@@ -80,11 +75,6 @@ import { Route as ApiPublicLeadsIdPerdaRouteImport } from './routes/api/public/l
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
 import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/public/leads/$id.corretor'
 
-const VitrinePublicaRoute = VitrinePublicaRouteImport.update({
-  id: '/vitrine-publica',
-  path: '/vitrine-publica',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -108,16 +98,6 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const ApiVitrineLinksRoute = ApiVitrineLinksRouteImport.update({
-  id: '/api/vitrine-links',
-  path: '/api/vitrine-links',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDocumentacaoRoute = ApiDocumentacaoRouteImport.update({
-  id: '/api/documentacao',
-  path: '/api/documentacao',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVitrineRoute = AuthenticatedVitrineRouteImport.update({
   id: '/vitrine',
@@ -160,11 +140,6 @@ const AuthenticatedPainelGestorRoute =
     path: '/painel-gestor',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedModoVisitaRoute = AuthenticatedModoVisitaRouteImport.update({
-  id: '/modo-visita',
-  path: '/modo-visita',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedMeuPerfilRoute = AuthenticatedMeuPerfilRouteImport.update({
   id: '/meu-perfil',
   path: '/meu-perfil',
@@ -316,11 +291,6 @@ const AuthenticatedLeadsIndexRoute = AuthenticatedLeadsIndexRouteImport.update({
   path: '/leads/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
-  id: '/api/public/vitrine',
-  path: '/api/public/vitrine',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicMetricasRoute = ApiPublicMetricasRouteImport.update({
   id: '/api/public/metricas',
   path: '/api/public/metricas',
@@ -458,7 +428,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/vitrine-publica': typeof VitrinePublicaRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
@@ -484,7 +453,6 @@ export interface FileRoutesByFullPath {
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
-  '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/radar': typeof AuthenticatedRadarRoute
@@ -493,8 +461,6 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
-  '/api/documentacao': typeof ApiDocumentacaoRoute
-  '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
@@ -502,7 +468,6 @@ export interface FileRoutesByFullPath {
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
-  '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
@@ -528,7 +493,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/vitrine-publica': typeof VitrinePublicaRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
@@ -554,7 +518,6 @@ export interface FileRoutesByTo {
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
-  '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/radar': typeof AuthenticatedRadarRoute
@@ -563,8 +526,6 @@ export interface FileRoutesByTo {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
-  '/api/documentacao': typeof ApiDocumentacaoRoute
-  '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -573,7 +534,6 @@ export interface FileRoutesByTo {
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
-  '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
@@ -601,7 +561,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
-  '/vitrine-publica': typeof VitrinePublicaRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
@@ -627,7 +586,6 @@ export interface FileRoutesById {
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
-  '/_authenticated/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/radar': typeof AuthenticatedRadarRoute
@@ -636,8 +594,6 @@ export interface FileRoutesById {
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
-  '/api/documentacao': typeof ApiDocumentacaoRoute
-  '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -646,7 +602,6 @@ export interface FileRoutesById {
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
-  '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
@@ -675,7 +630,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/reset-password'
-    | '/vitrine-publica'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agendamentos'
@@ -701,7 +655,6 @@ export interface FileRouteTypes {
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
-    | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
     | '/radar'
@@ -710,8 +663,6 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
-    | '/api/documentacao'
-    | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/leads/$leadId'
@@ -719,7 +670,6 @@ export interface FileRouteTypes {
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
     | '/api/public/metricas'
-    | '/api/public/vitrine'
     | '/leads/'
     | '/oferta-ativa/'
     | '/projetos/'
@@ -745,7 +695,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/reset-password'
-    | '/vitrine-publica'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/agendamentos'
@@ -771,7 +720,6 @@ export interface FileRouteTypes {
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
-    | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
     | '/radar'
@@ -780,8 +728,6 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
-    | '/api/documentacao'
-    | '/api/vitrine-links'
     | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -790,7 +736,6 @@ export interface FileRouteTypes {
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
     | '/api/public/metricas'
-    | '/api/public/vitrine'
     | '/leads'
     | '/oferta-ativa'
     | '/projetos'
@@ -817,7 +762,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mcp'
     | '/reset-password'
-    | '/vitrine-publica'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/agendamentos'
@@ -843,7 +787,6 @@ export interface FileRouteTypes {
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
-    | '/_authenticated/modo-visita'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/pipeline'
     | '/_authenticated/radar'
@@ -852,8 +795,6 @@ export interface FileRouteTypes {
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
-    | '/api/documentacao'
-    | '/api/vitrine-links'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -862,7 +803,6 @@ export interface FileRouteTypes {
     | '/_authenticated/oferta-ativa/nova'
     | '/_authenticated/projetos/$projetoId'
     | '/api/public/metricas'
-    | '/api/public/vitrine'
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
@@ -890,15 +830,11 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  VitrinePublicaRoute: typeof VitrinePublicaRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  ApiDocumentacaoRoute: typeof ApiDocumentacaoRoute
-  ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
-  ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
   ApiPublicEscritaHealthRoute: typeof ApiPublicEscritaHealthRoute
@@ -917,13 +853,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/vitrine-publica': {
-      id: '/vitrine-publica'
-      path: '/vitrine-publica'
-      fullPath: '/vitrine-publica'
-      preLoaderRoute: typeof VitrinePublicaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -958,20 +887,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/api/vitrine-links': {
-      id: '/api/vitrine-links'
-      path: '/api/vitrine-links'
-      fullPath: '/api/vitrine-links'
-      preLoaderRoute: typeof ApiVitrineLinksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/documentacao': {
-      id: '/api/documentacao'
-      path: '/api/documentacao'
-      fullPath: '/api/documentacao'
-      preLoaderRoute: typeof ApiDocumentacaoRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/vitrine': {
       id: '/_authenticated/vitrine'
@@ -1027,13 +942,6 @@ declare module '@tanstack/react-router' {
       path: '/painel-gestor'
       fullPath: '/painel-gestor'
       preLoaderRoute: typeof AuthenticatedPainelGestorRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/modo-visita': {
-      id: '/_authenticated/modo-visita'
-      path: '/modo-visita'
-      fullPath: '/modo-visita'
-      preLoaderRoute: typeof AuthenticatedModoVisitaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/meu-perfil': {
@@ -1232,13 +1140,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/vitrine': {
-      id: '/api/public/vitrine'
-      path: '/api/public/vitrine'
-      fullPath: '/api/public/vitrine'
-      preLoaderRoute: typeof ApiPublicVitrineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/metricas': {
       id: '/api/public/metricas'
       path: '/api/public/metricas'
@@ -1434,7 +1335,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
-  AuthenticatedModoVisitaRoute: typeof AuthenticatedModoVisitaRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
@@ -1477,7 +1377,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
-  AuthenticatedModoVisitaRoute: AuthenticatedModoVisitaRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedRadarRoute: AuthenticatedRadarRoute,
@@ -1519,16 +1418,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  VitrinePublicaRoute: VitrinePublicaRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
-  ApiDocumentacaoRoute: ApiDocumentacaoRoute,
-  ApiVitrineLinksRoute: ApiVitrineLinksRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
-  ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
   ApiPublicEscritaHealthRoute: ApiPublicEscritaHealthRoute,

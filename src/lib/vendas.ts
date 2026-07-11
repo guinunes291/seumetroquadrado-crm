@@ -1,7 +1,7 @@
 // Registro de venda compartilhado pelos dois pontos que criam uma venda:
 // o ContractSaleDialog (Kanban/etapa) e o RegistrarVendaDialog (atalho global).
-// A venda nasce pendente; somente a RPC gerencial `aprovar_venda` produz
-// comissão, ranking, VGV e a transição do lead para contrato fechado.
+// Antes, ambos reimplementavam a mesma validação + insert em `vendas` + move do
+// lead para `contrato_fechado`, com risco de divergir. Aqui fica a fonte única.
 
 import { supabase } from "@/integrations/supabase/client";
 import { validarSplit, type SplitPercentuais } from "@/lib/comissoes";
@@ -40,12 +40,14 @@ export type RegistrarVendaInput = {
 };
 
 /**
- * Registra um rascunho comercial em estado pendente de aprovação. Não há efeito
- * em lead, metas ou comissão nesta etapa.
+ * Insere a venda e move o lead para `contrato_fechado`, com COMPENSAÇÃO: se o
+ * update do lead falhar, remove a venda recém-criada (o `ON DELETE CASCADE` de
+ * comissoes cobre as comissões geradas pelo trigger) e lança — nada de venda
+ * órfã com o lead no status antigo.
  */
-export async function registrarVenda(input: RegistrarVendaInput): Promise<string> {
+export async function registrarVenda(input: RegistrarVendaInput): Promise<void> {
   const { data: criada, error: insErr } = await supabase
-    .from("vendas")
+    .from("vendas" as never)
     .insert({
       lead_id: input.leadId,
       corretor_id: input.corretorId,
@@ -59,10 +61,24 @@ export async function registrarVenda(input: RegistrarVendaInput): Promise<string
       percentual_gerente: input.split.gerente,
       percentual_superintendente: input.split.superintendente,
       observacoes: input.observacoes?.trim() || null,
-      status_venda: "pendente",
-    })
+    } as never)
     .select("id")
     .single();
   if (insErr) throw insErr;
-  return criada.id;
+  const vendaId = (criada as { id: string }).id;
+
+  const { error: updErr } = await supabase
+    .from("leads")
+    .update({
+      status: "contrato_fechado",
+      ultima_interacao: new Date().toISOString(),
+    } as never)
+    .eq("id", input.leadId);
+  if (updErr) {
+    await supabase
+      .from("vendas" as never)
+      .delete()
+      .eq("id", vendaId);
+    throw updErr;
+  }
 }

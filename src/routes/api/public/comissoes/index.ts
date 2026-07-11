@@ -1,8 +1,7 @@
 // GET /api/public/comissoes
 // Auth: X-API-Key. Filtros: corretor_id, status, venda_id, desde, ate, mes (YYYY-MM), limit, offset.
 import { createFileRoute } from "@tanstack/react-router";
-import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
-import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { checkReadApiKey, jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 
 const MES_RE = /^(\d{4})-(\d{2})$/;
 
@@ -11,8 +10,8 @@ export const Route = createFileRoute("/api/public/comissoes/")({
     handlers: {
       OPTIONS: async () => corsPreflight(),
       GET: async ({ request }) => {
-        const auth = await requireApiClientScope(request, "commissions:read");
-        if (auth instanceof Response) return auth;
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
 
         const url = new URL(request.url);
         const q = url.searchParams;
@@ -23,19 +22,9 @@ export const Route = createFileRoute("/api/public/comissoes/")({
         let query = supabaseAdmin
           .from("comissoes")
           .select(
-            "id,venda_id,beneficiario_id,beneficiario_nome,tipo,percentual,valor_comissao,valor_liquido,percentual_desconto,status,data_pagamento,created_at,vendas!inner(projeto_id,status_venda)",
+            "id, venda_id, beneficiario_id, beneficiario_nome, tipo, percentual, valor_comissao, valor_liquido, percentual_desconto, status, data_pagamento, created_at",
             { count: "exact" },
-          )
-          .eq("vendas.status_venda", "aprovada");
-
-        if (auth.projetoId) query = query.eq("vendas.projeto_id", auth.projetoId);
-        const equipeCorretorIds = await restrictedCorretorIds(auth);
-        if (equipeCorretorIds) {
-          query = query.in(
-            "beneficiario_id",
-            equipeCorretorIds.length ? equipeCorretorIds : ["00000000-0000-0000-0000-000000000000"],
           );
-        }
 
         const corretorId = q.get("corretor_id");
         if (corretorId) query = query.eq("beneficiario_id", corretorId);

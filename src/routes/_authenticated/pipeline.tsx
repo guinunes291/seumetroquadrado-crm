@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ResponsiveTabs, ResponsiveTabsContent } from "@/components/ui/responsive-tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/page-header";
 import { KanbanBoard } from "@/components/leads-kanban-board";
 import { FechamentoView } from "@/features/pipeline/fechamento-view";
@@ -29,23 +29,18 @@ function PipelinePage() {
         title="Pipeline"
         description="Do primeiro contato ao contrato — arraste etapas no Funil e feche o mês no Modo Fechamento."
       />
-      <ResponsiveTabs
-        value={activeTab}
-        onValueChange={onTabChange}
-        ariaLabel="Visões do pipeline"
-        className="space-y-4"
-        items={[
-          { value: "funil", label: "Funil" },
-          { value: "fechamento", label: "Fechamento" },
-        ]}
-      >
-        <ResponsiveTabsContent value="funil">
+      <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="funil">Funil</TabsTrigger>
+          <TabsTrigger value="fechamento">Fechamento</TabsTrigger>
+        </TabsList>
+        <TabsContent value="funil">
           <KanbanBoard />
-        </ResponsiveTabsContent>
-        <ResponsiveTabsContent value="fechamento">
+        </TabsContent>
+        <TabsContent value="fechamento">
           <FechamentoView />
-        </ResponsiveTabsContent>
-      </ResponsiveTabs>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

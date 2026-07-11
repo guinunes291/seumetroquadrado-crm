@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import logoM2 from "@/assets/logo-m2.png.asset.json";
 import {
   LayoutDashboard,
   Users,
@@ -20,7 +21,6 @@ import {
   ChevronRight,
   Headset,
   Shuffle,
-  MapPinned,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,10 +68,7 @@ const NAV_ITEMS: Item[] = [
     to: "/atendimento",
     label: "Atendimento",
     icon: Headset,
-    children: [
-      { to: "/agendamentos", label: "Agenda & Tarefas", icon: CalendarClock },
-      { to: "/modo-visita", label: "Modo Visita", icon: MapPinned },
-    ],
+    children: [{ to: "/agendamentos", label: "Agenda & Tarefas", icon: CalendarClock }],
   },
   {
     // Funil (kanban) + Modo Fechamento na mesma central.
@@ -145,7 +142,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   // sutil — o dourado é acento, não bloco (moeda rara do design system).
   const leafClasses = (active: boolean) =>
     cn(
-      "relative flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+      "relative flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
       active
         ? "bg-white/[0.06] font-medium text-sidebar-primary before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-gradient-gold"
         : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
@@ -182,7 +179,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Link
         to={it.to}
         onClick={onNavigate}
-        aria-current={isActivePath(pathname, it.to) ? "page" : undefined}
         className={cn(leafClasses(isActivePath(pathname, it.to)), opts?.nested && "pl-9")}
       >
         {inner}
@@ -194,7 +190,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col bg-gradient-command text-sidebar-foreground">
       <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border/60">
         <img
-          src="/icons/icon-192.png"
+          src={logoM2.url}
           alt="Seu Metro Quadrado"
           className="h-9 w-9 rounded-md object-contain bg-white shadow-elev-1"
         />
@@ -230,8 +226,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <Link
           to="/meu-perfil"
           onClick={onNavigate}
-          aria-current={isActivePath(pathname, "/meu-perfil") ? "page" : undefined}
-          className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <UserIcon className="h-4 w-4" />
           Meu perfil
@@ -240,8 +235,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <Link
             to="/configuracoes"
             onClick={onNavigate}
-            aria-current={isActivePath(pathname, "/configuracoes") ? "page" : undefined}
-            className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
             <Settings className="h-4 w-4" />
             Configurações
@@ -286,9 +280,8 @@ function NavGroup({
     <button
       type="button"
       aria-label={expanded ? "Recolher" : "Expandir"}
-      aria-expanded={expanded}
       onClick={() => setOpen((o) => !o)}
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      className="shrink-0 rounded p-1 text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
     >
       <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", expanded && "rotate-90")} />
     </button>
@@ -302,7 +295,6 @@ function NavGroup({
           <Link
             to={item.to}
             onClick={onNavigate}
-            aria-current={selfActive ? "page" : undefined}
             className={cn(leafClasses(selfActive), "flex-1 min-w-0")}
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -313,7 +305,6 @@ function NavGroup({
       ) : (
         <button
           type="button"
-          aria-expanded={expanded}
           onClick={() => setOpen((o) => !o)}
           className={cn(leafClasses(false), "w-full")}
         >

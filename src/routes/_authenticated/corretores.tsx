@@ -25,6 +25,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -34,9 +43,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CrmInviteDialog } from "@/components/crm-invite-dialog";
 import { toast } from "sonner";
-import { Search, AlertTriangle, Check, X, Pencil } from "lucide-react";
+import { UserPlus, Search, AlertTriangle, Check, X, Pencil } from "lucide-react";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/corretores")({
@@ -45,7 +53,7 @@ export const Route = createFileRoute("/_authenticated/corretores")({
   },
 });
 
-type AppRole = "admin" | "superintendente" | "gestor" | "corretor";
+type AppRole = "admin" | "gestor" | "corretor";
 
 type CorretorRow = {
   id: string;
@@ -54,7 +62,6 @@ type CorretorRow = {
   telefone: string | null;
   cargo: string | null;
   ativo: boolean;
-  status_conta: "pendente" | "ativa" | "bloqueada";
   equipe_id: string | null;
   equipe?: { nome: string } | null;
   roles: AppRole[];
@@ -81,9 +88,7 @@ export function CorretoresPage() {
     queryFn: async (): Promise<CorretorRow[]> => {
       const { data: profiles, error } = await supabase
         .from("profiles")
-        .select(
-          "id, nome, email, telefone, cargo, ativo, status_conta, equipe_id, equipe:equipes(nome)",
-        )
+        .select("id, nome, email, telefone, cargo, ativo, equipe_id, equipe:equipes(nome)")
         .order("nome");
       if (error) throw error;
 
@@ -115,27 +120,7 @@ export function CorretoresPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["corretores"] });
-      toast.success("Elegibilidade para distribuição atualizada");
-    },
-    onError: (e: Error) => toast.error("Erro", { description: e.message }),
-  });
-
-  const updateAccountStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: "ativa" | "bloqueada" }) => {
-      const { data, error } = await supabase.functions.invoke("crm-convites", {
-        body: { acao: "definir_status", usuario_id: id, status },
-      });
-      if (error || !data?.ok) {
-        throw new Error(
-          data?.error === "status_update_failed"
-            ? "A conta não pôde ser alterada. Confirme que existe outro admin ativo."
-            : "Não foi possível alterar a conta.",
-        );
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["corretores"] });
-      toast.success("Estado da conta atualizado");
+      toast.success("Status atualizado");
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
@@ -183,9 +168,7 @@ export function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
-  const semTelefone = (corretoresQuery.data ?? []).filter(
-    (c) => c.ativo && c.status_conta === "ativa" && !c.telefone,
-  ).length;
+  const semTelefone = (corretoresQuery.data ?? []).filter((c) => c.ativo && !c.telefone).length;
 
   const lista = (corretoresQuery.data ?? []).filter((c) => {
     if (!q) return true;
@@ -216,8 +199,34 @@ export function CorretoresPage() {
         title="Corretores"
         description="Gestão dos usuários do CRM, papéis e equipes."
         actions={
-          (isAdmin || isGestor) && (
-            <CrmInviteDialog equipes={equipesQuery.data ?? []} canAssignPrivilegedRoles={isAdmin} />
+          isAdmin && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="h-4 w-4" />
+                  Como adicionar
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Como adicionar um corretor</DialogTitle>
+                  <DialogDescription>
+                    Nesta fase inicial, a entrada de novos usuários é via auto-cadastro: peça para o
+                    corretor acessar a tela <strong>/auth</strong> e criar a conta com o e-mail
+                    profissional. Ele aparecerá aqui logo após o primeiro login, e você poderá
+                    definir o papel e a equipe dele.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigator.clipboard?.writeText(window.location.origin + "/auth")}
+                  >
+                    Copiar link /auth
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )
         }
       />
@@ -245,153 +254,122 @@ export function CorretoresPage() {
 
       <Card>
         <CardContent className="p-0">
-          {corretoresQuery.isError && (
-            <div role="alert" className="space-y-3 p-8 text-center text-sm">
-              <p className="font-medium">Não foi possível carregar as pessoas do CRM.</p>
-              <Button variant="outline" size="sm" onClick={() => void corretoresQuery.refetch()}>
-                Tentar novamente
-              </Button>
-            </div>
-          )}
-          {!corretoresQuery.isError && (
-            <Table>
-              <TableHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>E-mail</TableHead>
+                <TableHead>Telefone</TableHead>
+                <TableHead>Equipe</TableHead>
+                <TableHead>Papel</TableHead>
+                <TableHead title="Bloqueia o login/uso — não é a roleta">Conta ativa</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {corretoresQuery.isLoading && (
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Equipe</TableHead>
-                  <TableHead>Papel</TableHead>
-                  <TableHead title="Elegibilidade operacional e da roleta">Distribuição</TableHead>
-                  <TableHead title="Acesso ao CRM e sessões">Conta</TableHead>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Carregando…
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {corretoresQuery.isLoading && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      Carregando…
-                    </TableCell>
-                  </TableRow>
-                )}
-                {!corretoresQuery.isLoading && lista.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      Nenhum corretor cadastrado ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {lista.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.nome || "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.email}</TableCell>
-                    <TableCell>
-                      {isAdmin ? (
-                        <TelefoneCell
-                          valor={c.telefone}
-                          onSave={(v) => updateTelefone.mutateAsync({ id: c.id, telefone: v })}
-                        />
-                      ) : c.telefone ? (
-                        <span className="text-muted-foreground">{c.telefone}</span>
-                      ) : (
-                        <Badge variant="destructive" className="gap-1">
-                          <AlertTriangle className="h-3 w-3" /> Sem telefone
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isAdmin ? (
-                        <Select
-                          value={c.equipe_id ?? "none"}
-                          onValueChange={(v) =>
-                            updateEquipe.mutate({ id: c.id, equipe_id: v === "none" ? null : v })
-                          }
-                        >
-                          <SelectTrigger className="h-8 w-[160px]">
-                            <SelectValue placeholder="Sem equipe" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Sem equipe</SelectItem>
-                            {(equipesQuery.data ?? []).map((e) => (
-                              <SelectItem key={e.id} value={e.id}>
-                                {e.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        (c.equipe?.nome ?? <span className="text-muted-foreground">—</span>)
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isAdmin ? (
-                        <Select
-                          value={c.roles[0] ?? "corretor"}
-                          onValueChange={(v) =>
-                            setRole.mutate({ user_id: c.id, role: v as AppRole })
-                          }
-                        >
-                          <SelectTrigger className="h-8 w-[130px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="gestor">Gestor</SelectItem>
-                            <SelectItem value="superintendente">Superintendente</SelectItem>
-                            <SelectItem value="corretor">Corretor</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <div className="flex gap-1 flex-wrap">
-                          {c.roles.map((r) => (
-                            <Badge key={r} variant="secondary" className="capitalize">
-                              {r}
-                            </Badge>
+              )}
+              {!corretoresQuery.isLoading && lista.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Nenhum corretor cadastrado ainda.
+                  </TableCell>
+                </TableRow>
+              )}
+              {lista.map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.nome || "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{c.email}</TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <TelefoneCell
+                        valor={c.telefone}
+                        onSave={(v) => updateTelefone.mutateAsync({ id: c.id, telefone: v })}
+                      />
+                    ) : c.telefone ? (
+                      <span className="text-muted-foreground">{c.telefone}</span>
+                    ) : (
+                      <Badge variant="destructive" className="gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Sem telefone
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <Select
+                        value={c.equipe_id ?? "none"}
+                        onValueChange={(v) =>
+                          updateEquipe.mutate({ id: c.id, equipe_id: v === "none" ? null : v })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[160px]">
+                          <SelectValue placeholder="Sem equipe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem equipe</SelectItem>
+                          {(equipesQuery.data ?? []).map((e) => (
+                            <SelectItem key={e.id} value={e.id}>
+                              {e.nome}
+                            </SelectItem>
                           ))}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isAdmin ? (
-                        <Button
-                          variant={c.ativo ? "outline" : "default"}
-                          size="sm"
-                          onClick={() => updateAtivo.mutate({ id: c.id, ativo: !c.ativo })}
-                        >
-                          {c.ativo ? "Pausar" : "Ativar"}
-                        </Button>
-                      ) : c.ativo ? (
-                        <Badge>Elegível</Badge>
-                      ) : (
-                        <Badge variant="secondary">Pausado</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {isAdmin ? (
-                        <Button
-                          variant={c.status_conta === "ativa" ? "outline" : "default"}
-                          size="sm"
-                          onClick={() =>
-                            c.status_conta === "ativa"
-                              ? setConfirmBlock({ id: c.id, nome: c.nome })
-                              : updateAccountStatus.mutate({ id: c.id, status: "ativa" })
-                          }
-                        >
-                          {c.status_conta === "ativa" ? "Bloquear" : "Liberar"}
-                        </Button>
-                      ) : c.status_conta === "ativa" ? (
-                        <Badge>Ativa</Badge>
-                      ) : c.status_conta === "pendente" ? (
-                        <Badge variant="secondary">Pendente</Badge>
-                      ) : (
-                        <Badge variant="destructive">Bloqueada</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      (c.equipe?.nome ?? <span className="text-muted-foreground">—</span>)
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <Select
+                        value={c.roles[0] ?? "corretor"}
+                        onValueChange={(v) => setRole.mutate({ user_id: c.id, role: v as AppRole })}
+                      >
+                        <SelectTrigger className="h-8 w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="gestor">Gestor</SelectItem>
+                          <SelectItem value="corretor">Corretor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex gap-1 flex-wrap">
+                        {c.roles.map((r) => (
+                          <Badge key={r} variant="secondary" className="capitalize">
+                            {r}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <Button
+                        variant={c.ativo ? "outline" : "default"}
+                        size="sm"
+                        onClick={() =>
+                          c.ativo
+                            ? setConfirmBlock({ id: c.id, nome: c.nome })
+                            : updateAtivo.mutate({ id: c.id, ativo: true })
+                        }
+                      >
+                        {c.ativo ? "Bloquear" : "Reativar"}
+                      </Button>
+                    ) : c.ativo ? (
+                      <Badge>Ativo</Badge>
+                    ) : (
+                      <Badge variant="destructive">Bloqueado</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
@@ -423,9 +401,7 @@ export function CorretoresPage() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmBlock) {
-                  updateAccountStatus.mutate({ id: confirmBlock.id, status: "bloqueada" });
-                }
+                if (confirmBlock) updateAtivo.mutate({ id: confirmBlock.id, ativo: false });
                 setConfirmBlock(null);
               }}
             >

@@ -13,30 +13,28 @@ export type LeadResumoIA = {
 
 export const gerarResumoLeadIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: unknown) => InputSchema.parse(data))
+  .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }): Promise<LeadResumoIA> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY ausente");
     const { supabase } = context;
 
-    const [{ data: lead, error: leadErr }, { data: interacoes, error: intErr }] = await Promise.all(
-      [
-        supabase
-          .from("leads")
-          .select(
-            "nome, origem, status, temperatura, projeto_nome, renda_informada, entrada_disponivel, usa_fgts, observacoes, created_at, motivo_perdido",
-          )
-          .eq("id", data.leadId)
-          .maybeSingle(),
-        supabase
-          .from("interacoes")
-          .select("tipo, direcao, titulo, conteudo, ocorreu_em")
-          .eq("lead_id", data.leadId)
-          .is("deleted_at", null)
-          .order("ocorreu_em", { ascending: true })
-          .limit(50),
-      ],
-    );
+    const [{ data: lead, error: leadErr }, { data: interacoes, error: intErr }] = await Promise.all([
+      supabase
+        .from("leads")
+        .select(
+          "nome, origem, status, temperatura, projeto_nome, renda_informada, entrada_disponivel, usa_fgts, observacoes, created_at, motivo_perdido",
+        )
+        .eq("id", data.leadId)
+        .maybeSingle(),
+      supabase
+        .from("interacoes")
+        .select("tipo, direcao, titulo, conteudo, ocorreu_em")
+        .eq("lead_id", data.leadId)
+        .is("deleted_at", null)
+        .order("ocorreu_em", { ascending: true })
+        .limit(50),
+    ]);
     if (leadErr) throw new Error(leadErr.message);
     if (intErr) throw new Error(intErr.message);
 

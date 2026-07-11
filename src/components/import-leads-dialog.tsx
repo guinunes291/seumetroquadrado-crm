@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { importarLeads, type ImportResult } from "@/lib/leads-import.functions";
-import { readTabularFile } from "@/lib/spreadsheets";
 
 type Step = "upload" | "mapear" | "resultado";
 
@@ -78,7 +78,10 @@ export function ImportLeadsDialog({
   const { data: projetos } = useQuery({
     queryKey: ["projetos-import"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("projetos").select("id, nome").order("nome");
+      const { data, error } = await supabase
+        .from("projetos")
+        .select("id, nome")
+        .order("nome");
       if (error) throw error;
       return data ?? [];
     },
@@ -96,7 +99,14 @@ export function ImportLeadsDialog({
 
   async function handleFile(file: File) {
     try {
-      const rows = await readTabularFile(file);
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+        defval: "",
+        raw: false,
+      });
       if (rows.length === 0) {
         toast.error("Planilha vazia");
         return;
@@ -129,18 +139,25 @@ export function ImportLeadsDialog({
       nome: mapping.nome ? String(r[mapping.nome] ?? "") : "",
       telefone: mapping.telefone ? String(r[mapping.telefone] ?? "") : "",
       email: mapping.email !== NONE ? String(r[mapping.email] ?? "") : "",
-      projeto_nome: mapping.projeto_nome !== NONE ? String(r[mapping.projeto_nome] ?? "") : "",
+      projeto_nome:
+        mapping.projeto_nome !== NONE
+          ? String(r[mapping.projeto_nome] ?? "")
+          : "",
     }));
   }, [parsed, mapping]);
 
   const importar = useMutation({
     mutationFn: async () => {
       if (!parsed) throw new Error("Sem dados");
-      if (!mapping.nome || !mapping.telefone) throw new Error("Mapeie ao menos Nome e Telefone");
+      if (!mapping.nome || !mapping.telefone)
+        throw new Error("Mapeie ao menos Nome e Telefone");
       const rows = parsed.rows.map((r) => ({
         nome: String(r[mapping.nome] ?? "").trim(),
         telefone: String(r[mapping.telefone] ?? "").trim(),
-        email: mapping.email !== NONE ? String(r[mapping.email] ?? "").trim() || null : null,
+        email:
+          mapping.email !== NONE
+            ? String(r[mapping.email] ?? "").trim() || null
+            : null,
         projeto_nome:
           mapping.projeto_nome !== NONE
             ? String(r[mapping.projeto_nome] ?? "").trim() || null
@@ -177,8 +194,7 @@ export function ImportLeadsDialog({
             Importar leads
           </DialogTitle>
           <DialogDescription>
-            Carregue um arquivo .xlsx ou .csv. Você confirma o mapeamento das colunas antes da
-            importação.
+            Carregue um arquivo .xlsx ou .csv. Você confirma o mapeamento das colunas antes da importação.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,13 +207,17 @@ export function ImportLeadsDialog({
                   className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 cursor-pointer hover:border-muted-foreground/60 transition-colors"
                 >
                   <Upload className="h-8 w-8 text-muted-foreground" />
-                  <span className="text-sm font-medium">Clique para selecionar uma planilha</span>
-                  <span className="text-xs text-muted-foreground">.xlsx, .xls ou .csv</span>
+                  <span className="text-sm font-medium">
+                    Clique para selecionar uma planilha
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    .xlsx, .xls ou .csv
+                  </span>
                   <Input
                     id="file-upload"
                     type="file"
                     className="hidden"
-                    accept=".xlsx,.csv"
+                    accept=".xlsx,.xls,.csv"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) handleFile(f);
@@ -207,15 +227,9 @@ export function ImportLeadsDialog({
               </CardContent>
             </Card>
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>
-                • Todos os leads importados ficam com status <strong>novo</strong> e origem{" "}
-                <strong>importação</strong>.
-              </p>
+              <p>• Todos os leads importados ficam com status <strong>novo</strong> e origem <strong>importação</strong>.</p>
               <p>• Telefones que já existem na base são pulados automaticamente.</p>
-              <p>
-                • Se a coluna de empreendimento bater com um projeto cadastrado, o vínculo é feito
-                automaticamente.
-              </p>
+              <p>• Se a coluna de empreendimento bater com um projeto cadastrado, o vínculo é feito automaticamente.</p>
             </div>
           </div>
         )}
@@ -223,8 +237,7 @@ export function ImportLeadsDialog({
         {step === "mapear" && parsed && (
           <div className="space-y-4">
             <div className="text-sm">
-              <strong>{fileName}</strong> · {parsed.rows.length} linhas · {parsed.headers.length}{" "}
-              colunas
+              <strong>{fileName}</strong> · {parsed.rows.length} linhas · {parsed.headers.length} colunas
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -289,18 +302,10 @@ export function ImportLeadsDialog({
                     <tbody>
                       {preview.map((r, i) => (
                         <tr key={i} className="border-t">
-                          <td className="p-2">
-                            {r.nome || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.telefone || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.email || <em className="text-muted-foreground">—</em>}
-                          </td>
-                          <td className="p-2">
-                            {r.projeto_nome || <em className="text-muted-foreground">—</em>}
-                          </td>
+                          <td className="p-2">{r.nome || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.telefone || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.email || <em className="text-muted-foreground">—</em>}</td>
+                          <td className="p-2">{r.projeto_nome || <em className="text-muted-foreground">—</em>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -382,9 +387,7 @@ export function ImportLeadsDialog({
                           <td className="p-2">{d.nome ?? "—"}</td>
                           <td className="p-2">{d.telefone ?? "—"}</td>
                           <td className="p-2">
-                            <Badge variant="outline" className="text-xs">
-                              {d.motivo}
-                            </Badge>
+                            <Badge variant="outline" className="text-xs">{d.motivo}</Badge>
                           </td>
                         </tr>
                       ))}

@@ -82,20 +82,6 @@ export function followUpParaStatus(
         prioridade: "media",
         vencimento: emDias(1),
       };
-    case "qualificado":
-      return {
-        titulo: `Apresentar opções aderentes para ${nome}`,
-        tipo: "follow_up",
-        prioridade: "alta",
-        vencimento: emDias(2),
-      };
-    case "proposta_enviada":
-      return {
-        titulo: `Acompanhar a proposta de ${nome}`,
-        tipo: "follow_up",
-        prioridade: "alta",
-        vencimento: emDias(2),
-      };
     default:
       return null;
   }

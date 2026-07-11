@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,12 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer";
-import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
-import { QUEUE_LABEL, type QueueItem, type QueueKey } from "@/features/atendimento/derive";
+import {
+  buildAtendimentoQueues,
+  QUEUE_LABEL,
+  type AtendimentoLead,
+  type QueueItem,
+  type QueueKey,
+} from "@/features/atendimento/derive";
 import { QueueSection } from "@/features/atendimento/queue-section";
 import {
   CalendarClock,
@@ -47,28 +51,78 @@ function AtendimentoPage() {
   const abrirWhatsApp = useWhatsAppLead();
   const [peek, setPeek] = useState<PeekLead | null>(null);
 
-  // Classificação, deduplicação e contagens acontecem no banco. A resposta traz
-  // no máximo 15 cards por fila, mas as contagens consideram a carteira inteira.
-  const inboxQ = useQuery({
-    queryKey: ["atendimento:inbox", user?.id],
+  // Leads ativos do corretor — a matéria-prima de todas as filas.
+  const leadsQ = useQuery({
+    queryKey: ["atendimento:leads", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("atendimento_inbox_v2", {
-        _corretor_id: user!.id,
-        _limit_per_queue: 15,
-      });
+      const { data, error } = await supabase
+        .from("leads")
+        .select(
+          "id, nome, telefone, email, status, temperatura, ultima_interacao, proximo_followup, projeto_nome, created_at, corretor_id, origem, renda_informada, entrada_disponivel, usa_fgts",
+        )
+        .eq("corretor_id", user!.id)
+        .eq("na_lixeira", false)
+        .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
+        .limit(400);
       if (error) throw error;
-      return parseAtendimentoInbox(data ?? []);
+      return (data ?? []) as AtendimentoLead[];
     },
   });
 
-  useRealtimeInvalidate("leads", [["atendimento:inbox"]]);
-  useRealtimeInvalidate("interacoes", [["atendimento:inbox"]]);
-  useRealtimeInvalidate("documentacoes", [["atendimento:inbox"]]);
+  const leadIds = useMemo(() => (leadsQ.data ?? []).map((l) => l.id), [leadsQ.data]);
 
-  const filas = inboxQ.data?.filas ?? { responder: [], followups: [], esfriando: [], docs: [] };
-  const counts = inboxQ.data?.counts ?? { responder: 0, followups: 0, esfriando: 0, docs: 0 };
-  const total = QUEUE_ORDER.reduce((acc, q) => acc + counts[q.key], 0);
+  // Últimas interações dos leads ativos (desc) — detecta "cliente falou por último".
+  const interacoesQ = useQuery({
+    queryKey: ["atendimento:interacoes", user?.id, leadIds.length],
+    enabled: leadIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("interacoes")
+        .select("lead_id, direcao, ocorreu_em")
+        .in("lead_id", leadIds)
+        .order("ocorreu_em", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Documentação pendente/reprovada — pasta travada.
+  const docsQ = useQuery({
+    queryKey: ["atendimento:docs", user?.id, leadIds.length],
+    enabled: leadIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("documentacoes")
+        .select("lead_id, status")
+        .in("lead_id", leadIds)
+        .in("status", ["pendente", "reprovado"]);
+      if (error) throw error;
+      const m = new Map<string, number>();
+      (data ?? []).forEach((d: { lead_id: string }) =>
+        m.set(d.lead_id, (m.get(d.lead_id) ?? 0) + 1),
+      );
+      return m;
+    },
+  });
+
+  useRealtimeInvalidate("leads", [["atendimento:leads"]]);
+  useRealtimeInvalidate("interacoes", [["atendimento:interacoes"]]);
+
+  const carregando = leadsQ.isLoading || interacoesQ.isLoading || docsQ.isLoading;
+
+  const filas = useMemo(
+    () =>
+      buildAtendimentoQueues({
+        leads: leadsQ.data ?? [],
+        interacoes: interacoesQ.data ?? [],
+        docsPendentes: docsQ.data ?? new Map(),
+      }),
+    [leadsQ.data, interacoesQ.data, docsQ.data],
+  );
+
+  const total = QUEUE_ORDER.reduce((acc, q) => acc + filas[q.key].length, 0);
 
   const onWhatsApp = (item: QueueItem, mensagem: string) => {
     abrirWhatsApp(
@@ -98,69 +152,58 @@ function AtendimentoPage() {
         }
       />
 
-      <AsyncBoundary
-        isLoading={inboxQ.isLoading}
-        isError={inboxQ.isError}
-        error={inboxQ.error}
-        errorTitle="Não foi possível carregar as filas de atendimento."
-        onRetry={() => void inboxQ.refetch()}
-        loadingLabel="Carregando filas de atendimento"
-        loadingFallback={
-          <div className="space-y-3">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          {/* O placar só aparece depois do sucesso de todas as consultas. */}
-          <div className="flex flex-wrap items-center gap-2" aria-label="Resumo das filas">
-            {QUEUE_ORDER.map(({ key }) => (
-              <Badge key={key} variant="secondary" className={counts[key] > 0 ? "" : "opacity-50"}>
-                {QUEUE_LABEL[key]}: {counts[key]}
-              </Badge>
-            ))}
-          </div>
+      {/* Placar das filas */}
+      <div className="flex flex-wrap items-center gap-2">
+        {QUEUE_ORDER.map(({ key }) => (
+          <Badge
+            key={key}
+            variant="secondary"
+            className={filas[key].length > 0 ? "" : "opacity-50"}
+          >
+            {QUEUE_LABEL[key]}: {filas[key].length}
+          </Badge>
+        ))}
+      </div>
 
-          {total === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                <CheckCircle2 className="h-10 w-10 text-success" />
-                <div className="font-display text-lg font-semibold">
-                  Caixa de atendimento zerada
-                </div>
-                <p className="max-w-md text-sm text-muted-foreground">
-                  Ninguém esperando resposta, nenhum follow-up vencido, ninguém esfriando. Bom
-                  momento para prospectar na{" "}
-                  <Link to="/blitz" className="text-primary hover:underline">
-                    Blitz
-                  </Link>{" "}
-                  ou avançar o{" "}
-                  <Link to="/pipeline" className="text-primary hover:underline">
-                    Pipeline
-                  </Link>
-                  .
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {QUEUE_ORDER.map(({ key, icon, iconClass }) => (
-                <QueueSection
-                  key={key}
-                  queue={key}
-                  items={filas[key]}
-                  totalCount={counts[key]}
-                  icon={icon}
-                  iconClass={iconClass}
-                  onWhatsApp={onWhatsApp}
-                  onPeek={(item) => setPeek(item.lead)}
-                />
-              ))}
-            </div>
-          )}
+      {carregando ? (
+        <div className="space-y-3">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
-      </AsyncBoundary>
+      ) : total === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+            <CheckCircle2 className="h-10 w-10 text-success" />
+            <div className="font-display text-lg font-semibold">Caixa de atendimento zerada</div>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Ninguém esperando resposta, nenhum follow-up vencido, ninguém esfriando. Bom momento
+              para prospectar na{" "}
+              <Link to="/blitz" className="text-primary hover:underline">
+                Blitz
+              </Link>{" "}
+              ou avançar o{" "}
+              <Link to="/pipeline" className="text-primary hover:underline">
+                Pipeline
+              </Link>
+              .
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {QUEUE_ORDER.map(({ key, icon, iconClass }) => (
+            <QueueSection
+              key={key}
+              queue={key}
+              items={filas[key]}
+              icon={icon}
+              iconClass={iconClass}
+              onWhatsApp={onWhatsApp}
+              onPeek={(item) => setPeek(item.lead)}
+            />
+          ))}
+        </div>
+      )}
 
       <LeadPeekDrawer
         lead={peek}

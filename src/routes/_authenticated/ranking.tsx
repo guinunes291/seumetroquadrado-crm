@@ -95,6 +95,15 @@ function DesempenhoPage() {
 // ============================================================================
 // Constantes
 // ============================================================================
+const PONTUACAO = {
+  CLIENTE_CADASTRADO: 5,
+  ALTERACAO_STATUS: 2,
+  AGENDAMENTO: 15,
+  VISITA: 25,
+  DOCUMENTACAO: 35,
+  VENDA: 80,
+} as const;
+
 const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const TABS = ["realxmeta", "vendas", "produtividade"] as const;
@@ -106,7 +115,7 @@ const periodLabels: Record<PeriodOption, string> = {
   this_week: "Esta semana",
   this_month: "Este mês",
   this_year: "Este ano",
-  all: "Últimos 2 anos",
+  all: "Todo o período",
 };
 
 const TV_STYLES = `
@@ -166,18 +175,22 @@ function getDateRange(p: PeriodOption): { from: Date; to: Date } {
     case "this_year":
       return { from: startOfYear(now), to: endOfYear(now) };
     case "all":
-      return {
-        from: startOfDay(new Date(now.getFullYear() - 2, now.getMonth(), now.getDate())),
-        to: now,
-      };
+      return { from: new Date(2020, 0, 1), to: now };
   }
 }
 
-function dateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function parseDateTime(value: string): number {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day).getTime();
+  }
+  return new Date(value).getTime();
+}
+
+function inRange(iso: string | null | undefined, from: Date, to: Date): boolean {
+  if (!iso) return false;
+  const t = parseDateTime(iso);
+  return t >= from.getTime() && t <= to.getTime();
 }
 
 function getInitials(name?: string | null) {
@@ -796,46 +809,60 @@ function RankingPanel() {
       return data ?? [];
     },
   });
-  const rankingPeriodoQ = useQuery({
-    queryKey: ["ranking-periodo-v2", dateKey(dateRange.from), dateKey(dateRange.to)],
+  const leadsQ = useQuery({
+    queryKey: ["tv:leads"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("ranking_periodo_v2", {
-        _inicio: dateKey(dateRange.from),
-        _fim: dateKey(dateRange.to),
-        _limit: 50,
-      });
-      if (error) throw error;
-      return data;
+      const { data } = await supabase
+        .from("leads")
+        .select("corretor_id, created_at, status, na_lixeira")
+        .order("created_at", { ascending: false })
+        .limit(10000);
+      return (data ?? []).filter((l: any) => !l.na_lixeira);
     },
   });
-  const rankingMesQ = useQuery({
-    queryKey: ["ranking-periodo-v2", selectedAno, selectedMes],
+  const transQ = useQuery({
+    queryKey: ["tv:trans"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("ranking_periodo_v2", {
-        _inicio: dateKey(monthRange.from),
-        _fim: dateKey(monthRange.to),
-        _limit: 50,
-      });
-      if (error) throw error;
-      return data;
+      const { data } = await supabase
+        .from("lead_status_transitions")
+        .select("corretor_id, para_status, created_at")
+        .order("created_at", { ascending: false })
+        .limit(10000);
+      return data ?? [];
     },
   });
-
-  const prevMonthRange = useMemo(() => {
-    const prevM = selectedMes === 1 ? 12 : selectedMes - 1;
-    const prevA = selectedMes === 1 ? selectedAno - 1 : selectedAno;
-    return { from: new Date(prevA, prevM - 1, 1), to: endOfDay(new Date(prevA, prevM, 0)) };
-  }, [selectedMes, selectedAno]);
-  const rankingMesPrevQ = useQuery({
-    queryKey: ["ranking-periodo-v2", "anterior", selectedAno, selectedMes],
+  const vendasQ = useQuery({
+    queryKey: ["tv:vendas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("ranking_periodo_v2", {
-        _inicio: dateKey(prevMonthRange.from),
-        _fim: dateKey(prevMonthRange.to),
-        _limit: 50,
-      });
-      if (error) throw error;
-      return data;
+      const { data } = await supabase
+        .from("vendas")
+        .select("corretor_id, data_assinatura, created_at, distrato, valor_venda")
+        .order("created_at", { ascending: false })
+        .limit(10000);
+      return data ?? [];
+    },
+  });
+  const agendQ = useQuery({
+    queryKey: ["tv:agend"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("agendamentos")
+        .select("corretor_id, status, data_inicio, tipo")
+        .order("data_inicio", { ascending: false })
+        .limit(10000);
+      return data ?? [];
+    },
+  });
+  const interQ = useQuery({
+    queryKey: ["tv:inter"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("interacoes")
+        .select("autor_id, tipo, ocorreu_em")
+        .in("tipo", ["whatsapp", "ligacao"])
+        .order("ocorreu_em", { ascending: false })
+        .limit(10000);
+      return data ?? [];
     },
   });
   const metasQ = useQuery({
@@ -852,15 +879,18 @@ function RankingPanel() {
 
   const isLoading =
     profQ.isLoading ||
-    rankingPeriodoQ.isLoading ||
-    rankingMesQ.isLoading ||
-    rankingMesPrevQ.isLoading;
+    leadsQ.isLoading ||
+    transQ.isLoading ||
+    vendasQ.isLoading ||
+    agendQ.isLoading;
 
   const refetchAll = () => {
     profQ.refetch();
-    rankingPeriodoQ.refetch();
-    rankingMesQ.refetch();
-    rankingMesPrevQ.refetch();
+    leadsQ.refetch();
+    transQ.refetch();
+    vendasQ.refetch();
+    agendQ.refetch();
+    interQ.refetch();
     metasQ.refetch();
     setLastUpdated(new Date());
   };
@@ -907,49 +937,125 @@ function RankingPanel() {
     return () => document.removeEventListener("fullscreenchange", h);
   }, []);
 
-  // O navegador recebe no máximo 50 linhas agregadas; não baixa mais 10.000
-  // leads, eventos, vendas, agendas e interações para recalcular o ranking.
-  const photos = useMemo(
-    () =>
-      new Map(
-        (profQ.data ?? []).map((profile) => [
-          profile.id,
-          profile.avatar_url ?? profile.foto_url ?? null,
-        ]),
-      ),
-    [profQ.data],
-  );
-  const mapRanking = (rows: typeof rankingPeriodoQ.data): RankRow[] =>
-    (rows ?? []).map((row) => ({
-      corretorId: row.corretor_id,
-      nome: row.nome,
-      foto: photos.get(row.corretor_id) ?? null,
-      vendas: Number(row.vendas),
-      vgv: Number(row.vgv),
-      visitas: Number(row.visitas),
-      agendamentos: Number(row.agendamentos),
-      documentacoes: Number(row.documentacoes),
-      ligacoes: Number(row.ligacoes),
-      whatsapp: Number(row.whatsapps),
-      leads: Number(row.leads),
-      alteracoes: Number(row.alteracoes),
-      pontos: Number(row.pontuacao),
-    }));
+  // ===== Cálculo das métricas (para período ativo) =====
+  const buildRanking = (from: Date, to: Date): RankRow[] => {
+    const byId = new Map<string, RankRow>();
+    const get = (id: string): RankRow => {
+      let r = byId.get(id);
+      if (!r) {
+        const p = (profQ.data ?? []).find((x: any) => x.id === id);
+        r = {
+          corretorId: id,
+          nome: p?.nome ?? "Corretor",
+          foto: p?.avatar_url ?? p?.foto_url ?? null,
+          vendas: 0,
+          vgv: 0,
+          visitas: 0,
+          agendamentos: 0,
+          documentacoes: 0,
+          ligacoes: 0,
+          whatsapp: 0,
+          leads: 0,
+          alteracoes: 0,
+          pontos: 0,
+        };
+        byId.set(id, r);
+      }
+      return r;
+    };
 
-  const rankingProd = useMemo(
-    () => mapRanking(rankingPeriodoQ.data).sort((a, b) => b.pontos - a.pontos),
+    for (const l of leadsQ.data ?? []) {
+      if (!l.corretor_id || !inRange(l.created_at, from, to)) continue;
+      get(l.corretor_id).leads++;
+    }
+    for (const t of transQ.data ?? []) {
+      if (!t.corretor_id || !inRange(t.created_at, from, to)) continue;
+      const r = get(t.corretor_id);
+      r.alteracoes++;
+      if (t.para_status === "agendado") r.agendamentos++;
+      else if (t.para_status === "visita_realizada") r.visitas++;
+      else if (t.para_status === "analise_credito") r.documentacoes++;
+    }
+    for (const v of (vendasQ.data ?? []) as any[]) {
+      if (!v.corretor_id || v.distrato) continue;
+      if (!inRange(v.data_assinatura ?? v.created_at, from, to)) continue;
+      const r = get(v.corretor_id);
+      r.vendas++;
+      r.vgv += Number(v.valor_venda) || 0;
+    }
+    for (const a of agendQ.data ?? []) {
+      if (!a.corretor_id || !inRange(a.data_inicio, from, to)) continue;
+      const r = get(a.corretor_id);
+      if (a.status === "realizado") r.visitas++;
+      r.agendamentos++;
+    }
+    for (const i of interQ.data ?? []) {
+      if (!i.autor_id || !inRange(i.ocorreu_em, from, to)) continue;
+      const r = get(i.autor_id);
+      if (i.tipo === "ligacao") r.ligacoes++;
+      else if (i.tipo === "whatsapp") r.whatsapp++;
+    }
+    for (const r of byId.values()) {
+      r.pontos =
+        r.leads * PONTUACAO.CLIENTE_CADASTRADO +
+        r.alteracoes * PONTUACAO.ALTERACAO_STATUS +
+        r.agendamentos * PONTUACAO.AGENDAMENTO +
+        r.visitas * PONTUACAO.VISITA +
+        r.documentacoes * PONTUACAO.DOCUMENTACAO +
+        r.vendas * PONTUACAO.VENDA;
+    }
+    return Array.from(byId.values());
+  };
+
+  const rankingProd = useMemo(() => {
+    const list = buildRanking(dateRange.from, dateRange.to);
+    return list.sort((a, b) => b.pontos - a.pontos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rankingPeriodoQ.data, photos],
-  );
-  const rankingMes = useMemo(
-    () => mapRanking(rankingMesQ.data).sort((a, b) => b.vendas - a.vendas || b.pontos - a.pontos),
+  }, [
+    dateRange.from,
+    dateRange.to,
+    profQ.data,
+    leadsQ.data,
+    transQ.data,
+    vendasQ.data,
+    agendQ.data,
+    interQ.data,
+  ]);
+
+  const rankingMes = useMemo(() => {
+    const list = buildRanking(monthRange.from, monthRange.to);
+    return list.sort((a, b) => b.vendas - a.vendas || b.pontos - a.pontos);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rankingMesQ.data, photos],
-  );
+  }, [
+    monthRange.from,
+    monthRange.to,
+    profQ.data,
+    leadsQ.data,
+    transQ.data,
+    vendasQ.data,
+    agendQ.data,
+    interQ.data,
+  ]);
+
+  // Mês anterior para deltas
+  const prevMonthRange = useMemo(() => {
+    const prevM = selectedMes === 1 ? 12 : selectedMes - 1;
+    const prevA = selectedMes === 1 ? selectedAno - 1 : selectedAno;
+    return { from: new Date(prevA, prevM - 1, 1), to: endOfDay(new Date(prevA, prevM, 0)) };
+  }, [selectedMes, selectedAno]);
   const rankingMesPrev = useMemo(
-    () => mapRanking(rankingMesPrevQ.data),
+    () => buildRanking(prevMonthRange.from, prevMonthRange.to),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rankingMesPrevQ.data, photos],
+    [
+      prevMonthRange.from,
+      prevMonthRange.to,
+      profQ.data,
+      leadsQ.data,
+      transQ.data,
+      vendasQ.data,
+      agendQ.data,
+      interQ.data,
+    ],
   );
 
   // Tracking de mudança de posição (no ranking de produtividade)
@@ -1094,26 +1200,6 @@ function RankingPanel() {
   );
 
   const deltaVendas = totaisMes.vendas - totaisMesPrev.vendas;
-
-  if (
-    profQ.isError ||
-    rankingPeriodoQ.isError ||
-    rankingMesQ.isError ||
-    rankingMesPrevQ.isError ||
-    metasQ.isError
-  ) {
-    return (
-      <div role="alert" className="rounded-xl border border-destructive/40 p-8 text-center">
-        <p className="font-semibold">Não foi possível carregar o desempenho.</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Os indicadores não foram substituídos por valores zerados.
-        </p>
-        <Button className="mt-4" variant="outline" onClick={refetchAll}>
-          Tentar novamente
-        </Button>
-      </div>
-    );
-  }
 
   return (
     // `dark` força tokens escuros neste subtree — a TV é escura por design,

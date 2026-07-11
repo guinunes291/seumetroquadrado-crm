@@ -45,12 +45,19 @@ function clean(v: unknown): string | null {
 
 export const importarProjetos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { rows: ImportProjetoRow[]; atualizarExistentes?: boolean }) => input)
+  .inputValidator(
+    (input: { rows: ImportProjetoRow[]; atualizarExistentes?: boolean }) => input,
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    const isAllowed = (roles ?? []).some((r) => r.role === "admin" || r.role === "gestor");
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isAllowed = (roles ?? []).some(
+      (r) => r.role === "admin" || r.role === "gestor",
+    );
     if (!isAllowed) throw new Error("Apenas admin ou gestor podem importar projetos.");
 
     const result: ImportProjetosResult = {
@@ -63,9 +70,13 @@ export const importarProjetos = createServerFn({ method: "POST" })
       detalhes: [],
     };
 
-    const { data: existentes } = await supabase.from("projetos").select("id, slug");
+    const { data: existentes } = await supabase
+      .from("projetos")
+      .select("id, slug");
     const slugSet = new Set<string>((existentes ?? []).map((p: any) => p.slug));
-    const bySlug = new Map<string, string>((existentes ?? []).map((p: any) => [p.slug, p.id]));
+    const bySlug = new Map<string, string>(
+      (existentes ?? []).map((p: any) => [p.slug, p.id]),
+    );
 
     const vistos = new Set<string>();
 

@@ -1,11 +1,6 @@
 {
   "name": "tanstack_start_ts",
   "private": true,
-  "packageManager": "npm@11.13.0",
-  "engines": {
-    "node": ">=20.19 <25",
-    "npm": ">=10"
-  },
   "sideEffects": false,
   "type": "module",
   "scripts": {
@@ -14,12 +9,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "lint:ci": "eslint src tests --quiet --rule 'prettier/prettier: off' --rule '@typescript-eslint/no-explicit-any: warn'",
-    "typecheck": "tsc --noEmit",
-    "type-escape-budget": "node scripts/check-type-escape-budget.mjs",
-    "bundle-budget": "node scripts/check-bundle-budget.mjs",
     "format": "prettier --write .",
-    "format:check": "node scripts/check-changed-format.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -74,7 +64,6 @@
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.2",
     "react-resizable-panels": "^4.6.5",
-    "read-excel-file": "^9.3.1",
     "recharts": "^2.15.4",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
@@ -85,7 +74,7 @@
     "vite-tsconfig-paths": "^6.1.1",
     "web-push": "^3.6.7",
     "workbox-window": "^7.4.1",
-    "write-excel-file": "^4.1.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {

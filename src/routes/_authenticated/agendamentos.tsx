@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -52,7 +52,6 @@ import {
   List as ListIcon,
   ExternalLink,
   Download,
-  MapPinned,
 } from "lucide-react";
 import { buildGoogleCalendarUrl, downloadIcs, type CalendarEventInput } from "@/lib/calendar-links";
 import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
@@ -357,11 +356,6 @@ function AgendaPanel() {
         description="Visitas, reuniões e follow-ups da sua agenda."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/modo-visita">
-                <MapPinned className="mr-1 h-4 w-4" /> Modo Visita
-              </Link>
-            </Button>
             <div className="inline-flex rounded-md border bg-card p-0.5">
               <Button
                 size="sm"

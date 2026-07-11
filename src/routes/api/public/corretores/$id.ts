@@ -1,9 +1,8 @@
 // GET /api/public/corretores/:id
-// Auth: cliente X-API-Key com escopo leads:read.
+// Auth: X-API-Key (mesmo READ_API_KEY do CRM)
 // Retorna { id, nome, telefone, ativo } — telefone em E.164 (dígitos com DDI 55).
 import { createFileRoute } from "@tanstack/react-router";
-import { jsonResponse } from "@/lib/public-api-auth";
-import { requireApiClientScope } from "@/lib/api-client-auth.server";
+import { checkReadApiKey, jsonResponse } from "@/lib/public-api-auth";
 
 function toE164(input?: string | null): string {
   if (!input) return "";
@@ -18,16 +17,16 @@ export const Route = createFileRoute("/api/public/corretores/$id")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const auth = await requireApiClientScope(request, "leads:read");
-        if (auth instanceof Response) return auth;
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        let query = supabaseAdmin
+        const { data, error } = await supabaseAdmin
           .from("profiles")
           .select("id, nome, telefone, ativo")
-          .eq("id", params.id);
-        if (auth.equipeId) query = query.eq("equipe_id", auth.equipeId);
-        const { data, error } = await query.maybeSingle();
+          .eq("id", params.id)
+          .maybeSingle();
+
         if (error) return jsonResponse({ error: error.message }, 500);
         if (!data) return jsonResponse({ error: "not_found" }, 404);
 

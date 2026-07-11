@@ -1,5 +1,5 @@
 // GET /api/public/leads
-// Auth: cliente X-API-Key com escopo leads:read.
+// Auth: header X-API-Key = READ_API_KEY
 // Query params (todos opcionais, combinam com AND):
 //   parados=30d              → sem ultima_interacao há N dias (mantido para compat)
 //   status=novo,em_atendimento
@@ -23,8 +23,12 @@
 //   order=asc|desc (default desc)
 //   limit=50 (max 200), offset=0
 import { createFileRoute } from "@tanstack/react-router";
-import { jsonResponse, PUBLIC_LEAD_SELECT, shapeLeadForPublic } from "@/lib/public-api-auth";
-import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import {
+  checkReadApiKey,
+  jsonResponse,
+  PUBLIC_LEAD_SELECT,
+  shapeLeadForPublic,
+} from "@/lib/public-api-auth";
 import { escapeLike } from "@/lib/validators";
 
 const PARADOS_RE = /^(\d+)d$/i;
@@ -55,8 +59,8 @@ export const Route = createFileRoute("/api/public/leads/")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const auth = await requireApiClientScope(request, "leads:read");
-        if (auth instanceof Response) return auth;
+        const authErr = checkReadApiKey(request);
+        if (authErr) return authErr;
 
         const url = new URL(request.url);
         const q = url.searchParams;
@@ -71,15 +75,6 @@ export const Route = createFileRoute("/api/public/leads/")({
           .select(PUBLIC_LEAD_SELECT, { count: "exact" })
           .eq("na_lixeira", false)
           .is("deleted_at", null);
-
-        if (auth.projetoId) query = query.eq("projeto_id", auth.projetoId);
-        const equipeCorretorIds = await restrictedCorretorIds(auth);
-        if (equipeCorretorIds) {
-          query = query.in(
-            "corretor_id",
-            equipeCorretorIds.length ? equipeCorretorIds : ["00000000-0000-0000-0000-000000000000"],
-          );
-        }
 
         // parados=Nd (compat)
         const parados = q.get("parados");

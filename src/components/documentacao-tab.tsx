@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import {
   ExternalLink,
+  Trash2,
   MessageCircle,
   ListChecks,
   Paperclip,
@@ -31,6 +32,7 @@ import {
   listarDocs,
   criarDocs,
   atualizarDoc,
+  removerDoc,
   checklistPorPerfil,
   docLabel,
   docResolvido,
@@ -77,13 +79,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
   const [usaFgts, setUsaFgts] = useState(false);
   const [declaraIr, setDeclaraIr] = useState(false);
 
-  const {
-    data: docs = [],
-    isSuccess: docsCarregados,
-    isError: docsFalharam,
-    error: docsErro,
-    refetch: recarregarDocs,
-  } = useQuery({
+  const { data: docs = [], isSuccess: docsCarregados } = useQuery({
     queryKey: ["documentacoes", leadId],
     queryFn: () => listarDocs(leadId),
   });
@@ -123,7 +119,17 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   const anexar = useMutation({
     mutationFn: async ({ doc, file }: { doc: Documentacao; file: File }) => {
-      await uploadDocArquivo(leadId, doc.id, file);
+      if (doc.url && !isLinkExterno(doc.url))
+        await removerDocArquivo(doc.url).catch((e) =>
+          // Não bloqueia a ação principal, mas não engole a falha: arquivo
+          // órfão no storage precisa ficar visível no log.
+          console.warn("[documentacao] falha ao remover arquivo antigo do storage:", e),
+        );
+      const path = await uploadDocArquivo(leadId, doc.id, file);
+      await atualizarDoc(doc.id, {
+        url: path,
+        status: doc.status === "pendente" ? "recebido" : doc.status,
+      });
     },
     onSuccess: () => {
       toast.success("Arquivo anexado");
@@ -134,7 +140,27 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
 
   const limparArquivo = useMutation({
     mutationFn: async (doc: Documentacao) => {
-      if (doc.url && !isLinkExterno(doc.url)) await removerDocArquivo(doc.id);
+      if (doc.url && !isLinkExterno(doc.url))
+        await removerDocArquivo(doc.url).catch((e) =>
+          // Não bloqueia a ação principal, mas não engole a falha: arquivo
+          // órfão no storage precisa ficar visível no log.
+          console.warn("[documentacao] falha ao remover arquivo antigo do storage:", e),
+        );
+      await atualizarDoc(doc.id, { url: null });
+    },
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const remover = useMutation({
+    mutationFn: async (doc: Documentacao) => {
+      if (doc.url && !isLinkExterno(doc.url))
+        await removerDocArquivo(doc.url).catch((e) =>
+          // Não bloqueia a ação principal, mas não engole a falha: arquivo
+          // órfão no storage precisa ficar visível no log.
+          console.warn("[documentacao] falha ao remover arquivo antigo do storage:", e),
+        );
+      await removerDoc(doc.id);
     },
     onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
@@ -261,19 +287,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
         </CardContent>
       </Card>
 
-      {docsFalharam ? (
-        <Card>
-          <CardContent role="alert" className="space-y-3 py-8 text-center text-sm">
-            <p className="font-medium">Não foi possível carregar a documentação.</p>
-            <p className="text-muted-foreground">
-              {docsErro instanceof Error ? docsErro.message : "Tente novamente em instantes."}
-            </p>
-            <Button size="sm" variant="outline" onClick={() => void recarregarDocs()}>
-              Tentar novamente
-            </Button>
-          </CardContent>
-        </Card>
-      ) : total === 0 ? (
+      {total === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             Sem documentos ainda. Escolha o perfil acima e gere o checklist.
@@ -290,11 +304,6 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                role="progressbar"
-                aria-label="Completude da documentação"
-                aria-valuemin={0}
-                aria-valuemax={total}
-                aria-valuenow={resolvidos}
                 className={cn(
                   "h-full rounded-full",
                   resolvidos === total ? "bg-green-500" : "bg-primary",
@@ -312,6 +321,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
                   onUrl={(url) => salvarUrl.mutate({ id: d.id, url })}
                   onUpload={(file) => anexar.mutate({ doc: d, file })}
                   onClearArquivo={() => limparArquivo.mutate(d)}
+                  onRemove={() => remover.mutate(d)}
                 />
               ))}
             </div>
@@ -447,6 +457,7 @@ function DocRow({
   onUrl,
   onUpload,
   onClearArquivo,
+  onRemove,
 }: {
   doc: Documentacao;
   uploading: boolean;
@@ -454,12 +465,11 @@ function DocRow({
   onUrl: (url: string | null) => void;
   onUpload: (file: File) => void;
   onClearArquivo: () => void;
+  onRemove: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(doc.url ?? "");
   const [abrindo, setAbrindo] = useState(false);
-
-  useEffect(() => setUrl(doc.url ?? ""), [doc.url]);
 
   const temArquivo = !!doc.url && !isLinkExterno(doc.url);
 
@@ -467,7 +477,7 @@ function DocRow({
     if (!doc.url) return;
     setAbrindo(true);
     try {
-      const signed = await urlAssinadaDoc(doc.id);
+      const signed = await urlAssinadaDoc(doc.url);
       if (signed) window.open(signed, "_blank", "noopener,noreferrer");
       else toast.error("Não foi possível gerar o link do arquivo.");
     } catch (e) {
@@ -486,9 +496,9 @@ function DocRow({
             {DOC_STATUS_LABEL[doc.status]}
           </Badge>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           <Select value={doc.status} onValueChange={(v) => onStatus(v as DocStatus)}>
-            <SelectTrigger className="min-h-11 w-[130px]">
+            <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -499,6 +509,15 @@ function DocRow({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 text-destructive hover:text-destructive"
+            onClick={onRemove}
+            title="Remover documento"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -507,13 +526,11 @@ function DocRow({
           <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="truncate flex-1">{nomeArquivo(doc.url!)}</span>
           <Button
-            size="icon"
+            size="sm"
             variant="ghost"
-            className="h-11 w-11"
+            className="h-7"
             onClick={abrirArquivo}
             disabled={abrindo}
-            aria-label={`Abrir arquivo de ${docLabel(doc.tipo)}`}
-            title="Abrir arquivo"
           >
             {abrindo ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -524,9 +541,8 @@ function DocRow({
           <Button
             size="icon"
             variant="ghost"
-            className="h-11 w-11"
+            className="h-7 w-7"
             onClick={onClearArquivo}
-            aria-label={`Remover arquivo de ${docLabel(doc.tipo)}`}
             title="Remover arquivo"
           >
             <X className="h-4 w-4" />
@@ -542,16 +558,11 @@ function DocRow({
               if (v !== (doc.url ?? "")) onUrl(v || null);
             }}
             placeholder="Link do arquivo (Drive, etc.) — opcional"
-            className="min-h-11 text-xs"
+            className="h-8 text-xs"
           />
           {isLinkExterno(doc.url) && (
-            <Button asChild size="icon" variant="ghost" className="h-11 w-11" title="Abrir link">
-              <a
-                href={doc.url!}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Abrir link de ${docLabel(doc.tipo)}`}
-              >
+            <Button asChild size="icon" variant="ghost" className="h-8 w-8" title="Abrir link">
+              <a href={doc.url!} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-4 w-4" />
               </a>
             </Button>
@@ -559,8 +570,6 @@ function DocRow({
           <input
             ref={fileRef}
             type="file"
-            accept="application/pdf,image/jpeg,image/png,image/webp"
-            aria-label={`Anexar arquivo para ${docLabel(doc.tipo)}`}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -571,7 +580,7 @@ function DocRow({
           <Button
             size="sm"
             variant="outline"
-            className="min-h-11 shrink-0"
+            className="h-8 shrink-0"
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
           >

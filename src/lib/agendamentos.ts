@@ -13,7 +13,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { criarFollowUpAutomatico } from "@/lib/follow-up";
-import { transicionarLead } from "@/lib/lead-transitions";
 import type { LeadStatus } from "@/lib/leads";
 import type { QueryClient } from "@tanstack/react-query";
 
@@ -91,18 +90,18 @@ export async function criarAgendamento(
   if (insErr) throw insErr;
   const agendamentoId = (criado as { id: string }).id;
 
-  // 2) Move o lead pela máquina de estados — COM COMPENSAÇÃO. Se a RPC falhar,
-  //    desfaz o agendamento
+  // 2) Move o lead — COM COMPENSAÇÃO. Se o update falhar, desfaz o agendamento
   //    (soft-delete, dentro do que a RLS do corretor permite) e lança, em vez
   //    de deixar um agendamento órfão com o lead no status antigo.
   if (opts.moverLeadPara) {
-    try {
-      await transicionarLead({
-        id: input.leadId,
-        nome: input.leadNome,
+    const { error: updErr } = await supabase
+      .from("leads")
+      .update({
         status: opts.moverLeadPara,
-      });
-    } catch (transitionError) {
+        ultima_interacao: new Date().toISOString(),
+      } as never)
+      .eq("id", input.leadId);
+    if (updErr) {
       const { error: compErr } = await supabase
         .from("agendamentos")
         .update({ deleted_at: new Date().toISOString() } as never)
@@ -114,7 +113,7 @@ export async function criarAgendamento(
             `Verifique a agenda manualmente.`,
         );
       }
-      throw transitionError;
+      throw updErr;
     }
   }
 

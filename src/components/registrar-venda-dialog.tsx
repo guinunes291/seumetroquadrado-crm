@@ -53,8 +53,8 @@ type LeadOption = {
 /**
  * Botão global "Registrar venda": atalho para corretores criarem uma venda
  * vinculada a um lead existente sem precisar arrastar o card no Kanban.
- * Internamente faz o mesmo que o ContractSaleDialog e envia a venda para
- * aprovação da gestão.
+ * Internamente faz o mesmo que o ContractSaleDialog (insert em `vendas` +
+ * move o lead para `contrato_fechado`).
  */
 export function RegistrarVendaDialog() {
   const [open, setOpen] = useState(false);
@@ -153,7 +153,7 @@ export function RegistrarVendaDialog() {
       });
     },
     onSuccess: () => {
-      toast.success("Venda enviada para aprovação da gestão");
+      toast.success("Venda registrada · lead movido para Contrato fechado 🎉");
       qc.invalidateQueries({ queryKey: ["vendas"] });
       qc.invalidateQueries({ queryKey: ["comissoes"] });
       qc.invalidateQueries({ queryKey: ["comissoes-vendas"] });
@@ -189,8 +189,7 @@ export function RegistrarVendaDialog() {
           <DialogHeader>
             <DialogTitle>Registrar venda</DialogTitle>
             <DialogDescription>
-              Vincule a venda a um lead existente. Metas, comissão e fechamento só serão
-              contabilizados depois da aprovação da gestão.
+              Vincule a venda a um lead existente. O lead será movido para "Contrato fechado".
             </DialogDescription>
           </DialogHeader>
 
