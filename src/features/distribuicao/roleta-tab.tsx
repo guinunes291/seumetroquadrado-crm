@@ -90,6 +90,13 @@ function fmtDataHora(iso: string | null): string {
 }
 
 export function RoletaTab({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
+  if (slug === "marquinhos") {
+    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura} />;
+  }
+  return <RoletaTabPadrao slug={slug} somenteLeitura={somenteLeitura} />;
+}
+
+function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
