@@ -150,9 +150,9 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
         const mutationResult = marcarPerdido
           ? await supabaseAdmin.rpc("transicionar_lead_api_perda", {
               p_categoria: categoria,
-              p_data_perda: dataPerdaFinal,
+              p_data_perda: dataPerdaFinal ?? undefined,
               p_lead_id: id,
-              p_motivo: obsRaw || null,
+              p_motivo: obsRaw || undefined,
             })
           : await supabaseAdmin
               .from("leads")
