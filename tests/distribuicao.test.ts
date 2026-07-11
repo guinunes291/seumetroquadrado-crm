@@ -185,9 +185,7 @@ describe("resumoDecisao — parser do contexto jsonb", () => {
       regra: "rodizio_menos_recente",
       percentual_minimo: 90,
       aptos: [{ corretor_id: "a", nome: "Ana", ultimo_lead_em: null }],
-      inaptos: [
-        { corretor_id: "b", nome: "Bruno", motivos: ["ausente_hoje"], pct_trabalhado: 70 },
-      ],
+      inaptos: [{ corretor_id: "b", nome: "Bruno", motivos: ["ausente_hoje"], pct_trabalhado: 70 }],
       vencedor: { corretor_id: "a", nome: "Ana" },
       corretor_anterior: { corretor_id: "c", ativo: false, politica: "sempre_nova_roleta" },
       dedup: { duplicado_id: "lead-1" },

@@ -22,9 +22,7 @@ describe("validarAgendamento", () => {
 
   it("rejeita fim <= início", () => {
     expect(validarAgendamento({ ...base, dataFim: base.dataInicio })).toMatch(/fim/i);
-    expect(
-      validarAgendamento({ ...base, dataFim: "2026-07-20T13:00:00.000Z" }),
-    ).toMatch(/fim/i);
+    expect(validarAgendamento({ ...base, dataFim: "2026-07-20T13:00:00.000Z" })).toMatch(/fim/i);
   });
 
   it("rejeita datas inválidas", () => {

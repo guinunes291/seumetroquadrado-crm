@@ -296,8 +296,7 @@ export function useDistribuicaoSettings(enabled = true) {
     queryFn: async () => {
       const { data, error } = await supabase.from("distribuicao_settings").select("*");
       if (error) throw error;
-      const map: Record<string, { valor: Json; descricao: string | null; updated_at: string }> =
-        {};
+      const map: Record<string, { valor: Json; descricao: string | null; updated_at: string }> = {};
       for (const row of data ?? []) {
         map[row.chave] = {
           valor: row.valor,
@@ -316,7 +315,10 @@ export function useDistribuicaoConfig(enabled = true) {
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("distribuicao_config").select("*").order("origem");
+      const { data, error } = await supabase
+        .from("distribuicao_config")
+        .select("*")
+        .order("origem");
       if (error) throw error;
       return data ?? [];
     },
@@ -459,7 +461,12 @@ async function notificarCorretorTransferencia(leadId: string, corretorId: string
 export function useResolverExcecao() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
-    mutationFn: async (args: { excecaoId: string; leadId: string; acao: string; params?: Json }) => {
+    mutationFn: async (args: {
+      excecaoId: string;
+      leadId: string;
+      acao: string;
+      params?: Json;
+    }) => {
       const { data, error } = await supabase.rpc("resolver_excecao", {
         _excecao_id: args.excecaoId,
         _acao: args.acao,

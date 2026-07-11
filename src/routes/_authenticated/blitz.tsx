@@ -211,7 +211,6 @@ function BlitzPage() {
     return arr;
   }, [leadsQ.data, slaMap]);
 
-
   useRealtimeInvalidate("leads", [["blitz-queue"], ["blitz-sla"]]);
 
   // Mantém o índice dentro dos limites quando a fila muda.
@@ -363,7 +362,11 @@ function BlitzPage() {
                 Perfil financeiro
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                <InfoTile icon={Wallet} label="Renda" value={current.renda_informada ?? "Não informada"} />
+                <InfoTile
+                  icon={Wallet}
+                  label="Renda"
+                  value={current.renda_informada ?? "Não informada"}
+                />
                 <InfoTile
                   icon={PiggyBank}
                   label="Entrada"
@@ -411,8 +414,7 @@ function BlitzPage() {
                     const action = resolveStageAction(proxima.target);
                     if (action.kind === "modal")
                       setModalState({ modal: action.modal, lead: current as StageLead });
-                    else if (action.kind === "perdido")
-                      setPerdidoLead(current as StageLead);
+                    else if (action.kind === "perdido") setPerdidoLead(current as StageLead);
                     else updateStatus.mutate({ id: current.id, status: proxima.target });
                   }}
                 >
@@ -435,7 +437,6 @@ function BlitzPage() {
                 <CalendarCheck className="mr-1 h-4 w-4" /> Agendar
               </Button>
             </div>
-
 
             <div className="flex items-center justify-between border-t pt-4">
               <Button variant="ghost" onClick={prev} disabled={index === 0}>
@@ -519,5 +520,3 @@ function fmtDate(iso: string | null | undefined) {
     return "—";
   }
 }
-
-

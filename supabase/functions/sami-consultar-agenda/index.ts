@@ -19,12 +19,19 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, erro: "auth" }, 401);
 
   let body: any = {};
-  try { body = await req.json(); } catch { /* corpo opcional */ }
+  try {
+    body = await req.json();
+  } catch {
+    /* corpo opcional */
+  }
   const corretorTelefone = String(body.corretor_telefone ?? "").trim();
   if (!corretorTelefone) return json({ ok: false, erro: "corretor_telefone_ausente" });
 
   const { de, ate } = semana(body.de, body.ate);
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
 
   try {
     const corretor = await resolverCorretor(supabase, corretorTelefone);
@@ -43,26 +50,44 @@ Deno.serve(async (req: Request) => {
     const ids = [...new Set((ags ?? []).map((a: any) => a.lead_id).filter(Boolean))];
     const nomes: Record<string, any> = {};
     if (ids.length) {
-      const { data: leads } = await supabase.from("leads").select("id,nome,telefone,telefone_e164").in("id", ids);
+      const { data: leads } = await supabase
+        .from("leads")
+        .select("id,nome,telefone,telefone_e164")
+        .in("id", ids);
       for (const l of leads ?? []) nomes[l.id] = l;
     }
 
     const agendamentos = (ags ?? []).map((a: any) => {
-      const d = new Date(a[COL_DATA]); const l = nomes[a.lead_id] ?? {};
+      const d = new Date(a[COL_DATA]);
+      const l = nomes[a.lead_id] ?? {};
       return {
-        id: a.id, quando: d.toISOString(), quando_humano: fmtHumano(d),
-        lead_nome: l.nome ?? null, lead_telefone: l.telefone ?? l.telefone_e164 ?? null,
-        tipo: a.tipo, status: a.status, titulo: a.titulo,
+        id: a.id,
+        quando: d.toISOString(),
+        quando_humano: fmtHumano(d),
+        lead_nome: l.nome ?? null,
+        lead_telefone: l.telefone ?? l.telefone_e164 ?? null,
+        tipo: a.tipo,
+        status: a.status,
+        titulo: a.titulo,
       };
     });
-    return json({ ok: true, periodo: { de, ate }, corretor: { id: corretor.id, nome: corretor.nome }, total: agendamentos.length, agendamentos });
+    return json({
+      ok: true,
+      periodo: { de, ate },
+      corretor: { id: corretor.id, nome: corretor.nome },
+      total: agendamentos.length,
+      agendamentos,
+    });
   } catch (e: any) {
     return json({ ok: false, erro: "crm_erro", detalhe: String(e?.message ?? e) });
   }
 });
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 // Comparação de segredo em tempo constante (SHA-256 antes do XOR).
 async function timingSafeEqualStr(a: string, b: string): Promise<boolean> {
@@ -79,15 +104,24 @@ async function timingSafeEqualStr(a: string, b: string): Promise<boolean> {
 }
 const soDigitos = (s: string) => (s || "").replace(/\D/g, "");
 function fmtHumano(d: Date): string {
-  const f = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const f = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return f.format(d).replace(",", "").replace(":", "h");
 }
 function semana(deIn?: string, ateIn?: string): { de: string; ate: string } {
   if (deIn && ateIn) return { de: String(deIn), ate: String(ateIn) };
   const agoraSP = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const dow = (agoraSP.getDay() + 6) % 7;
-  const seg = new Date(agoraSP); seg.setDate(agoraSP.getDate() - dow);
-  const dom = new Date(seg); dom.setDate(seg.getDate() + 6);
+  const seg = new Date(agoraSP);
+  seg.setDate(agoraSP.getDate() - dow);
+  const dom = new Date(seg);
+  dom.setDate(seg.getDate() + 6);
   const iso = (x: Date) => x.toISOString().slice(0, 10);
   return { de: deIn ? String(deIn) : iso(seg), ate: ateIn ? String(ateIn) : iso(dom) };
 }
@@ -98,7 +132,10 @@ async function resolverCorretor(supabase: any, telefone: string) {
   // não o match frouxo antigo (endsWith em ambos os sentidos), que podia casar
   // o corretor errado. E só resolve se a correspondência for ÚNICA.
   const suf = dig.length >= 9 ? dig.slice(-9) : dig.slice(-8);
-  const { data } = await supabase.from("profiles").select("id,nome,telefone,ativo").eq("ativo", true);
+  const { data } = await supabase
+    .from("profiles")
+    .select("id,nome,telefone,ativo")
+    .eq("ativo", true);
   const casam = (data ?? []).filter((p: any) => {
     const pd = soDigitos(p.telefone ?? "");
     return pd.length >= suf.length && pd.slice(-suf.length) === suf;

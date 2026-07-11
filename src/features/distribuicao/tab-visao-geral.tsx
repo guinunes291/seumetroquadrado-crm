@@ -11,11 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { proximoDaVez, roletaLabel, RESULTADO_LABEL } from "@/lib/distribuicao";
 import type { RoletaSlug } from "@/lib/distribuicao";
-import {
-  useElegibilidadeRoleta,
-  useHistoricoDistribuicao,
-  useNomesPerfis,
-} from "./queries";
+import { useElegibilidadeRoleta, useHistoricoDistribuicao, useNomesPerfis } from "./queries";
 
 const ROLETA_ICON = { plantao: Users, marquinhos: Bot, landing: Globe } as const;
 

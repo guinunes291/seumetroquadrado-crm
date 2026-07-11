@@ -68,8 +68,8 @@ export function TabExcecoes({ somenteLeitura }: { somenteLeitura: boolean }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Leads que a roleta não conseguiu distribuir. Reprocessar tenta a roleta de novo;
-          corrigir a origem/roleta redireciona; atribuição manual entrega direto a um corretor.
+          Leads que a roleta não conseguiu distribuir. Reprocessar tenta a roleta de novo; corrigir
+          a origem/roleta redireciona; atribuição manual entrega direto a um corretor.
         </p>
         <Tabs value={visao} onValueChange={(v) => setVisao(v as "abertas" | "todas")}>
           <TabsList>
@@ -86,7 +86,9 @@ export function TabExcecoes({ somenteLeitura }: { somenteLeitura: boolean }) {
           ) : linhas.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
-              title={visao === "abertas" ? "Fila de exceções vazia 👏" : "Nenhuma exceção registrada"}
+              title={
+                visao === "abertas" ? "Fila de exceções vazia 👏" : "Nenhuma exceção registrada"
+              }
               description="Todos os leads entraram nas roletas normalmente."
             />
           ) : (
@@ -147,9 +149,7 @@ export function TabExcecoes({ somenteLeitura }: { somenteLeitura: boolean }) {
                     <TableCell className="max-w-56 truncate text-xs text-muted-foreground">
                       {e.status === "resolvida" || e.status === "arquivada"
                         ? `${e.resolucao ?? "—"}${
-                            e.resolvida_por
-                              ? ` · ${nomesQ.data?.get(e.resolvida_por) ?? ""}`
-                              : ""
+                            e.resolvida_por ? ` · ${nomesQ.data?.get(e.resolvida_por) ?? ""}` : ""
                           }`
                         : (e.ultimo_erro ?? "—")}
                     </TableCell>
@@ -170,11 +170,7 @@ export function TabExcecoes({ somenteLeitura }: { somenteLeitura: boolean }) {
         </CardContent>
       </Card>
 
-      <ResolverExcecaoDialog
-        alvo={alvo}
-        onFechar={() => setAlvo(null)}
-        resolver={resolver}
-      />
+      <ResolverExcecaoDialog alvo={alvo} onFechar={() => setAlvo(null)} resolver={resolver} />
     </div>
   );
 }
@@ -234,9 +230,7 @@ function ResolverExcecaoDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="reprocessar">
-                  Reprocessar (tentar a roleta novamente)
-                </SelectItem>
+                <SelectItem value="reprocessar">Reprocessar (tentar a roleta novamente)</SelectItem>
                 <SelectItem value="escolher_roleta">Enviar para uma roleta específica</SelectItem>
                 <SelectItem value="atribuir_manual">Atribuir manualmente a um corretor</SelectItem>
                 <SelectItem value="corrigir_origem">Corrigir a origem e reprocessar</SelectItem>
@@ -301,8 +295,8 @@ function ResolverExcecaoDialog({
 
           {acao === "arquivar" && (
             <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-              Arquivar NÃO distribui o lead — ele permanece sem corretor, fora da fila de
-              exceções. Use apenas para casos tratados fora do sistema.
+              Arquivar NÃO distribui o lead — ele permanece sem corretor, fora da fila de exceções.
+              Use apenas para casos tratados fora do sistema.
             </p>
           )}
         </div>
@@ -311,9 +305,7 @@ function ResolverExcecaoDialog({
             Cancelar
           </Button>
           <Button onClick={executar} disabled={!pronto || resolver.isPending}>
-            {resolver.isPending ? (
-              <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : null}
+            {resolver.isPending ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : null}
             Executar
           </Button>
         </DialogFooter>

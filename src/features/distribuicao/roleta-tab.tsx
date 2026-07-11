@@ -842,4 +842,3 @@ function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
     </div>
   );
 }
-
