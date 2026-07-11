@@ -84,7 +84,7 @@ export type BuscaIAResultado = {
 
 export const buscarProjetosIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => InputSchema.parse(data))
+  .validator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }): Promise<BuscaIAResultado> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY ausente");
@@ -94,9 +94,7 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
     // Teto de custo: limita buscas de IA por usuário.
     const rl = rateLimit(`match-ia:${userId}`, IA_RATE_MAX, IA_RATE_WINDOW_MS);
     if (!rl.allowed) {
-      throw new Error(
-        `Muitas buscas seguidas. Tente novamente em ${rl.retryAfterS}s.`,
-      );
+      throw new Error(`Muitas buscas seguidas. Tente novamente em ${rl.retryAfterS}s.`);
     }
 
     // Catálogo de projetos ativos com cache curto em memória.
@@ -118,7 +116,12 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
     }
 
     if (lista.length === 0) {
-      return { resumo: "Nenhum empreendimento ativo cadastrado.", filtrosUsados: {}, totalFiltrados: 0, projetos: [] };
+      return {
+        resumo: "Nenhum empreendimento ativo cadastrado.",
+        filtrosUsados: {},
+        totalFiltrados: 0,
+        projetos: [],
+      };
     }
 
     const catalogo = lista.map((p) => ({
@@ -144,12 +147,15 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
     const { text } = await generateText({
       model,
       system:
-        "Você é um especialista em imóveis MCMV em São Paulo. Analise a descrição do corretor e o catálogo. Responda APENAS com JSON válido (sem markdown, sem cercas ```), no formato exato: {\"resumo\": string, \"filtrosUsados\": {\"regiao\"?: string, \"dorms\"?: string, \"vagas\"?: string, \"precoMax\"?: string, \"programa\"?: string, \"entrega\"?: string}, \"projetos\": [{\"id\": string, \"pontuacao\": number 0-10, \"motivo\": string, \"tipologiaRecomendada\"?: string}]}. Use apenas ids existentes no catálogo. Máximo 6 projetos, ordenados por aderência. Motivo em 1 frase PT-BR.",
+        'Você é um especialista em imóveis MCMV em São Paulo. Analise a descrição do corretor e o catálogo. Responda APENAS com JSON válido (sem markdown, sem cercas ```), no formato exato: {"resumo": string, "filtrosUsados": {"regiao"?: string, "dorms"?: string, "vagas"?: string, "precoMax"?: string, "programa"?: string, "entrega"?: string}, "projetos": [{"id": string, "pontuacao": number 0-10, "motivo": string, "tipologiaRecomendada"?: string}]}. Use apenas ids existentes no catálogo. Máximo 6 projetos, ordenados por aderência. Motivo em 1 frase PT-BR.',
       prompt: `Descrição do corretor:\n${data.descricao}\n\nCatálogo (JSON):\n${JSON.stringify(catalogo)}`,
     });
 
     // Tolerar cercas markdown caso o modelo as inclua
-    const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+    const cleaned = text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "");
     let parsed: z.infer<typeof AiSchema>;
     try {
       parsed = AiSchema.parse(JSON.parse(cleaned));
@@ -182,5 +188,4 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
       totalFiltrados: projetosOut.length,
       projetos: projetosOut,
     };
-
   });

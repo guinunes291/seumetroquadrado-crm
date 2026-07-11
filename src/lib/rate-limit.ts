@@ -4,6 +4,36 @@
 
 type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
+const MAX_BUCKETS = 10_000;
+const SWEEP_EVERY_INSERTIONS = 256;
+let insertionsSinceSweep = 0;
+
+function sweepExpired(now: number): void {
+  for (const [key, bucket] of buckets) {
+    if (now >= bucket.resetAt) buckets.delete(key);
+  }
+  insertionsSinceSweep = 0;
+}
+
+function makeRoom(now: number): void {
+  insertionsSinceSweep += 1;
+  if (insertionsSinceSweep >= SWEEP_EVERY_INSERTIONS || buckets.size >= MAX_BUCKETS) {
+    sweepExpired(now);
+  }
+  if (buckets.size < MAX_BUCKETS) return;
+
+  // Limite rígido para impedir crescimento sem teto sob flood de chaves/IPs.
+  // Remove primeiro a janela que expirará mais cedo.
+  let oldestKey: string | undefined;
+  let oldestResetAt = Number.POSITIVE_INFINITY;
+  for (const [key, bucket] of buckets) {
+    if (bucket.resetAt < oldestResetAt) {
+      oldestKey = key;
+      oldestResetAt = bucket.resetAt;
+    }
+  }
+  if (oldestKey !== undefined) buckets.delete(oldestKey);
+}
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -28,6 +58,7 @@ export function rateLimit(
 ): RateLimitResult {
   const bucket = buckets.get(key);
   if (!bucket || now >= bucket.resetAt) {
+    if (!bucket) makeRoom(now);
     buckets.set(key, { count: 1, resetAt: now + windowMs });
     return { allowed: true, remaining: max - 1, retryAfterS: 0 };
   }
@@ -45,4 +76,12 @@ export function rateLimit(
 /** Limpa todos os buckets — apenas para testes. */
 export function __resetRateLimit() {
   buckets.clear();
+  insertionsSinceSweep = 0;
 }
+
+/** Observabilidade estritamente voltada a testes do limite de memória. */
+export function __rateLimitBucketCountForTests(): number {
+  return buckets.size;
+}
+
+export const __RATE_LIMIT_MAX_BUCKETS_FOR_TESTS = MAX_BUCKETS;

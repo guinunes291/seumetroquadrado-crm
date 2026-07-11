@@ -23,20 +23,13 @@ function onlyDigits(s: string): string {
 
 export const importarLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: { rows: ImportRow[]; projeto_id?: string | null }) => input,
-  )
+  .validator((input: { rows: ImportRow[]; projeto_id?: string | null }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
     // verifica role admin/gestor
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const isAllowed = (roles ?? []).some(
-      (r) => r.role === "admin" || r.role === "gestor",
-    );
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    const isAllowed = (roles ?? []).some((r) => r.role === "admin" || r.role === "gestor");
     if (!isAllowed) throw new Error("Apenas admin ou gestor podem importar leads.");
 
     const result: ImportResult = {
@@ -49,9 +42,7 @@ export const importarLeads = createServerFn({ method: "POST" })
     };
 
     // mapa de projetos (para auto-match por nome)
-    const { data: projetos } = await supabase
-      .from("projetos")
-      .select("id, nome");
+    const { data: projetos } = await supabase.from("projetos").select("id, nome");
     const projetosMap = new Map<string, string>();
     (projetos ?? []).forEach((p) => projetosMap.set(p.nome.trim().toLowerCase(), p.id));
 
@@ -95,9 +86,7 @@ export const importarLeads = createServerFn({ method: "POST" })
         .ilike("telefone", `%${telefoneDigits.slice(-8)}%`)
         .limit(20);
 
-      const jaExiste = (existentes ?? []).some(
-        (e) => onlyDigits(e.telefone) === telefoneDigits,
-      );
+      const jaExiste = (existentes ?? []).some((e) => onlyDigits(e.telefone) === telefoneDigits);
       if (jaExiste) {
         result.duplicados++;
         result.detalhes.push({

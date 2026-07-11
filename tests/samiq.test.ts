@@ -41,7 +41,8 @@ describe("catálogo de ações", () => {
     for (const a of SAMIQ_ACTIONS) {
       const meta = SAMIQ_ACTION_META[a];
       expect(meta.label.length).toBeGreaterThan(2);
-      expect(meta.instrucao.length).toBeGreaterThan(20);
+      expect(typeof meta.precisaLead).toBe("boolean");
+      expect(Object.keys(meta).sort()).toEqual(["label", "precisaLead"]);
     }
   });
 

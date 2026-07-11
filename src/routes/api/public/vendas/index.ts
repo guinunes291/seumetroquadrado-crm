@@ -1,15 +1,16 @@
 // GET /api/public/vendas
 // Auth: X-API-Key. Filtros: status, corretor_id, desde, ate (data), empreendimento, limit, offset.
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse, corsPreflight } from "@/lib/public-api-auth";
+import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
+import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
 
 export const Route = createFileRoute("/api/public/vendas/")({
   server: {
     handlers: {
       OPTIONS: async () => corsPreflight(),
       GET: async ({ request }) => {
-        const authErr = checkReadApiKey(request);
-        if (authErr) return authErr;
+        const auth = await requireApiClientScope(request, "sales:read");
+        if (auth instanceof Response) return auth;
 
         const url = new URL(request.url);
         const q = url.searchParams;
@@ -20,9 +21,19 @@ export const Route = createFileRoute("/api/public/vendas/")({
         let query = supabaseAdmin
           .from("vendas")
           .select(
-            "id, lead_id, corretor_id, projeto_id, projeto_nome, valor_venda, data_assinatura, status_recebimento, distrato, created_at",
+            "id, lead_id, corretor_id, projeto_id, projeto_nome, valor_venda, data_assinatura, status_recebimento, status_venda, aprovado_em, distrato, created_at",
             { count: "exact" },
+          )
+          .eq("status_venda", "aprovada");
+
+        if (auth.projetoId) query = query.eq("projeto_id", auth.projetoId);
+        const equipeCorretorIds = await restrictedCorretorIds(auth);
+        if (equipeCorretorIds) {
+          query = query.in(
+            "corretor_id",
+            equipeCorretorIds.length ? equipeCorretorIds : ["00000000-0000-0000-0000-000000000000"],
           );
+        }
 
         const status = q.get("status");
         if (status) query = query.eq("status_recebimento", status);
@@ -38,7 +49,9 @@ export const Route = createFileRoute("/api/public/vendas/")({
         const empreendimento = q.get("empreendimento");
         if (empreendimento) query = query.ilike("projeto_nome", `%${empreendimento}%`);
 
-        query = query.order("data_assinatura", { ascending: false }).range(offset, offset + limit - 1);
+        query = query
+          .order("data_assinatura", { ascending: false })
+          .range(offset, offset + limit - 1);
 
         const { data, error, count } = await query;
         if (error) return jsonResponse({ error: error.message }, 500);
@@ -54,6 +67,8 @@ export const Route = createFileRoute("/api/public/vendas/")({
           valor: v.valor_venda,
           data: v.data_assinatura,
           status: v.distrato ? "distrato" : v.status_recebimento,
+          status_aprovacao: v.status_venda,
+          aprovado_em: v.aprovado_em,
           distrato: v.distrato,
         }));
 

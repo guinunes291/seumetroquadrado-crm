@@ -1,6 +1,5 @@
 // Constantes e cálculos de performance (Fase 5)
 
-export const LEAD_STATUS_GANHO = ["contrato_fechado", "pos_venda"] as const;
 export const LEAD_STATUS_PERDIDO = ["perdido"] as const;
 export const LEAD_STATUS_VISITA = [
   "visita_realizada",
@@ -48,10 +47,11 @@ export type AgendamentoSlim = {
   data_inicio?: string | null;
 };
 
-export type TransicaoSlim = {
-  para_status: string;
+export type VendaAprovadaSlim = {
+  status_venda: string;
   corretor_id?: string | null;
-  created_at?: string | null;
+  aprovado_em?: string | null;
+  valor_venda?: number | string | null;
 };
 
 export function isInPeriod(iso: string | null | undefined, ano: number, mes: number): boolean {
@@ -80,7 +80,7 @@ export function computeAgentMetrics(
   agendamentos: AgendamentoSlim[],
   ano: number,
   mes: number,
-  transicoes?: TransicaoSlim[],
+  vendasAprovadas: VendaAprovadaSlim[] = [],
 ): Map<string, AgentMetrics> {
   const out = new Map<string, AgentMetrics>();
   const get = (id: string): AgentMetrics => {
@@ -106,21 +106,16 @@ export function computeAgentMetrics(
     const m = get(l.corretor_id);
     m.leads_total++;
     if ((LEAD_STATUS_ATENDIDO as readonly string[]).includes(l.status)) m.leads_atendidos++;
-    // Quando há histórico de transições, vendas são contadas por data real da
-    // transição (abaixo). Sem ele, usamos o status atual como fallback.
-    if (!transicoes && (LEAD_STATUS_GANHO as readonly string[]).includes(l.status)) m.vendas++;
     if ((LEAD_STATUS_PERDIDO as readonly string[]).includes(l.status)) m.perdidos++;
   }
 
-  // Vendas = transições para "contrato_fechado" ocorridas no período (data real),
-  // atribuídas ao corretor responsável no momento da transição.
-  if (transicoes) {
-    for (const t of transicoes) {
-      if (!t.corretor_id) continue;
-      if (t.para_status !== "contrato_fechado") continue;
-      if (!isInPeriod(t.created_at, ano, mes)) continue;
-      get(t.corretor_id).vendas++;
-    }
+  // A etapa atual e a timeline não são fontes financeiras: cancelamentos
+  // preservam a transição histórica. Só a venda ainda aprovada contabiliza.
+  for (const venda of vendasAprovadas) {
+    if (!venda.corretor_id) continue;
+    if (venda.status_venda !== "aprovada") continue;
+    if (!isInPeriod(venda.aprovado_em, ano, mes)) continue;
+    get(venda.corretor_id).vendas++;
   }
 
   for (const a of agendamentos) {

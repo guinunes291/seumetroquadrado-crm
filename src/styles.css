@@ -132,13 +132,15 @@
   --muted-foreground: oklch(0.5 0.03 250);
   --accent: oklch(0.92 0.02 85);
   --accent-foreground: oklch(0.22 0.05 250);
-  --destructive: oklch(0.577 0.245 27.325);
+  /* Tons semânticos escurecidos no tema claro para contraste AA em texto e
+     controles sobre branco; no tema escuro usamos a escala clara abaixo. */
+  --destructive: oklch(0.52 0.22 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.55 0.14 150);
+  --success: oklch(0.46 0.13 150);
   --success-foreground: oklch(0.985 0 0);
-  --warning: oklch(0.6 0.13 65);
+  --warning: oklch(0.47 0.12 65);
   --warning-foreground: oklch(0.985 0 0);
-  --info: oklch(0.55 0.16 255);
+  --info: oklch(0.48 0.15 255);
   --info-foreground: oklch(0.985 0 0);
   --border: oklch(0.9 0.01 250);
   --input: oklch(0.9 0.01 250);
@@ -342,5 +344,16 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+  }
+}
+
+/* Piso de legibilidade: badges e metadados legados ainda usam utilitários
+   arbitrários de 10/11 px. Mantemos a densidade visual, mas nunca renderizamos
+   texto auxiliar abaixo de 12 px. Informação operacional continua em text-sm. */
+@layer utilities {
+  .text-\[10px\],
+  .text-\[11px\] {
+    font-size: 0.75rem;
+    line-height: 1rem;
   }
 }

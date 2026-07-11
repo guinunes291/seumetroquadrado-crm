@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ResponsiveTabs, ResponsiveTabsContent } from "@/components/ui/responsive-tabs";
+import { StickyActionRail } from "@/components/ui/sticky-action-rail";
 import {
   Select,
   SelectContent,
@@ -603,7 +604,7 @@ function LeadDetailPage() {
   const diasSemContato = diasDesde(lead.ultima_interacao ?? lead.created_at, new Date());
 
   return (
-    <div>
+    <div className="pb-44 md:pb-0">
       <Link
         to="/leads"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
@@ -615,7 +616,7 @@ function LeadDetailPage() {
         title={lead.nome}
         description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden flex-wrap gap-2 md:flex">
             <Button asChild variant="outline">
               <a href={telHref}>
                 <Phone className="h-4 w-4 mr-2" /> Ligar
@@ -809,7 +810,7 @@ function LeadDetailPage() {
               <span className="text-xs text-muted-foreground">{scoreInfo.motivo}</span>
             </div>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="hidden shrink-0 gap-2 md:flex">
             {acaoSugerida && (
               <Button
                 size="sm"
@@ -828,7 +829,7 @@ function LeadDetailPage() {
         </div>
       </GlassCard>
 
-      <Card className="mb-6">
+      <Card className="mb-6 hidden md:block">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Etapas do funil</CardTitle>
         </CardHeader>
@@ -941,24 +942,25 @@ function LeadDetailPage() {
         </Card>
       </div>
 
-      <Tabs
+      <ResponsiveTabs
         value={activeTab}
         onValueChange={(v) =>
           navigate({ search: { tab: v === "timeline" ? undefined : (v as LeadTab) } })
         }
+        ariaLabel="Seções do dossiê do lead"
+        items={[
+          { value: "timeline", label: `Timeline (${interacoes.length})` },
+          { value: "dados", label: "Dados" },
+          { value: "qualificacao", label: "Qualificação" },
+          { value: "tarefas", label: `Tarefas (${tarefas.length})` },
+          {
+            value: "agendamentos",
+            label: `Agendamentos${agendamentosData ? ` (${agendamentos.length})` : ""}`,
+          },
+          { value: "documentacao", label: "Documentação" },
+        ]}
       >
-        <TabsList>
-          <TabsTrigger value="timeline">Timeline ({interacoes.length})</TabsTrigger>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="qualificacao">Qualificação</TabsTrigger>
-          <TabsTrigger value="tarefas">Tarefas ({tarefas.length})</TabsTrigger>
-          <TabsTrigger value="agendamentos">
-            Agendamentos{agendamentosData ? ` (${agendamentos.length})` : ""}
-          </TabsTrigger>
-          <TabsTrigger value="documentacao">Documentação</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="timeline" className="mt-4">
+        <ResponsiveTabsContent value="timeline" className="mt-4">
           {/* Nota rápida: registra em 1 passo, sem abrir o modal de interação. */}
           <Card className="mb-4">
             <CardContent className="pt-4 space-y-2">
@@ -1038,9 +1040,9 @@ function LeadDetailPage() {
               })}
             </ol>
           )}
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="dados" className="mt-4">
+        <ResponsiveTabsContent value="dados" className="mt-4">
           <Card>
             <CardContent className="pt-6 grid gap-4 md:grid-cols-2 text-sm">
               <DataRow icon={User} label="Nome" value={lead.nome} />
@@ -1124,9 +1126,9 @@ function LeadDetailPage() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="qualificacao" className="mt-4 space-y-4">
+        <ResponsiveTabsContent value="qualificacao" className="mt-4 space-y-4">
           <LeadObjecoes leadId={lead.id} objecoes={lead.objecoes ?? null} />
           <SimuladorFinanciamento
             entradaInicial={lead.entrada_disponivel}
@@ -1149,9 +1151,9 @@ function LeadDetailPage() {
               observacoes: lead.observacoes,
             }}
           />
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="tarefas" className="mt-4 space-y-3">
+        <ResponsiveTabsContent value="tarefas" className="mt-4 space-y-3">
           <div className="flex justify-end">
             <Button size="sm" variant="outline" onClick={() => setTarefaOpen(true)}>
               <Plus className="h-4 w-4 mr-2" /> Nova tarefa
@@ -1243,9 +1245,9 @@ function LeadDetailPage() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="agendamentos" className="mt-4">
+        <ResponsiveTabsContent value="agendamentos" className="mt-4">
           {agendamentos.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -1273,9 +1275,9 @@ function LeadDetailPage() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
+        </ResponsiveTabsContent>
 
-        <TabsContent value="documentacao" className="mt-4">
+        <ResponsiveTabsContent value="documentacao" className="mt-4">
           <DocumentacaoTab
             leadId={leadId}
             lead={{
@@ -1288,8 +1290,40 @@ function LeadDetailPage() {
               construtora: lead.construtora,
             }}
           />
-        </TabsContent>
-      </Tabs>
+        </ResponsiveTabsContent>
+      </ResponsiveTabs>
+
+      <StickyActionRail
+        statusMessage={`Etapa atual: ${leadStatusLabel(lead.status)}. ${
+          acaoSugerida ? `Próxima etapa: ${acaoSugerida.label}.` : "Sem próxima etapa sugerida."
+        }`}
+      >
+        <Button asChild variant="outline" className="flex-1 px-2">
+          <a href={telHref} aria-label={`Ligar para ${lead.nome}`}>
+            <Phone aria-hidden="true" />
+            <span>Ligar</span>
+          </a>
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1 px-2 text-success hover:text-success"
+          onClick={() => setWaOpen(true)}
+        >
+          <MessageCircle aria-hidden="true" />
+          <span>WhatsApp</span>
+        </Button>
+        <Button
+          type="button"
+          className="flex-1 px-2"
+          disabled={!acaoSugerida || mudarStatus.isPending}
+          aria-label={acaoSugerida ? `Próxima etapa: ${acaoSugerida.label}` : "Sem próxima etapa"}
+          onClick={() => acaoSugerida && goToStage(acaoSugerida.target)}
+        >
+          <ArrowRight aria-hidden="true" />
+          <span>Próxima etapa</span>
+        </Button>
+      </StickyActionRail>
 
       {/* Os próprios modais invalidam lead/interações/agendamentos no onSuccess;
           fechar/cancelar não precisa refazer as queries. */}

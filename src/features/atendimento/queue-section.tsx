@@ -30,6 +30,7 @@ const QUEUE_ACCENT: Record<QueueKey, string> = {
 export function QueueSection({
   queue,
   items,
+  totalCount,
   icon: Icon,
   iconClass,
   onWhatsApp,
@@ -37,6 +38,7 @@ export function QueueSection({
 }: {
   queue: QueueKey;
   items: QueueItem[];
+  totalCount?: number;
   icon: LucideIcon;
   iconClass: string;
   onWhatsApp: (item: QueueItem, mensagem: string) => void;
@@ -55,7 +57,11 @@ export function QueueSection({
       <CardHeader className="pb-2">
         <CardTitle className="flex flex-wrap items-center gap-1.5 text-sm">
           <Icon className={cn("h-4 w-4", iconClass)} /> {QUEUE_LABEL[queue]}
-          <Badge variant="secondary">{items.length}</Badge>
+          <Badge variant="secondary">
+            {totalCount && totalCount > items.length
+              ? `${items.length} de ${totalCount}`
+              : (totalCount ?? items.length)}
+          </Badge>
           <span className="ml-1 text-xs font-normal text-muted-foreground">
             {QUEUE_HINT[queue]}
           </span>

@@ -340,23 +340,24 @@ const SELECT_BASE =
   "valor_base, percentual, valor_comissao, percentual_desconto, valor_liquido, contrato_vgv, " +
   "observacoes, created_at";
 const VENDA_EMBED =
-  "venda:vendas(data_assinatura, projeto_nome, valor_venda, distrato, corretor_id)";
+  "venda:vendas(data_assinatura, projeto_nome, valor_venda, distrato, corretor_id, status_venda)";
 const VENDA_EMBED_INNER = VENDA_EMBED.replace("venda:vendas(", "venda:vendas!inner(");
 
 export type ComissoesFiltro = {
-  /** Limites de mês-calendário sobre `vendas.data_assinatura` (competência). */
+  /** Limites de mês-calendário sobre `vendas.data_assinatura` da venda aprovada. */
   mes?: { ini: string; fim: string } | null;
   status?: ComissaoStatus | null;
 };
 
 export async function listComissoes(filtro: ComissoesFiltro = {}): Promise<ComissaoRow[]> {
-  // Com filtro de mês o embed vira !inner para filtrar pela data da venda;
-  // sem mês, embed left — linhas órfãs de venda ainda aparecem em "Todos".
-  const select = `${SELECT_BASE}, ${filtro.mes ? VENDA_EMBED_INNER : VENDA_EMBED}`;
+  // Comissão operacional sempre nasce de uma venda atualmente aprovada. O
+  // ledger preserva cancelamentos/estornos para auditoria separada.
+  const select = `${SELECT_BASE}, ${VENDA_EMBED_INNER}`;
   const rows = await fetchAllPaged<ComissaoRow>(async (from, to) => {
     let q = supabase
       .from("comissoes")
       .select(select)
+      .eq("venda.status_venda", "aprovada")
       .order("created_at", { ascending: false })
       .order("id")
       .range(from, to);
@@ -373,7 +374,7 @@ export async function listComissoes(filtro: ComissoesFiltro = {}): Promise<Comis
   return sortComissoes(rows);
 }
 
-/** Vendas do período para os cards (VGV e comissão da imobiliária). */
+/** Vendas aprovadas no período para os cards (VGV e comissão da imobiliária). */
 export async function listVendasPeriodo(
   mes?: { ini: string; fim: string } | null,
 ): Promise<
@@ -383,10 +384,11 @@ export async function listVendasPeriodo(
     let q = supabase
       .from("vendas")
       .select("id, valor_venda, percentual_comissao, distrato")
-      .order("data_assinatura", { ascending: false })
+      .eq("status_venda", "aprovada")
+      .order("aprovado_em", { ascending: false })
       .order("id")
       .range(from, to);
-    if (mes) q = q.gte("data_assinatura", mes.ini).lt("data_assinatura", mes.fim);
+    if (mes) q = q.gte("aprovado_em", mes.ini).lt("aprovado_em", mes.fim);
     const { data, error } = await q;
     if (error) throw error;
     return data ?? [];

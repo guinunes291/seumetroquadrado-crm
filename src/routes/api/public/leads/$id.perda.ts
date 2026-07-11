@@ -5,15 +5,15 @@
 //   data_perda?: string ISO,            // fallback: now() quando marcar perdido / lead já perdido sem data
 //   marcar_status_perdido?: boolean     // default false — só grava campos de perda
 // }
-// Auth: header X-API-Key = MCP_WRITE_API_KEY (READ_API_KEY aceita em transição).
+// Auth: cliente com escopo leads:write.
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import {
-  requireWriteKeyOrLegacy,
-  writeAgentLabel,
-  auditarEscrita,
-  clientIp,
-} from "@/lib/write-api-auth";
+  apiClientAgent,
+  requireApiClientScope,
+  requireApiLeadAccess,
+} from "@/lib/api-client-auth.server";
+import { auditarEscrita, clientIp } from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -41,15 +41,17 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
       OPTIONS: async () => corsPreflight(),
 
       PATCH: async ({ request, params }) => {
-        const auth = requireWriteKeyOrLegacy(request);
+        const auth = await requireApiClientScope(request, "leads:write");
         if (auth instanceof Response) return auth;
-        const agente = writeAgentLabel(auth.mode);
+        const agente = apiClientAgent(auth);
         const ip = clientIp(request);
 
         const id = params.id;
         if (!UUID_RE.test(id)) {
           return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
         }
+        const accessError = await requireApiLeadAccess(auth, id);
+        if (accessError) return accessError;
 
         let body: Record<string, unknown>;
         try {
@@ -107,6 +109,10 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
         }
 
         const marcarPerdido = body.marcar_status_perdido === true;
+        const motivoTransicao = obsRaw ? `${categoria}: ${obsRaw}` : categoria;
+        if (marcarPerdido && motivoTransicao.length > 1000) {
+          return jsonResponse({ error: "motivo de perda excede 1000 caracteres" }, 422);
+        }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -135,32 +141,43 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
           motivo_perda_categoria: MotivoValido;
           motivo_perdido: string | null;
           data_perda?: string;
-          status?: string;
         } = {
           motivo_perda_categoria: categoria as MotivoValido,
           motivo_perdido: obsRaw ? obsRaw : null,
         };
         if (dataPerdaFinal !== null) patch.data_perda = dataPerdaFinal;
-        if (marcarPerdido) patch.status = "perdido";
 
-        const { data: updated, error: upErr } = await supabaseAdmin
-          .from("leads")
-          .update(patch as never)
-          .eq("id", id)
-          .select(PERDA_SELECT)
-          .single();
-        if (upErr) {
+        const mutationResult = marcarPerdido
+          ? await supabaseAdmin.rpc("transicionar_lead_api_perda", {
+              p_categoria: categoria,
+              p_data_perda: dataPerdaFinal,
+              p_lead_id: id,
+              p_motivo: obsRaw || null,
+            })
+          : await supabaseAdmin
+              .from("leads")
+              .update(patch as never)
+              .eq("id", id);
+        if (mutationResult.error) {
+          const status = ["22023", "23514"].includes(mutationResult.error.code) ? 422 : 500;
           await auditarEscrita({
             agente,
             acao: "lead.perda",
             lead_id: id,
             payload: { categoria, marcar_status_perdido: marcarPerdido },
             resultado: "erro",
-            http_status: 500,
+            http_status: status,
             ip,
           });
-          return jsonResponse({ error: upErr.message }, 500);
+          return jsonResponse({ error: mutationResult.error.message }, status);
         }
+
+        const { data: updated, error: selectError } = await supabaseAdmin
+          .from("leads")
+          .select(PERDA_SELECT)
+          .eq("id", id)
+          .single();
+        if (selectError) return jsonResponse({ error: selectError.message }, 500);
 
         // Auditoria: registra no histórico do lead sem expor a chave.
         await supabaseAdmin.from("interacoes").insert({
@@ -182,7 +199,7 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
           agente,
           acao: "lead.perda",
           lead_id: id,
-          payload: { categoria, obs: obsRaw || null, marcar_status_perdido: marcarPerdido },
+          payload: { categoria, marcar_status_perdido: marcarPerdido },
           resultado: "ok",
           http_status: 200,
           ip,

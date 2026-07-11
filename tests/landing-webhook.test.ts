@@ -41,4 +41,33 @@ describe("parseLandingPayload", () => {
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.row.sim_renda).toBeUndefined();
   });
+
+  it("não persiste token Turnstile nem campos de honeypot no raw", () => {
+    const r = parseLandingPayload({
+      nome: "Maria Souza",
+      whatsapp: "11987654321",
+      turnstile_token: "token-publico",
+      "cf-turnstile-response": "token-alternativo",
+      website: "spam.example",
+      simHp: "bot",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.row.raw).toEqual({ nome: "Maria Souza", whatsapp: "11987654321" });
+    }
+  });
+
+  it("rejeita objetos em campos de texto e números fora do teto", () => {
+    expect(parseLandingPayload({ nome: {}, whatsapp: "11987654321" })).toEqual({
+      ok: false,
+      error: "nome_invalido",
+    });
+    expect(
+      parseLandingPayload({
+        nome: "Maria Souza",
+        whatsapp: "11987654321",
+        simulacao: { tetoImovel: 2_000_000_000 },
+      }),
+    ).toEqual({ ok: false, error: "simulacao_invalida" });
+  });
 });

@@ -54,9 +54,16 @@ describe("computeAgentMetrics", () => {
     { status: "realizado", corretor_id: "b", data_inicio: "2026-06-08T14:00:00Z" },
     { status: "realizado", corretor_id: "a", data_inicio: "2026-05-10T14:00:00Z" }, // fora
   ];
+  const vendas = [
+    { status_venda: "aprovada", corretor_id: "a", aprovado_em: "2026-06-18T10:00:00Z" },
+    { status_venda: "aprovada", corretor_id: "b", aprovado_em: "2026-06-02T10:00:00Z" },
+    { status_venda: "cancelada", corretor_id: "a", aprovado_em: "2026-06-20T10:00:00Z" },
+    { status_venda: "pendente", corretor_id: "a", aprovado_em: null },
+    { status_venda: "aprovada", corretor_id: "a", aprovado_em: "2026-05-30T10:00:00Z" },
+  ];
 
   it("agrega corretamente por corretor no período", () => {
-    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6);
+    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6, vendas as any);
     const a = m.get("a")!;
     expect(a.leads_total).toBe(4);
     expect(a.leads_atendidos).toBe(3); // em_atendimento + contrato + perdido
@@ -70,12 +77,12 @@ describe("computeAgentMetrics", () => {
   });
 
   it("ignora leads sem corretor", () => {
-    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6);
+    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6, vendas as any);
     expect(m.size).toBe(2);
   });
 
   it("rankAgents ordena por vendas desc e atribui posição", () => {
-    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6);
+    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6, vendas as any);
     const nomes = new Map([
       ["a", "Ana"],
       ["b", "Bruno"],
@@ -88,17 +95,10 @@ describe("computeAgentMetrics", () => {
     expect(r[0].nome).toBe("Ana");
   });
 
-  it("conta vendas por transições para contrato_fechado quando fornecidas", () => {
-    const transicoes = [
-      { para_status: "contrato_fechado", corretor_id: "a", created_at: "2026-06-18T10:00:00Z" },
-      { para_status: "contrato_fechado", corretor_id: "a", created_at: "2026-06-25T10:00:00Z" },
-      { para_status: "visita_realizada", corretor_id: "a", created_at: "2026-06-19T10:00:00Z" },
-      { para_status: "contrato_fechado", corretor_id: "a", created_at: "2026-05-30T10:00:00Z" }, // fora
-      { para_status: "contrato_fechado", corretor_id: "b", created_at: "2026-06-02T10:00:00Z" },
-    ];
-    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6, transicoes as any);
-    // a: 2 transições em junho (ignora a de maio e a de visita)
-    expect(m.get("a")!.vendas).toBe(2);
+  it("conta somente vendas ainda aprovadas pela data da aprovação", () => {
+    const m = computeAgentMetrics(leads as any, ags as any, 2026, 6, vendas as any);
+    // A venda cancelada, a pendente e a aprovação de maio não contabilizam.
+    expect(m.get("a")!.vendas).toBe(1);
     expect(m.get("b")!.vendas).toBe(1);
   });
 });

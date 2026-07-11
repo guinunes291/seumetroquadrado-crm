@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
 import { criarFollowUpAutomatico } from "@/lib/follow-up";
+import { transicionarLead } from "@/lib/lead-transitions";
 
 const RESULTADO_OPTIONS = [
   "interesse_alto",
@@ -70,12 +71,7 @@ export function VisitFeedbackDialog({ lead, onOpenChange, onDone }: Props) {
       } as never);
       if (insErr) throw insErr;
 
-      // A interação dispara o trigger que atualiza `ultima_interacao`; aqui só o status.
-      const { error: updErr } = await supabase
-        .from("leads")
-        .update({ status: "visita_realizada" } as never)
-        .eq("id", lead.id);
-      if (updErr) throw updErr;
+      await transicionarLead({ id: lead.id, nome: lead.nome, status: "visita_realizada" });
 
       // Motor anti-perda: pós-visita não pode ficar sem próximo passo.
       let followUp = false;

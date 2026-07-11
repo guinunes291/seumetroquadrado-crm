@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -98,7 +99,7 @@ function CatalogoPanel() {
   const projetosQ = useQuery({
     queryKey: ["projetos", canManage ? "all" : "ativos"],
     queryFn: async () => {
-      let q = supabase.from("projetos").select("*").is("deleted_at", null);
+      let q = supabase.from("projetos").select(PROJETO_CRM_SELECT).is("deleted_at", null);
       if (!canManage) q = q.eq("ativo", true);
       const { data, error } = await q.order("nome");
       if (error) throw error;

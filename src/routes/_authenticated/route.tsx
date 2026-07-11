@@ -1,16 +1,34 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
-import { SamiQLauncher } from "@/components/samiq/samiq-launcher";
-import { SprintGlobal } from "@/features/sprint/sprint-global";
 import { NotificationBell } from "@/components/notification-bell";
-import { CommandPalette } from "@/components/command-palette";
-import { RegistrarVendaDialog } from "@/components/registrar-venda-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
+
+const SamiQLauncher = lazy(() =>
+  import("@/components/samiq/samiq-launcher").then(({ SamiQLauncher }) => ({
+    default: SamiQLauncher,
+  })),
+);
+const SprintGlobal = lazy(() =>
+  import("@/features/sprint/sprint-global").then(({ SprintGlobal }) => ({
+    default: SprintGlobal,
+  })),
+);
+const CommandPalette = lazy(() =>
+  import("@/components/command-palette").then(({ CommandPalette }) => ({
+    default: CommandPalette,
+  })),
+);
+const RegistrarVendaDialog = lazy(() =>
+  import("@/components/registrar-venda-dialog").then(({ RegistrarVendaDialog }) => ({
+    default: RegistrarVendaDialog,
+  })),
+);
 
 let lastPresenceMark = 0;
 const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
@@ -36,9 +54,23 @@ function markPresenceSafely() {
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) {
+      throw redirect({ to: "/auth", search: { next: location.href } });
+    }
+
+    const { data: contaAtiva, error: accountError } = await supabase.rpc("conta_atual_ativa");
+    if (accountError || !contaAtiva) {
+      // O escopo global também revoga os refresh tokens das demais sessões.
+      // RLS/has_role permanecem como barreira mesmo se a revogação falhar.
+      await supabase.auth.signOut({ scope: "global" });
+      throw redirect({
+        to: "/auth",
+        search: { next: "", motivo: accountError ? "validacao" : "inativa" },
+      });
+    }
+
     // Auto check-in para liberar a distribuição automática de leads.
     markPresenceSafely();
     return { user: data.user };
@@ -49,8 +81,14 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen bg-background">
+      <a
+        href="#conteudo-principal"
+        className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Pular para o conteúdo
+      </a>
       <AppSidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main id="conteudo-principal" tabIndex={-1} className="flex-1 overflow-y-auto">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-background/70 backdrop-blur-md px-4 md:px-8 h-14">
           <MobileSidebar />
           <div className="ml-auto flex items-center gap-2">
@@ -58,6 +96,7 @@ function AuthenticatedLayout() {
               variant="outline"
               size="sm"
               className="text-muted-foreground gap-2"
+              aria-label="Abrir busca global"
               onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
             >
               <Search className="h-4 w-4" />
@@ -66,7 +105,9 @@ function AuthenticatedLayout() {
                 ⌘K
               </kbd>
             </Button>
-            <RegistrarVendaDialog />
+            <Suspense fallback={null}>
+              <RegistrarVendaDialog />
+            </Suspense>
             <ThemeToggle />
             <NotificationBell />
           </div>
@@ -77,9 +118,11 @@ function AuthenticatedLayout() {
         </div>
       </main>
       <BottomNav />
-      <SamiQLauncher />
-      <SprintGlobal />
-      <CommandPalette />
+      <Suspense fallback={null}>
+        <SamiQLauncher />
+        <SprintGlobal />
+        <CommandPalette />
+      </Suspense>
       <Toaster richColors closeButton />
     </div>
   );

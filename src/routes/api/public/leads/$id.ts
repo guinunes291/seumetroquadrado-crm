@@ -1,22 +1,20 @@
-// GET /api/public/leads/:id          → lead + interações       (READ_API_KEY)
-// PATCH /api/public/leads/:id        → atualização parcial      (MCP_WRITE_API_KEY)
+// GET /api/public/leads/:id          → lead + interações       (leads:read)
+// PATCH /api/public/leads/:id        → atualização parcial      (leads:write)
 // OPTIONS                             → CORS preflight
-// GET usa a chave de leitura; PATCH usa a chave de escrita (READ_API_KEY aceita
-// em transição — ver requireWriteKeyOrLegacy) e é auditado em api_escrita_log.
+// Credenciais globais só são aceitas pela janela legada central e auditada.
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  checkReadApiKey,
   jsonResponse,
   corsPreflight,
   PUBLIC_LEAD_SELECT,
   shapeLeadForPublic,
 } from "@/lib/public-api-auth";
 import {
-  requireWriteKeyOrLegacy,
-  writeAgentLabel,
-  auditarEscrita,
-  clientIp,
-} from "@/lib/write-api-auth";
+  apiClientAgent,
+  requireApiClientScope,
+  requireApiLeadAccess,
+} from "@/lib/api-client-auth.server";
+import { auditarEscrita, clientIp } from "@/lib/write-api-auth";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -187,11 +185,13 @@ export const Route = createFileRoute("/api/public/leads/$id")({
       OPTIONS: async () => corsPreflight(),
 
       GET: async ({ request, params }) => {
-        const authErr = checkReadApiKey(request);
-        if (authErr) return authErr;
+        const auth = await requireApiClientScope(request, "leads:read");
+        if (auth instanceof Response) return auth;
 
         const id = params.id;
         if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
+        const accessError = await requireApiLeadAccess(auth, id);
+        if (accessError) return accessError;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -199,14 +199,19 @@ export const Route = createFileRoute("/api/public/leads/$id")({
           supabaseAdmin.from("leads").select(PUBLIC_LEAD_SELECT).eq("id", id).maybeSingle(),
           supabaseAdmin
             .from("interacoes")
-            .select("id,tipo,direcao,titulo,conteudo,metadata,ocorreu_em,created_at,autor_id")
+            // `leads:read` não autoriza exportar mensagens, metadata, autor ou
+            // títulos livres. A timeline pública contém somente sinais
+            // estruturados; conteúdo sensível exige um produto/escopo próprio.
+            .select("id,tipo,direcao,ocorreu_em,created_at")
             .eq("lead_id", id)
             .is("deleted_at", null)
             .order("ocorreu_em", { ascending: false })
-            .limit(200),
+            .limit(50),
         ]);
 
-        if (leadRes.error) return jsonResponse({ error: leadRes.error.message }, 500);
+        if (leadRes.error || interRes.error) {
+          return jsonResponse({ error: "Não foi possível carregar o lead" }, 500);
+        }
         if (!leadRes.data) return jsonResponse({ error: "lead não encontrado" }, 404);
 
         return jsonResponse({
@@ -216,13 +221,15 @@ export const Route = createFileRoute("/api/public/leads/$id")({
       },
 
       PATCH: async ({ request, params }) => {
-        const auth = requireWriteKeyOrLegacy(request);
+        const auth = await requireApiClientScope(request, "leads:write");
         if (auth instanceof Response) return auth;
-        const agente = writeAgentLabel(auth.mode);
+        const agente = apiClientAgent(auth);
         const ip = clientIp(request);
 
         const id = params.id;
         if (!UUID_RE.test(id)) return jsonResponse({ error: "id inválido (esperado UUID)" }, 400);
+        const accessError = await requireApiLeadAccess(auth, id);
+        if (accessError) return accessError;
 
         let body: Record<string, unknown>;
         try {
@@ -300,6 +307,14 @@ export const Route = createFileRoute("/api/public/leads/$id")({
               externalFields[extKey] = rawVal;
             }
           }
+        }
+
+        if (
+          auth.projetoId &&
+          update.projeto_id !== undefined &&
+          update.projeto_id !== auth.projetoId
+        ) {
+          return jsonResponse({ error: "projeto_id fora da restrição do cliente" }, 403);
         }
 
         if (Object.keys(update).length === 0 && Object.keys(externalFields).length === 0) {

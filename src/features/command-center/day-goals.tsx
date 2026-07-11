@@ -70,7 +70,14 @@ export function DayGoals({
                   </span>
                 </div>
                 {pct !== null && (
-                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-label={`${c.label}: ${pct}% da meta`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={pct}
+                  >
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-500",

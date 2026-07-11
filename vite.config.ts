@@ -15,5 +15,27 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    build: {
+      // Mantém cada artefato abaixo do budget verificável no CI. Os módulos de
+      // domínio continuam divididos por rota; aqui separamos apenas vendors
+      // estáveis que, antes, formavam um único index > 320 KB gzip.
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined;
+            if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "vendor-react";
+            if (id.includes("node_modules/@tanstack/")) return "vendor-tanstack";
+            if (id.includes("node_modules/@supabase/")) return "vendor-supabase";
+            if (id.includes("node_modules/@radix-ui/")) return "vendor-radix";
+            if (/node_modules\/(recharts|d3-|victory-vendor)\//.test(id)) return "vendor-charts";
+            if (/node_modules\/(lucide-react|sonner|cmdk|vaul|embla-carousel)\//.test(id)) {
+              return "vendor-ui";
+            }
+            if (/node_modules\/(date-fns|react-day-picker)\//.test(id)) return "vendor-date";
+            return undefined;
+          },
+        },
+      },
+    },
   },
 });

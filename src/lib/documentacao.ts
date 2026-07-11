@@ -3,8 +3,8 @@
 // perfil de renda (CLT/autônomo/etc.), rótulos e CRUD — para que o corretor
 // acompanhe a pasta dentro do CRM, em vez de controlar por fora.
 //
-// `checklistPorPerfil` é uma função PURA (testável). O CRUD usa o cliente
-// Supabase destipado, pois a tabela ainda não está nos tipos gerados.
+// `checklistPorPerfil` é uma função PURA (testável). O CRUD usa os tipos
+// derivados do schema para manter a fronteira de dados verificável.
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -118,8 +118,8 @@ export function checklistPorPerfil(perfil: PerfilRenda, flags: ChecklistFlags = 
 }
 
 // ---------------------------------------------------------------------------
-// CRUD — `documentacoes` ainda não está nos tipos gerados do Supabase, então o
-// acesso é feito por um cliente destipado, isolado neste único ponto.
+// CRUD — metadata protegida por RLS. Arquivos privados passam exclusivamente
+// pelo handler servidor abaixo.
 // ---------------------------------------------------------------------------
 
 export type Documentacao = {
@@ -134,11 +134,9 @@ export type Documentacao = {
   updated_at: string;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const docsTable = () => (supabase as any).from("documentacoes");
-
 export async function listarDocs(leadId: string): Promise<Documentacao[]> {
-  const { data, error } = await docsTable()
+  const { data, error } = await supabase
+    .from("documentacoes")
     .select("*")
     .eq("lead_id", leadId)
     .order("created_at", { ascending: true });
@@ -158,7 +156,7 @@ export async function criarDocs(
     tipo,
     status: "pendente" as DocStatus,
   }));
-  const { error } = await docsTable().insert(rows);
+  const { error } = await supabase.from("documentacoes").insert(rows);
   if (error) throw error;
   return rows.length;
 }
@@ -167,12 +165,7 @@ export async function atualizarDoc(
   id: string,
   patch: { status?: DocStatus; url?: string | null; observacoes?: string | null },
 ): Promise<void> {
-  const { error } = await docsTable().update(patch).eq("id", id);
-  if (error) throw error;
-}
-
-export async function removerDoc(id: string): Promise<void> {
-  const { error } = await docsTable().delete().eq("id", id);
+  const { error } = await supabase.from("documentacoes").update(patch).eq("id", id);
   if (error) throw error;
 }
 
@@ -183,6 +176,50 @@ export async function removerDoc(id: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export const DOC_BUCKET = "documentacao";
+const DOC_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const DOC_MAX_BYTES = 15 * 1024 * 1024;
+
+type DocumentacaoApiResponse = {
+  ok: boolean;
+  error?: string;
+  path?: string;
+  signed_url?: string;
+};
+
+async function documentacaoApi(path: string, init?: RequestInit): Promise<DocumentacaoApiResponse> {
+  const current = await supabase.auth.getSession();
+  let session = current.data.session;
+  if (current.error || !session) throw new Error("Sua sessão expirou. Entre novamente.");
+
+  const expiresAt = session.expires_at ?? 0;
+  if (expiresAt - Math.floor(Date.now() / 1000) <= 60) {
+    const refreshed = await supabase.auth.refreshSession();
+    if (refreshed.error || !refreshed.data.session) {
+      throw new Error("Sua sessão expirou. Entre novamente.");
+    }
+    session = refreshed.data.session;
+  }
+
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+  const payload = (await response.json().catch(() => null)) as DocumentacaoApiResponse | null;
+  if (!response.ok || !payload?.ok) {
+    const messages: Record<string, string> = {
+      account_inactive: "Sua conta está pendente ou bloqueada.",
+      invalid_file: "Envie PDF, JPEG, PNG ou WebP de até 15 MB.",
+      not_found: "Documento não encontrado ou fora da sua carteira.",
+      private_file_not_found: "Este documento não possui arquivo privado.",
+      unauthorized: "Sua sessão expirou. Entre novamente.",
+    };
+    throw new Error(messages[payload?.error ?? ""] ?? "Não foi possível concluir a operação.");
+  }
+  return payload;
+}
 
 /** Um `url` é link externo quando é http(s); caso contrário é caminho do Storage. */
 export function isLinkExterno(url: string | null | undefined): boolean {
@@ -194,33 +231,36 @@ export function nomeArquivo(path: string): string {
   return path.split("/").pop() || path;
 }
 
-function sanitizeNome(nome: string): string {
-  return nome
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "_");
+/** Envia o arquivo ao handler servidor, que cria nome aleatório e versão imutável. */
+export async function uploadDocArquivo(
+  _leadId: string,
+  docId: string,
+  file: File,
+): Promise<string> {
+  if (!DOC_MIME_TYPES.has(file.type) || file.size < 1 || file.size > DOC_MAX_BYTES) {
+    throw new Error("Envie PDF, JPEG, PNG ou WebP de até 15 MB.");
+  }
+  const form = new FormData();
+  form.set("documentacao_id", docId);
+  form.set("arquivo", file);
+  const result = await documentacaoApi("/api/documentacao", { method: "POST", body: form });
+  if (!result.path) throw new Error("O servidor não confirmou o arquivo enviado.");
+  return result.path;
 }
 
-/** Sobe o arquivo para o bucket e devolve o caminho do objeto. */
-export async function uploadDocArquivo(leadId: string, docId: string, file: File): Promise<string> {
-  const path = `${leadId}/${docId}/${sanitizeNome(file.name)}`;
-  const { error } = await supabase.storage.from(DOC_BUCKET).upload(path, file, { upsert: true });
-  if (error) throw error;
-  return path;
+/** Signed URL de cinco minutos, emitida somente após autorização server-side. */
+export async function urlAssinadaDoc(documentacaoId: string): Promise<string | null> {
+  const result = await documentacaoApi(
+    `/api/documentacao?documentacao_id=${encodeURIComponent(documentacaoId)}`,
+  );
+  return result.signed_url ?? null;
 }
 
-/** Signed URL temporária para abrir um arquivo privado do bucket. */
-export async function urlAssinadaDoc(path: string, expiraSegundos = 3600): Promise<string | null> {
-  const { data, error } = await supabase.storage
-    .from(DOC_BUCKET)
-    .createSignedUrl(path, expiraSegundos);
-  if (error) throw error;
-  return data?.signedUrl ?? null;
-}
-
-/** Remove o objeto do Storage (best-effort). */
-export async function removerDocArquivo(path: string): Promise<void> {
-  await supabase.storage.from(DOC_BUCKET).remove([path]);
+/** Revoga a versão corrente e solicita sua remoção ao servidor. */
+export async function removerDocArquivo(documentacaoId: string): Promise<void> {
+  await documentacaoApi(`/api/documentacao?documentacao_id=${encodeURIComponent(documentacaoId)}`, {
+    method: "DELETE",
+  });
 }
 
 // ---------------------------------------------------------------------------
