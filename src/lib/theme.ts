@@ -46,4 +46,4 @@ export function applyTheme(resolved: ResolvedTheme): void {
  */
 export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
   THEME_STORAGE_KEY,
-)});var light=t==="light"||(t==="system"&&matchMedia("(prefers-color-scheme: light)").matches);if(!light)document.documentElement.classList.add("dark")}catch(e){document.documentElement.classList.add("dark")}})()`;
+)});var light=t==="light"||(t==="system"&&matchMedia("(prefers-color-scheme: light)").matches);document.documentElement.classList.toggle("dark",!light)}catch(e){document.documentElement.classList.add("dark")}})()`;
