@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { Eye, EyeOff } from "lucide-react";
+import { safeSameOriginPath } from "@/lib/safe-navigation";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -18,22 +19,22 @@ export const Route = createFileRoute("/auth")({
     ],
   }),
   // Preserva um destino relativo mesmo-origem (ex.: tela de consentimento OAuth).
-  validateSearch: (s: Record<string, unknown>) => ({
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { next: string; motivo?: "inativa" | "validacao" } => ({
     next: typeof s.next === "string" ? s.next : "",
+    ...(s.motivo === "inativa" || s.motivo === "validacao" ? { motivo: s.motivo } : {}),
   }),
   component: AuthPage,
 });
 
-/** Só aceita destinos relativos mesmo-origem — evita open redirect. */
-function safeNext(next: string): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
-  return next;
-}
-
 function AuthPage() {
   const navigate = useNavigate();
-  const { next } = Route.useSearch();
-  const destino = safeNext(next);
+  const { next, motivo } = Route.useSearch();
+  const destino = safeSameOriginPath(
+    next,
+    typeof window === "undefined" ? "https://crm.local" : window.location.origin,
+  );
   const [loading, setLoading] = useState(false);
 
   // Se já estiver logado, respeita o destino preservado.
@@ -49,13 +50,9 @@ function AuthPage() {
     });
   }, [navigate, destino]);
 
-
-  // Form state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPwd, setLoginPwd] = useState("");
-  const [signupNome, setSignupNome] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
-  const [signupPwd, setSignupPwd] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,28 +74,22 @@ function AuthPage() {
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordReset = async () => {
+    if (!loginEmail.trim()) {
+      toast.error("Informe seu e-mail para recuperar a senha.");
+      return;
+    }
     setLoading(true);
-    const emailRedirectTo =
-      destino !== "/"
-        ? `${window.location.origin}/auth?next=${encodeURIComponent(destino)}`
-        : window.location.origin;
-    const { error } = await supabase.auth.signUp({
-      email: signupEmail,
-      password: signupPwd,
-      options: {
-        emailRedirectTo,
-        data: { nome: signupNome },
-      },
+    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
     if (error) {
-      toast.error("Não foi possível criar a conta", { description: error.message });
+      toast.error("Não foi possível enviar a recuperação", { description: error.message });
       return;
     }
-    toast.success("Conta criada!", {
-      description: "Verifique seu e-mail para confirmar (se exigido) e faça login.",
+    toast.success("E-mail de recuperação enviado", {
+      description: "Confira sua caixa de entrada e o spam.",
     });
   };
 
@@ -127,15 +118,12 @@ function AuthPage() {
     }
   };
 
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.22_0.05_250)] to-[oklch(0.32_0.06_250)] p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 text-white">
-            <div className="h-10 w-10 rounded-md bg-gold text-navy flex items-center justify-center font-bold text-lg">
-              m²
-            </div>
+            <img src="/icons/icon-192.png" alt="" className="h-10 w-10 rounded-md object-contain" />
             <div className="text-left">
               <div className="font-semibold text-lg leading-tight">Seu Metro Quadrado</div>
               <div className="text-xs text-white/70">CRM Imobiliário</div>
@@ -146,88 +134,75 @@ function AuthPage() {
         <Card>
           <CardHeader>
             <CardTitle>Acesse sua conta</CardTitle>
-            <CardDescription>Entre com e-mail e senha ou via Google.</CardDescription>
+            <CardDescription>
+              O acesso é exclusivo para profissionais convidados pela gestão.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Entrar</TabsTrigger>
-                <TabsTrigger value="signup">Criar conta</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="login" className="space-y-4 mt-4">
-                <form onSubmit={handleLogin} className="space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="login-email">E-mail</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="login-pwd">Senha</Label>
-                    <Input
-                      id="login-pwd"
-                      type="password"
-                      autoComplete="current-password"
-                      required
-                      value={loginPwd}
-                      onChange={(e) => setLoginPwd(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" disabled={loading} className="w-full">
-                    {loading ? "Entrando..." : "Entrar"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup" className="space-y-4 mt-4">
-                <form onSubmit={handleSignup} className="space-y-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="signup-nome">Nome completo</Label>
-                    <Input
-                      id="signup-nome"
-                      required
-                      value={signupNome}
-                      onChange={(e) => setSignupNome(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="signup-email">E-mail</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="signup-pwd">Senha</Label>
-                    <Input
-                      id="signup-pwd"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      minLength={6}
-                      value={signupPwd}
-                      onChange={(e) => setSignupPwd(e.target.value)}
-                    />
-                  </div>
-                  <Button type="submit" disabled={loading} className="w-full">
-                    {loading ? "Criando..." : "Criar conta"}
-                  </Button>
-                  <p className="text-[11px] text-muted-foreground text-center">
-                    Sua conta passa por aprovação antes do acesso completo. Em caso de dúvida, fale com o administrador.
-                  </p>
-                </form>
-              </TabsContent>
-            </Tabs>
+            {motivo && (
+              <div
+                role="alert"
+                className="mb-4 rounded-md border border-warning/50 bg-warning/10 p-3 text-sm"
+              >
+                {motivo === "inativa"
+                  ? "Esta conta está pendente ou bloqueada. Solicite a liberação à gestão."
+                  : "Não foi possível validar o acesso com segurança. Tente novamente em instantes."}
+              </div>
+            )}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="login-email">E-mail</Label>
+                <Input
+                  id="login-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  className="min-h-11"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="login-pwd">Senha</Label>
+                  <button
+                    type="button"
+                    className="-my-3 min-h-11 rounded-sm px-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={handlePasswordReset}
+                    disabled={loading}
+                  >
+                    Esqueci minha senha
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="login-pwd"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    value={loginPwd}
+                    onChange={(e) => setLoginPwd(e.target.value)}
+                    className="min-h-11 pr-12"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((visible) => !visible)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <Button type="submit" disabled={loading} className="min-h-11 w-full">
+                {loading ? "Entrando..." : "Entrar"}
+              </Button>
+            </form>
 
             <div className="relative my-5">
               <div className="absolute inset-0 flex items-center">
@@ -243,7 +218,7 @@ function AuthPage() {
               type="button"
               onClick={handleGoogle}
               disabled={loading}
-              className="w-full"
+              className="min-h-11 w-full"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden>
                 <path

@@ -25,6 +25,8 @@ export function QueryErrorState({
   const detalhe = error instanceof Error ? error.message : error ? String(error) : null;
   return (
     <div
+      role="alert"
+      aria-live="assertive"
       className={cn(
         "flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-destructive/40 px-6 py-10 text-center",
         className,

@@ -66,9 +66,15 @@ export type ProjetoRow = {
   perfil_ideal?: string | null;
   argumentos_venda?: string[];
   diferenciais?: string[];
+  renda_minima?: number | null;
+  status_preco?: string | null;
   entrega_status?: string | null;
   book_url?: string | null;
   tabela_precos_url?: string | null;
+  capa_url?: string | null;
+  galeria_urls?: string[];
+  percentual_comissao?: number | null;
+  disponibilidade_resumo?: string | null;
   lat?: number | null;
   lng?: number | null;
 };

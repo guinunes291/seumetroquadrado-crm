@@ -6,6 +6,7 @@ const DIR = join(process.cwd(), "supabase", "migrations");
 const files = readdirSync(DIR).filter((f) => f.endsWith(".sql"));
 const read = (f: string) => readFileSync(join(DIR, f), "utf8");
 const all = files.map(read).join("\n");
+const inviteOnlySecurity = read("20260711120000_invite_only_lead_access.sql");
 
 function fileMatching(re: RegExp): string {
   const f = files.find((name) => re.test(read(name)));
@@ -47,6 +48,92 @@ describe("dedup: FK de auditoria", () => {
     // NOT VALID + validate guardado (não trava em órfãos legados)
     expect(fk).toContain("NOT VALID");
     expect(fk).toContain("VALIDATE CONSTRAINT");
+  });
+});
+
+describe("segurança invite-only e isolamento de carteira", () => {
+  it("separa estado da conta da elegibilidade operacional e expõe gate booleano", () => {
+    expect(inviteOnlySecurity).toContain(
+      "CREATE TYPE public.status_conta AS ENUM ('pendente', 'ativa', 'bloqueada')",
+    );
+    expect(inviteOnlySecurity).toContain("ALTER COLUMN status_conta SET DEFAULT 'pendente'");
+    expect(inviteOnlySecurity).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.conta_atual_ativa\(\)[\s\S]*RETURNS boolean[\s\S]*public\.is_active_member\(auth\.uid\(\)\)/,
+    );
+    expect(inviteOnlySecurity).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.has_role[\s\S]*public\.is_active_member\(_user_id\)/,
+    );
+    expect(inviteOnlySecurity).not.toMatch(/profiles\.ativo\s*=\s*true[\s\S]*is_active_member/);
+  });
+
+  it("só concede papel e equipe ao consumir convite válido", () => {
+    expect(inviteOnlySecurity).toContain("CREATE TABLE IF NOT EXISTS public.convites_crm");
+    expect(inviteOnlySecurity).toContain("uq_convites_crm_email_pendente");
+    expect(inviteOnlySecurity).toMatch(
+      /CREATE OR REPLACE FUNCTION public\.handle_new_user\(\)[\s\S]*c\.estado = 'pendente'[\s\S]*c\.expira_em > now\(\)[\s\S]*IF FOUND THEN[\s\S]*equipe_id = _convite\.equipe_id[\s\S]*VALUES \(NEW\.id, _convite\.papel\)/,
+    );
+    expect(inviteOnlySecurity).not.toContain("Primeiro usuário do sistema vira admin");
+    expect(inviteOnlySecurity).not.toMatch(
+      /INSERT INTO public\.user_roles \(user_id, role\) VALUES \(NEW\.id, 'corretor'\)/,
+    );
+  });
+
+  it("centraliza acesso ao lead por dono, equipe do gestor ou papel global", () => {
+    expect(inviteOnlySecurity).toMatch(
+      /FUNCTION public\.pode_acessar_lead[\s\S]*l\.corretor_id = _user_id[\s\S]*'superintendente'[\s\S]*gestor\.equipe_id = corretor\.equipe_id/,
+    );
+    expect(inviteOnlySecurity).toMatch(
+      /FUNCTION public\.pode_atribuir_lead[\s\S]*_corretor_id = _user_id[\s\S]*corretor\.id = _corretor_id/,
+    );
+    expect(inviteOnlySecurity).toMatch(
+      /CREATE POLICY "leads_update_carteira"[\s\S]*USING \(public\.pode_acessar_lead\(auth\.uid\(\), id\)\)[\s\S]*WITH CHECK \(public\.pode_atribuir_lead\(auth\.uid\(\), corretor_id\)\)/,
+    );
+    for (const table of ["public.leads", "public.documentacoes", "public.lead_eventos"]) {
+      expect(inviteOnlySecurity).toMatch(
+        new RegExp(
+          `ON ${table.replace(".", "\\.")} FOR (SELECT|UPDATE|INSERT)[\\s\\S]*pode_acessar_lead`,
+        ),
+      );
+    }
+    expect(inviteOnlySecurity).toContain('DROP POLICY IF EXISTS "Autenticados veem leads landing"');
+    expect(inviteOnlySecurity).toMatch(/lead_id IS NULL[\s\S]*has_role\(auth\.uid\(\), 'admin'\)/);
+  });
+
+  it("remove o UPDATE próprio amplo e oferece RPC de campos pessoais", () => {
+    expect(inviteOnlySecurity).toContain(
+      'DROP POLICY IF EXISTS "Usuário pode atualizar o próprio profile"',
+    );
+    const rpc = inviteOnlySecurity.match(
+      /CREATE OR REPLACE FUNCTION public\.atualizar_meu_perfil[\s\S]*?REVOKE ALL ON FUNCTION public\.atualizar_meu_perfil/,
+    )?.[0];
+    expect(rpc).toBeTruthy();
+    expect(rpc).toContain("SET nome = btrim(p_nome)");
+    expect(rpc).toContain("telefone = NULLIF(btrim(p_telefone), '')");
+    expect(rpc).toContain("avatar_url = NULLIF(btrim(p_avatar_url), '')");
+    expect(rpc).not.toMatch(/SET[\s\S]*(status_conta|equipe_id|ativo)\s*=/);
+  });
+
+  it("fecha o Storage direto e deixa validadores para mediação server-side", () => {
+    expect(inviteOnlySecurity).toMatch(
+      /FUNCTION public\.documentacao_storage_autorizado[\s\S]*_partes\[1\]::uuid[\s\S]*_partes\[2\]::uuid[\s\S]*d\.lead_id = _lead_id/,
+    );
+    expect(inviteOnlySecurity).toContain("FUNCTION public.documentacao_upload_valido");
+    expect(inviteOnlySecurity).toContain("15728640");
+    for (const mime of ["application/pdf", "image/jpeg", "image/png", "image/webp"]) {
+      expect(inviteOnlySecurity).toContain(mime);
+    }
+    const storageLockdown = inviteOnlySecurity.slice(
+      inviteOnlySecurity.indexOf('DROP POLICY IF EXISTS "documentacao_objects_select"'),
+    );
+    for (const operation of ["select", "insert", "update", "delete"]) {
+      expect(storageLockdown).toContain(
+        `DROP POLICY IF EXISTS "documentacao_objects_${operation}"`,
+      );
+    }
+    expect(storageLockdown).not.toMatch(/CREATE POLICY[\s\S]*TO authenticated/i);
+    expect(inviteOnlySecurity).toMatch(
+      /REVOKE ALL ON FUNCTION public\.documentacao_storage_autorizado\(uuid, text\)[\s\S]*FROM PUBLIC, anon, authenticated/,
+    );
   });
 });
 

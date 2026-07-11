@@ -5,8 +5,9 @@
 //
 // Ordem de defesa (obrigatória): guard (401) → allowlist (403) → validação (422)
 // → escreve → audita. Guard e allowlist devolvem Response; auditoria é fire-and-log.
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "crypto";
 import { PUBLIC_API_CORS_HEADERS, checkRateLimit } from "@/lib/public-api-auth";
+import { legacyApiWindowIsOpen } from "@/lib/api-legacy-window";
 
 // ------------------------ tipos utilitários ------------------------
 
@@ -38,11 +39,14 @@ export function writeJson(data: unknown, status = 200): Response {
 }
 
 export function clientIp(request: Request): string | null {
-  return (
+  const raw =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     request.headers.get("x-real-ip") ||
-    null
-  );
+    null;
+  const salt = process.env.API_AUDIT_IP_SALT;
+  return raw && salt
+    ? `sha256:${createHash("sha256").update(`${salt}:${raw}`, "utf8").digest("hex")}`
+    : null;
 }
 
 // ------------------------ guard: chave única de escrita ------------------------
@@ -50,6 +54,9 @@ export function clientIp(request: Request): string | null {
 /** Confere X-API-Key contra MCP_WRITE_API_KEY (secret separado do de leitura).
  *  Retorna null quando OK; Response 401 quando inválida/ausente. */
 export function requireWriteKey(request: Request): Response | null {
+  if (!legacyApiWindowIsOpen()) {
+    return json({ ok: false, erro: "credencial global legada desabilitada" }, 401);
+  }
   const expected = process.env.MCP_WRITE_API_KEY;
   if (!expected) {
     return json({ ok: false, erro: "MCP_WRITE_API_KEY não configurada no servidor" }, 500);
@@ -80,18 +87,21 @@ function keyMatches(provided: string, expected: string): boolean {
  * quebrar integrações em produção:
  *
  *  - Aceita `MCP_WRITE_API_KEY` (timing-safe) → mode "write_key" (destino final).
- *  - Aceita `READ_API_KEY` ENQUANTO `PUBLIC_WRITE_ALLOW_READ_KEY !== "false"`
+ *  - Aceita `READ_API_KEY` SOMENTE quando `PUBLIC_WRITE_ALLOW_READ_KEY === "true"`
  *    → mode "legacy_read_key". Toda escrita nesse modo é auditada e logada,
- *    para que o gestor veja quem ainda usa a chave errada e possa cortar
- *    (setar `PUBLIC_WRITE_ALLOW_READ_KEY=false`) sem novo deploy.
+ *    para que o gestor veja quem ainda usa a chave errada. O padrão é falhar
+ *    fechado: ausência, vazio ou qualquer outro valor mantêm o legado cortado.
  *  - Aplica rate limit em ambos os casos.
  *
  * Retorna `{ mode }` quando OK, ou `Response` (401/429/500) quando barra.
  */
 export function requireWriteKeyOrLegacy(request: Request): { mode: WriteAuthMode } | Response {
+  if (!legacyApiWindowIsOpen()) {
+    return json({ ok: false, erro: "credencial global legada desabilitada" }, 401);
+  }
   const writeKey = process.env.MCP_WRITE_API_KEY;
   const readKey = process.env.READ_API_KEY;
-  const allowLegacy = process.env.PUBLIC_WRITE_ALLOW_READ_KEY !== "false";
+  const allowLegacy = process.env.PUBLIC_WRITE_ALLOW_READ_KEY === "true";
 
   if (!writeKey && !(readKey && allowLegacy)) {
     return json(
@@ -120,7 +130,7 @@ export function requireWriteKeyOrLegacy(request: Request): { mode: WriteAuthMode
   if (mode === "legacy_read_key") {
     console.warn(
       "[write-api] escrita autenticada com READ_API_KEY (legado). " +
-        "Migre o cliente para MCP_WRITE_API_KEY e defina PUBLIC_WRITE_ALLOW_READ_KEY=false.",
+        "Migre o cliente para MCP_WRITE_API_KEY e remova PUBLIC_WRITE_ALLOW_READ_KEY=true.",
     );
   }
   return { mode };

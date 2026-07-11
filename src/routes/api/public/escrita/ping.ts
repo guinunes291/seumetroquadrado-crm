@@ -3,13 +3,8 @@
 // Não escreve em nenhum lead — só grava 1 linha em api_escrita_log.
 import { createFileRoute } from "@tanstack/react-router";
 import { corsPreflight } from "@/lib/public-api-auth";
-import {
-  requireWriteKey,
-  requireAgentePermitido,
-  auditarEscrita,
-  writeJson,
-  clientIp,
-} from "@/lib/write-api-auth";
+import { requireApiClientScope } from "@/lib/api-client-auth.server";
+import { requireAgentePermitido, auditarEscrita, writeJson, clientIp } from "@/lib/write-api-auth";
 
 export const Route = createFileRoute("/api/public/escrita/ping")({
   server: {
@@ -19,8 +14,8 @@ export const Route = createFileRoute("/api/public/escrita/ping")({
         const ip = clientIp(request);
 
         // 1) Guard da chave (401)
-        const authErr = requireWriteKey(request);
-        if (authErr) return authErr;
+        const auth = await requireApiClientScope(request, "events:write");
+        if (auth instanceof Response) return auth;
 
         // 2) Corpo JSON
         let body: Record<string, unknown> = {};

@@ -1,7 +1,8 @@
 // GET /api/public/corretores?ativo=true
-// Auth: X-API-Key (READ_API_KEY). Lista corretores (profiles) com telefone em E.164.
+// Auth: cliente X-API-Key com escopo leads:read.
 import { createFileRoute } from "@tanstack/react-router";
-import { checkReadApiKey, jsonResponse } from "@/lib/public-api-auth";
+import { jsonResponse } from "@/lib/public-api-auth";
+import { requireApiClientScope } from "@/lib/api-client-auth.server";
 
 function toE164(input?: string | null): string | null {
   if (!input) return null;
@@ -16,8 +17,8 @@ export const Route = createFileRoute("/api/public/corretores/")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const authErr = checkReadApiKey(request);
-        if (authErr) return authErr;
+        const auth = await requireApiClientScope(request, "leads:read");
+        if (auth instanceof Response) return auth;
 
         const url = new URL(request.url);
         const ativoParam = url.searchParams.get("ativo");
@@ -32,8 +33,10 @@ export const Route = createFileRoute("/api/public/corretores/")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         let q = supabaseAdmin
           .from("profiles")
-          .select("id, nome, email, telefone, ativo")
+          .select("id, nome, telefone, ativo")
           .order("nome", { ascending: true });
+
+        if (auth.equipeId) q = q.eq("equipe_id", auth.equipeId);
 
         if (ativoParam === "true") q = q.eq("ativo", true);
         else if (ativoParam === "false") q = q.eq("ativo", false);
@@ -61,7 +64,7 @@ export const Route = createFileRoute("/api/public/corretores/")({
         let corretores = (data ?? []).map((c) => ({
           id: c.id,
           nome: c.nome,
-          email: c.email,
+          // E-mail de colaborador nao e necessario para operacao externa.
           telefone: toE164(c.telefone),
           ativo: c.ativo ?? true,
           role: rolesByUser[c.id] ?? "corretor",

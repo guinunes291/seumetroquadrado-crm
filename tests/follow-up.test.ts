@@ -9,8 +9,6 @@ describe("followUpParaStatus — motor anti-perda", () => {
     const semFollowUp: LeadStatus[] = [
       "novo",
       "aguardando_atendimento",
-      "qualificado",
-      "proposta_enviada",
       "contrato_fechado",
       "pos_venda",
       "perdido",
@@ -27,6 +25,8 @@ describe("followUpParaStatus — motor anti-perda", () => {
       "analise_credito",
       "em_atendimento",
       "aguardando_retorno",
+      "qualificado",
+      "proposta_enviada",
     ];
     for (const s of comFollowUp) {
       const tpl = followUpParaStatus(s, { nome: "Maria", agora: AGORA });
@@ -34,6 +34,14 @@ describe("followUpParaStatus — motor anti-perda", () => {
       expect(tpl!.titulo).toContain("Maria");
       expect(tpl!.vencimento).toBeTruthy();
     }
+  });
+
+  it("não deixa qualificação ou proposta sem próxima ação", () => {
+    const qualificado = followUpParaStatus("qualificado", { nome: "Maria", agora: AGORA })!;
+    const proposta = followUpParaStatus("proposta_enviada", { nome: "Maria", agora: AGORA })!;
+    expect(qualificado.titulo).toContain("Apresentar opções");
+    expect(proposta.titulo).toContain("Acompanhar a proposta");
+    expect(qualificado.vencimento).toBe(new Date("2026-06-30T12:00:00.000Z").toISOString());
   });
 
   it("usa um destinatário genérico quando não há nome", () => {

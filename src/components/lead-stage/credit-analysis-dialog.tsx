@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
 import { criarFollowUpAutomatico } from "@/lib/follow-up";
+import { transicionarLead } from "@/lib/lead-transitions";
 
 const STATUS_OPTIONS = ["enviada", "aprovada", "reprovada", "pendente"] as const;
 const STATUS_LABEL: Record<(typeof STATUS_OPTIONS)[number], string> = {
@@ -60,11 +61,7 @@ export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
       } as never);
       if (insErr) throw insErr;
 
-      const { error: updErr } = await supabase
-        .from("leads")
-        .update({ status: "analise_credito" } as never)
-        .eq("id", lead.id);
-      if (updErr) throw updErr;
+      await transicionarLead({ id: lead.id, nome: lead.nome, status: "analise_credito" });
 
       // Motor anti-perda: cria a tarefa de cobrar o retorno do banco.
       let followUp = false;

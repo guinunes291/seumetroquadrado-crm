@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState, useMemo } from "react";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { z } from "zod";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,8 @@ import {
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { SlaBadge } from "@/components/sla-badge";
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
+import { useDebounce } from "@/hooks/use-debounce";
+import { ResponsiveTabs } from "@/components/ui/responsive-tabs";
 
 const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
@@ -63,6 +67,31 @@ type Lead = {
   ultima_interacao: string | null;
 };
 
+const LeadSchema = z.object({
+  id: z.string().uuid(),
+  nome: z.string(),
+  email: z.string().nullable(),
+  telefone: z.string(),
+  status: z.string(),
+  corretor_id: z.string().uuid().nullable(),
+  projeto_id: z.string().uuid().nullable(),
+  projeto_nome: z.string().nullable(),
+  observacoes: z.string().nullable(),
+  temperatura: z.string().nullable(),
+  origem: z.string().nullable(),
+  data_distribuicao: z.string().nullable(),
+  tentativas_redistribuicao: z.number().nullable(),
+  via_webhook: z.boolean().nullable(),
+  created_at: z.string(),
+  ultima_interacao: z.string().nullable(),
+});
+const StagePageSchema = z.object({
+  items: z.array(LeadSchema),
+  has_more: z.boolean(),
+  next_cursor: z.object({ created_at: z.string(), id: z.string().uuid() }).nullable(),
+});
+type StagePage = z.infer<typeof StagePageSchema>;
+
 type SlaRow = {
   lead_id: string;
   sla_minutos: number;
@@ -77,8 +106,13 @@ type SlaRow = {
  */
 export function KanbanBoard() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search.trim(), 300);
+  const [mobileStage, setMobileStage] = useState<LeadStatus>(COLUMNS[0].id);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [extraPages, setExtraPages] = useState<Partial<Record<LeadStatus, StagePage>>>({});
+  const [loadingMore, setLoadingMore] = useState<LeadStatus | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
@@ -93,37 +127,91 @@ export function KanbanBoard() {
     return m;
   }, [corretores]);
 
-  const {
-    data: leads,
-    isLoading: leadsLoading,
-    isError: leadsError,
-    refetch: refetchLeads,
-  } = useQuery({
-    queryKey: ["leads-kanban"],
+  const stageQueries = useQueries({
+    queries: COLUMNS.map((column) => ({
+      queryKey: ["pipeline-stage-v2", column.id, debouncedSearch],
+      queryFn: async (): Promise<StagePage> => {
+        const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
+          _status: column.id,
+          _query: debouncedSearch || null,
+          _limit: 20,
+          _cursor: null,
+        });
+        if (error) throw error;
+        return StagePageSchema.parse(data);
+      },
+    })),
+  });
+  const snapshotQuery = useQuery({
+    queryKey: ["pipeline-snapshot-v2", debouncedSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select(
-          "id, nome, email, telefone, status, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, origem, data_distribuicao, tentativas_redistribuicao, via_webhook, created_at, ultima_interacao",
-        )
-        .eq("na_lixeira", false)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(1000);
+      const { data, error } = await supabase.rpc("pipeline_snapshot_v2", {
+        _query: debouncedSearch || null,
+      });
       if (error) throw error;
-      return (data ?? []) as Lead[];
+      return data;
     },
   });
+
+  useEffect(() => setExtraPages({}), [debouncedSearch]);
+
+  const initialPages = useMemo(
+    () =>
+      new Map<LeadStatus, StagePage>(
+        COLUMNS.flatMap((column, index) => {
+          const page = stageQueries[index]?.data;
+          return page ? [[column.id, page] as const] : [];
+        }),
+      ),
+    [stageQueries],
+  );
+  const leads = useMemo(() => {
+    const seen = new Set<string>();
+    return COLUMNS.flatMap((column) => [
+      ...(initialPages.get(column.id)?.items ?? []),
+      ...(extraPages[column.id]?.items ?? []),
+    ]).filter((lead) => (seen.has(lead.id) ? false : (seen.add(lead.id), true)));
+  }, [extraPages, initialPages]);
+  const leadsLoading = stageQueries.some((query) => query.isLoading) || snapshotQuery.isLoading;
+  const leadsError = stageQueries.some((query) => query.isError) || snapshotQuery.isError;
+  const refetchLeads = async () => {
+    setExtraPages({});
+    await Promise.all([...stageQueries.map((query) => query.refetch()), snapshotQuery.refetch()]);
+  };
+
+  const loadMore = async (status: LeadStatus) => {
+    const base = initialPages.get(status);
+    const extra = extraPages[status];
+    const cursor = extra?.next_cursor ?? base?.next_cursor;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(status);
+    try {
+      const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
+        _status: status,
+        _query: debouncedSearch || null,
+        _limit: 20,
+        _cursor: cursor,
+      });
+      if (error) throw error;
+      const page = StagePageSchema.parse(data);
+      setExtraPages((current) => ({
+        ...current,
+        [status]: {
+          ...page,
+          items: [...(current[status]?.items ?? []), ...page.items],
+        },
+      }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível carregar mais leads.");
+    } finally {
+      setLoadingMore(null);
+    }
+  };
 
   const { data: slaRows } = useQuery({
     queryKey: ["leads-sla"],
     queryFn: async () => {
-      const { data, error } = await (
-        supabase.rpc as unknown as (
-          fn: string,
-          args?: Record<string, unknown>,
-        ) => Promise<{ data: SlaRow[] | null; error: unknown }>
-      )("leads_com_sla");
+      const { data, error } = await supabase.rpc("leads_com_sla", { _corretor: undefined });
       if (error) throw error;
       return (data ?? []) as SlaRow[];
     },
@@ -138,12 +226,19 @@ export function KanbanBoard() {
   const transferTimeouts = useTransferTimeouts();
 
   // Substitui polling por realtime
-  useRealtimeInvalidate("leads", [["leads-kanban"], ["leads-sla"]]);
+  useRealtimeInvalidate("leads", [["pipeline-stage-v2"], ["pipeline-snapshot-v2"], ["leads-sla"]]);
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
 
-  const updateStatus = useLeadStatusMutation({ optimisticKeys: [["leads-kanban"]] });
+  const updateStatus = useLeadStatusMutation({
+    invalidateKeys: [["pipeline-stage-v2"], ["pipeline-snapshot-v2"], ["leads-sla"]],
+    onSuccess: (vars) => {
+      setExtraPages({});
+      const nome = leads.find((lead) => lead.id === vars.id)?.nome ?? "Lead";
+      setAnnouncement(`${nome} movido para ${LEAD_STATUS_LABEL[vars.status]}.`);
+    },
+  });
 
   // Roteia a etapa escolhida (no menu ou ao arrastar): direta, modal ou perdido.
   const routeStage = (lead: Lead, target: LeadStatus) => {
@@ -180,18 +275,51 @@ export function KanbanBoard() {
     return map;
   }, [leads, search]);
 
+  const snapshotByStage = useMemo(
+    () => new Map((snapshotQuery.data ?? []).map((row) => [row.etapa, row])),
+    [snapshotQuery.data],
+  );
+  const pipelineTotal = useMemo(
+    () => [...snapshotByStage.values()].reduce((sum, row) => sum + Number(row.quantidade), 0),
+    [snapshotByStage],
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          Arraste os cards entre as colunas para atualizar o status.
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p id="kanban-instructions" className="text-sm text-muted-foreground">
+          Arraste os cards entre as colunas. Pelo teclado ou toque, use o menu “Mudar etapa do lead”
+          em cada card.
         </p>
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar lead…"
-          className="w-64"
+          aria-label="Buscar leads no funil"
+          className="min-h-11 w-full sm:w-64"
         />
+      </div>
+
+      <div className="md:hidden">
+        <ResponsiveTabs
+          value={mobileStage}
+          onValueChange={(value) => {
+            const stage = value as LeadStatus;
+            setMobileStage(stage);
+            setAnnouncement(`Etapa exibida: ${LEAD_STATUS_LABEL[stage]}.`);
+          }}
+          ariaLabel="Etapa exibida no funil"
+          listClassName="w-full sm:w-full"
+          items={COLUMNS.map((column) => ({
+            value: column.id,
+            label: `${column.label} · ${Number(snapshotByStage.get(column.id)?.quantidade ?? 0)}`,
+          }))}
+        >
+          {null}
+        </ResponsiveTabs>
       </div>
 
       {leadsError && (
@@ -214,20 +342,27 @@ export function KanbanBoard() {
         </div>
       )}
 
-      {!leadsLoading && !leadsError && (leads ?? []).length === 0 && (
+      {!leadsLoading && !leadsError && pipelineTotal === 0 && (
         <p className="py-10 text-center text-sm text-muted-foreground">
           Nenhum lead ativo no funil ainda.
         </p>
       )}
 
-      {!leadsLoading && !leadsError && (leads ?? []).length > 0 && (
-        <div className="overflow-x-auto pb-4">
+      {!leadsLoading && !leadsError && pipelineTotal > 0 && (
+        <div
+          className="overflow-x-auto pb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          role="region"
+          aria-label="Funil de leads"
+          aria-describedby="kanban-instructions"
+          tabIndex={0}
+        >
           <div className="flex gap-3 min-w-max">
             {COLUMNS.map((col) => {
               const items = byColumn.get(col.id) ?? [];
               return (
-                <div
+                <section
                   key={col.id}
+                  aria-labelledby={`kanban-col-${col.id}`}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setOverCol(col.id);
@@ -243,29 +378,32 @@ export function KanbanBoard() {
                     setDragId(null);
                   }}
                   className={cn(
-                    "w-72 shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors",
+                    "w-full shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors md:block md:w-72",
+                    col.id !== mobileStage && "hidden",
                     col.tone,
                     overCol === col.id && "ring-2 ring-primary/60",
                   )}
                 >
                   <div className="flex items-center justify-between px-1 py-2">
-                    <div className="font-semibold text-sm">{col.label}</div>
+                    <h2 id={`kanban-col-${col.id}`} className="font-semibold text-sm">
+                      {col.label}
+                    </h2>
                     <div className="flex items-center gap-1">
                       {(() => {
-                        // Gargalo visível: quantos cards estão parados há 3+ dias.
-                        const parados = items.filter((l) => diasParado(l) >= 3).length;
+                        // Snapshot agregado: cards sem interação há sete dias.
+                        const parados = Number(snapshotByStage.get(col.id)?.parados_ha_7_dias ?? 0);
                         return parados > 0 ? (
                           <Badge
                             variant="secondary"
                             className="gap-0.5 bg-warning/15 text-[10px] text-warning"
-                            title={`${parados} lead(s) parados há 3+ dias nesta etapa`}
+                            title={`${parados} lead(s) parados há 7+ dias nesta etapa`}
                           >
                             <AlertCircle className="h-3 w-3" /> {parados}
                           </Badge>
                         ) : null;
                       })()}
                       <Badge variant="secondary" className="text-[10px]">
-                        {items.length}
+                        {Number(snapshotByStage.get(col.id)?.quantidade ?? items.length)}
                       </Badge>
                     </div>
                   </div>
@@ -273,6 +411,8 @@ export function KanbanBoard() {
                     {items.map((lead) => (
                       <Card
                         key={lead.id}
+                        role="group"
+                        aria-label={`${lead.nome}, etapa ${col.label}`}
                         draggable
                         onDragStart={() => setDragId(lead.id)}
                         onDragEnd={() => setDragId(null)}
@@ -282,7 +422,10 @@ export function KanbanBoard() {
                         )}
                       >
                         <div className="flex items-start gap-1">
-                          <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0" />
+                          <GripVertical
+                            className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0"
+                            aria-hidden="true"
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-sm truncate">{lead.nome}</div>
                             {lead.projeto_nome && (
@@ -354,7 +497,7 @@ export function KanbanBoard() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="mt-2 h-6 w-full text-[11px]"
+                                className="mt-2 min-h-11 w-full text-xs"
                                 disabled={updateStatus.isPending}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -377,8 +520,20 @@ export function KanbanBoard() {
                         </div>
                       </Card>
                     ))}
+                    {(extraPages[col.id]?.has_more ?? initialPages.get(col.id)?.has_more) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        disabled={loadingMore === col.id}
+                        onClick={() => void loadMore(col.id)}
+                      >
+                        {loadingMore === col.id ? "Carregando…" : "Carregar mais 20"}
+                      </Button>
+                    )}
                   </div>
-                </div>
+                </section>
               );
             })}
           </div>
@@ -389,6 +544,10 @@ export function KanbanBoard() {
         onModalOpenChange={(o) => !o && setModalState(null)}
         perdidoLead={perdidoLead}
         onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+        onDone={() => {
+          setExtraPages({});
+          void refetchLeads();
+        }}
       />
     </div>
   );
