@@ -60,15 +60,36 @@ export const Route = createFileRoute("/_authenticated")({
       throw redirect({ to: "/auth", search: { next: location.href } });
     }
 
-    const { data: contaAtiva, error: accountError } = await supabase.rpc("conta_atual_ativa");
-    if (accountError || !contaAtiva) {
-      // O escopo global também revoga os refresh tokens das demais sessões.
-      // RLS/has_role permanecem como barreira mesmo se a revogação falhar.
-      await supabase.auth.signOut({ scope: "global" });
-      throw redirect({
-        to: "/auth",
-        search: { next: "", motivo: accountError ? "validacao" : "inativa" },
-      });
+    // Verifica o estado da conta distinguindo NEGAÇÃO REAL (conta inativa/
+    // bloqueada) de FALHA DE INFRAESTRUTURA (RPC ausente/PGRST202, timeout,
+    // 5xx, rede). Só a negação real encerra a sessão. Uma falha transitória
+    // NUNCA desloga — degradamos mantendo a sessão, pois RLS/has_role
+    // continuam sendo a barreira real no servidor. Um soluço de banco não
+    // pode derrubar todos os usuários (nem revogar suas outras sessões).
+    let contaAtiva: boolean | null = null;
+    let accountError: unknown = null;
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      const res = await supabase.rpc("conta_atual_ativa");
+      accountError = res.error;
+      contaAtiva = res.data as boolean | null;
+      if (!res.error) break;
+      if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+
+    if (!accountError && !contaAtiva) {
+      // Resposta definitiva do banco: conta inativa/bloqueada. Encerra apenas a
+      // sessão LOCAL (escopo local não revoga os outros dispositivos) e redireciona.
+      await supabase.auth.signOut({ scope: "local" });
+      throw redirect({ to: "/auth", search: { next: "", motivo: "inativa" } });
+    }
+
+    if (accountError) {
+      // Indisponibilidade do RPC: não desloga. Segue com a sessão atual; a RLS
+      // barra o acesso a dados caso a conta não esteja realmente ativa.
+      console.warn(
+        "conta_atual_ativa indisponível; seguindo com a sessão (RLS permanece como barreira)",
+        accountError,
+      );
     }
 
     // Auto check-in para liberar a distribuição automática de leads.
