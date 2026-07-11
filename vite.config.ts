@@ -7,6 +7,19 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
+const publicBackendEnv = {
+  url:
+    process.env.VITE_SUPABASE_URL ??
+    process.env.SUPABASE_URL ??
+    "https://rldnprwjlomjmjvinxuh.supabase.co",
+  publishableKey:
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_PUBLISHABLE_KEY ??
+    process.env.VITE_SUPABASE_ANON_KEY ??
+    "sb_publishable_iME1K9WwVJYw8xCfwv2XVg_Pt3iR4fb",
+  projectId: process.env.VITE_SUPABASE_PROJECT_ID ?? "rldnprwjlomjmjvinxuh",
+};
+
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
@@ -15,6 +28,16 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicBackendEnv.url),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+        publicBackendEnv.publishableKey,
+      ),
+      "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(publicBackendEnv.publishableKey),
+      "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(publicBackendEnv.projectId),
+      "process.env.SUPABASE_URL": JSON.stringify(publicBackendEnv.url),
+      "process.env.SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicBackendEnv.publishableKey),
+    },
     build: {
       // Vendors pesados separados por rota. NÃO particionamos react/react-dom/
       // scheduler/tanstack em chunks próprios: o shim do `use-sync-external-store`
