@@ -2,6 +2,38 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+/**
+ * Extrai uma mensagem legível de qualquer erro. Erros do Supabase/PostgREST são
+ * objetos simples (`{ message, details, hint, code }`), não instâncias de Error
+ * — `String(obj)` daria "[object Object]" e esconderia a causa real.
+ */
+function mensagemDeErro(error: unknown): string | null {
+  if (!error) return null;
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object") {
+    const e = error as {
+      message?: unknown;
+      error_description?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+    const base =
+      (typeof e.message === "string" && e.message) ||
+      (typeof e.error_description === "string" && e.error_description) ||
+      (typeof e.details === "string" && e.details) ||
+      null;
+    if (base) return typeof e.code === "string" && e.code ? `${base} (${e.code})` : base;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  return String(error);
+}
+
 type QueryErrorStateProps = {
   /** Mensagem curta do que falhou (ex.: "Não foi possível carregar as tarefas."). */
   title?: string;
@@ -22,7 +54,7 @@ export function QueryErrorState({
   onRetry,
   className,
 }: QueryErrorStateProps) {
-  const detalhe = error instanceof Error ? error.message : error ? String(error) : null;
+  const detalhe = mensagemDeErro(error);
   return (
     <div
       role="alert"
