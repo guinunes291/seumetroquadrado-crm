@@ -1,8 +1,35 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
+
+/**
+ * Retorna o corpo da última definição (maior timestamp de arquivo) de uma função
+ * `CREATE OR REPLACE FUNCTION public.<nome>` entre todas as migrations. É a
+ * definição que efetivamente vence no banco, então valida o estado REAL — ao
+ * contrário de ler um único arquivo, que não detecta redefinições posteriores.
+ */
+const ultimaDefinicaoDeFuncao = (nome: string): { arquivo: string; corpo: string } | null => {
+  const dir = "supabase/migrations";
+  const arquivos = readdirSync(join(process.cwd(), dir))
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  const inicio = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${nome}\\b`);
+  let achado: { arquivo: string; corpo: string } | null = null;
+  for (const arquivo of arquivos) {
+    const sql = read(join(dir, arquivo));
+    const match = sql.match(
+      new RegExp(
+        `CREATE OR REPLACE FUNCTION public\\.${nome}\\b[\\s\\S]*?REVOKE ALL ON FUNCTION public\\.${nome}`,
+      ),
+    );
+    if (match && inicio.test(sql)) {
+      achado = { arquivo, corpo: match[0] };
+    }
+  }
+  return achado;
+};
 
 describe("mediação server-side de documentação", () => {
   const migration = read("supabase/migrations/20260711121500_documentacao_server_mediation.sql");
@@ -186,6 +213,24 @@ describe("revisão cruzada de grants e mediação server-side", () => {
       /CREATE OR REPLACE FUNCTION public\.disparar_repasse_sla_lead[\s\S]*?REVOKE ALL ON FUNCTION public\.disparar_repasse_sla_lead/,
     )?.[0];
     expect(sla).toContain("public.pode_acessar_lead(_caller, _lead_id)");
+  });
+
+  it("a ÚLTIMA definição de transferir_leads (a que vence no banco) mantém o gate de carteira", () => {
+    // Blindagem contra regressão: 20260711201106 redefiniu transferir_leads sem
+    // o gate; 20260711210000 reaplica a versão forte. Este teste lê a definição
+    // de MAIOR timestamp entre todas as migrations — se alguém reintroduzir uma
+    // versão fraca depois, ele quebra.
+    const ultima = ultimaDefinicaoDeFuncao("transferir_leads");
+    expect(ultima).toBeTruthy();
+    expect(ultima!.corpo).toContain("public.is_active_member(_caller)");
+    expect(ultima!.corpo).toContain("public.has_role(_caller, 'superintendente')");
+    expect(ultima!.corpo).toContain("public.pode_atribuir_lead(_caller, _corretor)");
+    expect(ultima!.corpo).toContain("public.pode_acessar_lead(_caller, _l.id)");
+    expect(ultima!.corpo).toContain("p.status_conta = 'ativa'::public.status_conta");
+    expect(ultima!.corpo).toMatch(
+      /UPDATE public\.agendamentos[\s\S]*'agendado'::public\.agendamento_status/,
+    );
+    expect(ultima!.corpo).toMatch(/UPDATE public\.tarefas[\s\S]*'pendente'::public\.tarefa_status/);
   });
 
   it("só assina e remove caminho pertencente à versão ativa do documento", () => {
