@@ -268,15 +268,15 @@ export function ModoVisitaPage() {
       const { data, error } = await supabase.rpc("salvar_modo_visita", {
         p_agendamento_id: selected.id,
         p_checklist: checklist,
-        p_nota_transcrita: values.notaTranscrita.trim() || null,
-        p_observacoes: values.observacoes.trim() || null,
+        p_nota_transcrita: values.notaTranscrita.trim() || undefined,
+        p_observacoes: values.observacoes.trim() || undefined,
         p_concluir: concluir,
-        p_proxima_etapa: concluir ? values.proximaEtapa : null,
-        p_proxima_acao: concluir ? values.proximaAcao.trim() || null : null,
+        p_proxima_etapa: concluir ? values.proximaEtapa : undefined,
+        p_proxima_acao: concluir ? values.proximaAcao.trim() || undefined : undefined,
         p_proximo_followup:
           concluir && values.proximoFollowup
             ? new Date(values.proximoFollowup).toISOString()
-            : null,
+            : undefined,
       });
       if (error) throw error;
       return { data: execucaoSchema.parse(data), concluir };

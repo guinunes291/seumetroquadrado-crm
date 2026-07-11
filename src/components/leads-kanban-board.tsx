@@ -133,9 +133,9 @@ export function KanbanBoard() {
       queryFn: async (): Promise<StagePage> => {
         const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
           _status: column.id,
-          _query: debouncedSearch || null,
+          _query: debouncedSearch || undefined,
           _limit: 20,
-          _cursor: null,
+          _cursor: undefined,
         });
         if (error) throw error;
         return StagePageSchema.parse(data);
@@ -146,7 +146,7 @@ export function KanbanBoard() {
     queryKey: ["pipeline-snapshot-v2", debouncedSearch],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("pipeline_snapshot_v2", {
-        _query: debouncedSearch || null,
+        _query: debouncedSearch || undefined,
       });
       if (error) throw error;
       return data;
@@ -188,7 +188,7 @@ export function KanbanBoard() {
     try {
       const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
         _status: status,
-        _query: debouncedSearch || null,
+        _query: debouncedSearch || undefined,
         _limit: 20,
         _cursor: cursor,
       });

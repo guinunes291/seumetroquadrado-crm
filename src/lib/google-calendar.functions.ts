@@ -69,7 +69,7 @@ const EspelhoInput = z.object({ ativo: z.boolean() });
  */
 export const setEspelhoGlobal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: unknown) => EspelhoInput.parse(d))
+  .inputValidator((d: unknown) => EspelhoInput.parse(d))
   .handler(async ({ data, context }): Promise<{ ok: boolean; processados: number }> => {
     const { data: rolesData } = await context.supabase
       .from("user_roles")
@@ -113,7 +113,7 @@ const SyncInput = z.object({ agendamentoId: z.string().uuid() });
  */
 export const syncAgendamentoGoogle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d: unknown) => SyncInput.parse(d))
+  .inputValidator((d: unknown) => SyncInput.parse(d))
   .handler(async ({ data, context }) => {
     const { data: visivel, error } = await context.supabase
       .from("agendamentos")

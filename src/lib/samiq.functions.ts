@@ -27,7 +27,7 @@ const MAX_CONTEXT_CHARS = 24_000;
 
 export const perguntarSamiQ = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: unknown) => SamiQInputSchema.parse(data))
+  .inputValidator((data: unknown) => SamiQInputSchema.parse(data))
   .handler(async ({ data, context }): Promise<SamiQResposta> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY ausente");

@@ -90,7 +90,7 @@ export function PendingSalesApproval() {
       }
       const { error } = await supabase.rpc("aprovar_venda", {
         p_decisao: decision.type,
-        p_motivo: decision.type === "rejeitada" ? reason.trim() : null,
+        p_motivo: decision.type === "rejeitada" ? reason.trim() : undefined,
         p_venda_id: decision.sale.id,
       });
       if (error) throw error;

@@ -193,7 +193,7 @@ export async function recordPublicVitrineEvent(
         : "cta_clicado";
   const cta =
     event.type !== "cta_clicked"
-      ? null
+      ? undefined
       : event.cta === "price_table"
         ? "tabela_precos"
         : event.cta === "contact"
@@ -203,7 +203,7 @@ export async function recordPublicVitrineEvent(
     _token_hash: tokenHash,
     _idempotency_key: idempotencyKey,
     _tipo: type,
-    _projeto_id: event.type === "opened" ? null : event.project_id,
+    _projeto_id: event.type === "opened" ? undefined : event.project_id,
     _cta_tipo: cta,
   });
   if (error) throw new VitrineRequestError(503, "event_unavailable");

@@ -53,7 +53,7 @@ export function PerdidoDialog({ lead, onOpenChange, onDone }: Props) {
       const { data, error } = await supabase.rpc("marcar_lead_perdido_v2", {
         _lead_id: lead.id,
         _categoria: categoria,
-        _detalhe: detalhe.trim() || null,
+        _detalhe: detalhe.trim() || undefined,
       });
       if (error) throw error;
       return data as unknown as string | null;
