@@ -124,6 +124,36 @@ export type Database = {
         }
         Relationships: []
       }
+      alertas_produtividade: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          dia: string
+          id: string
+          lida: boolean
+          mensagem: string
+          tipo: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          dia?: string
+          id?: string
+          lida?: boolean
+          mensagem: string
+          tipo: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          dia?: string
+          id?: string
+          lida?: boolean
+          mensagem?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       analises_credito: {
         Row: {
           agendamento_id: string | null
@@ -328,6 +358,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "api_clientes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "api_clientes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+          {
             foreignKeyName: "api_clientes_rotacionado_de_id_fkey"
             columns: ["rotacionado_de_id"]
             isOneToOne: false
@@ -400,6 +444,54 @@ export type Database = {
         }
         Relationships: []
       }
+      atividades_diarias: {
+        Row: {
+          agendamentos: number
+          corretor_id: string
+          created_at: string
+          dia: string
+          documentacoes: number
+          id: string
+          ligacoes: number
+          pontuacao_total: number
+          updated_at: string
+          vendas: number
+          vgv_dia: number
+          visitas: number
+          whatsapps: number
+        }
+        Insert: {
+          agendamentos?: number
+          corretor_id: string
+          created_at?: string
+          dia: string
+          documentacoes?: number
+          id?: string
+          ligacoes?: number
+          pontuacao_total?: number
+          updated_at?: string
+          vendas?: number
+          vgv_dia?: number
+          visitas?: number
+          whatsapps?: number
+        }
+        Update: {
+          agendamentos?: number
+          corretor_id?: string
+          created_at?: string
+          dia?: string
+          documentacoes?: number
+          id?: string
+          ligacoes?: number
+          pontuacao_total?: number
+          updated_at?: string
+          vendas?: number
+          vgv_dia?: number
+          visitas?: number
+          whatsapps?: number
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           created_at: string
@@ -435,6 +527,63 @@ export type Database = {
           valores_novos?: Json | null
         }
         Relationships: []
+      }
+      comissao_ledger: {
+        Row: {
+          beneficiario_id: string | null
+          beneficiario_tipo: string
+          comissao_id: string
+          created_at: string
+          criado_por: string | null
+          evento: string
+          id: string
+          idempotency_key: string
+          metadata: Json
+          valor: number
+          venda_id: string
+        }
+        Insert: {
+          beneficiario_id?: string | null
+          beneficiario_tipo: string
+          comissao_id: string
+          created_at?: string
+          criado_por?: string | null
+          evento: string
+          id?: string
+          idempotency_key: string
+          metadata?: Json
+          valor: number
+          venda_id: string
+        }
+        Update: {
+          beneficiario_id?: string | null
+          beneficiario_tipo?: string
+          comissao_id?: string
+          created_at?: string
+          criado_por?: string | null
+          evento?: string
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          valor?: number
+          venda_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comissao_ledger_comissao_id_fkey"
+            columns: ["comissao_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissao_ledger_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       comissoes: {
         Row: {
@@ -514,115 +663,29 @@ export type Database = {
           },
         ]
       }
-      comissao_ledger: {
+      configuracao_pontuacao: {
         Row: {
-          beneficiario_id: string | null
-          beneficiario_tipo: string
-          comissao_id: string
-          created_at: string
-          criado_por: string | null
-          evento: string
-          id: string
-          idempotency_key: string
-          metadata: Json
-          valor: number
-          venda_id: string
-        }
-        Insert: {
-          beneficiario_id?: string | null
-          beneficiario_tipo: string
-          comissao_id: string
-          created_at?: string
-          criado_por?: string | null
-          evento: string
-          id?: string
-          idempotency_key: string
-          metadata?: Json
-          valor: number
-          venda_id: string
-        }
-        Update: {
-          beneficiario_id?: string | null
-          beneficiario_tipo?: string
-          comissao_id?: string
-          created_at?: string
-          criado_por?: string | null
-          evento?: string
-          id?: string
-          idempotency_key?: string
-          metadata?: Json
-          valor?: number
-          venda_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "comissao_ledger_comissao_id_fkey"
-            columns: ["comissao_id"]
-            isOneToOne: false
-            referencedRelation: "comissoes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comissao_ledger_venda_id_fkey"
-            columns: ["venda_id"]
-            isOneToOne: false
-            referencedRelation: "vendas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      convites_crm: {
-        Row: {
-          aceito_em: string | null
-          aceito_por: string | null
-          created_at: string
-          criado_por: string
-          email: string
-          email_normalizado: string
-          equipe_id: string | null
-          estado: Database["public"]["Enums"]["convite_crm_estado"]
-          expira_em: string
-          id: string
-          papel: Database["public"]["Enums"]["app_role"]
+          ativo: boolean
+          chave: string
+          label: string
+          pontos: number
           updated_at: string
         }
         Insert: {
-          aceito_em?: string | null
-          aceito_por?: string | null
-          created_at?: string
-          criado_por?: string
-          email: string
-          email_normalizado?: never
-          equipe_id?: string | null
-          estado?: Database["public"]["Enums"]["convite_crm_estado"]
-          expira_em?: string
-          id?: string
-          papel: Database["public"]["Enums"]["app_role"]
+          ativo?: boolean
+          chave: string
+          label: string
+          pontos?: number
           updated_at?: string
         }
         Update: {
-          aceito_em?: string | null
-          aceito_por?: string | null
-          created_at?: string
-          criado_por?: string
-          email?: string
-          email_normalizado?: never
-          equipe_id?: string | null
-          estado?: Database["public"]["Enums"]["convite_crm_estado"]
-          expira_em?: string
-          id?: string
-          papel?: Database["public"]["Enums"]["app_role"]
+          ativo?: boolean
+          chave?: string
+          label?: string
+          pontos?: number
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "convites_crm_equipe_id_fkey"
-            columns: ["equipe_id"]
-            isOneToOne: false
-            referencedRelation: "equipes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       conta_auditoria: {
         Row: {
@@ -650,6 +713,59 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: []
+      }
+      convites_crm: {
+        Row: {
+          aceito_em: string | null
+          aceito_por: string | null
+          created_at: string
+          criado_por: string
+          email: string
+          email_normalizado: string | null
+          equipe_id: string | null
+          estado: Database["public"]["Enums"]["convite_crm_estado"]
+          expira_em: string
+          id: string
+          papel: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          aceito_em?: string | null
+          aceito_por?: string | null
+          created_at?: string
+          criado_por?: string
+          email: string
+          email_normalizado?: string | null
+          equipe_id?: string | null
+          estado?: Database["public"]["Enums"]["convite_crm_estado"]
+          expira_em?: string
+          id?: string
+          papel: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          aceito_em?: string | null
+          aceito_por?: string | null
+          created_at?: string
+          criado_por?: string
+          email?: string
+          email_normalizado?: string | null
+          equipe_id?: string | null
+          estado?: Database["public"]["Enums"]["convite_crm_estado"]
+          expira_em?: string
+          id?: string
+          papel?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "convites_crm_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       copa_config_pontos: {
         Row: {
@@ -1020,7 +1136,15 @@ export type Database = {
           timeout_minutos?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "distribuicao_config_roleta_slug_fkey"
+            columns: ["roleta_slug"]
+            isOneToOne: false
+            referencedRelation: "roletas"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
       distribuicao_excecoes: {
         Row: {
@@ -1178,50 +1302,6 @@ export type Database = {
           },
         ]
       }
-      documentacoes: {
-        Row: {
-          corretor_id: string | null
-          created_at: string
-          id: string
-          lead_id: string
-          observacoes: string | null
-          status: string
-          tipo: string
-          updated_at: string
-          url: string | null
-        }
-        Insert: {
-          corretor_id?: string | null
-          created_at?: string
-          id?: string
-          lead_id: string
-          observacoes?: string | null
-          status?: string
-          tipo: string
-          updated_at?: string
-          url?: string | null
-        }
-        Update: {
-          corretor_id?: string | null
-          created_at?: string
-          id?: string
-          lead_id?: string
-          observacoes?: string | null
-          status?: string
-          tipo?: string
-          updated_at?: string
-          url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "documentacoes_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       documentacao_versoes: {
         Row: {
           ativa: boolean
@@ -1278,6 +1358,50 @@ export type Database = {
           },
           {
             foreignKeyName: "documentacao_versoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documentacoes: {
+        Row: {
+          corretor_id: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          observacoes: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          corretor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          observacoes?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          corretor_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          observacoes?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentacoes_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
@@ -1509,6 +1633,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      landing_webhook_idempotency: {
+        Row: {
+          created_at: string
+          expires_at: string
+          key_hash: string
+          lease_expires_at: string | null
+          lease_token: string | null
+          request_hash: string
+          response_body: Json | null
+          response_status: number | null
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          key_hash: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          request_hash: string
+          response_body?: Json | null
+          response_status?: number | null
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          key_hash?: string
+          lease_expires_at?: string | null
+          lease_token?: string | null
+          request_hash?: string
+          response_body?: Json | null
+          response_status?: number | null
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      landing_webhook_rate_limits: {
+        Row: {
+          expires_at: string
+          key_hash: string
+          request_count: number
+          window_started_at: string
+        }
+        Insert: {
+          expires_at: string
+          key_hash: string
+          request_count: number
+          window_started_at: string
+        }
+        Update: {
+          expires_at?: string
+          key_hash?: string
+          request_count?: number
+          window_started_at?: string
+        }
+        Relationships: []
       }
       lead_eventos: {
         Row: {
@@ -1818,6 +2002,8 @@ export type Database = {
           fbclid: string | null
           gclid: string | null
           id: string
+          idempotency_key_hash: string | null
+          idempotency_request_hash: string | null
           lead_id: string | null
           nome: string | null
           origem: string | null
@@ -1855,6 +2041,8 @@ export type Database = {
           fbclid?: string | null
           gclid?: string | null
           id?: string
+          idempotency_key_hash?: string | null
+          idempotency_request_hash?: string | null
           lead_id?: string | null
           nome?: string | null
           origem?: string | null
@@ -1892,6 +2080,8 @@ export type Database = {
           fbclid?: string | null
           gclid?: string | null
           id?: string
+          idempotency_key_hash?: string | null
+          idempotency_request_hash?: string | null
           lead_id?: string | null
           nome?: string | null
           origem?: string | null
@@ -1924,7 +2114,15 @@ export type Database = {
           utm_term?: string | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_landing_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       links_uteis: {
         Row: {
@@ -2046,6 +2244,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      metas_diarias: {
+        Row: {
+          ativo: boolean
+          corretor_id: string
+          created_at: string
+          id: string
+          meta_agendamentos: number
+          meta_ligacoes: number
+          meta_vendas: number
+          meta_visitas: number
+          meta_whatsapps: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          corretor_id: string
+          created_at?: string
+          id?: string
+          meta_agendamentos?: number
+          meta_ligacoes?: number
+          meta_vendas?: number
+          meta_visitas?: number
+          meta_whatsapps?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          corretor_id?: string
+          created_at?: string
+          id?: string
+          meta_agendamentos?: number
+          meta_ligacoes?: number
+          meta_vendas?: number
+          meta_visitas?: number
+          meta_whatsapps?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       metric_webhook_settings: {
         Row: {
@@ -2410,8 +2647,8 @@ export type Database = {
           nome: string
           numero: string | null
           observacoes: string | null
-          perfil_ideal: string | null
           percentual_comissao: number | null
+          perfil_ideal: string | null
           preco_a_partir: number | null
           preco_inicial: string | null
           regiao: string | null
@@ -2462,8 +2699,8 @@ export type Database = {
           nome: string
           numero?: string | null
           observacoes?: string | null
-          perfil_ideal?: string | null
           percentual_comissao?: number | null
+          perfil_ideal?: string | null
           preco_a_partir?: number | null
           preco_inicial?: string | null
           regiao?: string | null
@@ -2514,8 +2751,8 @@ export type Database = {
           nome?: string
           numero?: string | null
           observacoes?: string | null
-          perfil_ideal?: string | null
           percentual_comissao?: number | null
+          perfil_ideal?: string | null
           preco_a_partir?: number | null
           preco_inicial?: string | null
           regiao?: string | null
@@ -2537,6 +2774,161 @@ export type Database = {
           zona_smq?: string | null
         }
         Relationships: []
+      }
+      propostas: {
+        Row: {
+          condicoes: Json
+          corretor_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          lead_id: string | null
+          link_token: string | null
+          observacoes: string | null
+          projeto_id: string | null
+          status: string
+          unidade_id: string | null
+          updated_at: string
+          validade: string | null
+          valor: number | null
+        }
+        Insert: {
+          condicoes?: Json
+          corretor_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          lead_id?: string | null
+          link_token?: string | null
+          observacoes?: string | null
+          projeto_id?: string | null
+          status?: string
+          unidade_id?: string | null
+          updated_at?: string
+          validade?: string | null
+          valor?: number | null
+        }
+        Update: {
+          condicoes?: Json
+          corretor_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          lead_id?: string | null
+          link_token?: string | null
+          observacoes?: string | null
+          projeto_id?: string | null
+          status?: string
+          unidade_id?: string | null
+          updated_at?: string
+          validade?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "propostas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+          {
+            foreignKeyName: "propostas_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propostas_visitantes: {
+        Row: {
+          convertido_lead_id: string | null
+          corretor_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          projeto_id: string | null
+          telefone: string | null
+          valor: number | null
+        }
+        Insert: {
+          convertido_lead_id?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          projeto_id?: string | null
+          telefone?: string | null
+          valor?: number | null
+        }
+        Update: {
+          convertido_lead_id?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          projeto_id?: string | null
+          telefone?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
+            columns: ["convertido_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
       }
       push_outbox: {
         Row: {
@@ -2661,17 +3053,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "roleta_participantes_roleta_id_fkey"
-            columns: ["roleta_id"]
-            isOneToOne: false
-            referencedRelation: "roletas"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "roleta_participantes_corretor_id_fkey"
             columns: ["corretor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_participantes_roleta_id_fkey"
+            columns: ["roleta_id"]
+            isOneToOne: false
+            referencedRelation: "roletas"
             referencedColumns: ["id"]
           },
         ]
@@ -2748,6 +3140,171 @@ export type Database = {
           permitir_fora_horario?: boolean
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      samiq_execucoes: {
+        Row: {
+          action: string
+          completed_at: string | null
+          created_at: string
+          equipe_id: string | null
+          error_code: string | null
+          estimated_cost_micros: number | null
+          expires_at: string
+          id: string
+          input_cost_micros_per_million: number | null
+          input_tokens: number | null
+          latency_ms: number | null
+          model_id: string
+          output_cost_micros_per_million: number | null
+          output_tokens: number | null
+          prompt_version: string
+          reserved_input_tokens: number
+          reserved_output_tokens: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          completed_at?: string | null
+          created_at?: string
+          equipe_id?: string | null
+          error_code?: string | null
+          estimated_cost_micros?: number | null
+          expires_at: string
+          id?: string
+          input_cost_micros_per_million?: number | null
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model_id: string
+          output_cost_micros_per_million?: number | null
+          output_tokens?: number | null
+          prompt_version: string
+          reserved_input_tokens: number
+          reserved_output_tokens: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          completed_at?: string | null
+          created_at?: string
+          equipe_id?: string | null
+          error_code?: string | null
+          estimated_cost_micros?: number | null
+          expires_at?: string
+          id?: string
+          input_cost_micros_per_million?: number | null
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model_id?: string
+          output_cost_micros_per_million?: number | null
+          output_tokens?: number | null
+          prompt_version?: string
+          reserved_input_tokens?: number
+          reserved_output_tokens?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "samiq_execucoes_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "equipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_execucoes_prompt_version_fkey"
+            columns: ["prompt_version"]
+            isOneToOne: false
+            referencedRelation: "samiq_prompt_versions"
+            referencedColumns: ["version"]
+          },
+        ]
+      }
+      samiq_politica: {
+        Row: {
+          id: number
+          max_cost_team_micros_day: number | null
+          max_cost_user_micros_day: number | null
+          max_requests_team_10m: number
+          max_requests_user_10m: number
+          max_tokens_team_day: number
+          max_tokens_user_day: number
+          reservation_ttl_seconds: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: number
+          max_cost_team_micros_day?: number | null
+          max_cost_user_micros_day?: number | null
+          max_requests_team_10m?: number
+          max_requests_user_10m?: number
+          max_tokens_team_day?: number
+          max_tokens_user_day?: number
+          reservation_ttl_seconds?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: number
+          max_cost_team_micros_day?: number | null
+          max_cost_user_micros_day?: number | null
+          max_requests_team_10m?: number
+          max_requests_user_10m?: number
+          max_tokens_team_day?: number
+          max_tokens_user_day?: number
+          reservation_ttl_seconds?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      samiq_prompt_versions: {
+        Row: {
+          action_prompts: Json
+          active: boolean
+          created_at: string
+          created_by: string | null
+          input_cost_micros_per_million: number | null
+          max_output_tokens: number
+          model_id: string
+          output_cost_micros_per_million: number | null
+          pricing_version: string | null
+          system_prompt: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          action_prompts: Json
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          input_cost_micros_per_million?: number | null
+          max_output_tokens?: number
+          model_id: string
+          output_cost_micros_per_million?: number | null
+          pricing_version?: string | null
+          system_prompt: string
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          action_prompts?: Json
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          input_cost_micros_per_million?: number | null
+          max_output_tokens?: number
+          model_id?: string
+          output_cost_micros_per_million?: number | null
+          pricing_version?: string | null
+          system_prompt?: string
+          updated_at?: string
+          version?: string
         }
         Relationships: []
       }
@@ -3075,8 +3632,8 @@ export type Database = {
           id: string
           idempotency_key: string
           origem: string
-          vendas_delta: number
           venda_id: string
+          vendas_delta: number
           vgv_delta: number
         }
         Insert: {
@@ -3088,8 +3645,8 @@ export type Database = {
           id?: string
           idempotency_key: string
           origem: string
-          vendas_delta: number
           venda_id: string
+          vendas_delta: number
           vgv_delta: number
         }
         Update: {
@@ -3101,8 +3658,8 @@ export type Database = {
           id?: string
           idempotency_key?: string
           origem?: string
-          vendas_delta?: number
           venda_id?: string
+          vendas_delta?: number
           vgv_delta?: number
         }
         Relationships: [
@@ -3112,6 +3669,122 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendas: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          corretor_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          data_assinatura: string
+          data_distrato: string | null
+          data_recebimento: string | null
+          distrato: boolean
+          id: string
+          lead_id: string | null
+          legacy_id: number | null
+          motivo_decisao: string | null
+          motivo_distrato: string | null
+          observacoes: string | null
+          percentual_comissao: number
+          percentual_corretor: number
+          percentual_gerente: number
+          percentual_superintendente: number
+          projeto_id: string | null
+          projeto_nome: string | null
+          status_recebimento: string
+          status_venda: Database["public"]["Enums"]["status_venda"]
+          status_venda_updated_at: string
+          updated_at: string
+          valor_venda: number
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          data_assinatura?: string
+          data_distrato?: string | null
+          data_recebimento?: string | null
+          distrato?: boolean
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          motivo_decisao?: string | null
+          motivo_distrato?: string | null
+          observacoes?: string | null
+          percentual_comissao?: number
+          percentual_corretor?: number
+          percentual_gerente?: number
+          percentual_superintendente?: number
+          projeto_id?: string | null
+          projeto_nome?: string | null
+          status_recebimento?: string
+          status_venda?: Database["public"]["Enums"]["status_venda"]
+          status_venda_updated_at?: string
+          updated_at?: string
+          valor_venda?: number
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          criado_por_id?: string | null
+          data_assinatura?: string
+          data_distrato?: string | null
+          data_recebimento?: string | null
+          distrato?: boolean
+          id?: string
+          lead_id?: string | null
+          legacy_id?: number | null
+          motivo_decisao?: string | null
+          motivo_distrato?: string | null
+          observacoes?: string | null
+          percentual_comissao?: number
+          percentual_corretor?: number
+          percentual_gerente?: number
+          percentual_superintendente?: number
+          projeto_id?: string | null
+          projeto_nome?: string | null
+          status_recebimento?: string
+          status_venda?: Database["public"]["Enums"]["status_venda"]
+          status_venda_updated_at?: string
+          updated_at?: string
+          valor_venda?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "vendas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
           },
         ]
       }
@@ -3197,6 +3870,84 @@ export type Database = {
           },
         ]
       }
+      visitas: {
+        Row: {
+          agendamento_id: string | null
+          corretor_id: string
+          created_at: string
+          data_visita: string
+          id: string
+          lead_id: string | null
+          observacoes: string | null
+          projeto_id: string | null
+          registrado_por_id: string | null
+          resultado: string | null
+          updated_at: string
+        }
+        Insert: {
+          agendamento_id?: string | null
+          corretor_id: string
+          created_at?: string
+          data_visita?: string
+          id?: string
+          lead_id?: string | null
+          observacoes?: string | null
+          projeto_id?: string | null
+          registrado_por_id?: string | null
+          resultado?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agendamento_id?: string | null
+          corretor_id?: string
+          created_at?: string
+          data_visita?: string
+          id?: string
+          lead_id?: string | null
+          observacoes?: string | null
+          projeto_id?: string | null
+          registrado_por_id?: string | null
+          resultado?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visitas_agendamento_id_fkey"
+            columns: ["agendamento_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "visitas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
+      }
       vitrine_link_eventos: {
         Row: {
           created_at: string
@@ -3240,6 +3991,20 @@ export type Database = {
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vitrine_link_eventos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "vitrine_link_eventos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
         ]
       }
       vitrine_link_projetos: {
@@ -3275,6 +4040,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vitrine_link_projetos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "vitrine_link_projetos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
           },
         ]
       }
@@ -3334,122 +4113,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      vendas: {
-        Row: {
-          aprovado_em: string | null
-          aprovado_por: string | null
-          corretor_id: string | null
-          created_at: string
-          criado_por_id: string | null
-          data_assinatura: string
-          data_distrato: string | null
-          data_recebimento: string | null
-          distrato: boolean
-          id: string
-          lead_id: string | null
-          legacy_id: number | null
-          motivo_distrato: string | null
-          motivo_decisao: string | null
-          observacoes: string | null
-          percentual_comissao: number
-          percentual_corretor: number
-          percentual_gerente: number
-          percentual_superintendente: number
-          projeto_id: string | null
-          projeto_nome: string | null
-          status_recebimento: string
-          status_venda: Database["public"]["Enums"]["status_venda"]
-          status_venda_updated_at: string
-          updated_at: string
-          valor_venda: number
-        }
-        Insert: {
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          corretor_id?: string | null
-          created_at?: string
-          criado_por_id?: string | null
-          data_assinatura?: string
-          data_distrato?: string | null
-          data_recebimento?: string | null
-          distrato?: boolean
-          id?: string
-          lead_id?: string | null
-          legacy_id?: number | null
-          motivo_distrato?: string | null
-          motivo_decisao?: string | null
-          observacoes?: string | null
-          percentual_comissao?: number
-          percentual_corretor?: number
-          percentual_gerente?: number
-          percentual_superintendente?: number
-          projeto_id?: string | null
-          projeto_nome?: string | null
-          status_recebimento?: string
-          status_venda?: Database["public"]["Enums"]["status_venda"]
-          status_venda_updated_at?: string
-          updated_at?: string
-          valor_venda?: number
-        }
-        Update: {
-          aprovado_em?: string | null
-          aprovado_por?: string | null
-          corretor_id?: string | null
-          created_at?: string
-          criado_por_id?: string | null
-          data_assinatura?: string
-          data_distrato?: string | null
-          data_recebimento?: string | null
-          distrato?: boolean
-          id?: string
-          lead_id?: string | null
-          legacy_id?: number | null
-          motivo_distrato?: string | null
-          motivo_decisao?: string | null
-          observacoes?: string | null
-          percentual_comissao?: number
-          percentual_corretor?: number
-          percentual_gerente?: number
-          percentual_superintendente?: number
-          projeto_id?: string | null
-          projeto_nome?: string | null
-          status_recebimento?: string
-          status_venda?: Database["public"]["Enums"]["status_venda"]
-          status_venda_updated_at?: string
-          updated_at?: string
-          valor_venda?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vendas_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vendas_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vendas_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos_alternativa_regiao"
-            referencedColumns: ["alternativa_id"]
-          },
-          {
-            foreignKeyName: "vendas_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos_alternativa_regiao"
-            referencedColumns: ["projeto_id"]
           },
         ]
       }
@@ -3514,14 +4177,90 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_leads_telefone_duplicado: {
+        Row: {
+          lead_ids: string[] | null
+          projeto_id: string | null
+          qtd: number | null
+          telefone_digits: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      _alertar_gestores_distribuicao: {
+        Args: {
+          _link?: string
+          _mensagem: string
+          _ref: string
+          _titulo: string
+        }
+        Returns: undefined
+      }
+      _distribuir_lead_v3: {
+        Args: {
+          _contexto_extra?: Json
+          _corretor_id?: string
+          _distribuido_por?: string
+          _gatilho?: string
+          _lead_id: string
+          _registrar_excecao?: boolean
+          _roleta_slug?: string
+          _tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Returns: Json
+      }
+      _elegibilidade_roleta: {
+        Args: { _corretor_id?: string; _slug: string }
+        Returns: {
+          aguardando: number
+          apto: boolean
+          carteira_total: number
+          corretor_id: string
+          incluido_em: string
+          incluido_por: string
+          limite_diario: number
+          motivo_pausa: string
+          motivos: string[]
+          nome: string
+          participante_ativo: boolean
+          pausado: boolean
+          pct_trabalhado: number
+          presente: boolean
+          recebidos_hoje: number
+          recebidos_mes: number
+          ultimo_lead_em: string
+        }[]
+      }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
           campanha: string | null
+          canal_entrada: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -3593,7 +4332,80 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      _registrar_excecao_distribuicao: {
+        Args: {
+          _contexto?: Json
+          _detalhe: string
+          _lead_id: string
+          _motivo: string
+          _roleta_slug: string
+        }
+        Returns: string
+      }
+      _resolver_roleta_lead: {
+        Args: {
+          _canal: string
+          _origem: Database["public"]["Enums"]["lead_origem"]
+        }
+        Returns: string
+      }
+      alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
+      alertar_roletas_sem_apto: { Args: never; Returns: undefined }
+      alertar_volume_desproporcional: { Args: never; Returns: undefined }
+      aprovar_venda: {
+        Args: {
+          p_decisao: Database["public"]["Enums"]["status_venda"]
+          p_motivo?: string
+          p_venda_id: string
+        }
+        Returns: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          corretor_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          data_assinatura: string
+          data_distrato: string | null
+          data_recebimento: string | null
+          distrato: boolean
+          id: string
+          lead_id: string | null
+          legacy_id: number | null
+          motivo_decisao: string | null
+          motivo_distrato: string | null
+          observacoes: string | null
+          percentual_comissao: number
+          percentual_corretor: number
+          percentual_gerente: number
+          percentual_superintendente: number
+          projeto_id: string | null
+          projeto_nome: string | null
+          status_recebimento: string
+          status_venda: Database["public"]["Enums"]["status_venda"]
+          status_venda_updated_at: string
+          updated_at: string
+          valor_venda: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vendas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       arquivar_leads_sem_contato_30d: { Args: never; Returns: number }
+      atendimento_inbox_v2: {
+        Args: { _corretor_id?: string; _limit_per_queue?: number }
+        Returns: {
+          fila: string
+          items: Json
+          total_count: number
+        }[]
+      }
+      ativar_convite_por_email: {
+        Args: { _convite_id: string }
+        Returns: string
+      }
       atribuir_lead_a_corretor: {
         Args: { _corretor_id: string; _lead_id: string }
         Returns: undefined
@@ -3602,45 +4414,115 @@ export type Database = {
         Args: { _corretor_ids: string[]; _oferta_id: string }
         Returns: Json
       }
+      atualizar_distribuicao_config: {
+        Args: {
+          _limpar_roleta?: boolean
+          _limpar_timeout_minutos?: boolean
+          _origem: Database["public"]["Enums"]["lead_origem"]
+          _roleta_slug?: string
+          _sla_minutos?: number
+          _timeout_horas?: number
+          _timeout_minutos?: number
+        }
+        Returns: Json
+      }
       atualizar_distribuicao_setting: {
         Args: { _chave: string; _valor: Json }
         Returns: Json
       }
       atualizar_meu_perfil: {
-        Args: {
-          p_avatar_url?: string | null
-          p_nome: string
-          p_telefone?: string | null
+        Args: { p_avatar_url?: string; p_nome: string; p_telefone?: string }
+        Returns: {
+          acessa_links_uteis: boolean
+          ativo: boolean
+          avatar_url: string | null
+          bairro: string | null
+          bio: string | null
+          cargo: string | null
+          cep: string | null
+          cidade: string | null
+          codigo_indicacao: string | null
+          complemento: string | null
+          cpf: string | null
+          created_at: string
+          creci: string | null
+          data_admissao: string | null
+          data_credenciamento: string | null
+          data_descredenciamento: string | null
+          data_nascimento: string | null
+          email: string
+          equipe_id: string | null
+          estado: string | null
+          foto_url: string | null
+          google_calendar_enabled: boolean
+          id: string
+          last_lead_assigned_at: string | null
+          legacy_user_id: number | null
+          limite_diario_leads: number
+          limite_diario_webhook: number
+          logradouro: string | null
+          nome: string
+          numero: string | null
+          perfil_completo: boolean
+          presente: boolean
+          presente_em: string | null
+          situacao: string | null
+          status_conta: Database["public"]["Enums"]["status_conta"]
+          telefone: string | null
+          updated_at: string
         }
-        Returns: Database["public"]["Tables"]["profiles"]["Row"]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      atendimento_inbox_v2: {
+      atualizar_roleta: {
         Args: {
-          _corretor_id?: string | null
-          _limit_per_queue?: number
+          _ativo?: boolean
+          _exigir_presenca?: boolean
+          _horario_fim?: string
+          _horario_inicio?: string
+          _permitir_fora_horario?: boolean
+          _slug: string
+        }
+        Returns: Json
+      }
+      begin_landing_webhook_request: {
+        Args: {
+          _key_hash: string
+          _lease_seconds?: number
+          _request_hash: string
+          _ttl_seconds?: number
         }
         Returns: {
-          fila: string
-          items: Json
-          total_count: number
+          disposition: string
+          lease_token: string
+          response_body: Json
+          response_status: number
+          retry_after_seconds: number
         }[]
       }
-      aprovar_venda: {
+      bump_atividade: {
         Args: {
-          p_decisao: Database["public"]["Enums"]["status_venda"]
-          p_motivo?: string | null
-          p_venda_id: string
+          _ag?: number
+          _corretor: string
+          _dia: string
+          _doc?: number
+          _lig?: number
+          _ven?: number
+          _vgv?: number
+          _vis?: number
+          _wa?: number
         }
-        Returns: Database["public"]["Tables"]["vendas"]["Row"]
-      }
-      ativar_convite_por_email: {
-        Args: { _convite_id: string }
-        Returns: string
+        Returns: undefined
       }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
       }
+      buscar_lead_por_telefone: { Args: { _telefone: string }; Returns: string }
       claim_push_outbox: {
         Args: { _lease_seconds?: number; _limit?: number }
         Returns: {
@@ -3648,11 +4530,45 @@ export type Database = {
           body: string
           id: string
           lease_token: string
-          tag: string | null
+          tag: string
           title: string
-          url: string | null
+          url: string
           user_id: string
         }[]
+      }
+      cleanup_landing_webhook_state: {
+        Args: { _batch_size?: number }
+        Returns: {
+          idempotency_deleted: number
+          rate_limits_deleted: number
+        }[]
+      }
+      complete_landing_webhook_request: {
+        Args: {
+          _key_hash: string
+          _lease_token: string
+          _request_hash: string
+          _response_body: Json
+          _response_status: number
+          _ttl_seconds?: number
+        }
+        Returns: boolean
+      }
+      consume_landing_webhook_rate_limit: {
+        Args: {
+          _key_hash: string
+          _max_requests: number
+          _window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          retry_after_seconds: number
+        }[]
+      }
+      consumir_vitrine_requisicao: {
+        Args: { _token_hash: string }
+        Returns: string
       }
       conta_atual_ativa: { Args: never; Returns: boolean }
       copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
@@ -3752,6 +4668,16 @@ export type Database = {
         }
         Returns: string
       }
+      criar_vitrine_link: {
+        Args: {
+          _ator_id: string
+          _expira_em: string
+          _lead_id: string
+          _projeto_ids: string[]
+          _token_hash: string
+        }
+        Returns: string
+      }
       dashboard_atividade_periodo: {
         Args: { _df: string; _di: string; _scope: string }
         Returns: Json
@@ -3839,6 +4765,14 @@ export type Database = {
           visitas: number
         }[]
       }
+      definir_status_conta: {
+        Args: {
+          _autor_id: string
+          _status: Database["public"]["Enums"]["status_conta"]
+          _usuario_id: string
+        }
+        Returns: boolean
+      }
       detectar_duplicatas_leads: {
         Args: never
         Returns: {
@@ -3847,14 +4781,6 @@ export type Database = {
           quantidade: number
           tipo: string
         }[]
-      }
-      definir_status_conta: {
-        Args: {
-          _autor_id: string
-          _status: Database["public"]["Enums"]["status_conta"]
-          _usuario_id: string
-        }
-        Returns: boolean
       }
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
@@ -3893,10 +4819,10 @@ export type Database = {
           apto: boolean
           carteira_total: number
           corretor_id: string
-          incluido_em: string | null
-          incluido_por: string | null
+          incluido_em: string
+          incluido_por: string
           limite_diario: number
-          motivo_pausa: string | null
+          motivo_pausa: string
           motivos: string[]
           nome: string
           participante_ativo: boolean
@@ -3905,7 +4831,7 @@ export type Database = {
           presente: boolean
           recebidos_hoje: number
           recebidos_mes: number
-          ultimo_lead_em: string | null
+          ultimo_lead_em: string
         }[]
       }
       enqueue_push: {
@@ -3919,10 +4845,7 @@ export type Database = {
         Returns: undefined
       }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
-      fechamento_sinais_v1: {
-        Args: { _limit?: number }
-        Returns: Json
-      }
+      fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_alertas_leads_parados: { Args: never; Returns: undefined }
       gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
@@ -3943,6 +4866,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
@@ -3955,10 +4879,7 @@ export type Database = {
         Returns: boolean
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
-      is_active_member: {
-        Args: { _user_id?: string }
-        Returns: boolean
-      }
+      is_active_member: { Args: { _user_id?: string }; Returns: boolean }
       isleadavancado_status:
         | {
             Args: { _status: Database["public"]["Enums"]["lead_status"] }
@@ -4035,6 +4956,23 @@ export type Database = {
           usa_fgts: boolean
         }[]
       }
+      leads_search_v2: {
+        Args: {
+          _corretor_id?: string
+          _cursor?: Json
+          _limit?: number
+          _na_lixeira?: boolean
+          _origem?: Database["public"]["Enums"]["lead_origem"]
+          _periodo_fim?: string
+          _periodo_inicio?: string
+          _projeto_id?: string
+          _query?: string
+          _somente_sem_corretor?: boolean
+          _status?: Database["public"]["Enums"]["lead_status"]
+          _temperatura?: Database["public"]["Enums"]["lead_temperatura"]
+        }
+        Returns: Json
+      }
       leads_status_counts: {
         Args: {
           _corretor?: string
@@ -4051,29 +4989,26 @@ export type Database = {
           status: string
         }[]
       }
-      leads_search_v2: {
-        Args: {
-          _corretor_id?: string | null
-          _cursor?: Json | null
-          _limit?: number
-          _na_lixeira?: boolean
-          _origem?: Database["public"]["Enums"]["lead_origem"] | null
-          _periodo_fim?: string | null
-          _periodo_inicio?: string | null
-          _projeto_id?: string | null
-          _query?: string | null
-          _somente_sem_corretor?: boolean
-          _status?: Database["public"]["Enums"]["lead_status"] | null
-          _temperatura?: Database["public"]["Enums"]["lead_temperatura"] | null
-        }
-        Returns: Json
+      limpar_vitrine_eventos_expirados: {
+        Args: { _antes?: string }
+        Returns: number
+      }
+      listar_vitrine_links: {
+        Args: { _ator_id: string; _lead_id: string }
+        Returns: {
+          created_at: string
+          expira_em: string
+          id: string
+          projetos: Json
+          revogado_em: string
+        }[]
       }
       marcar_lead_perdido: {
         Args: { _categoria?: string; _detalhe?: string; _lead_id: string }
         Returns: string
       }
       marcar_lead_perdido_v2: {
-        Args: { _categoria: string; _detalhe?: string | null; _lead_id: string }
+        Args: { _categoria: string; _detalhe?: string; _lead_id: string }
         Returns: string
       }
       marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
@@ -4081,7 +5016,6 @@ export type Database = {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined
       }
-      minha_elegibilidade: { Args: never; Returns: Json }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
@@ -4090,29 +5024,18 @@ export type Database = {
         Args: { _fim: string; _inicio: string }
         Returns: Json
       }
+      minha_elegibilidade: { Args: never; Returns: Json }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
-      pode_escrever: {
-        Args: { _acao: string; _agente: string }
-        Returns: boolean
+      obter_vitrine_publica: {
+        Args: { _token_hash: string }
+        Returns: {
+          expira_em: string
+          projetos: Json
+        }[]
       }
-      pode_acessar_lead: {
-        Args: { _lead_id: string; _user_id: string }
-        Returns: boolean
-      }
-      pode_acessar_corretor: {
-        Args: { _corretor_id: string; _user_id: string }
-        Returns: boolean
-      }
-      pode_atribuir_lead: {
-        Args: { _corretor_id: string; _user_id: string }
-        Returns: boolean
-      }
+      painel_distribuicao_resumo: { Args: never; Returns: Json }
       pipeline_snapshot_v2: {
-        Args: {
-          _corretor_id?: string | null
-          _projeto_id?: string | null
-          _query?: string | null
-        }
+        Args: { _corretor_id?: string; _projeto_id?: string; _query?: string }
         Returns: {
           etapa: Database["public"]["Enums"]["lead_status"]
           followups_vencidos: number
@@ -4123,66 +5046,56 @@ export type Database = {
       }
       pipeline_stage_page_v2: {
         Args: {
-          _corretor_id?: string | null
-          _cursor?: Json | null
+          _corretor_id?: string
+          _cursor?: Json
           _limit?: number
-          _projeto_id?: string | null
-          _query?: string | null
+          _projeto_id?: string
+          _query?: string
           _status: Database["public"]["Enums"]["lead_status"]
         }
         Returns: Json
       }
+      pode_acessar_corretor: {
+        Args: { _corretor_id: string; _user_id: string }
+        Returns: boolean
+      }
+      pode_acessar_lead: {
+        Args: { _lead_id: string; _user_id: string }
+        Returns: boolean
+      }
+      pode_atribuir_lead: {
+        Args: { _corretor_id: string; _user_id: string }
+        Returns: boolean
+      }
+      pode_escrever: {
+        Args: { _acao: string; _agente: string }
+        Returns: boolean
+      }
+      pontos_de: { Args: { _chave: string }; Returns: number }
       preview_oferta_ativa: {
         Args: { _corretor?: string; _filtros: Json }
         Returns: Json
       }
-      painel_distribuicao_resumo: { Args: never; Returns: Json }
       processar_distribuicao_automatica: { Args: never; Returns: Json }
-      reprocessar_excecao: { Args: { _excecao_id: string }; Returns: Json }
-      resolver_excecao: {
-        Args: { _acao: string; _excecao_id: string; _params?: Json }
-        Returns: Json
-      }
-      samiq_finalizar_execucao: {
-        Args: {
-          _error_code?: string | null
-          _execution_id: string
-          _input_tokens?: number
-          _latency_ms?: number
-          _output_tokens?: number
-          _status: string
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      samiq_reservar_execucao: {
-        Args: {
-          _action: string
-          _estimated_input_tokens?: number
-          _requested_output_tokens?: number | null
-          _user_id: string
-        }
+      produtividade_corretores: {
+        Args: never
         Returns: {
-          action_prompt: string | null
-          allowed: boolean
-          denial_reason: string | null
-          execution_id: string | null
-          max_output_tokens: number | null
-          model_id: string | null
-          prompt_version: string | null
-          retry_after_seconds: number
-          system_prompt: string | null
+          aguardando: number
+          corretor_id: string
+          elegivel: boolean
+          pct_trabalhado: number
+          total_ativos: number
         }[]
       }
-      recalcular_temperatura_leads: { Args: never; Returns: number }
       ranking_periodo_v2: {
         Args: { _fim: string; _inicio: string; _limit?: number }
         Returns: {
           agendamentos: number
+          alteracoes: number
           corretor_id: string
           documentacoes: number
-          ligacoes: number
           leads: number
+          ligacoes: number
           nome: string
           pontuacao: number
           posicao: number
@@ -4190,9 +5103,9 @@ export type Database = {
           vgv: number
           visitas: number
           whatsapps: number
-          alteracoes: number
         }[]
       }
+      recalcular_temperatura_leads: { Args: never; Returns: number }
       redistribuir_leads_parados: { Args: never; Returns: number }
       redistribuir_sla_webhook: { Args: never; Returns: number }
       regenerar_webhook_token: {
@@ -4214,6 +5127,16 @@ export type Database = {
           _tamanho_bytes: number
         }
         Returns: number
+      }
+      registrar_vitrine_evento: {
+        Args: {
+          _cta_tipo?: string
+          _idempotency_key: string
+          _projeto_id?: string
+          _tipo: Database["public"]["Enums"]["vitrine_evento_tipo"]
+          _token_hash: string
+        }
+        Returns: boolean
       }
       rel_conversao_por_corretor: {
         Args: { _df: string; _di: string }
@@ -4250,14 +5173,96 @@ export type Database = {
           p50_horas: number
         }[]
       }
+      release_landing_webhook_request: {
+        Args: { _key_hash: string; _lease_token: string; _request_hash: string }
+        Returns: boolean
+      }
+      reprocessar_excecao: { Args: { _excecao_id: string }; Returns: Json }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
       resetar_presenca_diaria: { Args: never; Returns: undefined }
+      resolver_excecao: {
+        Args: { _acao: string; _excecao_id: string; _params?: Json }
+        Returns: Json
+      }
       restaurar_registro: {
         Args: { _id: string; _tabela: string }
         Returns: boolean
       }
+      revogar_vitrine_link: {
+        Args: { _ator_id: string; _link_id: string }
+        Returns: boolean
+      }
+      salvar_modo_visita: {
+        Args: {
+          p_agendamento_id: string
+          p_checklist?: Json
+          p_concluir?: boolean
+          p_nota_transcrita?: string
+          p_observacoes?: string
+          p_proxima_acao?: string
+          p_proxima_etapa?: Database["public"]["Enums"]["lead_status"]
+          p_proximo_followup?: string
+        }
+        Returns: {
+          agendamento_id: string
+          atualizada_por: string
+          checklist: Json
+          concluida_em: string | null
+          corretor_id: string
+          created_at: string
+          criada_por: string
+          id: string
+          iniciada_em: string
+          lead_id: string
+          nota_transcrita: string | null
+          observacoes: string | null
+          proxima_acao: string | null
+          proxima_etapa: Database["public"]["Enums"]["lead_status"] | null
+          proximo_followup: string | null
+          status: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "visita_execucoes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      samiq_finalizar_execucao: {
+        Args: {
+          _error_code?: string
+          _execution_id: string
+          _input_tokens?: number
+          _latency_ms?: number
+          _output_tokens?: number
+          _status: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      samiq_reservar_execucao: {
+        Args: {
+          _action: string
+          _estimated_input_tokens?: number
+          _requested_output_tokens?: number
+          _user_id: string
+        }
+        Returns: {
+          action_prompt: string
+          allowed: boolean
+          denial_reason: string
+          execution_id: string
+          max_output_tokens: number
+          model_id: string
+          prompt_version: string
+          retry_after_seconds: number
+          system_prompt: string
+        }[]
+      }
       set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
       sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
+      telefone_digits: { Args: { _telefone: string }; Returns: string }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
@@ -4268,94 +5273,184 @@ export type Database = {
           tempo_medio_min: number
         }[]
       }
-      triar_e_distribuir_lead: {
-        Args: { _gatilho?: string; _lead_id: string }
-        Returns: Json
-      }
       transferir_leads: {
         Args: { _corretor: string; _ids: string[] }
         Returns: number
       }
+      transicao_lead_permitida: {
+        Args: {
+          p_de: Database["public"]["Enums"]["lead_status"]
+          p_gestao: boolean
+          p_para: Database["public"]["Enums"]["lead_status"]
+        }
+        Returns: boolean
+      }
       transicionar_lead: {
         Args: {
           p_lead_id: string
-          p_motivo?: string | null
+          p_motivo?: string
           p_novo_status: Database["public"]["Enums"]["lead_status"]
-          p_proxima_acao?: string | null
-          p_proximo_followup?: string | null
+          p_proxima_acao?: string
+          p_proximo_followup?: string
         }
-        Returns: Database["public"]["Tables"]["leads"]["Row"]
+        Returns: {
+          campanha: string | null
+          canal_entrada: string | null
+          consentimento_lgpd: boolean | null
+          construtora: string | null
+          copiloto_notificado_em: string | null
+          corretor_anterior_id: string | null
+          corretor_id: string | null
+          corretores_que_tentaram: string[]
+          cpf: string | null
+          created_at: string
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          data_perda: string | null
+          decisor: string | null
+          deleted_at: string | null
+          desfecho: string | null
+          docs_pendentes: Json | null
+          docs_recebidos: Json | null
+          email: string | null
+          entrada_disponivel: string | null
+          estado: Database["public"]["Enums"]["lead_estado"] | null
+          etapa: string | null
+          faixa_mcmv: string | null
+          fase: string | null
+          fgts_valor: number | null
+          handoff_em: string | null
+          id: string
+          legacy_id: number | null
+          motivo_handoff: string | null
+          motivo_perda_categoria: string | null
+          motivo_perdido: string | null
+          na_lixeira: boolean
+          nome: string
+          objecoes: string[]
+          observacoes: string | null
+          opt_out: boolean
+          origem: Database["public"]["Enums"]["lead_origem"]
+          projeto_id: string | null
+          projeto_nome: string | null
+          proxima_acao: string | null
+          proximo_followup: string | null
+          renda_estimada: number | null
+          renda_informada: string | null
+          resumo_qualificacao: string | null
+          search_text: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          telefone_e164: string | null
+          tem_fgts: boolean | null
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao: number
+          timestamp_recebimento: string | null
+          tipo_renda: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string
+          usa_fgts: boolean
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          via_webhook: boolean
+          visita_data: string | null
+          visita_empreendimento: string | null
+          visita_hora: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leads"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       transicionar_lead_api_perda: {
         Args: {
           p_categoria: string
-          p_data_perda?: string | null
+          p_data_perda?: string
           p_lead_id: string
-          p_motivo?: string | null
+          p_motivo?: string
         }
-        Returns: Database["public"]["Tables"]["leads"]["Row"]
-      }
-      salvar_modo_visita: {
-        Args: {
-          p_agendamento_id: string
-          p_checklist?: Json
-          p_concluir?: boolean
-          p_nota_transcrita?: string | null
-          p_observacoes?: string | null
-          p_proxima_acao?: string | null
-          p_proxima_etapa?: Database["public"]["Enums"]["lead_status"] | null
-          p_proximo_followup?: string | null
-        }
-        Returns: Database["public"]["Tables"]["visita_execucoes"]["Row"]
-      }
-      criar_vitrine_link: {
-        Args: {
-          _ator_id: string
-          _expira_em: string
-          _lead_id: string
-          _projeto_ids: string[]
-          _token_hash: string
-        }
-        Returns: string
-      }
-      consumir_vitrine_requisicao: {
-        Args: { _token_hash: string }
-        Returns: string
-      }
-      limpar_vitrine_eventos_expirados: {
-        Args: { _antes?: string }
-        Returns: number
-      }
-      listar_vitrine_links: {
-        Args: { _ator_id: string; _lead_id: string }
         Returns: {
+          campanha: string | null
+          canal_entrada: string | null
+          consentimento_lgpd: boolean | null
+          construtora: string | null
+          copiloto_notificado_em: string | null
+          corretor_anterior_id: string | null
+          corretor_id: string | null
+          corretores_que_tentaram: string[]
+          cpf: string | null
           created_at: string
-          expira_em: string
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          data_perda: string | null
+          decisor: string | null
+          deleted_at: string | null
+          desfecho: string | null
+          docs_pendentes: Json | null
+          docs_recebidos: Json | null
+          email: string | null
+          entrada_disponivel: string | null
+          estado: Database["public"]["Enums"]["lead_estado"] | null
+          etapa: string | null
+          faixa_mcmv: string | null
+          fase: string | null
+          fgts_valor: number | null
+          handoff_em: string | null
           id: string
-          projetos: Json
-          revogado_em: string | null
-        }[]
-      }
-      obter_vitrine_publica: {
-        Args: { _token_hash: string }
-        Returns: {
-          expira_em: string
-          projetos: Json
-        }[]
-      }
-      registrar_vitrine_evento: {
-        Args: {
-          _cta_tipo?: string | null
-          _idempotency_key: string
-          _projeto_id?: string | null
-          _tipo: Database["public"]["Enums"]["vitrine_evento_tipo"]
-          _token_hash: string
+          legacy_id: number | null
+          motivo_handoff: string | null
+          motivo_perda_categoria: string | null
+          motivo_perdido: string | null
+          na_lixeira: boolean
+          nome: string
+          objecoes: string[]
+          observacoes: string | null
+          opt_out: boolean
+          origem: Database["public"]["Enums"]["lead_origem"]
+          projeto_id: string | null
+          projeto_nome: string | null
+          proxima_acao: string | null
+          proximo_followup: string | null
+          renda_estimada: number | null
+          renda_informada: string | null
+          resumo_qualificacao: string | null
+          search_text: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          telefone_e164: string | null
+          tem_fgts: boolean | null
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao: number
+          timestamp_recebimento: string | null
+          tipo_renda: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string
+          usa_fgts: boolean
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          via_webhook: boolean
+          visita_data: string | null
+          visita_empreendimento: string | null
+          visita_hora: string | null
         }
-        Returns: boolean
+        SetofOptions: {
+          from: "*"
+          to: "leads"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      revogar_vitrine_link: {
-        Args: { _ator_id: string; _link_id: string }
-        Returns: boolean
+      triar_e_distribuir_lead: {
+        Args: { _gatilho?: string; _lead_id: string }
+        Returns: Json
       }
       vendas_mes_anterior: {
         Args: never
@@ -4365,15 +5460,12 @@ export type Database = {
           total: number
         }[]
       }
+      vitrine_galeria_urls_validas: {
+        Args: { _urls: string[] }
+        Returns: boolean
+      }
     }
     Enums: {
-      api_cliente_escopo:
-        | "leads:read"
-        | "leads:write"
-        | "events:write"
-        | "sales:read"
-        | "commissions:read"
-        | "metrics:read"
       agendamento_status:
         | "agendado"
         | "confirmado"
@@ -4389,6 +5481,13 @@ export type Database = {
         | "follow_up"
         | "sistema"
         | "distribuicao"
+      api_cliente_escopo:
+        | "leads:read"
+        | "leads:write"
+        | "events:write"
+        | "sales:read"
+        | "commissions:read"
+        | "metrics:read"
       app_role: "admin" | "gestor" | "corretor" | "superintendente"
       convite_crm_estado: "pendente" | "aceito" | "revogado" | "expirado"
       distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
@@ -4587,14 +5686,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      api_cliente_escopo: [
-        "leads:read",
-        "leads:write",
-        "events:write",
-        "sales:read",
-        "commissions:read",
-        "metrics:read",
-      ],
       agendamento_status: [
         "agendado",
         "confirmado",
@@ -4611,6 +5702,14 @@ export const Constants = {
         "follow_up",
         "sistema",
         "distribuicao",
+      ],
+      api_cliente_escopo: [
+        "leads:read",
+        "leads:write",
+        "events:write",
+        "sales:read",
+        "commissions:read",
+        "metrics:read",
       ],
       app_role: ["admin", "gestor", "corretor", "superintendente"],
       convite_crm_estado: ["pendente", "aceito", "revogado", "expirado"],
