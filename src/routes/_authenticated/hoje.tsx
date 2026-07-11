@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -433,6 +434,13 @@ function CommandCenterPage() {
 
   // Fila de missões: funde SLA estourado + quentes + sem-ação, dedup, por score.
   const filaCarregando = slaQ.isLoading || quentesQ.isLoading || semAcaoQ.isLoading;
+  // Falha de qualquer fonte da fila NÃO pode virar "dia tranquilo": sinaliza erro.
+  const filaErro = slaQ.isError || quentesQ.isError || semAcaoQ.isError;
+  const recarregarFila = () => {
+    void slaQ.refetch();
+    void quentesQ.refetch();
+    void semAcaoQ.refetch();
+  };
   const missoes = useMemo(
     () =>
       buildMissionQueue({
@@ -482,31 +490,47 @@ function CommandCenterPage() {
       />
 
       {/* ----- Hero: a próxima melhor ação, executável em 1 clique ----- */}
-      <NextBestAction
-        mission={missoes[0] ?? null}
-        loading={filaCarregando}
-        onWhatsApp={abrirWhats}
-        extra={
-          <Button
-            variant="outline"
-            onClick={() => window.dispatchEvent(new Event("open-sprint"))}
-            title="Bloco de prospecção focada com fila automática e cronômetro"
-          >
-            <Zap className="h-4 w-4 text-primary" /> Iniciar Sprint
-          </Button>
-        }
-      />
+      {filaErro ? (
+        <QueryErrorState
+          title="Não foi possível montar a sua fila de prioridades."
+          error={slaQ.error ?? quentesQ.error ?? semAcaoQ.error}
+          onRetry={recarregarFila}
+        />
+      ) : (
+        <NextBestAction
+          mission={missoes[0] ?? null}
+          loading={filaCarregando}
+          onWhatsApp={abrirWhats}
+          extra={
+            <Button
+              variant="outline"
+              onClick={() => window.dispatchEvent(new Event("open-sprint"))}
+              title="Bloco de prospecção focada com fila automática e cronômetro"
+            >
+              <Zap className="h-4 w-4 text-primary" /> Iniciar Sprint
+            </Button>
+          }
+        />
+      )}
 
       {/* ----- Cockpit: missões | hoje | instrumentos ----- */}
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {/* Coluna 1 — fila de missões */}
-        <MissionQueue
-          missions={missoes}
-          loading={filaCarregando}
-          onWhatsApp={abrirWhats}
-          onFollowUp={(m) => criarFollowUpRapido.mutate({ id: m.leadId, nome: m.nome })}
-          followUpPending={criarFollowUpRapido.isPending}
-        />
+        {filaErro ? (
+          <QueryErrorState
+            title="Não foi possível carregar as missões."
+            error={slaQ.error ?? quentesQ.error ?? semAcaoQ.error}
+            onRetry={recarregarFila}
+          />
+        ) : (
+          <MissionQueue
+            missions={missoes}
+            loading={filaCarregando}
+            onWhatsApp={abrirWhats}
+            onFollowUp={(m) => criarFollowUpRapido.mutate({ id: m.leadId, nome: m.nome })}
+            followUpPending={criarFollowUpRapido.isPending}
+          />
+        )}
 
         {/* Coluna 2 — o dia: agenda + tarefas */}
         <div className="space-y-4">
@@ -518,7 +542,13 @@ function CommandCenterPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {agendaQ.isLoading ? (
+              {agendaQ.isError ? (
+                <QueryErrorState
+                  title="Não foi possível carregar a agenda."
+                  error={agendaQ.error}
+                  onRetry={() => agendaQ.refetch()}
+                />
+              ) : agendaQ.isLoading ? (
                 <>
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />
@@ -573,7 +603,13 @@ function CommandCenterPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {tarefasQ.isLoading ? (
+              {tarefasQ.isError ? (
+                <QueryErrorState
+                  title="Não foi possível carregar as tarefas."
+                  error={tarefasQ.error}
+                  onRetry={() => tarefasQ.refetch()}
+                />
+              ) : tarefasQ.isLoading ? (
                 <>
                   <Skeleton className="h-12 w-full" />
                   <Skeleton className="h-12 w-full" />

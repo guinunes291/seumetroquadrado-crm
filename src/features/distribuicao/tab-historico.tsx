@@ -258,7 +258,8 @@ function DecisaoContextoDialog({
                 </p>
                 <StatusBadge intent="success">{d.vencedor.nome}</StatusBadge>
                 <span className="ml-2 text-xs text-muted-foreground">
-                  regra: {d.regra === "rodizio_menos_recente" ? "há mais tempo sem receber" : d.regra}
+                  regra:{" "}
+                  {d.regra === "rodizio_menos_recente" ? "há mais tempo sem receber" : d.regra}
                 </span>
               </div>
             )}

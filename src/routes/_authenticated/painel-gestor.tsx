@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatDuracaoParado } from "@/lib/utils";
@@ -429,7 +430,13 @@ function SaudePanel() {
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            {atividadeQ.isLoading ? (
+            {atividadeQ.isError ? (
+              <QueryErrorState
+                title="Não foi possível carregar a atividade da equipe."
+                error={atividadeQ.error}
+                onRetry={() => atividadeQ.refetch()}
+              />
+            ) : atividadeQ.isLoading ? (
               <p className="text-sm text-muted-foreground">Carregando…</p>
             ) : atividade.linhas.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -515,7 +522,13 @@ function SaudePanel() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {urgentes.length === 0 ? (
+          {urgentesQ.isError ? (
+            <QueryErrorState
+              title="Não foi possível carregar os leads parados."
+              error={urgentesQ.error}
+              onRetry={() => urgentesQ.refetch()}
+            />
+          ) : urgentes.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum lead parado agora. 👏</p>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">

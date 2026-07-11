@@ -3,6 +3,7 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { cn } from "@/lib/utils";
 import {
   useDashboardFunil,
@@ -48,6 +49,7 @@ export function InsightsPanel() {
   const motivosQ = useDashboardMotivosPerda(range, corretor, !!user);
 
   const carregando = funilQ.isLoading || serieQ.isLoading || motivosQ.isLoading;
+  const erro = funilQ.isError || serieQ.isError || motivosQ.isError;
 
   const insights = useMemo(() => {
     const now = new Date();
@@ -70,7 +72,17 @@ export function InsightsPanel() {
         title="O que os números estão dizendo"
         className="mb-3"
       />
-      {carregando ? (
+      {erro ? (
+        <QueryErrorState
+          title="Não foi possível carregar os insights."
+          error={funilQ.error ?? serieQ.error ?? motivosQ.error}
+          onRetry={() => {
+            void funilQ.refetch();
+            void serieQ.refetch();
+            void motivosQ.refetch();
+          }}
+        />
+      ) : carregando ? (
         <div className="grid gap-3 md:grid-cols-2">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-24 w-full" />

@@ -30,7 +30,9 @@ function MeuPerfilPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("nome, email, telefone, cargo, bio, avatar_url, data_admissao, presente, presente_em")
+        .select(
+          "nome, email, telefone, cargo, bio, avatar_url, data_admissao, presente, presente_em",
+        )
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -122,7 +124,9 @@ function MeuPerfilPage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center justify-between">
             <span>Presença de hoje</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}
+            >
               {presenteHoje ? "Presente" : "Ausente"}
             </span>
           </CardTitle>
@@ -192,7 +196,12 @@ function MeuPerfilPage() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="cargo">Cargo</Label>
-            <Input id="cargo" value={cargo} onChange={(e) => setCargo(e.target.value)} placeholder="Corretor pleno, gestor regional…" />
+            <Input
+              id="cargo"
+              value={cargo}
+              onChange={(e) => setCargo(e.target.value)}
+              placeholder="Corretor pleno, gestor regional…"
+            />
           </div>
           <div className="space-y-1">
             <Label htmlFor="bio">Bio</Label>
@@ -215,11 +224,21 @@ function MeuPerfilPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="p1">Nova senha</Label>
-                <Input id="p1" type="password" value={pwd1} onChange={(e) => setPwd1(e.target.value)} />
+                <Input
+                  id="p1"
+                  type="password"
+                  value={pwd1}
+                  onChange={(e) => setPwd1(e.target.value)}
+                />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="p2">Confirmar</Label>
-                <Input id="p2" type="password" value={pwd2} onChange={(e) => setPwd2(e.target.value)} />
+                <Input
+                  id="p2"
+                  type="password"
+                  value={pwd2}
+                  onChange={(e) => setPwd2(e.target.value)}
+                />
               </div>
             </div>
             <div className="flex justify-end">

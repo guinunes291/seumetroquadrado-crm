@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { Timer, AlertTriangle, Flame, ShieldOff } from "lucide-react";
@@ -132,8 +127,8 @@ export function TransferSlaBadge({
             </Badge>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
-            Já teve {tentativasNum} repasse{tentativasNum === 1 ? "" : "s"} — fica
-            com o corretor atual e vai para a triagem manual.
+            Já teve {tentativasNum} repasse{tentativasNum === 1 ? "" : "s"} — fica com o corretor
+            atual e vai para a triagem manual.
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -171,10 +166,8 @@ export function TransferSlaBadge({
           firingRef.current = false;
         }
       })();
-
     }
   }
-
 
   const status_ = ratio >= 1 ? "estourado" : ratio > 0.6 ? "atencao" : "ok";
   const tone =
@@ -222,9 +215,7 @@ export function TransferSlaBadge({
               ? `Estourado há ${label.replace("-", "")} — repasse no próximo ciclo (~1 min)`
               : `Falta ${label} para repassar`}
           </div>
-          <div className="text-muted-foreground">
-            Repasses feitos: {tentativasNum}/3
-          </div>
+          <div className="text-muted-foreground">Repasses feitos: {tentativasNum}/3</div>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

@@ -152,15 +152,7 @@ function HorarioRoletaCell({ roleta }: { roleta: RoletaRow }) {
   );
 }
 
-function SettingBooleano({
-  chave,
-  label,
-  hint,
-}: {
-  chave: string;
-  label: string;
-  hint?: string;
-}) {
+function SettingBooleano({ chave, label, hint }: { chave: string; label: string; hint?: string }) {
   const settingsQ = useDistribuicaoSettings();
   const salvar = useAtualizarSetting();
   const atual = settingsQ.data?.[chave]?.valor === true;
@@ -308,9 +300,7 @@ export function TabConfiguracoes() {
                     <TableCell>
                       <Switch
                         checked={r.ativo}
-                        onCheckedChange={(v) =>
-                          atualizarRoleta.mutate({ slug: r.slug, ativo: v })
-                        }
+                        onCheckedChange={(v) => atualizarRoleta.mutate({ slug: r.slug, ativo: v })}
                       />
                     </TableCell>
                     <TableCell>
@@ -389,9 +379,7 @@ export function TabConfiguracoes() {
                               {label}
                             </SelectItem>
                           ))}
-                          <SelectItem value={SEM_ROLETA}>
-                            Nenhuma (vai para exceção)
-                          </SelectItem>
+                          <SelectItem value={SEM_ROLETA}>Nenhuma (vai para exceção)</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -405,8 +393,7 @@ export function TabConfiguracoes() {
                         onBlur={(e) =>
                           atualizarOrigem.mutate({
                             origem: c.origem,
-                            timeoutMinutos:
-                              e.target.value === "" ? null : Number(e.target.value),
+                            timeoutMinutos: e.target.value === "" ? null : Number(e.target.value),
                           })
                         }
                       />
@@ -432,8 +419,8 @@ export function TabConfiguracoes() {
             </Table>
           )}
           <p className="mt-2 text-xs text-muted-foreground">
-            Repasse SLA vazio = origem sem repasse por minutos (só a régua de horas). O repasse
-            por minutos vale apenas para leads chegados por webhook.
+            Repasse SLA vazio = origem sem repasse por minutos (só a régua de horas). O repasse por
+            minutos vale apenas para leads chegados por webhook.
           </p>
         </CardContent>
       </Card>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
   Table,
   TableBody,
@@ -107,14 +108,29 @@ export function RelatoriosView() {
         }
       />
 
-      <KpiGrid data={kpisQ.data} loading={kpisQ.isLoading} />
-
-      {canSeeAll && (
-        <SituacaoAgora
-          urgentes={urgentesQ.data ?? []}
-          semCorretor={kpisQ.data?.sem_corretor ?? 0}
+      {kpisQ.isError ? (
+        <QueryErrorState
+          title="Não foi possível carregar os indicadores."
+          error={kpisQ.error}
+          onRetry={() => kpisQ.refetch()}
         />
+      ) : (
+        <KpiGrid data={kpisQ.data} loading={kpisQ.isLoading} />
       )}
+
+      {canSeeAll &&
+        (urgentesQ.isError ? (
+          <QueryErrorState
+            title="Não foi possível carregar a situação atual."
+            error={urgentesQ.error}
+            onRetry={() => urgentesQ.refetch()}
+          />
+        ) : (
+          <SituacaoAgora
+            urgentes={urgentesQ.data ?? []}
+            semCorretor={kpisQ.data?.sem_corretor ?? 0}
+          />
+        ))}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -124,7 +140,13 @@ export function RelatoriosView() {
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
-            {serieQ.isLoading || !range.di ? (
+            {serieQ.isError ? (
+              <QueryErrorState
+                title="Não foi possível carregar a evolução."
+                error={serieQ.error}
+                onRetry={() => serieQ.refetch()}
+              />
+            ) : serieQ.isLoading || !range.di ? (
               <Skeleton className="h-full w-full" />
             ) : (
               <SerieChart data={serieQ.data ?? []} />
@@ -139,7 +161,13 @@ export function RelatoriosView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {funilQ.isLoading ? (
+            {funilQ.isError ? (
+              <QueryErrorState
+                title="Não foi possível carregar o funil."
+                error={funilQ.error}
+                onRetry={() => funilQ.refetch()}
+              />
+            ) : funilQ.isLoading ? (
               <Skeleton className="h-[240px] w-full" />
             ) : (
               <FunilView data={funilQ.data ?? []} />
@@ -156,7 +184,15 @@ export function RelatoriosView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <PorCorretorTable rows={porCorretorQ.data ?? []} loading={porCorretorQ.isLoading} />
+            {porCorretorQ.isError ? (
+              <QueryErrorState
+                title="Não foi possível carregar o ranking."
+                error={porCorretorQ.error}
+                onRetry={() => porCorretorQ.refetch()}
+              />
+            ) : (
+              <PorCorretorTable rows={porCorretorQ.data ?? []} loading={porCorretorQ.isLoading} />
+            )}
           </CardContent>
         </Card>
       )}
@@ -169,7 +205,15 @@ export function RelatoriosView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <UrgentesList rows={urgentesQ.data ?? []} loading={urgentesQ.isLoading} />
+            {urgentesQ.isError ? (
+              <QueryErrorState
+                title="Não foi possível carregar seus leads urgentes."
+                error={urgentesQ.error}
+                onRetry={() => urgentesQ.refetch()}
+              />
+            ) : (
+              <UrgentesList rows={urgentesQ.data ?? []} loading={urgentesQ.isLoading} />
+            )}
           </CardContent>
         </Card>
       )}
@@ -182,7 +226,13 @@ export function RelatoriosView() {
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
-            {motivosQ.isLoading ? (
+            {motivosQ.isError ? (
+              <QueryErrorState
+                title="Não foi possível carregar os motivos de perda."
+                error={motivosQ.error}
+                onRetry={() => motivosQ.refetch()}
+              />
+            ) : motivosQ.isLoading ? (
               <Skeleton className="h-full w-full" />
             ) : (motivosQ.data?.length ?? 0) === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -202,7 +252,15 @@ export function RelatoriosView() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <RedistTable rows={redistQ.data ?? []} loading={redistQ.isLoading} />
+              {redistQ.isError ? (
+                <QueryErrorState
+                  title="Não foi possível carregar as redistribuições."
+                  error={redistQ.error}
+                  onRetry={() => redistQ.refetch()}
+                />
+              ) : (
+                <RedistTable rows={redistQ.data ?? []} loading={redistQ.isLoading} />
+              )}
             </CardContent>
           </Card>
         )}

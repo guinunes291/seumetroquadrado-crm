@@ -71,6 +71,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
+  // Exige a identidade do chamador. A leitura do lead passa pela RLS deste
+  // usuário — sem service_role, sem bypass —, então só é possível notificar
+  // sobre leads da própria carteira. Isso fecha o IDOR/vazamento de PII sem
+  // exigir papel fixo, preservando o fluxo de roleta (o corretor vira dono do
+  // lead antes de a notificação disparar).
+  const authorization = req.headers.get("authorization") ?? "";
+  if (!authorization.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
+
   let body: { lead_id?: string; corretor_id?: string };
   try {
     body = await req.json();
@@ -81,10 +89,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const corretorId = body.corretor_id;
   if (!leadId || !corretorId) return json({ error: "missing_params" }, 400);
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  const url = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) return json({ error: "server_config" }, 503);
+
+  const supabase = createClient(url, anonKey, {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) return json({ error: "unauthorized" }, 401);
+
+  const { data: contaAtiva, error: contaError } = await supabase.rpc("conta_atual_ativa");
+  if (contaError || !contaAtiva) return json({ error: "account_inactive" }, 403);
 
   const { data: lead, error: leadErr } = await supabase
     .from("leads")
@@ -92,6 +110,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .eq("id", leadId)
     .maybeSingle();
 
+  // Lead fora da carteira volta vazio pela RLS — indistinguível de inexistente,
+  // então não vaza a existência de leads de outras carteiras.
   if (leadErr || !lead) return json({ error: "lead_not_found" }, 404);
   if (lead.origem !== "facebook") {
     return json({ ok: true, skipped: "origem_nao_facebook" });
