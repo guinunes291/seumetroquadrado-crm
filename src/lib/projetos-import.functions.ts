@@ -45,7 +45,7 @@ function clean(v: unknown): string | null {
 
 export const importarProjetos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { rows: ImportProjetoRow[]; atualizarExistentes?: boolean }) => input)
+  .inputValidator((input: { rows: ImportProjetoRow[]; atualizarExistentes?: boolean }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 

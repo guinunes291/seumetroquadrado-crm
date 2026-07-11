@@ -23,7 +23,7 @@ function onlyDigits(s: string): string {
 
 export const importarLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { rows: ImportRow[]; projeto_id?: string | null }) => input)
+  .inputValidator((input: { rows: ImportRow[]; projeto_id?: string | null }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 

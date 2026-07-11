@@ -13,7 +13,7 @@ export type LeadResumoIA = {
 
 export const gerarResumoLeadIA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((data: unknown) => InputSchema.parse(data))
+  .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data, context }): Promise<LeadResumoIA> => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY ausente");
