@@ -16,15 +16,15 @@ export default defineConfig({
   vite: {
     plugins: [mcpPlugin()],
     build: {
-      // Mantém cada artefato abaixo do budget verificável no CI. Os módulos de
-      // domínio continuam divididos por rota; aqui separamos apenas vendors
-      // estáveis que, antes, formavam um único index > 320 KB gzip.
+      // Vendors pesados separados por rota. NÃO particionamos react/react-dom/
+      // scheduler/tanstack em chunks próprios: o shim do `use-sync-external-store`
+      // muta o namespace do React e, quando react vira um chunk carregado
+      // tardiamente, quebra com "Cannot set properties of undefined
+      // (setting 'useSyncExternalStore')" e derruba o app publicado (tela preta).
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return undefined;
-            if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) return "vendor-react";
-            if (id.includes("node_modules/@tanstack/")) return "vendor-tanstack";
             if (id.includes("node_modules/@supabase/")) return "vendor-supabase";
             if (id.includes("node_modules/@radix-ui/")) return "vendor-radix";
             if (/node_modules\/(recharts|d3-|victory-vendor)\//.test(id)) return "vendor-charts";
