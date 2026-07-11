@@ -8,13 +8,16 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
 
 const publicBackendEnv = {
-  url: process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "",
+  url:
+    process.env.VITE_SUPABASE_URL ??
+    process.env.SUPABASE_URL ??
+    "https://rldnprwjlomjmjvinxuh.supabase.co",
   publishableKey:
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
     process.env.SUPABASE_PUBLISHABLE_KEY ??
     process.env.VITE_SUPABASE_ANON_KEY ??
-    "",
-  projectId: process.env.VITE_SUPABASE_PROJECT_ID ?? "",
+    "sb_publishable_iME1K9WwVJYw8xCfwv2XVg_Pt3iR4fb",
+  projectId: process.env.VITE_SUPABASE_PROJECT_ID ?? "rldnprwjlomjmjvinxuh",
 };
 
 export default defineConfig({
