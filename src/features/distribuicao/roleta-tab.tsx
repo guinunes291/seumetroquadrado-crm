@@ -55,6 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -90,6 +91,13 @@ function fmtDataHora(iso: string | null): string {
 }
 
 export function RoletaTab({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
+  if (slug === "marquinhos") {
+    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura} />;
+  }
+  return <RoletaTabPadrao slug={slug} somenteLeitura={somenteLeitura} />;
+}
+
+function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
@@ -658,3 +666,180 @@ function LimiteDialog({
     </Dialog>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Marquinhos — visão simplificada
+// Único critério gerenciável: Apto/Inapto (via pausar/reativar) + inclusão/remoção.
+// Mostra a quantidade de vendas no mês anterior como peso para calibragem futura.
+// ---------------------------------------------------------------------------
+
+const INAPTO_ATE = "2099-12-31T23:59:59.000Z";
+
+function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
+  const slug: RoletaSlug = "marquinhos";
+  const q = useElegibilidadeRoleta(slug);
+  const vendasQ = useVendasMesAnterior(true);
+  const gerenciar = useGerenciarParticipante();
+
+  const [incluirAberto, setIncluirAberto] = useState(false);
+  const [removerAlvo, setRemoverAlvo] = useState<ElegibilidadeLinha | null>(null);
+
+  const linhas = q.data ?? [];
+  const vendasMap = useMemo(
+    () => new Map((vendasQ.data ?? []).map((v) => [v.corretor_id, v])),
+    [vendasQ.data],
+  );
+
+  const toggleApto = (l: ElegibilidadeLinha, novoApto: boolean) => {
+    if (novoApto) {
+      gerenciar.mutate({
+        slug,
+        corretorId: l.corretor_id,
+        acao: "reativar",
+        motivo: "Marcado como Apto pela gestão",
+      });
+    } else {
+      gerenciar.mutate({
+        slug,
+        corretorId: l.corretor_id,
+        acao: "pausar",
+        motivo: "Marcado como Inapto pela gestão",
+        pausadoAte: INAPTO_ATE,
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          Gestão simples: inclua ou remova corretores e alterne Apto/Inapto. As vendas do mês
+          anterior ficam visíveis como peso — quanto maior, mais leads o corretor tende a receber
+          nas próximas rodadas.
+        </p>
+        {!somenteLeitura && (
+          <Button size="sm" onClick={() => setIncluirAberto(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardContent className="overflow-x-auto pt-4">
+          {q.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : linhas.length === 0 ? (
+            <EmptyState
+              icon={UserX}
+              title="Nenhum participante na Roleta Marquinhos"
+              description="Inclua corretores para começar a distribuir leads desta roleta."
+              action={
+                somenteLeitura ? undefined : (
+                  <Button size="sm" onClick={() => setIncluirAberto(true)}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
+                  </Button>
+                )
+              }
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Corretor</TableHead>
+                  <TableHead className="text-right">Vendas mês anterior</TableHead>
+                  <TableHead>Status</TableHead>
+                  {!somenteLeitura && <TableHead className="w-24 text-right">Ações</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.map((l) => {
+                  const venda = vendasMap.get(l.corretor_id);
+                  const apto = l.participante_ativo && !l.pausado;
+                  return (
+                    <TableRow key={l.corretor_id}>
+                      <TableCell className="font-medium">{l.nome}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <span className="font-semibold">{venda?.qtd ?? 0}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">venda(s)</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={apto}
+                            disabled={somenteLeitura || gerenciar.isPending}
+                            onCheckedChange={(v) => toggleApto(l, v)}
+                            aria-label={apto ? "Marcar como Inapto" : "Marcar como Apto"}
+                          />
+                          {apto ? (
+                            <StatusBadge intent="success">Apto</StatusBadge>
+                          ) : (
+                            <StatusBadge intent="neutral">Inapto</StatusBadge>
+                          )}
+                        </div>
+                      </TableCell>
+                      {!somenteLeitura && (
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-destructive hover:text-destructive"
+                            aria-label={`Remover ${l.nome}`}
+                            onClick={() => setRemoverAlvo(l)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <IncluirParticipanteDialog
+        slug={slug}
+        aberto={incluirAberto}
+        onFechar={() => setIncluirAberto(false)}
+        participantesAtuais={linhas}
+      />
+
+      <AlertDialog open={!!removerAlvo} onOpenChange={(o) => !o && setRemoverAlvo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover {removerAlvo?.nome} da Roleta Marquinhos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O corretor deixa de receber leads desta roleta imediatamente. A remoção fica
+              registrada na auditoria e pode ser desfeita incluindo-o novamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (removerAlvo) {
+                  gerenciar.mutate({
+                    slug,
+                    corretorId: removerAlvo.corretor_id,
+                    acao: "remover",
+                    motivo: "Removido pela gestão",
+                  });
+                }
+                setRemoverAlvo(null);
+              }}
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
