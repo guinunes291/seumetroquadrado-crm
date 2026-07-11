@@ -92,7 +92,7 @@ export async function finishSamiQExecution(args: {
     _input_tokens: Math.max(0, Math.round(args.inputTokens ?? 0)),
     _output_tokens: Math.max(0, Math.round(args.outputTokens ?? 0)),
     _latency_ms: Math.max(0, Math.round(args.latencyMs)),
-    _error_code: args.errorCode ?? null,
+    _error_code: args.errorCode ?? undefined,
   });
   return !error && data === true;
 }
