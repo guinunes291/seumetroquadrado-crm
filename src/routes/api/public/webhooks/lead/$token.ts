@@ -140,14 +140,59 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         }
         const data = parsed.data;
 
-        // Deduplicação: mesmo telefone (só dígitos) dentro do mesmo projeto.
-        const { data: dupId } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
-          _projeto_id: projeto.id,
-          _telefone: data.telefone,
-        });
-        if (dupId) {
+        // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
+        // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
+        // Precisa ser calculado antes do dedup para registrar o interesse
+        // correto na interação de duplicata cross-project.
+        const projetoNomeInteresse =
+          (data.empreendimento?.trim() || null) ??
+          (data.empreendimentoInteresse?.trim() || null) ??
+          projeto.nome;
+
+        // Deduplicação global por telefone (qualquer projeto, status <> perdido).
+        // Regra: pessoa com interesse em 2 empreendimentos é 1 lead com 2
+        // interesses — NÃO sobrescrevemos o projeto original; o novo interesse
+        // vira interação na timeline do lead existente.
+        const { data: dupGlobal } = await supabaseAdmin.rpc(
+          "buscar_lead_ativo_por_telefone_global",
+          { _telefone: data.telefone },
+        );
+        if (dupGlobal) {
+          const { data: leadExistente } = await supabaseAdmin
+            .from("leads")
+            .select("id, projeto_id, projeto_nome")
+            .eq("id", dupGlobal)
+            .maybeSingle();
+
+          const mesmoProjeto = leadExistente?.projeto_id === projeto.id;
+          const conteudo = mesmoProjeto
+            ? `Nova entrada pelo webhook (${data.origem}) — mesmo empreendimento.`
+            : `Novo interesse registrado: ${projetoNomeInteresse}. ` +
+              `Lead já em atendimento no projeto "${leadExistente?.projeto_nome ?? "?"}" — ` +
+              `mantido o corretor atual, apenas registrado o novo interesse.`;
+
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: dupGlobal,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: mesmoProjeto ? "Nova entrada (dedup)" : "Novo interesse (cross-project)",
+            conteudo,
+            metadata: {
+              fonte: "webhook_lead",
+              evento: "duplicata",
+              cross_project: !mesmoProjeto,
+              projeto_id_novo: projeto.id,
+              projeto_nome_novo: projetoNomeInteresse,
+              origem: data.origem,
+              campanha: data.campanha ?? null,
+              utm_source: data.utm_source ?? null,
+              utm_campaign: data.utm_campaign ?? null,
+              faixaRenda: data.faixaRenda ?? null,
+            },
+          });
+
           return Response.json(
-            { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId },
+            { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupGlobal },
             { headers: corsHeaders },
           );
         }
@@ -165,12 +210,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const fgtsTxt = (data.fgts ?? "").toLowerCase();
         const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
 
-        // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
-        // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
-        const projetoNomeFinal =
-          (data.empreendimento?.trim() || null) ??
-          (data.empreendimentoInteresse?.trim() || null) ??
-          projeto.nome;
+        const projetoNomeFinal = projetoNomeInteresse;
 
         // --- INSERT-THEN-TRIAGE (distribuição v3) ---
         // O lead nasce SEM corretor e passa pela triagem única

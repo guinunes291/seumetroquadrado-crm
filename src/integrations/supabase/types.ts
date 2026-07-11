@@ -4219,6 +4219,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      _auditar_redistribuicao: {
+        Args: {
+          _anterior: string
+          _lead_id: string
+          _motivo: string
+          _novo: string
+        }
+        Returns: undefined
+      }
+      _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
       _distribuir_lead_v3: {
         Args: {
           _contexto_extra?: Json
@@ -4254,8 +4264,16 @@ export type Database = {
           ultimo_lead_em: string
         }[]
       }
+      _escalar_lead_gestor: {
+        Args: { _lead_id: string; _tentativas: number }
+        Returns: undefined
+      }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
+      _notificar_handoff_novo_dono: {
+        Args: { _corretor_id: string; _lead_id: string; _motivo: string }
+        Returns: undefined
+      }
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
@@ -4349,6 +4367,7 @@ export type Database = {
         }
         Returns: string
       }
+      _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
       alertar_roletas_sem_apto: { Args: never; Returns: undefined }
       alertar_volume_desproporcional: { Args: never; Returns: undefined }
@@ -4517,6 +4536,10 @@ export type Database = {
           _wa?: number
         }
         Returns: undefined
+      }
+      buscar_lead_ativo_por_telefone_global: {
+        Args: { _telefone: string }
+        Returns: string
       }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
