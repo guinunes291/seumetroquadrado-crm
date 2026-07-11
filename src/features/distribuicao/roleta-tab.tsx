@@ -672,7 +672,6 @@ function LimiteDialog({
 // Único critério gerenciável: Apto/Inapto (via pausar/reativar) + inclusão/remoção.
 // Mostra a quantidade de vendas no mês anterior como peso para calibragem futura.
 // ---------------------------------------------------------------------------
-import { Switch } from "@/components/ui/switch";
 
 const INAPTO_ATE = "2099-12-31T23:59:59.000Z";
 
