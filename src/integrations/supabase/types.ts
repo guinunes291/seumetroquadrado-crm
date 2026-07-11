@@ -715,7 +715,15 @@ export type Database = {
           timeout_minutos?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "distribuicao_config_roleta_slug_fkey"
+            columns: ["roleta_slug"]
+            isOneToOne: false
+            referencedRelation: "roletas"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
       distribuicao_excecoes: {
         Row: {
@@ -1556,7 +1564,15 @@ export type Database = {
           utm_term?: string | null
           whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_landing_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       links_uteis: {
         Row: {
@@ -2157,9 +2173,12 @@ export type Database = {
       }
       push_outbox: {
         Row: {
+          attempts: number
           body: string
           created_at: string
           id: string
+          last_error: string | null
+          next_attempt_at: string | null
           sent_at: string | null
           tag: string | null
           title: string
@@ -2167,9 +2186,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attempts?: number
           body: string
           created_at?: string
           id?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
           sent_at?: string | null
           tag?: string | null
           title: string
@@ -2177,9 +2199,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attempts?: number
           body?: string
           created_at?: string
           id?: string
+          last_error?: string | null
+          next_attempt_at?: string | null
           sent_at?: string | null
           tag?: string | null
           title?: string
@@ -2263,17 +2288,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "roleta_participantes_roleta_id_fkey"
-            columns: ["roleta_id"]
-            isOneToOne: false
-            referencedRelation: "roletas"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "roleta_participantes_corretor_id_fkey"
             columns: ["corretor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_participantes_roleta_id_fkey"
+            columns: ["roleta_id"]
+            isOneToOne: false
+            referencedRelation: "roletas"
             referencedColumns: ["id"]
           },
         ]
@@ -2780,14 +2805,90 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_leads_telefone_duplicado: {
+        Row: {
+          lead_ids: string[] | null
+          projeto_id: string | null
+          qtd: number | null
+          telefone_digits: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
+      }
     }
     Functions: {
+      _alertar_gestores_distribuicao: {
+        Args: {
+          _link?: string
+          _mensagem: string
+          _ref: string
+          _titulo: string
+        }
+        Returns: undefined
+      }
+      _distribuir_lead_v3: {
+        Args: {
+          _contexto_extra?: Json
+          _corretor_id?: string
+          _distribuido_por?: string
+          _gatilho?: string
+          _lead_id: string
+          _registrar_excecao?: boolean
+          _roleta_slug?: string
+          _tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
+        }
+        Returns: Json
+      }
+      _elegibilidade_roleta: {
+        Args: { _corretor_id?: string; _slug: string }
+        Returns: {
+          aguardando: number
+          apto: boolean
+          carteira_total: number
+          corretor_id: string
+          incluido_em: string
+          incluido_por: string
+          limite_diario: number
+          motivo_pausa: string
+          motivos: string[]
+          nome: string
+          participante_ativo: boolean
+          pausado: boolean
+          pct_trabalhado: number
+          presente: boolean
+          recebidos_hoje: number
+          recebidos_mes: number
+          ultimo_lead_em: string
+        }[]
+      }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
           campanha: string | null
+          canal_entrada: string | null
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -2859,6 +2960,26 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      _registrar_excecao_distribuicao: {
+        Args: {
+          _contexto?: Json
+          _detalhe: string
+          _lead_id: string
+          _motivo: string
+          _roleta_slug: string
+        }
+        Returns: string
+      }
+      _resolver_roleta_lead: {
+        Args: {
+          _canal: string
+          _origem: Database["public"]["Enums"]["lead_origem"]
+        }
+        Returns: string
+      }
+      alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
+      alertar_roletas_sem_apto: { Args: never; Returns: undefined }
+      alertar_volume_desproporcional: { Args: never; Returns: undefined }
       arquivar_leads_sem_contato_30d: { Args: never; Returns: number }
       atribuir_lead_a_corretor: {
         Args: { _corretor_id: string; _lead_id: string }
@@ -2868,14 +2989,38 @@ export type Database = {
         Args: { _corretor_ids: string[]; _oferta_id: string }
         Returns: Json
       }
+      atualizar_distribuicao_config: {
+        Args: {
+          _limpar_roleta?: boolean
+          _limpar_timeout_minutos?: boolean
+          _origem: Database["public"]["Enums"]["lead_origem"]
+          _roleta_slug?: string
+          _sla_minutos?: number
+          _timeout_horas?: number
+          _timeout_minutos?: number
+        }
+        Returns: Json
+      }
       atualizar_distribuicao_setting: {
         Args: { _chave: string; _valor: Json }
+        Returns: Json
+      }
+      atualizar_roleta: {
+        Args: {
+          _ativo?: boolean
+          _exigir_presenca?: boolean
+          _horario_fim?: string
+          _horario_inicio?: string
+          _permitir_fora_horario?: boolean
+          _slug: string
+        }
         Returns: Json
       }
       buscar_lead_duplicado: {
         Args: { _projeto_id: string; _telefone: string }
         Returns: string
       }
+      buscar_lead_por_telefone: { Args: { _telefone: string }; Returns: string }
       copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
       copa_avancar_fase: { Args: never; Returns: string }
       copa_definir_vencedor: {
@@ -3098,10 +3243,10 @@ export type Database = {
           apto: boolean
           carteira_total: number
           corretor_id: string
-          incluido_em: string | null
-          incluido_por: string | null
+          incluido_em: string
+          incluido_por: string
           limite_diario: number
-          motivo_pausa: string | null
+          motivo_pausa: string
           motivos: string[]
           nome: string
           participante_ativo: boolean
@@ -3110,7 +3255,7 @@ export type Database = {
           presente: boolean
           recebidos_hoje: number
           recebidos_mes: number
-          ultimo_lead_em: string | null
+          ultimo_lead_em: string
         }[]
       }
       enqueue_push: {
@@ -3144,6 +3289,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
         Returns: string
@@ -3257,12 +3403,13 @@ export type Database = {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined
       }
-      minha_elegibilidade: { Args: never; Returns: Json }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
       }
+      minha_elegibilidade: { Args: never; Returns: Json }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
+      painel_distribuicao_resumo: { Args: never; Returns: Json }
       pode_escrever: {
         Args: { _acao: string; _agente: string }
         Returns: boolean
@@ -3271,12 +3418,16 @@ export type Database = {
         Args: { _corretor?: string; _filtros: Json }
         Returns: Json
       }
-      painel_distribuicao_resumo: { Args: never; Returns: Json }
       processar_distribuicao_automatica: { Args: never; Returns: Json }
-      reprocessar_excecao: { Args: { _excecao_id: string }; Returns: Json }
-      resolver_excecao: {
-        Args: { _acao: string; _excecao_id: string; _params?: Json }
-        Returns: Json
+      produtividade_corretores: {
+        Args: never
+        Returns: {
+          aguardando: number
+          corretor_id: string
+          elegivel: boolean
+          pct_trabalhado: number
+          total_ativos: number
+        }[]
       }
       recalcular_temperatura_leads: { Args: never; Returns: number }
       redistribuir_leads_parados: { Args: never; Returns: number }
@@ -3320,14 +3471,20 @@ export type Database = {
           p50_horas: number
         }[]
       }
+      reprocessar_excecao: { Args: { _excecao_id: string }; Returns: Json }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
       resetar_presenca_diaria: { Args: never; Returns: undefined }
+      resolver_excecao: {
+        Args: { _acao: string; _excecao_id: string; _params?: Json }
+        Returns: Json
+      }
       restaurar_registro: {
         Args: { _id: string; _tabela: string }
         Returns: boolean
       }
       set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
       sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
+      telefone_digits: { Args: { _telefone: string }; Returns: string }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
@@ -3338,13 +3495,13 @@ export type Database = {
           tempo_medio_min: number
         }[]
       }
-      triar_e_distribuir_lead: {
-        Args: { _gatilho?: string; _lead_id: string }
-        Returns: Json
-      }
       transferir_leads: {
         Args: { _corretor: string; _ids: string[] }
         Returns: number
+      }
+      triar_e_distribuir_lead: {
+        Args: { _gatilho?: string; _lead_id: string }
+        Returns: Json
       }
       vendas_mes_anterior: {
         Args: never
