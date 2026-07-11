@@ -16,10 +16,10 @@ export async function transicionarLead(input: TransicionarLeadInput) {
   const template = followUpParaStatus(input.status, { nome: input.nome });
   const { data, error } = await supabase.rpc("transicionar_lead", {
     p_lead_id: input.id,
-    p_motivo: input.motivo ?? null,
+    p_motivo: input.motivo ?? undefined,
     p_novo_status: input.status,
-    p_proxima_acao: input.proximaAcao ?? template?.titulo ?? null,
-    p_proximo_followup: input.proximoFollowup ?? template?.vencimento ?? null,
+    p_proxima_acao: input.proximaAcao ?? template?.titulo ?? undefined,
+    p_proximo_followup: input.proximoFollowup ?? template?.vencimento ?? undefined,
   });
   if (error) throw error;
   return data;
