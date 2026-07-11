@@ -214,8 +214,38 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         }
         if (!leadRes.data) return jsonResponse({ error: "lead não encontrado" }, 404);
 
+        const leadRow = leadRes.data as unknown as Record<string, unknown>;
+
+        // Enriquecimento com dados do corretor no NÍVEL RAIZ do JSON do lead.
+        // Telefone normalizado (só dígitos com DDI 55). Null quando o lead não
+        // tem corretor ou o profile não puder ser lido.
+        let corretorNome: string | null = null;
+        let corretorTelefone: string | null = null;
+        let corretorEmail: string | null = null;
+        const corretorId = (leadRow.corretor_id as string | null) ?? null;
+        if (corretorId) {
+          const { data: cor } = await supabaseAdmin
+            .from("profiles")
+            .select("nome, email, telefone")
+            .eq("id", corretorId)
+            .maybeSingle();
+          if (cor) {
+            corretorNome = (cor.nome as string | null) ?? null;
+            corretorEmail = (cor.email as string | null) ?? null;
+            const d = ((cor.telefone as string | null) ?? "").replace(/\D/g, "");
+            if (d) corretorTelefone = d.startsWith("55") ? d : `55${d}`;
+          }
+        }
+
+        const leadShaped = shapeLeadForPublic(leadRow);
         return jsonResponse({
-          lead: shapeLeadForPublic(leadRes.data as unknown as Record<string, unknown>),
+          lead: {
+            ...leadShaped,
+            corretor_id: corretorId,
+            corretor_nome: corretorNome,
+            corretor_telefone: corretorTelefone,
+            corretor_email: corretorEmail,
+          },
           interacoes: interRes.data ?? [],
         });
       },
