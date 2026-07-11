@@ -210,12 +210,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const fgtsTxt = (data.fgts ?? "").toLowerCase();
         const usaFgts = data.fgts ? !/^(nao|não|sem|n\/a|0)/i.test(fgtsTxt.trim()) : false;
 
-        // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
-        // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
-        const projetoNomeFinal =
-          (data.empreendimento?.trim() || null) ??
-          (data.empreendimentoInteresse?.trim() || null) ??
-          projeto.nome;
+        const projetoNomeFinal = projetoNomeInteresse;
 
         // --- INSERT-THEN-TRIAGE (distribuição v3) ---
         // O lead nasce SEM corretor e passa pela triagem única
