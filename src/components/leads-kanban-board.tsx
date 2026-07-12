@@ -208,6 +208,10 @@ export function KanbanBoard() {
     }
   };
 
+  // SLA de toda a organização é caro; serve só para o badge dos cards. Em vez de
+  // refazer essa query a cada mudança em `leads` (realtime) ou a cada card
+  // movido, atualizamos por poll (o SLA é um contador de minutos — 2min de
+  // granularidade é suficiente). Isso tira a query mais pesada do caminho quente.
   const { data: slaRows } = useQuery({
     queryKey: ["leads-sla"],
     queryFn: async () => {
@@ -215,7 +219,8 @@ export function KanbanBoard() {
       if (error) throw error;
       return (data ?? []) as SlaRow[];
     },
-    staleTime: 60_000,
+    staleTime: 120_000,
+    refetchInterval: 120_000,
   });
 
   const slaMap = useMemo(() => {
@@ -225,14 +230,16 @@ export function KanbanBoard() {
   }, [slaRows]);
   const transferTimeouts = useTransferTimeouts();
 
-  // Substitui polling por realtime
-  useRealtimeInvalidate("leads", [["pipeline-stage-v2"], ["pipeline-snapshot-v2"], ["leads-sla"]]);
+  // Realtime só reidrata as páginas/contagens do quadro. O SLA (query pesada de
+  // toda a org) fica fora daqui — atualiza por poll — para não refazê-lo a cada
+  // mudança em `leads`.
+  useRealtimeInvalidate("leads", [["pipeline-stage-v2"], ["pipeline-snapshot-v2"]]);
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
 
   const updateStatus = useLeadStatusMutation({
-    invalidateKeys: [["pipeline-stage-v2"], ["pipeline-snapshot-v2"], ["leads-sla"]],
+    invalidateKeys: [["pipeline-stage-v2"], ["pipeline-snapshot-v2"]],
     onSuccess: (vars) => {
       setExtraPages({});
       const nome = leads.find((lead) => lead.id === vars.id)?.nome ?? "Lead";
