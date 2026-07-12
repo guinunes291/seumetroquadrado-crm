@@ -23,7 +23,12 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Antecipa o chunk + dados da rota ao passar o mouse/tocar no link, deixando
+    // a troca de página quase instantânea. O staleTime não-zero garante que o
+    // match preloaded (incluindo o beforeLoad do guard, que chama
+    // conta_atual_ativa) seja reaproveitado — sem re-rodar o guard a cada hover.
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 30_000,
   });
 
   return router;
