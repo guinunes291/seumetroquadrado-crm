@@ -3,8 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Range = { di: string | null; df: string | null };
 
-const rpc = (name: string, args: Record<string, unknown>) =>
-  (supabase as any).rpc(name, args);
+const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).rpc(name, args);
 
 export function useDashboardKpis(range: Range, corretor: string | null, enabled = true) {
   return useQuery({
@@ -145,6 +144,7 @@ export function useLeadsComSla(corretor: string | null, enabled = true) {
       if (error) throw error;
       return (data ?? []) as Array<{
         lead_id: string;
+        corretor_id: string | null;
         nome: string;
         telefone: string | null;
         status: string;
