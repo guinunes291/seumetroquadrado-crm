@@ -695,7 +695,11 @@ function LeadsPage() {
     enabled: canManage || !!user?.id,
   });
 
-  useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]]);
+  // Corretor só precisa acordar com mudanças da própria carteira; gestor/admin
+  // veem tudo, então não filtram. O debounce do hook coalesce rajadas.
+  useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]], {
+    filter: !canManage && user?.id ? `corretor_id=eq.${user.id}` : undefined,
+  });
 
   // Contagens reais por status — respeita filtros e usa data_assinatura para Venda.
   const {
