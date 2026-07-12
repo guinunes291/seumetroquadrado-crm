@@ -2,7 +2,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -93,21 +93,62 @@ function saudacao(): string {
 
 function CommandCenterPage() {
   const { user } = useAuth();
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
   const { di, df } = useMemo(() => intervalo(periodo), [periodo]);
 
-  const atividadesQ = useQuery({
-    queryKey: ["meu-painel:atividades", user?.id, di, df],
-    enabled: !!user,
+  // Escopo da tela: "minha" (carteira do usuário) x "operacao" (visão gerencial).
+  // admin/superintendente veem TUDO; gestor vê a própria equipe; corretor só
+  // tem "minha". Default é "operacao" para quem pode — o admin abre a Hoje e vê
+  // a operação, não um dia pessoal vazio.
+  const podeOperacao = isAdmin || isSuperintendente || isGestor;
+  const [escopoManual, setEscopoManual] = useState<"minha" | "operacao" | null>(null);
+  const escopo: "minha" | "operacao" = escopoManual ?? (podeOperacao ? "operacao" : "minha");
+
+  // Corretores da equipe do gestor (inclui ele mesmo). Só busca quando um gestor
+  // sem papel global está na visão de operação.
+  const precisaEquipe = escopo === "operacao" && isGestor && !isAdmin && !isSuperintendente;
+  const { data: equipeCorretorIds } = useQuery({
+    queryKey: ["hoje:equipe-corretores", user?.id],
+    enabled: !!user && precisaEquipe,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: equipes } = await supabase
+        .from("equipes")
+        .select("id")
+        .eq("gestor_id", user!.id);
+      const equipeIds = (equipes ?? []).map((e) => e.id);
+      if (equipeIds.length === 0) return [user!.id];
+      const { data: membros } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("equipe_id", equipeIds);
+      return Array.from(new Set([user!.id, ...(membros ?? []).map((m) => m.id)]));
+    },
+  });
+
+  // null = sem filtro de corretor (toda a operação); array = restringe a esses ids.
+  const scopeIds = useMemo<string[] | null>(() => {
+    if (escopo === "minha") return user?.id ? [user.id] : [];
+    if (isAdmin || isSuperintendente) return null;
+    return equipeCorretorIds ?? (user?.id ? [user.id] : []);
+  }, [escopo, isAdmin, isSuperintendente, equipeCorretorIds, user?.id]);
+  const scopeKey = scopeIds ? scopeIds.join(",") : "operacao:all";
+  // Evita disparar as queries com escopo incompleto (gestor esperando a equipe).
+  const scopeReady = !precisaEquipe || equipeCorretorIds !== undefined;
+
+  const atividadesQ = useQuery({
+    queryKey: ["meu-painel:atividades", scopeKey, di, df],
+    enabled: !!user && scopeReady,
+    queryFn: async () => {
+      let q = supabase
         .from("atividades_diarias" as never)
         .select(
           "dia, ligacoes, whatsapps, agendamentos, visitas, documentacoes, vendas, vgv_dia, pontuacao_total",
         )
-        .eq("corretor_id", user!.id)
         .gte("dia", di)
         .lte("dia", df);
+      if (scopeIds) q = q.in("corretor_id", scopeIds);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Atividade[];
     },
@@ -115,18 +156,19 @@ function CommandCenterPage() {
 
   // Streak: últimos 35 dias de atividade (independente do filtro de período).
   const streakQ = useQuery({
-    queryKey: ["meu-painel:streak", user?.id],
-    enabled: !!user,
+    queryKey: ["meu-painel:streak", scopeKey],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
       const ini = new Date();
       ini.setDate(ini.getDate() - 35);
-      const { data, error } = await supabase
+      let q = supabase
         .from("atividades_diarias" as never)
         .select(
           "dia, ligacoes, whatsapps, agendamentos, visitas, documentacoes, vendas, pontuacao_total",
         )
-        .eq("corretor_id", user!.id)
         .gte("dia", toDate(ini));
+      if (scopeIds) q = q.in("corretor_id", scopeIds);
+      const { data, error } = await q;
       if (error) throw error;
       const rows = (data ?? []) as unknown as Atividade[];
       const ativos = rows
@@ -146,28 +188,47 @@ function CommandCenterPage() {
     },
   });
 
+  // Metas: em "minha" é a meta do usuário; em "operacao" é a SOMA das metas de
+  // todos os corretores no escopo (a meta agregada do dia da operação/equipe).
   const metaQ = useQuery({
-    queryKey: ["meu-painel:meta", user?.id],
-    enabled: !!user,
+    queryKey: ["meu-painel:meta", scopeKey],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("metas_diarias" as never)
-        .select("meta_ligacoes, meta_whatsapps, meta_agendamentos, meta_visitas, meta_vendas")
-        .eq("corretor_id", user!.id)
-        .maybeSingle();
-      return (data ?? null) as unknown as MetaDiaria | null;
+        .select("meta_ligacoes, meta_whatsapps, meta_agendamentos, meta_visitas, meta_vendas");
+      if (scopeIds) q = q.in("corretor_id", scopeIds);
+      const { data, error } = await q;
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as MetaDiaria[];
+      if (rows.length === 0) return null;
+      return rows.reduce<MetaDiaria>(
+        (acc, r) => ({
+          meta_ligacoes: acc.meta_ligacoes + (r.meta_ligacoes ?? 0),
+          meta_whatsapps: acc.meta_whatsapps + (r.meta_whatsapps ?? 0),
+          meta_agendamentos: acc.meta_agendamentos + (r.meta_agendamentos ?? 0),
+          meta_visitas: acc.meta_visitas + (r.meta_visitas ?? 0),
+          meta_vendas: acc.meta_vendas + (r.meta_vendas ?? 0),
+        }),
+        {
+          meta_ligacoes: 0,
+          meta_whatsapps: 0,
+          meta_agendamentos: 0,
+          meta_visitas: 0,
+          meta_vendas: 0,
+        },
+      );
     },
   });
 
   const conquistasQ = useQuery({
-    queryKey: ["meu-painel:conquistas", user?.id],
-    enabled: !!user,
+    queryKey: ["meu-painel:conquistas", scopeKey],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
+      let ganhasQ = supabase.from("conquistas" as never).select("id");
+      if (scopeIds) ganhasQ = ganhasQ.in("corretor_id", scopeIds);
       const [minhas, tipos] = await Promise.all([
-        supabase
-          .from("conquistas" as never)
-          .select("id")
-          .eq("corretor_id", user!.id),
+        ganhasQ,
         supabase
           .from("tipos_conquista" as never)
           .select("id")
@@ -191,40 +252,56 @@ function CommandCenterPage() {
 
   // Leads com SLA estourado (Facebook e leads chegados pelo webhook: 5min;
   // demais: 30min — prazo efetivo calculado por leads_com_sla).
-  const slaQ = useLeadsComSla(user?.id ?? null, !!user);
+  // Em "minha" pedimos o SLA do próprio usuário; em "operacao" pedimos sem
+  // filtro (a RPC devolve tudo que o papel pode ver) e restringimos ao escopo
+  // no cliente via slaRows (necessário p/ o gestor ver só a própria equipe).
+  const slaQ = useLeadsComSla(escopo === "minha" ? (user?.id ?? null) : null, !!user);
+  const slaRows = useMemo(() => {
+    const rows = slaQ.data ?? [];
+    // Só filtramos no cliente na visão de operação de um gestor (subconjunto de
+    // corretores). Em "minha" a RPC já veio escopada pelo _corretor, e o admin
+    // (scopeIds=null) vê tudo — nesses casos não filtramos, o que também evita
+    // depender da coluna corretor_id já estar no banco: se a migration que a
+    // acrescenta ainda não foi aplicada, o SLA pessoal/geral continua funcionando.
+    if (escopo === "minha" || !scopeIds) return rows;
+    const set = new Set(scopeIds);
+    return rows.filter((r) => r.corretor_id && set.has(r.corretor_id));
+  }, [slaQ.data, scopeIds, escopo]);
 
-  // Leads quentes do corretor que ainda estão no funil ativo (prioridade nº 1).
+  // Leads quentes no escopo que ainda estão no funil ativo (prioridade nº 1).
   const quentesQ = useQuery({
-    queryKey: ["meu-dia:quentes", user?.id],
-    enabled: !!user,
+    queryKey: ["meu-dia:quentes", scopeKey],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("leads")
         .select("id, nome, telefone, status, ultima_interacao, projeto_nome")
-        .eq("corretor_id", user!.id)
         .eq("na_lixeira", false)
         .eq("temperatura", "quente")
         .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
         .order("ultima_interacao", { ascending: true, nullsFirst: true })
         .limit(10);
+      if (scopeIds) q = q.in("corretor_id", scopeIds);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // Agendamentos de hoje do corretor (visitas/reuniões), exceto cancelados/concluídos.
+  // Agendamentos de hoje no escopo (visitas/reuniões), exceto cancelados/concluídos.
   const agendaQ = useQuery({
-    queryKey: ["meu-dia:agenda", user?.id, hoje.ini],
-    enabled: !!user,
+    queryKey: ["meu-dia:agenda", scopeKey, hoje.ini],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("agendamentos")
         .select("id, titulo, data_inicio, tipo, status, local, lead_id")
-        .eq("corretor_id", user!.id)
         .gte("data_inicio", hoje.ini)
         .lte("data_inicio", hoje.fim)
         .not("status", "in", "(cancelado,realizado,nao_compareceu)")
         .order("data_inicio", { ascending: true });
+      if (scopeIds) q = q.in("corretor_id", scopeIds);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
@@ -232,17 +309,18 @@ function CommandCenterPage() {
 
   // Tarefas e follow-ups pendentes (vencendo hoje, atrasados ou sem prazo).
   const tarefasQ = useQuery({
-    queryKey: ["meu-dia:tarefas", user?.id, hoje.fim],
-    enabled: !!user,
+    queryKey: ["meu-dia:tarefas", scopeKey, hoje.fim],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("tarefas")
         .select("id, titulo, tipo, prioridade, status, data_vencimento, lead_id")
-        .eq("corretor_id", user!.id)
         .in("status", ["pendente", "em_andamento"])
         .or(`data_vencimento.lte.${hoje.fim},data_vencimento.is.null`)
         .order("data_vencimento", { ascending: true, nullsFirst: false })
         .limit(30);
+      if (scopeIds) q = q.in("corretor_id", scopeIds);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
@@ -268,36 +346,37 @@ function CommandCenterPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Guardrail anti-perda: leads ativos do corretor SEM próxima ação — nenhuma
+  // Guardrail anti-perda: leads ativos no escopo SEM próxima ação — nenhuma
   // tarefa aberta, nenhum agendamento futuro e sem follow-up agendado. São os que
   // silenciosamente esfriam. Ordenados pelo Score de prioridade.
   const semAcaoQ = useQuery({
-    queryKey: ["meu-dia:sem-acao", user?.id],
-    enabled: !!user,
+    queryKey: ["meu-dia:sem-acao", scopeKey],
+    enabled: !!user && scopeReady,
     queryFn: async () => {
       const nowIso = new Date().toISOString();
-      const [leadsR, tarefasR, agendaR] = await Promise.all([
-        supabase
-          .from("leads")
-          .select("id, nome, telefone, status, temperatura, proximo_followup, ultima_interacao")
-          .eq("corretor_id", user!.id)
-          .eq("na_lixeira", false)
-          .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
-          .limit(300),
-        supabase
-          .from("tarefas")
-          .select("lead_id")
-          .eq("corretor_id", user!.id)
-          .in("status", ["pendente", "em_andamento"])
-          .not("lead_id", "is", null),
-        supabase
-          .from("agendamentos")
-          .select("lead_id")
-          .eq("corretor_id", user!.id)
-          .gte("data_inicio", nowIso)
-          .not("status", "in", "(cancelado,realizado,nao_compareceu)")
-          .not("lead_id", "is", null),
-      ]);
+      let leadsReq = supabase
+        .from("leads")
+        .select("id, nome, telefone, status, temperatura, proximo_followup, ultima_interacao")
+        .eq("na_lixeira", false)
+        .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
+        .limit(300);
+      let tarefasReq = supabase
+        .from("tarefas")
+        .select("lead_id")
+        .in("status", ["pendente", "em_andamento"])
+        .not("lead_id", "is", null);
+      let agendaReq = supabase
+        .from("agendamentos")
+        .select("lead_id")
+        .gte("data_inicio", nowIso)
+        .not("status", "in", "(cancelado,realizado,nao_compareceu)")
+        .not("lead_id", "is", null);
+      if (scopeIds) {
+        leadsReq = leadsReq.in("corretor_id", scopeIds);
+        tarefasReq = tarefasReq.in("corretor_id", scopeIds);
+        agendaReq = agendaReq.in("corretor_id", scopeIds);
+      }
+      const [leadsR, tarefasR, agendaR] = await Promise.all([leadsReq, tarefasReq, agendaReq]);
       if (leadsR.error) throw leadsR.error;
       if (tarefasR.error) throw tarefasR.error;
       if (agendaR.error) throw agendaR.error;
@@ -444,7 +523,7 @@ function CommandCenterPage() {
   const missoes = useMemo(
     () =>
       buildMissionQueue({
-        sla: (slaQ.data ?? []).map((l) => ({
+        sla: slaRows.map((l) => ({
           lead_id: l.lead_id,
           nome: l.nome,
           telefone: l.telefone,
@@ -455,11 +534,11 @@ function CommandCenterPage() {
         quentes: quentesQ.data ?? [],
         semAcao: semAcaoQ.data ?? [],
       }),
-    [slaQ.data, quentesQ.data, semAcaoQ.data],
+    [slaRows, quentesQ.data, semAcaoQ.data],
   );
   const slaEstourados = useMemo(
-    () => (slaQ.data ?? []).filter((r) => r.sla_status === "estourado").length,
-    [slaQ.data],
+    () => slaRows.filter((r) => r.sla_status === "estourado").length,
+    [slaRows],
   );
   const semAcaoCount = semAcaoQ.data?.length ?? 0;
 
@@ -486,7 +565,27 @@ function CommandCenterPage() {
     <div className="space-y-6">
       <PageHeader
         title="Central de Comando"
-        description={`${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`}
+        description={
+          escopo === "operacao"
+            ? `${saudacao()}, ${primeiroNome} — a operação de hoje em ordem de prioridade.`
+            : `${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`
+        }
+        actions={
+          podeOperacao ? (
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              {(["operacao", "minha"] as const).map((e) => (
+                <Button
+                  key={e}
+                  size="sm"
+                  variant={escopo === e ? "default" : "ghost"}
+                  onClick={() => setEscopoManual(e)}
+                >
+                  {e === "operacao" ? "Operação" : "Minha"}
+                </Button>
+              ))}
+            </div>
+          ) : undefined
+        }
       />
 
       {/* ----- Hero: a próxima melhor ação, executável em 1 clique ----- */}
@@ -728,7 +827,7 @@ function CommandCenterPage() {
       {/* ----- Minha produtividade ----- */}
       <SectionHeader
         eyebrow="Desempenho"
-        title="Minha produtividade"
+        title={escopo === "operacao" ? "Produtividade da operação" : "Minha produtividade"}
         action={
           <div className="inline-flex rounded-md border bg-card p-0.5">
             {(["hoje", "semana", "mes"] as const).map((p) => (
@@ -846,7 +945,7 @@ function CommandCenterPage() {
         })}
       </div>
 
-      {!metaQ.data && (
+      {escopo === "minha" && !metaQ.data && (
         <p className="text-sm text-muted-foreground">
           Defina suas metas diárias para acompanhar o progresso (peça ao gestor em “Metas”).
         </p>
