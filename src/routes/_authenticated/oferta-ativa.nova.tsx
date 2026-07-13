@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -180,7 +182,7 @@ function NovaOfertaPage() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/oferta-ativa">
+          <Link to="/oferta-ativa" aria-label="Voltar para Oferta Ativa">
             <ArrowLeft className="w-4 h-4" />
           </Link>
         </Button>
@@ -190,8 +192,9 @@ function NovaOfertaPage() {
       <div className="bg-card border rounded-xl p-6 space-y-6">
         <div className="space-y-4">
           <div>
-            <Label>Nome da Lista *</Label>
+            <Label htmlFor="oa-nome">Nome da Lista *</Label>
             <Input
+              id="oa-nome"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Ex: Leads quentes terça 20/05"
@@ -199,8 +202,9 @@ function NovaOfertaPage() {
             />
           </div>
           <div>
-            <Label>Descrição (opcional)</Label>
+            <Label htmlFor="oa-descricao">Descrição (opcional)</Label>
             <Input
+              id="oa-descricao"
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               placeholder="Objetivo da campanha..."
@@ -209,12 +213,12 @@ function NovaOfertaPage() {
           </div>
           {canManage && (
             <div>
-              <Label>Corretor destinatário</Label>
+              <Label htmlFor="oa-corretor">Corretor destinatário</Label>
               <Select
                 value={corretorId ?? "all"}
                 onValueChange={(v) => setCorretorId(v === "all" ? undefined : v)}
               >
-                <SelectTrigger className="mt-1">
+                <SelectTrigger id="oa-corretor" className="mt-1">
                   <SelectValue placeholder="Carteira geral (sem dono)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,6 +230,18 @@ function NovaOfertaPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {corretoresQ.isError && (
+                <p role="alert" className="text-xs text-destructive mt-1">
+                  Não foi possível carregar os corretores.{" "}
+                  <button
+                    type="button"
+                    className="underline hover:text-foreground"
+                    onClick={() => corretoresQ.refetch()}
+                  >
+                    Tentar novamente
+                  </button>
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
                 Define quem será o dono desta lista. Não filtra os leads — use os filtros abaixo
                 para escolher quais leads entram.
@@ -314,6 +330,25 @@ function NovaOfertaPage() {
               </p>
             </div>
 
+            {projetosQ.isLoading && (
+              <div aria-busy="true">
+                <Label className="text-sm font-medium">Projetos</Label>
+                <Skeleton className="mt-2 h-24 w-full rounded-md" />
+              </div>
+            )}
+
+            {projetosQ.isError && (
+              <div>
+                <Label className="text-sm font-medium">Projetos</Label>
+                <QueryErrorState
+                  title="Não foi possível carregar os projetos."
+                  error={projetosQ.error}
+                  onRetry={() => projetosQ.refetch()}
+                  className="mt-2 py-6"
+                />
+              </div>
+            )}
+
             {projetosQ.data && projetosQ.data.length > 0 && (
               <div>
                 <Label className="text-sm font-medium">Projetos</Label>
@@ -356,8 +391,11 @@ function NovaOfertaPage() {
             )}
 
             <div>
-              <Label className="text-sm font-medium">Sem interação há (dias)</Label>
+              <Label htmlFor="oa-sem-interacao" className="text-sm font-medium">
+                Sem interação há (dias)
+              </Label>
               <Input
+                id="oa-sem-interacao"
                 type="number"
                 min={0}
                 value={filtros.semInteracaoHaDias ?? ""}
@@ -379,6 +417,19 @@ function NovaOfertaPage() {
           {previewQ.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" /> Calculando...
+            </div>
+          ) : previewQ.isError ? (
+            <div role="alert" className="text-sm">
+              <p className="font-medium text-destructive">
+                Não foi possível calcular a contagem de leads.
+              </p>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+                onClick={() => previewQ.refetch()}
+              >
+                Tentar novamente
+              </button>
             </div>
           ) : previewQ.data ? (
             <div>
@@ -409,19 +460,10 @@ function NovaOfertaPage() {
             </Button>
             <Button
               onClick={() => createM.mutate()}
-              disabled={
-                nome.trim().length < 2 || createM.isPending || (previewQ.data?.count ?? 0) === 0
-              }
+              loading={createM.isPending}
+              disabled={nome.trim().length < 2 || (previewQ.data?.count ?? 0) === 0}
             >
-              {createM.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Criando...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" /> Criar Lista
-                </>
-              )}
+              {!createM.isPending && <Plus className="w-4 h-4 mr-2" />} Criar Lista
             </Button>
           </div>
         </div>

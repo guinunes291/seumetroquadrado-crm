@@ -3,18 +3,13 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useUserRoles } from "@/hooks/use-auth";
 import { INTENT_BADGE } from "@/lib/status-tones";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
-import {
-  Webhook,
-  MessageCircle,
-  Lock,
-  User as UserIcon,
-  BellRing,
-} from "lucide-react";
+import { Webhook, MessageCircle, Lock, User as UserIcon, BellRing } from "lucide-react";
 
 type ConfigTab = "integracoes" | "preferencias";
 
@@ -27,12 +22,31 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
 });
 
 function ConfiguracoesPage() {
-  const { isAdmin } = useUserRoles();
+  const { isAdmin, loading: rolesLoading } = useUserRoles();
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const activeTab: ConfigTab = tab ?? "integracoes";
   const onTabChange = (v: string) =>
     navigate({ search: { tab: v === "preferencias" ? "preferencias" : undefined } });
+
+  // Espera os papéis carregarem para não piscar "Acesso restrito" para o admin.
+  if (rolesLoading) {
+    return (
+      <div
+        className="space-y-6"
+        role="status"
+        aria-busy="true"
+        aria-label="Carregando configurações"
+      >
+        <Skeleton className="h-14 w-full max-w-md rounded-md" />
+        <Skeleton className="h-10 w-64 rounded-md" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-36 rounded-xl" />
+          <Skeleton className="h-36 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
@@ -46,10 +60,7 @@ function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Configurações"
-        description="Integrações externas e preferências do CRM."
-      />
+      <PageHeader title="Configurações" description="Integrações externas e preferências do CRM." />
       <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
@@ -66,9 +77,9 @@ function ConfiguracoesPage() {
                 <Badge className={INTENT_BADGE.success}>Ativo</Badge>
               </CardTitle>
               <CardDescription>
-                Captação de leads via webhook por projeto (token dedicado), webhook de
-                landing pages e API de leitura (leads, corretores, vendas, comissões,
-                projetos e métricas) sob <code>/api/public</code>.
+                Captação de leads via webhook por projeto (token dedicado), webhook de landing pages
+                e API de leitura (leads, corretores, vendas, comissões, projetos e métricas) sob{" "}
+                <code>/api/public</code>.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -80,9 +91,9 @@ function ConfiguracoesPage() {
                 <Badge className={INTENT_BADGE.success}>Ativo</Badge>
               </CardTitle>
               <CardDescription>
-                Notificações automáticas ao corretor no recebimento e na transferência de
-                leads. Os envios manuais usam links wa.me com mensagem pré-preenchida e
-                registram a interação na timeline do lead.
+                Notificações automáticas ao corretor no recebimento e na transferência de leads. Os
+                envios manuais usam links wa.me com mensagem pré-preenchida e registram a interação
+                na timeline do lead.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -111,9 +122,8 @@ function ConfiguracoesPage() {
                 <BellRing className="h-4 w-4 text-info" /> Notificações
               </CardTitle>
               <CardDescription>
-                Alertas de SLA, leads parados e lembretes de visita são gerados
-                automaticamente e aparecem no sino do topo. Push no celular é ativado por
-                usuário no perfil.
+                Alertas de SLA, leads parados e lembretes de visita são gerados automaticamente e
+                aparecem no sino do topo. Push no celular é ativado por usuário no perfil.
               </CardDescription>
             </CardHeader>
           </Card>

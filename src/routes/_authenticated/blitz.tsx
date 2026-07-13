@@ -7,7 +7,10 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import {
@@ -282,14 +285,46 @@ function BlitzPage() {
         </div>
       )}
 
-      {!current ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
-            <Inbox className="h-10 w-10" />
-            <div className="font-medium">Sua fila está vazia</div>
-            <div className="text-sm">Nenhum lead ativo atribuído a você no momento.</div>
+      {leadsQ.isError ? (
+        <QueryErrorState
+          title="Não foi possível carregar sua fila do Blitz."
+          error={leadsQ.error}
+          onRetry={() => leadsQ.refetch()}
+          className="mx-auto max-w-4xl"
+        />
+      ) : leadsQ.isLoading ? (
+        <Card className="mx-auto max-w-4xl">
+          <CardContent className="space-y-6 p-6 md:p-8" aria-busy="true">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+            </div>
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-9 w-full" />
           </CardContent>
         </Card>
+      ) : !current ? (
+        <EmptyState
+          icon={Inbox}
+          title="Sua fila está vazia"
+          description="Nenhum lead ativo atribuído a você no momento. Novos leads entram aqui automaticamente."
+          action={
+            <Button asChild variant="outline">
+              <Link to="/leads">Ir para Meus Leads</Link>
+            </Button>
+          }
+          className="py-16"
+        />
       ) : (
         <Card className="mx-auto max-w-4xl">
           <CardContent className="space-y-6 p-6 md:p-8">

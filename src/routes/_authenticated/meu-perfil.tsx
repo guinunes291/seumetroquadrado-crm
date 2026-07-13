@@ -4,10 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { PushOptInCard } from "@/components/push-opt-in-banner";
@@ -120,133 +122,156 @@ function MeuPerfilPage() {
     <div className="max-w-2xl">
       <PageHeader title="Meu perfil" description="Atualize seus dados de cadastro e senha." />
 
-      <Card className="mb-4 border-primary/30">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center justify-between">
-            <span>Presença de hoje</span>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}
+      {/* Erro na busca do perfil NÃO pode virar formulário em branco: o corretor
+          poderia "salvar" campos vazios por cima dos dados reais. */}
+      <AsyncBoundary
+        isLoading={perfilQuery.isLoading}
+        isError={perfilQuery.isError}
+        error={perfilQuery.error}
+        errorTitle="Não foi possível carregar seu perfil."
+        onRetry={() => void perfilQuery.refetch()}
+        loadingLabel="Carregando perfil"
+        loadingFallback={
+          <div className="space-y-4">
+            <Skeleton className="h-28 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-72 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+          </div>
+        }
+      >
+        <Card className="mb-4 border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Presença de hoje</span>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground"}`}
+              >
+                {presenteHoje ? "Presente" : "Ausente"}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <div className="text-sm text-muted-foreground">
+              {presenteHoje
+                ? `Você marcou presença ${perfilQuery.data?.presente_em ? "às " + new Date(perfilQuery.data.presente_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "hoje"}. Você está elegível para receber leads da roleta automática.`
+                : "Marque presença para entrar na roleta de distribuição automática de leads. A presença é resetada todos os dias."}
+            </div>
+            <Button
+              size="sm"
+              variant={presenteHoje ? "outline" : "default"}
+              loading={togglePresenca.isPending}
+              onClick={() => togglePresenca.mutate(!presenteHoje)}
             >
-              {presenteHoje ? "Presente" : "Ausente"}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <div className="text-sm text-muted-foreground">
-            {presenteHoje
-              ? `Você marcou presença ${perfilQuery.data?.presente_em ? "às " + new Date(perfilQuery.data.presente_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "hoje"}. Você está elegível para receber leads da roleta automática.`
-              : "Marque presença para entrar na roleta de distribuição automática de leads. A presença é resetada todos os dias."}
-          </div>
-          <Button
-            size="sm"
-            variant={presenteHoje ? "outline" : "default"}
-            disabled={togglePresenca.isPending}
-            onClick={() => togglePresenca.mutate(!presenteHoje)}
-          >
-            {presenteHoje ? "Sair" : "Cheguei"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <div className="mb-4">
-        <MinhaElegibilidadeCard />
-      </div>
-
-      <div className="mb-4">
-        <PushOptInCard />
-      </div>
-
-      <div className="mb-4">
-        <GoogleCalendarCard />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dados pessoais</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label>E-mail</Label>
-            <Input value={perfilQuery.data?.email ?? user?.email ?? ""} disabled />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="tel">
-                Telefone <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="tel"
-                inputMode="tel"
-                value={telefone}
-                onChange={(e) => setTelefone(maskPhoneBR(e.target.value))}
-                placeholder="(11) 90000-0000"
-                aria-invalid={!telefoneValido}
-                className={!telefoneValido ? "border-destructive" : undefined}
-              />
-              {!telefoneValido && (
-                <p className="text-xs text-destructive">
-                  Obrigatório para receber leads. Inclua DDD + número.
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="cargo">Cargo</Label>
-            <Input
-              id="cargo"
-              value={cargo}
-              onChange={(e) => setCargo(e.target.value)}
-              placeholder="Corretor pleno, gestor regional…"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="bio">Bio</Label>
-            <Textarea id="bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
-          </div>
-          <div className="flex justify-end">
-            <Button onClick={() => save.mutate()} disabled={save.isPending}>
-              {save.isPending ? "Salvando…" : "Salvar alterações"}
+              {presenteHoje ? "Sair" : "Cheguei"}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-base">Alterar senha</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={updatePwd} className="space-y-3">
+        <div className="mb-4">
+          <MinhaElegibilidadeCard />
+        </div>
+
+        <div className="mb-4">
+          <PushOptInCard />
+        </div>
+
+        <div className="mb-4">
+          <GoogleCalendarCard />
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Dados pessoais</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="perfil-email">E-mail</Label>
+              <Input
+                id="perfil-email"
+                value={perfilQuery.data?.email ?? user?.email ?? ""}
+                disabled
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="p1">Nova senha</Label>
-                <Input
-                  id="p1"
-                  type="password"
-                  value={pwd1}
-                  onChange={(e) => setPwd1(e.target.value)}
-                />
+                <Label htmlFor="nome">Nome</Label>
+                <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="p2">Confirmar</Label>
+                <Label htmlFor="tel">
+                  Telefone <span className="text-destructive">*</span>
+                </Label>
                 <Input
-                  id="p2"
-                  type="password"
-                  value={pwd2}
-                  onChange={(e) => setPwd2(e.target.value)}
+                  id="tel"
+                  inputMode="tel"
+                  value={telefone}
+                  onChange={(e) => setTelefone(maskPhoneBR(e.target.value))}
+                  placeholder="(11) 90000-0000"
+                  aria-invalid={!telefoneValido}
+                  className={!telefoneValido ? "border-destructive" : undefined}
                 />
+                {!telefoneValido && (
+                  <p className="text-xs text-destructive">
+                    Obrigatório para receber leads. Inclua DDD + número.
+                  </p>
+                )}
               </div>
             </div>
-            <div className="flex justify-end">
-              <Button type="submit">Atualizar senha</Button>
+            <div className="space-y-1">
+              <Label htmlFor="cargo">Cargo</Label>
+              <Input
+                id="cargo"
+                value={cargo}
+                onChange={(e) => setCargo(e.target.value)}
+                placeholder="Corretor pleno, gestor regional…"
+              />
             </div>
-          </form>
-        </CardContent>
-      </Card>
+            <div className="space-y-1">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea id="bio" rows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => save.mutate()} loading={save.isPending}>
+                Salvar alterações
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle className="text-base">Alterar senha</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={updatePwd} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="p1">Nova senha</Label>
+                  <Input
+                    id="p1"
+                    type="password"
+                    value={pwd1}
+                    onChange={(e) => setPwd1(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="p2">Confirmar</Label>
+                  <Input
+                    id="p2"
+                    type="password"
+                    value={pwd2}
+                    onChange={(e) => setPwd2(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button type="submit">Atualizar senha</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </AsyncBoundary>
     </div>
   );
 }

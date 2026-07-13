@@ -2,7 +2,12 @@ import { readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 
 const ROOTS = ["src"];
-const MAX_ESCAPES = 242;
+// Ratchet do redesign v2: 242 → 220 (o real caiu para 212 tipando copa/
+// gestão/leads com os tipos gerados). Ao aplicar as migrations no ambiente e
+// regenerar os types do Supabase, dá para baixar de novo (~200): os `as never`
+// das RPCs novas (leads_filtered_v2, nav_pendencias, pipeline_snapshot_v3,
+// gestao_metricas) deixam de ser necessários.
+const MAX_ESCAPES = 220;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {
