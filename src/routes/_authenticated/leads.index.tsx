@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -71,21 +70,16 @@ import {
   UserPlus,
   Search,
   Trash2,
-  Shuffle,
   List,
   Trello,
   Upload,
   Zap,
-  Play,
   MessageCircle,
-  MoreHorizontal,
   Phone,
   PhoneCall,
-  DollarSign,
   Flame,
   Thermometer,
   Snowflake,
-  AlertCircle,
   AlertTriangle,
   ArrowRightLeft,
   Bookmark,
@@ -98,8 +92,6 @@ import {
   ChevronRight,
   CalendarDays,
 } from "lucide-react";
-import { buildWhatsAppUrl } from "@/lib/templates";
-import { mensagemPrimeiroContato } from "@/lib/whatsapp";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
@@ -107,7 +99,6 @@ import { KanbanBoard } from "@/components/leads-kanban-board";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { isValidBrazilPhone, isValidEmail, normalizeSearch, onlyDigits } from "@/lib/validators";
 import { maskPhoneBR } from "@/lib/masks";
-import { notaSistemaPayload } from "@/lib/interacoes";
 import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
@@ -116,11 +107,8 @@ import {
   leadStatusLabel,
   resolveStageAction,
   type LeadStatus,
-  type StageModal,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
-import { transicionarLead } from "@/lib/lead-transitions";
-import { LeadStageMenuItems } from "@/components/lead-stage-menu";
 import {
   LeadStageModals,
   type StageModalState,
@@ -129,6 +117,10 @@ import {
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
 import { ORIGEM_OPTIONS, abrirNovoLead } from "@/features/leads/novo-lead-dialog";
+import type { Lead } from "@/features/leads/types";
+import { TempIcon, InatividadeBadge } from "@/features/leads/lead-indicators";
+import { FinanceiroPopover, LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
+import { useLeadMutations } from "@/features/leads/use-lead-mutations";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
@@ -190,242 +182,12 @@ function customDateEnd(value: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-type Lead = {
-  id: string;
-  nome: string;
-  email: string | null;
-  telefone: string;
-  origem: string;
-  status: string;
-  temperatura: string | null;
-  corretor_id: string | null;
-  projeto_id: string | null;
-  projeto_nome: string | null;
-  observacoes: string | null;
-  created_at: string;
-  ultima_interacao: string | null;
-  na_lixeira: boolean;
-  renda_informada: string | null;
-  entrada_disponivel: string | null;
-  usa_fgts: boolean | null;
-  data_venda: string | null;
-  total_count?: number | null;
-};
-
-function TempIcon({ temp }: { temp: string | null }) {
-  if (temp === "quente")
-    return <Flame className="h-3.5 w-3.5 text-destructive" aria-label="Quente" />;
-  if (temp === "morno")
-    return <Thermometer className="h-3.5 w-3.5 text-warning" aria-label="Morno" />;
-  if (temp === "frio") return <Snowflake className="h-3.5 w-3.5 text-info" aria-label="Frio" />;
-  return null;
-}
-
-function InatividadeBadge({ lead }: { lead: Lead }) {
-  const ativo = !["contrato_fechado", "perdido", "pos_venda", "novo"].includes(lead.status);
-  if (!ativo) return null;
-  const ref = lead.ultima_interacao ?? lead.created_at;
-  if (!ref) return null;
-  const dias = Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
-  if (dias < 2) return null;
-  const tone = dias >= 5 ? "bg-destructive/15 text-destructive" : "bg-warning/15 text-warning";
-  return (
-    <Badge variant="secondary" className={`${tone} gap-1`} title={`Sem interação há ${dias} dias`}>
-      <AlertCircle className="h-3 w-3" /> {dias}d parado
-    </Badge>
-  );
-}
-
-function FinRow({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value || "—"}</dd>
-    </div>
-  );
-}
-
-/** Resumo financeiro do lead em um Popover, sem abrir o perfil. */
-function FinanceiroPopover({ lead }: { lead: Lead }) {
-  const temDados =
-    !!(lead.projeto_nome || lead.renda_informada || lead.entrada_disponivel) ||
-    lead.usa_fgts != null;
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-6 w-6 text-muted-foreground hover:text-foreground"
-          title="Resumo financeiro"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <DollarSign className="h-3.5 w-3.5" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 text-sm">
-        <div className="font-medium mb-2">Resumo do lead</div>
-        <dl className="space-y-1">
-          <FinRow label="Empreendimento" value={lead.projeto_nome} />
-          <FinRow label="Renda" value={lead.renda_informada} />
-          <FinRow label="Entrada" value={lead.entrada_disponivel} />
-          <FinRow
-            label="FGTS"
-            value={lead.usa_fgts == null ? null : lead.usa_fgts ? "Sim" : "Não"}
-          />
-        </dl>
-        {!temDados && (
-          <div className="mt-2 text-xs text-muted-foreground">Sem dados financeiros ainda.</div>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/**
- * Menu ⋯ único da linha/card: etapas do funil + ações de gestão (Roleta,
- * Transferir, Lixeira). Substitui os 4 botões soltos que existiam por linha.
- */
-function LeadRowMenu({
-  lead,
-  canManage,
-  canAct,
-  onPickDirect,
-  onPickModal,
-  onPickPerdido,
-  onRoleta,
-  onTransferir,
-  onLixeira,
-}: {
-  lead: Lead;
-  canManage: boolean;
-  canAct: boolean;
-  onPickDirect: (target: LeadStatus) => void;
-  onPickModal: (modal: StageModal) => void;
-  onPickPerdido: () => void;
-  onRoleta: () => void;
-  onTransferir: () => void;
-  onLixeira: () => void;
-}) {
-  const showStages = canAct && !lead.na_lixeira && lead.status !== "aguardando_atendimento";
-  if (!showStages && !canManage) return null;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="shrink-0"
-          aria-label="Mais ações"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        {showStages && (
-          <LeadStageMenuItems
-            lead={lead}
-            onPickDirect={onPickDirect}
-            onPickModal={(modal) => onPickModal(modal)}
-            onPickPerdido={onPickPerdido}
-          />
-        )}
-        {canManage && (
-          <>
-            {showStages && <DropdownMenuSeparator />}
-            <DropdownMenuLabel>Gestão</DropdownMenuLabel>
-            {!lead.corretor_id && !lead.na_lixeira && (
-              <DropdownMenuItem onSelect={onRoleta}>
-                <Shuffle className="h-4 w-4 mr-2" /> Distribuir (roleta)
-              </DropdownMenuItem>
-            )}
-            {!lead.na_lixeira && (
-              <DropdownMenuItem onSelect={onTransferir}>
-                <ArrowRightLeft className="h-4 w-4 mr-2" /> Transferir
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onSelect={onLixeira}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              {lead.na_lixeira ? "Restaurar" : "Mover p/ lixeira"}
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-/**
- * Split "Iniciar {WhatsApp|ligação}": um clique repete o último tipo de contato;
- * a seta abre as alternativas. Usado na tabela e nos cards (mesma UX).
- */
-function IniciarSplitButton({
-  lead,
-  lastContactType,
-  pending,
-  onIniciar,
-  onEscolher,
-}: {
-  lead: Lead;
-  lastContactType: "ligacao" | "whatsapp";
-  pending: boolean;
-  onIniciar: (lead: Lead, tipo: "ligacao" | "whatsapp") => void;
-  onEscolher: (lead: Lead) => void;
-}) {
-  return (
-    <div className="flex items-center">
-      <Button
-        size="sm"
-        className="rounded-r-none"
-        onClick={() => onIniciar(lead, lastContactType)}
-        disabled={pending}
-      >
-        {lastContactType === "whatsapp" ? (
-          <MessageCircle className="h-3.5 w-3.5 mr-1" />
-        ) : (
-          <Phone className="h-3.5 w-3.5 mr-1" />
-        )}
-        Iniciar {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="sm"
-            className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
-            disabled={pending}
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onIniciar(lead, "whatsapp")}>
-            <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onIniciar(lead, "ligacao")}>
-            <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => onEscolher(lead)}>
-            <Play className="h-4 w-4 mr-2" /> Escolher…
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
-}
-
 function LeadsPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const { user } = useAuth();
   const canManage = isAdmin || isGestor;
   // Abre o wa.me e registra a interação na timeline (ação única de WhatsApp).
   const abrirWhatsApp = useWhatsAppLead();
-  const qc = useQueryClient();
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
@@ -868,244 +630,27 @@ function LeadsPage() {
     });
   }
 
-  const distribuir = useMutation({
-    mutationFn: async (leadId: string) => {
-      // Distribuição v3: triagem única (origem → roleta → corretor apto).
-      const { data, error } = await supabase.rpc("triar_e_distribuir_lead", {
-        _lead_id: leadId,
-        _gatilho: "manual_roleta",
-      });
-      if (error) throw error;
-      const res = data as { ok?: boolean; corretor_id?: string; motivo?: string } | null;
-      return { corretorId: res?.ok ? (res.corretor_id ?? null) : null, leadId, res };
+  const {
+    distribuir,
+    moverLixeira,
+    bulkTransferir,
+    bulkTemperatura,
+    bulkFollowup,
+    bulkRegistrarLigacao,
+    iniciarAtendimento,
+  } = useLeadMutations({
+    clearSelection: () => setSelectedIds(new Set()),
+    fecharDialogs: {
+      transferir: () => {
+        setBulkTransferOpen(false);
+        setBulkTarget("");
+      },
+      followup: () => {
+        setBulkFollowupOpen(false);
+        setBulkFollowupData("");
+      },
+      contato: () => setContactLead(null),
     },
-    onSuccess: async ({ corretorId, leadId, res }) => {
-      if (!corretorId) {
-        toast.warning(
-          "Nenhum corretor apto na roleta agora — o lead entrou na fila de exceções da Distribuição e o sistema re-tenta a cada minuto." +
-            (res?.motivo ? ` (${res.motivo})` : ""),
-        );
-      } else {
-        toast.success("Lead atribuído via roleta");
-        await supabase.functions.invoke("notify-lead-transfer", {
-          body: { lead_id: leadId, corretor_id: corretorId },
-        });
-      }
-      qc.invalidateQueries({ queryKey: ["leads"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const moverLixeira = useMutation({
-    mutationFn: async ({ ids, lixeira }: { ids: string[]; lixeira: boolean }) => {
-      const { error } = await supabase
-        .from("leads")
-        .update({
-          na_lixeira: lixeira,
-          data_movido_lixeira: lixeira ? new Date().toISOString() : null,
-        })
-        .in("id", ids);
-      if (error) throw error;
-    },
-    onSuccess: (_d, v) => {
-      toast.success(
-        v.lixeira
-          ? `${v.ids.length} lead(s) movido(s) para lixeira`
-          : `${v.ids.length} lead(s) restaurado(s)`,
-      );
-      setSelectedIds(new Set());
-      qc.invalidateQueries({ queryKey: ["leads"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const bulkTransferir = useMutation({
-    mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
-      if (!ids.length) throw new Error("Selecione ao menos um lead.");
-      if (!corretorId) throw new Error("Selecione o corretor de destino.");
-
-      // RPC canônica: além do corretor_id, renova data_distribuicao (sem isso o
-      // job de redistribuição desfazia a transferência) e registra no log.
-      const batchSize = 100;
-      for (let i = 0; i < ids.length; i += batchSize) {
-        const lote = ids.slice(i, i + batchSize);
-        const { error } = await supabase.rpc(
-          "transferir_leads" as never,
-          { _ids: lote, _corretor: corretorId } as never,
-        );
-        if (error) {
-          console.error("[bulkTransferir]", { error, loteInicio: i, loteTamanho: lote.length });
-          throw error;
-        }
-      }
-
-      // Histórico: a transferência em lote pela UI só registrava no
-      // distribution_log; agora deixa nota na timeline de cada lead (mesmo
-      // rastro da realocação individual via API).
-      const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id ?? null;
-      await supabase.from("interacoes").insert(
-        ids.map((id) =>
-          notaSistemaPayload({
-            leadId: id,
-            autorId: uid,
-            titulo: "Lead transferido",
-            conteudo: "Lead realocado em lote para outro corretor.",
-            metadata: { acao: "transferencia_lote", corretor_novo: corretorId },
-          }),
-        ) as never,
-      );
-
-      // Notifica via WhatsApp leads com origem=facebook (best-effort).
-      const notifyBatchSize = 20;
-      for (let i = 0; i < ids.length; i += notifyBatchSize) {
-        const lote = ids.slice(i, i + notifyBatchSize);
-        await Promise.allSettled(
-          lote.map((id) =>
-            supabase.functions.invoke("notify-lead-transfer", {
-              body: { lead_id: id, corretor_id: corretorId },
-            }),
-          ),
-        );
-      }
-      return ids.length;
-    },
-    onSuccess: (n) => {
-      toast.success(`${n} lead(s) transferido(s)`);
-      setSelectedIds(new Set());
-      setBulkTransferOpen(false);
-      setBulkTarget("");
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
-    },
-    onError: (e: Error) => toast.error(e.message || "Falha ao transferir leads."),
-  });
-
-  // Muda a temperatura de todos os leads selecionados de uma vez.
-  const bulkTemperatura = useMutation({
-    mutationFn: async ({ ids, temp }: { ids: string[]; temp: string }) => {
-      const { error } = await supabase
-        .from("leads")
-        .update({ temperatura: temp as never })
-        .in("id", ids);
-      if (error) throw error;
-
-      // Histórico: mudança de temperatura em lote não deixava rastro.
-      const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id ?? null;
-      await supabase.from("interacoes").insert(
-        ids.map((id) =>
-          notaSistemaPayload({
-            leadId: id,
-            autorId: uid,
-            titulo: "Temperatura alterada",
-            conteudo: `Temperatura definida como "${temp}" (ação em lote).`,
-            metadata: { acao: "temperatura_lote", temperatura: temp },
-          }),
-        ) as never,
-      );
-      return ids.length;
-    },
-    onSuccess: (n) => {
-      toast.success(`Temperatura atualizada em ${n} lead(s)`);
-      setSelectedIds(new Set());
-      qc.invalidateQueries({ queryKey: ["leads"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  // Define o próximo follow-up dos leads selecionados: cria uma tarefa por
-  // lead (a única fonte de verdade). `leads.proximo_followup` é espelho
-  // derivado — atualizado sozinho pelo trigger do banco.
-  const bulkFollowup = useMutation({
-    mutationFn: async ({ ids, iso }: { ids: string[]; iso: string }) => {
-      const { data: u } = await supabase.auth.getUser();
-      const autor = u.user?.id ?? null;
-      // Carrega nome/corretor para gerar tarefas com título + dono corretos.
-      const { data: leadsData, error: lErr } = await supabase
-        .from("leads")
-        .select("id, nome, corretor_id")
-        .in("id", ids);
-      if (lErr) throw lErr;
-      const rows = (leadsData ?? []).map((l) => ({
-        titulo: `Follow-up com ${l.nome}`,
-        tipo: "follow_up" as const,
-        prioridade: "media" as const,
-        status: "pendente" as const,
-        lead_id: l.id,
-        corretor_id: l.corretor_id ?? autor,
-        criado_por: autor,
-        data_vencimento: iso,
-      }));
-      if (rows.length === 0) return 0;
-      const { error } = await supabase.from("tarefas").insert(rows as never);
-      if (error) throw error;
-      return rows.length;
-    },
-    onSuccess: (n) => {
-      toast.success(`Follow-up definido em ${n} lead(s)`);
-      setSelectedIds(new Set());
-      setBulkFollowupOpen(false);
-      setBulkFollowupData("");
-      qc.invalidateQueries({ queryKey: ["leads"] });
-      qc.invalidateQueries({ queryKey: ["tarefas"] });
-      qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  // Registra uma ligação (interação) para todos os leads selecionados de uma vez.
-  const bulkRegistrarLigacao = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const { data: u } = await supabase.auth.getUser();
-      const autor = u.user?.id ?? null;
-      const rows = ids.map((leadId) => ({
-        lead_id: leadId,
-        autor_id: autor,
-        tipo: "ligacao" as const,
-        direcao: "saida" as const,
-        titulo: "Ligação",
-        conteudo: "Ligação registrada em lote pelo corretor.",
-      }));
-      const { error } = await supabase.from("interacoes").insert(rows as never);
-      if (error) throw error;
-      return ids.length;
-    },
-    onSuccess: (n) => {
-      toast.success(`Ligação registrada em ${n} lead(s)`);
-      setSelectedIds(new Set());
-      qc.invalidateQueries({ queryKey: ["leads"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  // Iniciar atendimento + registrar interação do tipo de contato escolhido
-  const iniciarAtendimento = useMutation({
-    mutationFn: async ({ lead, tipo }: { lead: Lead; tipo: "ligacao" | "whatsapp" }) => {
-      const { data: u } = await supabase.auth.getUser();
-      const { error: e1 } = await supabase.from("interacoes").insert({
-        lead_id: lead.id,
-        autor_id: u.user?.id ?? null,
-        tipo,
-        direcao: "saida",
-        titulo:
-          tipo === "whatsapp" ? "Contato inicial via WhatsApp" : "Contato inicial por ligação",
-        conteudo: `Atendimento iniciado pelo corretor (${tipo}).`,
-      });
-      if (e1) throw e1;
-      await transicionarLead({ id: lead.id, nome: lead.nome, status: "em_atendimento" });
-      return { lead, tipo };
-    },
-    onSuccess: ({ lead, tipo }) => {
-      toast.success("Atendimento iniciado");
-      if (tipo === "whatsapp") {
-        const msg = mensagemPrimeiroContato(lead.nome, lead.projeto_nome);
-        window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");
-      }
-      setContactLead(null);
-      qc.invalidateQueries({ queryKey: ["leads"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const activeFiltersCount =
