@@ -84,8 +84,10 @@ export const EntityCard = React.forwardRef<HTMLElement, EntityCardProps>(
         aria-label={ariaLabel}
         data-state={selected ? "selected" : undefined}
         className={cn(
-          "relative rounded-xl border bg-card p-3 shadow-elev-1 transition-shadow hover:shadow-elev-2 data-[state=selected]:ring-2 data-[state=selected]:ring-primary",
-          onActivate && "cursor-pointer",
+          "relative rounded-xl border bg-card p-3 shadow-elev-1 data-[state=selected]:ring-2 data-[state=selected]:ring-primary",
+          // Lift no hover (desktop) + squeeze no toque (mobile) SÓ quando o
+          // card é ativável — card estático não deve prometer clique.
+          onActivate && "cursor-pointer hover-lift press-scale hover:shadow-elev-2",
           className,
         )}
         {...props}

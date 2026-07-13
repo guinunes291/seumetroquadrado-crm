@@ -93,3 +93,26 @@ strings da query de vendas aprovadas; mover exigiria editar o teste.
   `as never` de RPCs novas e permite baixar o teto do type-escape budget).
 - Smoke autenticado opt-in (`e2e/smoke-auth.mjs`) — desenhado no plano,
   não implementado nesta rodada.
+
+## Adendo — passe de intensidade do movimento (pós-produção, 13/07)
+
+Feedback do dono do produto com a v2 no ar: "não estou vendo o SMQ Motion,
+está tudo bem parecido". A calibragem original priorizou discrição a ponto
+de o movimento passar despercebido — especialmente no mobile, onde as
+interações de hover não existem. Recalibrado para "Marcante", mantendo TODAS
+as regras de performance (só transform/opacity, stagger ≤ 8, reduced-motion
+global intocado):
+
+| Efeito                | Antes                 | Depois                                                 |
+| --------------------- | --------------------- | ------------------------------------------------------ |
+| slide-fade (entradas) | 6px                   | 16px de deslize                                        |
+| stagger-children      | 0,32s · degrau 40ms   | 0,42s · degrau 60ms                                    |
+| View Transitions      | fade 0,16/0,22s + 4px | saída sobe 8px · entrada 14px em 0,3s                  |
+| beam-border (hero)    | anel 1px · giro 7s    | anel 2px · cauda longa + cabeça quente · giro 4,5s     |
+| hover-lift            | -2px · 120ms          | -3px · 200ms                                           |
+| press-scale           | scale 0,98            | scale 0,97                                             |
+| useCountUp            | 700ms                 | 900ms                                                  |
+| EntityCard ativável   | só sombra             | hover-lift + press-scale (feedback de toque no mobile) |
+
+Cards NÃO ativáveis deixaram de reagir a hover (a sombra de hover era
+aplicada a todos) — affordance honesta: só o que é clicável se move.

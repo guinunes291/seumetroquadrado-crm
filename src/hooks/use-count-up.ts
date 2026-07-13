@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const DEFAULT_DURATION = 700;
+const DEFAULT_DURATION = 900;
 
 function prefersReducedMotion(): boolean {
   return (
