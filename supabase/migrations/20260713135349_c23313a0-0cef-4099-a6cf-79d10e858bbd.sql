@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_leads_telefone_trgm ON public.leads USING gin (telefone extensions.gin_trgm_ops) WHERE deleted_at IS NULL;
