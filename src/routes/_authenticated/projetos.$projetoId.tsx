@@ -4,21 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { usePreference } from "@/hooks/use-preference";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatTile } from "@/components/ui/stat-tile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -26,35 +19,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Star, Trash2 } from "lucide-react";
-import {
-  UNIDADE_STATUS_LABEL,
-  UNIDADE_STATUS_TONE,
-  UNIDADE_STATUS_DOT,
-  type UnidadeStatus,
-  formatBRL,
-  formatArea,
-  calcStats,
-  variacaoPercentual,
-} from "@/lib/unidades";
-import { cn } from "@/lib/utils";
+import { ArrowLeft, Building2, LayoutGrid, Plus, Table2 } from "lucide-react";
+import { UNIDADE_STATUS_LABEL, type UnidadeStatus, formatBRL, calcStats } from "@/lib/unidades";
 import { ProjetoComercial } from "@/components/projeto-comercial";
+import { ProjetoHero } from "@/features/projetos/projeto-hero";
+import { ProjetoFichaTecnica } from "@/features/projetos/projeto-ficha-tecnica";
+import {
+  UnidadesGrid,
+  UNIDADE_STATUS_OPCOES,
+  type UnidadeRow,
+} from "@/features/projetos/unidades-grid";
+import { UnidadesTable } from "@/features/projetos/unidades-table";
+import { UnidadeFormDialog, type UnidadePayload } from "@/features/projetos/unidade-form-dialog";
+import { HistoricoPrecos } from "@/features/projetos/historico-precos";
+import { ProjetoFocoPanel, type FocoPayload } from "@/features/projetos/projeto-foco-panel";
 
 export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
   head: () => ({ meta: [{ title: "Detalhe do projeto — Seu Metro Quadrado" }] }),
   component: ProjetoDetalhePage,
 });
-
-const STATUS_OPCOES: UnidadeStatus[] = ["disponivel", "reservada", "vendida", "bloqueada"];
 
 function ProjetoDetalhePage() {
   const { projetoId } = Route.useParams();
@@ -63,10 +47,15 @@ function ProjetoDetalhePage() {
   const canManage = isAdmin || isGestor;
   const qc = useQueryClient();
   const [unidadeOpen, setUnidadeOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<UnidadeRow | null>(null);
   const [focoOpen, setFocoOpen] = useState(false);
   const [unidadeBusca, setUnidadeBusca] = useState("");
   const [unidadeStatusFiltro, setUnidadeStatusFiltro] = useState<string>("todos");
+  // Sub-visão das unidades (grade de disponibilidade OU tabela) — por usuário.
+  const [unidadesView, setUnidadesView] = usePreference<"grade" | "tabela">(
+    "projetos:unidades-view",
+    "grade",
+  );
 
   const projetoQ = useQuery({
     queryKey: ["projeto", projetoId],
@@ -123,10 +112,10 @@ function ProjetoDetalhePage() {
     },
   });
 
-  const focoAtivo = (focoQ.data ?? []).find((f: any) => f.ativo);
+  const focoAtivo = (focoQ.data ?? []).find((f) => f.ativo);
 
   const saveUnidade = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: UnidadePayload) => {
       if (editing?.id) {
         const { error } = await supabase.from("unidades").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -146,7 +135,7 @@ function ProjetoDetalhePage() {
       qc.invalidateQueries({ queryKey: ["unidades", projetoId] });
       qc.invalidateQueries({ queryKey: ["historico-precos", projetoId] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const updateStatus = useMutation({
@@ -155,14 +144,14 @@ function ProjetoDetalhePage() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["unidades", projetoId] }),
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteUnidade = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("unidades")
-        .update({ deleted_at: new Date().toISOString() } as never)
+        .update({ deleted_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },
@@ -170,11 +159,11 @@ function ProjetoDetalhePage() {
       toast.success("Unidade movida para a lixeira");
       qc.invalidateQueries({ queryKey: ["unidades", projetoId] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const ativarFoco = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: FocoPayload) => {
       // Desativa foco anterior do projeto
       await supabase
         .from("projeto_foco")
@@ -193,7 +182,7 @@ function ProjetoDetalhePage() {
       setFocoOpen(false);
       qc.invalidateQueries({ queryKey: ["projeto-foco", projetoId] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const desativarFoco = useMutation({
@@ -208,142 +197,91 @@ function ProjetoDetalhePage() {
       toast.success("Foco desativado");
       qc.invalidateQueries({ queryKey: ["projeto-foco", projetoId] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
-
-  const handleSubmitUnidade = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const num = (k: string) => {
-      const v = fd.get(k);
-      if (v === null || v === "") return null;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
-    saveUnidade.mutate({
-      identificador: String(fd.get("identificador")),
-      bloco: fd.get("bloco") || null,
-      andar: fd.get("andar") || null,
-      tipologia: fd.get("tipologia") || null,
-      dormitorios: num("dormitorios"),
-      suites: num("suites"),
-      vagas: num("vagas"),
-      area_privativa: num("area_privativa"),
-      valor: num("valor"),
-      status: (fd.get("status") as UnidadeStatus) || "disponivel",
-      observacoes: fd.get("observacoes") || null,
-    });
-  };
-
-  const handleSubmitFoco = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    ativarFoco.mutate({
-      motivo: fd.get("motivo") || null,
-      fim: fd.get("fim") ? new Date(String(fd.get("fim"))).toISOString() : null,
-    });
-  };
 
   const unidades = unidadesQ.data ?? [];
   const buscaUni = unidadeBusca.trim().toLowerCase();
-  const unidadesFiltradas = (unidades as any[]).filter((u) => {
+  const unidadesFiltradas = unidades.filter((u) => {
     if (unidadeStatusFiltro !== "todos" && u.status !== unidadeStatusFiltro) return false;
     if (!buscaUni) return true;
     return [u.identificador, u.bloco, u.andar, u.tipologia]
       .filter(Boolean)
-      .some((c: string) => String(c).toLowerCase().includes(buscaUni));
+      .some((c) => String(c).toLowerCase().includes(buscaUni));
   });
-  const stats = calcStats(unidades as any);
+  const stats = calcStats(unidades);
   const projeto = projetoQ.data;
 
-  const subParts = [
-    projeto?.construtora,
-    [projeto?.bairro, projeto?.regiao, projeto?.cidade].filter(Boolean).join(" · ") || null,
-  ].filter(Boolean) as string[];
+  const voltar = (
+    <Button
+      variant="outline"
+      size="sm"
+      className={
+        projeto
+          ? "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+          : undefined
+      }
+      asChild
+    >
+      <Link to="/projetos">
+        <ArrowLeft className="mr-1 h-4 w-4" />
+        Projetos
+      </Link>
+    </Button>
+  );
+
+  const unidadesEmpty = (
+    <EmptyState
+      icon={Building2}
+      title={
+        unidades.length === 0
+          ? "Nenhuma unidade cadastrada ainda."
+          : "Nenhuma unidade corresponde aos filtros."
+      }
+      description={
+        unidades.length === 0
+          ? canManage
+            ? "Use “Nova unidade” para começar o espelho de vendas."
+            : undefined
+          : "Ajuste a busca ou o filtro de status."
+      }
+    />
+  );
 
   return (
     <div className="p-6 space-y-6">
-      <PageHeader
-        title={projeto?.nome ?? "Projeto"}
-        description={subParts.join(" — ") || "Gestão completa do empreendimento"}
-        actions={
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/projetos">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Projetos
-            </Link>
-          </Button>
-        }
-      />
-
-      {projeto && (
-        <Card>
-          <CardContent className="py-4 px-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-            <InfoLine label="Metragem">
-              {projeto.metragem_min != null || projeto.metragem_max != null
-                ? `${projeto.metragem_min ?? "?"}–${projeto.metragem_max ?? "?"} m²`
-                : "—"}
-            </InfoLine>
-            <InfoLine label="Dorms / Suítes">
-              {projeto.dorms_min != null || projeto.dorms_max != null
-                ? `${projeto.dorms_min ?? "?"}–${projeto.dorms_max ?? "?"} dorms`
-                : "—"}
-              {projeto.suites ? ` · ${projeto.suites} suíte${projeto.suites === 1 ? "" : "s"}` : ""}
-            </InfoLine>
-            <InfoLine label="Vagas">
-              {projeto.vagas_min != null || projeto.vagas_max != null
-                ? `${projeto.vagas_min ?? "?"}–${projeto.vagas_max ?? "?"}`
-                : projeto.vagas_observacao || "—"}
-            </InfoLine>
-            <InfoLine label="Preço a partir de">
-              {projeto.sob_consulta
-                ? "Sob consulta"
-                : projeto.preco_a_partir != null
-                  ? formatBRL(projeto.preco_a_partir)
-                  : "—"}
-            </InfoLine>
-            <InfoLine label="Status entrega">
-              {[
-                projeto.status_entrega,
-                projeto.ano_entrega
-                  ? `${projeto.mes_entrega ? String(projeto.mes_entrega).padStart(2, "0") + "/" : ""}${projeto.ano_entrega}`
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "—"}
-            </InfoLine>
-            <InfoLine label="Tipo extra">{projeto.tipo_extra || "—"}</InfoLine>
-            <InfoLine label="Status do preço">{projeto.status_preco || "—"}</InfoLine>
-            <InfoLine label="Zona SMQ">{projeto.zona_smq || "—"}</InfoLine>
-            <InfoLine label="Endereço">
-              {[projeto.logradouro, projeto.numero].filter(Boolean).join(", ") ||
-                projeto.endereco ||
-                "—"}
-            </InfoLine>
-            <InfoLine label="Fonte">{projeto.fonte || "—"}</InfoLine>
-          </CardContent>
-        </Card>
+      {projeto ? (
+        <ProjetoHero
+          projeto={projeto}
+          emFoco={!!focoAtivo}
+          focoMotivo={focoAtivo?.motivo}
+          actions={voltar}
+        />
+      ) : (
+        <PageHeader
+          title="Projeto"
+          description="Gestão completa do empreendimento"
+          actions={voltar}
+        />
       )}
 
-      {focoAtivo && (
-        <Card className="border-amber-400/40 bg-amber-50/40">
-          <CardContent className="py-3 px-4 flex items-center gap-2">
-            <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
-            <span className="text-sm">
-              <strong>Projeto em foco</strong>
-              {focoAtivo.motivo ? ` — ${focoAtivo.motivo}` : ""}
-            </span>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <StatCard label="Total" value={stats.total} />
-        <StatCard label="Disponíveis" value={stats.disponivel} />
-        <StatCard label="Reservadas" value={stats.reservada} />
-        <StatCard label="Vendidas" value={stats.vendida} />
-        <StatCard label="VGV disponível" value={formatBRL(stats.vgvDisponivel)} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <StatTile title="Total" value={stats.total} loading={unidadesQ.isLoading} />
+        <StatTile title="Disponíveis" value={stats.disponivel} loading={unidadesQ.isLoading} />
+        <StatTile title="Reservadas" value={stats.reservada} loading={unidadesQ.isLoading} />
+        <StatTile title="Vendidas" value={stats.vendida} loading={unidadesQ.isLoading} />
+        <StatTile
+          title="VGV disponível"
+          // Moeda em text-2xl para caber na malha de 5 colunas sem quebrar.
+          value={
+            <AnimatedNumber value={stats.vgvDisponivel} format={formatBRL} className="text-2xl" />
+          }
+          loading={unidadesQ.isLoading}
+          className="col-span-2 md:col-span-1"
+        />
       </div>
+
+      {projeto && <ProjetoFichaTecnica projeto={projeto} />}
 
       <Tabs defaultValue="unidades" className="space-y-4">
         <TabsList>
@@ -354,442 +292,118 @@ function ProjetoDetalhePage() {
         </TabsList>
 
         <TabsContent value="unidades" className="space-y-3">
-          {canManage && (
-            <div className="flex justify-end">
-              <Dialog
-                open={unidadeOpen}
-                onOpenChange={(o) => {
-                  setUnidadeOpen(o);
-                  if (!o) setEditing(null);
-                }}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              <Button
+                size="sm"
+                variant={unidadesView === "grade" ? "default" : "ghost"}
+                onClick={() => setUnidadesView("grade")}
               >
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nova unidade
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-xl">
-                  <DialogHeader>
-                    <DialogTitle>{editing ? "Editar unidade" : "Nova unidade"}</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmitUnidade} className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                      <Label htmlFor="identificador">Identificador *</Label>
-                      <Input
-                        id="identificador"
-                        name="identificador"
-                        required
-                        defaultValue={editing?.identificador}
-                        placeholder="ex.: 101, Apto 12A"
-                      />
-                    </div>
-                    <div>
-                      <Label>Bloco</Label>
-                      <Input name="bloco" defaultValue={editing?.bloco ?? ""} />
-                    </div>
-                    <div>
-                      <Label>Andar</Label>
-                      <Input name="andar" defaultValue={editing?.andar ?? ""} />
-                    </div>
-                    <div className="col-span-2">
-                      <Label>Tipologia</Label>
-                      <Input
-                        name="tipologia"
-                        defaultValue={editing?.tipologia ?? ""}
-                        placeholder="ex.: 2 dorm c/ suíte"
-                      />
-                    </div>
-                    <div>
-                      <Label>Dormitórios</Label>
-                      <Input
-                        name="dormitorios"
-                        type="number"
-                        min="0"
-                        defaultValue={editing?.dormitorios ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Suítes</Label>
-                      <Input
-                        name="suites"
-                        type="number"
-                        min="0"
-                        defaultValue={editing?.suites ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Vagas</Label>
-                      <Input
-                        name="vagas"
-                        type="number"
-                        min="0"
-                        defaultValue={editing?.vagas ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Área privativa (m²)</Label>
-                      <Input
-                        name="area_privativa"
-                        type="number"
-                        step="0.01"
-                        defaultValue={editing?.area_privativa ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Valor (R$)</Label>
-                      <Input
-                        name="valor"
-                        type="number"
-                        step="0.01"
-                        defaultValue={editing?.valor ?? ""}
-                      />
-                    </div>
-                    <div>
-                      <Label>Status</Label>
-                      <Select name="status" defaultValue={editing?.status ?? "disponivel"}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPCOES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {UNIDADE_STATUS_LABEL[s]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-2">
-                      <Label>Observações</Label>
-                      <Input name="observacoes" defaultValue={editing?.observacoes ?? ""} />
-                    </div>
-                    <DialogFooter className="col-span-2">
-                      <Button type="submit" disabled={saveUnidade.isPending}>
-                        {saveUnidade.isPending ? "Salvando..." : "Salvar"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                <LayoutGrid className="mr-1 h-4 w-4" /> Grade
+              </Button>
+              <Button
+                size="sm"
+                variant={unidadesView === "tabela" ? "default" : "ghost"}
+                onClick={() => setUnidadesView("tabela")}
+              >
+                <Table2 className="mr-1 h-4 w-4" /> Tabela
+              </Button>
             </div>
-          )}
 
-          {unidades.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Input
-                placeholder="Buscar unidade (identificador, bloco, tipologia)…"
-                value={unidadeBusca}
-                onChange={(e) => setUnidadeBusca(e.target.value)}
-                className="max-w-xs"
-              />
-              <Select value={unidadeStatusFiltro} onValueChange={setUnidadeStatusFiltro}>
-                <SelectTrigger className="w-44">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os status</SelectItem>
-                  {STATUS_OPCOES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {UNIDADE_STATUS_LABEL[s]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <Card>
-            <CardContent className="p-0">
-              {unidadesQ.isLoading ? (
-                <p className="p-6 text-sm text-muted-foreground">Carregando...</p>
-              ) : unidades.length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground text-center">
-                  Nenhuma unidade cadastrada ainda.
-                </p>
-              ) : unidadesFiltradas.length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground text-center">
-                  Nenhuma unidade corresponde aos filtros.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Identificador</TableHead>
-                      <TableHead>Bloco/Andar</TableHead>
-                      <TableHead>Tipologia</TableHead>
-                      <TableHead>Área</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Status</TableHead>
-                      {canManage && <TableHead className="w-20"></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unidadesFiltradas.map((u: any) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.identificador}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {[u.bloco, u.andar].filter(Boolean).join(" / ") || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {u.tipologia || "—"}
-                          {u.dormitorios ? (
-                            <span className="text-xs text-muted-foreground ml-1">
-                              ({u.dormitorios}d{u.suites ? `/${u.suites}s` : ""}
-                              {u.vagas ? `/${u.vagas}v` : ""})
-                            </span>
-                          ) : null}
-                        </TableCell>
-                        <TableCell>{formatArea(u.area_privativa)}</TableCell>
-                        <TableCell className="font-mono text-sm">{formatBRL(u.valor)}</TableCell>
-                        <TableCell>
-                          {canManage ? (
-                            <Select
-                              value={u.status}
-                              onValueChange={(v) =>
-                                updateStatus.mutate({ id: u.id, status: v as UnidadeStatus })
-                              }
-                            >
-                              <SelectTrigger className="h-8 w-36">
-                                <span className="flex items-center gap-2">
-                                  <span
-                                    className={cn(
-                                      "h-2 w-2 rounded-full shrink-0",
-                                      UNIDADE_STATUS_DOT[u.status as UnidadeStatus],
-                                    )}
-                                  />
-                                  <SelectValue />
-                                </span>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {STATUS_OPCOES.map((s) => (
-                                  <SelectItem key={s} value={s}>
-                                    {UNIDADE_STATUS_LABEL[s]}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className={cn(UNIDADE_STATUS_TONE[u.status as UnidadeStatus])}
-                            >
-                              {UNIDADE_STATUS_LABEL[u.status as UnidadeStatus]}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        {canManage && (
-                          <TableCell>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditing(u);
-                                  setUnidadeOpen(true);
-                                }}
-                              >
-                                Editar
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => {
-                                  if (confirm("Remover unidade?")) deleteUnidade.mutate(u.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        )}
-                      </TableRow>
+            {unidades.length > 0 && (
+              <>
+                <Input
+                  placeholder="Buscar unidade (identificador, bloco, tipologia)…"
+                  value={unidadeBusca}
+                  onChange={(e) => setUnidadeBusca(e.target.value)}
+                  className="max-w-xs"
+                />
+                <Select value={unidadeStatusFiltro} onValueChange={setUnidadeStatusFiltro}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os status</SelectItem>
+                    {UNIDADE_STATUS_OPCOES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {UNIDADE_STATUS_LABEL[s]}
+                      </SelectItem>
                     ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
 
-        <TabsContent value="comercial">
-          {projeto && (
-            <ProjetoComercial
-              projetoId={projetoId}
-              projeto={projeto as never}
+            {canManage && (
+              <Button size="sm" className="ml-auto" onClick={() => setUnidadeOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" />
+                Nova unidade
+              </Button>
+            )}
+          </div>
+
+          {unidadesView === "grade" ? (
+            <UnidadesGrid
+              unidades={unidadesFiltradas}
+              loading={unidadesQ.isLoading}
               canManage={canManage}
+              onChangeStatus={(id, status) => updateStatus.mutate({ id, status })}
+              empty={unidadesEmpty}
+            />
+          ) : (
+            <UnidadesTable
+              unidades={unidadesFiltradas}
+              loading={unidadesQ.isLoading}
+              canManage={canManage}
+              onChangeStatus={(id, status) => updateStatus.mutate({ id, status })}
+              onEdit={(u) => {
+                setEditing(u);
+                setUnidadeOpen(true);
+              }}
+              onDelete={(u) => {
+                if (confirm("Remover unidade?")) deleteUnidade.mutate(u.id);
+              }}
+              empty={unidadesEmpty}
+            />
+          )}
+
+          {canManage && (
+            <UnidadeFormDialog
+              open={unidadeOpen}
+              onOpenChange={(o) => {
+                setUnidadeOpen(o);
+                if (!o) setEditing(null);
+              }}
+              editing={editing}
+              pending={saveUnidade.isPending}
+              onSubmit={(payload) => saveUnidade.mutate(payload)}
             />
           )}
         </TabsContent>
 
-        <TabsContent value="historico">
-          <Card>
-            <CardContent className="p-0">
-              {historicoQ.isLoading ? (
-                <p className="p-6 text-sm text-muted-foreground">Carregando...</p>
-              ) : (historicoQ.data ?? []).length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground text-center">
-                  Sem alterações de preço registradas.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Unidade</TableHead>
-                      <TableHead>De</TableHead>
-                      <TableHead>Para</TableHead>
-                      <TableHead>Variação</TableHead>
-                      <TableHead>Quando</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(historicoQ.data ?? []).map((h: any) => {
-                      const variacao = variacaoPercentual(h.valor_anterior, h.valor_novo);
-                      return (
-                        <TableRow key={h.id}>
-                          <TableCell className="font-medium">
-                            {h.unidade?.bloco ? `${h.unidade.bloco}/` : ""}
-                            {h.unidade?.identificador ?? "—"}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatBRL(h.valor_anterior)}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatBRL(h.valor_novo)}
-                          </TableCell>
-                          <TableCell>
-                            {variacao !== null && (
-                              <span className={variacao >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                {variacao >= 0 ? "+" : ""}
-                                {variacao.toFixed(1)}%
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(h.alterado_em).toLocaleString("pt-BR")}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="comercial">
+          {projeto && (
+            <ProjetoComercial projetoId={projetoId} projeto={projeto} canManage={canManage} />
+          )}
         </TabsContent>
 
-        <TabsContent value="foco" className="space-y-3">
-          {canManage && (
-            <div className="flex justify-end">
-              <Dialog open={focoOpen} onOpenChange={setFocoOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Star className="h-4 w-4 mr-1" />
-                    Ativar foco
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Ativar projeto em foco</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleSubmitFoco} className="space-y-3">
-                    <div>
-                      <Label htmlFor="motivo">Motivo / campanha</Label>
-                      <Input id="motivo" name="motivo" placeholder="ex.: Lançamento, meta do mês" />
-                    </div>
-                    <div>
-                      <Label htmlFor="fim">Encerrar em (opcional)</Label>
-                      <Input id="fim" name="fim" type="datetime-local" />
-                    </div>
-                    <DialogFooter>
-                      <Button type="submit" disabled={ativarFoco.isPending}>
-                        Ativar
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )}
+        <TabsContent value="historico">
+          <HistoricoPrecos historico={historicoQ.data ?? []} loading={historicoQ.isLoading} />
+        </TabsContent>
 
-          <Card>
-            <CardContent className="p-0">
-              {focoQ.isLoading ? (
-                <p className="p-6 text-sm text-muted-foreground">Carregando...</p>
-              ) : (focoQ.data ?? []).length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground text-center">
-                  Este projeto nunca foi destacado.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Motivo</TableHead>
-                      <TableHead>Início</TableHead>
-                      <TableHead>Fim</TableHead>
-                      <TableHead>Status</TableHead>
-                      {canManage && <TableHead></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(focoQ.data ?? []).map((f: any) => (
-                      <TableRow key={f.id}>
-                        <TableCell>{f.motivo || "—"}</TableCell>
-                        <TableCell className="text-xs">
-                          {new Date(f.inicio).toLocaleString("pt-BR")}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {f.fim ? new Date(f.fim).toLocaleString("pt-BR") : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {f.ativo ? (
-                            <Badge>Ativo</Badge>
-                          ) : (
-                            <Badge variant="outline">Encerrado</Badge>
-                          )}
-                        </TableCell>
-                        {canManage && (
-                          <TableCell>
-                            {f.ativo && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => desativarFoco.mutate(f.id)}
-                              >
-                                Encerrar
-                              </Button>
-                            )}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="foco">
+          <ProjetoFocoPanel
+            focos={focoQ.data ?? []}
+            loading={focoQ.isLoading}
+            canManage={canManage}
+            open={focoOpen}
+            onOpenChange={setFocoOpen}
+            onAtivar={(payload) => ativarFoco.mutate(payload)}
+            ativarPending={ativarFoco.isPending}
+            onDesativar={(id) => desativarFoco.mutate(id)}
+          />
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number | string }) {
-  return (
-    <Card>
-      <CardContent className="py-3 px-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-xl font-semibold mt-0.5">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function InfoLine({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-medium">{children}</div>
     </div>
   );
 }

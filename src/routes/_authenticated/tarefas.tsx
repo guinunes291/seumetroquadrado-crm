@@ -1,14 +1,18 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO, isBefore } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
+import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { StatTile } from "@/components/ui/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Plus, CheckCircle2, Clock, AlertTriangle, ListTodo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   TAREFA_STATUS,
@@ -52,6 +56,7 @@ import {
   type TarefaTipo,
   type TarefaPrioridade,
 } from "@/lib/tarefas";
+import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/tarefas")({
@@ -59,6 +64,13 @@ export const Route = createFileRoute("/_authenticated/tarefas")({
     throw redirect({ to: "/agendamentos", search: { tab: "tarefas" } });
   },
 });
+
+type TarefaRow = Tables<"tarefas"> & {
+  leads: { id: string; nome: string | null } | null;
+  profiles: { id: string; nome: string | null } | null;
+};
+
+type TarefaPayload = Partial<TablesInsert<"tarefas">>;
 
 export function TarefasPage() {
   const { user } = useAuth();
@@ -71,7 +83,7 @@ export function TarefasPage() {
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [busca, setBusca] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<TarefaRow | null>(null);
 
   const tarefasQuery = useQuery({
     queryKey: ["tarefas", { canManageAll }],
@@ -82,7 +94,9 @@ export function TarefasPage() {
         .is("deleted_at", null)
         .order("data_vencimento", { ascending: true, nullsFirst: false });
       if (error) throw error;
-      return data ?? [];
+      // Fronteira explícita: o hint `profiles!tarefas_corretor_id_fkey` resolve
+      // no PostgREST, mas os types gerados não conhecem essa relação.
+      return (data ?? []) as unknown as TarefaRow[];
     },
   });
 
@@ -112,7 +126,7 @@ export function TarefasPage() {
 
   const tarefasFiltradas = useMemo(() => {
     const list = tarefasQuery.data ?? [];
-    return list.filter((t: any) => {
+    return list.filter((t) => {
       if (filtroStatus !== "todos" && t.status !== filtroStatus) return false;
       if (filtroTipo !== "todos" && t.tipo !== filtroTipo) return false;
       if (busca && !t.titulo?.toLowerCase().includes(busca.toLowerCase())) return false;
@@ -123,11 +137,11 @@ export function TarefasPage() {
   const counts = useMemo(() => {
     const list = tarefasQuery.data ?? [];
     return {
-      pendentes: list.filter((t: any) => t.status === "pendente").length,
-      em_andamento: list.filter((t: any) => t.status === "em_andamento").length,
-      atrasadas: list.filter((t: any) => isAtrasada(t)).length,
+      pendentes: list.filter((t) => t.status === "pendente").length,
+      em_andamento: list.filter((t) => t.status === "em_andamento").length,
+      atrasadas: list.filter((t) => isAtrasada(t)).length,
       concluidas_hoje: list.filter(
-        (t: any) =>
+        (t) =>
           t.status === "concluida" &&
           t.data_conclusao &&
           new Date(t.data_conclusao).toDateString() === new Date().toDateString(),
@@ -136,7 +150,7 @@ export function TarefasPage() {
   }, [tarefasQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: TarefaPayload) => {
       if (editing?.id) {
         const { error } = await supabase.from("tarefas").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -145,7 +159,7 @@ export function TarefasPage() {
           ...payload,
           corretor_id: payload.corretor_id ?? user?.id,
           criado_por: user?.id,
-        });
+        } as TablesInsert<"tarefas">);
         if (error) throw error;
       }
     },
@@ -155,22 +169,43 @@ export function TarefasPage() {
       setEditing(null);
       qc.invalidateQueries({ queryKey: ["tarefas"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  const concluirMutation = useMutation({
-    mutationFn: async ({ id, resultado }: { id: string; resultado?: string }) => {
+  // Concluir tarefa usa o padrão universal de Desfazer (delayed): o círculo
+  // marca na hora via patch otimista — defensivo, pois o cache sob ["tarefas"]
+  // pode guardar um array puro OU o shape { rows } — e o servidor só é chamado
+  // quando a janela de 5s do toast expira. Desfazer = restaurar os snapshots.
+  const concluirTarefa = useUndoableMutation<{ id: string; resultado?: string }>({
+    mode: "delayed",
+    message: () => "Tarefa concluída",
+    mutationFn: async ({ id, resultado }) => {
       const { error } = await supabase
         .from("tarefas")
         .update({ status: "concluida", data_conclusao: new Date().toISOString(), resultado })
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success("Tarefa concluída");
-      qc.invalidateQueries({ queryKey: ["tarefas"] });
+    optimistic: {
+      keys: [["tarefas"]],
+      apply: (cached, { id }) => {
+        const concluir = (rows: unknown[]) =>
+          rows.map((r) => {
+            const row = r && typeof r === "object" ? (r as { id?: unknown }) : null;
+            return row && row.id === id
+              ? { ...row, status: "concluida", data_conclusao: new Date().toISOString() }
+              : r;
+          });
+        if (Array.isArray(cached)) return concluir(cached);
+        if (cached && typeof cached === "object") {
+          const c = cached as { rows?: unknown };
+          if (Array.isArray(c.rows)) return { ...cached, rows: concluir(c.rows) };
+        }
+        return cached;
+      },
     },
-    onError: (e: any) => toast.error(e.message),
+    invalidateKeys: [["tarefas"]],
+    errorMessage: "Não foi possível concluir a tarefa",
   });
 
   // Snooze: adia o vencimento da tarefa para agora + N (1h / 1 dia / 1 semana).
@@ -187,7 +222,7 @@ export function TarefasPage() {
       toast.success("Tarefa adiada");
       qc.invalidateQueries({ queryKey: ["tarefas"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   // Quick-add: cria uma tarefa só com o título (padrões follow-up / média / pendente).
@@ -195,7 +230,7 @@ export function TarefasPage() {
     mutationFn: async () => {
       const titulo = quickTitulo.trim();
       if (!titulo) throw new Error("Escreva o título da tarefa.");
-      const payload: any = {
+      const payload: TarefaPayload = {
         titulo,
         tipo: "follow_up",
         status: "pendente",
@@ -203,7 +238,7 @@ export function TarefasPage() {
         criado_por: user?.id,
       };
       if (canManageAll) payload.corretor_id = user?.id;
-      const { error } = await supabase.from("tarefas").insert(payload);
+      const { error } = await supabase.from("tarefas").insert(payload as TablesInsert<"tarefas">);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -211,18 +246,18 @@ export function TarefasPage() {
       toast.success("Tarefa criada");
       qc.invalidateQueries({ queryKey: ["tarefas"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const payload: any = {
-      titulo: fd.get("titulo"),
-      descricao: fd.get("descricao") || null,
-      tipo: fd.get("tipo"),
-      status: fd.get("status"),
-      prioridade: fd.get("prioridade"),
+    const payload: TarefaPayload = {
+      titulo: fd.get("titulo") as string,
+      descricao: (fd.get("descricao") as string) || null,
+      tipo: fd.get("tipo") as TarefaTipo,
+      status: fd.get("status") as TarefaStatus,
+      prioridade: fd.get("prioridade") as TarefaPrioridade,
       lead_id: (() => {
         const v = fd.get("lead_id") as string;
         return v && v !== "__none__" ? v : null;
@@ -231,12 +266,14 @@ export function TarefasPage() {
         ? new Date(fd.get("data_vencimento") as string).toISOString()
         : null,
     };
-    if (canManageAll) payload.corretor_id = fd.get("corretor_id") || user?.id;
+    if (canManageAll) payload.corretor_id = (fd.get("corretor_id") as string) || user?.id;
     saveMutation.mutate(payload);
   };
 
+  const temFiltros = filtroStatus !== "todos" || filtroTipo !== "todos" || busca.trim() !== "";
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <PageHeader
         title="Tarefas"
         description="Centralize follow-ups e atividades do seu funil."
@@ -333,7 +370,7 @@ export function TarefasPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">Nenhum</SelectItem>
-                      {(leadsQuery.data ?? []).map((l: any) => (
+                      {(leadsQuery.data ?? []).map((l) => (
                         <SelectItem key={l.id} value={l.id}>
                           {l.nome}
                         </SelectItem>
@@ -349,7 +386,7 @@ export function TarefasPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {(corretoresQuery.data ?? []).map((c: any) => (
+                        {(corretoresQuery.data ?? []).map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.nome}
                           </SelectItem>
@@ -378,30 +415,38 @@ export function TarefasPage() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          icon={<Clock className="h-4 w-4 text-warning" />}
-          label="Pendentes"
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile
+          title="Pendentes"
           value={counts.pendentes}
+          icon={Clock}
+          intent="warning"
+          loading={tarefasQuery.isLoading}
         />
-        <StatCard
-          icon={<Clock className="h-4 w-4 text-blue-500" />}
-          label="Em andamento"
+        <StatTile
+          title="Em andamento"
           value={counts.em_andamento}
+          icon={Clock}
+          intent="info"
+          loading={tarefasQuery.isLoading}
         />
-        <StatCard
-          icon={<AlertTriangle className="h-4 w-4 text-destructive" />}
-          label="Atrasadas"
+        <StatTile
+          title="Atrasadas"
           value={counts.atrasadas}
+          icon={AlertTriangle}
+          intent="danger"
+          loading={tarefasQuery.isLoading}
         />
-        <StatCard
-          icon={<CheckCircle2 className="h-4 w-4 text-green-500" />}
-          label="Concluídas hoje"
+        <StatTile
+          title="Concluídas hoje"
           value={counts.concluidas_hoje}
+          icon={CheckCircle2}
+          intent="success"
+          loading={tarefasQuery.isLoading}
         />
       </div>
 
-      <Card>
+      <Card className="border-border-subtle shadow-elev-1">
         <CardContent className="p-4 space-y-4">
           {/* Quick-add: adicionar tarefa rápida sem abrir o modal. */}
           <div className="flex gap-2">
@@ -458,7 +503,17 @@ export function TarefasPage() {
           </div>
 
           {tarefasQuery.isLoading ? (
-            <div className="text-sm text-muted-foreground py-8 text-center">Carregando...</div>
+            <div className="space-y-4 py-2" aria-busy="true">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <Skeleton className="mt-1 h-5 w-5 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : tarefasQuery.isError ? (
             <QueryErrorState
               title="Não foi possível carregar as tarefas."
@@ -466,22 +521,43 @@ export function TarefasPage() {
               onRetry={() => tarefasQuery.refetch()}
             />
           ) : tarefasFiltradas.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-8 text-center">
-              Nenhuma tarefa encontrada.
-            </div>
+            <EmptyState
+              icon={ListTodo}
+              title="Nenhuma tarefa encontrada"
+              description={
+                temFiltros
+                  ? "Ajuste a busca ou os filtros para ver outras tarefas."
+                  : "Crie a primeira pela linha rápida acima ou em “Nova tarefa”."
+              }
+              action={
+                temFiltros ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setBusca("");
+                      setFiltroStatus("todos");
+                      setFiltroTipo("todos");
+                    }}
+                  >
+                    Limpar filtros
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
             <ul className="divide-y">
-              {tarefasFiltradas.map((t: any) => {
+              {tarefasFiltradas.map((t) => {
                 const atrasada = isAtrasada(t);
                 return (
                   <li key={t.id} className="py-3 flex items-start gap-3">
                     <button
-                      onClick={() => concluirMutation.mutate({ id: t.id })}
-                      disabled={t.status === "concluida" || concluirMutation.isPending}
+                      onClick={() => concluirTarefa.mutate({ id: t.id })}
+                      disabled={t.status === "concluida"}
                       className={cn(
-                        "mt-1 h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0",
+                        "mt-1 h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 press-scale",
                         t.status === "concluida"
-                          ? "bg-green-500 border-green-500 text-white"
+                          ? "bg-success border-success text-success-foreground"
                           : "border-muted-foreground/40 hover:border-primary",
                       )}
                       aria-label="Concluir"
@@ -499,12 +575,12 @@ export function TarefasPage() {
                           {t.titulo}
                         </span>
                         <Badge variant="outline" className={statusBadgeClass(t.status)}>
-                          {STATUS_LABEL[t.status as TarefaStatus]}
+                          {STATUS_LABEL[t.status]}
                         </Badge>
                         <Badge variant="outline" className={prioridadeBadgeClass(t.prioridade)}>
-                          {PRIORIDADE_LABEL[t.prioridade as TarefaPrioridade]}
+                          {PRIORIDADE_LABEL[t.prioridade]}
                         </Badge>
-                        <Badge variant="secondary">{TIPO_LABEL[t.tipo as TarefaTipo]}</Badge>
+                        <Badge variant="secondary">{TIPO_LABEL[t.tipo]}</Badge>
                         {atrasada && <Badge variant="destructive">Atrasada</Badge>}
                       </div>
                       {t.descricao && (
@@ -573,19 +649,5 @@ export function TarefasPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">{icon}</div>
-        <div>
-          <div className="text-2xl font-semibold">{value}</div>
-          <div className="text-xs text-muted-foreground">{label}</div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
