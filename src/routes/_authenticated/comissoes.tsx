@@ -1,8 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
   Building2,
   CheckCircle2,
   Clock,
@@ -21,20 +20,12 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { PageHeader } from "@/components/page-header";
 import { PendingSalesApproval } from "@/components/pending-sales-approval";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatTile, StatGrid } from "@/components/ui/stat-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -90,7 +81,6 @@ export const Route = createFileRoute("/_authenticated/comissoes")({
   },
 });
 
-const PAGINA_RENDER = 50;
 // Data local (não UTC): à noite no Brasil o toISOString já virou o dia seguinte.
 const hoje = () => {
   const d = new Date();
@@ -150,6 +140,9 @@ function AcoesLinha({
   );
 }
 
+const fmtDataCurta = (d: string | null | undefined) =>
+  d ? new Date(`${d}T12:00:00`).toLocaleDateString("pt-BR") : "—";
+
 export function ComissoesPage() {
   const qc = useQueryClient();
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
@@ -160,7 +153,6 @@ export function ComissoesPage() {
   const [mes, setMes] = useState<string>(mesesOpcoes[0]?.value ?? "todos");
   const [status, setStatus] = useState<string>("all");
   const [beneficiario, setBeneficiario] = useState<string>("all");
-  const [visibleCount, setVisibleCount] = useState(PAGINA_RENDER);
 
   const [pagarRow, setPagarRow] = useState<ComissaoRow | null>(null);
   const [atribuirRow, setAtribuirRow] = useState<ComissaoRow | null>(null);
@@ -170,10 +162,6 @@ export function ComissoesPage() {
   useEffect(() => {
     setBeneficiarioEscolhido(atribuirRow?.beneficiario_id ?? null);
   }, [atribuirRow]);
-
-  useEffect(() => {
-    setVisibleCount(PAGINA_RENDER);
-  }, [mes, status, beneficiario]);
 
   const bounds = useMemo(() => {
     if (mes === "todos") return null;
@@ -227,7 +215,6 @@ export function ComissoesPage() {
     if (beneficiario === "sem") return rows.filter((r) => !r.beneficiario_id);
     return rows.filter((r) => r.beneficiario_id === beneficiario);
   }, [rows, beneficiario]);
-  const visiveis = filtered.slice(0, visibleCount);
 
   const totais = useMemo(() => computeTotais(filtered), [filtered]);
   const resumoVendas = useMemo(() => computeResumoVendas(vendasQ.data ?? []), [vendasQ.data]);
@@ -346,13 +333,166 @@ export function ComissoesPage() {
     </div>
   );
 
-  const reverterComissao = (row: ComissaoRow) =>
-    updateM.mutate({
-      id: row.id,
-      changes: { status: "pendente", data_pagamento: null },
-      run: () => reverterComissaoPendente(row.id),
-      sucesso: "Comissão revertida para pendente",
-    });
+  const mutateUpdate = updateM.mutate;
+  const reverterComissao = useCallback(
+    (row: ComissaoRow) =>
+      mutateUpdate({
+        id: row.id,
+        changes: { status: "pendente", data_pagamento: null },
+        run: () => reverterComissaoPendente(row.id),
+        sucesso: "Comissão revertida para pendente",
+      }),
+    [mutateUpdate],
+  );
+
+  const columns = useMemo<ColumnDef<ComissaoRow, unknown>[]>(() => {
+    const cols: ColumnDef<ComissaoRow, unknown>[] = [
+      {
+        id: "data",
+        accessorFn: (r) => r.venda?.data_assinatura ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Data" />,
+        meta: { label: "Data", hideBelow: "sm" },
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {fmtDataCurta(row.original.venda?.data_assinatura)}
+          </span>
+        ),
+      },
+      {
+        id: "projeto",
+        accessorFn: (r) => r.venda?.projeto_nome ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Projeto" />,
+        meta: { label: "Projeto", hideBelow: "md" },
+        cell: ({ row }) => (
+          <span className="text-sm">{row.original.venda?.projeto_nome ?? "—"}</span>
+        ),
+      },
+      {
+        id: "beneficiario",
+        accessorFn: (r) => r.beneficiario_nome ?? tipoLabel(r.tipo),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Beneficiário" />,
+        meta: { label: "Beneficiário" },
+        cell: ({ row }) => (
+          <span className="font-medium">
+            <Beneficiario row={row.original} />
+          </span>
+        ),
+      },
+      {
+        id: "tipo",
+        accessorFn: (r) => tipoLabel(r.tipo),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Tipo" />,
+        meta: { label: "Tipo", hideBelow: "lg" },
+        cell: ({ row }) => (
+          <StatusBadge hue={tipoHue(row.original.tipo)}>{tipoLabel(row.original.tipo)}</StatusBadge>
+        ),
+      },
+      {
+        id: "vgv",
+        accessorFn: (r) => Number(r.contrato_vgv) || 0,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="VGV" />,
+        meta: {
+          label: "VGV",
+          align: "right",
+          hideBelow: "xl",
+          cellClassName: "tabular-nums whitespace-nowrap",
+        },
+        cell: ({ row }) => formatBRL2(row.original.contrato_vgv),
+      },
+      {
+        id: "percentual",
+        accessorFn: (r) => Number(r.percentual) || 0,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="%" />,
+        meta: {
+          label: "Percentual",
+          align: "right",
+          hideBelow: "xl",
+          cellClassName: "tabular-nums",
+        },
+        cell: ({ row }) => (
+          <>
+            {Number(row.original.percentual).toLocaleString("pt-BR", {
+              maximumFractionDigits: 3,
+            })}
+            %
+          </>
+        ),
+      },
+      {
+        id: "valor",
+        accessorFn: (r) => Number(r.valor_comissao) || 0,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Valor" />,
+        meta: {
+          label: "Valor",
+          align: "right",
+          hideBelow: "lg",
+          cellClassName: "tabular-nums whitespace-nowrap",
+        },
+        cell: ({ row }) => formatBRL2(row.original.valor_comissao),
+      },
+      {
+        id: "liquido",
+        accessorFn: (r) => Number(r.valor_liquido) || 0,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Líquido" />,
+        meta: {
+          label: "Líquido",
+          align: "right",
+          cellClassName: "tabular-nums whitespace-nowrap",
+        },
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {formatBRL2(row.original.valor_liquido)}
+            {Number(row.original.percentual_desconto) > 0 && (
+              <span className="block text-xs font-normal text-muted-foreground">
+                desc. {Number(row.original.percentual_desconto).toLocaleString("pt-BR")}%
+              </span>
+            )}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        accessorFn: (r) => statusLabel(r.status),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        meta: { label: "Status" },
+        cell: ({ row }) => (
+          <StatusBadge intent={statusIntent(row.original.status)}>
+            {statusLabel(row.original.status)}
+          </StatusBadge>
+        ),
+      },
+      {
+        id: "pagamento",
+        accessorFn: (r) => r.data_pagamento ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Pagamento" />,
+        meta: { label: "Pagamento", hideBelow: "xl" },
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {fmtDataCurta(row.original.data_pagamento)}
+          </span>
+        ),
+      },
+    ];
+    if (canManage) {
+      cols.push({
+        id: "acoes",
+        header: () => <span className="sr-only">Ações</span>,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+        cell: ({ row }) => (
+          <AcoesLinha
+            row={row.original}
+            onPagar={setPagarRow}
+            onReverter={reverterComissao}
+            onAtribuir={setAtribuirRow}
+            onDesconto={setDescontoRow}
+          />
+        ),
+      });
+    }
+    return cols;
+  }, [canManage, reverterComissao]);
 
   return (
     <div className="space-y-6">
@@ -401,214 +541,64 @@ export function ComissoesPage() {
         />
       </StatGrid>
 
-      {comissoesQ.isLoading ? (
-        <div className="h-64 animate-pulse bg-muted rounded-xl" />
-      ) : comissoesQ.isError ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <AlertTriangle className="w-8 h-8 text-destructive" />
-            <p className="font-medium">Erro ao carregar as comissões</p>
-            <p className="text-sm text-muted-foreground max-w-md">
-              {(comissoesQ.error as Error | null)?.message}
-            </p>
-            <Button variant="outline" onClick={() => comissoesQ.refetch()}>
-              Tentar novamente
-            </Button>
-          </CardContent>
-        </Card>
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={HandCoins}
-          title="Nenhuma comissão por aqui ainda."
-          description={
-            rows.length > 0
-              ? "Nenhuma comissão com os filtros escolhidos — ajuste o período, o status ou o beneficiário."
-              : "As comissões aparecem depois que a gestão aprova uma venda pendente."
-          }
-          action={
-            rows.length > 0 ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setStatus("all");
-                  setBeneficiario("all");
-                  setMes("todos");
-                }}
-              >
-                Limpar filtros
-              </Button>
-            ) : undefined
+      <div className="space-y-2">
+        <DataTable
+          tableId="comissoes"
+          aria-label="Comissões"
+          columns={columns}
+          data={filtered}
+          loading={comissoesQ.isLoading}
+          error={comissoesQ.isError ? comissoesQ.error : undefined}
+          onRetry={() => void comissoesQ.refetch()}
+          empty={
+            <EmptyState
+              icon={HandCoins}
+              title="Nenhuma comissão por aqui ainda."
+              description={
+                rows.length > 0
+                  ? "Nenhuma comissão com os filtros escolhidos — ajuste o período, o status ou o beneficiário."
+                  : "As comissões aparecem depois que a gestão aprova uma venda pendente."
+              }
+              action={
+                rows.length > 0 ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setStatus("all");
+                      setBeneficiario("all");
+                      setMes("todos");
+                    }}
+                  >
+                    Limpar filtros
+                  </Button>
+                ) : undefined
+              }
+            />
           }
         />
-      ) : (
-        <>
-          {/* Tabela (desktop) */}
-          <Card className="hidden md:block">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Projeto</TableHead>
-                      <TableHead>Beneficiário</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">VGV</TableHead>
-                      <TableHead className="text-right">%</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="text-right">Líquido</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Pagamento</TableHead>
-                      {canManage && <TableHead className="w-10"></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visiveis.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {row.venda?.data_assinatura
-                            ? new Date(`${row.venda.data_assinatura}T12:00:00`).toLocaleDateString(
-                                "pt-BR",
-                              )
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm">{row.venda?.projeto_nome ?? "—"}</TableCell>
-                        <TableCell className="font-medium">
-                          <Beneficiario row={row} />
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge hue={tipoHue(row.tipo)}>{tipoLabel(row.tipo)}</StatusBadge>
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatBRL2(row.contrato_vgv)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {Number(row.percentual).toLocaleString("pt-BR", {
-                            maximumFractionDigits: 3,
-                          })}
-                          %
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatBRL2(row.valor_comissao)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums font-medium">
-                          {formatBRL2(row.valor_liquido)}
-                          {Number(row.percentual_desconto) > 0 && (
-                            <span className="block text-xs font-normal text-muted-foreground">
-                              desc. {Number(row.percentual_desconto).toLocaleString("pt-BR")}%
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge intent={statusIntent(row.status)}>
-                            {statusLabel(row.status)}
-                          </StatusBadge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {row.data_pagamento
-                            ? new Date(`${row.data_pagamento}T12:00:00`).toLocaleDateString("pt-BR")
-                            : "—"}
-                        </TableCell>
-                        {canManage && (
-                          <TableCell>
-                            <AcoesLinha
-                              row={row}
-                              onPagar={setPagarRow}
-                              onReverter={reverterComissao}
-                              onAtribuir={setAtribuirRow}
-                              onDesconto={setDescontoRow}
-                            />
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                    {/* Totais do filtro ativo (todas as linhas, não só as visíveis) */}
-                    <TableRow className="bg-muted/40 font-medium">
-                      <TableCell colSpan={4}>
-                        Totais ({filtered.length} {filtered.length === 1 ? "comissão" : "comissões"}
-                        )
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatBRL2(totais.vgv)}
-                      </TableCell>
-                      <TableCell></TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatBRL2(somaValor)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatBRL2(somaLiquido)}
-                      </TableCell>
-                      <TableCell colSpan={canManage ? 3 : 2}></TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Cards (mobile) */}
-          <div className="md:hidden space-y-2">
-            {visiveis.map((row) => (
-              <div key={row.id} className="bg-card border rounded-xl p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium leading-tight">
-                      <Beneficiario row={row} />
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {row.venda?.projeto_nome ?? "—"}
-                      {row.venda?.data_assinatura
-                        ? ` · ${new Date(`${row.venda.data_assinatura}T12:00:00`).toLocaleDateString("pt-BR")}`
-                        : ""}
-                    </p>
-                  </div>
-                  {canManage && (
-                    <AcoesLinha
-                      row={row}
-                      onPagar={setPagarRow}
-                      onReverter={reverterComissao}
-                      onAtribuir={setAtribuirRow}
-                      onDesconto={setDescontoRow}
-                    />
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <StatusBadge hue={tipoHue(row.tipo)}>{tipoLabel(row.tipo)}</StatusBadge>
-                  <StatusBadge intent={statusIntent(row.status)}>
-                    {statusLabel(row.status)}
-                  </StatusBadge>
-                  {row.data_pagamento && (
-                    <span className="text-xs text-muted-foreground">
-                      pago em{" "}
-                      {new Date(`${row.data_pagamento}T12:00:00`).toLocaleDateString("pt-BR")}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-end justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {Number(row.percentual).toLocaleString("pt-BR", { maximumFractionDigits: 3 })}%
-                    de {formatBRL2(row.contrato_vgv)}
-                  </span>
-                  <span className="font-semibold">{formatBRL2(row.valor_liquido)}</span>
-                </div>
-              </div>
-            ))}
-            <div className="bg-muted/40 border rounded-xl p-3 flex items-center justify-between text-sm font-medium">
-              <span>Total líquido ({filtered.length})</span>
-              <span>{formatBRL2(somaLiquido)}</span>
-            </div>
+        {/* Totais do filtro ativo (todas as linhas, não só as visíveis) */}
+        {!comissoesQ.isLoading && !comissoesQ.isError && filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 rounded-xl border border-border-subtle bg-muted/40 px-4 py-3 text-sm">
+            <span className="font-medium">
+              Totais ({filtered.length} {filtered.length === 1 ? "comissão" : "comissões"})
+            </span>
+            <span className="flex flex-wrap items-center gap-x-6 gap-y-1 tabular-nums">
+              <span className="text-muted-foreground">
+                VGV <span className="font-medium text-foreground">{formatBRL2(totais.vgv)}</span>
+              </span>
+              <span className="text-muted-foreground">
+                Valor <span className="font-medium text-foreground">{formatBRL2(somaValor)}</span>
+              </span>
+              <span className="text-muted-foreground">
+                Líquido{" "}
+                <span className="font-semibold text-foreground">{formatBRL2(somaLiquido)}</span>
+              </span>
+            </span>
           </div>
-
-          {filtered.length > visibleCount && (
-            <div className="flex justify-center">
-              <Button variant="outline" onClick={() => setVisibleCount((c) => c + PAGINA_RENDER)}>
-                Carregar mais ({filtered.length - visibleCount} restantes)
-              </Button>
-            </div>
-          )}
-        </>
-      )}
+        )}
+      </div>
 
       {/* Dialog: marcar como paga */}
       <Dialog open={!!pagarRow} onOpenChange={(o) => !o && setPagarRow(null)}>

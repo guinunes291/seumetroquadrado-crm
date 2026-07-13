@@ -1,18 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Users } from "lucide-react";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/equipes")({
@@ -125,13 +118,13 @@ export function EquipesPage() {
     setGestorId("none");
   };
 
-  const startEdit = (e: Equipe) => {
+  const startEdit = useCallback((e: Equipe) => {
     setEditing(e);
     setNome(e.nome);
     setDescricao(e.descricao ?? "");
     setGestorId(e.gestor_id ?? "none");
     setOpen(true);
-  };
+  }, []);
 
   const upsertMutation = useMutation({
     mutationFn: async () => {
@@ -181,6 +174,98 @@ export function EquipesPage() {
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
+
+  const mutateAtivo = toggleAtivo.mutate;
+  const mutateRemove = remove.mutate;
+
+  const columns = useMemo<ColumnDef<Equipe, unknown>[]>(
+    () => [
+      {
+        accessorKey: "nome",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Equipe" />,
+        meta: { label: "Equipe" },
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <div className="font-medium">{row.original.nome}</div>
+            {row.original.descricao && (
+              <div className="text-xs text-muted-foreground line-clamp-1">
+                {row.original.descricao}
+              </div>
+            )}
+          </div>
+        ),
+      },
+      {
+        id: "gestor",
+        accessorFn: (e) => e.gestor?.nome ?? e.gestor?.email ?? "",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Gestor" />,
+        meta: { label: "Gestor", hideBelow: "sm" },
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.gestor?.nome ?? row.original.gestor?.email ?? "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "membros_count",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Membros" />,
+        meta: { label: "Membros", align: "right", cellClassName: "tabular-nums" },
+        cell: ({ row }) => row.original.membros_count ?? 0,
+      },
+      {
+        accessorKey: "ativo",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+        meta: { label: "Status", hideBelow: "sm" },
+        cell: ({ row }) =>
+          row.original.ativo ? <Badge>Ativa</Badge> : <Badge variant="secondary">Inativa</Badge>,
+      },
+      {
+        id: "acoes",
+        header: () => <span className="sr-only">Ações</span>,
+        enableSorting: false,
+        enableHiding: false,
+        meta: { align: "right" },
+        cell: ({ row }) => (
+          <div className="space-x-1 whitespace-nowrap">
+            {podeCriar && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => startEdit(row.original)}
+                aria-label={`Editar equipe ${row.original.nome}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {isAdmin && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => mutateAtivo({ id: row.original.id, ativo: !row.original.ativo })}
+                >
+                  {row.original.ativo ? "Desativar" : "Ativar"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={`Remover equipe ${row.original.nome}`}
+                  onClick={() => {
+                    if (confirm(`Remover a equipe "${row.original.nome}"?`)) {
+                      mutateRemove(row.original.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
+            )}
+          </div>
+        ),
+      },
+    ],
+    [podeCriar, isAdmin, startEdit, mutateAtivo, mutateRemove],
+  );
 
   return (
     <div>
@@ -263,83 +348,22 @@ export function EquipesPage() {
         }
       />
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Equipe</TableHead>
-                <TableHead>Gestor</TableHead>
-                <TableHead>Membros</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {equipesQuery.isLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Carregando…
-                  </TableCell>
-                </TableRow>
-              )}
-              {!equipesQuery.isLoading && (equipesQuery.data ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    Nenhuma equipe cadastrada.
-                  </TableCell>
-                </TableRow>
-              )}
-              {(equipesQuery.data ?? []).map((e) => (
-                <TableRow key={e.id}>
-                  <TableCell>
-                    <div className="font-medium">{e.nome}</div>
-                    {e.descricao && (
-                      <div className="text-xs text-muted-foreground line-clamp-1">
-                        {e.descricao}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {e.gestor?.nome ?? e.gestor?.email ?? "—"}
-                  </TableCell>
-                  <TableCell>{e.membros_count ?? 0}</TableCell>
-                  <TableCell>
-                    {e.ativo ? <Badge>Ativa</Badge> : <Badge variant="secondary">Inativa</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    {podeCriar && (
-                      <Button variant="ghost" size="sm" onClick={() => startEdit(e)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {isAdmin && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleAtivo.mutate({ id: e.id, ativo: !e.ativo })}
-                        >
-                          {e.ativo ? "Desativar" : "Ativar"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (confirm(`Remover a equipe "${e.nome}"?`)) remove.mutate(e.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        tableId="equipes"
+        aria-label="Equipes comerciais"
+        columns={columns}
+        data={equipesQuery.data ?? []}
+        loading={equipesQuery.isLoading}
+        error={equipesQuery.isError ? equipesQuery.error : undefined}
+        onRetry={() => void equipesQuery.refetch()}
+        empty={
+          <EmptyState
+            icon={Users}
+            title="Nenhuma equipe cadastrada."
+            description="Crie a primeira equipe comercial e atribua um gestor responsável."
+          />
+        }
+      />
     </div>
   );
 }

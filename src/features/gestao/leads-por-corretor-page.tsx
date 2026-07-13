@@ -168,10 +168,10 @@ export function LeadsPorCorretorPage() {
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
       // RPC canônica: renova data_distribuicao (sem isso o job de redistribuição
       // desfazia a transferência em minutos) e registra em distribution_log.
-      const { error } = await supabase.rpc(
-        "transferir_leads" as never,
-        { _ids: ids, _corretor: corretorId } as never,
-      );
+      const { error } = await supabase.rpc("transferir_leads", {
+        _ids: ids,
+        _corretor: corretorId,
+      });
       if (error) throw error;
       // Notifica via WhatsApp os leads com origem=facebook (uma chamada por lead).
       await Promise.allSettled(

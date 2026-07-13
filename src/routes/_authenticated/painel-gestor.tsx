@@ -5,18 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeader } from "@/components/ui/section-header";
+import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { cn, formatDuracaoParado } from "@/lib/utils";
 import { leadStatusLabel } from "@/lib/leads";
 import {
@@ -24,6 +20,11 @@ import {
   useDashboardLeadsUrgentes,
   useTempoPrimeiraResposta,
 } from "@/features/dashboard/queries";
+import {
+  useGestaoMetricas,
+  LIMITE_ATIVIDADE,
+  type AtividadeAutor,
+} from "@/features/gestao/use-gestao-metricas";
 import {
   Activity,
   AlertTriangle,
@@ -34,6 +35,8 @@ import {
   MapPin,
   BarChart3,
   Timer,
+  UserX,
+  Users,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoGeralPanel } from "@/features/gestao/visao-geral";
@@ -146,8 +149,22 @@ function intervalo(p: Periodo): { di: string; df: string } {
   return { di: toDate(new Date(now.getFullYear(), now.getMonth(), 1)), df: toDate(now) };
 }
 
-// Status fora do funil ativo — usados para filtrar a base de "leads ativos".
-const FORA_DO_FUNIL = "(perdido,contrato_fechado,pos_venda)";
+type SaudeRow = {
+  corretor_id: string;
+  nome: string;
+  leads: number;
+  agendamentos: number;
+  visitas: number;
+  analise: number;
+  fechados: number;
+  perdidos: number;
+  conversao: number;
+  parados: number;
+  /** Minutos médios de 1ª resposta (null = sem amostra no período). */
+  primeira_resposta_min: number | null;
+};
+
+type AtividadeLinha = AtividadeAutor & { nome: string };
 
 function SaudePanel() {
   const { isAdmin, isGestor } = useUserRoles();
@@ -158,6 +175,10 @@ function SaudePanel() {
   const porCorretorQ = useDashboardPorCorretor(range, podeVer);
   const urgentesQ = useDashboardLeadsUrgentes(null, podeVer);
   const tempoQ = useTempoPrimeiraResposta(range, podeVer);
+
+  // Agregados de atividade + aderência num RPC só (fallback: caminho antigo
+  // de linhas cruas). Ver use-gestao-metricas.ts.
+  const metricasQ = useGestaoMetricas(range, podeVer);
 
   // Tempo de 1ª resposta por corretor (mapa corretor_id -> métrica).
   const tempoMap = useMemo(
@@ -176,33 +197,6 @@ function SaudePanel() {
     return somaResp > 0 ? Math.round(somaPond / somaResp) : null;
   }, [tempoQ.data]);
 
-  // Aderência / qualidade do cadastro — contagens org-wide (gestor enxerga tudo).
-  const aderenciaQ = useQuery({
-    queryKey: ["gestor:aderencia"],
-    enabled: podeVer,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const base = () =>
-        supabase
-          .from("leads")
-          .select("*", { count: "exact", head: true })
-          .eq("na_lixeira", false)
-          .not("status", "in", FORA_DO_FUNIL);
-      const [tot, semCorr, semEmail, semRenda] = await Promise.all([
-        base(),
-        base().is("corretor_id", null),
-        base().is("email", null),
-        base().is("renda_informada", null),
-      ]);
-      return {
-        total: tot.count ?? 0,
-        semCorretor: semCorr.count ?? 0,
-        semEmail: semEmail.count ?? 0,
-        semRenda: semRenda.count ?? 0,
-      };
-    },
-  });
-
   // Nomes dos corretores (autor das interações) para o relatório de atividade.
   const nomesQ = useQuery({
     queryKey: ["gestor:nomes-corretores"],
@@ -217,76 +211,6 @@ function SaudePanel() {
     },
   });
 
-  // Relatório de atividade: interações do período agregadas por autor + tipo.
-  // (Ligações / WhatsApp / Visitas — hoje não medidos no dashboard.)
-  const LIMITE_ATIVIDADE = 10000;
-  const atividadeQ = useQuery({
-    queryKey: ["gestor:atividade", range.di, range.df],
-    enabled: podeVer,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("interacoes")
-        .select("autor_id, tipo")
-        .is("deleted_at", null)
-        .gte("ocorreu_em", `${range.di}T00:00:00`)
-        .lte("ocorreu_em", `${range.df}T23:59:59`)
-        .order("ocorreu_em", { ascending: false })
-        .limit(LIMITE_ATIVIDADE);
-      if (error) throw error;
-      const rows = (data ?? []) as { autor_id: string | null; tipo: string }[];
-      return { rows, truncado: rows.length >= LIMITE_ATIVIDADE };
-    },
-  });
-
-  const atividade = useMemo(() => {
-    const rows = atividadeQ.data?.rows ?? [];
-    const nomes = nomesQ.data;
-    type Lin = {
-      autor: string;
-      nome: string;
-      ligacao: number;
-      whatsapp: number;
-      visita: number;
-      outras: number;
-      total: number;
-    };
-    const m = new Map<string, Lin>();
-    const tot = { ligacao: 0, whatsapp: 0, visita: 0, total: 0 };
-    for (const r of rows) {
-      const autor = r.autor_id ?? "—";
-      let lin = m.get(autor);
-      if (!lin) {
-        lin = {
-          autor,
-          nome: (r.autor_id && nomes?.get(r.autor_id)) || "Sem autor",
-          ligacao: 0,
-          whatsapp: 0,
-          visita: 0,
-          outras: 0,
-          total: 0,
-        };
-        m.set(autor, lin);
-      }
-      if (r.tipo === "ligacao") {
-        lin.ligacao++;
-        tot.ligacao++;
-      } else if (r.tipo === "whatsapp") {
-        lin.whatsapp++;
-        tot.whatsapp++;
-      } else if (r.tipo === "visita") {
-        lin.visita++;
-        tot.visita++;
-      } else {
-        lin.outras++;
-      }
-      lin.total++;
-      tot.total++;
-    }
-    const linhas = Array.from(m.values()).sort((a, b) => b.total - a.total);
-    return { linhas, tot, truncado: atividadeQ.data?.truncado ?? false };
-  }, [atividadeQ.data, nomesQ.data]);
-
   // Leads parados (>30 min sem atendimento) agregados por corretor.
   const paradosPorCorretor = useMemo(() => {
     const m = new Map<string, number>();
@@ -295,6 +219,165 @@ function SaudePanel() {
     });
     return m;
   }, [urgentesQ.data]);
+
+  // Linhas da tabela de saúde: métricas por corretor + parados + 1ª resposta.
+  const saudeRows = useMemo<SaudeRow[]>(
+    () =>
+      (porCorretorQ.data ?? []).map((c) => {
+        const t = tempoMap.get(c.corretor_id);
+        return {
+          ...c,
+          parados: paradosPorCorretor.get(c.corretor_id) ?? 0,
+          primeira_resposta_min: t && t.leads_respondidos > 0 ? t.tempo_medio_min : null,
+        };
+      }),
+    [porCorretorQ.data, tempoMap, paradosPorCorretor],
+  );
+
+  const saudeColumns = useMemo<ColumnDef<SaudeRow, unknown>[]>(
+    () => [
+      {
+        accessorKey: "nome",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Corretor" />,
+        meta: { label: "Corretor" },
+        cell: ({ row }) => <span className="font-medium">{row.original.nome}</span>,
+      },
+      {
+        accessorKey: "leads",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Leads" />,
+        meta: { label: "Leads", align: "right", cellClassName: "tabular-nums" },
+      },
+      {
+        accessorKey: "agendamentos",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Agend." />,
+        meta: {
+          label: "Agendamentos",
+          align: "right",
+          hideBelow: "sm",
+          cellClassName: "tabular-nums",
+        },
+      },
+      {
+        accessorKey: "visitas",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Visitas" />,
+        meta: { label: "Visitas", align: "right", hideBelow: "sm", cellClassName: "tabular-nums" },
+      },
+      {
+        accessorKey: "analise",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Análise" />,
+        meta: { label: "Análise", align: "right", hideBelow: "md", cellClassName: "tabular-nums" },
+      },
+      {
+        accessorKey: "fechados",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Vendas" />,
+        meta: { label: "Vendas", align: "right", cellClassName: "tabular-nums" },
+        cell: ({ row }) => (
+          <span className="font-semibold text-success">{row.original.fechados}</span>
+        ),
+      },
+      {
+        accessorKey: "perdidos",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Perdidos" />,
+        meta: { label: "Perdidos", align: "right", hideBelow: "md", cellClassName: "tabular-nums" },
+        cell: ({ row }) => <span className="text-muted-foreground">{row.original.perdidos}</span>,
+      },
+      {
+        accessorKey: "parados",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Parados" />,
+        meta: { label: "Parados", align: "right", cellClassName: "tabular-nums" },
+        cell: ({ row }) => (
+          <span
+            className={cn(
+              row.original.parados > 0 ? "font-semibold text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {row.original.parados}
+          </span>
+        ),
+      },
+      {
+        id: "primeira_resposta",
+        accessorFn: (r) => r.primeira_resposta_min ?? -1,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="1ª resp." />,
+        meta: {
+          label: "1ª resposta",
+          align: "right",
+          hideBelow: "lg",
+          cellClassName: "tabular-nums",
+        },
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.primeira_resposta_min != null
+              ? fmtDuracao(row.original.primeira_resposta_min)
+              : "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "conversao",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Conv." />,
+        meta: { label: "Conversão", align: "right", cellClassName: "tabular-nums" },
+        cell: ({ row }) => <Badge variant="outline">{row.original.conversao}%</Badge>,
+      },
+    ],
+    [],
+  );
+
+  // Relatório de atividade com o nome do autor resolvido.
+  const atividade = useMemo(() => {
+    const nomes = nomesQ.data;
+    const linhas: AtividadeLinha[] = (metricasQ.data?.atividade ?? []).map((l) => ({
+      ...l,
+      nome: (l.autor_id && nomes?.get(l.autor_id)) || "Sem autor",
+    }));
+    const tot = { ligacao: 0, whatsapp: 0, visita: 0, total: 0 };
+    for (const l of linhas) {
+      tot.ligacao += l.ligacao;
+      tot.whatsapp += l.whatsapp;
+      tot.visita += l.visita;
+      tot.total += l.total;
+    }
+    return { linhas, tot, truncado: metricasQ.data?.truncado ?? false };
+  }, [metricasQ.data, nomesQ.data]);
+
+  const atividadeColumns = useMemo<ColumnDef<AtividadeLinha, unknown>[]>(
+    () => [
+      {
+        accessorKey: "nome",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Corretor" />,
+        meta: { label: "Corretor" },
+        cell: ({ row }) => <span className="font-medium">{row.original.nome}</span>,
+      },
+      {
+        accessorKey: "ligacao",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Ligações" />,
+        meta: { label: "Ligações", align: "right", cellClassName: "tabular-nums" },
+      },
+      {
+        accessorKey: "whatsapp",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="WhatsApp" />,
+        meta: { label: "WhatsApp", align: "right", cellClassName: "tabular-nums" },
+      },
+      {
+        accessorKey: "visita",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Visitas" />,
+        meta: { label: "Visitas", align: "right", hideBelow: "sm", cellClassName: "tabular-nums" },
+      },
+      {
+        accessorKey: "outras",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Outras" />,
+        meta: { label: "Outras", align: "right", hideBelow: "md", cellClassName: "tabular-nums" },
+        cell: ({ row }) => <span className="text-muted-foreground">{row.original.outras}</span>,
+      },
+      {
+        accessorKey: "total",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Total" />,
+        meta: { label: "Total", align: "right", cellClassName: "tabular-nums" },
+        cell: ({ row }) => <span className="font-semibold">{row.original.total}</span>,
+      },
+    ],
+    [],
+  );
 
   if (!podeVer) {
     return (
@@ -308,9 +391,8 @@ function SaudePanel() {
     );
   }
 
-  const corretores = porCorretorQ.data ?? [];
   const urgentes = urgentesQ.data ?? [];
-  const ad = aderenciaQ.data;
+  const ad = metricasQ.data?.aderencia;
 
   const pctAderencia = (faltando: number) =>
     ad && ad.total > 0 ? Math.round((1 - faltando / ad.total) * 100) : null;
@@ -338,177 +420,151 @@ function SaudePanel() {
       />
 
       {/* Bloco 1 — Saúde por corretor */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-1.5">
-            <Activity className="h-4 w-4 text-primary" /> Saúde por corretor
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          {porCorretorQ.isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : corretores.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem dados no período.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Corretor</TableHead>
-                  <TableHead className="text-right">Leads</TableHead>
-                  <TableHead className="text-right">Agend.</TableHead>
-                  <TableHead className="text-right">Visitas</TableHead>
-                  <TableHead className="text-right">Análise</TableHead>
-                  <TableHead className="text-right">Vendas</TableHead>
-                  <TableHead className="text-right">Perdidos</TableHead>
-                  <TableHead className="text-right">Parados</TableHead>
-                  <TableHead className="text-right">1ª resp.</TableHead>
-                  <TableHead className="text-right">Conv.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {corretores.map((c) => {
-                  const parados = paradosPorCorretor.get(c.corretor_id) ?? 0;
-                  return (
-                    <TableRow key={c.corretor_id}>
-                      <TableCell className="font-medium">{c.nome}</TableCell>
-                      <TableCell className="text-right">{c.leads}</TableCell>
-                      <TableCell className="text-right">{c.agendamentos}</TableCell>
-                      <TableCell className="text-right">{c.visitas}</TableCell>
-                      <TableCell className="text-right">{c.analise}</TableCell>
-                      <TableCell className="text-right font-semibold text-success">
-                        {c.fechados}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {c.perdidos}
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right",
-                          parados > 0 ? "font-semibold text-destructive" : "text-muted-foreground",
-                        )}
-                      >
-                        {parados}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {(() => {
-                          const t = tempoMap.get(c.corretor_id);
-                          return t && t.leads_respondidos > 0 ? fmtDuracao(t.tempo_medio_min) : "—";
-                        })()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline">{c.conversao}%</Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <section>
+        <SectionHeader
+          eyebrow="Produtividade"
+          title={
+            <span className="flex items-center gap-1.5">
+              <Activity className="h-4 w-4 text-primary" /> Saúde por corretor
+            </span>
+          }
+        />
+        <DataTable
+          tableId="gestao-saude"
+          aria-label="Saúde por corretor"
+          columns={saudeColumns}
+          data={saudeRows}
+          rowKey={(r) => r.corretor_id}
+          loading={porCorretorQ.isLoading}
+          error={porCorretorQ.isError ? porCorretorQ.error : undefined}
+          onRetry={() => void porCorretorQ.refetch()}
+          empty={
+            <EmptyState
+              icon={Users}
+              title="Sem dados no período."
+              description="Ajuste o período acima para ver a produtividade da equipe."
+            />
+          }
+        />
+      </section>
 
       {/* Bloco 2 — Relatório de atividade (ligações / WhatsApp / visitas) */}
-      <div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-3">
-          <AtividadeCard icon={PhoneCall} titulo="Ligações" valor={atividade.tot.ligacao} />
-          <AtividadeCard icon={MessageCircle} titulo="WhatsApp" valor={atividade.tot.whatsapp} />
-          <AtividadeCard icon={MapPin} titulo="Visitas" valor={atividade.tot.visita} />
-          <AtividadeCard
-            icon={Timer}
-            titulo="1ª resposta (méd. equipe)"
-            valor={tempoEquipe != null ? fmtDuracao(tempoEquipe) : "—"}
+      <section>
+        <StatGrid className="mb-3">
+          <StatTile
+            title="Ligações"
+            icon={PhoneCall}
+            intent="info"
+            loading={metricasQ.isLoading}
+            value={atividade.tot.ligacao}
           />
-        </div>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-1.5">
+          <StatTile
+            title="WhatsApp"
+            icon={MessageCircle}
+            intent="success"
+            loading={metricasQ.isLoading}
+            value={atividade.tot.whatsapp}
+          />
+          <StatTile
+            title="Visitas"
+            icon={MapPin}
+            intent="info"
+            loading={metricasQ.isLoading}
+            value={atividade.tot.visita}
+          />
+          <StatTile
+            title="1ª resposta (méd. equipe)"
+            icon={Timer}
+            intent="neutral"
+            loading={tempoQ.isLoading}
+            value={tempoEquipe != null ? fmtDuracao(tempoEquipe) : "—"}
+          />
+        </StatGrid>
+        <SectionHeader
+          eyebrow="Atividade"
+          title={
+            <span className="flex items-center gap-1.5">
               <BarChart3 className="h-4 w-4 text-primary" /> Atividade da equipe no período
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            {atividadeQ.isError ? (
-              <QueryErrorState
-                title="Não foi possível carregar a atividade da equipe."
-                error={atividadeQ.error}
-                onRetry={() => atividadeQ.refetch()}
-              />
-            ) : atividadeQ.isLoading ? (
-              <p className="text-sm text-muted-foreground">Carregando…</p>
-            ) : atividade.linhas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma interação registrada no período.
-              </p>
-            ) : (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Corretor</TableHead>
-                      <TableHead className="text-right">Ligações</TableHead>
-                      <TableHead className="text-right">WhatsApp</TableHead>
-                      <TableHead className="text-right">Visitas</TableHead>
-                      <TableHead className="text-right">Outras</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {atividade.linhas.map((l) => (
-                      <TableRow key={l.autor}>
-                        <TableCell className="font-medium">{l.nome}</TableCell>
-                        <TableCell className="text-right">{l.ligacao}</TableCell>
-                        <TableCell className="text-right">{l.whatsapp}</TableCell>
-                        <TableCell className="text-right">{l.visita}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {l.outras}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">{l.total}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {atividade.truncado && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Mostrando as {LIMITE_ATIVIDADE.toLocaleString("pt-BR")} interações mais recentes
-                    do período (limite de exibição) — os totais podem estar subestimados.
-                  </p>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </span>
+          }
+        />
+        <DataTable
+          tableId="gestao-atividade"
+          aria-label="Atividade da equipe no período"
+          columns={atividadeColumns}
+          data={atividade.linhas}
+          rowKey={(r) => r.autor_id ?? "sem-autor"}
+          loading={metricasQ.isLoading}
+          error={metricasQ.isError ? metricasQ.error : undefined}
+          onRetry={() => void metricasQ.refetch()}
+          empty={
+            <EmptyState
+              icon={BarChart3}
+              title="Nenhuma interação registrada no período."
+              description="Ligações, mensagens e visitas registradas pela equipe aparecem aqui."
+            />
+          }
+        />
+        {atividade.truncado && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Mostrando as {LIMITE_ATIVIDADE.toLocaleString("pt-BR")} interações mais recentes do
+            período (limite de exibição) — os totais podem estar subestimados.
+          </p>
+        )}
+      </section>
 
       {/* Bloco 3 — Aderência / qualidade do CRM */}
-      <div>
-        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
-          <ClipboardCheck className="h-4 w-4" /> Qualidade do CRM (leads ativos)
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <AderenciaCard titulo="Leads ativos" valor={ad?.total} />
-          <AderenciaCard
-            titulo="Sem corretor"
-            valor={ad?.semCorretor}
-            alerta={(ad?.semCorretor ?? 0) > 0}
-            href="/leads"
+      <section>
+        <SectionHeader
+          eyebrow="Qualidade"
+          title={
+            <span className="flex items-center gap-1.5">
+              <ClipboardCheck className="h-4 w-4 text-primary" /> Qualidade do CRM (leads ativos)
+            </span>
+          }
+        />
+        <StatGrid>
+          <StatTile
+            title="Leads ativos"
+            icon={Users}
+            loading={metricasQ.isLoading}
+            value={ad ? ad.total : "—"}
           />
-          <AderenciaCard
-            titulo="Sem e-mail"
-            valor={ad?.semEmail}
-            sub={pctAderencia(ad?.semEmail ?? 0)}
+          <Link to="/leads" className="block" aria-label="Ver leads sem corretor">
+            <StatTile
+              title="Sem corretor"
+              icon={UserX}
+              intent={(ad?.semCorretor ?? 0) > 0 ? "warning" : "neutral"}
+              loading={metricasQ.isLoading}
+              value={ad ? ad.semCorretor : "—"}
+              hint="clique para abrir a base"
+              className="hover-lift cursor-pointer transition-shadow hover:shadow-elev-2"
+            />
+          </Link>
+          <StatTile
+            title="Sem e-mail"
+            loading={metricasQ.isLoading}
+            value={ad ? ad.semEmail : "—"}
+            hint={
+              pctAderencia(ad?.semEmail ?? 0) != null
+                ? `${pctAderencia(ad?.semEmail ?? 0)}% preenchido`
+                : undefined
+            }
           />
-          <AderenciaCard
-            titulo="Sem renda informada"
-            valor={ad?.semRenda}
-            sub={pctAderencia(ad?.semRenda ?? 0)}
+          <StatTile
+            title="Sem renda informada"
+            loading={metricasQ.isLoading}
+            value={ad ? ad.semRenda : "—"}
+            hint={
+              pctAderencia(ad?.semRenda ?? 0) != null
+                ? `${pctAderencia(ad?.semRenda ?? 0)}% preenchido`
+                : undefined
+            }
           />
-        </div>
-      </div>
+        </StatGrid>
+      </section>
 
-      {/* Bloco 3 — Leads parados por corretor (acionável) */}
+      {/* Bloco 4 — Leads parados por corretor (acionável) */}
       <Card className="border-warning/30">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-1.5">
@@ -528,8 +584,13 @@ function SaudePanel() {
               error={urgentesQ.error}
               onRetry={() => urgentesQ.refetch()}
             />
+          ) : urgentesQ.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
           ) : urgentes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum lead parado agora. 👏</p>
+            <EmptyState title="Nenhum lead parado agora. 👏" />
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {urgentes.slice(0, 20).map((u) => (
@@ -537,7 +598,7 @@ function SaudePanel() {
                   key={u.lead_id}
                   to="/leads/$leadId"
                   params={{ leadId: u.lead_id }}
-                  className="flex items-center justify-between gap-2 rounded-md border p-2 hover:bg-accent"
+                  className="flex items-center justify-between gap-2 rounded-md border border-border-subtle p-2 hover:bg-accent"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{u.nome}</div>
@@ -568,60 +629,4 @@ function fmtDuracao(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return m ? `${h}h ${m}min` : `${h}h`;
-}
-
-function AtividadeCard({
-  icon: Icon,
-  titulo,
-  valor,
-}: {
-  icon: typeof Activity;
-  titulo: string;
-  valor: number | string;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-5">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Icon className="h-3.5 w-3.5" /> {titulo}
-        </div>
-        <div className="mt-1 text-2xl font-bold">
-          {typeof valor === "number" ? valor.toLocaleString("pt-BR") : valor}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AderenciaCard({
-  titulo,
-  valor,
-  sub,
-  alerta,
-  href,
-}: {
-  titulo: string;
-  valor: number | undefined;
-  sub?: number | null;
-  alerta?: boolean;
-  href?: string;
-}) {
-  const inner = (
-    <Card className={cn(alerta && "border-warning/40")}>
-      <CardContent className="pt-5">
-        <div className="text-xs text-muted-foreground">{titulo}</div>
-        <div className={cn("mt-1 text-2xl font-bold", alerta && "text-warning")}>
-          {valor ?? "—"}
-        </div>
-        {sub != null && <div className="text-xs text-muted-foreground">{sub}% preenchido</div>}
-      </CardContent>
-    </Card>
-  );
-  return href ? (
-    <Link to={href} className="block">
-      {inner}
-    </Link>
-  ) : (
-    inner
-  );
 }

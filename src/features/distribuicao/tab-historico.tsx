@@ -1,13 +1,13 @@
 // Aba Histórico — toda decisão do motor, com filtros e o contexto completo
 // ("por que este corretor?": aptos, inaptos e motivos no momento da decisão).
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { History, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogContent,
@@ -26,14 +26,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { SectionHeader } from "@/components/ui/section-header";
 import {
   gatilhoLabel,
   motivoInaptidaoLabel,
@@ -68,18 +61,123 @@ export function TabHistorico() {
   const nomesQ = useNomesPerfis();
   const nomes = nomesQ.data;
 
-  const linhas = (q.data ?? []).filter((l) => {
-    if (!busca.trim()) return true;
-    const t = busca.trim().toLowerCase();
-    return (
-      (l.leads?.nome ?? "").toLowerCase().includes(t) ||
-      (l.corretor_id ? (nomes?.get(l.corretor_id) ?? "").toLowerCase().includes(t) : false) ||
-      (l.motivo ?? "").toLowerCase().includes(t)
-    );
-  });
+  const linhas = useMemo(
+    () =>
+      (q.data ?? []).filter((l) => {
+        if (!busca.trim()) return true;
+        const t = busca.trim().toLowerCase();
+        return (
+          (l.leads?.nome ?? "").toLowerCase().includes(t) ||
+          (l.corretor_id ? (nomes?.get(l.corretor_id) ?? "").toLowerCase().includes(t) : false) ||
+          (l.motivo ?? "").toLowerCase().includes(t)
+        );
+      }),
+    [q.data, busca, nomes],
+  );
+
+  const columns = useMemo<ColumnDef<LogLinha, unknown>[]>(
+    () => [
+      {
+        accessorKey: "created_at",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Quando" />,
+        meta: { label: "Quando", cellClassName: "whitespace-nowrap" },
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {format(parseISO(row.original.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
+          </span>
+        ),
+      },
+      {
+        id: "lead",
+        accessorFn: (l) => l.leads?.nome ?? "(lead)",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Lead" />,
+        meta: { label: "Lead" },
+        cell: ({ row }) => (
+          <Link
+            to="/leads/$leadId"
+            params={{ leadId: row.original.lead_id }}
+            className="font-medium hover:underline"
+          >
+            {row.original.leads?.nome ?? "(lead)"}
+          </Link>
+        ),
+      },
+      {
+        id: "roleta",
+        accessorFn: (l) => roletaLabel(l.roleta_slug),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Roleta" />,
+        meta: { label: "Roleta", hideBelow: "md" },
+        cell: ({ getValue }) => <span className="text-xs">{String(getValue())}</span>,
+      },
+      {
+        id: "corretor",
+        accessorFn: (l) => (l.corretor_id ? (nomes?.get(l.corretor_id) ?? "—") : "—"),
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Corretor" />,
+        meta: { label: "Corretor", hideBelow: "sm" },
+        cell: ({ getValue }) => <span className="text-xs">{String(getValue())}</span>,
+      },
+      {
+        accessorKey: "tipo",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Tipo" />,
+        meta: { label: "Tipo", hideBelow: "lg" },
+        cell: ({ row }) => <span className="text-xs capitalize">{row.original.tipo}</span>,
+      },
+      {
+        accessorKey: "resultado",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Resultado" />,
+        meta: { label: "Resultado" },
+        cell: ({ row }) => (
+          <StatusBadge
+            intent={
+              row.original.resultado === "sucesso"
+                ? "success"
+                : row.original.resultado === "erro"
+                  ? "danger"
+                  : "warning"
+            }
+          >
+            {RESULTADO_LABEL[row.original.resultado] ?? row.original.resultado}
+          </StatusBadge>
+        ),
+      },
+      {
+        accessorKey: "motivo",
+        header: "Motivo",
+        enableSorting: false,
+        meta: { label: "Motivo", hideBelow: "lg" },
+        cell: ({ row }) => (
+          <span className="block max-w-72 truncate text-xs text-muted-foreground">
+            {row.original.motivo ?? "—"}
+          </span>
+        ),
+      },
+      {
+        id: "contexto",
+        header: () => <span className="sr-only">Contexto da decisão</span>,
+        enableSorting: false,
+        enableHiding: false,
+        size: 88,
+        cell: ({ row }) => (
+          <Button variant="ghost" size="sm" onClick={() => setAlvo(row.original)}>
+            Por quê?
+          </Button>
+        ),
+      },
+    ],
+    [nomes],
+  );
 
   return (
     <div className="space-y-4">
+      <SectionHeader
+        eyebrow="Distribuição"
+        title={
+          <span className="flex items-center gap-1.5">
+            <History className="h-4 w-4 text-primary" /> Decisões do motor
+          </span>
+        }
+      />
+
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -140,78 +238,22 @@ export function TabHistorico() {
         </Select>
       </div>
 
-      <Card>
-        <CardContent className="overflow-x-auto pt-4">
-          {q.isLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : linhas.length === 0 ? (
-            <EmptyState
-              icon={History}
-              title="Nenhuma decisão no período/filtros"
-              description="Ajuste os filtros ou aguarde novas distribuições."
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Quando</TableHead>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Roleta</TableHead>
-                  <TableHead>Corretor</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Resultado</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {linhas.map((l) => (
-                  <TableRow key={l.id}>
-                    <TableCell className="text-xs text-muted-foreground tabular-nums">
-                      {format(parseISO(l.created_at), "dd/MM HH:mm:ss", { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <Link
-                        to="/leads/$leadId"
-                        params={{ leadId: l.lead_id }}
-                        className="hover:underline"
-                      >
-                        {l.leads?.nome ?? "(lead)"}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-xs">{roletaLabel(l.roleta_slug)}</TableCell>
-                    <TableCell className="text-xs">
-                      {l.corretor_id ? (nomes?.get(l.corretor_id) ?? "—") : "—"}
-                    </TableCell>
-                    <TableCell className="text-xs capitalize">{l.tipo}</TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        intent={
-                          l.resultado === "sucesso"
-                            ? "success"
-                            : l.resultado === "erro"
-                              ? "danger"
-                              : "warning"
-                        }
-                      >
-                        {RESULTADO_LABEL[l.resultado] ?? l.resultado}
-                      </StatusBadge>
-                    </TableCell>
-                    <TableCell className="max-w-72 truncate text-xs text-muted-foreground">
-                      {l.motivo ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" onClick={() => setAlvo(l)}>
-                        Por quê?
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        tableId="distribuicao-historico"
+        aria-label="Histórico de decisões de distribuição"
+        columns={columns}
+        data={linhas}
+        loading={q.isLoading}
+        error={q.isError ? q.error : undefined}
+        onRetry={() => void q.refetch()}
+        empty={
+          <EmptyState
+            icon={History}
+            title="Nenhuma decisão no período/filtros"
+            description="Ajuste os filtros ou aguarde novas distribuições."
+          />
+        }
+      />
 
       <DecisaoContextoDialog alvo={alvo} onFechar={() => setAlvo(null)} nomes={nomes} />
     </div>

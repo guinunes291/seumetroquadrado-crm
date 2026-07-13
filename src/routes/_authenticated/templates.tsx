@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Edit2, Trash2, MessageSquare } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeader } from "@/components/ui/section-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CANAL_LABEL, extractVariables, type TemplateCanal } from "@/lib/templates";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
@@ -294,54 +297,64 @@ export function TemplatesPage() {
       />
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Carregando…</div>
-      ) : templates.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <MessageSquare className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <div className="font-medium">Nenhum template criado</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              Crie modelos prontos para acelerar follow-ups e propostas.
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {templates.map((t) => (
-            <Card key={t.id}>
-              <CardContent className="pt-5">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <div className="font-medium">{t.nome}</div>
-                    <div className="mt-1 flex gap-1">
-                      <Badge variant="outline">{CANAL_LABEL[t.canal]}</Badge>
-                      {!t.ativo && <Badge variant="secondary">Inativo</Badge>}
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
+      ) : templates.length === 0 ? (
+        <EmptyState
+          icon={MessageSquare}
+          title="Nenhum template criado"
+          description="Crie modelos prontos para acelerar follow-ups e propostas."
+          action={
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1.5" /> Novo template
+            </Button>
+          }
+        />
+      ) : (
+        <div>
+          <SectionHeader
+            eyebrow="Comunicação"
+            title={`Modelos disponíveis (${templates.length})`}
+          />
+          <div className="grid gap-3 md:grid-cols-2">
+            {templates.map((t) => (
+              <Card key={t.id} className="border-border-subtle shadow-elev-1">
+                <CardContent className="pt-5">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <div className="font-medium">{t.nome}</div>
+                      <div className="mt-1 flex gap-1">
+                        <Badge variant="outline">{CANAL_LABEL[t.canal]}</Badge>
+                        {!t.ativo && <Badge variant="secondary">Inativo</Badge>}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          if (confirm(`Remover "${t.nome}"?`)) remove.mutate(t.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => {
-                        if (confirm(`Remover "${t.nome}"?`)) remove.mutate(t.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                {t.assunto && (
-                  <div className="text-xs text-muted-foreground mb-1">Assunto: {t.assunto}</div>
-                )}
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground line-clamp-5">
-                  {t.conteudo}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
+                  {t.assunto && (
+                    <div className="text-xs text-muted-foreground mb-1">Assunto: {t.assunto}</div>
+                  )}
+                  <p className="text-sm whitespace-pre-wrap text-muted-foreground line-clamp-5">
+                    {t.conteudo}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
     </div>

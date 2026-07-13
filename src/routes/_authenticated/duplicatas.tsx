@@ -7,7 +7,9 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Merge, Phone, Mail } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Merge, Phone, Mail, CopyCheck } from "lucide-react";
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/duplicatas")({
@@ -82,18 +84,17 @@ export function DuplicatasPage() {
         description="Leads com mesmo telefone ou e-mail. Escolha o lead-base e mescle os demais."
       />
       {isLoading && (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            Procurando duplicatas...
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <Skeleton className="h-28 w-full rounded-xl" />
+          <Skeleton className="h-28 w-full rounded-xl" />
+        </div>
       )}
       {!isLoading && (!grupos || grupos.length === 0) && (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">
-            Nenhuma duplicata encontrada. 🎉
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CopyCheck}
+          title="Nenhuma duplicata encontrada. 🎉"
+          description="Leads com o mesmo telefone ou e-mail aparecem aqui para mesclagem."
+        />
       )}
       {grupos?.map((g) => (
         <GrupoCard key={`${g.tipo}-${g.grupo_chave}`} grupo={g} leadsMap={leadsMap ?? new Map()} />
@@ -109,7 +110,7 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
       const { error } = await supabase.rpc("mesclar_leads", {
         _lead_destino: destino,
         _lead_origem: origem,
-      } as never);
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -130,7 +131,7 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
   const demais = leads.slice(1);
 
   return (
-    <Card>
+    <Card className="border-border-subtle shadow-elev-1">
       <CardHeader>
         <CardTitle className="text-sm flex items-center gap-2">
           {grupo.tipo === "telefone" ? <Phone className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
@@ -140,15 +141,18 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
       </CardHeader>
       <CardContent className="space-y-2">
         {principal && (
-          <div className="rounded-lg border bg-emerald-500/10 border-emerald-500/30 p-3">
-            <div className="text-[11px] uppercase tracking-wider text-emerald-600 mb-1">
+          <div className="rounded-lg border bg-success/10 border-success/30 p-3">
+            <div className="text-[11px] uppercase tracking-wider text-success mb-1">
               Lead-base (mais antigo)
             </div>
             <LeadLinha lead={principal} />
           </div>
         )}
         {demais.map((l) => (
-          <div key={l.id} className="rounded-lg border bg-card p-3 flex items-center gap-3">
+          <div
+            key={l.id}
+            className="rounded-lg border border-border-subtle bg-card p-3 flex items-center gap-3"
+          >
             <div className="flex-1 min-w-0">
               <LeadLinha lead={l} />
             </div>
