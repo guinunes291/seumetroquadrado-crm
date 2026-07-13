@@ -25,7 +25,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/ui/empty-state";
-import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
+import { StatTile, StatGrid } from "@/components/ui/stat-tile";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
   Table,
@@ -364,15 +364,15 @@ export function ComissoesPage() {
 
       {canManage && <PendingSalesApproval />}
 
-      <KpiGrid>
-        <KpiCard
+      <StatGrid>
+        <StatTile
           title={canManage ? "VGV do período" : "Meu VGV do período"}
           value={formatBRL2(resumoVendas.vgv)}
           hint={mesLabel}
           icon={TrendingUp}
           loading={vendasQ.isLoading}
         />
-        <KpiCard
+        <StatTile
           title={canManage ? "Comissão imobiliária" : "Comissão sobre minhas vendas"}
           value={formatBRL2(resumoVendas.comissaoImobiliaria)}
           hint={
@@ -383,7 +383,7 @@ export function ComissoesPage() {
           icon={Building2}
           loading={vendasQ.isLoading}
         />
-        <KpiCard
+        <StatTile
           title={canManage ? "Comissões pendentes" : "Minha comissão pendente"}
           value={formatBRL2(totais.pendente)}
           hint={hintComissoes}
@@ -391,7 +391,7 @@ export function ComissoesPage() {
           intent="warning"
           loading={comissoesQ.isLoading}
         />
-        <KpiCard
+        <StatTile
           title={canManage ? "Comissões pagas" : "Minha comissão paga"}
           value={formatBRL2(totais.paga)}
           hint={hintComissoes}
@@ -399,7 +399,7 @@ export function ComissoesPage() {
           intent="success"
           loading={comissoesQ.isLoading}
         />
-      </KpiGrid>
+      </StatGrid>
 
       {comissoesQ.isLoading ? (
         <div className="h-64 animate-pulse bg-muted rounded-xl" />

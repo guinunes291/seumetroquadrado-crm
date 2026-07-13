@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
-import { KpiCard, KpiGrid } from "@/components/ui/kpi-card";
+import { StatTile, StatGrid } from "@/components/ui/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -846,8 +846,8 @@ function CommandCenterPage() {
         className="pt-2"
       />
 
-      <KpiGrid className="lg:grid-cols-4 xl:grid-cols-4">
-        <KpiCard
+      <StatGrid className="lg:grid-cols-4 xl:grid-cols-4">
+        <StatTile
           title="Pontuação"
           icon={Star}
           intent="warning"
@@ -856,7 +856,7 @@ function CommandCenterPage() {
           hint="pontos no período"
           className="bg-gradient-to-br from-primary/10 to-transparent"
         />
-        <KpiCard
+        <StatTile
           title="VGV"
           icon={DollarSign}
           intent="success"
@@ -864,7 +864,7 @@ function CommandCenterPage() {
           value={fmtBRL(totais.vgv)}
           hint={`${totais.vendas} venda(s)`}
         />
-        <KpiCard
+        <StatTile
           title="Conquistas"
           icon={Trophy}
           loading={conquistasQ.isLoading}
@@ -886,13 +886,13 @@ function CommandCenterPage() {
             </Link>
           }
         />
-        <KpiCard
+        <StatTile
           title="Atividades"
           loading={atividadesQ.isLoading}
           value={totais.ligacoes + totais.whatsapps + totais.agendamentos + totais.visitas}
           hint="contatos + agendas + visitas"
         />
-      </KpiGrid>
+      </StatGrid>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => {
