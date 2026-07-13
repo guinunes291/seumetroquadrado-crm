@@ -39,6 +39,19 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { CopaPage } from "@/routes/_authenticated/copa";
 import { ConquistasPage } from "@/routes/_authenticated/conquistas";
 import { MetasPage } from "@/routes/_authenticated/metas";
+import { Podium } from "@/features/ranking/podium";
+import { Medal } from "@/features/ranking/medal";
+import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/utils";
+import {
+  PERIODO_LABELS,
+  type PeriodoOption,
+  getDateRange,
+  dateKey,
+  mesRange,
+  diasNoMes,
+} from "@/lib/periodo";
 
 type DesempenhoTab = "ranking" | "competicao" | "conquistas" | "metas";
 const DESEMPENHO_TABS: DesempenhoTab[] = ["ranking", "competicao", "conquistas", "metas"];
@@ -100,15 +113,6 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
 const TABS = ["realxmeta", "vendas", "produtividade"] as const;
 type TabType = (typeof TABS)[number];
 
-type PeriodOption = "today" | "this_week" | "this_month" | "this_year" | "all";
-const periodLabels: Record<PeriodOption, string> = {
-  today: "Hoje",
-  this_week: "Esta semana",
-  this_month: "Este mês",
-  this_year: "Este ano",
-  all: "Últimos 2 anos",
-};
-
 const TV_STYLES = `
 @keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }
 @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 10px rgba(6,182,212,.3) } 50% { box-shadow: 0 0 25px rgba(6,182,212,.7) } }
@@ -119,66 +123,8 @@ const TV_STYLES = `
 // ============================================================================
 // Utils
 // ============================================================================
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-function endOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
-}
-function startOfWeek(d: Date) {
-  const x = startOfDay(d);
-  const day = x.getDay();
-  const diff = (day + 6) % 7;
-  x.setDate(x.getDate() - diff);
-  return x;
-}
-function endOfWeek(d: Date) {
-  const x = startOfWeek(d);
-  x.setDate(x.getDate() + 6);
-  return endOfDay(x);
-}
-function startOfMonth(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-function endOfMonth(d: Date) {
-  return endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-}
-function startOfYear(d: Date) {
-  return new Date(d.getFullYear(), 0, 1);
-}
-function endOfYear(d: Date) {
-  return endOfDay(new Date(d.getFullYear(), 11, 31));
-}
-
-function getDateRange(p: PeriodOption): { from: Date; to: Date } {
-  const now = new Date();
-  switch (p) {
-    case "today":
-      return { from: startOfDay(now), to: endOfDay(now) };
-    case "this_week":
-      return { from: startOfWeek(now), to: endOfWeek(now) };
-    case "this_month":
-      return { from: startOfMonth(now), to: endOfMonth(now) };
-    case "this_year":
-      return { from: startOfYear(now), to: endOfYear(now) };
-    case "all":
-      return {
-        from: startOfDay(new Date(now.getFullYear() - 2, now.getMonth(), now.getDate())),
-        to: now,
-      };
-  }
-}
-
-function dateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+// Helpers de data/período agora vivem em @/lib/periodo (compartilhados e
+// testados em tests/periodo.test.ts).
 
 function getInitials(name?: string | null) {
   if (!name) return "?";
@@ -280,7 +226,7 @@ function KPICard({
   label: string;
   value?: string;
   numericValue?: number;
-  icon: any;
+  icon: React.ComponentType<{ className?: string }>;
   variant?: KPIVariant;
   subValue?: string;
   highlight?: boolean;
@@ -478,103 +424,15 @@ type RankRow = {
   pontos: number;
 };
 
-function PodiumVisual({
-  ranking,
-  type = "vendas",
-}: {
-  ranking: RankRow[];
-  type?: "vendas" | "pontos";
-}) {
-  if (ranking.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-navy-400">
-        <p>Nenhum corretor no ranking</p>
-      </div>
-    );
-  }
-  const top6 = ranking.slice(0, 6);
-  const podiumOrder = [
-    { data: top6[3], position: 4 },
-    { data: top6[1], position: 2 },
-    { data: top6[0], position: 1 },
-    { data: top6[2], position: 3 },
-    { data: top6[4], position: 5 },
-    { data: top6[5], position: 6 },
-  ].filter((x) => x.data);
-  const styleFor = (p: number) => {
-    if (p === 1)
-      return {
-        size: "w-28 h-28",
-        border: "border-[5px] border-yellow-400",
-        glow: "shadow-[0_0_50px_rgba(250,204,21,0.5)]",
-        nameColor: "text-yellow-300",
-        bg: "from-yellow-500 to-amber-600",
-      };
-    if (p === 2)
-      return {
-        size: "w-24 h-24",
-        border: "border-4 border-gray-300",
-        glow: "shadow-[0_0_35px_rgba(209,213,219,0.4)]",
-        nameColor: "text-gray-100",
-        bg: "from-gray-400 to-gray-600",
-      };
-    if (p === 3)
-      return {
-        size: "w-22 h-22",
-        border: "border-4 border-amber-500",
-        glow: "shadow-[0_0_30px_rgba(245,158,11,0.4)]",
-        nameColor: "text-amber-300",
-        bg: "from-amber-600 to-orange-700",
-      };
-    return {
-      size: "w-16 h-16",
-      border: "border-2 border-blue-400/60",
-      glow: "shadow-[0_0_20px_rgba(96,165,250,0.25)]",
-      nameColor: "text-blue-200",
-      bg: "from-blue-500 to-blue-700",
-    };
-  };
-  return (
-    <div className="relative">
-      <div className="flex items-end justify-center gap-4 py-4">
-        {podiumOrder.map(({ data, position }) => {
-          if (!data) return null;
-          const s = styleFor(position);
-          const val =
-            type === "vendas"
-              ? `${data.vendas} venda${data.vendas === 1 ? "" : "s"}`
-              : `${data.pontos} pts`;
-          const badge =
-            position === 1 ? "👑" : position === 2 ? "🥈" : position === 3 ? "🥉" : null;
-          return (
-            <div
-              key={data.corretorId}
-              className={`flex flex-col items-center transition-all duration-300 hover:scale-105 ${position === 1 ? "z-10" : ""}`}
-            >
-              {badge && <div className="mb-1 text-sm">{badge}</div>}
-              <div className={`relative ${position === 1 ? "mb-3" : "mb-2"}`}>
-                <div
-                  className={`absolute -top-2 -right-2 z-10 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold bg-gradient-to-br ${s.bg} text-white shadow-lg border-2 border-white/20`}
-                >
-                  {position}
-                </div>
-                <Avatar className={`${s.size} ${s.border} ${s.glow}`}>
-                  <AvatarImage src={data.foto ?? undefined} />
-                  <AvatarFallback className={`bg-gradient-to-br ${s.bg} text-white font-bold`}>
-                    {getInitials(data.nome)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <p className={`font-bold text-sm ${s.nameColor} text-center max-w-[110px] truncate`}>
-                {data.nome.split(" ")[0]}
-              </p>
-              <p className="text-xs text-cyan-300 font-semibold tabular-nums">{val}</p>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+/** Adapta as linhas do ranking para o Pódio hero (mesmos dados da lista). */
+function podiumEntries(ranking: RankRow[], type: "vendas" | "pontos") {
+  return ranking.slice(0, 3).map((r) => ({
+    id: r.corretorId,
+    nome: r.nome.split(" ")[0],
+    foto: r.foto,
+    valor: type === "vendas" ? r.vendas : r.pontos,
+    unidade: type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
+  }));
 }
 
 function RankingLateral({
@@ -764,7 +622,7 @@ function RankingPanel() {
   const [activeTab, setActiveTab] = useState<TabType>("realxmeta");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
-  const [periodo, setPeriodo] = useState<PeriodOption>("this_month");
+  const [periodo, setPeriodo] = useState<PeriodoOption>("this_month");
   const [selectedMes, setSelectedMes] = useState(() => new Date().getMonth() + 1);
   const [selectedAno, setSelectedAno] = useState(() => new Date().getFullYear());
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -777,13 +635,7 @@ function RankingPanel() {
   // Range para Vendas/Produtividade
   const dateRange = useMemo(() => getDateRange(periodo), [periodo]);
   // Range para Real x Meta (mês/ano selecionado)
-  const monthRange = useMemo(
-    () => ({
-      from: new Date(selectedAno, selectedMes - 1, 1),
-      to: endOfDay(new Date(selectedAno, selectedMes, 0)),
-    }),
-    [selectedMes, selectedAno],
-  );
+  const monthRange = useMemo(() => mesRange(selectedAno, selectedMes), [selectedMes, selectedAno]);
 
   // ===== Queries =====
   const profQ = useQuery({
@@ -824,7 +676,7 @@ function RankingPanel() {
   const prevMonthRange = useMemo(() => {
     const prevM = selectedMes === 1 ? 12 : selectedMes - 1;
     const prevA = selectedMes === 1 ? selectedAno - 1 : selectedAno;
-    return { from: new Date(prevA, prevM - 1, 1), to: endOfDay(new Date(prevA, prevM, 0)) };
+    return mesRange(prevA, prevM);
   }, [selectedMes, selectedAno]);
   const rankingMesPrevQ = useQuery({
     queryKey: ["ranking-periodo-v2", "anterior", selectedAno, selectedMes],
@@ -1046,7 +898,7 @@ function RankingPanel() {
   const metaTotais = useMemo(
     () =>
       (metasQ.data ?? []).reduce(
-        (acc: any, m: any) => ({
+        (acc, m) => ({
           vendas: acc.vendas + (m.meta_vendas || 0),
           visitas: acc.visitas + (m.meta_visitas || 0),
           leads_atendidos: acc.leads_atendidos + (m.meta_leads_atendidos || 0),
@@ -1071,7 +923,7 @@ function RankingPanel() {
   // Tendência (projeção até fim do mês)
   const tendencia = useMemo(() => {
     const hoje = new Date();
-    const totalDias = new Date(selectedAno, selectedMes, 0).getDate();
+    const totalDias = diasNoMes(selectedAno, selectedMes);
     const ehAtual = hoje.getFullYear() === selectedAno && hoje.getMonth() + 1 === selectedMes;
     const diaAtual = ehAtual ? hoje.getDate() : totalDias;
     if (diaAtual <= 0 || metaTotais.vendas <= 0) return 0;
@@ -1092,6 +944,118 @@ function RankingPanel() {
     }),
     [rankingProd],
   );
+
+  // Classificação completa (Desempenho Detalhado) — posição congelada na
+  // ordenação por pontos; o sort client-side da DataTable reordena as linhas
+  // sem reescrever o ranking.
+  const detalheRows = useMemo(
+    () => rankingProd.filter((r) => r.pontos > 0).map((r, idx) => ({ ...r, pos: idx + 1 })),
+    [rankingProd],
+  );
+  const detalheColumns = useMemo<ColumnDef<RankRow & { pos: number }, unknown>[]>(() => {
+    const heatCell =
+      (
+        key: "ligacoes" | "whatsapp" | "agendamentos" | "visitas" | "documentacoes" | "vendas",
+        heat: number[],
+      ) =>
+      ({ row }: { row: { original: RankRow & { pos: number } } }) => {
+        const value = row.original[key];
+        return (
+          <span
+            className={cn(
+              "inline-flex min-w-9 justify-center rounded-md px-1.5 py-0.5 font-semibold tabular-nums",
+              getHeatColor(value, heat),
+            )}
+          >
+            {value || "—"}
+          </span>
+        );
+      };
+    return [
+      {
+        accessorKey: "pos",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="#" />,
+        meta: { label: "Posição" },
+        size: 56,
+        cell: ({ row }) =>
+          row.original.pos <= 3 ? (
+            <Medal
+              tier={row.original.pos === 1 ? "ouro" : row.original.pos === 2 ? "prata" : "bronze"}
+              size="sm"
+              title={`${row.original.pos}º lugar`}
+            >
+              {row.original.pos}
+            </Medal>
+          ) : (
+            <span className="pl-2 font-semibold tabular-nums text-navy-300">
+              {row.original.pos}
+            </span>
+          ),
+      },
+      {
+        accessorKey: "nome",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Corretor" />,
+        meta: { label: "Corretor" },
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Avatar className="w-7 h-7">
+              <AvatarImage src={row.original.foto ?? undefined} />
+              <AvatarFallback className="text-[10px] bg-navy-700 text-white">
+                {getInitials(row.original.nome)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium text-foreground">{row.original.nome}</span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "ligacoes",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Lig." />,
+        meta: { label: "Ligações", align: "center", hideBelow: "md" },
+        cell: heatCell("ligacoes", heatCols.lig),
+      },
+      {
+        accessorKey: "whatsapp",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="WhatsApp" />,
+        meta: { label: "WhatsApp", align: "center", hideBelow: "md" },
+        cell: heatCell("whatsapp", heatCols.wpp),
+      },
+      {
+        accessorKey: "agendamentos",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Agend." />,
+        meta: { label: "Agendamentos", align: "center", hideBelow: "sm" },
+        cell: heatCell("agendamentos", heatCols.agd),
+      },
+      {
+        accessorKey: "visitas",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Visitas" />,
+        meta: { label: "Visitas", align: "center", hideBelow: "sm" },
+        cell: heatCell("visitas", heatCols.vis),
+      },
+      {
+        accessorKey: "documentacoes",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Docs" />,
+        meta: { label: "Documentações", align: "center", hideBelow: "lg" },
+        cell: heatCell("documentacoes", heatCols.doc),
+      },
+      {
+        accessorKey: "vendas",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Vendas" />,
+        meta: { label: "Vendas", align: "center" },
+        cell: heatCell("vendas", heatCols.ven),
+      },
+      {
+        accessorKey: "pontos",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Pontos" />,
+        meta: { label: "Pontos", align: "right" },
+        cell: ({ row }) => (
+          <span className="font-display font-semibold tabular-nums text-cyan-300">
+            {formatNum(row.original.pontos)}
+          </span>
+        ),
+      },
+    ];
+  }, [heatCols]);
 
   const deltaVendas = totaisMes.vendas - totaisMesPrev.vendas;
 
@@ -1278,21 +1242,23 @@ function RankingPanel() {
                     className="gap-2 bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white min-w-[180px] justify-between"
                   >
                     <span className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" /> {periodLabels[periodo]}
+                      <Calendar className="h-4 w-4" /> {PERIODO_LABELS[periodo]}
                     </span>
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  {(Object.entries(periodLabels) as [PeriodOption, string][]).map(([k, label]) => (
-                    <DropdownMenuItem
-                      key={k}
-                      onClick={() => setPeriodo(k)}
-                      className={periodo === k ? "bg-accent" : ""}
-                    >
-                      {label}
-                    </DropdownMenuItem>
-                  ))}
+                  {(Object.entries(PERIODO_LABELS) as [PeriodoOption, string][]).map(
+                    ([k, label]) => (
+                      <DropdownMenuItem
+                        key={k}
+                        onClick={() => setPeriodo(k)}
+                        className={periodo === k ? "bg-accent" : ""}
+                      >
+                        {label}
+                      </DropdownMenuItem>
+                    ),
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -1493,7 +1459,7 @@ function RankingPanel() {
               </h3>
               {(() => {
                 const metasMap = new Map<string, number>();
-                for (const m of (metasQ.data ?? []) as any[]) {
+                for (const m of metasQ.data ?? []) {
                   if (m.corretor_id) metasMap.set(m.corretor_id, m.meta_vendas || 0);
                 }
                 const rows = rankingMes
@@ -1598,7 +1564,12 @@ function RankingPanel() {
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-yellow-400" /> Pódio — Vendas
                 </h3>
-                <PodiumVisual ranking={rankingMes.filter((r) => r.vendas > 0)} type="vendas" />
+                <Podium
+                  entries={podiumEntries(
+                    rankingMes.filter((r) => r.vendas > 0),
+                    "vendas",
+                  )}
+                />
               </div>
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -1617,7 +1588,7 @@ function RankingPanel() {
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-cyan-400" /> Funil de Conversão —{" "}
-                {periodLabels[periodo]}
+                {PERIODO_LABELS[periodo]}
               </h3>
               <FunilConversao
                 leads={totaisPeriodo.leads}
@@ -1683,7 +1654,12 @@ function RankingPanel() {
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                   <Star className="w-4 h-4 text-yellow-400" /> Pódio — Pontuação
                 </h3>
-                <PodiumVisual ranking={rankingProd.filter((r) => r.pontos > 0)} type="pontos" />
+                <Podium
+                  entries={podiumEntries(
+                    rankingProd.filter((r) => r.pontos > 0),
+                    "pontos",
+                  )}
+                />
               </div>
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -1701,88 +1677,21 @@ function RankingPanel() {
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-emerald-400" /> Desempenho Detalhado
               </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-navy-300 border-b border-navy-700/50 text-[11px] uppercase tracking-wider">
-                      <th className="text-left py-3 px-3">#</th>
-                      <th className="text-left py-3 px-3">Corretor</th>
-                      <th className="text-center py-2 px-2">Lig.</th>
-                      <th className="text-center py-2 px-2">WhatsApp</th>
-                      <th className="text-center py-2 px-2">Agend.</th>
-                      <th className="text-center py-2 px-2">Visitas</th>
-                      <th className="text-center py-2 px-2">Docs</th>
-                      <th className="text-center py-2 px-2">Vendas</th>
-                      <th className="text-right py-2 px-3">Pontos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rankingProd
-                      .filter((r) => r.pontos > 0)
-                      .map((r, idx) => (
-                        <tr
-                          key={r.corretorId}
-                          className="border-b border-navy-800/30 hover:bg-navy-800/20 transition-colors"
-                        >
-                          <td className="py-2.5 px-3 text-navy-300 font-bold tabular-nums">
-                            {idx + 1}
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="w-7 h-7">
-                                <AvatarImage src={r.foto ?? undefined} />
-                                <AvatarFallback className="text-[10px] bg-navy-700 text-white">
-                                  {getInitials(r.nome)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-white font-medium">{r.nome}</span>
-                            </div>
-                          </td>
-                          <td
-                            className={`text-center py-2 px-2 tabular-nums font-semibold ${getHeatColor(r.ligacoes, heatCols.lig)}`}
-                          >
-                            {r.ligacoes || "—"}
-                          </td>
-                          <td
-                            className={`text-center py-2 px-2 tabular-nums font-semibold ${getHeatColor(r.whatsapp, heatCols.wpp)}`}
-                          >
-                            {r.whatsapp || "—"}
-                          </td>
-                          <td
-                            className={`text-center py-2 px-2 tabular-nums font-semibold ${getHeatColor(r.agendamentos, heatCols.agd)}`}
-                          >
-                            {r.agendamentos || "—"}
-                          </td>
-                          <td
-                            className={`text-center py-2 px-2 tabular-nums font-semibold ${getHeatColor(r.visitas, heatCols.vis)}`}
-                          >
-                            {r.visitas || "—"}
-                          </td>
-                          <td
-                            className={`text-center py-2 px-2 tabular-nums font-semibold ${getHeatColor(r.documentacoes, heatCols.doc)}`}
-                          >
-                            {r.documentacoes || "—"}
-                          </td>
-                          <td
-                            className={`text-center py-2 px-2 tabular-nums font-semibold ${getHeatColor(r.vendas, heatCols.ven)}`}
-                          >
-                            {r.vendas || "—"}
-                          </td>
-                          <td className="text-right py-2 px-3 tabular-nums font-bold text-cyan-300">
-                            {formatNum(r.pontos)}
-                          </td>
-                        </tr>
-                      ))}
-                    {rankingProd.filter((r) => r.pontos > 0).length === 0 && (
-                      <tr>
-                        <td colSpan={9} className="py-8 text-center text-navy-400">
-                          Sem atividade no período
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                tableId="ranking"
+                aria-label="Classificação completa de produtividade"
+                columns={detalheColumns}
+                data={detalheRows}
+                rowKey={(r) => r.corretorId}
+                loading={rankingPeriodoQ.isLoading}
+                empty={
+                  <EmptyState
+                    icon={Activity}
+                    title="Sem atividade no período"
+                    description="Ajuste o período no filtro acima para ver a classificação."
+                  />
+                }
+              />
             </div>
           </>
         )}
