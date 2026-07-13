@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { celebrate } from "@/components/ui/celebration";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -154,6 +155,7 @@ export function RegistrarVendaDialog() {
     },
     onSuccess: () => {
       toast.success("Venda enviada para aprovação da gestão");
+      celebrate("venda");
       qc.invalidateQueries({ queryKey: ["vendas"] });
       qc.invalidateQueries({ queryKey: ["comissoes"] });
       qc.invalidateQueries({ queryKey: ["comissoes-vendas"] });

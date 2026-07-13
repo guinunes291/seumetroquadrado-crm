@@ -29,6 +29,10 @@ export const getRouter = () => {
     // conta_atual_ativa) seja reaproveitado — sem re-rodar o guard a cada hover.
     defaultPreload: "intent",
     defaultPreloadStaleTime: 30_000,
+    // Transição nativa entre rotas (View Transitions API): fade + deslize de
+    // 4px definidos em styles.css. No-op em browsers sem suporte; desligada
+    // sob prefers-reduced-motion pelo bloco global de motion.
+    defaultViewTransition: true,
   });
 
   return router;

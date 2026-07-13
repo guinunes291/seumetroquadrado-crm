@@ -56,6 +56,7 @@ export function Sparkline({
           <polygon points={area} fill={`url(#${gradId})`} />
         </>
       )}
+      {/* Draw-in do SMQ Motion: pathLength=1 + dashoffset 1→0, uma vez no mount. */}
       <polyline
         points={line}
         fill="none"
@@ -63,6 +64,8 @@ export function Sparkline({
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeLinejoin="round"
+        pathLength={1}
+        className="[stroke-dasharray:1] animate-[draw-line_0.9s_var(--ease-out-quart)_both] motion-reduce:animate-none"
       />
     </svg>
   );

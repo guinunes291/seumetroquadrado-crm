@@ -1,4 +1,5 @@
 import { TrendingDown, TrendingUp } from "lucide-react";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
@@ -14,9 +15,9 @@ const INTENT_ICON_BG: Record<Intent, string> = {
 };
 
 /**
- * KPI premium da Central de Comando: valor em Sora, delta com seta e
- * sparkline de tendência. Evolução do KpiCard — use em telas redesenhadas;
- * o KpiCard continua válido onde ainda não migramos.
+ * KPI único do design system: valor em Sora (números CONTAM até o valor —
+ * AnimatedNumber), delta com seta e sparkline de tendência. Absorveu o antigo
+ * KpiCard (mesmas props básicas: title/value/hint/icon/intent/loading/onClick).
  */
 export function StatTile({
   title,
@@ -29,9 +30,11 @@ export function StatTile({
   hint,
   loading,
   onClick,
+  formatValue,
   className,
 }: {
   title: string;
+  /** Número puro ganha ticker animado; ReactNode pré-formatado entra com count-pop. */
   value: React.ReactNode;
   icon?: LucideIcon;
   intent?: Intent;
@@ -44,6 +47,8 @@ export function StatTile({
   hint?: React.ReactNode;
   loading?: boolean;
   onClick?: () => void;
+  /** Formatação do ticker quando `value` é number (ex.: moeda). */
+  formatValue?: (n: number) => string;
   className?: string;
 }) {
   const deltaUp = (delta ?? 0) >= 0;
@@ -51,8 +56,8 @@ export function StatTile({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card p-4 text-card-foreground shadow-elev-1 transition-shadow",
-        onClick && "cursor-pointer hover:shadow-elev-2",
+        "rounded-xl border border-border-subtle bg-card p-4 text-card-foreground shadow-elev-1 transition-shadow",
+        onClick && "hover-lift cursor-pointer hover:shadow-elev-2",
         className,
       )}
       onClick={onClick}
@@ -80,7 +85,11 @@ export function StatTile({
       ) : (
         <>
           <div className="font-display animate-count-pop motion-reduce:animate-none mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-            {value}
+            {typeof value === "number" ? (
+              <AnimatedNumber value={value} format={formatValue} />
+            ) : (
+              value
+            )}
           </div>
           <div className="mt-1 flex items-end justify-between gap-2">
             <div className="min-w-0 text-xs text-muted-foreground">

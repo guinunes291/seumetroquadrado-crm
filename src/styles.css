@@ -99,6 +99,12 @@
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
 
+  /* Camadas de luz (surface-1 = card, 2 = elevado, 3 = destaque) e hairline */
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-subtle: var(--border-subtle);
+
   /* Elevação → shadow-elev-1..4, shadow-glow-gold */
   --shadow-elev-1: var(--elev-1);
   --shadow-elev-2: var(--elev-2);
@@ -111,6 +117,8 @@
   --animate-shimmer: shimmer 1.8s linear infinite;
   --animate-slide-fade: slide-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-count-pop: count-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shine: shine 1.1s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 :root {
@@ -162,6 +170,22 @@
   /* Glass — leve véu branco sobre conteúdo claro */
   --glass: oklch(1 0 0 / 0.65);
   --glass-border: oklch(0.9 0.01 250 / 0.6);
+
+  /* Camadas de luz + hairline (bordas de 1px com alpha, em vez de borda dura) */
+  --surface-1: oklch(1 0 0);
+  --surface-2: oklch(0.98 0.004 250);
+  --surface-3: oklch(0.96 0.008 250);
+  --border-subtle: oklch(0.22 0.05 250 / 0.08);
+
+  /* Luz ambiente do shell (estática — pintada 1x, nunca reanimada) */
+  --ambient: radial-gradient(1100px 520px at 82% -12%, oklch(0.32 0.06 250 / 0.05), transparent 65%);
+
+  /* SMQ Motion — durações e easings nomeados (só transform/opacity) */
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 280ms;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
 
   /* Elevação — sombras tintadas de navy (nunca preto puro no claro) */
   --elev-1: 0 1px 2px oklch(0.22 0.05 250 / 0.06), 0 1px 3px oklch(0.22 0.05 250 / 0.08);
@@ -227,6 +251,15 @@
   /* Glass — véu navy translúcido com fio dourado sutil */
   --glass: oklch(0.2 0.04 250 / 0.55);
   --glass-border: oklch(0.95 0.01 85 / 0.1);
+
+  /* Camadas de luz do Modo Comando: separação por luminosidade, não por borda */
+  --surface-1: oklch(0.19 0.035 250);
+  --surface-2: oklch(0.225 0.04 250);
+  --surface-3: oklch(0.26 0.042 250);
+  --border-subtle: oklch(0.95 0.01 85 / 0.08);
+
+  /* Luz ambiente dourada muito sutil no topo do shell */
+  --ambient: radial-gradient(1100px 520px at 82% -12%, oklch(0.77 0.11 85 / 0.045), transparent 65%);
 
   /* Elevação — sombra preta + realce interno no topo (sensação de relevo) */
   --elev-1: 0 1px 2px oklch(0 0 0 / 0.35), inset 0 1px 0 oklch(1 0 0 / 0.04);
@@ -296,6 +329,93 @@
   }
 }
 
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Desenho de linha em SVG (sparkline, anéis): usar com pathLength=1. */
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Varredura de brilho única (medalha nova, conquista) — nunca em loop. */
+@keyframes shine {
+  from {
+    transform: translateX(-160%) skewX(-14deg);
+  }
+  to {
+    transform: translateX(260%) skewX(-14deg);
+  }
+}
+
+/* Partícula da celebração (venda/meta/conquista) — voa do centro e some. */
+@keyframes celebrate-burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx, 0), var(--dy, -120px)) scale(1) rotate(var(--rot, 120deg));
+  }
+}
+
+/* Fio de luz que percorre a borda do hero (beam-border). Browsers sem
+   @property mostram o arco estático — degradação silenciosa. */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes beam-rotate {
+  to {
+    --beam-angle: 360deg;
+  }
+}
+
+/* Transição entre rotas (View Transitions API — no-op onde não suportada).
+   Fade + deslize de 4px: sensação de continuidade sem custo perceptível. */
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::view-transition-old(root) {
+  animation: vt-out 0.16s var(--ease-out-quart) both;
+}
+
+::view-transition-new(root) {
+  animation: vt-in 0.22s var(--ease-out-quart) both;
+}
+
 /* --------------------------------------------------------------------------
    Utilitários de marca
    -------------------------------------------------------------------------- */
@@ -335,6 +455,92 @@
   background-size: 200% 100%;
 }
 
+/* Luz ambiente do shell — aplicar no contêiner que NÃO rola. */
+@utility bg-ambient {
+  background-image: var(--ambient);
+  background-repeat: no-repeat;
+}
+
+/* Entrada escalonada de listas: até 8 filhos em cascata (40ms por item);
+   além do 8º todos entram juntos — o efeito é de chegada, não de espera. */
+@utility stagger-children {
+  & > * {
+    animation: slide-fade 0.32s var(--ease-out-quart) both;
+  }
+  & > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  & > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  & > *:nth-child(4) {
+    animation-delay: 120ms;
+  }
+  & > *:nth-child(5) {
+    animation-delay: 160ms;
+  }
+  & > *:nth-child(6) {
+    animation-delay: 200ms;
+  }
+  & > *:nth-child(7) {
+    animation-delay: 240ms;
+  }
+  & > *:nth-child(n + 8) {
+    animation-delay: 280ms;
+  }
+}
+
+/* Elevação no hover (cards clicáveis) — transform + sombra, nunca layout. */
+@utility hover-lift {
+  transition:
+    transform var(--dur-1) var(--ease-out-quart),
+    box-shadow var(--dur-1) var(--ease-out-quart);
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-2px);
+    }
+  }
+}
+
+/* Feedback de pressão em botões/chips. */
+@utility press-scale {
+  transition: transform var(--dur-1) var(--ease-out-quart);
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Fio de luz dourado percorrendo a borda — reservado a UM hero por tela
+   (Próxima Melhor Ação, projeto em foco). O anel é um pseudo-elemento de
+   1px mascarado; o custo é o repaint de uma moldura fina, nada de layout. */
+@utility beam-border {
+  position: relative;
+  &::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--beam-angle, 0deg),
+      transparent 0deg,
+      transparent 300deg,
+      oklch(0.77 0.11 85 / 0.85) 332deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: beam-rotate 7s linear infinite;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -355,5 +561,36 @@
   .text-\[11px\] {
     font-size: 0.75rem;
     line-height: 1rem;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Redução de movimento — cobertura GLOBAL. Desliga toda animação decorativa
+   do design system de uma vez (os `motion-reduce:` por componente continuam
+   valendo como cinto de segurança). `animate-spin` fica de fora de propósito:
+   spinner é feedback funcional de carregamento, não decoração.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-glow,
+  .animate-shimmer,
+  .animate-slide-fade,
+  .animate-count-pop,
+  .animate-scale-in,
+  .animate-shine,
+  .animate-pulse,
+  .stagger-children > *,
+  .beam-border::after {
+    animation: none !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-image-pair(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  * {
+    scroll-behavior: auto !important;
   }
 }

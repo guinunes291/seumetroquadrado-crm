@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
+import { CelebrationHost } from "@/components/ui/celebration";
 import { Search } from "lucide-react";
 
 const SamiQLauncher = lazy(() =>
@@ -101,7 +102,9 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    <div className="flex min-h-screen bg-background">
+    // bg-ambient: luz radial estática no contêiner que NÃO rola (o scroll vive
+    // no <main>) — profundidade sem repaint durante a rolagem.
+    <div className="flex min-h-screen bg-background bg-ambient">
       <a
         href="#conteudo-principal"
         className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -144,6 +147,7 @@ function AuthenticatedLayout() {
         <SprintGlobal />
         <CommandPalette />
       </Suspense>
+      <CelebrationHost />
       <Toaster richColors closeButton />
     </div>
   );
