@@ -98,6 +98,7 @@ type StagePage = z.infer<typeof StagePageSchema>;
 
 type SlaRow = {
   lead_id: string;
+  status: string;
   sla_minutos: number;
   minutos_decorridos: number;
   sla_status: string;
@@ -233,17 +234,33 @@ export function KanbanBoard() {
     }
   };
 
-  // SLA de toda a organização é caro; serve só para o badge dos cards. Em vez de
-  // refazer essa query a cada mudança em `leads` (realtime) ou a cada card
-  // movido, atualizamos por poll (o SLA é um contador de minutos — 2min de
-  // granularidade é suficiente). Isso tira a query mais pesada do caminho quente.
+  // SLA serve só para o badge dos cards em novo/aguardando — a RPC estreita
+  // (leads_sla_pendentes) devolve apenas esse recorte em vez de varrer todos
+  // os leads ativos da org (a varredura completa estourou statement timeout em
+  // produção). Poll de 2min mantém a query fora do caminho quente; sem a
+  // migration aplicada, cai para a leads_com_sla antiga filtrando no cliente.
   const { data: slaRows } = useQuery({
     queryKey: ["leads-sla"],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("leads_com_sla", { _corretor: undefined });
-      if (error) throw error;
-      return (data ?? []) as SlaRow[];
-    },
+    queryFn: async () =>
+      rpcWithFallback(
+        async () => {
+          const { data, error } = await supabase.rpc(
+            "leads_sla_pendentes" as never,
+            {
+              _corretor: undefined,
+            } as never,
+          );
+          if (error) throw error;
+          return (data ?? []) as unknown as SlaRow[];
+        },
+        async () => {
+          const { data, error } = await supabase.rpc("leads_com_sla", { _corretor: undefined });
+          if (error) throw error;
+          return ((data ?? []) as SlaRow[]).filter(
+            (r) => r.status === "novo" || r.status === "aguardando_atendimento",
+          );
+        },
+      ),
     staleTime: 120_000,
     refetchInterval: 120_000,
   });
