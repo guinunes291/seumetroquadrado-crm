@@ -57,21 +57,32 @@
 
 A UI funciona sem elas (fallbacks); com elas, os recursos acendem.
 
-## Métricas antes → depois
+## Métricas antes → depois (finais, verificadas no gate de F10)
 
-| Métrica                       | Antes                     | Depois                                |
-| ----------------------------- | ------------------------- | ------------------------------------- |
-| Maior chunk gz                | 203,7 KB                  | _preencher no F10_                    |
-| Type-escapes                  | 228/242                   | _preencher no F10_                    |
-| Testes unitários              | 526                       | _preencher no F10_ (F6: 581)          |
-| leads.index.tsx               | 2.395 linhas              | 1.655                                 |
-| leads.$leadId.tsx             | 1.552 linhas              | 456                                   |
-| hoje.tsx                      | 955 linhas                | 153                                   |
-| Paginação de leads com filtro | corte silencioso em 1.000 | 100% servidor (v2)                    |
-| Virtualização                 | inexistente               | DataTable >80 linhas                  |
-| Undo                          | inexistente               | lixeira, tarefas (delayed/compensate) |
-| Reduced-motion                | 7 arquivos                | global (styles.css)                   |
-| Animações                     | 4 keyframes soltos        | sistema SMQ Motion completo           |
+| Métrica                       | Antes                     | Depois                                                                                                                     |
+| ----------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Chunk de entrada (gz)         | 203,7 KB                  | **195,4 KB** (−8,3 KB mesmo com react-table+react-virtual novos — páginas-aba saíram dos arquivos de rota)                 |
+| Type-escapes                  | 228 (teto 242)            | **212 (teto 220 — ratchet aplicado)**                                                                                      |
+| Testes unitários              | 526                       | **599** (+73: prefs, undo, count-up, shortcuts, badges, DataTable, Timeline, lead-flags, stage-metrics, hit-test, período) |
+| leads.index.tsx               | 2.395 linhas              | 1.655                                                                                                                      |
+| leads.$leadId.tsx             | 1.552 linhas              | 456                                                                                                                        |
+| hoje.tsx                      | 955 linhas                | 153                                                                                                                        |
+| copa.tsx                      | 1.988 linhas              | 922                                                                                                                        |
+| projetos.$projetoId.tsx       | 795 linhas                | 409                                                                                                                        |
+| agendamentos.tsx              | 870 linhas                | 383                                                                                                                        |
+| Paginação de leads com filtro | corte silencioso em 1.000 | 100% servidor (v2, com fallback)                                                                                           |
+| Agregação do gestor           | ~10.000 linhas no cliente | RPC agregada (com fallback)                                                                                                |
+| Virtualização                 | inexistente               | DataTable >80 linhas (leads, gestão, comissões, ranking, copa…)                                                            |
+| Undo                          | inexistente               | lixeira (delayed), restaurar (compensate), concluir tarefa (delayed)                                                       |
+| Erro tratado nas rotas        | 14/41                     | todas as rotas (QueryErrorState/AsyncBoundary)                                                                             |
+| Reduced-motion                | 7 arquivos                | global (styles.css) + por componente                                                                                       |
+| Animações                     | 4 keyframes soltos        | sistema SMQ Motion completo (compositor-only)                                                                              |
+| DnD do Kanban                 | HTML5 (sem touch)         | Pointer Events (mouse/toque/caneta)                                                                                        |
+| Gate final                    | —                         | typecheck ✓ · lint ✓ · 599/599 ✓ · build ✓ · bundle ✓ · budget ✓ · smoke ✓                                                 |
+
+Nota: `metas.tsx` foi a única página-aba mantida no arquivo de rota —
+`tests/commercial-consumers.test.ts` lê esse caminho como texto e exige as
+strings da query de vendas aprovadas; mover exigiria editar o teste.
 
 ## Pendências conscientes (fora desta rodada)
 

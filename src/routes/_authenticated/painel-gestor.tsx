@@ -40,12 +40,12 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoGeralPanel } from "@/features/gestao/visao-geral";
-import { CorretoresPage } from "@/routes/_authenticated/corretores";
-import { EquipesPage } from "@/routes/_authenticated/equipes";
+import { CorretoresPage } from "@/features/gestao/corretores-page";
+import { EquipesPage } from "@/features/gestao/equipes-page";
 import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page";
-import { TemplatesPage } from "@/routes/_authenticated/templates";
-import { DuplicatasPage } from "@/routes/_authenticated/duplicatas";
-import { LixeiraPage } from "@/routes/_authenticated/lixeira";
+import { TemplatesPage } from "@/features/gestao/templates-page";
+import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
+import { LixeiraPage } from "@/features/gestao/lixeira-page";
 
 type GestaoTab = "visao" | "saude" | "leads-corretor" | "pessoas" | "comunicacao" | "qualidade";
 const GESTAO_TABS: GestaoTab[] = [

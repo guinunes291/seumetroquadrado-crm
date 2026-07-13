@@ -34,7 +34,7 @@ import { AgendaTimeline } from "@/features/agenda/agenda-timeline";
 import { AgendamentoForm } from "@/features/agenda/agendamento-form";
 import { STATUS_LABEL, STATUS_OPTIONS, type Agendamento } from "@/features/agenda/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TarefasPage } from "@/routes/_authenticated/tarefas";
+import { TarefasPage } from "@/features/agenda/tarefas-page";
 
 // Espelha no Google Calendar em segundo plano — nunca bloqueia o fluxo do CRM.
 function syncGoogleEmBackground(agendamentoId: string) {

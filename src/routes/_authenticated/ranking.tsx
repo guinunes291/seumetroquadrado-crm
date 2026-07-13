@@ -36,8 +36,8 @@ import {
   Flag,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/use-auth";
-import { CopaPage } from "@/routes/_authenticated/copa";
-import { ConquistasPage } from "@/routes/_authenticated/conquistas";
+import { CopaPage } from "@/features/ranking/copa-page";
+import { ConquistasPage } from "@/features/ranking/conquistas-page";
 import { MetasPage } from "@/routes/_authenticated/metas";
 import { Podium } from "@/features/ranking/podium";
 import { Medal } from "@/features/ranking/medal";
