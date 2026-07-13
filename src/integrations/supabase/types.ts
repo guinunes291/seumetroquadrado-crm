@@ -5416,176 +5416,89 @@ export type Database = {
         }
         Returns: boolean
       }
-      transicionar_lead:
-        | {
-            Args: {
-              p_lead_id: string
-              p_motivo?: string
-              p_novo_status: Database["public"]["Enums"]["lead_status"]
-              p_proxima_acao?: string
-              p_proximo_followup?: string
-            }
-            Returns: {
-              campanha: string | null
-              canal_entrada: string | null
-              consentimento_lgpd: boolean | null
-              construtora: string | null
-              copiloto_notificado_em: string | null
-              corretor_anterior_id: string | null
-              corretor_id: string | null
-              corretores_que_tentaram: string[]
-              cpf: string | null
-              created_at: string
-              data_distribuicao: string | null
-              data_movido_lixeira: string | null
-              data_perda: string | null
-              decisor: string | null
-              deleted_at: string | null
-              desfecho: string | null
-              docs_pendentes: Json | null
-              docs_recebidos: Json | null
-              email: string | null
-              entrada_disponivel: string | null
-              estado: Database["public"]["Enums"]["lead_estado"] | null
-              etapa: string | null
-              faixa_mcmv: string | null
-              fase: string | null
-              fgts_valor: number | null
-              handoff_em: string | null
-              id: string
-              legacy_id: number | null
-              motivo_handoff: string | null
-              motivo_perda_categoria: string | null
-              motivo_perdido: string | null
-              na_lixeira: boolean
-              nome: string
-              objecoes: string[]
-              observacoes: string | null
-              opt_out: boolean
-              origem: Database["public"]["Enums"]["lead_origem"]
-              projeto_id: string | null
-              projeto_nome: string | null
-              proxima_acao: string | null
-              proximo_followup: string | null
-              renda_estimada: number | null
-              renda_informada: string | null
-              resumo_qualificacao: string | null
-              search_text: string | null
-              status: Database["public"]["Enums"]["lead_status"]
-              telefone: string
-              telefone_e164: string | null
-              tem_fgts: boolean | null
-              temperatura:
-                | Database["public"]["Enums"]["lead_temperatura"]
-                | null
-              tentativas_redistribuicao: number
-              timestamp_recebimento: string | null
-              tipo_renda: string | null
-              ultima_interacao: string | null
-              ultimo_contato: string | null
-              updated_at: string
-              usa_fgts: boolean
-              utm_campaign: string | null
-              utm_content: string | null
-              utm_medium: string | null
-              utm_source: string | null
-              via_webhook: boolean
-              visita_data: string | null
-              visita_empreendimento: string | null
-              visita_hora: string | null
-            }
-            SetofOptions: {
-              from: "*"
-              to: "leads"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
-        | {
-            Args: {
-              p_lead_id: string
-              p_motivo?: string
-              p_motivo_categoria?: string
-              p_novo_status: Database["public"]["Enums"]["lead_status"]
-              p_proxima_acao?: string
-              p_proximo_followup?: string
-            }
-            Returns: {
-              campanha: string | null
-              canal_entrada: string | null
-              consentimento_lgpd: boolean | null
-              construtora: string | null
-              copiloto_notificado_em: string | null
-              corretor_anterior_id: string | null
-              corretor_id: string | null
-              corretores_que_tentaram: string[]
-              cpf: string | null
-              created_at: string
-              data_distribuicao: string | null
-              data_movido_lixeira: string | null
-              data_perda: string | null
-              decisor: string | null
-              deleted_at: string | null
-              desfecho: string | null
-              docs_pendentes: Json | null
-              docs_recebidos: Json | null
-              email: string | null
-              entrada_disponivel: string | null
-              estado: Database["public"]["Enums"]["lead_estado"] | null
-              etapa: string | null
-              faixa_mcmv: string | null
-              fase: string | null
-              fgts_valor: number | null
-              handoff_em: string | null
-              id: string
-              legacy_id: number | null
-              motivo_handoff: string | null
-              motivo_perda_categoria: string | null
-              motivo_perdido: string | null
-              na_lixeira: boolean
-              nome: string
-              objecoes: string[]
-              observacoes: string | null
-              opt_out: boolean
-              origem: Database["public"]["Enums"]["lead_origem"]
-              projeto_id: string | null
-              projeto_nome: string | null
-              proxima_acao: string | null
-              proximo_followup: string | null
-              renda_estimada: number | null
-              renda_informada: string | null
-              resumo_qualificacao: string | null
-              search_text: string | null
-              status: Database["public"]["Enums"]["lead_status"]
-              telefone: string
-              telefone_e164: string | null
-              tem_fgts: boolean | null
-              temperatura:
-                | Database["public"]["Enums"]["lead_temperatura"]
-                | null
-              tentativas_redistribuicao: number
-              timestamp_recebimento: string | null
-              tipo_renda: string | null
-              ultima_interacao: string | null
-              ultimo_contato: string | null
-              updated_at: string
-              usa_fgts: boolean
-              utm_campaign: string | null
-              utm_content: string | null
-              utm_medium: string | null
-              utm_source: string | null
-              via_webhook: boolean
-              visita_data: string | null
-              visita_empreendimento: string | null
-              visita_hora: string | null
-            }
-            SetofOptions: {
-              from: "*"
-              to: "leads"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
+      transicionar_lead: {
+        Args: {
+          p_lead_id: string
+          p_motivo?: string
+          p_motivo_categoria?: string
+          p_novo_status: Database["public"]["Enums"]["lead_status"]
+          p_proxima_acao?: string
+          p_proximo_followup?: string
+        }
+        Returns: {
+          campanha: string | null
+          canal_entrada: string | null
+          consentimento_lgpd: boolean | null
+          construtora: string | null
+          copiloto_notificado_em: string | null
+          corretor_anterior_id: string | null
+          corretor_id: string | null
+          corretores_que_tentaram: string[]
+          cpf: string | null
+          created_at: string
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          data_perda: string | null
+          decisor: string | null
+          deleted_at: string | null
+          desfecho: string | null
+          docs_pendentes: Json | null
+          docs_recebidos: Json | null
+          email: string | null
+          entrada_disponivel: string | null
+          estado: Database["public"]["Enums"]["lead_estado"] | null
+          etapa: string | null
+          faixa_mcmv: string | null
+          fase: string | null
+          fgts_valor: number | null
+          handoff_em: string | null
+          id: string
+          legacy_id: number | null
+          motivo_handoff: string | null
+          motivo_perda_categoria: string | null
+          motivo_perdido: string | null
+          na_lixeira: boolean
+          nome: string
+          objecoes: string[]
+          observacoes: string | null
+          opt_out: boolean
+          origem: Database["public"]["Enums"]["lead_origem"]
+          projeto_id: string | null
+          projeto_nome: string | null
+          proxima_acao: string | null
+          proximo_followup: string | null
+          renda_estimada: number | null
+          renda_informada: string | null
+          resumo_qualificacao: string | null
+          search_text: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          telefone_e164: string | null
+          tem_fgts: boolean | null
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao: number
+          timestamp_recebimento: string | null
+          tipo_renda: string | null
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string
+          usa_fgts: boolean
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          via_webhook: boolean
+          visita_data: string | null
+          visita_empreendimento: string | null
+          visita_hora: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leads"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       transicionar_lead_api_perda: {
         Args: {
           p_categoria: string
