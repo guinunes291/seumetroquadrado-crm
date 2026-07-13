@@ -5,14 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +77,7 @@ import {
   Bookmark,
   ChevronDown,
   CalendarClock,
+  Crosshair,
   LayoutGrid,
   RefreshCw,
   Rows3,
@@ -118,13 +111,18 @@ import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla
 import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
 import { ORIGEM_OPTIONS, abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import type { Lead } from "@/features/leads/types";
-import { TempIcon, InatividadeBadge } from "@/features/leads/lead-indicators";
-import { FinanceiroPopover, LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
+import { InatividadeBadge } from "@/features/leads/lead-indicators";
+import { LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
 import { useLeadMutations } from "@/features/leads/use-lead-mutations";
+import { LeadsTable, FlagChips } from "@/features/leads/leads-table";
+import { FocusMode } from "@/features/leads/focus-mode";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
-import { EntityCard, EntityRow } from "@/components/ui/entity-card";
+import { EntityCard } from "@/components/ui/entity-card";
+import type { SortingState } from "@/components/ui/data-table";
+import { rpcWithFallback } from "@/lib/supabase-errors";
+import { isTypingTarget } from "@/lib/shortcuts";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
@@ -234,6 +232,12 @@ function LeadsPage() {
     return window.matchMedia("(max-width: 767px)").matches ? "cards" : "tabela";
   });
   const [importOpen, setImportOpen] = useState(false);
+  // Sort por coluna da tabela premium (whitelist da RPC v2). Mudar filtros não
+  // reseta o sort — a preferência de ordenação sobrevive ao refinamento.
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // Modo foco: trabalhar a fila filtrada um lead por vez (botão ou atalho F).
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [focusStart, setFocusStart] = useState<string | undefined>();
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
@@ -323,29 +327,6 @@ function LeadsPage() {
     contatoFilter,
   ]);
 
-  // IDs de leads com follow-up pendente (só quando o filtro "com_followup" está ativo).
-  const {
-    data: followupIds,
-    isLoading: followupLoading,
-    isError: followupError,
-    refetch: refetchFollowups,
-  } = useQuery({
-    queryKey: ["followup-lead-ids", user?.id, canManage],
-    enabled: contatoFilter === "com_followup",
-    queryFn: async () => {
-      let q = supabase
-        .from("tarefas")
-        .select("lead_id")
-        .eq("tipo", "follow_up")
-        .in("status", ["pendente", "em_andamento"])
-        .not("lead_id", "is", null);
-      if (!canManage && user?.id) q = q.eq("corretor_id", user.id);
-      const { data, error } = await q;
-      if (error) throw error;
-      return new Set((data ?? []).map((r) => r.lead_id as string));
-    },
-  });
-
   const salvarVisaoAtual = () => {
     const nome = viewName.trim();
     if (!nome || !user?.id) return;
@@ -400,10 +381,6 @@ function LeadsPage() {
     page,
   };
 
-  // Filtros de contato ainda dependem do conjunto completo. Os demais usam
-  // paginação real no banco para que o lead 1.001 continue acessível.
-  const serverPaginated = contatoFilter === "all";
-
   const periodoRange = useMemo(() => {
     if (periodoFilter === "custom") {
       return {
@@ -415,16 +392,16 @@ function LeadsPage() {
   }, [periodoFilter, dataInicioFilter, dataFimFilter]);
 
   const {
-    data: leadsAll,
+    data: leadsResult,
     isLoading,
     isError: leadsError,
     refetch: refetchLeads,
   } = useQuery({
-    queryKey: ["leads", baseQueryKey, statusFilter],
-    queryFn: async () => {
+    queryKey: ["leads", baseQueryKey, statusFilter, sorting],
+    queryFn: async (): Promise<{ rows: Lead[]; source: "v2" | "v1" }> => {
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
       const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const { data, error } = await supabase.rpc("leads_filtered", {
+      const paramsV1 = {
         _na_lixeira: showLixeira,
         _status: statusFilter,
         _origem: origemFilter,
@@ -434,13 +411,73 @@ function LeadsPage() {
         _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
         _search: sNorm,
         _search_digits: sDig,
-        _limit: serverPaginated ? LEADS_PAGE_SIZE : 1000,
-        _offset: serverPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
-      });
-      if (error) throw error;
-      return (data ?? []) as unknown as Lead[];
+      };
+      return rpcWithFallback<{ rows: Lead[]; source: "v2" | "v1" }>(
+        // v2 (P2-15): contato, sort e paginação 100% no servidor — sempre
+        // uma página de LEADS_PAGE_SIZE, mesmo com filtro de contato ativo.
+        async () => {
+          const { data, error } = await supabase.rpc(
+            "leads_filtered_v2" as never,
+            {
+              ...paramsV1,
+              _contato: contatoFilter,
+              _sort: sorting[0]?.id ?? null,
+              _sort_dir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
+              _limit: LEADS_PAGE_SIZE,
+              _offset: (page - 1) * LEADS_PAGE_SIZE,
+            } as never,
+          );
+          if (error) throw error;
+          return { rows: (data ?? []) as Lead[], source: "v2" as const };
+        },
+        // v1 (fallback enquanto a migration não está aplicada): filtros de
+        // contato ainda dependem do conjunto completo — baixa até 1000 linhas
+        // e fatia no cliente; os demais paginam no banco.
+        async () => {
+          const v1ServerPaginated = contatoFilter === "all";
+          const { data, error } = await supabase.rpc("leads_filtered", {
+            ...paramsV1,
+            _limit: v1ServerPaginated ? LEADS_PAGE_SIZE : 1000,
+            _offset: v1ServerPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
+          });
+          if (error) throw error;
+          // O Row gerado da RPC é atribuível a Lead (campos `T` vs `T | null`)
+          // — dispensa o antigo double-cast via unknown.
+          return { rows: data ?? [], source: "v1" as const };
+        },
+      );
     },
     enabled: canManage || !!user?.id,
+  });
+
+  const leadsAll = leadsResult?.rows;
+  const source = leadsResult?.source ?? "v2";
+  // Com a v2 a paginação é sempre no servidor; no fallback v1 só quando não há
+  // filtro de contato (que ainda fatia no cliente).
+  const serverPaginated = source === "v2" ? true : contatoFilter === "all";
+
+  // IDs de leads com follow-up pendente — só no fallback v1 (a v2 resolve o
+  // recorte "com_followup" no próprio servidor e devolve `tem_followup`).
+  const {
+    data: followupIds,
+    isLoading: followupLoading,
+    isError: followupError,
+    refetch: refetchFollowups,
+  } = useQuery({
+    queryKey: ["followup-lead-ids", user?.id, canManage],
+    enabled: contatoFilter === "com_followup" && source === "v1",
+    queryFn: async () => {
+      let q = supabase
+        .from("tarefas")
+        .select("lead_id")
+        .eq("tipo", "follow_up")
+        .in("status", ["pendente", "em_andamento"])
+        .not("lead_id", "is", null);
+      if (!canManage && user?.id) q = q.eq("corretor_id", user.id);
+      const { data, error } = await q;
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.lead_id as string));
+    },
   });
 
   // Corretor só precisa acordar com mudanças da própria carteira; gestor/admin
@@ -459,7 +496,7 @@ function LeadsPage() {
     queryFn: async () => {
       const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
       const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const { data, error } = await supabase.rpc("leads_status_counts", {
+      const countParams = {
         _na_lixeira: showLixeira,
         _origem: origemFilter,
         _corretor: corretorFilter,
@@ -468,11 +505,26 @@ function LeadsPage() {
         _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
         _search: sNorm,
         _search_digits: sDig,
-      });
-      if (error) throw error;
+      };
+      const rows = await rpcWithFallback<unknown[]>(
+        // v2: as abas de status contam respeitando também o recorte de contato.
+        async () => {
+          const { data, error } = await supabase.rpc(
+            "leads_status_counts_v2" as never,
+            { ...countParams, _contato: contatoFilter } as never,
+          );
+          if (error) throw error;
+          return data ?? [];
+        },
+        async () => {
+          const { data, error } = await supabase.rpc("leads_status_counts", countParams);
+          if (error) throw error;
+          return data ?? [];
+        },
+      );
       const counts: Record<string, number> = {};
       let total = 0;
-      ((data ?? []) as unknown as Array<{ status: string; quantidade: number }>).forEach((row) => {
+      (rows as Array<{ status: string; quantidade: number }>).forEach((row) => {
         if (row.status === "__total__") total = Number(row.quantidade);
         else counts[row.status] = Number(row.quantidade);
       });
@@ -490,6 +542,9 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
+    // v2: o servidor já aplicou o recorte de contato e a ordenação (sort de
+    // coluna ou prioridade operacional) — a página recebe a lista pronta.
+    if (source === "v2") return leadsAll;
     let base = leadsAll;
     if (contatoFilter !== "all") {
       base = base.filter((l) =>
@@ -520,7 +575,7 @@ function LeadsPage() {
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leadsAll, contatoFilter, followupIds]);
+  }, [leadsAll, source, contatoFilter, followupIds]);
 
   const currentStatusTotal = statusCountsData
     ? statusFilter === "all"
@@ -614,13 +669,6 @@ function LeadsPage() {
     });
   }, [filtered]);
 
-  const allSelected = filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id));
-  const someSelected = selectedIds.size > 0 && !allSelected;
-
-  function toggleAll() {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filtered.map((l) => l.id)));
-  }
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -652,6 +700,33 @@ function LeadsPage() {
       contato: () => setContactLead(null),
     },
   });
+
+  // Próxima ação sugerida da etapa: abre modal, fluxo de perda ou transiciona
+  // direto — mesma regra usada pela linha da tabela, pelos cards e pelo peek.
+  const executarProximaAcao = (l: Lead) => {
+    const acao = PROXIMA_ACAO[l.status as LeadStatus];
+    if (!acao) return;
+    const action = resolveStageAction(acao.target);
+    if (action.kind === "modal") setModalState({ modal: action.modal, lead: l });
+    else if (action.kind === "perdido") setPerdidoLead(l);
+    else updateStatus.mutate({ id: l.id, status: acao.target });
+  };
+
+  // Atalho F abre o modo foco com a fila filtrada atual (só na view lista,
+  // nunca digitando em campo de texto).
+  useEffect(() => {
+    if (activeView !== "lista") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingTarget(e.target)) return;
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        setFocusOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [activeView]);
 
   const activeFiltersCount =
     (statusFilter !== "all" && statusFilter !== "aguardando_atendimento" ? 1 : 0) +
@@ -909,6 +984,18 @@ function LeadsPage() {
                 }
                 actions={
                   <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-11"
+                      title="Modo foco (F) — trabalhar a fila um lead por vez"
+                      onClick={() => {
+                        setFocusStart(undefined);
+                        setFocusOpen(true);
+                      }}
+                    >
+                      <Crosshair className="h-4 w-4 mr-1" /> Modo foco
+                    </Button>
                     <div className="inline-flex rounded-md border p-0.5">
                       <Button
                         size="icon"
@@ -1141,232 +1228,62 @@ function LeadsPage() {
                     </Button>
                   </CardContent>
                 </Card>
-              ) : listLoading ? (
-                viewMode === "tabela" ? (
-                  <div className="space-y-2">
-                    {Array.from({ length: 8 }).map((_, i) => (
-                      <Skeleton key={i} className="h-12 w-full" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <Skeleton key={i} className="h-44 w-full rounded-lg" />
-                    ))}
-                  </div>
-                )
               ) : viewMode === "tabela" ? (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-10">
-                          <Checkbox
-                            checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                            onCheckedChange={toggleAll}
-                            aria-label="Selecionar todos"
-                          />
-                        </TableHead>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Contato</TableHead>
-                        <TableHead>Origem</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Corretor</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.length === 0 && !listLoading && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={8}
-                            className="text-center text-muted-foreground py-10"
-                          >
-                            Nenhum lead encontrado.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {paginated.map((l) => (
-                        <EntityRow
-                          key={l.id}
-                          asChild
-                          selected={selectedIds.has(l.id)}
-                          onActivate={() => setPeekLead(l)}
-                          aria-label={`Abrir visão rápida de ${l.nome}`}
-                        >
-                          <TableRow>
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedIds.has(l.id)}
-                                onCheckedChange={() => toggleOne(l.id)}
-                                aria-label={`Selecionar ${l.nome}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <TempIcon temp={l.temperatura} />
-                                <Link
-                                  to="/leads/$leadId"
-                                  params={{ leadId: l.id }}
-                                  className="font-medium hover:underline"
-                                >
-                                  {l.nome}
-                                </Link>
-                                <FinanceiroPopover lead={l} />
-                              </div>
-                              {l.projeto_nome && (
-                                <div className="text-xs text-muted-foreground">
-                                  {l.projeto_nome}
-                                </div>
-                              )}
-                              <div className="mt-1">
-                                <InatividadeBadge lead={l} />
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="min-w-0">
-                                  <div className="text-sm">{l.telefone}</div>
-                                  <div className="text-xs text-muted-foreground truncate">
-                                    {l.email ?? "—"}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-success hover:text-success hover:bg-success/10"
-                                    aria-label={`Abrir WhatsApp de ${l.nome}`}
-                                    title="Abrir WhatsApp com mensagem pronta"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      abrirWhatsApp(l);
-                                    }}
-                                  >
-                                    <MessageCircle className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    asChild
-                                    size="icon"
-                                    variant="ghost"
-                                    className="text-info hover:text-info hover:bg-info/10"
-                                    aria-label={`Ligar para ${l.nome}`}
-                                    title="Ligar"
-                                  >
-                                    <a
-                                      href={`tel:${l.telefone.replace(/\D/g, "")}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <Phone className="h-4 w-4" />
-                                    </a>
-                                  </Button>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="capitalize text-sm">
-                              {l.origem.replace(/_/g, " ")}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-col gap-1">
-                                <Badge
-                                  className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]}
-                                  variant="secondary"
-                                >
-                                  {leadStatusLabel(l.status)}
-                                </Badge>
-                                {(() => {
-                                  const info = transferInfoMap.get(l.id);
-                                  if (!info) return null;
-                                  return (
-                                    <TransferSlaBadge
-                                      leadId={l.id}
-                                      origem={l.origem}
-                                      status={l.status}
-                                      dataDistribuicao={info.data_distribuicao}
-                                      tentativas={info.tentativas_redistribuicao}
-                                      timeouts={transferTimeouts}
-                                      viaWebhook={info.via_webhook}
-                                      compact
-                                      showBar
-                                    />
-                                  );
-                                })()}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {l.corretor_id ? (
-                                (corretoresMap.get(l.corretor_id) ?? "—")
-                              ) : (
-                                <span className="text-muted-foreground italic">sem corretor</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {l.status === "contrato_fechado" && l.data_venda
-                                ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
-                                : new Date(l.created_at).toLocaleDateString("pt-BR")}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                {!l.na_lixeira &&
-                                  l.status === "aguardando_atendimento" &&
-                                  (canManage || l.corretor_id === user?.id) && (
-                                    <IniciarSplitButton
-                                      lead={l}
-                                      lastContactType={lastContactType}
-                                      pending={iniciarAtendimento.isPending}
-                                      onIniciar={iniciarComTipo}
-                                      onEscolher={setContactLead}
-                                    />
-                                  )}
-                                {!l.na_lixeira &&
-                                  (canManage || l.corretor_id === user?.id) &&
-                                  l.status !== "aguardando_atendimento" &&
-                                  PROXIMA_ACAO[l.status as LeadStatus] && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={updateStatus.isPending}
-                                      onClick={() => {
-                                        const acao = PROXIMA_ACAO[l.status as LeadStatus]!;
-                                        const action = resolveStageAction(acao.target);
-                                        if (action.kind === "modal")
-                                          setModalState({ modal: action.modal, lead: l });
-                                        else if (action.kind === "perdido") setPerdidoLead(l);
-                                        else updateStatus.mutate({ id: l.id, status: acao.target });
-                                      }}
-                                    >
-                                      {PROXIMA_ACAO[l.status as LeadStatus]!.label}
-                                    </Button>
-                                  )}
-                                <LeadRowMenu
-                                  lead={l}
-                                  canManage={canManage}
-                                  canAct={canManage || l.corretor_id === user?.id}
-                                  onPickDirect={(target) =>
-                                    updateStatus.mutate({ id: l.id, status: target })
-                                  }
-                                  onPickModal={(modal) => setModalState({ modal, lead: l })}
-                                  onPickPerdido={() => setPerdidoLead(l)}
-                                  onRoleta={() => distribuir.mutate(l.id)}
-                                  onTransferir={() => {
-                                    setSelectedIds(new Set([l.id]));
-                                    setBulkTransferOpen(true);
-                                  }}
-                                  onLixeira={() =>
-                                    moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
-                                  }
-                                />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        </EntityRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                // Tabela premium (DataTable): substitui a <Table> manual cujas
+                // linhas eram <EntityRow> — a ativação da linha (peek) virou o
+                // onRowClick do DataTable, que ignora cliques em controles
+                // internos (botões, links, checkboxes).
+                <LeadsTable
+                  leads={paginated}
+                  loading={listLoading}
+                  source={source}
+                  canManage={canManage}
+                  userId={user?.id}
+                  corretoresMap={corretoresMap}
+                  transferTimeouts={transferTimeouts}
+                  transferInfoMap={transferInfoMap}
+                  lastContactType={lastContactType}
+                  iniciarPending={iniciarAtendimento.isPending}
+                  proximaAcaoPending={updateStatus.isPending}
+                  selected={selectedIds}
+                  onSelectedChange={setSelectedIds}
+                  sorting={sorting}
+                  onSortingChange={setSorting}
+                  pagination={
+                    visibleTotal > LEADS_PAGE_SIZE
+                      ? {
+                          page: pageSafe,
+                          pageSize: LEADS_PAGE_SIZE,
+                          total: visibleTotal,
+                          onPageChange: setPage,
+                        }
+                      : undefined
+                  }
+                  onRowClick={setPeekLead}
+                  onWhatsApp={abrirWhatsApp}
+                  onIniciar={iniciarComTipo}
+                  onEscolherContato={setContactLead}
+                  onProximaAcao={executarProximaAcao}
+                  onPickDirect={(l, target) => updateStatus.mutate({ id: l.id, status: target })}
+                  onPickModal={(l, modal) => setModalState({ modal, lead: l })}
+                  onPickPerdido={setPerdidoLead}
+                  onRoleta={(l) => distribuir.mutate(l.id)}
+                  onTransferir={(l) => {
+                    setSelectedIds(new Set([l.id]));
+                    setBulkTransferOpen(true);
+                  }}
+                  onLixeira={(l) =>
+                    moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira, nome: l.nome })
+                  }
+                />
+              ) : listLoading ? (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-44 w-full rounded-lg" />
+                  ))}
                 </div>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="stagger-children grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {paginated.length === 0 && !listLoading && (
                     <div className="col-span-full text-center text-muted-foreground py-10">
                       Nenhum lead encontrado.
@@ -1406,6 +1323,7 @@ function LeadsPage() {
                             {leadStatusLabel(l.status)}
                           </Badge>
                         </div>
+                        <FlagChips lead={l} />
                         {(() => {
                           const info = transferInfoMap.get(l.id);
                           if (!info) return null;
@@ -1527,7 +1445,11 @@ function LeadsPage() {
                               setBulkTransferOpen(true);
                             }}
                             onLixeira={() =>
-                              moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira })
+                              moverLixeira.mutate({
+                                ids: [l.id],
+                                lixeira: !l.na_lixeira,
+                                nome: l.nome,
+                              })
                             }
                           />
                         </div>
@@ -1545,8 +1467,9 @@ function LeadsPage() {
                 </p>
               )}
 
-              {/* Paginação (50 por página) */}
-              {visibleTotal > LEADS_PAGE_SIZE && (
+              {/* Paginação (50 por página) — a view tabela pagina dentro do
+                  DataTable; este rodapé atende só a view cards. */}
+              {viewMode === "cards" && visibleTotal > LEADS_PAGE_SIZE && (
                 <div className="flex items-center justify-between pt-1">
                   <div className="text-xs text-muted-foreground">
                     Página {pageSafe} de {totalPages} · {visibleTotal.toLocaleString("pt-BR")}{" "}
@@ -1602,6 +1525,15 @@ function LeadsPage() {
               else if (action.kind === "perdido") setPerdidoLead(l);
               else updateStatus.mutate({ id: l.id, status: acao.target });
             }}
+          />
+
+          {/* Modo foco — fila = lista filtrada atual, navegada com J/K */}
+          <FocusMode
+            leadIds={filtered.map((l) => l.id)}
+            startId={focusStart}
+            open={focusOpen}
+            onOpenChange={setFocusOpen}
+            origem="leads"
           />
 
           {/* Tipo de contato ao iniciar atendimento */}

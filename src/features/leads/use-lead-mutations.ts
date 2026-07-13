@@ -5,6 +5,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { mensagemPrimeiroContato } from "@/lib/whatsapp";
 import { notaSistemaPayload } from "@/lib/interacoes";
@@ -55,28 +56,82 @@ export function useLeadMutations(opts: {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const moverLixeira = useMutation({
-    mutationFn: async ({ ids, lixeira }: { ids: string[]; lixeira: boolean }) => {
+  // Mover PARA a lixeira usa o padrão universal de Desfazer (delayed): as
+  // linhas somem do cache na hora, o toast oferece [Desfazer] por 5s e o
+  // servidor só é chamado quando a janela expira (flush no unmount garante
+  // que a intenção não se perde). Restaurar continua uma mutation comum.
+  const enviarLixeira = useUndoableMutation<{ ids: string[]; nome?: string }>({
+    mode: "delayed",
+    message: (v) =>
+      v.ids.length === 1
+        ? `${v.nome ?? "Lead"} movido para a lixeira`
+        : `${v.ids.length} leads movidos para a lixeira`,
+    mutationFn: async ({ ids }) => {
       const { error } = await supabase
         .from("leads")
         .update({
-          na_lixeira: lixeira,
-          data_movido_lixeira: lixeira ? new Date().toISOString() : null,
+          na_lixeira: true,
+          data_movido_lixeira: new Date().toISOString(),
+        })
+        .in("id", ids);
+      if (error) throw error;
+    },
+    optimistic: {
+      keys: [["leads"]],
+      // Defensivo: as queries sob ["leads"] podem guardar um array puro de
+      // leads OU o shape { rows: Lead[]; source } da listagem — remove os ids
+      // nos dois formatos e devolve qualquer outro shape intacto.
+      apply: (cached, { ids }) => {
+        const alvo = new Set(ids);
+        const semAlvo = (rows: unknown[]) =>
+          rows.filter((r) => {
+            const id = r && typeof r === "object" ? (r as { id?: unknown }).id : undefined;
+            return typeof id !== "string" || !alvo.has(id);
+          });
+        if (Array.isArray(cached)) return semAlvo(cached);
+        if (cached && typeof cached === "object") {
+          const c = cached as { rows?: unknown };
+          if (Array.isArray(c.rows)) return { ...cached, rows: semAlvo(c.rows) };
+        }
+        return cached;
+      },
+    },
+    invalidateKeys: [["leads"]],
+    errorMessage: "Não foi possível mover para a lixeira",
+  });
+
+  const restaurarLixeira = useMutation({
+    mutationFn: async ({ ids }: { ids: string[] }) => {
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          na_lixeira: false,
+          data_movido_lixeira: null,
         })
         .in("id", ids);
       if (error) throw error;
     },
     onSuccess: (_d, v) => {
-      toast.success(
-        v.lixeira
-          ? `${v.ids.length} lead(s) movido(s) para lixeira`
-          : `${v.ids.length} lead(s) restaurado(s)`,
-      );
+      toast.success(`${v.ids.length} lead(s) restaurado(s)`);
       clearSelection();
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Mesma interface dos call-sites de antes ({ ids, lixeira }): o rumo decide
+  // entre o fluxo adiado com Desfazer e a restauração imediata. A seleção é
+  // limpa já no disparo do envio — o efeito é otimista.
+  const moverLixeira = {
+    mutate: ({ ids, lixeira, nome }: { ids: string[]; lixeira: boolean; nome?: string }) => {
+      if (lixeira) {
+        enviarLixeira.mutate({ ids, nome });
+        clearSelection();
+      } else {
+        restaurarLixeira.mutate({ ids });
+      }
+    },
+  };
 
   const bulkTransferir = useMutation({
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {

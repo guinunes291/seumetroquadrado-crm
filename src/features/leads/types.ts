@@ -20,5 +20,7 @@ export type Lead = {
   entrada_disponivel: string | null;
   usa_fgts: boolean | null;
   data_venda: string | null;
+  /** Só na RPC v2: lead tem follow-up pendente/em andamento (flag de linha). */
+  tem_followup?: boolean;
   total_count?: number | null;
 };
