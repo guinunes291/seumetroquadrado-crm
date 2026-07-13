@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.transicionar_lead(uuid, public.lead_status, text, text, timestamp with time zone);
