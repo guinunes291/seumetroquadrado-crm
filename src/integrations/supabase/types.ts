@@ -4703,6 +4703,7 @@ export type Database = {
       }
       copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
+      corretores_do_gestor: { Args: { _user_id: string }; Returns: string[] }
       create_oferta_ativa: {
         Args: {
           _corretor?: string
@@ -5047,6 +5048,18 @@ export type Database = {
           _temperatura?: Database["public"]["Enums"]["lead_temperatura"]
         }
         Returns: Json
+      }
+      leads_sem_acao: {
+        Args: { _corretores?: string[]; _limit?: number }
+        Returns: {
+          id: string
+          nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: Database["public"]["Enums"]["lead_temperatura"]
+          ultima_interacao: string
+        }[]
       }
       leads_sla_pendentes: {
         Args: { _corretor?: string }
@@ -5570,6 +5583,7 @@ export type Database = {
         Args: { _gatilho?: string; _lead_id: string }
         Returns: Json
       }
+      ve_carteira_completa: { Args: { _user_id: string }; Returns: boolean }
       vendas_mes_anterior: {
         Args: never
         Returns: {
