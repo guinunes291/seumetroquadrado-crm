@@ -19,9 +19,7 @@ export function AnimatedNumber({
   className?: string;
 }) {
   const display = useCountUp(value, { durationMs });
-  const text = format
-    ? format(display)
-    : Math.round(display).toLocaleString("pt-BR");
+  const text = format ? format(display) : Math.round(display).toLocaleString("pt-BR");
 
   return <span className={cn("tabular-nums", className)}>{text}</span>;
 }

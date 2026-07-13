@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProjetosParaSelecao } from "@/lib/projetos";
@@ -64,6 +64,13 @@ export function RegistrarVendaDialog() {
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   // Gestão vê todos os leads; um corretor só pode registrar venda dos SEUS.
   const podeVerTodos = isAdmin || isGestor || isSuperintendente;
+
+  // Abre também pela palette (⌘K → "Registrar venda") — o botão continua no header.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("open-registrar-venda", onOpen);
+    return () => window.removeEventListener("open-registrar-venda", onOpen);
+  }, []);
 
   const [leadPickerOpen, setLeadPickerOpen] = useState(false);
   const [lead, setLead] = useState<LeadOption | null>(null);

@@ -30,6 +30,16 @@ const RegistrarVendaDialog = lazy(() =>
     default: RegistrarVendaDialog,
   })),
 );
+const NovoLeadDialogHost = lazy(() =>
+  import("@/features/leads/novo-lead-dialog").then(({ NovoLeadDialogHost }) => ({
+    default: NovoLeadDialogHost,
+  })),
+);
+const KeyboardShortcutsHelp = lazy(() =>
+  import("@/components/keyboard-shortcuts-help").then(({ KeyboardShortcutsHelp }) => ({
+    default: KeyboardShortcutsHelp,
+  })),
+);
 
 let lastPresenceMark = 0;
 const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
@@ -146,6 +156,8 @@ function AuthenticatedLayout() {
         <SamiQLauncher />
         <SprintGlobal />
         <CommandPalette />
+        <NovoLeadDialogHost />
+        <KeyboardShortcutsHelp />
       </Suspense>
       <CelebrationHost />
       <Toaster richColors closeButton />
