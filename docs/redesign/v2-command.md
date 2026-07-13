@@ -93,3 +93,59 @@ strings da query de vendas aprovadas; mover exigiria editar o teste.
   `as never` de RPCs novas e permite baixar o teto do type-escape budget).
 - Smoke autenticado opt-in (`e2e/smoke-auth.mjs`) — desenhado no plano,
   não implementado nesta rodada.
+
+## Adendo — passe de intensidade do movimento (pós-produção, 13/07)
+
+Feedback do dono do produto com a v2 no ar: "não estou vendo o SMQ Motion,
+está tudo bem parecido". A calibragem original priorizou discrição a ponto
+de o movimento passar despercebido — especialmente no mobile, onde as
+interações de hover não existem. Recalibrado para "Marcante", mantendo TODAS
+as regras de performance (só transform/opacity, stagger ≤ 8, reduced-motion
+global intocado):
+
+| Efeito                | Antes                 | Depois                                                 |
+| --------------------- | --------------------- | ------------------------------------------------------ |
+| slide-fade (entradas) | 6px                   | 16px de deslize                                        |
+| stagger-children      | 0,32s · degrau 40ms   | 0,42s · degrau 60ms                                    |
+| View Transitions      | fade 0,16/0,22s + 4px | saída sobe 8px · entrada 14px em 0,3s                  |
+| beam-border (hero)    | anel 1px · giro 7s    | anel 2px · cauda longa + cabeça quente · giro 4,5s     |
+| hover-lift            | -2px · 120ms          | -3px · 200ms                                           |
+| press-scale           | scale 0,98            | scale 0,97                                             |
+| useCountUp            | 700ms                 | 900ms                                                  |
+| EntityCard ativável   | só sombra             | hover-lift + press-scale (feedback de toque no mobile) |
+
+Cards NÃO ativáveis deixaram de reagir a hover (a sombra de hover era
+aplicada a todos) — affordance honesta: só o que é clicável se move.
+
+## Adendo 2 — lentidão de /pipeline e /hoje (perf do gate de carteira, 13/07)
+
+Feedback: "pipeline e início ainda estão muito lentos". Causa raiz encontrada:
+o gate de carteira era avaliado POR LINHA — a policy de SELECT de `leads`
+chama `pode_acessar_lead(auth.uid(), id)` para cada linha, e a função (nunca
+inlinada por ser SECURITY DEFINER) refaz lookup de profiles + até 3 has_role +
+EXISTS de volta em leads + join de equipes A CADA CHAMADA. Policies de
+tarefas/agendamentos e as RPCs do Kanban (snapshot v3 + stage_page_v2, uma por
+coluna) repetiam o padrão. Dezenas de milhares de subconsultas por tela.
+
+Migration `20260718100000_escopo_carteira_rapido.sql` — mesma REGRA de
+acesso, avaliada 1x por query:
+
+- Helpers `ve_carteira_completa` / `corretores_do_gestor` (decomposição
+  literal dos branches de pode_acessar_lead).
+- Policies de SELECT de leads/tarefas/agendamentos no padrão InitPlan
+  (subconsultas escalares avaliadas uma vez; acesso continua derivado do LEAD,
+  nunca do corretor denormalizado — regra pós-transferência preservada).
+- `pipeline_snapshot_v3` e `pipeline_stage_page_v2` com escopo pré-computado
+  no DECLARE.
+- Nova RPC `leads_sem_acao`: o guardrail da home baixava TODAS as tarefas
+  pendentes + TODOS os agendamentos futuros da org para descartar quase tudo
+  no cliente; agora anti-joins indexados no servidor devolvem só candidatos
+  (scoreLead continua no cliente — regra de negócio intocada). Cliente via
+  rpcWithFallback (caminho antigo preservado).
+- 6 índices para os caminhos quentes (página de coluna do kanban, leads ativos
+  por última interação, anti-joins, tarefas por vencimento, agenda por data).
+- Contagens de conquistas com `head:true` (só o count viaja).
+
+Policies de INSERT/UPDATE/DELETE intocadas (linha única). Testes novos em
+`tests/escopo-carteira-rapido.test.ts` travam os invariantes de segurança da
+nova forma (13 asserções). 612 testes verdes.
