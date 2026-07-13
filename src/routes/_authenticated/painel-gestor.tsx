@@ -39,7 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoGeralPanel } from "@/features/gestao/visao-geral";
 import { CorretoresPage } from "@/routes/_authenticated/corretores";
 import { EquipesPage } from "@/routes/_authenticated/equipes";
-import { LeadsPorCorretorPage } from "@/routes/_authenticated/leads-por-corretor";
+import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page";
 import { TemplatesPage } from "@/routes/_authenticated/templates";
 import { DuplicatasPage } from "@/routes/_authenticated/duplicatas";
 import { LixeiraPage } from "@/routes/_authenticated/lixeira";
