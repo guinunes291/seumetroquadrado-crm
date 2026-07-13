@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_alertas_created_desc ON public.alertas (created_at DESC);
