@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck, FileText, MapPin, MessageCircle, Phone, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { rpcWithFallback } from "@/lib/supabase-errors";
 import { useAuth } from "@/hooks/use-auth";
 import { useLeadsSlaPendentes } from "@/features/dashboard/queries";
 import { scoreLead } from "@/lib/priority";
@@ -168,18 +169,22 @@ export function useConquistas({ scopeIds, scopeKey, scopeReady }: ScopeProps) {
     queryKey: ["meu-painel:conquistas", scopeKey],
     enabled: !!user && scopeReady,
     queryFn: async () => {
-      let ganhasQ = supabase.from("conquistas" as never).select("id");
+      // head:true — só a contagem viaja, nenhuma linha de id.
+      let ganhasQ = supabase.from("conquistas" as never).select("id", {
+        count: "exact",
+        head: true,
+      });
       if (scopeIds) ganhasQ = ganhasQ.in("corretor_id", scopeIds);
       const [minhas, tipos] = await Promise.all([
         ganhasQ,
         supabase
           .from("tipos_conquista" as never)
-          .select("id")
+          .select("id", { count: "exact", head: true })
           .eq("ativo", true),
       ]);
       return {
-        ganhas: minhas.data?.length ?? 0,
-        total: tipos.data?.length ?? 0,
+        ganhas: minhas.count ?? 0,
+        total: tipos.count ?? 0,
       };
     },
   });
@@ -373,58 +378,88 @@ export function useFilaDeMissoes({ escopo, scopeIds, scopeKey, scopeReady }: Sco
   // Guardrail anti-perda: leads ativos no escopo SEM próxima ação — nenhuma
   // tarefa aberta, nenhum agendamento futuro e sem follow-up agendado. São os que
   // silenciosamente esfriam. Ordenados pelo Score de prioridade.
+  //
+  // Caminho preferido: RPC leads_sem_acao (anti-joins indexados no servidor,
+  // devolve só candidatos). Sem a migration aplicada, cai no caminho antigo —
+  // 3 selects e filtragem no cliente. O ranqueamento (scoreLead) é sempre
+  // daqui: regra de negócio fora do banco.
   const semAcaoQ = useQuery({
     queryKey: ["meu-dia:sem-acao", scopeKey],
     enabled: !!user && scopeReady,
     queryFn: async () => {
-      const nowIso = new Date().toISOString();
-      let leadsReq = supabase
-        .from("leads")
-        .select("id, nome, telefone, status, temperatura, proximo_followup, ultima_interacao")
-        .eq("na_lixeira", false)
-        .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
-        .limit(300);
-      let tarefasReq = supabase
-        .from("tarefas")
-        .select("lead_id")
-        .in("status", ["pendente", "em_andamento"])
-        .not("lead_id", "is", null);
-      let agendaReq = supabase
-        .from("agendamentos")
-        .select("lead_id")
-        .gte("data_inicio", nowIso)
-        .not("status", "in", "(cancelado,realizado,nao_compareceu)")
-        .not("lead_id", "is", null);
-      if (scopeIds) {
-        leadsReq = leadsReq.in("corretor_id", scopeIds);
-        tarefasReq = tarefasReq.in("corretor_id", scopeIds);
-        agendaReq = agendaReq.in("corretor_id", scopeIds);
-      }
-      const [leadsR, tarefasR, agendaR] = await Promise.all([leadsReq, tarefasReq, agendaReq]);
-      if (leadsR.error) throw leadsR.error;
-      if (tarefasR.error) throw tarefasR.error;
-      if (agendaR.error) throw agendaR.error;
+      type SemAcaoRow = {
+        id: string;
+        nome: string;
+        telefone: string | null;
+        status: string;
+        temperatura: string | null;
+        proximo_followup: string | null;
+        ultima_interacao: string | null;
+      };
+      const rankear = (rows: SemAcaoRow[]) =>
+        rows
+          .map((l) => ({
+            ...l,
+            _score: scoreLead({
+              temperatura: l.temperatura,
+              status: l.status,
+              ultimaInteracao: l.ultima_interacao,
+            }),
+          }))
+          .sort((a, b) => b._score.score - a._score.score)
+          .slice(0, 12);
 
-      const comTarefa = new Set((tarefasR.data ?? []).map((t) => t.lead_id));
-      const comAgenda = new Set((agendaR.data ?? []).map((a) => a.lead_id));
-      const agoraMs = Date.now();
+      return rpcWithFallback(
+        async () => {
+          const { data, error } = await (supabase as any).rpc("leads_sem_acao", {
+            _corretores: scopeIds,
+          });
+          if (error) throw error;
+          return rankear((data ?? []) as SemAcaoRow[]);
+        },
+        async () => {
+          const nowIso = new Date().toISOString();
+          let leadsReq = supabase
+            .from("leads")
+            .select("id, nome, telefone, status, temperatura, proximo_followup, ultima_interacao")
+            .eq("na_lixeira", false)
+            .not("status", "in", "(perdido,contrato_fechado,pos_venda)")
+            .limit(300);
+          let tarefasReq = supabase
+            .from("tarefas")
+            .select("lead_id")
+            .in("status", ["pendente", "em_andamento"])
+            .not("lead_id", "is", null);
+          let agendaReq = supabase
+            .from("agendamentos")
+            .select("lead_id")
+            .gte("data_inicio", nowIso)
+            .not("status", "in", "(cancelado,realizado,nao_compareceu)")
+            .not("lead_id", "is", null);
+          if (scopeIds) {
+            leadsReq = leadsReq.in("corretor_id", scopeIds);
+            tarefasReq = tarefasReq.in("corretor_id", scopeIds);
+            agendaReq = agendaReq.in("corretor_id", scopeIds);
+          }
+          const [leadsR, tarefasR, agendaR] = await Promise.all([leadsReq, tarefasReq, agendaReq]);
+          if (leadsR.error) throw leadsR.error;
+          if (tarefasR.error) throw tarefasR.error;
+          if (agendaR.error) throw agendaR.error;
 
-      return (leadsR.data ?? [])
-        .filter((l) => {
-          if (comTarefa.has(l.id) || comAgenda.has(l.id)) return false;
-          if (l.proximo_followup && new Date(l.proximo_followup).getTime() > agoraMs) return false;
-          return true;
-        })
-        .map((l) => ({
-          ...l,
-          _score: scoreLead({
-            temperatura: l.temperatura,
-            status: l.status,
-            ultimaInteracao: l.ultima_interacao,
-          }),
-        }))
-        .sort((a, b) => b._score.score - a._score.score)
-        .slice(0, 12);
+          const comTarefa = new Set((tarefasR.data ?? []).map((t) => t.lead_id));
+          const comAgenda = new Set((agendaR.data ?? []).map((a) => a.lead_id));
+          const agoraMs = Date.now();
+
+          return rankear(
+            (leadsR.data ?? []).filter((l) => {
+              if (comTarefa.has(l.id) || comAgenda.has(l.id)) return false;
+              if (l.proximo_followup && new Date(l.proximo_followup).getTime() > agoraMs)
+                return false;
+              return true;
+            }),
+          );
+        },
+      );
     },
   });
 
