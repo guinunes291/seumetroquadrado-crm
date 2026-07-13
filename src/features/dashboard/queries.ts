@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { rpcWithFallback } from "@/lib/supabase-errors";
 
 type Range = { di: string | null; df: string | null };
 
@@ -131,6 +132,18 @@ export function useDashboardLeadsUrgentes(corretor: string | null, enabled = tru
   });
 }
 
+export type SlaRow = {
+  lead_id: string;
+  corretor_id: string | null;
+  nome: string;
+  telefone: string | null;
+  status: string;
+  sla_minutos: number;
+  minutos_decorridos: number;
+  sla_status: string;
+  temperatura_calc: string;
+};
+
 /** SLA por origem (RPC leads_com_sla): usado no "Meu Dia" para listar leads com
  *  SLA estourado respeitando o tempo configurado por origem (ex.: Facebook 5min). */
 export function useLeadsComSla(corretor: string | null, enabled = true) {
@@ -142,18 +155,40 @@ export function useLeadsComSla(corretor: string | null, enabled = true) {
     queryFn: async () => {
       const { data, error } = await rpc("leads_com_sla", { _corretor: corretor });
       if (error) throw error;
-      return (data ?? []) as Array<{
-        lead_id: string;
-        corretor_id: string | null;
-        nome: string;
-        telefone: string | null;
-        status: string;
-        sla_minutos: number;
-        minutos_decorridos: number;
-        sla_status: string;
-        temperatura_calc: string;
-      }>;
+      return (data ?? []) as SlaRow[];
     },
+  });
+}
+
+const SLA_STATUS_PENDENTES = new Set(["novo", "aguardando_atendimento"]);
+
+/**
+ * SLA apenas dos leads PENDENTES de 1º atendimento (novo/aguardando) — o único
+ * recorte que a fila da home e o badge do Kanban usam. A RPC estreita
+ * (leads_sla_pendentes) devolve dezenas de linhas em vez de todos os leads
+ * ativos da organização; foi a varredura completa que estourou statement
+ * timeout (57014) em produção. Sem a migration aplicada, cai para a
+ * leads_com_sla antiga filtrando no cliente — nada quebra.
+ */
+export function useLeadsSlaPendentes(corretor: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ["sla:pendentes", corretor],
+    enabled,
+    staleTime: 30_000,
+    refetchInterval: 2 * 60_000,
+    queryFn: async () =>
+      rpcWithFallback(
+        async () => {
+          const { data, error } = await rpc("leads_sla_pendentes", { _corretor: corretor });
+          if (error) throw error;
+          return (data ?? []) as SlaRow[];
+        },
+        async () => {
+          const { data, error } = await rpc("leads_com_sla", { _corretor: corretor });
+          if (error) throw error;
+          return ((data ?? []) as SlaRow[]).filter((r) => SLA_STATUS_PENDENTES.has(r.status));
+        },
+      ),
   });
 }
 

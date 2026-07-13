@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck, FileText, MapPin, MessageCircle, Phone, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { useLeadsComSla } from "@/features/dashboard/queries";
+import { useLeadsSlaPendentes } from "@/features/dashboard/queries";
 import { scoreLead } from "@/lib/priority";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { buildMissionQueue, computeStreak, type Mission } from "@/features/command-center/derive";
@@ -337,7 +337,7 @@ export function useFilaDeMissoes({ escopo, scopeIds, scopeKey, scopeReady }: Sco
   // Em "minha" pedimos o SLA do próprio usuário; em "operacao" pedimos sem
   // filtro (a RPC devolve tudo que o papel pode ver) e restringimos ao escopo
   // no cliente via slaRows (necessário p/ o gestor ver só a própria equipe).
-  const slaQ = useLeadsComSla(escopo === "minha" ? (user?.id ?? null) : null, !!user);
+  const slaQ = useLeadsSlaPendentes(escopo === "minha" ? (user?.id ?? null) : null, !!user);
   const slaRows = useMemo(() => {
     const rows = slaQ.data ?? [];
     // Só filtramos no cliente na visão de operação de um gestor (subconjunto de
