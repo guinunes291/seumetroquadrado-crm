@@ -3552,6 +3552,27 @@ export type Database = {
           },
         ]
       }
+      user_preferences: {
+        Row: {
+          key: string
+          updated_at: string
+          user_id: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          user_id: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          user_id?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -4889,6 +4910,10 @@ export type Database = {
         }
         Returns: Json
       }
+      gestao_metricas: {
+        Args: { _periodo_end: string; _periodo_start: string }
+        Returns: Json
+      }
       get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
@@ -4916,33 +4941,20 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
-      leads_com_sla:
-        | {
-            Args: { _corretor?: string }
-            Returns: {
-              lead_id: string
-              minutos_decorridos: number
-              nome: string
-              sla_minutos: number
-              sla_status: string
-              status: string
-              telefone: string
-              temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
-            }[]
-          }
-        | {
-            Args: { _corretor?: string; _df?: string; _di?: string }
-            Returns: {
-              lead_id: string
-              minutos_decorridos: number
-              nome: string
-              sla_minutos: number
-              sla_status: string
-              status: string
-              telefone: string
-              temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
-            }[]
-          }
+      leads_com_sla: {
+        Args: { _corretor?: string }
+        Returns: {
+          corretor_id: string
+          lead_id: string
+          minutos_decorridos: number
+          nome: string
+          sla_minutos: number
+          sla_status: string
+          status: string
+          telefone: string
+          temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
+        }[]
+      }
       leads_filtered: {
         Args: {
           _corretor?: string
@@ -4979,6 +4991,46 @@ export type Database = {
           usa_fgts: boolean
         }[]
       }
+      leads_filtered_v2: {
+        Args: {
+          _contato?: string
+          _corretor?: string
+          _limit?: number
+          _na_lixeira?: boolean
+          _offset?: number
+          _origem?: string
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _sort?: string
+          _sort_dir?: string
+          _status?: string
+          _temperatura?: string
+        }
+        Returns: {
+          corretor_id: string
+          created_at: string
+          data_venda: string
+          email: string
+          entrada_disponivel: string
+          id: string
+          na_lixeira: boolean
+          nome: string
+          observacoes: string
+          origem: string
+          projeto_id: string
+          projeto_nome: string
+          renda_informada: string
+          status: string
+          telefone: string
+          tem_followup: boolean
+          temperatura: string
+          total_count: number
+          ultima_interacao: string
+          usa_fgts: boolean
+        }[]
+      }
       leads_search_v2: {
         Args: {
           _corretor_id?: string
@@ -4996,8 +5048,39 @@ export type Database = {
         }
         Returns: Json
       }
+      leads_sla_pendentes: {
+        Args: { _corretor?: string }
+        Returns: {
+          corretor_id: string
+          lead_id: string
+          minutos_decorridos: number
+          nome: string
+          sla_minutos: number
+          sla_status: string
+          status: string
+          telefone: string
+          temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
+        }[]
+      }
       leads_status_counts: {
         Args: {
+          _corretor?: string
+          _na_lixeira?: boolean
+          _origem?: string
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _temperatura?: string
+        }
+        Returns: {
+          quantidade: number
+          status: string
+        }[]
+      }
+      leads_status_counts_v2: {
+        Args: {
+          _contato?: string
           _corretor?: string
           _na_lixeira?: boolean
           _origem?: string
@@ -5048,6 +5131,7 @@ export type Database = {
         Returns: Json
       }
       minha_elegibilidade: { Args: never; Returns: Json }
+      nav_pendencias: { Args: never; Returns: Json }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
       obter_vitrine_publica: {
         Args: { _token_hash: string }
@@ -5065,6 +5149,17 @@ export type Database = {
           parados_ha_7_dias: number
           quantidade: number
           sem_proxima_acao: number
+        }[]
+      }
+      pipeline_snapshot_v3: {
+        Args: { _corretor_id?: string; _projeto_id?: string; _query?: string }
+        Returns: {
+          etapa: Database["public"]["Enums"]["lead_status"]
+          followups_vencidos: number
+          parados_ha_7_dias: number
+          quantidade: number
+          sem_proxima_acao: number
+          vgv: number
         }[]
       }
       pipeline_stage_page_v2: {
