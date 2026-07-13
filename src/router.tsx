@@ -29,7 +29,23 @@ export const getRouter = () => {
     // conta_atual_ativa) seja reaproveitado — sem re-rodar o guard a cada hover.
     defaultPreload: "intent",
     defaultPreloadStaleTime: 30_000,
+    // Transição nativa entre rotas (View Transitions API): fade + deslize de
+    // 4px definidos em styles.css. No-op em browsers sem suporte; desligada
+    // sob prefers-reduced-motion pelo bloco global de motion.
+    // Começa DESLIGADA: o primeiro navigate (ex.: guard redirecionando / →
+    // /auth) pode disparar durante a hidratação, e startViewTransition mutando
+    // o DOM nesse instante causa mismatch intermitente (React #418, visto no
+    // smoke). Liga após a primeira pintura, quando a hidratação já assentou.
+    defaultViewTransition: false,
   });
+
+  if (typeof window !== "undefined" && typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        router.options.defaultViewTransition = true;
+      });
+    });
+  }
 
   return router;
 };

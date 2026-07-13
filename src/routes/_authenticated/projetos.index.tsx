@@ -21,9 +21,9 @@ import {
   emptyFilters,
   type Filters,
 } from "@/components/projetos-filters";
-import { OfertaAtivaPage } from "@/routes/_authenticated/oferta-ativa.index";
-import { ComissoesPage } from "@/routes/_authenticated/comissoes";
-import { LinksUteisPage } from "@/routes/_authenticated/links-uteis";
+import { OfertaAtivaPage } from "@/features/projetos/oferta-ativa-page";
+import { ComissoesPage } from "@/features/comissoes/comissoes-page";
+import { LinksUteisPage } from "@/features/projetos/links-uteis-page";
 
 // O antigo "Radar" virou o Modo Fechamento do /pipeline.
 type NegociosTab = "catalogo" | "oferta" | "comissoes" | "links";

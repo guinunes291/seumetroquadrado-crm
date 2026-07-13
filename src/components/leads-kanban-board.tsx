@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -8,8 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { rpcWithFallback } from "@/lib/supabase-errors";
+import { usePointerDnd } from "@/features/pipeline/use-pointer-dnd";
+import { computeStageMetrics, formatVgvCompact } from "@/features/pipeline/stage-metrics";
 import {
   FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
@@ -108,11 +112,10 @@ export function KanbanBoard() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search.trim(), 300);
   const [mobileStage, setMobileStage] = useState<LeadStatus>(COLUMNS[0].id);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overCol, setOverCol] = useState<string | null>(null);
   const [extraPages, setExtraPages] = useState<Partial<Record<LeadStatus, StagePage>>>({});
   const [loadingMore, setLoadingMore] = useState<LeadStatus | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const boardScrollRef = useRef<HTMLDivElement>(null);
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
@@ -142,15 +145,37 @@ export function KanbanBoard() {
       },
     })),
   });
+  // Snapshot v3 traz o VGV por etapa; sem a migration aplicada, cai para a v2
+  // e os chips de valor simplesmente não aparecem (rpcWithFallback).
   const snapshotQuery = useQuery({
     queryKey: ["pipeline-snapshot-v2", debouncedSearch],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("pipeline_snapshot_v2", {
-        _query: debouncedSearch || undefined,
-      });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () =>
+      rpcWithFallback(
+        async () => {
+          const { data, error } = await supabase.rpc(
+            "pipeline_snapshot_v3" as never,
+            {
+              _query: debouncedSearch || undefined,
+            } as never,
+          );
+          if (error) throw error;
+          return data as {
+            etapa: LeadStatus;
+            quantidade: number;
+            followups_vencidos: number;
+            sem_proxima_acao: number;
+            parados_ha_7_dias: number;
+            vgv?: number;
+          }[];
+        },
+        async () => {
+          const { data, error } = await supabase.rpc("pipeline_snapshot_v2", {
+            _query: debouncedSearch || undefined,
+          });
+          if (error) throw error;
+          return data;
+        },
+      ),
   });
 
   useEffect(() => setExtraPages({}), [debouncedSearch]);
@@ -256,6 +281,20 @@ export function KanbanBoard() {
     else setPerdidoLead(lead);
   };
 
+  // Drag por Pointer Events: mouse, TOQUE (long-press) e caneta — sem lib.
+  // O menu "Mudar etapa" continua sendo o caminho acessível por teclado.
+  const { dragging, getCardProps, registerColumn } = usePointerDnd({
+    scrollContainerRef: boardScrollRef,
+    canDrop: (cardId, toColumnId) => {
+      const lead = leads.find((l) => l.id === cardId);
+      return !!lead && lead.status !== toColumnId;
+    },
+    onDrop: (cardId, toColumnId) => {
+      const lead = leads.find((l) => l.id === cardId);
+      if (lead) routeStage(lead, toColumnId as LeadStatus);
+    },
+  });
+
   const byColumn = useMemo(() => {
     const map = new Map<string, Lead[]>();
     COLUMNS.forEach((c) => map.set(c.id, []));
@@ -289,6 +328,21 @@ export function KanbanBoard() {
   const pipelineTotal = useMemo(
     () => [...snapshotByStage.values()].reduce((sum, row) => sum + Number(row.quantidade), 0),
     [snapshotByStage],
+  );
+
+  // Economia do funil: VGV por etapa (v3) + % de conversão acumulada vs. etapa
+  // anterior — derivado das quantidades, sem histórico.
+  const stageMetrics = useMemo(
+    () =>
+      computeStageMetrics(
+        (snapshotQuery.data ?? []).map((row) => ({
+          etapa: String(row.etapa),
+          quantidade: Number(row.quantidade),
+          vgv: "vgv" in row && row.vgv != null ? Number(row.vgv) : null,
+        })),
+        FUNNEL_STAGES,
+      ),
+    [snapshotQuery.data],
   );
 
   return (
@@ -357,6 +411,7 @@ export function KanbanBoard() {
 
       {!leadsLoading && !leadsError && pipelineTotal > 0 && (
         <div
+          ref={boardScrollRef}
           className="overflow-x-auto pb-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           role="region"
           aria-label="Funil de leads"
@@ -366,29 +421,18 @@ export function KanbanBoard() {
           <div className="flex gap-3 min-w-max">
             {COLUMNS.map((col) => {
               const items = byColumn.get(col.id) ?? [];
+              const metrics = stageMetrics.get(col.id);
+              const vgvLabel = formatVgvCompact(metrics?.vgv ?? null);
               return (
                 <section
                   key={col.id}
+                  ref={registerColumn(col.id)}
                   aria-labelledby={`kanban-col-${col.id}`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setOverCol(col.id);
-                  }}
-                  onDragLeave={() => setOverCol((c) => (c === col.id ? null : c))}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setOverCol(null);
-                    if (dragId) {
-                      const lead = (leads ?? []).find((l) => l.id === dragId);
-                      if (lead) routeStage(lead, col.id as LeadStatus);
-                    }
-                    setDragId(null);
-                  }}
                   className={cn(
                     "w-full shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors md:block md:w-72",
                     col.id !== mobileStage && "hidden",
                     col.tone,
-                    overCol === col.id && "ring-2 ring-primary/60",
+                    dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",
                   )}
                 >
                   <div className="flex items-center justify-between px-1 py-2">
@@ -409,23 +453,43 @@ export function KanbanBoard() {
                           </Badge>
                         ) : null;
                       })()}
-                      <Badge variant="secondary" className="text-[10px]">
-                        {Number(snapshotByStage.get(col.id)?.quantidade ?? items.length)}
+                      <Badge variant="secondary" className="text-[10px] tabular-nums">
+                        <AnimatedNumber
+                          value={Number(snapshotByStage.get(col.id)?.quantidade ?? items.length)}
+                        />
                       </Badge>
                     </div>
                   </div>
+                  {/* Economia da etapa: VGV potencial + conversão acumulada. */}
+                  {(vgvLabel || metrics?.conversaoPct != null) && (
+                    <div className="flex items-center justify-between gap-1 px-1 pb-1.5 text-[11px] text-muted-foreground tabular-nums">
+                      {vgvLabel ? (
+                        <span
+                          className="font-medium text-gold-700 dark:text-gold-400"
+                          title="VGV potencial dos leads desta etapa"
+                        >
+                          {vgvLabel}
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      {metrics?.conversaoPct != null && (
+                        <span title="Leads nesta etapa ou além, vs. a etapa anterior (funil acumulado)">
+                          conv. {metrics.conversaoPct.toLocaleString("pt-BR")}%
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2 min-h-[100px]">
                     {items.map((lead) => (
                       <Card
                         key={lead.id}
                         role="group"
                         aria-label={`${lead.nome}, etapa ${col.label}`}
-                        draggable
-                        onDragStart={() => setDragId(lead.id)}
-                        onDragEnd={() => setDragId(null)}
+                        {...getCardProps(lead.id)}
                         className={cn(
                           "p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background",
-                          dragId === lead.id && "opacity-50",
+                          dragging?.cardId === lead.id && "opacity-40",
                         )}
                       >
                         <div className="flex items-start gap-1">

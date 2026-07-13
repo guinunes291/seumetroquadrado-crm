@@ -6,8 +6,11 @@ import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -132,8 +135,9 @@ function MatchPage() {
               <CardContent className="space-y-4 max-w-2xl">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Renda familiar bruta (R$)</Label>
+                    <Label htmlFor="match-renda">Renda familiar bruta (R$)</Label>
                     <Input
+                      id="match-renda"
                       type="number"
                       min={0}
                       value={cliente.renda || ""}
@@ -144,8 +148,9 @@ function MatchPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>FGTS disponível (R$)</Label>
+                    <Label htmlFor="match-fgts">FGTS disponível (R$)</Label>
                     <Input
+                      id="match-fgts"
                       type="number"
                       min={0}
                       value={cliente.fgts || ""}
@@ -156,8 +161,9 @@ function MatchPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Entrada / recursos próprios (R$)</Label>
+                    <Label htmlFor="match-entrada">Entrada / recursos próprios (R$)</Label>
                     <Input
+                      id="match-entrada"
                       type="number"
                       min={0}
                       value={cliente.entrada || ""}
@@ -173,12 +179,15 @@ function MatchPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-base">36 meses de registro em carteira</Label>
+                    <Label htmlFor="match-36m" className="text-base">
+                      36 meses de registro em carteira
+                    </Label>
                     <p className="text-xs text-muted-foreground">
                       Habilita o redutor de taxa (financia mais).
                     </p>
                   </div>
                   <Switch
+                    id="match-36m"
                     checked={cliente.tem36MesesRegistro}
                     onCheckedChange={(v) => setCliente((c) => ({ ...c, tem36MesesRegistro: v }))}
                   />
@@ -186,12 +195,15 @@ function MatchPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-base">Tem dependente</Label>
+                    <Label htmlFor="match-dependente" className="text-base">
+                      Tem dependente
+                    </Label>
                     <p className="text-xs text-muted-foreground">
                       Afeta o subsídio (apenas Faixa 1).
                     </p>
                   </div>
                   <Switch
+                    id="match-dependente"
                     checked={cliente.temDependente}
                     onCheckedChange={(v) => setCliente((c) => ({ ...c, temDependente: v }))}
                   />
@@ -299,13 +311,16 @@ function MatchPage() {
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
                     <div>
-                      <Label className="text-sm">Mostrar imóveis fora do segmento</Label>
+                      <Label htmlFor="match-fora-segmento" className="text-sm">
+                        Mostrar imóveis fora do segmento
+                      </Label>
                       <p className="text-xs text-muted-foreground">
                         Inclui empreendimentos acima do teto de avaliação (
                         {brl(orc.tetoAvaliacaoSegmento)}).
                       </p>
                     </div>
                     <Switch
+                      id="match-fora-segmento"
                       checked={mostrarForaSegmento}
                       onCheckedChange={setMostrarForaSegmento}
                     />
@@ -314,7 +329,24 @@ function MatchPage() {
               </Card>
 
               {projetosQ.isLoading && (
-                <div className="text-sm text-muted-foreground">Carregando estoque…</div>
+                <div
+                  className="grid grid-cols-1 gap-3 md:grid-cols-2"
+                  role="status"
+                  aria-busy="true"
+                  aria-label="Carregando estoque"
+                >
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-44 w-full rounded-xl" />
+                  ))}
+                </div>
+              )}
+
+              {projetosQ.isError && (
+                <QueryErrorState
+                  title="Não foi possível carregar o estoque de empreendimentos."
+                  error={projetosQ.error}
+                  onRetry={() => projetosQ.refetch()}
+                />
               )}
 
               {projetosQ.data && (
@@ -410,15 +442,16 @@ function MatchList({
       </div>
 
       {items.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground space-y-2">
-            <div>
-              {semPreco > 0
-                ? `Os ${semPreco} empreendimento${semPreco > 1 ? "s" : ""} desse filtro não têm preço cadastrado, por isso não entram no match. Cadastre o "preço a partir" no detalhe do empreendimento para que apareçam aqui.`
-                : `Nenhum empreendimento dentro do segmento. Ative "Mostrar imóveis fora do segmento" para ver o estoque completo.`}
-            </div>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Building2}
+          title="Nenhum empreendimento no match"
+          description={
+            semPreco > 0
+              ? `Os ${semPreco} empreendimento${semPreco > 1 ? "s" : ""} desse filtro não têm preço cadastrado, por isso não entram no match. Cadastre o "preço a partir" no detalhe do empreendimento para que apareçam aqui.`
+              : `Nenhum empreendimento dentro do segmento. Ative "Mostrar imóveis fora do segmento" para ver o estoque completo.`
+          }
+          className="py-12"
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

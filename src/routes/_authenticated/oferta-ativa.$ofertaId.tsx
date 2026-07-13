@@ -31,6 +31,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -125,8 +127,11 @@ function ToggleContatado({
 }) {
   return (
     <button
+      type="button"
       onClick={() => onToggle(row)}
       title={row.contatado ? "Marcar como não contatado" : "Marcar como contatado"}
+      aria-label={row.contatado ? "Marcar como não contatado" : "Marcar como contatado"}
+      aria-pressed={row.contatado}
     >
       {row.contatado ? (
         <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -166,16 +171,22 @@ function LinhaAcoes({
   const l = row.lead!;
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button size="sm" variant="outline" title="Enviar WhatsApp" onClick={() => onWhatsApp(row)}>
+      <Button
+        size="sm"
+        variant="outline"
+        title="Enviar WhatsApp"
+        aria-label={`Enviar WhatsApp para ${l.nome}`}
+        onClick={() => onWhatsApp(row)}
+      >
         <MessageCircle className="w-4 h-4" />
       </Button>
       <Button size="sm" variant="outline" title="Ligar" asChild>
-        <a href={`tel:${l.telefone}`}>
+        <a href={`tel:${l.telefone}`} aria-label={`Ligar para ${l.nome}`}>
           <Phone className="w-4 h-4" />
         </a>
       </Button>
       <Button size="sm" variant="outline" title="Abrir lead" asChild>
-        <Link to="/leads/$leadId" params={{ leadId: l.id }}>
+        <Link to="/leads/$leadId" params={{ leadId: l.id }} aria-label={`Abrir lead ${l.nome}`}>
           <ExternalLink className="w-4 h-4" />
         </Link>
       </Button>
@@ -440,14 +451,14 @@ function OfertaDetailPage() {
 
   if (q.isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="h-12 animate-pulse bg-muted rounded-xl" />
+      <div className="space-y-4" aria-busy="true">
+        <Skeleton className="h-12 rounded-xl" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse bg-muted rounded-xl" />
+            <Skeleton key={i} className="h-24 rounded-xl" />
           ))}
         </div>
-        <div className="h-64 animate-pulse bg-muted rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     );
   }
@@ -490,7 +501,7 @@ function OfertaDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/projetos" search={{ tab: "oferta" }}>
+          <Link to="/projetos" search={{ tab: "oferta" }} aria-label="Voltar para Oferta Ativa">
             <ArrowLeft className="w-4 h-4" />
           </Link>
         </Button>
@@ -504,7 +515,12 @@ function OfertaDetailPage() {
                 {canManage && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="icon" title="Ações da lista">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Ações da lista"
+                        aria-label="Ações da lista"
+                      >
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -947,8 +963,8 @@ function OfertaDetailPage() {
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={editM.isPending}>
-                {editM.isPending ? "Salvando..." : "Salvar"}
+              <Button type="submit" loading={editM.isPending}>
+                Salvar
               </Button>
             </DialogFooter>
           </form>
@@ -968,9 +984,24 @@ function OfertaDetailPage() {
             </p>
             <div className="rounded-md border max-h-72 overflow-y-auto divide-y">
               {corretoresQ.isLoading ? (
-                <div className="p-4 text-sm text-muted-foreground">Carregando…</div>
+                <div className="space-y-2 p-3" aria-busy="true">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-6 w-full" />
+                  ))}
+                </div>
+              ) : corretoresQ.isError ? (
+                <QueryErrorState
+                  title="Não foi possível carregar os corretores."
+                  error={corretoresQ.error}
+                  onRetry={() => corretoresQ.refetch()}
+                  className="rounded-none border-0 py-6"
+                />
               ) : (corretoresQ.data ?? []).length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground">Nenhum corretor.</div>
+                <EmptyState
+                  title="Nenhum corretor encontrado"
+                  description="Cadastre corretores no time para poder atribuir listas."
+                  className="rounded-none border-0 py-6"
+                />
               ) : (
                 (corretoresQ.data ?? []).map((c) => {
                   const checked = corretorSel.has(c.id);
@@ -1013,14 +1044,11 @@ function OfertaDetailPage() {
               Cancelar
             </Button>
             <Button
-              disabled={corretorSel.size === 0 || atribuirM.isPending}
+              disabled={corretorSel.size === 0}
+              loading={atribuirM.isPending}
               onClick={() => atribuirM.mutate(Array.from(corretorSel))}
             >
-              {atribuirM.isPending
-                ? "Atribuindo…"
-                : corretorSel.size <= 1
-                  ? "Atribuir"
-                  : `Dividir entre ${corretorSel.size} corretores`}
+              {corretorSel.size <= 1 ? "Atribuir" : `Dividir entre ${corretorSel.size} corretores`}
             </Button>
           </DialogFooter>
         </DialogContent>

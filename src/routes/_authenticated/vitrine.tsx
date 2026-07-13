@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -154,6 +155,17 @@ function VitrinePage() {
             {lead.projeto_nome ? ` · interesse: ${lead.projeto_nome}` : ""}
           </span>
         </div>
+      )}
+
+      {/* O lead em contexto personaliza o envio: se a busca falhar, avisa em vez
+          de seguir em silêncio como se a vitrine fosse "sem lead". */}
+      {leadId && leadQ.isError && (
+        <QueryErrorState
+          title="Não foi possível carregar o lead desta vitrine."
+          error={leadQ.error}
+          onRetry={() => leadQ.refetch()}
+          className="py-6"
+        />
       )}
 
       {/* Toolbar */}

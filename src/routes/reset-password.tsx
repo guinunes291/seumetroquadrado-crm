@@ -47,10 +47,18 @@ function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[oklch(0.22_0.05_250)] to-[oklch(0.32_0.06_250)] p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center bg-background bg-ambient p-4">
+      <Card className="animate-slide-fade motion-reduce:animate-none w-full max-w-md border-border-subtle shadow-elev-3">
         <CardHeader>
-          <CardTitle>Redefinir senha</CardTitle>
+          <div className="mb-2 flex items-center gap-2">
+            <img
+              src="/icons/icon-192.png"
+              alt=""
+              className="h-8 w-8 rounded-md bg-white object-contain shadow-elev-1"
+            />
+            <span className="font-display text-sm font-semibold">Seu Metro Quadrado</span>
+          </div>
+          <CardTitle className="font-display">Redefinir senha</CardTitle>
           <CardDescription>
             {ready
               ? "Defina sua nova senha de acesso."
@@ -80,7 +88,7 @@ function ResetPasswordPage() {
                   required
                 />
               </div>
-              <Button type="submit" disabled={loading} className="w-full">
+              <Button type="submit" loading={loading} className="w-full">
                 {loading ? "Atualizando…" : "Atualizar senha"}
               </Button>
             </form>

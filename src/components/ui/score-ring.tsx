@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { INTENT_TEXT, type Intent } from "@/lib/status-tones";
 
@@ -5,6 +6,8 @@ import { INTENT_TEXT, type Intent } from "@/lib/status-tones";
  * Anel de score 0–100 em SVG puro. Usado para o score de prioridade do lead
  * (alta=danger, média=warning) e para probabilidade de fechamento (success).
  * O arco herda a cor via stroke-current + classe de texto do intent.
+ * No primeiro paint o arco "desenha" de 0 até o valor (draw-in do SMQ Motion);
+ * `motion-reduce:transition-none` mostra o valor direto.
  */
 export function ScoreRing({
   value,
@@ -27,9 +30,17 @@ export function ScoreRing({
   title?: string;
 }) {
   const v = Math.max(0, Math.min(100, Math.round(value)));
+  // Renderiza vazio e preenche no frame seguinte: a transition de
+  // stroke-dasharray (já presente no arco) vira a animação de entrada.
+  const [drawn, setDrawn] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setDrawn(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const shown = drawn ? v : 0;
   const r = (size - strokeWidth) / 2;
   const c = 2 * Math.PI * r;
-  const filled = (v / 100) * c;
+  const filled = (shown / 100) * c;
 
   return (
     <span
@@ -56,7 +67,7 @@ export function ScoreRing({
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={`${filled} ${c - filled}`}
-          className="stroke-current transition-[stroke-dasharray] duration-500"
+          className="stroke-current transition-[stroke-dasharray] duration-500 motion-reduce:transition-none"
         />
       </svg>
       {showValue && (

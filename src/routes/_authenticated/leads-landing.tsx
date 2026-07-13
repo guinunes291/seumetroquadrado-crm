@@ -21,13 +21,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { MessageCircle, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MessageCircle, ExternalLink, Inbox } from "lucide-react";
 import { toast } from "sonner";
 
 type LeadLanding = {
@@ -85,10 +83,14 @@ function statusBadge(s: string) {
   const cls: Record<string, string> = {
     novo: "bg-blue-500/15 text-blue-600",
     em_contato: "bg-amber-500/15 text-warning",
-    ganho: "bg-success/100/15 text-success",
+    ganho: "bg-success/15 text-success",
     perdido: "bg-rose-500/15 text-destructive",
   };
-  return <Badge className={cls[s] ?? ""} variant="secondary">{s}</Badge>;
+  return (
+    <Badge className={cls[s] ?? ""} variant="secondary">
+      {s}
+    </Badge>
+  );
 }
 
 function waLink(whatsapp: string | null | undefined): string | null {
@@ -107,7 +109,13 @@ function LeadsLandingPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LeadLanding | null>(null);
 
-  const { data: leads = [], isLoading } = useQuery({
+  const {
+    data: leads = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["leads_landing"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -149,6 +157,12 @@ function LeadsLandingPage() {
     });
   }, [leads, statusFilter, tipoFilter, faixaFilter, search]);
 
+  const filtrosAtivos =
+    statusFilter !== "todos" ||
+    tipoFilter !== "todos" ||
+    faixaFilter !== "todos" ||
+    search.trim() !== "";
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -164,14 +178,22 @@ function LeadsLandingPage() {
           className="max-w-xs"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos status</SelectItem>
-            {STATUS_OPTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {STATUS_OPTS.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={tipoFilter} onValueChange={setTipoFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos tipos</SelectItem>
             <SelectItem value="lead_form">lead_form</SelectItem>
@@ -179,7 +201,9 @@ function LeadsLandingPage() {
           </SelectContent>
         </Select>
         <Select value={faixaFilter} onValueChange={setFaixaFilter}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Faixa" /></SelectTrigger>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Faixa" />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas faixas</SelectItem>
             <SelectItem value="1">Faixa 1</SelectItem>
@@ -193,56 +217,104 @@ function LeadsLandingPage() {
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Recebido</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>WhatsApp</TableHead>
-              <TableHead>Renda</TableHead>
-              <TableHead>Região</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Faixa</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-6">Carregando…</TableCell></TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Nenhum lead.</TableCell></TableRow>
-            ) : (
-              filtered.map((l) => (
-                <TableRow
-                  key={l.id}
-                  className="cursor-pointer"
-                  onClick={() => setSelected(l)}
-                >
-                  <TableCell className="whitespace-nowrap text-xs">{fmtDate(l.recebido_em)}</TableCell>
-                  <TableCell className="font-medium">{l.nome ?? "—"}</TableCell>
-                  <TableCell>{l.whatsapp ?? "—"}</TableCell>
-                  <TableCell>{l.renda ?? "—"}</TableCell>
-                  <TableCell>{l.regiao ?? "—"}</TableCell>
-                  <TableCell><Badge variant="outline">{l.tipo ?? "—"}</Badge></TableCell>
-                  <TableCell>{l.sim_faixa ?? "—"}</TableCell>
-                  <TableCell>{statusBadge(l.status)}</TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    {waLink(l.whatsapp) && (
-                      <Button asChild size="sm" variant="ghost">
-                        <a href={waLink(l.whatsapp)!} target="_blank" rel="noreferrer">
-                          <MessageCircle className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    )}
+      {isError ? (
+        <QueryErrorState
+          title="Não foi possível carregar os leads da landing."
+          error={error}
+          onRetry={() => refetch()}
+        />
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Recebido</TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>WhatsApp</TableHead>
+                <TableHead>Renda</TableHead>
+                <TableHead>Região</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Faixa</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={9} className="py-3">
+                      <Skeleton className="h-5 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="p-0">
+                    <EmptyState
+                      icon={Inbox}
+                      title="Nenhum lead encontrado"
+                      description={
+                        filtrosAtivos
+                          ? "Ajuste a busca ou os filtros para ver outros leads."
+                          : "Os leads enviados pela landing page aparecem aqui assim que chegam."
+                      }
+                      action={
+                        filtrosAtivos ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSearch("");
+                              setStatusFilter("todos");
+                              setTipoFilter("todos");
+                              setFaixaFilter("todos");
+                            }}
+                          >
+                            Limpar filtros
+                          </Button>
+                        ) : undefined
+                      }
+                      className="rounded-none border-0"
+                    />
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : (
+                filtered.map((l) => (
+                  <TableRow key={l.id} className="cursor-pointer" onClick={() => setSelected(l)}>
+                    <TableCell className="whitespace-nowrap text-xs">
+                      {fmtDate(l.recebido_em)}
+                    </TableCell>
+                    <TableCell className="font-medium">{l.nome ?? "—"}</TableCell>
+                    <TableCell>{l.whatsapp ?? "—"}</TableCell>
+                    <TableCell>{l.renda ?? "—"}</TableCell>
+                    <TableCell>{l.regiao ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{l.tipo ?? "—"}</Badge>
+                    </TableCell>
+                    <TableCell>{l.sim_faixa ?? "—"}</TableCell>
+                    <TableCell>{statusBadge(l.status)}</TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      {waLink(l.whatsapp) && (
+                        <Button asChild size="sm" variant="ghost">
+                          <a
+                            href={waLink(l.whatsapp)!}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Abrir WhatsApp de ${l.nome ?? "lead"}`}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -268,9 +340,15 @@ function LeadsLandingPage() {
                     setSelected({ ...selected, status: v });
                   }}
                 >
-                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {STATUS_OPTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {STATUS_OPTS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -278,12 +356,27 @@ function LeadsLandingPage() {
               <section>
                 <h3 className="font-semibold mb-2">Contato</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <div><span className="text-muted-foreground">WhatsApp:</span> {selected.whatsapp ?? "—"}</div>
-                  <div><span className="text-muted-foreground">Renda:</span> {selected.renda ?? "—"}</div>
-                  <div><span className="text-muted-foreground">Região:</span> {selected.regiao ?? "—"}</div>
-                  <div><span className="text-muted-foreground">Origem:</span> {selected.origem ?? "—"}</div>
-                  <div><span className="text-muted-foreground">Recebido:</span> {fmtDate(selected.recebido_em)}</div>
-                  <div><span className="text-muted-foreground">No cliente:</span> {fmtDate(selected.timestamp_cliente)}</div>
+                  <div>
+                    <span className="text-muted-foreground">WhatsApp:</span>{" "}
+                    {selected.whatsapp ?? "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Renda:</span> {selected.renda ?? "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Região:</span> {selected.regiao ?? "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Origem:</span> {selected.origem ?? "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Recebido:</span>{" "}
+                    {fmtDate(selected.recebido_em)}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">No cliente:</span>{" "}
+                    {fmtDate(selected.timestamp_cliente)}
+                  </div>
                 </div>
               </section>
 
@@ -292,7 +385,9 @@ function LeadsLandingPage() {
                   <h3 className="font-semibold mb-2">Simulação</h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>Renda: {fmtMoney(selected.sim_renda)}</div>
-                    <div>Faixa: {selected.sim_faixa ?? "—"} ({selected.sim_segmento ?? "—"})</div>
+                    <div>
+                      Faixa: {selected.sim_faixa ?? "—"} ({selected.sim_segmento ?? "—"})
+                    </div>
                     <div>Dependente: {selected.sim_tem_dependente ? "Sim" : "Não"}</div>
                     <div>Carteira 36m: {selected.sim_carteira36m ? "Sim" : "Não"}</div>
                     <div>FGTS: {fmtMoney(selected.sim_fgts)}</div>
@@ -301,7 +396,9 @@ function LeadsLandingPage() {
                     <div>Subsídio: {fmtMoney(selected.sim_subsidio)}</div>
                     <div>Financiamento: {fmtMoney(selected.sim_financiamento)}</div>
                     <div>Parcela: {fmtMoney(selected.sim_parcela)}</div>
-                    <div className="col-span-2">Teto do imóvel: {fmtMoney(selected.sim_teto_imovel)}</div>
+                    <div className="col-span-2">
+                      Teto do imóvel: {fmtMoney(selected.sim_teto_imovel)}
+                    </div>
                   </div>
                 </section>
               ) : null}
@@ -319,7 +416,12 @@ function LeadsLandingPage() {
                 </div>
                 {selected.pagina && (
                   <div className="mt-2 text-xs break-all">
-                    <a className="text-primary underline inline-flex items-center gap-1" href={selected.pagina} target="_blank" rel="noreferrer">
+                    <a
+                      className="text-primary underline inline-flex items-center gap-1"
+                      href={selected.pagina}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       <ExternalLink className="h-3 w-3" /> {selected.pagina}
                     </a>
                   </div>

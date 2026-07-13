@@ -62,9 +62,8 @@ function AtendimentoPage() {
     },
   });
 
-  useRealtimeInvalidate("leads", [["atendimento:inbox"]]);
-  useRealtimeInvalidate("interacoes", [["atendimento:inbox"]]);
-  useRealtimeInvalidate("documentacoes", [["atendimento:inbox"]]);
+  // Um único canal para as 3 tabelas (o hook aceita array) — P3-10.
+  useRealtimeInvalidate(["leads", "interacoes", "documentacoes"], [["atendimento:inbox"]]);
 
   const filas = inboxQ.data?.filas ?? { responder: [], followups: [], esfriando: [], docs: [] };
   const counts = inboxQ.data?.counts ?? { responder: 0, followups: 0, esfriando: 0, docs: 0 };

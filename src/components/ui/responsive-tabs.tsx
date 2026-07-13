@@ -38,6 +38,7 @@ export function ResponsiveTabs({
       <div className="max-w-full overflow-hidden">
         <TabsList
           aria-label={ariaLabel}
+          indicator
           className={cn(
             "flex h-auto min-h-11 w-full max-w-full justify-start gap-1 overflow-x-auto overscroll-x-contain rounded-xl p-1 sm:w-fit",
             listClassName,

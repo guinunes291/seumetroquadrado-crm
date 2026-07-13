@@ -26,8 +26,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Target, Trash2 } from "lucide-react";
+import { Eye, Plus, Target, Trash2, TrendingUp, Trophy, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { StatGrid, StatTile } from "@/components/ui/stat-tile";
+import { ScoreRing } from "@/components/ui/score-ring";
 import {
   MESES_PT,
   computeAgentMetrics,
@@ -39,6 +41,40 @@ import {
 
 // Realizado agregado aplicável a uma meta (corretor, equipe ou global).
 type RealizadoView = { leads_atendidos: number; visitas: number; vendas: number; vgv: number };
+
+// Linha de meta com os rótulos de escopo já resolvidos (corretor/equipe).
+type MetaComEscopo = {
+  id: string;
+  ano: number;
+  mes: number;
+  corretor_id: string | null;
+  equipe_id: string | null;
+  meta_leads_atendidos: number;
+  meta_visitas: number;
+  meta_vendas: number;
+  meta_gmv: number;
+  observacoes: string | null;
+  profiles: { id: string; nome: string | undefined } | null;
+  equipes: { id: string; nome: string | undefined } | null;
+};
+
+type MetaPayload = {
+  ano: number;
+  mes: number;
+  corretor_id: string | null;
+  equipe_id: string | null;
+  meta_leads_atendidos: number;
+  meta_visitas: number;
+  meta_vendas: number;
+  meta_gmv: number;
+  observacoes: string | null;
+};
+
+const fmtBRL = (n: number) =>
+  `R$ ${Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+
+const intentDoProgresso = (pct: number) =>
+  pct >= 100 ? ("success" as const) : pct >= 60 ? ("info" as const) : ("warning" as const);
 
 // Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
 export const Route = createFileRoute("/_authenticated/metas")({
@@ -56,11 +92,11 @@ export function MetasPage() {
   const [ano, setAno] = useState(now.getFullYear());
   const [mes, setMes] = useState(now.getMonth() + 1);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<MetaComEscopo | null>(null);
 
   const metasQ = useQuery({
     queryKey: ["metas", ano, mes],
-    queryFn: async () => {
+    queryFn: async (): Promise<MetaComEscopo[]> => {
       const { data, error } = await supabase
         .from("metas")
         .select("*")
@@ -69,25 +105,26 @@ export function MetasPage() {
         .order("created_at");
       if (error) throw error;
       const rows = data ?? [];
-      const corretorIds = Array.from(new Set(rows.map((r: any) => r.corretor_id).filter(Boolean)));
-      const equipeIds = Array.from(new Set(rows.map((r: any) => r.equipe_id).filter(Boolean)));
+      const corretorIds = Array.from(new Set(rows.map((r) => r.corretor_id).filter(Boolean)));
+      const equipeIds = Array.from(new Set(rows.map((r) => r.equipe_id).filter(Boolean)));
+      const vazio: { data: { id: string; nome: string }[] } = { data: [] };
       const [profilesRes, equipesRes] = await Promise.all([
         corretorIds.length
           ? supabase
               .from("profiles")
               .select("id, nome")
               .in("id", corretorIds as string[])
-          : Promise.resolve({ data: [] as any[] }),
+          : Promise.resolve(vazio),
         equipeIds.length
           ? supabase
               .from("equipes")
               .select("id, nome")
               .in("id", equipeIds as string[])
-          : Promise.resolve({ data: [] as any[] }),
+          : Promise.resolve(vazio),
       ]);
-      const profMap = new Map((profilesRes.data ?? []).map((p: any) => [p.id, p.nome]));
-      const eqMap = new Map((equipesRes.data ?? []).map((e: any) => [e.id, e.nome]));
-      return rows.map((r: any) => ({
+      const profMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p.nome]));
+      const eqMap = new Map((equipesRes.data ?? []).map((e) => [e.id, e.nome]));
+      return rows.map((r) => ({
         ...r,
         profiles: r.corretor_id ? { id: r.corretor_id, nome: profMap.get(r.corretor_id) } : null,
         equipes: r.equipe_id ? { id: r.equipe_id, nome: eqMap.get(r.equipe_id) } : null,
@@ -192,7 +229,7 @@ export function MetasPage() {
   });
 
   // Realizado aplicável a uma meta: corretor → o dele; equipe → agregado; global → total.
-  const realizadoDaMeta = (m: any): RealizadoView => {
+  const realizadoDaMeta = (m: MetaComEscopo): RealizadoView => {
     const vazio: RealizadoView = { leads_atendidos: 0, visitas: 0, vendas: 0, vgv: 0 };
     const r = realizadoQ.data;
     if (!r) return vazio;
@@ -210,7 +247,7 @@ export function MetasPage() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: MetaPayload) => {
       if (editing?.id) {
         const { error } = await supabase.from("metas").update(payload).eq("id", editing.id);
         if (error) throw error;
@@ -225,7 +262,7 @@ export function MetasPage() {
       setEditing(null);
       qc.invalidateQueries({ queryKey: ["metas"] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
@@ -257,7 +294,7 @@ export function MetasPage() {
       return;
     }
 
-    const payload: any = {
+    const payload: MetaPayload = {
       ano,
       mes,
       corretor_id: escopo === "corretor" ? corretorId : null,
@@ -266,12 +303,12 @@ export function MetasPage() {
       meta_visitas: Number(fd.get("meta_visitas") || 0),
       meta_vendas: Number(fd.get("meta_vendas") || 0),
       meta_gmv: Number(fd.get("meta_gmv") || 0),
-      observacoes: fd.get("observacoes") || null,
+      observacoes: (fd.get("observacoes") as string | null) || null,
     };
     saveMutation.mutate(payload);
   };
 
-  const escopoLabel = (m: any) =>
+  const escopoLabel = (m: MetaComEscopo) =>
     m.corretor_id
       ? `Corretor: ${m.profiles?.nome ?? "—"}`
       : m.equipe_id
@@ -358,7 +395,7 @@ export function MetasPage() {
                             <SelectValue placeholder="—" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(corretoresQ.data ?? []).map((c: any) => (
+                            {(corretoresQ.data ?? []).map((c) => (
                               <SelectItem key={c.id} value={c.id}>
                                 {c.nome}
                               </SelectItem>
@@ -373,7 +410,7 @@ export function MetasPage() {
                             <SelectValue placeholder="—" />
                           </SelectTrigger>
                           <SelectContent>
-                            {(equipesQ.data ?? []).map((e: any) => (
+                            {(equipesQ.data ?? []).map((e) => (
                               <SelectItem key={e.id} value={e.id}>
                                 {e.nome}
                               </SelectItem>
@@ -442,6 +479,43 @@ export function MetasPage() {
         }
       />
 
+      {/* Realizado do mês (todos os corretores) — mesmos agregados usados nas barras. */}
+      <StatGrid>
+        <StatTile
+          title="Atendimentos"
+          value={realizadoQ.data?.total.leads_atendidos ?? 0}
+          icon={Users}
+          intent="info"
+          hint={`realizado em ${MESES_PT[mes - 1]}/${ano}`}
+          loading={realizadoQ.isLoading}
+        />
+        <StatTile
+          title="Visitas"
+          value={realizadoQ.data?.total.visitas ?? 0}
+          icon={Eye}
+          intent="warning"
+          hint={`realizado em ${MESES_PT[mes - 1]}/${ano}`}
+          loading={realizadoQ.isLoading}
+        />
+        <StatTile
+          title="Vendas"
+          value={realizadoQ.data?.total.vendas ?? 0}
+          icon={Trophy}
+          intent="success"
+          hint={`realizado em ${MESES_PT[mes - 1]}/${ano}`}
+          loading={realizadoQ.isLoading}
+        />
+        <StatTile
+          title="VGV"
+          value={realizadoQ.data?.total.vgv ?? 0}
+          formatValue={fmtBRL}
+          icon={TrendingUp}
+          intent="success"
+          hint={`realizado em ${MESES_PT[mes - 1]}/${ano}`}
+          loading={realizadoQ.isLoading}
+        />
+      </StatGrid>
+
       <Card>
         <CardContent className="p-4">
           {metasQ.isLoading ? (
@@ -466,69 +540,88 @@ export function MetasPage() {
               )}
             </div>
           ) : (
-            <ul className="divide-y">
-              {(metasQ.data ?? []).map((m: any) => (
-                <li key={m.id} className="py-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="font-medium flex items-center gap-2">
-                      {escopoLabel(m)}
-                      <Badge variant="outline">
-                        {MESES_PT[m.mes - 1]}/{m.ano}
-                      </Badge>
-                    </div>
-                    {(() => {
-                      const r = realizadoDaMeta(m);
-                      const fmtBRL = (n: number) =>
-                        `R$ ${Number(n || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
-                      const bars = [
-                        {
-                          label: "Atendidos",
-                          real: r.leads_atendidos,
-                          meta: Number(m.meta_leads_atendidos) || 0,
-                        },
-                        { label: "Visitas", real: r.visitas, meta: Number(m.meta_visitas) || 0 },
-                        { label: "Vendas", real: r.vendas, meta: Number(m.meta_vendas) || 0 },
-                        { label: "GMV", real: r.vgv, meta: Number(m.meta_gmv) || 0, money: true },
-                      ];
-                      return (
-                        <div className="mt-2 space-y-1.5 max-w-md">
-                          {bars.map((b) => (
-                            <div key={b.label}>
-                              <div className="flex justify-between text-[11px] text-muted-foreground">
-                                <span>{b.label}</span>
-                                <span>
-                                  <b className="text-foreground">
-                                    {b.money ? fmtBRL(b.real) : b.real}
-                                  </b>{" "}
-                                  / {b.money ? fmtBRL(b.meta) : b.meta}
-                                </span>
-                              </div>
-                              <Progress value={progressoMeta(b.real, b.meta)} className="h-1.5" />
+            <ul className="stagger-children divide-y">
+              {(metasQ.data ?? []).map((m) => {
+                const r = realizadoDaMeta(m);
+                const bars = [
+                  {
+                    label: "Atendidos",
+                    real: r.leads_atendidos,
+                    meta: Number(m.meta_leads_atendidos) || 0,
+                  },
+                  { label: "Visitas", real: r.visitas, meta: Number(m.meta_visitas) || 0 },
+                  { label: "Vendas", real: r.vendas, meta: Number(m.meta_vendas) || 0 },
+                  { label: "GMV", real: r.vgv, meta: Number(m.meta_gmv) || 0, money: true },
+                ];
+                const definidas = bars.filter((b) => b.meta > 0);
+                const media = definidas.length
+                  ? Math.round(
+                      definidas.reduce((acc, b) => acc + progressoMeta(b.real, b.meta), 0) /
+                        definidas.length,
+                    )
+                  : 0;
+                return (
+                  <li key={m.id} className="py-3 flex items-center gap-3">
+                    <ScoreRing
+                      value={media}
+                      size={46}
+                      strokeWidth={5}
+                      intent={definidas.length ? intentDoProgresso(media) : "neutral"}
+                      title={
+                        definidas.length
+                          ? `Progresso médio das metas definidas: ${media}%`
+                          : "Nenhuma meta definida"
+                      }
+                      className="shrink-0 self-start mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium flex items-center gap-2">
+                        {escopoLabel(m)}
+                        <Badge variant="outline">
+                          {MESES_PT[m.mes - 1]}/{m.ano}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 space-y-1.5 max-w-md">
+                        {bars.map((b) => (
+                          <div key={b.label}>
+                            <div className="flex justify-between text-[11px] text-muted-foreground">
+                              <span>{b.label}</span>
+                              <span className="tabular-nums">
+                                <b className="text-foreground">
+                                  {b.money ? fmtBRL(b.real) : b.real}
+                                </b>{" "}
+                                / {b.money ? fmtBRL(b.meta) : b.meta}
+                              </span>
                             </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  {canManage && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditing(m);
-                          setOpen(true);
-                        }}
-                      >
-                        Editar
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => deleteMutation.mutate(m.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </li>
-              ))}
+                            <Progress value={progressoMeta(b.real, b.meta)} className="h-1.5" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {canManage && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditing(m);
+                            setOpen(true);
+                          }}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteMutation.mutate(m.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </CardContent>
