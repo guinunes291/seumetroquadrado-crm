@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw, AlertCircle } from "lucide-react";
+import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw, AlertCircle, Ban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { usePointerDnd } from "@/features/pipeline/use-pointer-dnd";
@@ -597,14 +597,34 @@ export function KanbanBoard() {
                               </Button>
                             )}
                           </div>
-                          <LeadStageMenu
-                            lead={lead}
-                            onPickDirect={(target) =>
-                              updateStatus.mutate({ id: lead.id, status: target })
-                            }
-                            onPickModal={(modal) => setModalState({ modal, lead })}
-                            onPickPerdido={() => setPerdidoLead(lead)}
-                          />
+                          <div className="flex flex-col items-center gap-0.5 shrink-0">
+                            <LeadStageMenu
+                              lead={lead}
+                              onPickDirect={(target) =>
+                                updateStatus.mutate({ id: lead.id, status: target })
+                              }
+                              onPickModal={(modal) => setModalState({ modal, lead })}
+                              onPickPerdido={() => setPerdidoLead(lead)}
+                            />
+                            {lead.status !== "perdido" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                aria-label="Descartar lead"
+                                title="Descartar lead"
+                                draggable={false}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPerdidoLead(lead);
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                              >
+                                <Ban className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+
                         </div>
                       </Card>
                     ))}
