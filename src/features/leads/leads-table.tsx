@@ -8,7 +8,7 @@
 
 import { Link } from "@tanstack/react-router";
 import type { OnChangeFn } from "@tanstack/react-table";
-import { MessageCircle, Phone, UserPlus } from "lucide-react";
+import { Ban, MessageCircle, Phone, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
