@@ -1,0 +1,1 @@
+UPDATE public.profiles SET status_conta = 'ativa' WHERE id IN ('67387989-2aa5-45f9-a5a4-fbefc85542a9','c0339c95-152d-4915-89db-6f6167185b69','c944576e-2fc0-4e1f-94b7-026907b629f7','a2f1a914-7884-48c5-919e-d9178edadc63','076c5c3e-fae7-4041-b154-bc9caf7a76bd');
