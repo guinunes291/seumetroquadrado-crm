@@ -319,6 +319,21 @@ export function LeadsTable({
               onTransferir={() => onTransferir(l)}
               onLixeira={() => onLixeira(l)}
             />
+            {canAct && !l.na_lixeira && l.status !== "perdido" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                aria-label="Descartar lead"
+                title="Descartar lead"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPickPerdido(l);
+                }}
+              >
+                <Ban className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       },
