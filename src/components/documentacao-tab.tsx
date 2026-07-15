@@ -51,7 +51,7 @@ import {
   type Documentacao,
   type PerfilRenda,
 } from "@/lib/documentacao";
-import { FUNNEL_STAGES, type LeadStatus } from "@/lib/leads";
+import { FUNNEL_STAGES, transicaoLeadPermitida, type LeadStatus } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 
 type Props = {
@@ -169,6 +169,10 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
     const ordem = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
     const alvo = FUNNEL_STAGES.indexOf("analise_credito");
     if (ordem < 0 || ordem >= alvo) return; // só avança se está antes da etapa
+    // A máquina de estados do banco não aceita pular direto de qualquer etapa
+    // (ex.: aguardando_atendimento → analise_credito). Sem este guarda, o
+    // auto-avanço disparava um erro de transição "do nada" para o corretor.
+    if (!transicaoLeadPermitida(lead.status, "analise_credito", false)) return;
     jaAvancou.current = true;
     avancarCredito.mutate({ id: leadId, status: "analise_credito" });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -28,10 +28,13 @@ import {
   FUNNEL_STAGES,
   PROXIMA_ACAO,
   leadStatusLabel,
+  motivoTransicaoBloqueada,
   resolveStageAction,
+  transicaoLeadPermitida,
   type StageLead,
   type LeadStatus,
 } from "@/lib/leads";
+import { useUserRoles } from "@/hooks/use-auth";
 import {
   LeadStageModals,
   type StageModalState,
@@ -130,6 +133,9 @@ function LeadDetailPage() {
     onSuccess: () => toast.success("Status atualizado"),
   });
 
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const gestao = isAdmin || isGestor || isSuperintendente;
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -184,8 +190,15 @@ function LeadDetailPage() {
   };
 
   // Roteamento único de etapa: direto, modal (captura dados) ou perdido.
+  // Valida contra a máquina de estados do banco antes de agir — destinos fora
+  // do mapa nem deveriam estar clicáveis, mas o guarda evita o erro genérico
+  // da RPC. "Venda" fica fora do gate (registra venda para aprovação).
   const goToStage = (target: LeadStatus) => {
     if (target === lead.status) return;
+    if (target !== "contrato_fechado" && !transicaoLeadPermitida(lead.status, target, gestao)) {
+      toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
+      return;
+    }
     const action = resolveStageAction(target);
     if (action.kind === "perdido") setPerdidoLead(stageLead);
     else if (action.kind === "modal") setModalState({ modal: action.modal, lead: stageLead });
@@ -321,15 +334,21 @@ function LeadDetailPage() {
               const idx = FUNNEL_STAGES.indexOf(s);
               const isCurrent = s === lead.status;
               const isPast = currentIdx >= 0 && idx < currentIdx;
+              const permitida =
+                s === "contrato_fechado" || transicaoLeadPermitida(lead.status, s, gestao);
               return (
                 <Button
                   key={s}
                   size="sm"
                   variant={isCurrent ? "default" : isPast ? "secondary" : "outline"}
                   className={cn("h-8", isCurrent && "ring-2 ring-primary/40")}
-                  disabled={isCurrent || mudarStatus.isPending}
+                  disabled={isCurrent || !permitida || mudarStatus.isPending}
                   onClick={() => goToStage(s)}
-                  title={LEAD_STATUS_LABEL[s]}
+                  title={
+                    isCurrent || permitida
+                      ? LEAD_STATUS_LABEL[s]
+                      : motivoTransicaoBloqueada(lead.status, s, gestao)
+                  }
                 >
                   {isPast && <Check className="h-3.5 w-3.5 mr-1" />}
                   {LEAD_STATUS_LABEL[s]}
@@ -340,7 +359,9 @@ function LeadDetailPage() {
               size="sm"
               variant="ghost"
               className="h-8 text-destructive hover:text-destructive"
-              disabled={lead.status === "perdido"}
+              disabled={
+                lead.status === "perdido" || !transicaoLeadPermitida(lead.status, "perdido", gestao)
+              }
               onClick={() => setPerdidoLead(stageLead)}
             >
               Marcar como perdido

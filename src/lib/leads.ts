@@ -140,6 +140,104 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
   analise_credito: { label: "Registrar venda", target: "contrato_fechado" },
 };
 
+// ---------------------------------------------------------------------------
+// Máquina de estados do funil — espelho fiel de public.transicao_lead_permitida
+// (migration 20260715191457). O banco é a autoridade: a RPC transicionar_lead
+// rejeita qualquer transição fora deste mapa. O espelho existe para a UI só
+// OFERECER destinos válidos (menu, stepper, drag do Kanban) em vez de deixar o
+// corretor tentar e receber erro. Ao alterar a função SQL, atualize aqui junto.
+// ---------------------------------------------------------------------------
+
+const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
+  aguardando_corretor: ["novo", "aguardando_atendimento", "em_atendimento", "perdido"],
+  novo: ["aguardando_atendimento", "em_atendimento", "qualificado", "perdido"],
+  aguardando_atendimento: ["em_atendimento", "qualificado", "perdido"],
+  em_atendimento: [
+    "aguardando_retorno",
+    "qualificado",
+    "agendado",
+    "visita_realizada",
+    "analise_credito",
+    "perdido",
+  ],
+  aguardando_retorno: [
+    "em_atendimento",
+    "qualificado",
+    "agendado",
+    "visita_realizada",
+    "analise_credito",
+    "perdido",
+  ],
+  qualificado: [
+    "em_atendimento",
+    "aguardando_retorno",
+    "agendado",
+    "visita_realizada",
+    "proposta_enviada",
+    "analise_credito",
+    "perdido",
+  ],
+  agendado: [
+    "em_atendimento",
+    "aguardando_retorno",
+    "visita_realizada",
+    "analise_credito",
+    "contrato_fechado",
+    "perdido",
+  ],
+  visita_realizada: [
+    "em_atendimento",
+    "aguardando_retorno",
+    "agendado",
+    "proposta_enviada",
+    "analise_credito",
+    "contrato_fechado",
+    "perdido",
+  ],
+  proposta_enviada: [
+    "em_atendimento",
+    "aguardando_retorno",
+    "analise_credito",
+    "contrato_fechado",
+    "perdido",
+  ],
+  analise_credito: [
+    "em_atendimento",
+    "aguardando_retorno",
+    "visita_realizada",
+    "proposta_enviada",
+    "contrato_fechado",
+    "perdido",
+  ],
+  // Etapas terminais: só gestão movimenta, e apenas para os destinos abaixo.
+  contrato_fechado: ["pos_venda", "analise_credito"],
+  perdido: ["em_atendimento", "aguardando_retorno"],
+  pos_venda: ["em_atendimento", "aguardando_retorno"],
+};
+
+/** Etapas cuja SAÍDA exige papel de gestão (admin/gestor/superintendente). */
+const SAIDA_EXIGE_GESTAO = new Set<LeadStatus>(["contrato_fechado", "perdido", "pos_venda"]);
+
+/** `true` se o banco aceitaria mover o lead de `de` para `para`. */
+export function transicaoLeadPermitida(de: string, para: LeadStatus, gestao: boolean): boolean {
+  if (de === para) return true;
+  const origem = de as LeadStatus;
+  if (SAIDA_EXIGE_GESTAO.has(origem) && !gestao) return false;
+  return TRANSICOES[origem]?.includes(para) ?? false;
+}
+
+/** Mensagem curta para explicar um destino bloqueado (toast do Kanban). */
+export function motivoTransicaoBloqueada(de: string, para: LeadStatus, gestao: boolean): string {
+  const origem = de as LeadStatus;
+  if (SAIDA_EXIGE_GESTAO.has(origem) && !gestao) {
+    return `Só a gestão pode mover um lead que está em "${leadStatusLabel(de)}".`;
+  }
+  if (origem === "aguardando_atendimento") {
+    return `Inicie o atendimento antes: mova para "${LEAD_STATUS_LABEL.em_atendimento}" e depois para "${LEAD_STATUS_LABEL[para]}".`;
+  }
+  return `O funil não permite mover de "${leadStatusLabel(de)}" direto para "${LEAD_STATUS_LABEL[para]}".`;
+}
+
 /** Categorias oficiais de perda (11 valores, alinhadas ao CHECK do banco).
  *  Ordem = ordem de exibição no dropdown. */
 export const MOTIVO_PERDA_CATEGORIAS = [
