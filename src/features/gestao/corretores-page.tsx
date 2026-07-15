@@ -47,8 +47,28 @@ type CorretorRow = {
 };
 
 export function CorretoresPage() {
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const { user } = useAuth();
+  const veTodos = isAdmin || isSuperintendente;
   const qc = useQueryClient();
+
+  // Para gestor (não admin/super), descobrir escopo: sua equipe + equipes que ele lidera.
+  const escopoGestorQuery = useQuery({
+    queryKey: ["gestor-escopo", user?.id],
+    enabled: !!user?.id && isGestor && !veTodos,
+    queryFn: async () => {
+      const [{ data: prof }, { data: eqs }] = await Promise.all([
+        supabase.from("profiles").select("equipe_id").eq("id", user!.id).maybeSingle(),
+        supabase.from("equipes").select("id").eq("gestor_id", user!.id),
+      ]);
+      const ids = new Set<string>();
+      if (prof?.equipe_id) ids.add(prof.equipe_id);
+      (eqs ?? []).forEach((e) => ids.add(e.id));
+      return Array.from(ids);
+    },
+  });
+  const equipeIds = escopoGestorQuery.data;
+  const escopoPronto = veTodos || !isGestor || escopoGestorQuery.isSuccess;
   const [q, setQ] = useState("");
   // Confirmação antes de bloquear um corretor (ação destrutiva: perde acesso).
   const [confirmBlock, setConfirmBlock] = useState<{ id: string; nome: string } | null>(null);
