@@ -83,14 +83,28 @@ export function CorretoresPage() {
   });
 
   const corretoresQuery = useQuery({
-    queryKey: ["corretores"],
+    queryKey: ["corretores", veTodos ? "all" : (equipeIds ?? []).sort().join(","), user?.id],
+    enabled: escopoPronto,
     queryFn: async (): Promise<CorretorRow[]> => {
-      const { data: profiles, error } = await supabase
+      let q = supabase
         .from("profiles")
         .select(
           "id, nome, email, telefone, cargo, ativo, status_conta, equipe_id, equipe:equipes(nome)",
         )
         .order("nome");
+
+      // Gestor (não admin/super) enxerga apenas sua(s) equipe(s) — e sempre a si mesmo.
+      if (!veTodos && isGestor) {
+        const ids = equipeIds ?? [];
+        if (ids.length === 0) {
+          q = q.eq("id", user?.id ?? "");
+        } else {
+          const inList = ids.map((v) => `"${v}"`).join(",");
+          q = q.or(`equipe_id.in.(${inList}),id.eq.${user?.id ?? ""}`);
+        }
+      }
+
+      const { data: profiles, error } = await q;
       if (error) throw error;
 
       const ids = (profiles ?? []).map((p) => p.id);
