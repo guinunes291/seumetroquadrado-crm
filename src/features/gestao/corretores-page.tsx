@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
@@ -47,8 +47,28 @@ type CorretorRow = {
 };
 
 export function CorretoresPage() {
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const { user } = useAuth();
+  const veTodos = isAdmin || isSuperintendente;
   const qc = useQueryClient();
+
+  // Para gestor (não admin/super), descobrir escopo: sua equipe + equipes que ele lidera.
+  const escopoGestorQuery = useQuery({
+    queryKey: ["gestor-escopo", user?.id],
+    enabled: !!user?.id && isGestor && !veTodos,
+    queryFn: async () => {
+      const [{ data: prof }, { data: eqs }] = await Promise.all([
+        supabase.from("profiles").select("equipe_id").eq("id", user!.id).maybeSingle(),
+        supabase.from("equipes").select("id").eq("gestor_id", user!.id),
+      ]);
+      const ids = new Set<string>();
+      if (prof?.equipe_id) ids.add(prof.equipe_id);
+      (eqs ?? []).forEach((e) => ids.add(e.id));
+      return Array.from(ids);
+    },
+  });
+  const equipeIds = escopoGestorQuery.data;
+  const escopoPronto = veTodos || !isGestor || escopoGestorQuery.isSuccess;
   const [q, setQ] = useState("");
   // Confirmação antes de bloquear um corretor (ação destrutiva: perde acesso).
   const [confirmBlock, setConfirmBlock] = useState<{ id: string; nome: string } | null>(null);
@@ -63,14 +83,28 @@ export function CorretoresPage() {
   });
 
   const corretoresQuery = useQuery({
-    queryKey: ["corretores"],
+    queryKey: ["corretores", veTodos ? "all" : (equipeIds ?? []).sort().join(","), user?.id],
+    enabled: escopoPronto,
     queryFn: async (): Promise<CorretorRow[]> => {
-      const { data: profiles, error } = await supabase
+      let q = supabase
         .from("profiles")
         .select(
           "id, nome, email, telefone, cargo, ativo, status_conta, equipe_id, equipe:equipes(nome)",
         )
         .order("nome");
+
+      // Gestor (não admin/super) enxerga apenas sua(s) equipe(s) — e sempre a si mesmo.
+      if (!veTodos && isGestor) {
+        const ids = equipeIds ?? [];
+        if (ids.length === 0) {
+          q = q.eq("id", user?.id ?? "");
+        } else {
+          const inList = ids.map((v) => `"${v}"`).join(",");
+          q = q.or(`equipe_id.in.(${inList}),id.eq.${user?.id ?? ""}`);
+        }
+      }
+
+      const { data: profiles, error } = await q;
       if (error) throw error;
 
       const ids = (profiles ?? []).map((p) => p.id);
