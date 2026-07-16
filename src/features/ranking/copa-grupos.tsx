@@ -84,10 +84,12 @@ export function GrupoCard({
   grupo,
   linhas,
   semana,
+  topN = 4,
 }: {
   grupo: string;
   linhas: CopaRankRow[];
   semana: number;
+  topN?: number;
 }) {
   return (
     <div
@@ -151,7 +153,7 @@ export function GrupoCard({
                   width: 10,
                   height: 10,
                   borderRadius: "50%",
-                  background: idx < 4 ? GREEN : "rgba(255,255,255,0.2)",
+                  background: idx < topN ? GREEN : "rgba(255,255,255,0.2)",
                   display: "inline-block",
                 }}
               />

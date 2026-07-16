@@ -217,14 +217,39 @@ export function CopaPage() {
   const faseTerceiro = fases.find((f) => f.tipo === "terceiro");
   const faseFinal = fases.find((f) => f.tipo === "final");
 
+  // Fase "de grupos" a exibir no topo: prioriza Semifinal quando ela já tem
+  // participantes atribuídos a grupos (formato de grupinhos, não chaveamento).
+  const faseGruposAtiva = useMemo(() => {
+    const temGrupo = participantes.some((p) => p.ativo && p.grupo);
+    if (faseSemi && temGrupo) {
+      const semiPart = participantes.filter((p) => p.ativo && p.grupo);
+      if (semiPart.length <= 8) return faseSemi;
+    }
+    return faseGrupos;
+  }, [faseSemi, faseGrupos, participantes]);
+
+  // Pontos por corretor escopados ao intervalo de semanas da fase exibida.
+  const pontosNaFase = useMemo(() => {
+    const m = new Map<string, number>();
+    const si = faseGruposAtiva?.semana_inicio ?? 1;
+    const sf = faseGruposAtiva?.semana_fim ?? 14;
+    (pontosSemQ.data ?? []).forEach((r) => {
+      if (r.semana >= si && r.semana <= sf) {
+        m.set(r.corretor_id, (m.get(r.corretor_id) ?? 0) + Number(r.pontos));
+      }
+    });
+    return m;
+  }, [pontosSemQ.data, faseGruposAtiva]);
+
   const grupos = useMemo(() => {
     const map: Record<string, RankRow[]> = {};
     ranking.forEach((r) => {
-      (map[r.grupo ?? "?"] ??= []).push(r);
+      const escopado: RankRow = { ...r, total_pontos: pontosNaFase.get(r.corretor_id) ?? 0 };
+      (map[r.grupo ?? "?"] ??= []).push(escopado);
     });
     Object.values(map).forEach((a) => a.sort((x, y) => y.total_pontos - x.total_pontos));
     return map;
-  }, [ranking]);
+  }, [ranking, pontosNaFase]);
   const gruposOrdenados = useMemo(
     () =>
       Object.keys(grupos)
@@ -488,39 +513,67 @@ export function CopaPage() {
             <SectionHeader eyebrow="14 semanas" title="Calendário do Campeonato" />
             <CopaCalendario semana={semana} />
 
-            {faseGrupos && gruposOrdenados.length > 0 && (
-              <div style={{ marginBottom: 48 }}>
-                <FaseHeader
-                  nome="Fase de Grupos"
-                  periodo={`SEMANAS 1–7 · ${faseGrupos.semana_inicio ?? "03/06"} A ${faseGrupos.semana_fim ?? "21/07"}`}
-                />
-                <p
-                  style={{
-                    color: "rgba(255,255,255,0.55)",
-                    fontSize: 13,
-                    marginBottom: 20,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {participantes.filter((p) => p.ativo).length} corretores em{" "}
-                  {gruposOrdenados.length} grupos de 7, round-robin.
-                  <strong style={{ color: GOLD }}> 1º–4º</strong> avançam às Oitavas;{" "}
-                  <strong style={{ color: RED }}>5º–7º</strong> vão à Repescagem 1. W.O. (folga) =
-                  +10 pts.
-                </p>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(${Math.min(gruposOrdenados.length, 4)},1fr)`,
-                    gap: 16,
-                  }}
-                >
-                  {gruposOrdenados.map((g) => (
-                    <GrupoCard key={g} grupo={g} linhas={grupos[g]} semana={semana} />
-                  ))}
+            {faseGruposAtiva && gruposOrdenados.length > 0 && (() => {
+              const ativos = participantes.filter((p) => p.ativo && p.grupo).length;
+              const isSemi = faseGruposAtiva.tipo === "semifinal";
+              const perGrupo = gruposOrdenados.length > 0
+                ? Math.round(ativos / gruposOrdenados.length)
+                : 0;
+              const topN = isSemi ? 1 : 4;
+              const si = faseGruposAtiva.semana_inicio ?? 1;
+              const sf = faseGruposAtiva.semana_fim ?? si;
+              const periodoLabel = si === sf ? `SEMANA ${si}` : `SEMANAS ${si}–${sf}`;
+              return (
+                <div style={{ marginBottom: 48 }}>
+                  <FaseHeader
+                    nome={faseGruposAtiva.nome}
+                    periodo={periodoLabel}
+                  />
+                  <p
+                    style={{
+                      color: "rgba(255,255,255,0.55)",
+                      fontSize: 13,
+                      marginBottom: 20,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {isSemi ? (
+                      <>
+                        {ativos} corretores em {gruposOrdenados.length} grupos de {perGrupo}.
+                        <strong style={{ color: GOLD }}> 1º de cada grupo</strong> vai para a Final;{" "}
+                        <strong style={{ color: RED }}>2º</strong> disputa o 3º lugar. Pontuação
+                        zerada — conta apenas o que for feito nesta fase.
+                      </>
+                    ) : (
+                      <>
+                        {ativos} corretores em {gruposOrdenados.length} grupos de {perGrupo},
+                        round-robin.
+                        <strong style={{ color: GOLD }}> 1º–4º</strong> avançam às Oitavas;{" "}
+                        <strong style={{ color: RED }}>5º–7º</strong> vão à Repescagem 1. W.O.
+                        (folga) = +10 pts.
+                      </>
+                    )}
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${Math.min(gruposOrdenados.length, 4)},1fr)`,
+                      gap: 16,
+                    }}
+                  >
+                    {gruposOrdenados.map((g) => (
+                      <GrupoCard
+                        key={g}
+                        grupo={g}
+                        linhas={grupos[g]}
+                        semana={semana}
+                        topN={topN}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {canManage && confrontosPorSemana.length > 0 && (
               <div style={{ marginBottom: 48 }}>
