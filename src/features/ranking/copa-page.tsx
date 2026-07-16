@@ -217,14 +217,44 @@ export function CopaPage() {
   const faseTerceiro = fases.find((f) => f.tipo === "terceiro");
   const faseFinal = fases.find((f) => f.tipo === "final");
 
+  // Fase "de grupos" a exibir no topo: começa com a Fase de Grupos, mas
+  // muda para Semifinal/Quartas/Oitavas quando essas fases já têm participantes
+  // com grupo atribuído (formato de grupinhos em vez de chaveamento).
+  const faseGruposAtiva = useMemo(() => {
+    const gruposPreenchidos = (tipo: string | null) =>
+      participantes.some((p) => p.ativo && p.grupo && fases.some((f) => f.id && f.tipo === tipo));
+    // preferência: semifinal > quartas > oitavas > grupos
+    if (faseSemi && participantes.some((p) => p.ativo && p.grupo)) {
+      // Se a semifinal está configurada (grupos A/B com 3 cada), prioriza ela.
+      const semiPart = participantes.filter((p) => p.ativo && p.grupo);
+      if (semiPart.length <= 8) return faseSemi;
+    }
+    void gruposPreenchidos;
+    return faseGrupos;
+  }, [faseSemi, faseGrupos, participantes, fases]);
+
+  // Pontos por corretor escopados ao intervalo de semanas da fase exibida.
+  const pontosNaFase = useMemo(() => {
+    const m = new Map<string, number>();
+    const si = faseGruposAtiva?.semana_inicio ?? 1;
+    const sf = faseGruposAtiva?.semana_fim ?? 14;
+    (pontosSemQ.data ?? []).forEach((r) => {
+      if (r.semana >= si && r.semana <= sf) {
+        m.set(r.corretor_id, (m.get(r.corretor_id) ?? 0) + Number(r.pontos));
+      }
+    });
+    return m;
+  }, [pontosSemQ.data, faseGruposAtiva]);
+
   const grupos = useMemo(() => {
     const map: Record<string, RankRow[]> = {};
     ranking.forEach((r) => {
-      (map[r.grupo ?? "?"] ??= []).push(r);
+      const escopado: RankRow = { ...r, total_pontos: pontosNaFase.get(r.corretor_id) ?? 0 };
+      (map[r.grupo ?? "?"] ??= []).push(escopado);
     });
     Object.values(map).forEach((a) => a.sort((x, y) => y.total_pontos - x.total_pontos));
     return map;
-  }, [ranking]);
+  }, [ranking, pontosNaFase]);
   const gruposOrdenados = useMemo(
     () =>
       Object.keys(grupos)
