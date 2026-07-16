@@ -94,11 +94,24 @@ export function TransferSlaBadge({
   const qc = useQueryClient();
   const firingRef = useRef(false);
 
+  // O contador só existe para leads aguardando atendimento vindos por webhook.
+  // Nos demais cards (a imensa maioria da lista/Kanban) o badge renderiza null
+  // — e o timer de 1s NÃO pode rodar, senão cada card re-renderiza a cada
+  // segundo e a tela inteira fica pesada à toa.
+  const ativo =
+    status === "aguardando_atendimento" &&
+    viaWebhook !== false &&
+    !!origem &&
+    !!dataDistribuicao &&
+    !!timeouts.get(origem) &&
+    (tentativas ?? 0) < 3;
+
   useEffect(() => {
+    if (!ativo) return;
     // Tica de 1s — mostrar 4:59, 4:58, 4:57… realmente contando.
     const id = setInterval(() => force((t) => (t + 1) % 1_000_000), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [ativo]);
 
   if (status !== "aguardando_atendimento") return null;
   if (viaWebhook === false) return null;

@@ -9,7 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { Phone, Mail, GripVertical, AlertTriangle, RefreshCw, AlertCircle, Ban } from "lucide-react";
+import {
+  Phone,
+  Mail,
+  GripVertical,
+  AlertTriangle,
+  RefreshCw,
+  AlertCircle,
+  Ban,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { usePointerDnd } from "@/features/pipeline/use-pointer-dnd";
@@ -19,9 +27,12 @@ import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_COLUMN_TONE,
   PROXIMA_ACAO,
+  motivoTransicaoBloqueada,
   resolveStageAction,
+  transicaoLeadPermitida,
   type LeadStatus,
 } from "@/lib/leads";
+import { useUserRoles } from "@/hooks/use-auth";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
@@ -110,6 +121,8 @@ type SlaRow = {
  * A rota `/kanban` permanece como redirect de compatibilidade.
  */
 export function KanbanBoard() {
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const gestao = isAdmin || isGestor || isSuperintendente;
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search.trim(), 300);
   const [mobileStage, setMobileStage] = useState<LeadStatus>(COLUMNS[0].id);
@@ -290,8 +303,16 @@ export function KanbanBoard() {
   });
 
   // Roteia a etapa escolhida (no menu ou ao arrastar): direta, modal ou perdido.
+  // O drag permite soltar em qualquer coluna; aqui validamos contra a máquina
+  // de estados do banco e explicamos o bloqueio — antes, a RPC rejeitava e o
+  // card "voltava" com um erro genérico. "Venda" fica fora do gate (o modal
+  // registra a venda para aprovação; a etapa muda no fluxo de aprovação).
   const routeStage = (lead: Lead, target: LeadStatus) => {
     if (lead.status === target) return;
+    if (target !== "contrato_fechado" && !transicaoLeadPermitida(lead.status, target, gestao)) {
+      toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
+      return;
+    }
     const action = resolveStageAction(target);
     if (action.kind === "direct") updateStatus.mutate({ id: lead.id, status: target });
     else if (action.kind === "modal") setModalState({ modal: action.modal, lead });
@@ -624,7 +645,6 @@ export function KanbanBoard() {
                               </Button>
                             )}
                           </div>
-
                         </div>
                       </Card>
                     ))}

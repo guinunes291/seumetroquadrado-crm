@@ -14,9 +14,11 @@ import {
   LEAD_STATUS_LABEL,
   resolveStageAction,
   stageRequiresModal,
+  transicaoLeadPermitida,
   type LeadStatus,
   type StageModal,
 } from "@/lib/leads";
+import { useUserRoles } from "@/hooks/use-auth";
 
 type LeadStageItemsProps = {
   lead: { id: string; nome: string; status: string };
@@ -45,6 +47,13 @@ export function LeadStageMenuItems({
   onPickModal,
   onPickPerdido,
 }: LeadStageItemsProps) {
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const gestao = isAdmin || isGestor || isSuperintendente;
+  // "Venda" (contrato_fechado) fica fora do gate: o modal registra a venda para
+  // aprovação da gestão — quem move a etapa é o fluxo de aprovação, não a RPC
+  // de transição. Os demais destinos seguem a máquina de estados do banco.
+  const podeMover = (s: LeadStatus) =>
+    s === "contrato_fechado" || transicaoLeadPermitida(lead.status, s, gestao);
   return (
     <>
       <DropdownMenuLabel className="flex items-center gap-1.5">
@@ -54,7 +63,7 @@ export function LeadStageMenuItems({
       {FUNNEL_STAGES.map((s) => (
         <DropdownMenuItem
           key={s}
-          disabled={s === lead.status}
+          disabled={s === lead.status || !podeMover(s)}
           onSelect={() => {
             const action = resolveStageAction(s);
             if (action.kind === "modal") onPickModal(action.modal, s);
@@ -70,7 +79,9 @@ export function LeadStageMenuItems({
       <DropdownMenuSeparator />
       <DropdownMenuItem
         className="text-destructive focus:text-destructive"
-        disabled={lead.status === "perdido"}
+        disabled={
+          lead.status === "perdido" || !transicaoLeadPermitida(lead.status, "perdido", gestao)
+        }
         onSelect={() => onPickPerdido()}
       >
         <Ban className="h-4 w-4" />
