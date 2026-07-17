@@ -213,8 +213,12 @@ export function EstoquePage() {
             <Boxes className="h-4 w-4 text-primary" /> Leads sem corretor
           </span>
         }
-        description="Leads no CRM que ainda não foram atribuídos a nenhum corretor. Distribua manualmente ou envie o lote para a roleta."
       />
+      <p className="-mt-4 text-sm text-muted-foreground">
+        Leads no CRM que ainda não foram atribuídos a nenhum corretor. Distribua manualmente
+        ou envie o lote para a roleta.
+      </p>
+
 
       <StatGrid>
         <StatTile
