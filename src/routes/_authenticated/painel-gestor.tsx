@@ -115,6 +115,7 @@ function PainelGestorPage() {
       <TabsList className="h-auto flex-wrap justify-start">
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
+        <TabsTrigger value="estoque">Estoque</TabsTrigger>
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
         <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
         <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
@@ -126,9 +127,13 @@ function PainelGestorPage() {
       <TabsContent value="saude">
         <SaudePanel />
       </TabsContent>
+      <TabsContent value="estoque">
+        <EstoquePage />
+      </TabsContent>
       <TabsContent value="leads-corretor">
         <LeadsPorCorretorPage />
       </TabsContent>
+
       <TabsContent value="pessoas" className="space-y-10">
         <CorretoresPage />
         <EquipesPage />
