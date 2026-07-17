@@ -46,16 +46,26 @@ import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page"
 import { TemplatesPage } from "@/features/gestao/templates-page";
 import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
 import { LixeiraPage } from "@/features/gestao/lixeira-page";
+import { EstoquePage } from "@/features/gestao/estoque-page";
 
-type GestaoTab = "visao" | "saude" | "leads-corretor" | "pessoas" | "comunicacao" | "qualidade";
+type GestaoTab =
+  | "visao"
+  | "saude"
+  | "estoque"
+  | "leads-corretor"
+  | "pessoas"
+  | "comunicacao"
+  | "qualidade";
 const GESTAO_TABS: GestaoTab[] = [
   "visao",
   "saude",
+  "estoque",
   "leads-corretor",
   "pessoas",
   "comunicacao",
   "qualidade",
 ];
+
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
   // `tab` permite abrir/linkar direto uma aba do hub de Gestão.
@@ -105,6 +115,7 @@ function PainelGestorPage() {
       <TabsList className="h-auto flex-wrap justify-start">
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
+        <TabsTrigger value="estoque">Estoque</TabsTrigger>
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
         <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
         <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
@@ -116,9 +127,13 @@ function PainelGestorPage() {
       <TabsContent value="saude">
         <SaudePanel />
       </TabsContent>
+      <TabsContent value="estoque">
+        <EstoquePage />
+      </TabsContent>
       <TabsContent value="leads-corretor">
         <LeadsPorCorretorPage />
       </TabsContent>
+
       <TabsContent value="pessoas" className="space-y-10">
         <CorretoresPage />
         <EquipesPage />
