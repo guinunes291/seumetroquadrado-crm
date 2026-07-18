@@ -463,6 +463,41 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     },
   });
 
+  // Contadores AO VIVO (fonte canônica = distribution_log + agendamentos + vendas
+  // com roleta_slug da campanha, nas janelas do tier). Sobrescreve os snapshots
+  // de roleta_participantes.leads_janela/agendamentos_janela/vendas_janela, que
+  // só são atualizados pelo recálculo semanal e por isso ficavam zerados entre
+  // rodadas.
+  const metricasQ = useQuery({
+    queryKey: ["gestao:equipe-metricas", roleta.id],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc(
+        "equipe_metricas_campanha" as never,
+        { _roleta_id: roleta.id } as never,
+      );
+      if (error) throw error;
+      const map = new Map<
+        string,
+        { leads: number; agendamentos: number; vendas: number }
+      >();
+      for (const row of (data ?? []) as Array<{
+        corretor_id: string;
+        leads_janela: number;
+        agendamentos_janela: number;
+        vendas_janela: number;
+      }>) {
+        map.set(row.corretor_id, {
+          leads: row.leads_janela ?? 0,
+          agendamentos: row.agendamentos_janela ?? 0,
+          vendas: row.vendas_janela ?? 0,
+        });
+      }
+      return map;
+    },
+  });
+
+
   const corretoresQ = useQuery({
     queryKey: ["gestao:corretores-elegiveis"],
     queryFn: async () => {
