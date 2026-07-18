@@ -77,6 +77,15 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
 
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
+      const corretorDaVenda = lead.corretor_id ?? uid;
+      if (!lead.corretor_id) {
+        throw new Error(
+          "Este lead ainda não tem corretor responsável. Clique em \"Iniciar atendimento\" antes de registrar a venda.",
+        );
+      }
+      if (!corretorDaVenda) {
+        throw new Error("Não foi possível identificar o corretor responsável pela venda.");
+      }
       const projetoNome =
         projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
@@ -84,7 +93,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
 
       await registrarVenda({
         leadId: lead.id,
-        corretorId: lead.corretor_id ?? uid,
+        corretorId: corretorDaVenda,
         criadoPorId: uid,
         projetoId: projetoId !== "none" ? projetoId : (lead.projeto_id ?? null),
         projetoNome,
