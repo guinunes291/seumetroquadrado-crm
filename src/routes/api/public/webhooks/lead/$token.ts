@@ -113,16 +113,48 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Lookup do projeto pelo token
-        const { data: projeto, error: projErr } = await supabaseAdmin
-          .from("projetos")
-          .select("id, nome, ativo")
+        // 1) Tenta resolver como TOKEN DE CAMPANHA (roleta.webhook_token).
+        //    Uma campanha pode ter projeto vinculado (opcional). Se vinculado,
+        //    o lead sai amarrado a esse projeto; se não, sai só com o
+        //    empreendimento informado no payload (ou o nome da campanha).
+        const { data: campanha } = await supabaseAdmin
+          .from("roletas")
+          .select("id, slug, nome, ativo, tipo, projeto_id")
           .eq("webhook_token", token)
           .maybeSingle();
 
-        if (projErr || !projeto || !projeto.ativo) {
+        // 2) Fallback: token de projeto (fluxo antigo, produção atual).
+        const { data: projetoDoToken, error: projErr } = campanha
+          ? { data: null as null | { id: string; nome: string; ativo: boolean }, error: null }
+          : await supabaseAdmin
+              .from("projetos")
+              .select("id, nome, ativo")
+              .eq("webhook_token", token)
+              .maybeSingle();
+
+        if (campanha && (!campanha.ativo || campanha.tipo !== "campanha")) {
           return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         }
+
+        let projeto: { id: string | null; nome: string; ativo: boolean } | null = null;
+        if (campanha) {
+          if (campanha.projeto_id) {
+            const { data: p } = await supabaseAdmin
+              .from("projetos")
+              .select("id, nome, ativo")
+              .eq("id", campanha.projeto_id)
+              .maybeSingle();
+            projeto = p?.ativo ? { id: p.id, nome: p.nome, ativo: true } : null;
+          }
+          if (!projeto) projeto = { id: null, nome: campanha.nome, ativo: true };
+        } else if (!projErr && projetoDoToken && projetoDoToken.ativo) {
+          projeto = { id: projetoDoToken.id, nome: projetoDoToken.nome, ativo: true };
+        }
+
+        if (!projeto) {
+          return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+        }
+
 
         let body: unknown;
         try {
