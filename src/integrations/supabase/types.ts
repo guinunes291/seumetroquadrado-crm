@@ -3489,6 +3489,24 @@ export type Database = {
         }
         Relationships: []
       }
+      service_bots: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       tarefas: {
         Row: {
           corretor_id: string
@@ -5112,6 +5130,7 @@ export type Database = {
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
+      is_service_bot: { Args: { _uid: string }; Returns: boolean }
       isleadavancado_status:
         | {
             Args: { _status: Database["public"]["Enums"]["lead_status"] }
