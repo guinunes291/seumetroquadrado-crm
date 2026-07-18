@@ -139,6 +139,33 @@ export function CampanhasPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const criarEVincular = useMutation({
+    mutationFn: async ({ roleta, nome }: { roleta: Roleta; nome: string }) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { data: novo, error: e1 } = await supabase
+        .from("projetos")
+        .insert({ nome, ativo: true, criado_por: user?.id ?? null } as never)
+        .select("id")
+        .single();
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("roletas")
+        .update({ projeto_id: (novo as { id: string }).id } as never)
+        .eq("id", roleta.id);
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      toast.success("Projeto criado e vinculado");
+      setCriarProjetoPara(null);
+      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
+      void qc.invalidateQueries({ queryKey: ["gestao:projetos-mini"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   const recalcular = useMutation({
     mutationFn: async (slug: string) => {
       const { data, error } = await supabase.rpc("recalcular_tiers_roleta", {
