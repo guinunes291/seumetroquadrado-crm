@@ -195,7 +195,8 @@ function SaudePanel() {
   const { isAdmin, isGestor } = useUserRoles();
   const podeVer = isAdmin || isGestor;
   const [periodo, setPeriodo] = useState<Periodo>("mes");
-  const range = useMemo(() => intervalo(periodo), [periodo]);
+  const [campoData, setCampoData] = useState<"criacao" | "evento">("criacao");
+  const range = useMemo(() => ({ ...intervalo(periodo), campoData }), [periodo, campoData]);
 
   const porCorretorQ = useDashboardPorCorretor(range, podeVer);
   const urgentesQ = useDashboardLeadsUrgentes(null, podeVer);
@@ -204,6 +205,7 @@ function SaudePanel() {
   // Agregados de atividade + aderência num RPC só (fallback: caminho antigo
   // de linhas cruas). Ver use-gestao-metricas.ts.
   const metricasQ = useGestaoMetricas(range, podeVer);
+
 
   // Tempo de 1ª resposta por corretor (mapa corretor_id -> métrica).
   const tempoMap = useMemo(
