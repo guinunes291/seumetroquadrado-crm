@@ -35,6 +35,7 @@ export const ORIGEM_OPTIONS = [
   "site",
   "indicacao",
   "captacao_corretor",
+  "investimento_corretor",
   "whatsapp",
   "telefone",
   "plantao",

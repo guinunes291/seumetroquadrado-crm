@@ -5847,6 +5847,7 @@ export type Database = {
         | "chatbot"
         | "outro"
         | "importacao"
+        | "investimento_corretor"
       lead_status:
         | "novo"
         | "aguardando_atendimento"
@@ -6072,6 +6073,7 @@ export const Constants = {
         "chatbot",
         "outro",
         "importacao",
+        "investimento_corretor",
       ],
       lead_status: [
         "novo",
