@@ -89,6 +89,7 @@ export const ORIGEM_OPTIONS_OA = [
   { value: "site", label: "Site" },
   { value: "indicacao", label: "Indicação" },
   { value: "captacao_corretor", label: "Captação corretor" },
+  { value: "investimento_corretor", label: "Investimento corretor" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "telefone", label: "Telefone" },
   { value: "plantao", label: "Plantão" },
