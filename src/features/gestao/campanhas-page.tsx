@@ -89,8 +89,10 @@ export function CampanhasPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const podeVer = isAdmin || isGestor;
   const [equipeDe, setEquipeDe] = useState<Roleta | null>(null);
+  const [criarProjetoPara, setCriarProjetoPara] = useState<Roleta | null>(null);
   const [tokenVisivel, setTokenVisivel] = useState<Record<string, boolean>>({});
   const qc = useQueryClient();
+
 
   const campanhasQ = useQuery({
     queryKey: ["gestao:campanhas"],
