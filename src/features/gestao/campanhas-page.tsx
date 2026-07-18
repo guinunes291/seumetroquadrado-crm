@@ -253,12 +253,16 @@ export function CampanhasPage() {
                     <TableCell className="align-top">
                       <Select
                         value={r.projeto_id ?? "__none__"}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                          if (v === "__new__") {
+                            setCriarProjetoPara(r);
+                            return;
+                          }
                           vincularProjeto.mutate({
                             roletaId: r.id,
                             projetoId: v === "__none__" ? null : v,
-                          })
-                        }
+                          });
+                        }}
                       >
                         <SelectTrigger className="h-8 w-64">
                           <SelectValue placeholder="Sem projeto (usa o nome da campanha)">
@@ -267,6 +271,11 @@ export function CampanhasPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Sem projeto vinculado</SelectItem>
+                          <SelectItem value="__new__">
+                            <span className="flex items-center gap-1 text-primary">
+                              <Plus className="h-3.5 w-3.5" /> Criar novo projeto…
+                            </span>
+                          </SelectItem>
                           {(projetosQ.data ?? []).map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.nome}
@@ -274,6 +283,7 @@ export function CampanhasPage() {
                           ))}
                         </SelectContent>
                       </Select>
+
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="flex items-center gap-1">
