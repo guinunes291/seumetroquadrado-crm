@@ -120,12 +120,14 @@ function PainelGestorPage() {
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
         <TabsTrigger value="estoque">Estoque</TabsTrigger>
+        <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
         <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
         <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
         {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
       <TabsContent value="visao">
+
         <VisaoGeralPanel />
       </TabsContent>
       <TabsContent value="saude">
