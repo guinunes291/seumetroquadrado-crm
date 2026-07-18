@@ -113,16 +113,48 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Lookup do projeto pelo token
-        const { data: projeto, error: projErr } = await supabaseAdmin
-          .from("projetos")
-          .select("id, nome, ativo")
+        // 1) Tenta resolver como TOKEN DE CAMPANHA (roleta.webhook_token).
+        //    Uma campanha pode ter projeto vinculado (opcional). Se vinculado,
+        //    o lead sai amarrado a esse projeto; se não, sai só com o
+        //    empreendimento informado no payload (ou o nome da campanha).
+        const { data: campanha } = await supabaseAdmin
+          .from("roletas")
+          .select("id, slug, nome, ativo, tipo, projeto_id")
           .eq("webhook_token", token)
           .maybeSingle();
 
-        if (projErr || !projeto || !projeto.ativo) {
+        // 2) Fallback: token de projeto (fluxo antigo, produção atual).
+        const { data: projetoDoToken, error: projErr } = campanha
+          ? { data: null as null | { id: string; nome: string; ativo: boolean }, error: null }
+          : await supabaseAdmin
+              .from("projetos")
+              .select("id, nome, ativo")
+              .eq("webhook_token", token)
+              .maybeSingle();
+
+        if (campanha && (!campanha.ativo || campanha.tipo !== "campanha")) {
           return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         }
+
+        let projeto: { id: string | null; nome: string; ativo: boolean } | null = null;
+        if (campanha) {
+          if (campanha.projeto_id) {
+            const { data: p } = await supabaseAdmin
+              .from("projetos")
+              .select("id, nome, ativo")
+              .eq("id", campanha.projeto_id)
+              .maybeSingle();
+            projeto = p?.ativo ? { id: p.id, nome: p.nome, ativo: true } : null;
+          }
+          if (!projeto) projeto = { id: null, nome: campanha.nome, ativo: true };
+        } else if (!projErr && projetoDoToken && projetoDoToken.ativo) {
+          projeto = { id: projetoDoToken.id, nome: projetoDoToken.nome, ativo: true };
+        }
+
+        if (!projeto) {
+          return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+        }
+
 
         let body: unknown;
         try {
@@ -238,17 +270,21 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
             utm_content: data.utm_content ?? null,
+            // Amarra o lead à campanha para que o SLA redistribua na MESMA
+            // equipe se o corretor não atender a tempo.
+            roleta_slug: campanha ? campanha.slug : null,
             // Canal de chegada: só leads via_webhook entram no SLA de minutos.
             via_webhook: true,
             canal_entrada: "webhook_chatbot",
           } as never)
+
           .select("id")
           .single();
 
         if (error) {
           // Corrida: o índice único (projeto, telefone) barrou um insert
           // concorrente. Trata como duplicado — devolve o lead já existente.
-          if ((error as { code?: string }).code === "23505") {
+          if ((error as { code?: string }).code === "23505" && projeto.id) {
             const { data: dupId2 } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
               _projeto_id: projeto.id,
               _telefone: data.telefone,
@@ -268,26 +304,58 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         let excecaoMotivo: string | null = null;
 
         if (data.distribuir) {
-          const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
-            "triar_e_distribuir_lead",
-            { _lead_id: lead.id, _gatilho: "webhook" },
-          );
-          if (triagemErr) {
-            console.error("[webhooks/lead] triagem falhou:", triagemErr);
-            motivo = "sem_corretor_disponivel";
-            excecaoMotivo = "falha_triagem_reprocesso_automatico";
-          } else {
-            const res = triagem as { ok?: boolean; corretor_id?: string; motivo?: string } | null;
-            if (res?.ok && res.corretor_id) {
-              corretorId = res.corretor_id;
-            } else {
-              // Contrato com o n8n: motivo mantém a string legada; o detalhe
-              // v3 (motivo da exceção) vai num campo novo.
+          if (campanha) {
+            // Distribuição da CAMPANHA: só a equipe da roleta, ponderada por
+            // tier (A=3/B=2/C=1). Se não houver ninguém apto, mantém o
+            // contrato antigo (motivo: sem_corretor_disponivel) e o lead vai
+            // para o cron de redistribuição, agora amarrado à mesma campanha.
+            const { data: dist, error: distErr } = await supabaseAdmin.rpc(
+              "distribuir_lead_ponderado",
+              { _lead_id: lead.id, _roleta_slug: campanha.slug },
+            );
+            if (distErr) {
+              console.error("[webhooks/lead] distribuicao ponderada falhou:", distErr);
               motivo = "sem_corretor_disponivel";
-              excecaoMotivo = res?.motivo ?? null;
+              excecaoMotivo = "falha_distribuicao_ponderada";
+            } else {
+              const res = dist as {
+                ok?: boolean;
+                corretor_id?: string;
+                motivo?: string;
+                tier?: string;
+              } | null;
+              if (res?.ok && res.corretor_id) {
+                corretorId = res.corretor_id;
+              } else {
+                motivo = "sem_corretor_disponivel";
+                excecaoMotivo = res?.motivo ?? "sem_apto_na_campanha";
+              }
+            }
+          } else {
+            const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
+              "triar_e_distribuir_lead",
+              { _lead_id: lead.id, _gatilho: "webhook" },
+            );
+            if (triagemErr) {
+              console.error("[webhooks/lead] triagem falhou:", triagemErr);
+              motivo = "sem_corretor_disponivel";
+              excecaoMotivo = "falha_triagem_reprocesso_automatico";
+            } else {
+              const res = triagem as {
+                ok?: boolean;
+                corretor_id?: string;
+                motivo?: string;
+              } | null;
+              if (res?.ok && res.corretor_id) {
+                corretorId = res.corretor_id;
+              } else {
+                motivo = "sem_corretor_disponivel";
+                excecaoMotivo = res?.motivo ?? null;
+              }
             }
           }
         }
+
 
         // Registra interação com o resumo da IA para aparecer no histórico do lead.
         if (resumo || blocoQualif) {

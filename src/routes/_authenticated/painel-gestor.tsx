@@ -47,11 +47,13 @@ import { TemplatesPage } from "@/features/gestao/templates-page";
 import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
 import { LixeiraPage } from "@/features/gestao/lixeira-page";
 import { EstoquePage } from "@/features/gestao/estoque-page";
+import { CampanhasPage } from "@/features/gestao/campanhas-page";
 
 type GestaoTab =
   | "visao"
   | "saude"
   | "estoque"
+  | "campanhas"
   | "leads-corretor"
   | "pessoas"
   | "comunicacao"
@@ -60,11 +62,13 @@ const GESTAO_TABS: GestaoTab[] = [
   "visao",
   "saude",
   "estoque",
+  "campanhas",
   "leads-corretor",
   "pessoas",
   "comunicacao",
   "qualidade",
 ];
+
 
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
@@ -116,12 +120,14 @@ function PainelGestorPage() {
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
         <TabsTrigger value="estoque">Estoque</TabsTrigger>
+        <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
         <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
         <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
         {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
       <TabsContent value="visao">
+
         <VisaoGeralPanel />
       </TabsContent>
       <TabsContent value="saude">
@@ -130,7 +136,11 @@ function PainelGestorPage() {
       <TabsContent value="estoque">
         <EstoquePage />
       </TabsContent>
+      <TabsContent value="campanhas">
+        <CampanhasPage />
+      </TabsContent>
       <TabsContent value="leads-corretor">
+
         <LeadsPorCorretorPage />
       </TabsContent>
 

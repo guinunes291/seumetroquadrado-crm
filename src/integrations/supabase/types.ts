@@ -1816,6 +1816,7 @@ export type Database = {
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
+          roleta_slug: string | null
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -1883,6 +1884,7 @@ export type Database = {
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
+          roleta_slug?: string | null
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -1950,6 +1952,7 @@ export type Database = {
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
+          roleta_slug?: string | null
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone?: string
@@ -3013,43 +3016,64 @@ export type Database = {
       }
       roleta_participantes: {
         Row: {
+          agendamentos_janela: number
           ativo: boolean
           corretor_id: string
           id: string
           incluido_em: string
           incluido_por: string | null
+          leads_janela: number
           limite_diario: number | null
           motivo_pausa: string | null
           pausado_ate: string | null
           roleta_id: string
+          tier: string
+          tier_score: number
+          tier_updated_at: string | null
           ultimo_lead_em: string | null
           updated_at: string
+          vendas_janela: number
+          wrr_current: number
         }
         Insert: {
+          agendamentos_janela?: number
           ativo?: boolean
           corretor_id: string
           id?: string
           incluido_em?: string
           incluido_por?: string | null
+          leads_janela?: number
           limite_diario?: number | null
           motivo_pausa?: string | null
           pausado_ate?: string | null
           roleta_id: string
+          tier?: string
+          tier_score?: number
+          tier_updated_at?: string | null
           ultimo_lead_em?: string | null
           updated_at?: string
+          vendas_janela?: number
+          wrr_current?: number
         }
         Update: {
+          agendamentos_janela?: number
           ativo?: boolean
           corretor_id?: string
           id?: string
           incluido_em?: string
           incluido_por?: string | null
+          leads_janela?: number
           limite_diario?: number | null
           motivo_pausa?: string | null
           pausado_ate?: string | null
           roleta_id?: string
+          tier?: string
+          tier_score?: number
+          tier_updated_at?: string | null
           ultimo_lead_em?: string | null
           updated_at?: string
+          vendas_janela?: number
+          wrr_current?: number
         }
         Relationships: [
           {
@@ -3098,8 +3122,66 @@ export type Database = {
         }
         Relationships: []
       }
+      roleta_tier_historico: {
+        Row: {
+          agendamentos_janela: number
+          corretor_id: string
+          criado_em: string
+          gatilho: string
+          id: string
+          leads_janela: number
+          roleta_id: string
+          score: number
+          tier_anterior: string | null
+          tier_novo: string
+          vendas_janela: number
+        }
+        Insert: {
+          agendamentos_janela?: number
+          corretor_id: string
+          criado_em?: string
+          gatilho?: string
+          id?: string
+          leads_janela?: number
+          roleta_id: string
+          score: number
+          tier_anterior?: string | null
+          tier_novo: string
+          vendas_janela?: number
+        }
+        Update: {
+          agendamentos_janela?: number
+          corretor_id?: string
+          criado_em?: string
+          gatilho?: string
+          id?: string
+          leads_janela?: number
+          roleta_id?: string
+          score?: number
+          tier_anterior?: string | null
+          tier_novo?: string
+          vendas_janela?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roleta_tier_historico_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_tier_historico_roleta_id_fkey"
+            columns: ["roleta_id"]
+            isOneToOne: false
+            referencedRelation: "roletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roletas: {
         Row: {
+          amostra_minima: number
           ativo: boolean
           created_at: string
           criterio_participacao: string
@@ -3108,12 +3190,26 @@ export type Database = {
           horario_fim: string | null
           horario_inicio: string | null
           id: string
+          janela_ag_dias: number
+          janela_venda_dias: number
           nome: string
           permitir_fora_horario: boolean
+          peso_agendamento: number
+          peso_tier_a: number
+          peso_tier_b: number
+          peso_tier_c: number
+          peso_venda: number
+          projeto_id: string | null
           slug: string
+          threshold_a: number
+          threshold_c: number
+          tiers_recalculados_em: string | null
+          tipo: string
           updated_at: string
+          webhook_token: string | null
         }
         Insert: {
+          amostra_minima?: number
           ativo?: boolean
           created_at?: string
           criterio_participacao?: string
@@ -3122,12 +3218,26 @@ export type Database = {
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
+          janela_ag_dias?: number
+          janela_venda_dias?: number
           nome: string
           permitir_fora_horario?: boolean
+          peso_agendamento?: number
+          peso_tier_a?: number
+          peso_tier_b?: number
+          peso_tier_c?: number
+          peso_venda?: number
+          projeto_id?: string | null
           slug: string
+          threshold_a?: number
+          threshold_c?: number
+          tiers_recalculados_em?: string | null
+          tipo?: string
           updated_at?: string
+          webhook_token?: string | null
         }
         Update: {
+          amostra_minima?: number
           ativo?: boolean
           created_at?: string
           criterio_participacao?: string
@@ -3136,12 +3246,47 @@ export type Database = {
           horario_fim?: string | null
           horario_inicio?: string | null
           id?: string
+          janela_ag_dias?: number
+          janela_venda_dias?: number
           nome?: string
           permitir_fora_horario?: boolean
+          peso_agendamento?: number
+          peso_tier_a?: number
+          peso_tier_b?: number
+          peso_tier_c?: number
+          peso_venda?: number
+          projeto_id?: string | null
           slug?: string
+          threshold_a?: number
+          threshold_c?: number
+          tiers_recalculados_em?: string | null
+          tipo?: string
           updated_at?: string
+          webhook_token?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "roletas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roletas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "roletas_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
       }
       samiq_execucoes: {
         Row: {
@@ -4342,6 +4487,7 @@ export type Database = {
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
+          roleta_slug: string | null
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -4839,6 +4985,10 @@ export type Database = {
         }
         Returns: string
       }
+      distribuir_lead_ponderado: {
+        Args: { _lead_id: string; _roleta_slug: string }
+        Returns: Json
+      }
       distribuir_lead_v3: {
         Args: {
           _corretor_id?: string
@@ -5237,6 +5387,11 @@ export type Database = {
         }[]
       }
       recalcular_temperatura_leads: { Args: never; Returns: number }
+      recalcular_tiers_roleta: {
+        Args: { _gatilho?: string; _roleta_slug: string }
+        Returns: number
+      }
+      recalcular_tiers_todas: { Args: { _gatilho?: string }; Returns: number }
       redistribuir_leads_parados: { Args: never; Returns: number }
       redistribuir_sla_webhook: { Args: never; Returns: number }
       regenerar_webhook_token: {
@@ -5470,6 +5625,7 @@ export type Database = {
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
+          roleta_slug: string | null
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -5551,6 +5707,7 @@ export type Database = {
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
+          roleta_slug: string | null
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
