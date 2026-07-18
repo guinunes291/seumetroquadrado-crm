@@ -93,7 +93,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
 
       await registrarVenda({
         leadId: lead.id,
-        corretorId: lead.corretor_id ?? uid,
+        corretorId: corretorDaVenda,
         criadoPorId: uid,
         projetoId: projetoId !== "none" ? projetoId : (lead.projeto_id ?? null),
         projetoNome,
