@@ -89,8 +89,10 @@ export function CampanhasPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const podeVer = isAdmin || isGestor;
   const [equipeDe, setEquipeDe] = useState<Roleta | null>(null);
+  const [criarProjetoPara, setCriarProjetoPara] = useState<Roleta | null>(null);
   const [tokenVisivel, setTokenVisivel] = useState<Record<string, boolean>>({});
   const qc = useQueryClient();
+
 
   const campanhasQ = useQuery({
     queryKey: ["gestao:campanhas"],
@@ -136,6 +138,33 @@ export function CampanhasPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const criarEVincular = useMutation({
+    mutationFn: async ({ roleta, nome }: { roleta: Roleta; nome: string }) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { data: novo, error: e1 } = await supabase
+        .from("projetos")
+        .insert({ nome, ativo: true, criado_por: user?.id ?? null } as never)
+        .select("id")
+        .single();
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from("roletas")
+        .update({ projeto_id: (novo as { id: string }).id } as never)
+        .eq("id", roleta.id);
+      if (e2) throw e2;
+    },
+    onSuccess: () => {
+      toast.success("Projeto criado e vinculado");
+      setCriarProjetoPara(null);
+      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
+      void qc.invalidateQueries({ queryKey: ["gestao:projetos-mini"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const recalcular = useMutation({
     mutationFn: async (slug: string) => {
@@ -224,12 +253,16 @@ export function CampanhasPage() {
                     <TableCell className="align-top">
                       <Select
                         value={r.projeto_id ?? "__none__"}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                          if (v === "__new__") {
+                            setCriarProjetoPara(r);
+                            return;
+                          }
                           vincularProjeto.mutate({
                             roletaId: r.id,
                             projetoId: v === "__none__" ? null : v,
-                          })
-                        }
+                          });
+                        }}
                       >
                         <SelectTrigger className="h-8 w-64">
                           <SelectValue placeholder="Sem projeto (usa o nome da campanha)">
@@ -238,6 +271,11 @@ export function CampanhasPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Sem projeto vinculado</SelectItem>
+                          <SelectItem value="__new__">
+                            <span className="flex items-center gap-1 text-primary">
+                              <Plus className="h-3.5 w-3.5" /> Criar novo projeto…
+                            </span>
+                          </SelectItem>
                           {(projetosQ.data ?? []).map((p) => (
                             <SelectItem key={p.id} value={p.id}>
                               {p.nome}
@@ -245,6 +283,7 @@ export function CampanhasPage() {
                           ))}
                         </SelectContent>
                       </Select>
+
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="flex items-center gap-1">
@@ -329,9 +368,70 @@ export function CampanhasPage() {
       {equipeDe && (
         <EquipeDialog roleta={equipeDe} onClose={() => setEquipeDe(null)} />
       )}
+
+      {criarProjetoPara && (
+        <CriarProjetoDialog
+          roleta={criarProjetoPara}
+          onClose={() => setCriarProjetoPara(null)}
+          onConfirm={(nome) =>
+            criarEVincular.mutate({ roleta: criarProjetoPara, nome })
+          }
+          pending={criarEVincular.isPending}
+        />
+      )}
     </div>
   );
 }
+
+function CriarProjetoDialog({
+  roleta,
+  onClose,
+  onConfirm,
+  pending,
+}: {
+  roleta: Roleta;
+  onClose: () => void;
+  onConfirm: (nome: string) => void;
+  pending: boolean;
+}) {
+  const [nome, setNome] = useState(roleta.nome);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Criar projeto</DialogTitle>
+          <DialogDescription>
+            O projeto será criado no CRM e vinculado automaticamente à campanha{" "}
+            <span className="font-medium">{roleta.nome}</span>. Você pode completar os
+            dados comerciais depois em Projetos.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="novo-projeto-nome">Nome do projeto</Label>
+          <Input
+            id="novo-projeto-nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Ex.: Longitude Tucuruvi"
+            autoFocus
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => nome.trim() && onConfirm(nome.trim())}
+            disabled={pending || !nome.trim()}
+          >
+            {pending ? "Criando…" : "Criar e vincular"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void }) {
   const qc = useQueryClient();
