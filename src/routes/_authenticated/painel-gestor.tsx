@@ -430,19 +430,39 @@ function SaudePanel() {
         title="Painel do Gestor"
         description="Saúde da operação: produtividade por corretor, qualidade do CRM e leads parados."
         actions={
-          <div className="inline-flex rounded-md border bg-card p-0.5">
-            {(["hoje", "semana", "mes"] as const).map((p) => (
-              <Button
-                key={p}
-                size="sm"
-                variant={periodo === p ? "default" : "ghost"}
-                onClick={() => setPeriodo(p)}
-                className="capitalize"
-              >
-                {p === "mes" ? "Mês" : p}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              {(["criacao", "evento"] as const).map((c) => (
+                <Button
+                  key={c}
+                  size="sm"
+                  variant={campoData === c ? "default" : "ghost"}
+                  onClick={() => setCampoData(c)}
+                  title={
+                    c === "criacao"
+                      ? "Contar pela data em que o item foi registrado no CRM"
+                      : "Contar pela data informada no registro (visita, assinatura, agendamento)"
+                  }
+                >
+                  {c === "criacao" ? "Registro" : "Evento"}
+                </Button>
+              ))}
+            </div>
+            <div className="inline-flex rounded-md border bg-card p-0.5">
+              {(["hoje", "semana", "mes"] as const).map((p) => (
+                <Button
+                  key={p}
+                  size="sm"
+                  variant={periodo === p ? "default" : "ghost"}
+                  onClick={() => setPeriodo(p)}
+                  className="capitalize"
+                >
+                  {p === "mes" ? "Mês" : p}
+                </Button>
+              ))}
+            </div>
           </div>
+
         }
       />
 
