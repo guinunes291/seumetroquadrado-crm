@@ -646,17 +646,6 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                   <TableCell className="text-right tabular-nums">{leads}</TableCell>
                   <TableCell className="text-right tabular-nums">{ags}</TableCell>
                   <TableCell className="text-right tabular-nums">{vds}</TableCell>
-
-                  <TableCell>
-                    <Badge variant="outline" className={TIER_STYLE[p.tier]}>
-                      {p.tier}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{p.leads_janela}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {p.agendamentos_janela}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{p.vendas_janela}</TableCell>
                   <TableCell className="text-right">
                     <Input
                       className="ml-auto h-7 w-20 text-right"
@@ -683,7 +672,9 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
+
               {equipeQ.isSuccess && (equipeQ.data ?? []).length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
