@@ -144,11 +144,19 @@ export function CampanhasPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      const slug = nome
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || `projeto-${Date.now()}`;
       const { data: novo, error: e1 } = await supabase
         .from("projetos")
-        .insert({ nome, ativo: true, criado_por: user?.id ?? null } as never)
+        .insert({ nome, slug, ativo: true, criado_por: user?.id ?? null } as never)
         .select("id")
         .single();
+
       if (e1) throw e1;
       const { error: e2 } = await supabase
         .from("roletas")
