@@ -623,7 +623,12 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(equipeQ.data ?? []).map((p) => (
+              {(equipeQ.data ?? []).map((p) => {
+                const live = metricasQ.data?.get(p.corretor_id);
+                const leads = live?.leads ?? p.leads_janela;
+                const ags = live?.agendamentos ?? p.agendamentos_janela;
+                const vds = live?.vendas ?? p.vendas_janela;
+                return (
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="font-medium">{p.profile?.nome ?? "—"}</div>
@@ -633,6 +638,15 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                       {Number(p.tier_score).toFixed(2)}
                     </div>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={TIER_STYLE[p.tier]}>
+                      {p.tier}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{leads}</TableCell>
+                  <TableCell className="text-right tabular-nums">{ags}</TableCell>
+                  <TableCell className="text-right tabular-nums">{vds}</TableCell>
+
                   <TableCell>
                     <Badge variant="outline" className={TIER_STYLE[p.tier]}>
                       {p.tier}
