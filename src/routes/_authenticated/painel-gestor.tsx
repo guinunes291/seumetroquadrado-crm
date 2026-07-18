@@ -136,7 +136,11 @@ function PainelGestorPage() {
       <TabsContent value="estoque">
         <EstoquePage />
       </TabsContent>
+      <TabsContent value="campanhas">
+        <CampanhasPage />
+      </TabsContent>
       <TabsContent value="leads-corretor">
+
         <LeadsPorCorretorPage />
       </TabsContent>
 
