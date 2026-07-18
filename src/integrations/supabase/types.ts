@@ -5059,6 +5059,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      equipe_metricas_campanha: {
+        Args: { _roleta_id: string }
+        Returns: {
+          agendamentos_janela: number
+          corretor_id: string
+          leads_janela: number
+          vendas_janela: number
+        }[]
+      }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }

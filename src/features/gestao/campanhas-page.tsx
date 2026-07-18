@@ -463,6 +463,41 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     },
   });
 
+  // Contadores AO VIVO (fonte canônica = distribution_log + agendamentos + vendas
+  // com roleta_slug da campanha, nas janelas do tier). Sobrescreve os snapshots
+  // de roleta_participantes.leads_janela/agendamentos_janela/vendas_janela, que
+  // só são atualizados pelo recálculo semanal e por isso ficavam zerados entre
+  // rodadas.
+  const metricasQ = useQuery({
+    queryKey: ["gestao:equipe-metricas", roleta.id],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc(
+        "equipe_metricas_campanha" as never,
+        { _roleta_id: roleta.id } as never,
+      );
+      if (error) throw error;
+      const map = new Map<
+        string,
+        { leads: number; agendamentos: number; vendas: number }
+      >();
+      for (const row of (data ?? []) as Array<{
+        corretor_id: string;
+        leads_janela: number;
+        agendamentos_janela: number;
+        vendas_janela: number;
+      }>) {
+        map.set(row.corretor_id, {
+          leads: row.leads_janela ?? 0,
+          agendamentos: row.agendamentos_janela ?? 0,
+          vendas: row.vendas_janela ?? 0,
+        });
+      }
+      return map;
+    },
+  });
+
+
   const corretoresQ = useQuery({
     queryKey: ["gestao:corretores-elegiveis"],
     queryFn: async () => {
@@ -588,7 +623,12 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(equipeQ.data ?? []).map((p) => (
+              {(equipeQ.data ?? []).map((p) => {
+                const live = metricasQ.data?.get(p.corretor_id);
+                const leads = live?.leads ?? p.leads_janela;
+                const ags = live?.agendamentos ?? p.agendamentos_janela;
+                const vds = live?.vendas ?? p.vendas_janela;
+                return (
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="font-medium">{p.profile?.nome ?? "—"}</div>
@@ -603,11 +643,9 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                       {p.tier}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{p.leads_janela}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {p.agendamentos_janela}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{p.vendas_janela}</TableCell>
+                  <TableCell className="text-right tabular-nums">{leads}</TableCell>
+                  <TableCell className="text-right tabular-nums">{ags}</TableCell>
+                  <TableCell className="text-right tabular-nums">{vds}</TableCell>
                   <TableCell className="text-right">
                     <Input
                       className="ml-auto h-7 w-20 text-right"
@@ -634,7 +672,9 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
+
               {equipeQ.isSuccess && (equipeQ.data ?? []).length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
