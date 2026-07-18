@@ -47,11 +47,13 @@ import { TemplatesPage } from "@/features/gestao/templates-page";
 import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
 import { LixeiraPage } from "@/features/gestao/lixeira-page";
 import { EstoquePage } from "@/features/gestao/estoque-page";
+import { CampanhasPage } from "@/features/gestao/campanhas-page";
 
 type GestaoTab =
   | "visao"
   | "saude"
   | "estoque"
+  | "campanhas"
   | "leads-corretor"
   | "pessoas"
   | "comunicacao"
@@ -60,11 +62,13 @@ const GESTAO_TABS: GestaoTab[] = [
   "visao",
   "saude",
   "estoque",
+  "campanhas",
   "leads-corretor",
   "pessoas",
   "comunicacao",
   "qualidade",
 ];
+
 
 
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
