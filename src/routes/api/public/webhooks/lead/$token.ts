@@ -270,10 +270,14 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
             utm_content: data.utm_content ?? null,
+            // Amarra o lead à campanha para que o SLA redistribua na MESMA
+            // equipe se o corretor não atender a tempo.
+            roleta_slug: campanha ? campanha.slug : null,
             // Canal de chegada: só leads via_webhook entram no SLA de minutos.
             via_webhook: true,
             canal_entrada: "webhook_chatbot",
           } as never)
+
           .select("id")
           .single();
 
