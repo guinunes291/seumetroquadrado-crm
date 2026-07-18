@@ -280,7 +280,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         if (error) {
           // Corrida: o índice único (projeto, telefone) barrou um insert
           // concorrente. Trata como duplicado — devolve o lead já existente.
-          if ((error as { code?: string }).code === "23505") {
+          if ((error as { code?: string }).code === "23505" && projeto.id) {
             const { data: dupId2 } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
               _projeto_id: projeto.id,
               _telefone: data.telefone,
@@ -300,26 +300,58 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         let excecaoMotivo: string | null = null;
 
         if (data.distribuir) {
-          const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
-            "triar_e_distribuir_lead",
-            { _lead_id: lead.id, _gatilho: "webhook" },
-          );
-          if (triagemErr) {
-            console.error("[webhooks/lead] triagem falhou:", triagemErr);
-            motivo = "sem_corretor_disponivel";
-            excecaoMotivo = "falha_triagem_reprocesso_automatico";
-          } else {
-            const res = triagem as { ok?: boolean; corretor_id?: string; motivo?: string } | null;
-            if (res?.ok && res.corretor_id) {
-              corretorId = res.corretor_id;
-            } else {
-              // Contrato com o n8n: motivo mantém a string legada; o detalhe
-              // v3 (motivo da exceção) vai num campo novo.
+          if (campanha) {
+            // Distribuição da CAMPANHA: só a equipe da roleta, ponderada por
+            // tier (A=3/B=2/C=1). Se não houver ninguém apto, mantém o
+            // contrato antigo (motivo: sem_corretor_disponivel) e o lead vai
+            // para o cron de redistribuição, agora amarrado à mesma campanha.
+            const { data: dist, error: distErr } = await supabaseAdmin.rpc(
+              "distribuir_lead_ponderado",
+              { _lead_id: lead.id, _roleta_slug: campanha.slug },
+            );
+            if (distErr) {
+              console.error("[webhooks/lead] distribuicao ponderada falhou:", distErr);
               motivo = "sem_corretor_disponivel";
-              excecaoMotivo = res?.motivo ?? null;
+              excecaoMotivo = "falha_distribuicao_ponderada";
+            } else {
+              const res = dist as {
+                ok?: boolean;
+                corretor_id?: string;
+                motivo?: string;
+                tier?: string;
+              } | null;
+              if (res?.ok && res.corretor_id) {
+                corretorId = res.corretor_id;
+              } else {
+                motivo = "sem_corretor_disponivel";
+                excecaoMotivo = res?.motivo ?? "sem_apto_na_campanha";
+              }
+            }
+          } else {
+            const { data: triagem, error: triagemErr } = await supabaseAdmin.rpc(
+              "triar_e_distribuir_lead",
+              { _lead_id: lead.id, _gatilho: "webhook" },
+            );
+            if (triagemErr) {
+              console.error("[webhooks/lead] triagem falhou:", triagemErr);
+              motivo = "sem_corretor_disponivel";
+              excecaoMotivo = "falha_triagem_reprocesso_automatico";
+            } else {
+              const res = triagem as {
+                ok?: boolean;
+                corretor_id?: string;
+                motivo?: string;
+              } | null;
+              if (res?.ok && res.corretor_id) {
+                corretorId = res.corretor_id;
+              } else {
+                motivo = "sem_corretor_disponivel";
+                excecaoMotivo = res?.motivo ?? null;
+              }
             }
           }
         }
+
 
         // Registra interação com o resumo da IA para aparecer no histórico do lead.
         if (resumo || blocoQualif) {
