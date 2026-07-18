@@ -83,19 +83,43 @@ export function rangeFromPreset(
   }
 }
 
+/**
+ * Modo do recorte de datas:
+ * - "criacao": data em que o corretor REGISTROU o item no CRM (padrão).
+ * - "evento":  data que o corretor informou no registro (visita, assinatura,
+ *   agendamento).
+ * O toggle só aparece quando o consumidor passa `campoData`/`onCampoDataChange`.
+ */
+export type CampoData = "criacao" | "evento";
+
 export function PeriodFilter({
   preset,
   onPresetChange,
   custom,
   onCustomChange,
+  campoData,
+  onCampoDataChange,
 }: {
   preset: PeriodPreset;
   onPresetChange: (p: PeriodPreset) => void;
   custom: { from?: Date; to?: Date };
   onCustomChange: (c: { from?: Date; to?: Date }) => void;
+  campoData?: CampoData;
+  onCampoDataChange?: (v: CampoData) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      {campoData && onCampoDataChange && (
+        <Select value={campoData} onValueChange={(v) => onCampoDataChange(v as CampoData)}>
+          <SelectTrigger className="w-[180px]" title="Como o período é calculado">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="criacao">Data de registro</SelectItem>
+            <SelectItem value="evento">Data do evento</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
       <Select value={preset} onValueChange={(v) => onPresetChange(v as PeriodPreset)}>
         <SelectTrigger className="w-[200px]">
           <CalendarDays className="h-4 w-4 mr-2" />
@@ -147,3 +171,4 @@ export function useDateFilter(preset: PeriodPreset, custom: { from?: Date; to?: 
     };
   }, [preset, custom.from?.getTime(), custom.to?.getTime()]);
 }
+

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +70,9 @@ export function RelatoriosView() {
 
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
-  const range = useDateFilter(preset, custom);
+  const [campoData, setCampoData] = useState<"criacao" | "evento">("criacao");
+  const base = useDateFilter(preset, custom);
+  const range = useMemo(() => ({ ...base, campoData }), [base, campoData]);
 
   // Carregamento por tiers
   const [stage, setStage] = useState(1);
@@ -104,9 +106,12 @@ export function RelatoriosView() {
             onPresetChange={setPreset}
             custom={custom}
             onCustomChange={setCustom}
+            campoData={campoData}
+            onCampoDataChange={setCampoData}
           />
         }
       />
+
 
       {kpisQ.isError ? (
         <QueryErrorState

@@ -125,9 +125,13 @@ async function metricasViaLinhas(range: { di: string; df: string }): Promise<Ges
   };
 }
 
-export function useGestaoMetricas(range: { di: string; df: string }, enabled = true) {
+export function useGestaoMetricas(
+  range: { di: string; df: string; campoData?: "criacao" | "evento" },
+  enabled = true,
+) {
+  const campoData = range.campoData ?? "criacao";
   return useQuery({
-    queryKey: ["gestao:metricas", range.di, range.df],
+    queryKey: ["gestao:metricas", range.di, range.df, campoData],
     enabled,
     staleTime: 60_000,
     queryFn: async () =>
@@ -139,6 +143,7 @@ export function useGestaoMetricas(range: { di: string; df: string }, enabled = t
             {
               _periodo_start: `${range.di}T00:00:00`,
               _periodo_end: `${range.df}T23:59:59`,
+              _campo_data: campoData,
             } as never,
           )) as { data: unknown; error: { code?: string; message?: string } | null };
           if (res.error) throw res.error;
@@ -148,3 +153,4 @@ export function useGestaoMetricas(range: { di: string; df: string }, enabled = t
       ),
   });
 }
+

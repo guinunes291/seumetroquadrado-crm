@@ -2,7 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 
-type Range = { di: string | null; df: string | null };
+/**
+ * `campoData` controla qual coluna a RPC usa para o recorte de período:
+ *   - "criacao" (padrão): data em que o corretor registrou o item no CRM
+ *     (created_at de agendamento, venda, interação, etc).
+ *   - "evento":  data informada pelo corretor no próprio registro (data da
+ *     visita, data da assinatura, data de início do agendamento).
+ * Leads só têm data de criação — o parâmetro é ignorado nas RPCs de leads.
+ */
+export type CampoData = "criacao" | "evento";
+type Range = { di: string | null; df: string | null; campoData?: CampoData };
+const cd = (r: Range): CampoData => r.campoData ?? "criacao";
 
 const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).rpc(name, args);
 
@@ -17,6 +27,7 @@ export function useDashboardKpis(range: Range, corretor: string | null, enabled 
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
+        _campo_data: cd(range),
       });
       if (error) throw error;
       return data as Record<string, number>;
@@ -34,6 +45,7 @@ export function useDashboardSerie(range: Range, corretor: string | null, enabled
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
+        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{
@@ -57,6 +69,7 @@ export function useDashboardFunil(range: Range, corretor: string | null, enabled
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
+        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{ etapa: string; ordem: number; quantidade: number }>;
@@ -73,6 +86,7 @@ export function useDashboardPorCorretor(range: Range, enabled = true) {
       const { data, error } = await rpc("dashboard_metricas_por_corretor", {
         _di: range.di,
         _df: range.df,
+        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{
@@ -100,12 +114,14 @@ export function useDashboardMotivosPerda(range: Range, corretor: string | null, 
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
+        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{ motivo: string; quantidade: number }>;
     },
   });
 }
+
 
 export function useDashboardLeadsUrgentes(corretor: string | null, enabled = true) {
   return useQuery({

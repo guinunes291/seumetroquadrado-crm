@@ -4870,11 +4870,16 @@ export type Database = {
         Returns: string
       }
       dashboard_atividade_periodo: {
-        Args: { _df: string; _di: string; _scope: string }
+        Args: { _campo_data?: string; _df: string; _di: string; _scope: string }
         Returns: Json
       }
       dashboard_funil: {
-        Args: { _corretor?: string; _df?: string; _di?: string }
+        Args: {
+          _campo_data?: string
+          _corretor?: string
+          _df?: string
+          _di?: string
+        }
         Returns: {
           etapa: string
           ordem: number
@@ -4882,7 +4887,12 @@ export type Database = {
         }[]
       }
       dashboard_kpis: {
-        Args: { _corretor?: string; _df?: string; _di?: string }
+        Args: {
+          _campo_data?: string
+          _corretor?: string
+          _df?: string
+          _di?: string
+        }
         Returns: Json
       }
       dashboard_leads_urgentes: {
@@ -4900,7 +4910,7 @@ export type Database = {
         }[]
       }
       dashboard_metricas_por_corretor: {
-        Args: { _df: string; _di: string }
+        Args: { _campo_data?: string; _df: string; _di: string }
         Returns: {
           agendamentos: number
           analise: number
@@ -4914,7 +4924,12 @@ export type Database = {
         }[]
       }
       dashboard_motivos_perda: {
-        Args: { _corretor?: string; _df?: string; _di?: string }
+        Args: {
+          _campo_data?: string
+          _corretor?: string
+          _df?: string
+          _di?: string
+        }
         Returns: {
           motivo: string
           quantidade: number
@@ -4947,7 +4962,12 @@ export type Database = {
         }[]
       }
       dashboard_serie_diaria: {
-        Args: { _corretor?: string; _df?: string; _di?: string }
+        Args: {
+          _campo_data?: string
+          _corretor?: string
+          _df?: string
+          _di?: string
+        }
         Returns: {
           agendamentos: number
           dia: string
@@ -5062,7 +5082,11 @@ export type Database = {
         Returns: Json
       }
       gestao_metricas: {
-        Args: { _periodo_end: string; _periodo_start: string }
+        Args: {
+          _campo_data?: string
+          _periodo_end: string
+          _periodo_start: string
+        }
         Returns: Json
       }
       get_dist_setting: { Args: { _chave: string }; Returns: Json }
