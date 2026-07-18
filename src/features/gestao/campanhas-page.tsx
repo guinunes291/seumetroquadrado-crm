@@ -368,9 +368,70 @@ export function CampanhasPage() {
       {equipeDe && (
         <EquipeDialog roleta={equipeDe} onClose={() => setEquipeDe(null)} />
       )}
+
+      {criarProjetoPara && (
+        <CriarProjetoDialog
+          roleta={criarProjetoPara}
+          onClose={() => setCriarProjetoPara(null)}
+          onConfirm={(nome) =>
+            criarEVincular.mutate({ roleta: criarProjetoPara, nome })
+          }
+          pending={criarEVincular.isPending}
+        />
+      )}
     </div>
   );
 }
+
+function CriarProjetoDialog({
+  roleta,
+  onClose,
+  onConfirm,
+  pending,
+}: {
+  roleta: Roleta;
+  onClose: () => void;
+  onConfirm: (nome: string) => void;
+  pending: boolean;
+}) {
+  const [nome, setNome] = useState(roleta.nome);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Criar projeto</DialogTitle>
+          <DialogDescription>
+            O projeto será criado no CRM e vinculado automaticamente à campanha{" "}
+            <span className="font-medium">{roleta.nome}</span>. Você pode completar os
+            dados comerciais depois em Projetos.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="novo-projeto-nome">Nome do projeto</Label>
+          <Input
+            id="novo-projeto-nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Ex.: Longitude Tucuruvi"
+            autoFocus
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => nome.trim() && onConfirm(nome.trim())}
+            disabled={pending || !nome.trim()}
+          >
+            {pending ? "Criando…" : "Criar e vincular"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void }) {
   const qc = useQueryClient();
