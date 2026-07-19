@@ -164,10 +164,7 @@ export function TransferSlaBadge({
       disparadoEm.set(leadId, Date.now());
       (async () => {
         try {
-          const { data } = await supabase.rpc(
-            "disparar_repasse_sla_lead",
-            { _lead_id: leadId },
-          );
+          const { data } = await supabase.rpc("disparar_repasse_sla_lead", { _lead_id: leadId });
           if (data === true) {
             qc.invalidateQueries({ queryKey: ["leads"] });
             qc.invalidateQueries({ queryKey: ["leads-transfer-info"] });

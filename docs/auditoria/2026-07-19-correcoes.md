@@ -6,6 +6,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
 ## Infra e baseline
 
 ### 1. `npm ci` quebrado (lockfile fora de sincronia)
+
 - **Causa-raiz**: o package.json exigia `@lovable.dev/vite-tanstack-config@^2.7.6` e o
   `package-lock.json` resolvia 2.7.4 — consequência do dual-lockfile (bun × npm).
 - **Correção**: lockfile regenerado (`npm install`), sem outras mudanças.
@@ -13,6 +14,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
 - **Verificação**: `npm ci` verde; CI desbloqueado.
 
 ### 2. P1-5 — replay das migrations quebrado desde jun/2026
+
 - **Causa-raiz**: histórico reescrito pelo gerador — re-emissões de tabelas
   (vendas/comissoes/analises_credito/Copa) sem guardas; patches de dados de produção com
   UUIDs fixos; troca de tipo de retorno de função sem DROP.
@@ -26,15 +28,16 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   `20260616130200`, `20260616170432`, `20260619185115`, `20260702000028`,
   `20260718181441`.
 - **Reconciliação com produção** (divergências do histórico reescrito, no-op em prod):
-  `20260619185115` dropa as variantes v1 VAZIAS de vendas/comissoes/analises_credito
+  `20260619185115` dropa as variantes v1 VAZIAS de `vendas`/`comissoes`/`analises_credito`
   (produção = v2, confirmado pelo types.ts do banco vivo) antes de criar o formato v2;
   `20260719121000` converte `copa_fases.semana_*` de text para integer (estado real de
   produção), com fallback pela ordem da fase para dados poluídos do replay.
-- **Verificação**: replay do zero das 208 migrations em ~35s, zero erros — agora gate de CI.
+- **Verificação**: replay do zero das 209 migrations em ~35s, zero erros — agora gate de CI.
 
 ## Banco / regras de negócio
 
 ### 3. Dedup de leads (migrations `20260719120000` + `20260719123000`)
+
 - **Causa-raiz**: índice único condicional só para leads COM projeto; chave com DDI
   (variantes +55/local não colidiam); lixeira dentro da chave (cliente retornante
   bloqueado); checagem do formulário 100% client-side (corrida check-then-insert).
@@ -50,6 +53,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   variantes de formatação e +55, lixeira liberando recadastro, `mesclar_leads`).
 
 ### 4. Guard de fechamento no INSERT (migration `20260719120000`)
+
 - **Causa-raiz**: `validar_status_lead_via_rpc` e `proteger_fechamento_sem_venda_aprovada`
   só disparam em UPDATE — INSERT direto criava lead já `contrato_fechado`/`pos_venda`
   sem venda aprovada.
@@ -59,6 +63,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   normalização) e coberto pela suíte.
 
 ### 5. `distribuir_lead_ponderado` (migration `20260719123000`)
+
 - **Causa-raiz**: motor por tier sem FOR UPDATE nem checagem de `corretor_id` — roubava
   lead já atribuído; concorrência duplicava log e avançava o cursor SWRR 2×.
 - **Correção**: FOR UPDATE no lead + retorno `{ok:false, motivo:'ja_atribuido'}` +
@@ -68,6 +73,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   exatamente 1 log de sucesso; lead de outro corretor intocado).
 
 ### 6. Espelho `proximo_followup` em lead encerrado (migration `20260719123000`)
+
 - **Causa-raiz**: `sync_proximo_followup` não considerava o status do lead — tarefa
   pendente de tipo não-contato (visita/documentação/outro) repovoava o follow-up após
   fechamento/perda; criar tarefa em lead perdido também.
@@ -75,6 +81,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
 - **Verificação**: `tests/db/followup-triggers.test.ts` (12 casos).
 
 ### 7. Rate limit distribuído (migration `20260719124000`)
+
 - **Causa-raiz**: limiter em memória por processo — em Workers o teto efetivo multiplica
   pelo nº de instâncias e zera a cada deploy.
 - **Correção**: tabela `api_rate_limits` + RPC `consumir_api_rate_limit` (janela fixa
@@ -86,6 +93,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   `src/lib/api-client-auth.server.ts`.
 
 ### 8. `lead-intake` (edge function)
+
 - **Causa-raiz**: secret comparado com `!==` (vaza timing) e aceito por query string
   (vaza em logs de proxy/CDN) sem qualquer aviso.
 - **Correção**: comparação em tempo constante (digest SHA-256 de ambos os lados);
@@ -96,6 +104,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
 ## Frontend
 
 ### 9. P1-4 — erro renderizado como "tudo em dia"/zeros
+
 - **Causa-raiz**: consumidores de useQuery só checavam `isLoading` e colapsavam
   `undefined → 0/[]`; erro de RPC virava dashboard zerado, "Tudo em dia", tabela vazia.
 - **Correção**: `AsyncBoundary`/checagem explícita de `isError` com retry em CADA seção
@@ -109,6 +118,7 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   `src/features/command-center/widgets/*`.
 
 ### 10. Truncamento exposto
+
 - **Correção**: flag `truncado` + aviso pt-BR ("mostrando os primeiros N…") quando o
   volume atinge o limite do caminho client-side: gestão (fallback de 10k interações),
   roleta (2000), leads por corretor (2000), leads landing (1000).
@@ -117,23 +127,27 @@ branch `claude/crm-full-functional-audit-5eqr72`.
   `src/routes/_authenticated/leads-landing.tsx`.
 
 ### 11. Motor anti-perda audível
+
 - **Causa-raiz**: `catch {}` — follow-up automático podia falhar para sempre sem ninguém saber.
 - **Correção**: log com contexto + toast ("Etapa alterada, mas o follow-up automático
   falhou — crie manualmente"); a transição de etapa segue intacta.
 - **Arquivos**: `src/hooks/use-lead-status.ts`.
 
 ### 12. `bulkFollowup` com dedup
+
 - **Causa-raiz**: insert direto em `tarefas`, fora do dedup canônico — lote reaplicado
   duplicava follow-ups.
 - **Correção**: passa por `garantirFollowUpAberto` por lead (atualiza em vez de duplicar).
 - **Arquivos**: `src/features/leads/use-lead-mutations.ts`.
 
 ### 13. Guard de conta ativa testado (P1-1)
+
 - **Correção**: decisão extraída para `src/lib/conta-ativa.ts` (`verificarContaAtiva`) e
   blindada por `tests/auth-guard.test.ts` (falha transitória NUNCA desloga; só negação
   real do banco encerra a sessão local). Comportamento inalterado.
 
 ### 14. `types.ts` regenerado do schema real
+
 - **Causa-raiz**: types defasados forçavam 226 casts `as never` (teto 220 — CI vermelho).
 - **Correção**: gerado do harness com as migrations aplicadas (postgres-meta, mesmo motor
   do CLI); 101 casts removidos onde ficaram desnecessários (restaurados apenas os 16
@@ -142,11 +156,13 @@ branch `claude/crm-full-functional-audit-5eqr72`.
 - **Arquivos**: `src/integrations/supabase/types.ts` + ~25 arquivos com casts removidos.
 
 ### 15. Página 500 do Worker em pt-BR
+
 - **Arquivos**: `src/lib/error-page.ts`.
 
 ## Testes e CI
 
 ### 16. Suíte de banco `tests/db/` (novo)
+
 9 arquivos contra Postgres real: `harness-sanidade`, `contrato-transicoes` (matriz
 338 pares TS×SQL + comportamento da RPC), `rls-por-papel` (49 casos), `aprovar-venda`
 (24: idempotência, imutabilidade, concorrência), `distribuicao-v3` (13: rodízio,
@@ -155,6 +171,7 @@ exceções, concorrência), `dedup-leads` (31), `followup-triggers` (12),
 `npm run test:db`), helpers de identidade (`comoUsuario` = SET ROLE + claims JWT).
 
 ### 17. CI — job `db-tests`
+
 Replay do zero (docker compose do harness com extensões fake montadas) + `npm run
 test:db` a cada push. Toda migration futura que quebrar o replay ou uma regra testada
 quebra o CI.

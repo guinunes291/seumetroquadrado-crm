@@ -166,12 +166,9 @@ export function KanbanBoard() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabase.rpc(
-            "pipeline_snapshot_v3",
-            {
-              _query: debouncedSearch || undefined,
-            },
-          );
+          const { data, error } = await supabase.rpc("pipeline_snapshot_v3", {
+            _query: debouncedSearch || undefined,
+          });
           if (error) throw error;
           return data as {
             etapa: LeadStatus;
@@ -257,12 +254,9 @@ export function KanbanBoard() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabase.rpc(
-            "leads_sla_pendentes",
-            {
-              _corretor: undefined,
-            },
-          );
+          const { data, error } = await supabase.rpc("leads_sla_pendentes", {
+            _corretor: undefined,
+          });
           if (error) throw error;
           return (data ?? []) as unknown as SlaRow[];
         },

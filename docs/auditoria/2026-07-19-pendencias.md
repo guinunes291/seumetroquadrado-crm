@@ -6,6 +6,7 @@ próxima ação e risco.
 ## Decisões de produto (exigem o dono do negócio)
 
 ### P-1. `metas` legível e editável fora do escopo de equipe
+
 - **Descrição**: qualquer autenticado LÊ as metas de todos (`USING true`); gestor de
   QUALQUER equipe cria/edita/apaga metas de qualquer corretor; superintendente NÃO pode
   escrever metas (inconsistente com o resto da hierarquia).
@@ -19,6 +20,7 @@ próxima ação e risco.
 - **Risco em produção**: médio (vazamento interno, não externo).
 
 ### P-2. Comissão com `beneficiario_id NULL`
+
 - **Descrição**: `gerar_comissoes_para_venda` cria linhas de comissão de gerente/
   superintendente com beneficiário NULL quando a hierarquia não é resolvível
   (corretor sem equipe/equipe sem gestor).
@@ -30,6 +32,7 @@ próxima ação e risco.
 ## Técnicas (planejadas, não executadas nesta onda)
 
 ### P-3. Remover `?secret=` do lead-intake
+
 - **Descrição**: secret por query string segue aceito (com log de deprecação e comparação
   timing-safe).
 - **Motivo**: remover agora quebraria o Zap em produção silenciosamente.
@@ -37,6 +40,7 @@ próxima ação e risco.
 - **Risco**: baixo (o secret continua validado; exposição é via logs de infra).
 
 ### P-4. Unificar os motores de distribuição
+
 - **Descrição**: coexistem o motor canônico v3 (`_distribuir_lead_v3`, com cota, % de
   leads trabalhados, presença) e o ponderado por tier (`distribuir_lead_ponderado`,
   campanhas), com elegibilidades DIFERENTES — o ponderado ignora cota/% do canônico e
@@ -49,7 +53,8 @@ próxima ação e risco.
 - **Risco**: médio (regras comerciais divergentes entre canais de entrada).
 
 ### P-5. Drift: `copa_ranking()` de produção não está no repo
-- **Descrição**: a função viva em produção retorna (selecao_id, grupo, total_*) — shape
+
+- **Descrição**: a função viva em produção retorna (selecao*id, grupo, total*\*) — shape
   que não existe em NENHUMA migration. O types.ts mantém o shape de produção via ajuste
   manual documentado.
 - **Próxima ação**: exportar a definição viva de produção (dashboard SQL editor:
@@ -58,6 +63,7 @@ próxima ação e risco.
 - **Risco**: baixo (Copa é gamificação), mas fura a reprodutibilidade do banco.
 
 ### P-6. Dual-lockfile (bun.lock × package-lock.json)
+
 - **Descrição**: não foi possível confirmar se o builder do Lovable usa bun; remover
   `bun.lock`/`bunfig.toml` às cegas poderia quebrar o deploy deles.
 - **Próxima ação**: confirmar com o Lovable; se npm-only, remover os arquivos bun.
@@ -65,12 +71,14 @@ próxima ação e risco.
 - **Risco**: baixo→médio (o drift que quebrou o `npm ci` pode voltar a cada bump do bun).
 
 ### P-7. WhatsApp (Z-API) sem fila/retry
+
 - **Descrição**: notificações best-effort; falha vira alerta in-app, sem reenvio.
 - **Próxima ação**: fila com retry (padrão push_outbox) OU migração para a API oficial
   (Meta Cloud) já desenhada em docs/fase7-mensageria.md.
 - **Risco**: baixo (perda de notificação, não de dado).
 
 ### P-8. Estruturas legadas coexistindo
+
 - `na_lixeira`/`data_movido_lixeira` × `deleted_at`; `fila_distribuicao`/
   `distribuicao_config`/`distribution_log` (v1) × stack v3; `documentacoes` ×
   `documentacao_versoes`. Funcionais, mas duplicam conceito e confundem consultas.
@@ -78,12 +86,14 @@ próxima ação e risco.
 - **Risco**: baixo.
 
 ### P-9. Rate limit distribuído no caminho legado de escrita
+
 - **Descrição**: `requireWriteKeyOrLegacy` (síncrono, janela legada) segue só com o
   limite em memória.
 - **Motivo**: tornar async ripple por todas as rotas legadas que estão saindo de cena.
 - **Risco**: baixo (a janela legada é temporária e fail-closed).
 
 ### P-10. Smoke autenticado (browser)
+
 - **Descrição**: o e2e/smoke cobre só rotas públicas; jornadas autenticadas de browser
   exigiriam GoTrue local (supabase CLI + stack Docker completa).
 - **Mitigação**: as jornadas 1–3 estão cobertas no nível de banco
@@ -91,6 +101,7 @@ próxima ação e risco.
 - **Próxima ação (opcional)**: `supabase start` + seed de usuários + Playwright logado.
 
 ### P-11. Duplicatas históricas de telefone em produção
+
 - **Descrição**: os índices únicos são guardados — se produção tiver duplicatas ativas,
   eles NÃO são criados (fica warning + views de relatório). A RPC `criar_lead_dedup`
   protege o fluxo novo mesmo sem índice.

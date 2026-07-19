@@ -4,33 +4,33 @@
 
 ## Funcional
 
-| Item | Status |
-|---|---|
-| Máquina de estados do funil (TS = SQL, guard de UPDATE e INSERT, trilha atômica) | ✅ |
-| Criação de lead com dedup atômico (RPC + índices) | ✅ (⚠️ índices ativam em prod após limpeza de duplicatas históricas — P-11) |
-| Follow-ups (espelho, dedup, cancelamento no fechamento, motor anti-perda audível) | ✅ |
-| Agendamentos (compensação, RLS, jornada) | ✅ |
-| Distribuição v3 (rodízio, exceções, concorrência) | ✅ |
-| Motor ponderado (idempotência + lock) | ✅ (⚠️ elegibilidade diverge do canônico — P-4) |
-| Vendas/comissões (aprovação atômica, idempotente, imutável) | ✅ (⚠️ beneficiário NULL — P-2) |
-| Transferência de leads (RPC, acesso, log) | ✅ |
-| Permissões RLS por papel (49 casos) | ✅ (🔄 metas — P-1) |
-| KPIs consistentes entre RPCs (escopo, vendas aprovadas, perda histórica) | ✅ |
-| Telas de decisão sem "zero falso" (isError + retry em toda seção) | ✅ |
-| Truncamentos sinalizados | ✅ |
-| Integrações (intake, landing, push, convites) | ✅ (⚠️ Z-API sem retry — P-7; ?secret= depreciado — P-3) |
+| Item                                                                              | Status                                                                      |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Máquina de estados do funil (TS = SQL, guard de UPDATE e INSERT, trilha atômica)  | ✅                                                                          |
+| Criação de lead com dedup atômico (RPC + índices)                                 | ✅ (⚠️ índices ativam em prod após limpeza de duplicatas históricas — P-11) |
+| Follow-ups (espelho, dedup, cancelamento no fechamento, motor anti-perda audível) | ✅                                                                          |
+| Agendamentos (compensação, RLS, jornada)                                          | ✅                                                                          |
+| Distribuição v3 (rodízio, exceções, concorrência)                                 | ✅                                                                          |
+| Motor ponderado (idempotência + lock)                                             | ✅ (⚠️ elegibilidade diverge do canônico — P-4)                             |
+| Vendas/comissões (aprovação atômica, idempotente, imutável)                       | ✅ (⚠️ beneficiário NULL — P-2)                                             |
+| Transferência de leads (RPC, acesso, log)                                         | ✅                                                                          |
+| Permissões RLS por papel (49 casos)                                               | ✅ (🔄 metas — P-1)                                                         |
+| KPIs consistentes entre RPCs (escopo, vendas aprovadas, perda histórica)          | ✅                                                                          |
+| Telas de decisão sem "zero falso" (isError + retry em toda seção)                 | ✅                                                                          |
+| Truncamentos sinalizados                                                          | ✅                                                                          |
+| Integrações (intake, landing, push, convites)                                     | ✅ (⚠️ Z-API sem retry — P-7; ?secret= depreciado — P-3)                    |
 
 ## Técnico
 
-| Item | Status |
-|---|---|
-| `npm ci` / lockfile | ✅ (⚠️ dual-lockfile mantido — P-6) |
-| Suíte vitest (628) + suíte de banco (201) | ✅ |
-| Typecheck / lint / type-escape (162/220) / bundle budget | ✅ |
-| Build (Cloudflare + node-server) + smoke Playwright | ✅ |
-| Replay do zero das 209 migrations | ✅ |
-| CI com gate de banco real (job db-tests) | ✅ |
-| Reprodutibilidade do schema | ⚠️ (drift documentado: copa_ranking() vivo — P-5) |
+| Item                                                     | Status                                            |
+| -------------------------------------------------------- | ------------------------------------------------- |
+| `npm ci` / lockfile                                      | ✅ (⚠️ dual-lockfile mantido — P-6)               |
+| Suíte vitest (628) + suíte de banco (201)                | ✅                                                |
+| Typecheck / lint / type-escape (162/220) / bundle budget | ✅                                                |
+| Build (Cloudflare + node-server) + smoke Playwright      | ✅                                                |
+| Replay do zero das 209 migrations                        | ✅                                                |
+| CI com gate de banco real (job db-tests)                 | ✅                                                |
+| Reprodutibilidade do schema                              | ⚠️ (drift documentado: copa_ranking() vivo — P-5) |
 
 ## Passos pós-deploy em produção (fluxo usual do projeto)
 

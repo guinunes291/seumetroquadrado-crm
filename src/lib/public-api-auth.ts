@@ -138,17 +138,14 @@ export async function checkRateLimitDistribuido(
     const row = Array.isArray(data) ? data[0] : data;
     if (row && row.allowed === false) {
       const retry = Number(row.retry_after_seconds ?? 60) || 60;
-      return new Response(
-        JSON.stringify({ error: "rate_limit_exceeded", retry_after_s: retry }),
-        {
-          status: 429,
-          headers: {
-            "Content-Type": "application/json",
-            "Retry-After": String(retry),
-            "Cache-Control": "no-store",
-          },
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded", retry_after_s: retry }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(retry),
+          "Cache-Control": "no-store",
         },
-      );
+      });
     }
   } catch (err) {
     console.warn("rate limit distribuído indisponível; seguindo com o limite em memória", err);

@@ -28,12 +28,12 @@ npm run db:apply
 
 ## O que são os shims
 
-| Arquivo | Conteúdo |
-|---|---|
-| `00-roles.sql` | roles `anon`/`authenticated`/`service_role`/`sandbox_exec` etc., schema `extensions`, `pg_trgm`/`unaccent`/`pgcrypto` reais, publication `supabase_realtime`, search_path |
-| `01-auth-shim.sql` | schema `auth`: tabela `users` (colunas GoTrue usadas pelas migrations), `sessions`, `auth.uid()/role()/jwt()/email()` lendo `request.jwt.claims` |
-| `02-platform-shims.sql` | schema `storage` (`buckets`, `objects`, `foldername()`), o resto vem das extensões fake |
-| `fake-extensions/` | `pg_cron` (registra jobs em `cron.job`, não executa) e `pg_net` (registra requisições em `net.http_request_queue`, não faz HTTP) |
+| Arquivo                 | Conteúdo                                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `00-roles.sql`          | roles `anon`/`authenticated`/`service_role`/`sandbox_exec` etc., schema `extensions`, `pg_trgm`/`unaccent`/`pgcrypto` reais, publication `supabase_realtime`, search_path |
+| `01-auth-shim.sql`      | schema `auth`: tabela `users` (colunas GoTrue usadas pelas migrations), `sessions`, `auth.uid()/role()/jwt()/email()` lendo `request.jwt.claims`                          |
+| `02-platform-shims.sql` | schema `storage` (`buckets`, `objects`, `foldername()`), o resto vem das extensões fake                                                                                   |
+| `fake-extensions/`      | `pg_cron` (registra jobs em `cron.job`, não executa) e `pg_net` (registra requisições em `net.http_request_queue`, não faz HTTP)                                          |
 
 Como injetar identidade nos testes (o que o PostgREST faz por request):
 

@@ -213,10 +213,9 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     await c.query(`SELECT public.marcar_presenca(true)`);
 
     await comoUsuario(c, gestor.id);
-    const r = await c.query(
-      `SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada1') AS res`,
-      [leadId],
-    );
+    const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada1') AS res`, [
+      leadId,
+    ]);
     const res = r.rows[0].res as Record<string, unknown>;
     expect(res.ok).toBe(true);
     expect(res.corretor_id).toBe(corretorJ1.id);
@@ -443,9 +442,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     // contrato_fechado, com VGV = valor da venda aprovada.
     await comoUsuario(c, gestor.id);
     const pipeline = await c.query(`SELECT * FROM public.pipeline_snapshot_v3()`);
-    const porEtapa = Object.fromEntries(
-      pipeline.rows.map((row) => [row.etapa as string, row]),
-    );
+    const porEtapa = Object.fromEntries(pipeline.rows.map((row) => [row.etapa as string, row]));
     expect(Number(porEtapa.contrato_fechado.quantidade)).toBe(1);
     expect(Number(porEtapa.contrato_fechado.vgv)).toBe(Number(VALOR_VENDA));
     expect(Number(porEtapa.contrato_fechado.followups_vencidos)).toBe(0);
@@ -495,10 +492,9 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
 
     leadId = await leadViaIntake("Cliente Jornada 2", "11977770002");
     await comoUsuario(c, gestor.id);
-    const r = await c.query(
-      `SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada2') AS res`,
-      [leadId],
-    );
+    const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada2') AS res`, [
+      leadId,
+    ]);
     expect(r.rows[0].res.ok).toBe(true);
     expect(r.rows[0].res.corretor_id).toBe(corretorJ2.id);
 
@@ -684,10 +680,7 @@ describe("JORNADA 3 — gestor transfere lead do corretor A para o corretor B", 
 
     // B (novo dono): vê o lead e a tarefa, e consegue trabalhar o lead.
     await comoUsuario(c, corretorB.id);
-    const veB = await c.query(
-      `SELECT id, corretor_id FROM public.leads WHERE id = $1`,
-      [leadId],
-    );
+    const veB = await c.query(`SELECT id, corretor_id FROM public.leads WHERE id = $1`, [leadId]);
     expect(veB.rowCount).toBe(1);
     expect(veB.rows[0].corretor_id).toBe(corretorB.id);
     const tarefaB = await c.query(`SELECT id FROM public.tarefas WHERE id = $1`, [tarefaAbertaId]);

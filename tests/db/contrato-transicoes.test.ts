@@ -157,9 +157,7 @@ describe("contrato da matriz de transições (TS × SQL)", () => {
       const sqlPermite = row.sql_permite as boolean;
       const tsPermite = transicaoLeadPermitida(de, para, gestao);
       if (tsPermite !== sqlPermite) {
-        divergentes.push(
-          `${de} -> ${para} (gestao=${gestao}): TS=${tsPermite} SQL=${sqlPermite}`,
-        );
+        divergentes.push(`${de} -> ${para} (gestao=${gestao}): TS=${tsPermite} SQL=${sqlPermite}`);
       }
     }
     // Qualquer entrada aqui = bug reportável: a UI ofereceria o que o banco
@@ -426,9 +424,10 @@ describe("guard validar_status_lead_via_rpc: UPDATE direto de status é bloquead
 
     await comoUsuario(c, corretor.id);
     const erro = await erroDe(
-      c.query(`UPDATE public.leads SET status = 'em_atendimento'::public.lead_status WHERE id = $1`, [
-        leadId,
-      ]),
+      c.query(
+        `UPDATE public.leads SET status = 'em_atendimento'::public.lead_status WHERE id = $1`,
+        [leadId],
+      ),
     );
     expect(erro).not.toBeNull();
     expect(erro!.code).toBe("42501");

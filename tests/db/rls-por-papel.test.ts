@@ -280,9 +280,10 @@ describe("leads · UPDATE (carteira + atribuição)", () => {
 
   it("G_A atualiza campo comum de lead da equipe A", async () => {
     await comoUsuario(c, gA.id);
-    const r = await c.query(`UPDATE public.leads SET observacoes = 'visto pelo gestor' WHERE id = $1`, [
-      leadA1,
-    ]);
+    const r = await c.query(
+      `UPDATE public.leads SET observacoes = 'visto pelo gestor' WHERE id = $1`,
+      [leadA1],
+    );
     expect(r.rowCount).toBe(1);
   });
 
@@ -550,9 +551,7 @@ describe("interacoes · seguem o escopo do lead vinculado", () => {
     await comoUsuario(c, gA.id);
     expect(await idsVisiveis(`SELECT id FROM public.interacoes`)).toEqual([interA1].sort());
     await comoUsuario(c, superi.id);
-    expect(await idsVisiveis(`SELECT id FROM public.interacoes`)).toEqual(
-      [interA1, interB].sort(),
-    );
+    expect(await idsVisiveis(`SELECT id FROM public.interacoes`)).toEqual([interA1, interB].sort());
   });
 
   it("C_A1 insere interação no próprio lead; em lead da equipe B é barrado (42501); autor spoofado também (42501)", async () => {
@@ -632,10 +631,9 @@ describe("vendas · escopo via lead da venda", () => {
     );
     expect(ok.rowCount).toBe(1);
 
-    const negado = await c.query(
-      `UPDATE public.vendas SET observacoes = 'invasao' WHERE id = $1`,
-      [vendaB],
-    );
+    const negado = await c.query(`UPDATE public.vendas SET observacoes = 'invasao' WHERE id = $1`, [
+      vendaB,
+    ]);
     expect(negado.rowCount).toBe(0);
   });
 });

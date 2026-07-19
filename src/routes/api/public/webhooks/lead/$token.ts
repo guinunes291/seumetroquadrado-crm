@@ -155,7 +155,6 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         }
 
-
         let body: unknown;
         try {
           body = await request.json();
@@ -355,7 +354,6 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             }
           }
         }
-
 
         // Registra interação com o resumo da IA para aparecer no histórico do lead.
         if (resumo || blocoQualif) {

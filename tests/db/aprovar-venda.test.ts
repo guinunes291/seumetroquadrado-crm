@@ -291,7 +291,9 @@ describe("aprovar_venda: fluxo feliz", () => {
     const depois = await efeitosDaVenda(vendaId);
     expect(depois).toEqual(antes);
 
-    const tsDepois = await c.query(`SELECT aprovado_em FROM public.vendas WHERE id = $1`, [vendaId]);
+    const tsDepois = await c.query(`SELECT aprovado_em FROM public.vendas WHERE id = $1`, [
+      vendaId,
+    ]);
     expect(tsDepois.rows[0].aprovado_em).toEqual(tsAntes.rows[0].aprovado_em);
   });
 });
@@ -470,7 +472,9 @@ describe("proteger_fechamento_sem_venda_aprovada", () => {
     expect(erro!.message).toMatch(/lead só pode ser fechado após aprovação da venda/);
 
     await comoSuperuser(c);
-    const lead = await c.query(`SELECT status::text AS s FROM public.leads WHERE id = $1`, [leadId]);
+    const lead = await c.query(`SELECT status::text AS s FROM public.leads WHERE id = $1`, [
+      leadId,
+    ]);
     expect(lead.rows[0].s).toBe("analise_credito");
   });
 
@@ -540,7 +544,9 @@ describe("aprovar_venda: rejeição", () => {
     });
 
     await comoSuperuser(c);
-    const lead = await c.query(`SELECT status::text AS s FROM public.leads WHERE id = $1`, [leadId]);
+    const lead = await c.query(`SELECT status::text AS s FROM public.leads WHERE id = $1`, [
+      leadId,
+    ]);
     expect(lead.rows[0].s).toBe("analise_credito");
     const eventos = await c.query(
       `SELECT count(*)::int AS n FROM public.lead_eventos

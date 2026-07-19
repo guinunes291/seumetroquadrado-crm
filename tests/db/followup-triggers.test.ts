@@ -83,19 +83,15 @@ async function criarTarefa(opts: {
 /** Lê leads.proximo_followup fora do RLS. */
 async function espelho(leadId: string): Promise<Date | null> {
   await comoSuperuser(c);
-  const r = await c.query(
-    `SELECT proximo_followup FROM public.leads WHERE id = $1`,
-    [leadId],
-  );
+  const r = await c.query(`SELECT proximo_followup FROM public.leads WHERE id = $1`, [leadId]);
   return r.rows[0].proximo_followup as Date | null;
 }
 
 async function statusTarefa(tarefaId: string): Promise<string> {
   await comoSuperuser(c);
-  const r = await c.query(
-    `SELECT status::text AS status FROM public.tarefas WHERE id = $1`,
-    [tarefaId],
-  );
+  const r = await c.query(`SELECT status::text AS status FROM public.tarefas WHERE id = $1`, [
+    tarefaId,
+  ]);
   return r.rows[0].status as string;
 }
 
@@ -122,8 +118,16 @@ describe("espelho leads.proximo_followup (trg_tarefa_sync_followup / sync_proxim
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
     const vencPerto = daquiDias(1);
     const vencLonge = daquiDias(5);
-    const tPerto = await criarTarefa({ leadId: lead, corretorId: corretor.id, vencimento: vencPerto });
-    const tLonge = await criarTarefa({ leadId: lead, corretorId: corretor.id, vencimento: vencLonge });
+    const tPerto = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      vencimento: vencPerto,
+    });
+    const tLonge = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      vencimento: vencLonge,
+    });
 
     // a mais próxima vence
     expect((await espelho(lead))?.getTime()).toBe(vencPerto.getTime());
@@ -146,7 +150,11 @@ describe("espelho leads.proximo_followup (trg_tarefa_sync_followup / sync_proxim
 
   it("cancelar a tarefa remove a data do espelho", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
-    const t = await criarTarefa({ leadId: lead, corretorId: corretor.id, vencimento: daquiDias(2) });
+    const t = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      vencimento: daquiDias(2),
+    });
     expect(await espelho(lead)).not.toBeNull();
 
     await comoSuperuser(c);
@@ -174,7 +182,11 @@ describe("espelho leads.proximo_followup (trg_tarefa_sync_followup / sync_proxim
 
   it("reagendar (UPDATE data_vencimento) faz o espelho acompanhar", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
-    const t = await criarTarefa({ leadId: lead, corretorId: corretor.id, vencimento: daquiDias(2) });
+    const t = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      vencimento: daquiDias(2),
+    });
 
     const novoVenc = daquiDias(7);
     await comoSuperuser(c);
@@ -201,7 +213,12 @@ describe("espelho leads.proximo_followup (trg_tarefa_sync_followup / sync_proxim
 
     // o espelho NÃO filtra por tipo: uma 'visita' mais próxima passa a valer
     const vencVisita = daquiDias(1);
-    await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "visita", vencimento: vencVisita });
+    await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "visita",
+      vencimento: vencVisita,
+    });
     expect((await espelho(lead))?.getTime()).toBe(vencVisita.getTime());
 
     // limpeza local para não interferir em outros casos deste describe
@@ -243,16 +260,45 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
 
   it("marcar_lead_perdido_v2 pelo corretor cancela as tarefas abertas de contato e limpa proximo_followup", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
-    const tFollow = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "follow_up", vencimento: daquiDias(1) });
-    const tLigacao = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "ligacao", status: "em_andamento", vencimento: daquiDias(2) });
-    const tWhats = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "whatsapp", vencimento: daquiDias(3) });
-    const tEmail = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "email", vencimento: daquiDias(4) });
-    const tConcluida = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "follow_up", status: "concluida", vencimento: daquiDias(5) });
+    const tFollow = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "follow_up",
+      vencimento: daquiDias(1),
+    });
+    const tLigacao = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "ligacao",
+      status: "em_andamento",
+      vencimento: daquiDias(2),
+    });
+    const tWhats = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "whatsapp",
+      vencimento: daquiDias(3),
+    });
+    const tEmail = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "email",
+      vencimento: daquiDias(4),
+    });
+    const tConcluida = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "follow_up",
+      status: "concluida",
+      vencimento: daquiDias(5),
+    });
     expect(await espelho(lead)).not.toBeNull();
 
     // sem roleta ativa a redistribuição falha e o lead termina 'perdido'
     await comoUsuario(c, corretor.id);
-    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [lead]);
+    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [
+      lead,
+    ]);
 
     await comoSuperuser(c);
     const l = await c.query(
@@ -273,11 +319,23 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
 
   it("semântica declarada: tipos fora da lista de contato (visita/documentacao/outro) NÃO são cancelados no fechamento", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
-    const tVisita = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "visita", vencimento: daquiDias(5) });
-    const tDoc = await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "documentacao", vencimento: null });
+    const tVisita = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "visita",
+      vencimento: daquiDias(5),
+    });
+    const tDoc = await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "documentacao",
+      vencimento: null,
+    });
 
     await comoUsuario(c, corretor.id);
-    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [lead]);
+    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [
+      lead,
+    ]);
 
     // o trigger cancela só tipo IN ('follow_up','ligacao','whatsapp','email')
     expect(await statusTarefa(tVisita)).toBe("pendente");
@@ -290,11 +348,23 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
   // encerrado.
   it("lead perdido fica com proximo_followup NULL mesmo com tarefa 'visita' pendente remanescente", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
-    await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "follow_up", vencimento: daquiDias(1) });
-    await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "visita", vencimento: daquiDias(5) });
+    await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "follow_up",
+      vencimento: daquiDias(1),
+    });
+    await criarTarefa({
+      leadId: lead,
+      corretorId: corretor.id,
+      tipo: "visita",
+      vencimento: daquiDias(5),
+    });
 
     await comoUsuario(c, corretor.id);
-    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [lead]);
+    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [
+      lead,
+    ]);
 
     await comoSuperuser(c);
     const l = await c.query(
@@ -308,7 +378,9 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
   it("reabrir tarefa não dispara cancelamento: o trigger só age na TRANSIÇÃO de status do lead", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
     await comoUsuario(c, corretor.id);
-    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [lead]);
+    await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [
+      lead,
+    ]);
 
     // criar tarefa aberta num lead JÁ perdido: o cancelamento não re-executa
     // (só roda no UPDATE de leads.status) — a tarefa fica pendente, mas o

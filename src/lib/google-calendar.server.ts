@@ -116,19 +116,19 @@ export async function completeOAuth(userId: string, code: string, origin: string
     redirect_uri: redirectUri(origin),
   });
   if (!tok.refresh_token) {
-    throw new Error("Google não retornou refresh_token — remova o acesso do app na conta Google e tente de novo");
+    throw new Error(
+      "Google não retornou refresh_token — remova o acesso do app na conta Google e tente de novo",
+    );
   }
-  const { error } = await supabaseAdmin
-    .from("google_calendar_connections")
-    .upsert({
-      user_id: userId,
-      refresh_token: tok.refresh_token,
-      access_token: tok.access_token,
-      access_token_expira_em: new Date(Date.now() + (tok.expires_in - 60) * 1000).toISOString(),
-      google_email: emailFromIdToken(tok.id_token),
-      sync_enabled: true,
-      updated_at: new Date().toISOString(),
-    });
+  const { error } = await supabaseAdmin.from("google_calendar_connections").upsert({
+    user_id: userId,
+    refresh_token: tok.refresh_token,
+    access_token: tok.access_token,
+    access_token_expira_em: new Date(Date.now() + (tok.expires_in - 60) * 1000).toISOString(),
+    google_email: emailFromIdToken(tok.id_token),
+    sync_enabled: true,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -156,7 +156,10 @@ async function getValidAccessToken(conn: Connection): Promise<string> {
   const validUntil = conn.access_token_expira_em ? Date.parse(conn.access_token_expira_em) : 0;
   if (conn.access_token && validUntil > Date.now()) return conn.access_token;
 
-  const tok = await tokenRequest({ grant_type: "refresh_token", refresh_token: conn.refresh_token });
+  const tok = await tokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: conn.refresh_token,
+  });
   await supabaseAdmin
     .from("google_calendar_connections")
     .update({
@@ -246,10 +249,10 @@ async function syncParaUsuario(
   const remover = ag.status === "cancelado" || !!ag.deleted_at;
   if (remover) {
     if (eventId) {
-      await fetch(
-        `${CALENDAR_API}/calendars/${calId}/events/${eventId}?sendUpdates=all`,
-        { method: "DELETE", headers },
-      );
+      await fetch(`${CALENDAR_API}/calendars/${calId}/events/${eventId}?sendUpdates=all`, {
+        method: "DELETE",
+        headers,
+      });
       await setMirror(ag.id, userId, null);
     }
     return { synced: true };

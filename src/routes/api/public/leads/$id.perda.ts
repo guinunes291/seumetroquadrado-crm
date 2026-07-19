@@ -154,10 +154,7 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
               p_lead_id: id,
               p_motivo: obsRaw || undefined,
             })
-          : await supabaseAdmin
-              .from("leads")
-              .update(patch)
-              .eq("id", id);
+          : await supabaseAdmin.from("leads").update(patch).eq("id", id);
         if (mutationResult.error) {
           const status = ["22023", "23514"].includes(mutationResult.error.code) ? 422 : 500;
           await auditarEscrita({

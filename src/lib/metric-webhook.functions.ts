@@ -28,10 +28,7 @@ export const syncMetricWebhookTokenFn = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.rpc(
-      "set_metric_webhook_token",
-      { _token: token },
-    );
+    const { error } = await supabaseAdmin.rpc("set_metric_webhook_token", { _token: token });
     if (error) return { ok: false, reason: "rpc_error" as const, message: error.message };
 
     return { ok: true, configured: true } as const;

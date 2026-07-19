@@ -422,9 +422,9 @@ describe("sanidade do seed", () => {
       ),
     ).toBe(TIME_A_ATIVOS);
     expect(await refCount(`${ATIVO} AND status::text NOT IN ${TERMINAIS}`)).toBe(NAO_TERMINAIS);
-    expect(
-      await refCount(`${ATIVO} AND status::text IN ('novo','aguardando_atendimento')`),
-    ).toBe(SLA_PENDENTES_REF);
+    expect(await refCount(`${ATIVO} AND status::text IN ('novo','aguardando_atendimento')`)).toBe(
+      SLA_PENDENTES_REF,
+    );
   });
 
   it("todos os 13 status do enum estão representados entre os leads ativos", async () => {

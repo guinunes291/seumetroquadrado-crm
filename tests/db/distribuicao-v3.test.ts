@@ -45,10 +45,10 @@ let corretorB: UsuarioTeste; // "Bravo"
 
 async function triarComoServico(leadId: string, gatilho = "teste") {
   await comoSuperuser(c);
-  const r = await c.query(
-    `SELECT public.triar_e_distribuir_lead($1::uuid, $2) AS res`,
-    [leadId, gatilho],
-  );
+  const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, $2) AS res`, [
+    leadId,
+    gatilho,
+  ]);
   return r.rows[0].res as Record<string, unknown>;
 }
 
@@ -82,14 +82,12 @@ beforeAll(async () => {
 
   // Gestor monta a roleta 'landing' (seed; criterio 'manual', exige presença).
   await comoUsuario(c, gestor.id);
-  await c.query(
-    `SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`,
-    [corretorA.id],
-  );
-  await c.query(
-    `SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`,
-    [corretorB.id],
-  );
+  await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`, [
+    corretorA.id,
+  ]);
+  await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`, [
+    corretorB.id,
+  ]);
 
   // Cada corretor marca a própria presença (RPC real do app).
   await comoUsuario(c, corretorA.id);
@@ -297,10 +295,9 @@ describe("fila de exceções (lead nunca se perde)", () => {
     const lead = await leadAtual(leadSemElegiveis);
     expect(lead.corretor_id).toBeNull();
     expect(lead.status).toBe("novo");
-    const log = await c.query(
-      `SELECT resultado FROM public.distribution_log WHERE lead_id = $1`,
-      [leadSemElegiveis],
-    );
+    const log = await c.query(`SELECT resultado FROM public.distribution_log WHERE lead_id = $1`, [
+      leadSemElegiveis,
+    ]);
     expect(log.rows.map((r) => r.resultado)).toEqual(["sem_corretor"]);
   });
 
@@ -328,10 +325,10 @@ describe("fila de exceções (lead nunca se perde)", () => {
     ).toBe("P0001");
     expect(
       await errCode(
-        c.query(
-          `SELECT public.distribuir_lead_v3($1::uuid, 'manual', NULL, $2::uuid, 'hack')`,
-          [leadSemElegiveis, corretorA.id],
-        ),
+        c.query(`SELECT public.distribuir_lead_v3($1::uuid, 'manual', NULL, $2::uuid, 'hack')`, [
+          leadSemElegiveis,
+          corretorA.id,
+        ]),
       ),
     ).toBe("P0001");
     expect(
@@ -342,7 +339,9 @@ describe("fila de exceções (lead nunca se perde)", () => {
       ),
     ).toBe("P0001");
     expect(
-      await errCode(c.query(`SELECT public.resolver_excecao($1::uuid, 'reprocessar')`, [excecaoId])),
+      await errCode(
+        c.query(`SELECT public.resolver_excecao($1::uuid, 'reprocessar')`, [excecaoId]),
+      ),
     ).toBe("P0001");
 
     // Motor interno e ponderado: sem EXECUTE para authenticated (42501).
@@ -437,10 +436,9 @@ describe("elegibilidade: pausa fura a vez no rodízio", () => {
 
     // Reativa A e ele volta a ser apto.
     await comoUsuario(c, gestor.id);
-    await c.query(
-      `SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'reativar')`,
-      [corretorA.id],
-    );
+    await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'reativar')`, [
+      corretorA.id,
+    ]);
     await comoSuperuser(c);
     const eleg2 = await c.query(
       `SELECT apto FROM public._elegibilidade_roleta('landing', $1::uuid)`,

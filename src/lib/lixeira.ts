@@ -48,10 +48,7 @@ export function diasAteExpiracao(deletedAt: string | null): number {
 }
 
 /** Resumo amigável para o card de listagem da lixeira */
-export function resumoRegistro(
-  tabela: LixeiraTabela,
-  row: Record<string, unknown>,
-): string {
+export function resumoRegistro(tabela: LixeiraTabela, row: Record<string, unknown>): string {
   switch (tabela) {
     case "leads":
       return String(row.nome ?? "Lead sem nome");

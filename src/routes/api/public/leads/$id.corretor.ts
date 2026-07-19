@@ -94,10 +94,10 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
         // RPC canônica de transferência: além do corretor_id, renova
         // data_distribuicao (sem isso o job de redistribuição de parados
         // desfazia a realocação em minutos) e registra em distribution_log.
-        const { error: upErr } = await supabaseAdmin.rpc(
-          "transferir_leads",
-          { _ids: [id], _corretor: corretorId },
-        );
+        const { error: upErr } = await supabaseAdmin.rpc("transferir_leads", {
+          _ids: [id],
+          _corretor: corretorId,
+        });
         if (upErr) {
           await auditarEscrita({
             agente,

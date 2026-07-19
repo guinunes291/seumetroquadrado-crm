@@ -38,10 +38,10 @@ let seqLocal = 0;
 async function criarProjetoComSlug(): Promise<string> {
   await comoSuperuser(c);
   const n = ++seqLocal;
-  const r = await c.query(
-    `INSERT INTO public.projetos (nome, slug) VALUES ($1, $2) RETURNING id`,
-    [`Projeto Dedup ${n}`, `projeto-dedup-${n}-${Date.now()}`],
-  );
+  const r = await c.query(`INSERT INTO public.projetos (nome, slug) VALUES ($1, $2) RETURNING id`, [
+    `Projeto Dedup ${n}`,
+    `projeto-dedup-${n}-${Date.now()}`,
+  ]);
   return r.rows[0].id as string;
 }
 
@@ -51,10 +51,11 @@ function inserirLead(opts: {
   telefone: string | null;
   projetoId?: string | null;
 }): Promise<unknown> {
-  return c.query(
-    `INSERT INTO public.leads (nome, telefone, projeto_id) VALUES ($1, $2, $3)`,
-    [opts.nome ?? `Lead direto ${++seqLocal}`, opts.telefone, opts.projetoId ?? null],
-  );
+  return c.query(`INSERT INTO public.leads (nome, telefone, projeto_id) VALUES ($1, $2, $3)`, [
+    opts.nome ?? `Lead direto ${++seqLocal}`,
+    opts.telefone,
+    opts.projetoId ?? null,
+  ]);
 }
 
 beforeAll(async () => {
@@ -104,20 +105,14 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
   it("segundo lead com mesmo (projeto, telefone) é rejeitado com 23505", async () => {
     const projetoId = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990010", projetoId });
-    expect(
-      await errCode(inserirLead({ telefone: "11999990010", projetoId })),
-    ).toBe("23505");
+    expect(await errCode(inserirLead({ telefone: "11999990010", projetoId }))).toBe("23505");
   });
 
   it("variações de formatação que normalizam para os mesmos dígitos colidem", async () => {
     const projetoId = await criarProjetoComSlug();
     await criarLead(c, { telefone: "(11) 99999-0011", projetoId });
-    expect(
-      await errCode(inserirLead({ telefone: "11 99999 0011", projetoId })),
-    ).toBe("23505");
-    expect(
-      await errCode(inserirLead({ telefone: "11-99999-0011", projetoId })),
-    ).toBe("23505");
+    expect(await errCode(inserirLead({ telefone: "11 99999 0011", projetoId }))).toBe("23505");
+    expect(await errCode(inserirLead({ telefone: "11-99999-0011", projetoId }))).toBe("23505");
   });
 
   // BUG descoberto: a normalização do índice é só remoção de não-dígitos
@@ -131,18 +126,14 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
   it("variantes E.164 do mesmo telefone (+55 vs local) também colidem", async () => {
     const projetoId = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990012", projetoId });
-    expect(
-      await errCode(inserirLead({ telefone: "+55 11 99999-0012", projetoId })),
-    ).toBe("23505");
+    expect(await errCode(inserirLead({ telefone: "+55 11 99999-0012", projetoId }))).toBe("23505");
   });
 
   it("mesmo telefone em projetos diferentes NÃO colide (dedup é por projeto)", async () => {
     const projetoA = await criarProjetoComSlug();
     const projetoB = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990013", projetoId: projetoA });
-    expect(
-      await errCode(inserirLead({ telefone: "11999990013", projetoId: projetoB })),
-    ).toBeNull();
+    expect(await errCode(inserirLead({ telefone: "11999990013", projetoId: projetoB }))).toBeNull();
   });
 
   it("telefone curto (<8 dígitos) fica fora do índice parcial e não colide", async () => {
@@ -166,9 +157,7 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
     const antigo = await criarLead(c, { telefone: "11999990014", projetoId });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET deleted_at = now() WHERE id = $1`, [antigo]);
-    expect(
-      await errCode(inserirLead({ telefone: "11999990014", projetoId })),
-    ).toBeNull();
+    expect(await errCode(inserirLead({ telefone: "11999990014", projetoId }))).toBeNull();
   });
 
   it("lead na lixeira (na_lixeira=true) NÃO bloqueia duplicata (cliente retornante)", async () => {
@@ -181,9 +170,7 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
     const naLixeira = await criarLead(c, { telefone: "11999990015", projetoId });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [naLixeira]);
-    expect(
-      await errCode(inserirLead({ telefone: "11999990015", projetoId })),
-    ).toBeNull();
+    expect(await errCode(inserirLead({ telefone: "11999990015", projetoId }))).toBeNull();
     // ...e restaurar o antigo com o novo ativo agora conflita no índice.
     expect(
       await errCode(
@@ -196,9 +183,7 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
   // leads SEM projeto (uq_leads_sem_projeto_telefone_ativo).
   it("dois leads SEM projeto com o mesmo telefone: o segundo é rejeitado", async () => {
     await criarLead(c, { telefone: "11999990016", projetoId: null });
-    expect(
-      await errCode(inserirLead({ telefone: "11999990016", projetoId: null })),
-    ).toBe("23505");
+    expect(await errCode(inserirLead({ telefone: "11999990016", projetoId: null }))).toBe("23505");
   });
 });
 
@@ -207,10 +192,9 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
     const projetoId = await criarProjetoComSlug();
     const lead = await criarLead(c, { telefone: "(11) 99999-0020", projetoId });
     await comoSuperuser(c);
-    const r = await c.query(
-      `SELECT public.buscar_lead_duplicado($1, '11 99999 0020') AS id`,
-      [projetoId],
-    );
+    const r = await c.query(`SELECT public.buscar_lead_duplicado($1, '11 99999 0020') AS id`, [
+      projetoId,
+    ]);
     expect(r.rows[0].id).toBe(lead);
   });
 
@@ -219,10 +203,9 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
     const projetoB = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990021", projetoId: projetoA });
     await comoSuperuser(c);
-    const r = await c.query(
-      `SELECT public.buscar_lead_duplicado($1, '11999990021') AS id`,
-      [projetoB],
-    );
+    const r = await c.query(`SELECT public.buscar_lead_duplicado($1, '11999990021') AS id`, [
+      projetoB,
+    ]);
     expect(r.rows[0].id).toBeNull();
   });
 
@@ -230,10 +213,9 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
     const projetoId = await criarProjetoComSlug();
     await criarLead(c, { telefone: "1234567", projetoId });
     await comoSuperuser(c);
-    const r = await c.query(
-      `SELECT public.buscar_lead_duplicado($1, '1234567') AS id`,
-      [projetoId],
-    );
+    const r = await c.query(`SELECT public.buscar_lead_duplicado($1, '1234567') AS id`, [
+      projetoId,
+    ]);
     expect(r.rows[0].id).toBeNull();
   });
 
@@ -242,10 +224,9 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
     const lead = await criarLead(c, { telefone: "11999990022", projetoId });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET deleted_at = now() WHERE id = $1`, [lead]);
-    const r = await c.query(
-      `SELECT public.buscar_lead_duplicado($1, '11999990022') AS id`,
-      [projetoId],
-    );
+    const r = await c.query(`SELECT public.buscar_lead_duplicado($1, '11999990022') AS id`, [
+      projetoId,
+    ]);
     expect(r.rows[0].id).toBeNull();
   });
 
@@ -254,10 +235,9 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
     const lead = await criarLead(c, { telefone: "11999990023", projetoId });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [lead]);
-    const r = await c.query(
-      `SELECT public.buscar_lead_duplicado($1, '11999990023') AS id`,
-      [projetoId],
-    );
+    const r = await c.query(`SELECT public.buscar_lead_duplicado($1, '11999990023') AS id`, [
+      projetoId,
+    ]);
     expect(r.rows[0].id).toBe(lead);
   });
 
@@ -267,10 +247,9 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
     const projetoId = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990024", projetoId });
     await comoSuperuser(c);
-    const r = await c.query(
-      `SELECT public.buscar_lead_duplicado($1, '+55 11 99999-0024') AS id`,
-      [projetoId],
-    );
+    const r = await c.query(`SELECT public.buscar_lead_duplicado($1, '+55 11 99999-0024') AS id`, [
+      projetoId,
+    ]);
     expect(r.rows[0].id).toBeNull();
   });
 });
@@ -287,9 +266,7 @@ describe("buscar_lead_por_telefone(_telefone)", () => {
       `UPDATE public.leads SET created_at = created_at - interval '1 hour' WHERE id = $1`,
       [antigo],
     );
-    const r = await c.query(
-      `SELECT public.buscar_lead_por_telefone('(11) 99999-0030') AS id`,
-    );
+    const r = await c.query(`SELECT public.buscar_lead_por_telefone('(11) 99999-0030') AS id`);
     expect(r.rows[0].id).toBe(recente);
   });
 
@@ -304,9 +281,7 @@ describe("buscar_lead_por_telefone(_telefone)", () => {
     const lead = await criarLead(c, { telefone: "11999990031" });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [lead]);
-    const r = await c.query(
-      `SELECT public.buscar_lead_por_telefone('11999990031') AS id`,
-    );
+    const r = await c.query(`SELECT public.buscar_lead_por_telefone('11999990031') AS id`);
     expect(r.rows[0].id).toBeNull();
   });
 
@@ -314,9 +289,7 @@ describe("buscar_lead_por_telefone(_telefone)", () => {
     const lead = await criarLead(c, { telefone: "11999990032" });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET deleted_at = now() WHERE id = $1`, [lead]);
-    const r = await c.query(
-      `SELECT public.buscar_lead_por_telefone('11999990032') AS id`,
-    );
+    const r = await c.query(`SELECT public.buscar_lead_por_telefone('11999990032') AS id`);
     expect(r.rows[0].id).toBeNull();
   });
 
@@ -329,9 +302,7 @@ describe("buscar_lead_por_telefone(_telefone)", () => {
        WHERE id = $1`,
       [lead],
     );
-    const r = await c.query(
-      `SELECT public.buscar_lead_por_telefone('11999990033') AS id`,
-    );
+    const r = await c.query(`SELECT public.buscar_lead_por_telefone('11999990033') AS id`);
     expect(r.rows[0].id).toBe(lead);
   });
 });
@@ -385,10 +356,9 @@ describe("buscar_lead_ativo_por_telefone_global(_telefone)", () => {
     const antigo = await criarLead(c, { telefone: "11999990044", projetoId: projetoA });
     const recente = await criarLead(c, { telefone: "11999990044", projetoId: projetoB });
     await comoSuperuser(c);
-    await c.query(
-      `UPDATE public.leads SET updated_at = now() - interval '1 hour' WHERE id = $1`,
-      [antigo],
-    );
+    await c.query(`UPDATE public.leads SET updated_at = now() - interval '1 hour' WHERE id = $1`, [
+      antigo,
+    ]);
     await c.query(`UPDATE public.leads SET updated_at = now() WHERE id = $1`, [recente]);
     const r = await c.query(
       `SELECT public.buscar_lead_ativo_por_telefone_global('11999990044') AS id`,
@@ -432,10 +402,7 @@ describe("mesclar_leads(_lead_destino, _lead_origem)", () => {
     );
 
     await comoUsuario(c, admin.id);
-    const r = await c.query(`SELECT public.mesclar_leads($1, $2) AS ok`, [
-      destino,
-      origem,
-    ]);
+    const r = await c.query(`SELECT public.mesclar_leads($1, $2) AS ok`, [destino, origem]);
     expect(r.rows[0].ok).toBe(true);
 
     await comoSuperuser(c);
@@ -467,10 +434,9 @@ describe("mesclar_leads(_lead_destino, _lead_origem)", () => {
     expect(origemRow.rows[0].observacoes).toContain(`[Mesclado no lead ${destino}]`);
 
     // O destino segue ativo.
-    const destinoRow = await c.query(
-      `SELECT deleted_at FROM public.leads WHERE id = $1`,
-      [destino],
-    );
+    const destinoRow = await c.query(`SELECT deleted_at FROM public.leads WHERE id = $1`, [
+      destino,
+    ]);
     expect(destinoRow.rows[0].deleted_at).toBeNull();
   });
 
@@ -485,27 +451,25 @@ describe("mesclar_leads(_lead_destino, _lead_origem)", () => {
       corretorId: corretor.id,
     });
     await comoUsuario(c, corretor.id);
-    expect(
-      await errCode(c.query(`SELECT public.mesclar_leads($1, $2)`, [destino, origem])),
-    ).toBe("42501");
+    expect(await errCode(c.query(`SELECT public.mesclar_leads($1, $2)`, [destino, origem]))).toBe(
+      "42501",
+    );
   });
 
   it("sem usuário autenticado (auth.uid() NULL) é proibido (42501)", async () => {
     const destino = await criarLead(c, { telefone: "11999990053" });
     const origem = await criarLead(c, { telefone: "11999990054" });
     await comoSuperuser(c);
-    expect(
-      await errCode(c.query(`SELECT public.mesclar_leads($1, $2)`, [destino, origem])),
-    ).toBe("42501");
+    expect(await errCode(c.query(`SELECT public.mesclar_leads($1, $2)`, [destino, origem]))).toBe(
+      "42501",
+    );
   });
 
   it("destino igual à origem é rejeitado com 22023", async () => {
     const admin = await criarUsuario(c, { papel: "admin" });
     const lead = await criarLead(c, { telefone: "11999990055" });
     await comoUsuario(c, admin.id);
-    expect(
-      await errCode(c.query(`SELECT public.mesclar_leads($1, $1)`, [lead])),
-    ).toBe("22023");
+    expect(await errCode(c.query(`SELECT public.mesclar_leads($1, $1)`, [lead]))).toBe("22023");
   });
 
   it("após a mesclagem, o telefone da origem libera o slot de dedup do projeto dela", async () => {
@@ -519,11 +483,9 @@ describe("mesclar_leads(_lead_destino, _lead_origem)", () => {
     await comoSuperuser(c);
     // origem soft-deletada sai do índice parcial: telefone volta a ser aceito
     // no projeto B (o destino continua bloqueando o projeto A).
-    expect(
-      await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoB })),
-    ).toBeNull();
-    expect(
-      await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoA })),
-    ).toBe("23505");
+    expect(await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoB }))).toBeNull();
+    expect(await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoA }))).toBe(
+      "23505",
+    );
   });
 });

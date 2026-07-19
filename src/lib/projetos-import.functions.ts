@@ -123,10 +123,7 @@ export const importarProjetos = createServerFn({ method: "POST" })
           result.detalhes.push({ linha, motivo: "já existe (slug)", nome });
           continue;
         }
-        const { error } = await supabase
-          .from("projetos")
-          .update(payload)
-          .eq("id", existingId);
+        const { error } = await supabase.from("projetos").update(payload).eq("id", existingId);
         if (error) {
           result.erros++;
           result.detalhes.push({ linha, motivo: error.message, nome });

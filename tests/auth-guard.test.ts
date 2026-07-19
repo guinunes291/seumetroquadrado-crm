@@ -33,19 +33,13 @@ describe("verificarContaAtiva", () => {
   });
 
   it("retry: falha na 1ª tentativa e sucesso na 2ª segue como ativa", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce(falha())
-      .mockResolvedValueOnce(ok(true));
+    const rpc = vi.fn().mockResolvedValueOnce(falha()).mockResolvedValueOnce(ok(true));
     await expect(verificarContaAtiva(rpc, { esperaMs: 0 })).resolves.toBe("ativa");
     expect(rpc).toHaveBeenCalledTimes(2);
   });
 
   it("retry: falha na 1ª e negação real na 2ª desloga", async () => {
-    const rpc = vi
-      .fn()
-      .mockResolvedValueOnce(falha())
-      .mockResolvedValueOnce(ok(false));
+    const rpc = vi.fn().mockResolvedValueOnce(falha()).mockResolvedValueOnce(ok(false));
     await expect(verificarContaAtiva(rpc, { esperaMs: 0 })).resolves.toBe("inativa");
   });
 
