@@ -1493,6 +1493,11 @@ function RankingPanel() {
                               {r.meta > 0 && (
                                 <span className="text-navy-400 tabular-nums">Meta: {r.meta}</span>
                               )}
+                              {r.vgv > 0 && (
+                                <span className="text-emerald-300 font-semibold tabular-nums">
+                                  {fmtBRL(r.vgv)}
+                                </span>
+                              )}
                               <span className="text-white font-semibold tabular-nums">
                                 {r.vendas}
                               </span>
