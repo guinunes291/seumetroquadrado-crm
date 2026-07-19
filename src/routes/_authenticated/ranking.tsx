@@ -1464,6 +1464,9 @@ function RankingPanel() {
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Target className="w-4 h-4 text-purple-400" /> Vendas por Corretor — Real x Meta
+                <span className="ml-auto text-emerald-300 normal-case tracking-normal">
+                  VGV total: {fmtBRL(totaisMes.vgv)}
+                </span>
               </h3>
               {(() => {
                 const metasMap = new Map<string, number>();
