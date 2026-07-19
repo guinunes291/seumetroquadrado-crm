@@ -141,6 +141,14 @@ function formatNum(n: number) {
   return new Intl.NumberFormat("pt-BR").format(n);
 }
 
+function fmtBRL(n: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
 function getHeatColor(value: number, values: number[]): string {
   if (values.length === 0 || value === 0) return "text-navy-400";
   const sorted = [...values].filter((v) => v > 0).sort((a, b) => a - b);
