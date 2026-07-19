@@ -170,14 +170,14 @@ export function useConquistas({ scopeIds, scopeKey, scopeReady }: ScopeProps) {
     enabled: !!user && scopeReady,
     queryFn: async () => {
       // head:true — só a contagem viaja, nenhuma linha de id.
-      let ganhasQ = supabase.from("conquistas").select("id", {
+      let ganhasQ = (supabase as any).from("conquistas").select("id", {
         count: "exact",
         head: true,
       });
       if (scopeIds) ganhasQ = ganhasQ.in("corretor_id", scopeIds);
       const [minhas, tipos] = await Promise.all([
         ganhasQ,
-        supabase
+        (supabase as any)
           .from("tipos_conquista")
           .select("id", { count: "exact", head: true })
           .eq("ativo", true),
