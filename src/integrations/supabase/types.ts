@@ -432,6 +432,27 @@ export type Database = {
         }
         Relationships: []
       }
+      api_rate_limits: {
+        Row: {
+          expires_at: string
+          key_hash: string
+          request_count: number
+          window_started_at: string
+        }
+        Insert: {
+          expires_at: string
+          key_hash: string
+          request_count?: number
+          window_started_at: string
+        }
+        Update: {
+          expires_at?: string
+          key_hash?: string
+          request_count?: number
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       atividades_diarias: {
         Row: {
           agendamentos: number
@@ -4820,6 +4841,18 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      consumir_api_rate_limit: {
+        Args: {
+          _key_hash: string
+          _max_requests: number
+          _window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          remaining: number
+          retry_after_seconds: number
+        }[]
+      }
       consumir_vitrine_requisicao: {
         Args: { _token_hash: string }
         Returns: string
@@ -5328,6 +5361,7 @@ export type Database = {
           status: string
         }[]
       }
+      limpar_api_rate_limits: { Args: never; Returns: number }
       limpar_vitrine_eventos_expirados: {
         Args: { _antes?: string }
         Returns: number
