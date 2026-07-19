@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
+import { RoutePending } from "./components/route-pending";
 
 export const getRouter = () => {
   const queryClient = new QueryClient({
@@ -29,6 +30,14 @@ export const getRouter = () => {
     // conta_atual_ativa) seja reaproveitado — sem re-rodar o guard a cada hover.
     defaultPreload: "intent",
     defaultPreloadStaleTime: 30_000,
+    // As rotas autenticadas têm ssr:false: no primeiro load o servidor entrega
+    // uma casca vazia e o guard ainda faz chamadas de rede. Sem um pending
+    // component o usuário encara uma tela escura sem nenhum feedback (o
+    // "sistema travado" reportado no celular). 300ms preserva as navegações
+    // rápidas sem flash; minMs evita piscada quando o load resolve logo após.
+    defaultPendingComponent: RoutePending,
+    defaultPendingMs: 300,
+    defaultPendingMinMs: 500,
     // Transição nativa entre rotas (View Transitions API): fade + deslize de
     // 4px definidos em styles.css. No-op em browsers sem suporte; desligada
     // sob prefers-reduced-motion pelo bloco global de motion.

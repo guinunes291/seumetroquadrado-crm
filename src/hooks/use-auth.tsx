@@ -10,6 +10,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { readLocalSession } from "@/lib/auth-fallback";
 import type { Session, User } from "@supabase/supabase-js";
 
 export type AppRole = "admin" | "gestor" | "corretor" | "superintendente";
@@ -43,9 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    let settled = false;
 
     const applySession = (next: Session | null) => {
       if (!active) return;
+      settled = true;
       const nextUserId = next?.user.id ?? null;
       const previousUserId = currentUserId.current;
 
@@ -65,8 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void supabase.auth.getSession().then(({ data }) => applySession(data.session));
 
+    // getSession/onAuthStateChange podem nunca responder quando o Navigator
+    // LockManager fica preso (Safari/iOS após suspensão da aba) — sem este
+    // teto, loading=true eterno congela o app inteiro em skeletons. Aplica a
+    // sessão gravada no aparelho e segue; quando o lock destravar, o evento
+    // real do supabase corrige o estado.
+    const failSafe = window.setTimeout(() => {
+      if (!settled) applySession(readLocalSession());
+    }, 4000);
+
     return () => {
       active = false;
+      window.clearTimeout(failSafe);
       subscription.subscription.unsubscribe();
     };
   }, [queryClient, router]);

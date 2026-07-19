@@ -1,6 +1,12 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  ACCOUNT_RPC_TIMEOUT_MS,
+  AUTH_USER_TIMEOUT_MS,
+  readLocalSession,
+  settleWithTimeout,
+} from "@/lib/auth-fallback";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { NotificationBell } from "@/components/notification-bell";
@@ -63,11 +69,66 @@ function markPresenceSafely() {
   })();
 }
 
+// Erros de auth que significam "sessão realmente inválida" (e não um soluço de
+// infraestrutura): sessão ausente no client, ou o servidor negando o token.
+// Qualquer outra coisa (rede, 5xx, timeout) NUNCA pode deslogar nem travar o boot.
+function isDefinitiveAuthDenial(error: { name?: string; status?: number }): boolean {
+  if (error.name === "AuthSessionMissingError") return true;
+  return error.status === 400 || error.status === 401 || error.status === 403;
+}
+
+// Estado da conta com teto de tempo por tentativa. Timeout/exceção contam como
+// falha de infraestrutura (accountError) — o chamador já degrada nesse caso.
+async function checkContaAtiva(): Promise<{ contaAtiva: boolean | null; accountError: unknown }> {
+  let contaAtiva: boolean | null = null;
+  let accountError: unknown = null;
+  for (let tentativa = 0; tentativa < 2; tentativa++) {
+    const step = await settleWithTimeout(supabase.rpc("conta_atual_ativa"), ACCOUNT_RPC_TIMEOUT_MS);
+    if (step.ok) {
+      accountError = step.value.error;
+      contaAtiva = step.value.data as boolean | null;
+      if (!step.value.error) break;
+    } else {
+      accountError = new Error("conta_atual_ativa não respondeu no tempo limite");
+    }
+    if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  return { contaAtiva, accountError };
+}
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // Com ssr:false o usuário só vê alguma coisa DEPOIS que este guard
+    // resolve — ele jamais pode pendurar. getUser valida o token no servidor,
+    // mas em rede fraca (fetch sem timeout) ou com o LockManager preso
+    // (Safari/iOS após suspensão da aba) a promise nunca resolve e o app fica
+    // numa tela escura. Toda etapa tem teto de tempo; na dúvida degradamos
+    // para a sessão local, pois RLS/has_role continuam sendo a barreira real.
+    const contaAtivaPromise = checkContaAtiva();
+    const userStep = await settleWithTimeout(supabase.auth.getUser(), AUTH_USER_TIMEOUT_MS);
+
+    let user = null;
+    if (userStep.ok) {
+      const { data, error } = userStep.value;
+      if (!error && data.user) {
+        user = data.user;
+      } else if (error && !isDefinitiveAuthDenial(error)) {
+        // Falha de infraestrutura (rede/5xx): mantém a sessão gravada no
+        // aparelho em vez de expulsar o usuário para /auth.
+        user = readLocalSession()?.user ?? null;
+        if (user) {
+          console.warn("getUser indisponível; seguindo com a sessão local", error);
+        }
+      }
+    } else {
+      user = readLocalSession()?.user ?? null;
+      if (user) {
+        console.warn("getUser não respondeu no tempo limite; seguindo com a sessão local");
+      }
+    }
+
+    if (!user) {
       throw redirect({ to: "/auth", search: { next: location.href } });
     }
 
@@ -77,15 +138,7 @@ export const Route = createFileRoute("/_authenticated")({
     // NUNCA desloga — degradamos mantendo a sessão, pois RLS/has_role
     // continuam sendo a barreira real no servidor. Um soluço de banco não
     // pode derrubar todos os usuários (nem revogar suas outras sessões).
-    let contaAtiva: boolean | null = null;
-    let accountError: unknown = null;
-    for (let tentativa = 0; tentativa < 2; tentativa++) {
-      const res = await supabase.rpc("conta_atual_ativa");
-      accountError = res.error;
-      contaAtiva = res.data as boolean | null;
-      if (!res.error) break;
-      if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 400));
-    }
+    const { contaAtiva, accountError } = await contaAtivaPromise;
 
     if (!accountError && !contaAtiva) {
       // Resposta definitiva do banco: conta inativa/bloqueada. Encerra apenas a
@@ -105,7 +158,7 @@ export const Route = createFileRoute("/_authenticated")({
 
     // Auto check-in para liberar a distribuição automática de leads.
     markPresenceSafely();
-    return { user: data.user };
+    return { user };
   },
   component: AuthenticatedLayout,
 });
