@@ -537,9 +537,9 @@ describe("distribuir_lead_ponderado (motor por tier / SWRR)", () => {
 
   // BUG descoberto: distribuir_lead_ponderado não tem a checagem de
   // idempotência do v3 ("distribuição automática nunca rouba lead já
-  // atribuído") nem FOR UPDATE no lead — chamado sobre um lead que JÁ tem
-  // corretor, ele simplesmente reatribui (rouba) o lead e loga 'automatica'.
-  it.fails("ponderado sobre lead já atribuído deveria ser idempotente (não roubar o lead)", async () => {
+  // atribuído") nem FOR UPDATE no lead. Corrigido na migration
+  // 20260719123000: FOR UPDATE + retorno {ok:false, motivo:'ja_atribuido'}.
+  it("ponderado sobre lead já atribuído deveria ser idempotente (não roubar o lead)", async () => {
     await comoUsuario(c, gestor.id);
     await c.query(
       `SELECT public.gerenciar_participante_roleta('marquinhos', $1::uuid, 'remover')`,
@@ -558,15 +558,14 @@ describe("distribuir_lead_ponderado (motor por tier / SWRR)", () => {
     );
     // Comportamento correto: reconhecer que já está atribuído e não mexer.
     const dono = await c.query(`SELECT corretor_id FROM public.leads WHERE id = $1`, [leadDeB]);
-    expect(dono.rows[0].corretor_id).toBe(corretorB.id); // FALHA: virou do corretor A
+    expect(dono.rows[0].corretor_id).toBe(corretorB.id);
     expect(r.rows[0].res.corretor_id ?? corretorB.id).toBe(corretorB.id);
   });
 
-  // BUG descoberto: sem lock no lead, duas execuções simultâneas do
-  // ponderado sobre o MESMO lead completam ambas — 2 logs 'sucesso' para o
-  // mesmo lead e cursor/wrr avançado duas vezes (o v3 previne isso com
-  // FOR UPDATE + checagem de ja_atribuido; o ponderado não).
-  it.fails("ponderado concorrente no mesmo lead deveria produzir UM único log de sucesso", async () => {
+  // Corrigido na migration 20260719123000: FOR UPDATE no lead serializa
+  // chamadas do mesmo lead (a segunda vê ja_atribuido) e o advisory lock do
+  // cursor SWRR serializa leads diferentes na mesma roleta.
+  it("ponderado concorrente no mesmo lead deveria produzir UM único log de sucesso", async () => {
     await comoSuperuser(c);
     const leadId = await criarLead(c, { origem: "chatbot" });
 
@@ -580,6 +579,6 @@ describe("distribuir_lead_ponderado (motor por tier / SWRR)", () => {
         WHERE lead_id = $1 AND resultado = 'sucesso'`,
       [leadId],
     );
-    expect(logs.rows[0].n).toBe(1); // FALHA: são 2
+    expect(logs.rows[0].n).toBe(1);
   });
 });

@@ -284,14 +284,11 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
     expect(await statusTarefa(tDoc)).toBe("pendente");
   });
 
-  // BUG descoberto: transicionar_lead grava proximo_followup = NULL ao fechar
-  // (contrato_fechado/pos_venda/perdido), mas o cancelamento em cascata das
-  // tarefas re-dispara sync_proximo_followup, que NÃO filtra por tipo — uma
-  // tarefa 'visita'/'documentacao'/'outro' pendente com data_vencimento
-  // sobrevive ao fechamento e REPOVOA proximo_followup do lead fechado.
-  // Regra de negócio (contrato do RPC): lead fechado/perdido fica sem
-  // follow-up agendado.
-  it.fails("BUG: lead perdido deveria ficar com proximo_followup NULL mesmo com tarefa 'visita' pendente remanescente", async () => {
+  // Corrigido na migration 20260719123000: sync_proximo_followup zera o
+  // espelho para lead em status terminal (contrato_fechado/pos_venda/
+  // perdido) — tarefa não-contato pendente não repovoa o follow-up de lead
+  // encerrado.
+  it("lead perdido fica com proximo_followup NULL mesmo com tarefa 'visita' pendente remanescente", async () => {
     const lead = await criarLead(c, { corretorId: corretor.id, status: "em_atendimento" });
     await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "follow_up", vencimento: daquiDias(1) });
     await criarTarefa({ leadId: lead, corretorId: corretor.id, tipo: "visita", vencimento: daquiDias(5) });
@@ -305,7 +302,6 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
       [lead],
     );
     expect(l.rows[0].status).toBe("perdido");
-    // comportamento real: proximo_followup = data da visita pendente (bug)
     expect(l.rows[0].proximo_followup).toBeNull();
   });
 
@@ -315,11 +311,13 @@ describe("fechamento/perda do lead cancela follow-ups (trg_leads_cancelar_follow
     await c.query(`SELECT public.marcar_lead_perdido_v2($1, 'sem_perfil', 'sem interesse')`, [lead]);
 
     // criar tarefa aberta num lead JÁ perdido: o cancelamento não re-executa
-    // (só roda no UPDATE de leads.status) e o espelho volta a ser preenchido.
+    // (só roda no UPDATE de leads.status) — a tarefa fica pendente, mas o
+    // espelho NÃO é repovoado (sync_proximo_followup ignora lead terminal
+    // desde a migration 20260719123000).
     const venc = daquiDias(2);
     const t = await criarTarefa({ leadId: lead, corretorId: corretor.id, vencimento: venc });
     expect(await statusTarefa(t)).toBe("pendente");
-    expect((await espelho(lead))?.getTime()).toBe(venc.getTime());
+    expect(await espelho(lead)).toBeNull();
   });
 });
 

@@ -95,12 +95,17 @@ async function erroDe(p: Promise<unknown>): Promise<{ code?: string; message: st
 }
 
 /** Insere lead direto (superusuário) num status terminal, contornando o RPC —
- *  como um dado histórico. `perdido` exige motivo_perda_categoria no INSERT. */
+ *  como um dado histórico. `perdido` exige motivo_perda_categoria no INSERT.
+ *  Modo réplica: pula os triggers de INSERT (o guard
+ *  trg_proteger_fechamento_insert, corrigido nesta auditoria, bloqueia
+ *  INSERT já fechado sem venda aprovada — aqui o objetivo é justamente
+ *  semear um dado histórico como fixture). */
 async function criarLeadTerminal(
   status: "contrato_fechado" | "perdido" | "pos_venda",
   corretorId: string,
 ): Promise<string> {
   await comoSuperuser(c);
+  await c.query(`SET session_replication_role = replica`);
   const r = await c.query(
     `INSERT INTO public.leads
        (nome, telefone, corretor_id, status, origem, motivo_perdido, motivo_perda_categoria)
@@ -115,6 +120,7 @@ async function criarLeadTerminal(
       status === "perdido" ? "sem_contato" : null,
     ],
   );
+  await c.query(`SET session_replication_role = DEFAULT`);
   return r.rows[0].id as string;
 }
 

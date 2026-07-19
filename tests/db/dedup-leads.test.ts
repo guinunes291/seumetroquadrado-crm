@@ -127,7 +127,8 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
   // webhook) e a outra sem (digitação manual). O banco tem a função
   // _telefone_e164_br e a coluna telefone_e164 exatamente para unificar
   // isso, mas o índice (e as RPCs de dedup) não a usam.
-  it.fails("variantes E.164 do mesmo telefone (+55 vs local) também colidem", async () => {
+  // Corrigido na 20260719123000: chave do índice é right(dígitos, 10).
+  it("variantes E.164 do mesmo telefone (+55 vs local) também colidem", async () => {
     const projetoId = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990012", projetoId });
     expect(
@@ -170,27 +171,30 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
     ).toBeNull();
   });
 
-  it("lead na lixeira (na_lixeira=true, sem deleted_at) AINDA bloqueia duplicata", async () => {
-    // Comportamento real: o predicado do índice olha só deleted_at, não
-    // na_lixeira. Nota de auditoria: isso conflita com a intenção documentada
-    // em buscar_lead_por_telefone ("lead na lixeira NÃO conta como duplicata
-    // — cliente retornante gera lead NOVO"): o retorno de um cliente com lead
-    // na lixeira do MESMO projeto é barrado com 23505 no INSERT.
+  it("lead na lixeira (na_lixeira=true) NÃO bloqueia duplicata (cliente retornante)", async () => {
+    // Corrigido na migration 20260719123000: o predicado dos índices passou a
+    // excluir na_lixeira=true, alinhando com buscar_lead_por_telefone ("lead
+    // na lixeira NÃO conta como duplicata — cliente retornante gera lead
+    // NOVO"). O restore de um lead conflitante volta a ser barrado pelo
+    // índice (conflito explícito para o gestor mesclar).
     const projetoId = await criarProjetoComSlug();
     const naLixeira = await criarLead(c, { telefone: "11999990015", projetoId });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [naLixeira]);
     expect(
       await errCode(inserirLead({ telefone: "11999990015", projetoId })),
+    ).toBeNull();
+    // ...e restaurar o antigo com o novo ativo agora conflita no índice.
+    expect(
+      await errCode(
+        c.query(`UPDATE public.leads SET na_lixeira = false WHERE id = $1`, [naLixeira]),
+      ),
     ).toBe("23505");
   });
 
-  // BUG descoberto: leads sem projeto não têm constraint de dedup — o índice
-  // é parcial com "projeto_id IS NOT NULL", então dois leads com projeto_id
-  // NULL e o MESMO telefone são aceitos (a corrida do intake continua aberta
-  // para lead sem projeto). Correção por migration prevista nesta auditoria;
-  // quando entrar, este caso passa a valer.
-  it.fails("dois leads SEM projeto com o mesmo telefone: o segundo é rejeitado", async () => {
+  // Corrigido na migration 20260719120000: índice único parcial também para
+  // leads SEM projeto (uq_leads_sem_projeto_telefone_ativo).
+  it("dois leads SEM projeto com o mesmo telefone: o segundo é rejeitado", async () => {
     await criarLead(c, { telefone: "11999990016", projetoId: null });
     expect(
       await errCode(inserirLead({ telefone: "11999990016", projetoId: null })),
