@@ -1597,6 +1597,78 @@ function RankingPanel() {
                 vendas={totaisPeriodo.vendas}
               />
             </div>
+
+            {/* VGV por Corretor — soma do VGV de todos que venderam no período */}
+            <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5 mt-5">
+              <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-400" /> VGV por Corretor —{" "}
+                {PERIODO_LABELS[periodo]}
+                <span className="ml-auto text-emerald-300 normal-case tracking-normal">
+                  Total: {fmtBRL(totaisPeriodo.vgv)}
+                </span>
+              </h3>
+              {(() => {
+                const rows = rankingProd
+                  .filter((r) => r.vgv > 0)
+                  .sort((a, b) => b.vgv - a.vgv);
+                if (rows.length === 0) {
+                  return (
+                    <div className="text-navy-400 text-sm py-6 text-center">
+                      Nenhuma venda no período.
+                    </div>
+                  );
+                }
+                const max = rows[0].vgv || 1;
+                return (
+                  <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-12 gap-2 text-[10px] text-navy-400 uppercase tracking-wider px-2 pb-2 border-b border-navy-700/50">
+                      <div className="col-span-1">#</div>
+                      <div className="col-span-6">Executivo</div>
+                      <div className="col-span-2 text-right">Vendas</div>
+                      <div className="col-span-3 text-right">VGV</div>
+                    </div>
+                    {rows.map((r, i) => {
+                      const w = (r.vgv / max) * 100;
+                      return (
+                        <div
+                          key={r.corretorId}
+                          className={`grid grid-cols-12 gap-2 items-center py-2 px-2 rounded-lg ${i < 3 ? "bg-navy-800/40" : "hover:bg-navy-800/20"} transition-colors`}
+                        >
+                          <div className="col-span-1 text-sm font-bold tabular-nums text-navy-300">
+                            {i + 1}
+                          </div>
+                          <div className="col-span-6 flex items-center gap-2 min-w-0">
+                            <Avatar className="w-7 h-7">
+                              <AvatarImage src={r.foto ?? undefined} />
+                              <AvatarFallback className="text-[10px] bg-navy-700 text-white">
+                                {getInitials(r.nome)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-white text-xs font-medium truncate">
+                              {r.nome}
+                            </span>
+                          </div>
+                          <div className="col-span-2 text-right text-cyan-300 text-sm font-bold tabular-nums">
+                            {formatNum(r.vendas)}
+                          </div>
+                          <div className="col-span-3 text-right">
+                            <div className="text-emerald-300 text-sm font-bold tabular-nums">
+                              {fmtBRL(r.vgv)}
+                            </div>
+                            <div className="mt-1 h-1.5 rounded-full bg-navy-800 overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-400/70"
+                                style={{ width: `${w}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           </>
         )}
 
