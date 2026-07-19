@@ -21,20 +21,36 @@ function IndexRedirect() {
 
   useEffect(() => {
     let cancelled = false;
-
-    void supabase.auth.getUser().then(({ data }) => {
+    const redirect = (to: "/auth" | "/hoje", search?: { next: string }) => {
       if (cancelled) return;
+      void navigate(search ? { to, search, replace: true } : { to, replace: true });
+    };
 
-      if (data.user) {
-        void navigate({ to: "/hoje", replace: true });
-        return;
-      }
+    const failSafe = window.setTimeout(() => {
+      redirect("/auth", { next: "/" });
+    }, 3500);
 
-      void navigate({ to: "/auth", search: { next: "/" }, replace: true });
-    });
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+
+        window.clearTimeout(failSafe);
+        if (data.session) {
+          redirect("/hoje");
+          return;
+        }
+
+        redirect("/auth", { next: "/" });
+      })
+      .catch(() => {
+        window.clearTimeout(failSafe);
+        redirect("/auth", { next: "/" });
+      });
 
     return () => {
       cancelled = true;
+      window.clearTimeout(failSafe);
     };
   }, [navigate]);
 
