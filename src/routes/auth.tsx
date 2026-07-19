@@ -44,7 +44,7 @@ function AuthPage() {
         if (destino.startsWith("/") && destino !== "/") {
           window.location.href = destino;
         } else {
-          navigate({ to: "/" });
+          navigate({ to: "/hoje" });
         }
       }
     });
@@ -70,7 +70,7 @@ function AuthPage() {
     if (destino !== "/") {
       window.location.href = destino;
     } else {
-      navigate({ to: "/" });
+      navigate({ to: "/hoje" });
     }
   };
 
@@ -114,7 +114,7 @@ function AuthPage() {
     if (destino !== "/") {
       window.location.href = destino;
     } else {
-      navigate({ to: "/" });
+      navigate({ to: "/hoje" });
     }
   };
 
