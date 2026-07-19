@@ -331,7 +331,7 @@ export async function atualizarEmpreendimentoLead(
   // (ver contract-sale-dialog) para evitar atrito com os tipos gerados.
   const { error } = await supabase
     .from("leads")
-    .update(patch as never)
+    .update(patch)
     .eq("id", leadId);
   if (error) throw error;
 }

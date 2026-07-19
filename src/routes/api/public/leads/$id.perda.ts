@@ -156,7 +156,7 @@ export const Route = createFileRoute("/api/public/leads/$id/perda")({
             })
           : await supabaseAdmin
               .from("leads")
-              .update(patch as never)
+              .update(patch)
               .eq("id", id);
         if (mutationResult.error) {
           const status = ["22023", "23514"].includes(mutationResult.error.code) ? 422 : 500;

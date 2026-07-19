@@ -165,8 +165,8 @@ export function TransferSlaBadge({
       (async () => {
         try {
           const { data } = await supabase.rpc(
-            "disparar_repasse_sla_lead" as never,
-            { _lead_id: leadId } as never,
+            "disparar_repasse_sla_lead",
+            { _lead_id: leadId },
           );
           if (data === true) {
             qc.invalidateQueries({ queryKey: ["leads"] });

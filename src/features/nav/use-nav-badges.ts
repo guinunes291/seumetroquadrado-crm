@@ -38,7 +38,7 @@ export function useNavBadges(): NavBadges | null {
       rpcWithFallback(
         async () => {
           // RPC fora dos types gerados (migration pode não estar aplicada).
-          const res = (await supabase.rpc("nav_pendencias" as never)) as {
+          const res = (await supabase.rpc("nav_pendencias")) as {
             data: unknown;
             error: { code?: string; message?: string } | null;
           };

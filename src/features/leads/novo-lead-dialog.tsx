@@ -111,47 +111,55 @@ function NovoLeadForm({
         throw new Error("E-mail inválido.");
       }
 
-      // Checagem de duplicidade por telefone (somente dígitos) e/ou e-mail
-      const telDigits = form.telefone.replace(/\D/g, "");
+      // Duplicidade por e-mail: checagem client-side (best-effort, sob RLS).
+      // A duplicidade por TELEFONE é decidida no servidor pela RPC abaixo,
+      // com lock transacional — imune a corrida e a variações de máscara/DDI.
       const emailNorm = form.email.trim().toLowerCase();
-      const orFilters: string[] = [];
-      if (telDigits) orFilters.push(`telefone.ilike.%${telDigits.slice(-10)}%`);
-      if (emailNorm) orFilters.push(`email.ilike.${emailNorm}`);
-      if (orFilters.length > 0) {
+      if (emailNorm) {
         const { data: dup, error: dupErr } = await supabase
           .from("leads")
-          .select("id, nome, telefone, email, na_lixeira")
-          .or(orFilters.join(","))
+          .select("id, nome, email")
+          .ilike("email", emailNorm)
           .limit(1);
         if (dupErr) throw dupErr;
         if (dup && dup.length > 0) {
-          const d = dup[0];
-          throw new Error(
-            `Lead duplicado: já existe "${d.nome}" (${d.telefone}${d.email ? " / " + d.email : ""}).`,
-          );
+          throw new Error(`Lead duplicado: já existe "${dup[0].nome}" com este e-mail.`);
         }
       }
 
-      const insertPayload: Record<string, unknown> = {
+      const payload: Record<string, unknown> = {
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
         email: emailNorm || null,
-        origem: form.origem as never,
+        origem: form.origem,
         projeto_nome: form.projeto_nome.trim() || null,
         observacoes: form.observacoes.trim() || null,
       };
       // Corretor: atribui automaticamente a si mesmo e já entra como "aguardando atendimento"
       if (!canManage && currentUserId) {
-        insertPayload.corretor_id = currentUserId;
-        insertPayload.status = "aguardando_atendimento";
+        payload.corretor_id = currentUserId;
+        payload.status = "aguardando_atendimento";
       }
 
-      const { data, error } = await supabase
-        .from("leads")
-        .insert(insertPayload as never)
-        .select("id")
-        .single();
+      const { data: criacao, error } = await supabase.rpc("criar_lead_dedup", {
+        _payload: payload as never,
+      });
       if (error) throw error;
+      const resultado = criacao as {
+        duplicado: boolean;
+        lead_id: string;
+        nome?: string | null;
+        na_carteira?: boolean;
+      } | null;
+      if (!resultado?.lead_id) throw new Error("Falha ao criar o lead. Tente novamente.");
+      if (resultado.duplicado) {
+        throw new Error(
+          resultado.na_carteira && resultado.nome
+            ? `Lead duplicado: já existe "${resultado.nome}" com este telefone.`
+            : "Lead duplicado: já existe um lead com este telefone em outra carteira.",
+        );
+      }
+      const data = { id: resultado.lead_id };
 
       if (canManage && distribuirAuto && data?.id) {
         // Distribuição v3: triagem única (origem → roleta → corretor apto).

@@ -41,7 +41,7 @@ export function LeadObjecoes({ leadId, objecoes }: Props) {
     mutationFn: async (lista: string[]) => {
       const { error } = await supabase
         .from("leads")
-        .update({ objecoes: lista } as never)
+        .update({ objecoes: lista })
         .eq("id", leadId);
       if (error) throw error;
       return lista;

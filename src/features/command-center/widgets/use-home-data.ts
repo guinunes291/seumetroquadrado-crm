@@ -76,7 +76,7 @@ export function useAtividadesDiarias(
     enabled: !!user && scopeReady,
     queryFn: async () => {
       let q = supabase
-        .from("atividades_diarias" as never)
+        .from("atividades_diarias")
         .select(
           "dia, ligacoes, whatsapps, agendamentos, visitas, documentacoes, vendas, vgv_dia, pontuacao_total",
         )
@@ -100,7 +100,7 @@ export function useStreakAtividade({ scopeIds, scopeKey, scopeReady }: ScopeProp
       const ini = new Date();
       ini.setDate(ini.getDate() - 35);
       let q = supabase
-        .from("atividades_diarias" as never)
+        .from("atividades_diarias")
         .select(
           "dia, ligacoes, whatsapps, agendamentos, visitas, documentacoes, vendas, pontuacao_total",
         )
@@ -136,7 +136,7 @@ export function useMetaDiariaAgregada({ scopeIds, scopeKey, scopeReady }: ScopeP
     enabled: !!user && scopeReady,
     queryFn: async () => {
       let q = supabase
-        .from("metas_diarias" as never)
+        .from("metas_diarias")
         .select("meta_ligacoes, meta_whatsapps, meta_agendamentos, meta_visitas, meta_vendas");
       if (scopeIds) q = q.in("corretor_id", scopeIds);
       const { data, error } = await q;
@@ -170,7 +170,7 @@ export function useConquistas({ scopeIds, scopeKey, scopeReady }: ScopeProps) {
     enabled: !!user && scopeReady,
     queryFn: async () => {
       // head:true — só a contagem viaja, nenhuma linha de id.
-      let ganhasQ = supabase.from("conquistas" as never).select("id", {
+      let ganhasQ = supabase.from("conquistas").select("id", {
         count: "exact",
         head: true,
       });
@@ -178,10 +178,14 @@ export function useConquistas({ scopeIds, scopeKey, scopeReady }: ScopeProps) {
       const [minhas, tipos] = await Promise.all([
         ganhasQ,
         supabase
-          .from("tipos_conquista" as never)
+          .from("tipos_conquista")
           .select("id", { count: "exact", head: true })
           .eq("ativo", true),
       ]);
+      // Sem estas checagens, uma falha viraria "0/0 conquistas" como se fosse
+      // sucesso — o AsyncBoundary do widget nunca veria o erro.
+      if (minhas.error) throw minhas.error;
+      if (tipos.error) throw tipos.error;
       return {
         ganhas: minhas.count ?? 0,
         total: tipos.count ?? 0,

@@ -325,13 +325,20 @@ export function useDistribuicaoConfig(enabled = true) {
   });
 }
 
+/** Limite de linhas baixadas para a agregação client-side dos recebidos na semana. */
+export const LIMITE_RECEBIDOS_SEMANA = 2000;
+
+/** Mapa corretor → recebidos; `truncado` acende quando a semana estourou o
+ *  limite de linhas e as contagens podem estar subestimadas. */
+export type RecebidosSemana = Map<string, number> & { truncado: boolean };
+
 /** Recebidos na semana (7 dias) por corretor em uma roleta — para a aba Landing. */
 export function useRecebidosSemana(slug: string, enabled = true) {
   return useQuery({
     queryKey: ["distribuicao:recebidos-semana", slug],
     enabled,
     staleTime: 60_000,
-    queryFn: async () => {
+    queryFn: async (): Promise<RecebidosSemana> => {
       const desde = new Date(Date.now() - 7 * 86_400_000).toISOString();
       const { data, error } = await supabase
         .from("distribution_log")
@@ -339,13 +346,15 @@ export function useRecebidosSemana(slug: string, enabled = true) {
         .eq("roleta_slug", slug)
         .eq("resultado", "sucesso")
         .gte("created_at", desde)
-        .limit(2000);
+        .limit(LIMITE_RECEBIDOS_SEMANA);
       if (error) throw error;
+      const rows = data ?? [];
       const m = new Map<string, number>();
-      for (const row of data ?? []) {
+      for (const row of rows) {
         if (row.corretor_id) m.set(row.corretor_id, (m.get(row.corretor_id) ?? 0) + 1);
       }
-      return m;
+      // Flag vai junto do Map (compatível: consumidores seguem usando .get()).
+      return Object.assign(m, { truncado: rows.length >= LIMITE_RECEBIDOS_SEMANA });
     },
   });
 }

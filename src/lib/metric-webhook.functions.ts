@@ -13,11 +13,11 @@ export const syncMetricWebhookTokenFn = createServerFn({ method: "POST" })
     const { data: isAdmin } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
-    } as never);
+    });
     const { data: isGestor } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
       _role: "gestor",
-    } as never);
+    });
     if (!isAdmin && !isGestor) {
       return { ok: false, reason: "forbidden" as const };
     }
@@ -29,8 +29,8 @@ export const syncMetricWebhookTokenFn = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.rpc(
-      "set_metric_webhook_token" as never,
-      { _token: token } as never,
+      "set_metric_webhook_token",
+      { _token: token },
     );
     if (error) return { ok: false, reason: "rpc_error" as const, message: error.message };
 

@@ -36,7 +36,7 @@ export const getGoogleCalendarStatus = createServerFn({ method: "GET" })
     // Leitura via cliente do usuário (RLS: só a própria conexão/papéis).
     const [{ data }, rolesR] = await Promise.all([
       context.supabase
-        .from("google_calendar_connections" as never)
+        .from("google_calendar_connections")
         .select("google_email, sync_enabled, espelho_global")
         .eq("user_id", context.userId)
         .maybeSingle(),
@@ -81,8 +81,8 @@ export const setEspelhoGlobal = createServerFn({ method: "POST" })
     }
 
     const { error } = await context.supabase
-      .from("google_calendar_connections" as never)
-      .update({ espelho_global: data.ativo } as never)
+      .from("google_calendar_connections")
+      .update({ espelho_global: data.ativo })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
 
@@ -98,7 +98,7 @@ export const disconnectGoogleCalendar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ ok: boolean }> => {
     const { error } = await context.supabase
-      .from("google_calendar_connections" as never)
+      .from("google_calendar_connections")
       .delete()
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);

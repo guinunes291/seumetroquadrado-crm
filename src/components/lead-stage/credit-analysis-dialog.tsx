@@ -58,7 +58,7 @@ export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
         titulo: `Análise de crédito — ${STATUS_LABEL[statusAnalise]}`,
         conteudo: observacoes.trim() || `Status da análise: ${STATUS_LABEL[statusAnalise]}`,
         metadata: { status_analise: statusAnalise },
-      } as never);
+      });
       if (insErr) throw insErr;
 
       await transicionarLead({ id: lead.id, nome: lead.nome, status: "analise_credito" });

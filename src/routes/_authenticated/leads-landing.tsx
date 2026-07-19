@@ -65,6 +65,9 @@ type LeadLanding = {
 
 const STATUS_OPTS = ["novo", "em_contato", "ganho", "perdido"] as const;
 
+/** Limite de registros baixados para a lista (e para o contador "X de Y"). */
+const LIMITE_LEADS_LANDING = 1000;
+
 function fmtDate(s: string | null | undefined): string {
   if (!s) return "—";
   try {
@@ -119,20 +122,22 @@ function LeadsLandingPage() {
     queryKey: ["leads_landing"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("leads_landing" as never)
+        .from("leads_landing")
         .select("*")
         .order("recebido_em", { ascending: false })
-        .limit(1000);
+        .limit(LIMITE_LEADS_LANDING);
       if (error) throw error;
       return (data ?? []) as unknown as LeadLanding[];
     },
   });
+  // Corte silencioso exposto: acima do limite, a lista mostra só os mais recentes.
+  const truncado = leads.length >= LIMITE_LEADS_LANDING;
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase
-        .from("leads_landing" as never)
-        .update({ status } as never)
+        .from("leads_landing")
+        .update({ status })
         .eq("id", id);
       if (error) throw error;
     },
@@ -216,6 +221,14 @@ function LeadsLandingPage() {
           {filtered.length} de {leads.length}
         </div>
       </div>
+
+      {truncado && (
+        <p className="text-[11px] text-muted-foreground">
+          Mostrando os {LIMITE_LEADS_LANDING.toLocaleString("pt-BR")} leads mais recentes (limite de
+          exibição) — registros mais antigos não aparecem na lista e os totais podem estar
+          subestimados.
+        </p>
+      )}
 
       {isError ? (
         <QueryErrorState

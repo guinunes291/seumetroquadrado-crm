@@ -128,7 +128,7 @@ export function CampanhasPage() {
     mutationFn: async ({ roletaId, projetoId }: { roletaId: string; projetoId: string | null }) => {
       const { error } = await supabase
         .from("roletas")
-        .update({ projeto_id: projetoId } as never)
+        .update({ projeto_id: projetoId })
         .eq("id", roletaId);
       if (error) throw error;
     },
@@ -153,14 +153,14 @@ export function CampanhasPage() {
         .slice(0, 60) || `projeto-${Date.now()}`;
       const { data: novo, error: e1 } = await supabase
         .from("projetos")
-        .insert({ nome, slug, ativo: true, criado_por: user?.id ?? null } as never)
+        .insert({ nome, slug, ativo: true, criado_por: user?.id ?? null })
         .select("id")
         .single();
 
       if (e1) throw e1;
       const { error: e2 } = await supabase
         .from("roletas")
-        .update({ projeto_id: (novo as { id: string }).id } as never)
+        .update({ projeto_id: (novo as { id: string }).id })
         .eq("id", roleta.id);
       if (e2) throw e2;
     },
@@ -473,8 +473,8 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     refetchInterval: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc(
-        "equipe_metricas_campanha" as never,
-        { _roleta_id: roleta.id } as never,
+        "equipe_metricas_campanha",
+        { _roleta_id: roleta.id },
       );
       if (error) throw error;
       const map = new Map<
@@ -525,7 +525,7 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     mutationFn: async (corretorId: string) => {
       const { error } = await supabase
         .from("roleta_participantes")
-        .insert({ roleta_id: roleta.id, corretor_id: corretorId, ativo: true } as never);
+        .insert({ roleta_id: roleta.id, corretor_id: corretorId, ativo: true });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -555,7 +555,7 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     mutationFn: async ({ id, limite }: { id: string; limite: number | null }) => {
       const { error } = await supabase
         .from("roleta_participantes")
-        .update({ limite_diario: limite } as never)
+        .update({ limite_diario: limite })
         .eq("id", id);
       if (error) throw error;
     },

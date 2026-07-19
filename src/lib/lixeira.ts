@@ -24,7 +24,7 @@ export const LIXEIRA_LABEL: Record<LixeiraTabela, string> = {
 export async function softDelete(tabela: LixeiraTabela, id: string) {
   const { error } = await supabase
     .from(tabela)
-    .update({ deleted_at: new Date().toISOString() } as never)
+    .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
 }
@@ -34,7 +34,7 @@ export async function restaurar(tabela: LixeiraTabela, id: string) {
   const { error } = await supabase.rpc("restaurar_registro", {
     _tabela: tabela,
     _id: id,
-  } as never);
+  });
   if (error) throw error;
 }
 

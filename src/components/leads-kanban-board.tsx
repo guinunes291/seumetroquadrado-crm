@@ -167,10 +167,10 @@ export function KanbanBoard() {
       rpcWithFallback(
         async () => {
           const { data, error } = await supabase.rpc(
-            "pipeline_snapshot_v3" as never,
+            "pipeline_snapshot_v3",
             {
               _query: debouncedSearch || undefined,
-            } as never,
+            },
           );
           if (error) throw error;
           return data as {
@@ -258,10 +258,10 @@ export function KanbanBoard() {
       rpcWithFallback(
         async () => {
           const { data, error } = await supabase.rpc(
-            "leads_sla_pendentes" as never,
+            "leads_sla_pendentes",
             {
               _corretor: undefined,
-            } as never,
+            },
           );
           if (error) throw error;
           return (data ?? []) as unknown as SlaRow[];

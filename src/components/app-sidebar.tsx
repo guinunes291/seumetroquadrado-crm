@@ -151,7 +151,7 @@ function SidebarContent({
     if (isAdmin) return true;
     return it.roles.some(
       (r) =>
-        (r === "admin" && isAdmin) || (r === "gestor" && isGestor) || roles.includes(r as never),
+        (r === "admin" && isAdmin) || (r === "gestor" && isGestor) || roles.includes(r),
     );
   };
 

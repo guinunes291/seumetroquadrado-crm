@@ -25,7 +25,7 @@ export function TarefasWidget(props: WidgetProps) {
       // marcar como concluída pelo Hoje ficava fora do resumo do dia.
       const { error } = await supabase
         .from("tarefas")
-        .update({ status: "concluida", data_conclusao: new Date().toISOString() } as never)
+        .update({ status: "concluida", data_conclusao: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },

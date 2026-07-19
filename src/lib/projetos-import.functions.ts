@@ -125,7 +125,7 @@ export const importarProjetos = createServerFn({ method: "POST" })
         }
         const { error } = await supabase
           .from("projetos")
-          .update(payload as never)
+          .update(payload)
           .eq("id", existingId);
         if (error) {
           result.erros++;
@@ -139,7 +139,7 @@ export const importarProjetos = createServerFn({ method: "POST" })
         while (slugSet.has(finalSlug)) finalSlug = `${slug}-${n++}`;
         const { error } = await supabase
           .from("projetos")
-          .insert({ ...payload, slug: finalSlug, criado_por: userId } as never);
+          .insert({ ...payload, slug: finalSlug, criado_por: userId });
         if (error) {
           result.erros++;
           result.detalhes.push({ linha, motivo: error.message, nome });

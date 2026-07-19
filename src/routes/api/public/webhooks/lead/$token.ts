@@ -276,7 +276,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             // Canal de chegada: só leads via_webhook entram no SLA de minutos.
             via_webhook: true,
             canal_entrada: "webhook_chatbot",
-          } as never)
+          })
 
           .select("id")
           .single();

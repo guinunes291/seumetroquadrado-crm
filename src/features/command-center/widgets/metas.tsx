@@ -32,13 +32,14 @@ export function MetasWidget(props: WidgetProps) {
 
   return (
     <AsyncBoundary
-      isLoading={atividadesQ.isLoading || metaQ.isLoading}
-      isError={atividadesQ.isError || metaQ.isError}
-      error={atividadesQ.error ?? metaQ.error}
+      isLoading={atividadesQ.isLoading || metaQ.isLoading || streakQ.isLoading}
+      isError={atividadesQ.isError || metaQ.isError || streakQ.isError}
+      error={atividadesQ.error ?? metaQ.error ?? streakQ.error}
       errorTitle="Não foi possível carregar as metas do dia."
       onRetry={() => {
         void atividadesQ.refetch();
         void metaQ.refetch();
+        void streakQ.refetch();
       }}
       loadingFallback={<DayGoals items={[]} streak={0} loading showMeta={false} />}
     >

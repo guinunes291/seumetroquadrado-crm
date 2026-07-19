@@ -113,8 +113,8 @@ export const importarLeads = createServerFn({ method: "POST" })
         email: emailLimpo,
         projeto_id: projetoId,
         projeto_nome: projetoNomeRaw || null,
-        origem: "importacao" as never,
-        status: "novo" as never,
+        origem: "importacao",
+        status: "novo",
       });
 
       if (insErr) {

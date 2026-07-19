@@ -5,6 +5,7 @@ import { LayoutGrid } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
@@ -57,23 +58,26 @@ function CommandCenterPage() {
   // Corretores da equipe do gestor (inclui ele mesmo). Só busca quando um gestor
   // sem papel global está na visão de operação.
   const precisaEquipe = escopo === "operacao" && isGestor && !isAdmin && !isSuperintendente;
-  const { data: equipeCorretorIds } = useQuery({
+  const equipeQ = useQuery({
     queryKey: ["hoje:equipe-corretores", user?.id],
     enabled: !!user && precisaEquipe,
     queryFn: async () => {
-      const { data: equipes } = await supabase
+      const { data: equipes, error: equipesError } = await supabase
         .from("equipes")
         .select("id")
         .eq("gestor_id", user!.id);
+      if (equipesError) throw equipesError;
       const equipeIds = (equipes ?? []).map((e) => e.id);
       if (equipeIds.length === 0) return [user!.id];
-      const { data: membros } = await supabase
+      const { data: membros, error: membrosError } = await supabase
         .from("profiles")
         .select("id")
         .in("equipe_id", equipeIds);
+      if (membrosError) throw membrosError;
       return Array.from(new Set([user!.id, ...(membros ?? []).map((m) => m.id)]));
     },
   });
+  const equipeCorretorIds = equipeQ.data;
 
   // null = sem filtro de corretor (toda a operação); array = restringe a esses ids.
   const scopeIds = useMemo<string[] | null>(() => {
@@ -123,31 +127,45 @@ function CommandCenterPage() {
         }
       />
 
-      {prefs.visible.length === 0 ? (
-        <EmptyState
-          icon={LayoutGrid}
-          title="Todos os widgets estão ocultos"
-          description="Use o botão de personalização no topo da página para reativá-los."
-        />
-      ) : (
-        <div className="stagger-children grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-6">
-          {prefs.visible.map((w) => {
-            const Widget = w.Component;
-            return (
-              <div key={w.id} className={cn("min-w-0", WIDGET_SIZE_CLASS[w.size])}>
-                <Widget
-                  escopo={escopo}
-                  scopeIds={scopeIds}
-                  scopeKey={scopeKey}
-                  scopeReady={scopeReady}
-                  periodo={periodo}
-                  onPeriodoChange={setPeriodo}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* O escopo de equipe do gestor é pré-requisito de TODOS os widgets: se a
+          busca falha, scopeReady nunca fica true, as queries dos widgets ficam
+          desabilitadas (isLoading=false) e a tela inteira viraria "tudo em dia"
+          com zeros. Por isso o erro/carregamento DESTA query é tratado aqui,
+          antes de montar a grade. */}
+      <AsyncBoundary
+        isLoading={precisaEquipe && equipeQ.isLoading}
+        isError={precisaEquipe && equipeQ.isError}
+        error={equipeQ.error}
+        errorTitle="Não foi possível carregar a sua equipe para montar a visão de operação."
+        onRetry={() => void equipeQ.refetch()}
+        loadingLabel="Carregando a sua equipe…"
+      >
+        {prefs.visible.length === 0 ? (
+          <EmptyState
+            icon={LayoutGrid}
+            title="Todos os widgets estão ocultos"
+            description="Use o botão de personalização no topo da página para reativá-los."
+          />
+        ) : (
+          <div className="stagger-children grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-6">
+            {prefs.visible.map((w) => {
+              const Widget = w.Component;
+              return (
+                <div key={w.id} className={cn("min-w-0", WIDGET_SIZE_CLASS[w.size])}>
+                  <Widget
+                    escopo={escopo}
+                    scopeIds={scopeIds}
+                    scopeKey={scopeKey}
+                    scopeReady={scopeReady}
+                    periodo={periodo}
+                    onPeriodoChange={setPeriodo}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </AsyncBoundary>
     </div>
   );
 }

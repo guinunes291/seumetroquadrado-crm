@@ -53,6 +53,9 @@ type Stats = {
   perdidos: number;
 };
 
+/** Limite de leads baixados para a agregação client-side dos cards por corretor. */
+const LIMITE_LEADS = 2000;
+
 export function LeadsPorCorretorPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
@@ -92,11 +95,13 @@ export function LeadsPorCorretorPage() {
         .select("id, nome, email, telefone, status, corretor_id, created_at")
         .eq("na_lixeira", false)
         .order("created_at", { ascending: false })
-        .limit(2000);
+        .limit(LIMITE_LEADS);
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
   });
+  // Corte silencioso exposto: acima do limite, os cards agregam só os mais recentes.
+  const truncado = (leads?.length ?? 0) >= LIMITE_LEADS;
 
   // Churn de redistribuição automática dos últimos 7 dias, por corretor — para
   // o gestor VER quando uma carteira está sendo movida pelo job de parados.
@@ -310,6 +315,13 @@ export function LeadsPorCorretorPage() {
           ) : null
         }
       />
+
+      {truncado && (
+        <p className="text-[11px] text-muted-foreground">
+          Mostrando os {LIMITE_LEADS.toLocaleString("pt-BR")} leads mais recentes (limite de
+          exibição) — os totais por corretor podem estar subestimados.
+        </p>
+      )}
 
       {/* Cards de corretores */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

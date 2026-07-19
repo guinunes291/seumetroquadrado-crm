@@ -139,12 +139,12 @@ export function useGestaoMetricas(
         async () => {
           // RPC fora dos types gerados (migration pode não estar aplicada).
           const res = (await supabase.rpc(
-            "gestao_metricas" as never,
+            "gestao_metricas",
             {
               _periodo_start: `${range.di}T00:00:00`,
               _periodo_end: `${range.df}T23:59:59`,
               _campo_data: campoData,
-            } as never,
+            },
           )) as { data: unknown; error: { code?: string; message?: string } | null };
           if (res.error) throw res.error;
           return parseMetricas(res.data);

@@ -69,8 +69,6 @@ const GESTAO_TABS: GestaoTab[] = [
   "qualidade",
 ];
 
-
-
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
   // `tab` permite abrir/linkar direto uma aba do hub de Gestão.
   // A antiga aba "distribuicao" virou a página /distribuicao — o valor passa
@@ -127,7 +125,6 @@ function PainelGestorPage() {
         {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
       <TabsContent value="visao">
-
         <VisaoGeralPanel />
       </TabsContent>
       <TabsContent value="saude">
@@ -140,7 +137,6 @@ function PainelGestorPage() {
         <CampanhasPage />
       </TabsContent>
       <TabsContent value="leads-corretor">
-
         <LeadsPorCorretorPage />
       </TabsContent>
 
@@ -184,7 +180,8 @@ type SaudeRow = {
   fechados: number;
   perdidos: number;
   conversao: number;
-  parados: number;
+  /** Leads parados agora (null = falha ao carregar os leads parados). */
+  parados: number | null;
   /** Minutos médios de 1ª resposta (null = sem amostra no período). */
   primeira_resposta_min: number | null;
 };
@@ -205,7 +202,6 @@ function SaudePanel() {
   // Agregados de atividade + aderência num RPC só (fallback: caminho antigo
   // de linhas cruas). Ver use-gestao-metricas.ts.
   const metricasQ = useGestaoMetricas(range, podeVer);
-
 
   // Tempo de 1ª resposta por corretor (mapa corretor_id -> métrica).
   const tempoMap = useMemo(
@@ -248,17 +244,19 @@ function SaudePanel() {
   }, [urgentesQ.data]);
 
   // Linhas da tabela de saúde: métricas por corretor + parados + 1ª resposta.
+  // Se a query de leads parados falhou, a coluna vira "—" (null) em vez de um
+  // zero falso — o aviso abaixo da tabela explica e oferece o retry.
   const saudeRows = useMemo<SaudeRow[]>(
     () =>
       (porCorretorQ.data ?? []).map((c) => {
         const t = tempoMap.get(c.corretor_id);
         return {
           ...c,
-          parados: paradosPorCorretor.get(c.corretor_id) ?? 0,
+          parados: urgentesQ.isError ? null : (paradosPorCorretor.get(c.corretor_id) ?? 0),
           primeira_resposta_min: t && t.leads_respondidos > 0 ? t.tempo_medio_min : null,
         };
       }),
-    [porCorretorQ.data, tempoMap, paradosPorCorretor],
+    [porCorretorQ.data, tempoMap, paradosPorCorretor, urgentesQ.isError],
   );
 
   const saudeColumns = useMemo<ColumnDef<SaudeRow, unknown>[]>(
@@ -309,16 +307,19 @@ function SaudePanel() {
         cell: ({ row }) => <span className="text-muted-foreground">{row.original.perdidos}</span>,
       },
       {
-        accessorKey: "parados",
+        id: "parados",
+        accessorFn: (r) => r.parados ?? -1,
         header: ({ column }) => <DataTableColumnHeader column={column} title="Parados" />,
         meta: { label: "Parados", align: "right", cellClassName: "tabular-nums" },
         cell: ({ row }) => (
           <span
             className={cn(
-              row.original.parados > 0 ? "font-semibold text-destructive" : "text-muted-foreground",
+              (row.original.parados ?? 0) > 0
+                ? "font-semibold text-destructive"
+                : "text-muted-foreground",
             )}
           >
-            {row.original.parados}
+            {row.original.parados ?? "—"}
           </span>
         ),
       },
@@ -462,7 +463,6 @@ function SaudePanel() {
               ))}
             </div>
           </div>
-
         }
       />
 
@@ -493,40 +493,84 @@ function SaudePanel() {
             />
           }
         />
+        {/* As colunas Parados e 1ª resposta vêm de queries próprias: se alguma
+            falhou, avisa em vez de deixar o "—" passar por dado saudável. */}
+        {!porCorretorQ.isError && (urgentesQ.isError || tempoQ.isError) && (
+          <div
+            role="alert"
+            className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive"
+          >
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span>
+              Não foi possível carregar{" "}
+              {urgentesQ.isError && tempoQ.isError
+                ? "as colunas Parados e 1ª resposta"
+                : urgentesQ.isError
+                  ? "a coluna Parados"
+                  : "a coluna 1ª resposta"}{" "}
+              — os valores aparecem como "—".
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={() => {
+                if (urgentesQ.isError) void urgentesQ.refetch();
+                if (tempoQ.isError) void tempoQ.refetch();
+              }}
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        )}
       </section>
 
       {/* Bloco 2 — Relatório de atividade (ligações / WhatsApp / visitas) */}
       <section>
-        <StatGrid className="mb-3">
-          <StatTile
-            title="Ligações"
-            icon={PhoneCall}
-            intent="info"
-            loading={metricasQ.isLoading}
-            value={atividade.tot.ligacao}
+        {/* Os cards agregam duas queries (atividade + 1ª resposta): se qualquer
+            uma falhou, mostra o erro em vez de contadores zerados. */}
+        {metricasQ.isError || tempoQ.isError ? (
+          <QueryErrorState
+            className="mb-3"
+            title="Não foi possível carregar os totais de atividade."
+            error={metricasQ.isError ? metricasQ.error : tempoQ.error}
+            onRetry={() => {
+              if (metricasQ.isError) void metricasQ.refetch();
+              if (tempoQ.isError) void tempoQ.refetch();
+            }}
           />
-          <StatTile
-            title="WhatsApp"
-            icon={MessageCircle}
-            intent="success"
-            loading={metricasQ.isLoading}
-            value={atividade.tot.whatsapp}
-          />
-          <StatTile
-            title="Visitas"
-            icon={MapPin}
-            intent="info"
-            loading={metricasQ.isLoading}
-            value={atividade.tot.visita}
-          />
-          <StatTile
-            title="1ª resposta (méd. equipe)"
-            icon={Timer}
-            intent="neutral"
-            loading={tempoQ.isLoading}
-            value={tempoEquipe != null ? fmtDuracao(tempoEquipe) : "—"}
-          />
-        </StatGrid>
+        ) : (
+          <StatGrid className="mb-3">
+            <StatTile
+              title="Ligações"
+              icon={PhoneCall}
+              intent="info"
+              loading={metricasQ.isLoading}
+              value={atividade.tot.ligacao}
+            />
+            <StatTile
+              title="WhatsApp"
+              icon={MessageCircle}
+              intent="success"
+              loading={metricasQ.isLoading}
+              value={atividade.tot.whatsapp}
+            />
+            <StatTile
+              title="Visitas"
+              icon={MapPin}
+              intent="info"
+              loading={metricasQ.isLoading}
+              value={atividade.tot.visita}
+            />
+            <StatTile
+              title="1ª resposta (méd. equipe)"
+              icon={Timer}
+              intent="neutral"
+              loading={tempoQ.isLoading}
+              value={tempoEquipe != null ? fmtDuracao(tempoEquipe) : "—"}
+            />
+          </StatGrid>
+        )}
         <SectionHeader
           eyebrow="Atividade"
           title={
@@ -542,8 +586,13 @@ function SaudePanel() {
           data={atividade.linhas}
           rowKey={(r) => r.autor_id ?? "sem-autor"}
           loading={metricasQ.isLoading}
-          error={metricasQ.isError ? metricasQ.error : undefined}
-          onRetry={() => void metricasQ.refetch()}
+          // A tabela depende também dos nomes dos corretores: sem eles, toda
+          // linha viraria "Sem autor" — trata o erro em vez de exibir isso.
+          error={metricasQ.isError ? metricasQ.error : nomesQ.isError ? nomesQ.error : undefined}
+          onRetry={() => {
+            if (metricasQ.isError) void metricasQ.refetch();
+            if (nomesQ.isError) void nomesQ.refetch();
+          }}
           empty={
             <EmptyState
               icon={BarChart3}
@@ -570,45 +619,55 @@ function SaudePanel() {
             </span>
           }
         />
-        <StatGrid>
-          <StatTile
-            title="Leads ativos"
-            icon={Users}
-            loading={metricasQ.isLoading}
-            value={ad ? ad.total : "—"}
+        {/* Aderência vem do mesmo RPC de métricas: com erro, os cards virariam
+            "—" como se estivesse tudo em dia — mostra o erro com retry. */}
+        {metricasQ.isError ? (
+          <QueryErrorState
+            title="Não foi possível carregar a qualidade do CRM."
+            error={metricasQ.error}
+            onRetry={() => void metricasQ.refetch()}
           />
-          <Link to="/leads" className="block" aria-label="Ver leads sem corretor">
+        ) : (
+          <StatGrid>
             <StatTile
-              title="Sem corretor"
-              icon={UserX}
-              intent={(ad?.semCorretor ?? 0) > 0 ? "warning" : "neutral"}
+              title="Leads ativos"
+              icon={Users}
               loading={metricasQ.isLoading}
-              value={ad ? ad.semCorretor : "—"}
-              hint="clique para abrir a base"
-              className="hover-lift cursor-pointer transition-shadow hover:shadow-elev-2"
+              value={ad ? ad.total : "—"}
             />
-          </Link>
-          <StatTile
-            title="Sem e-mail"
-            loading={metricasQ.isLoading}
-            value={ad ? ad.semEmail : "—"}
-            hint={
-              pctAderencia(ad?.semEmail ?? 0) != null
-                ? `${pctAderencia(ad?.semEmail ?? 0)}% preenchido`
-                : undefined
-            }
-          />
-          <StatTile
-            title="Sem renda informada"
-            loading={metricasQ.isLoading}
-            value={ad ? ad.semRenda : "—"}
-            hint={
-              pctAderencia(ad?.semRenda ?? 0) != null
-                ? `${pctAderencia(ad?.semRenda ?? 0)}% preenchido`
-                : undefined
-            }
-          />
-        </StatGrid>
+            <Link to="/leads" className="block" aria-label="Ver leads sem corretor">
+              <StatTile
+                title="Sem corretor"
+                icon={UserX}
+                intent={(ad?.semCorretor ?? 0) > 0 ? "warning" : "neutral"}
+                loading={metricasQ.isLoading}
+                value={ad ? ad.semCorretor : "—"}
+                hint="clique para abrir a base"
+                className="hover-lift cursor-pointer transition-shadow hover:shadow-elev-2"
+              />
+            </Link>
+            <StatTile
+              title="Sem e-mail"
+              loading={metricasQ.isLoading}
+              value={ad ? ad.semEmail : "—"}
+              hint={
+                pctAderencia(ad?.semEmail ?? 0) != null
+                  ? `${pctAderencia(ad?.semEmail ?? 0)}% preenchido`
+                  : undefined
+              }
+            />
+            <StatTile
+              title="Sem renda informada"
+              loading={metricasQ.isLoading}
+              value={ad ? ad.semRenda : "—"}
+              hint={
+                pctAderencia(ad?.semRenda ?? 0) != null
+                  ? `${pctAderencia(ad?.semRenda ?? 0)}% preenchido`
+                  : undefined
+              }
+            />
+          </StatGrid>
+        )}
       </section>
 
       {/* Bloco 4 — Leads parados por corretor (acionável) */}
