@@ -116,19 +116,19 @@ export async function completeOAuth(userId: string, code: string, origin: string
     redirect_uri: redirectUri(origin),
   });
   if (!tok.refresh_token) {
-    throw new Error("Google não retornou refresh_token — remova o acesso do app na conta Google e tente de novo");
+    throw new Error(
+      "Google não retornou refresh_token — remova o acesso do app na conta Google e tente de novo",
+    );
   }
-  const { error } = await supabaseAdmin
-    .from("google_calendar_connections" as never)
-    .upsert({
-      user_id: userId,
-      refresh_token: tok.refresh_token,
-      access_token: tok.access_token,
-      access_token_expira_em: new Date(Date.now() + (tok.expires_in - 60) * 1000).toISOString(),
-      google_email: emailFromIdToken(tok.id_token),
-      sync_enabled: true,
-      updated_at: new Date().toISOString(),
-    } as never);
+  const { error } = await supabaseAdmin.from("google_calendar_connections").upsert({
+    user_id: userId,
+    refresh_token: tok.refresh_token,
+    access_token: tok.access_token,
+    access_token_expira_em: new Date(Date.now() + (tok.expires_in - 60) * 1000).toISOString(),
+    google_email: emailFromIdToken(tok.id_token),
+    sync_enabled: true,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -144,7 +144,7 @@ type Connection = {
 
 async function getConnection(userId: string): Promise<Connection | null> {
   const { data, error } = await supabaseAdmin
-    .from("google_calendar_connections" as never)
+    .from("google_calendar_connections")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
@@ -156,14 +156,17 @@ async function getValidAccessToken(conn: Connection): Promise<string> {
   const validUntil = conn.access_token_expira_em ? Date.parse(conn.access_token_expira_em) : 0;
   if (conn.access_token && validUntil > Date.now()) return conn.access_token;
 
-  const tok = await tokenRequest({ grant_type: "refresh_token", refresh_token: conn.refresh_token });
+  const tok = await tokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: conn.refresh_token,
+  });
   await supabaseAdmin
-    .from("google_calendar_connections" as never)
+    .from("google_calendar_connections")
     .update({
       access_token: tok.access_token,
       access_token_expira_em: new Date(Date.now() + (tok.expires_in - 60) * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    } as never)
+    })
     .eq("user_id", conn.user_id);
   return tok.access_token;
 }
@@ -191,7 +194,7 @@ export type SyncResult = { synced: boolean; reason?: string };
 async function espelhoGlobalUserIds(): Promise<string[]> {
   const [connsR, rolesR] = await Promise.all([
     supabaseAdmin
-      .from("google_calendar_connections" as never)
+      .from("google_calendar_connections")
       .select("user_id")
       .eq("espelho_global", true)
       .eq("sync_enabled", true),
@@ -205,7 +208,7 @@ async function espelhoGlobalUserIds(): Promise<string[]> {
 
 async function getMirror(agendamentoId: string, userId: string): Promise<string | null> {
   const { data } = await supabaseAdmin
-    .from("google_event_mirrors" as never)
+    .from("google_event_mirrors")
     .select("google_event_id")
     .eq("agendamento_id", agendamentoId)
     .eq("user_id", userId)
@@ -215,14 +218,14 @@ async function getMirror(agendamentoId: string, userId: string): Promise<string 
 
 async function setMirror(agendamentoId: string, userId: string, eventId: string | null) {
   if (eventId) {
-    await supabaseAdmin.from("google_event_mirrors" as never).upsert({
+    await supabaseAdmin.from("google_event_mirrors").upsert({
       agendamento_id: agendamentoId,
       user_id: userId,
       google_event_id: eventId,
-    } as never);
+    });
   } else {
     await supabaseAdmin
-      .from("google_event_mirrors" as never)
+      .from("google_event_mirrors")
       .delete()
       .eq("agendamento_id", agendamentoId)
       .eq("user_id", userId);
@@ -246,10 +249,10 @@ async function syncParaUsuario(
   const remover = ag.status === "cancelado" || !!ag.deleted_at;
   if (remover) {
     if (eventId) {
-      await fetch(
-        `${CALENDAR_API}/calendars/${calId}/events/${eventId}?sendUpdates=all`,
-        { method: "DELETE", headers },
-      );
+      await fetch(`${CALENDAR_API}/calendars/${calId}/events/${eventId}?sendUpdates=all`, {
+        method: "DELETE",
+        headers,
+      });
       await setMirror(ag.id, userId, null);
     }
     return { synced: true };

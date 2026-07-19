@@ -1,0 +1,21 @@
+# Postgres de teste do harness. As extensões fake (pg_cron/pg_net) são
+# montadas por volume no diretório de extensões da imagem para que o
+# CREATE EXTENSION das migrations funcione sem os binários reais.
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "54329:5432"
+    environment:
+      POSTGRES_PASSWORD: postgres
+    command: ["postgres", "-c", "fsync=off", "-c", "full_page_writes=off"]
+    volumes:
+      - ./fake-extensions/pg_cron.control:/usr/local/share/postgresql/extension/pg_cron.control:ro
+      - ./fake-extensions/pg_cron--1.0.sql:/usr/local/share/postgresql/extension/pg_cron--1.0.sql:ro
+      - ./fake-extensions/pg_net.control:/usr/local/share/postgresql/extension/pg_net.control:ro
+      - ./fake-extensions/pg_net--1.0.sql:/usr/local/share/postgresql/extension/pg_net--1.0.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

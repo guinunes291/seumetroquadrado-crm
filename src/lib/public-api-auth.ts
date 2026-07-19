@@ -104,6 +104,55 @@ export function __resetRateLimit() {
   __resetGenericRateLimit();
 }
 
+/**
+ * Rate limit em duas camadas: memória (barreira barata por instância) e
+ * banco (RPC consumir_api_rate_limit — régua real, compartilhada entre as
+ * instâncias do Worker; padrão do landing webhook generalizado na migration
+ * 20260719124000). Indisponibilidade do banco NÃO derruba a rota (fail-open
+ * com log): rate limit é proteção de abuso, não autenticação — e a camada
+ * de memória continua ativa.
+ */
+export async function checkRateLimitDistribuido(
+  request: Request,
+  now = Date.now(),
+): Promise<Response | null> {
+  const local = checkRateLimit(request, now);
+  if (local) return local;
+
+  const key = request.headers.get("x-api-key") ?? "";
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const base = key ? `pubapi:k:${key}` : `pubapi:ip:${ip}`;
+  const keyHash = createHash("sha256").update(base, "utf8").digest("hex");
+
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.rpc("consumir_api_rate_limit", {
+      _key_hash: keyHash,
+      _max_requests: RATE_LIMIT_MAX,
+      _window_seconds: Math.round(RATE_LIMIT_WINDOW_MS / 1000),
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && row.allowed === false) {
+      const retry = Number(row.retry_after_seconds ?? 60) || 60;
+      return new Response(JSON.stringify({ error: "rate_limit_exceeded", retry_after_s: retry }), {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(retry),
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("rate limit distribuído indisponível; seguindo com o limite em memória", err);
+  }
+  return null;
+}
+
 export function checkReadApiKey(request: Request): Response | null {
   if (!legacyApiWindowIsOpen()) {
     return new Response(JSON.stringify({ error: "legacy_api_disabled" }), {

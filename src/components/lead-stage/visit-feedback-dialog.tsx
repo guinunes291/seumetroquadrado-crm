@@ -68,7 +68,7 @@ export function VisitFeedbackDialog({ lead, onOpenChange, onDone }: Props) {
         titulo: `Visita realizada — ${RESULTADO_LABEL[resultado]}`,
         conteudo: observacoes.trim() || "(sem observações)",
         metadata: { resultado },
-      } as never);
+      });
       if (insErr) throw insErr;
 
       await transicionarLead({ id: lead.id, nome: lead.nome, status: "visita_realizada" });

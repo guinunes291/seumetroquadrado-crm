@@ -47,7 +47,7 @@ export function useRealtimeInvalidate(
 
     tablesArr.forEach((table) => {
       channel.on(
-        "postgres_changes" as never,
+        "postgres_changes",
         { event: "*", schema, table, ...(filter ? { filter } : {}) },
         agendarInvalidacao,
       );

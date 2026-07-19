@@ -15,5 +15,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
+    // tests/db exige um Postgres real (harness) — roda via `npm run test:db`.
+    exclude: ["tests/db/**", "node_modules/**"],
   },
 });

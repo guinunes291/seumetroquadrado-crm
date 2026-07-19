@@ -329,9 +329,6 @@ export async function atualizarEmpreendimentoLead(
 ): Promise<void> {
   // `as never`: o update de `leads` é tipado, mas seguimos o padrão do repo
   // (ver contract-sale-dialog) para evitar atrito com os tipos gerados.
-  const { error } = await supabase
-    .from("leads")
-    .update(patch as never)
-    .eq("id", leadId);
+  const { error } = await supabase.from("leads").update(patch).eq("id", leadId);
   if (error) throw error;
 }

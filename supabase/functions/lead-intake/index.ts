@@ -105,15 +105,42 @@ async function notificarCorretor(opts: {
   }
 }
 
+/** Comparação em tempo constante via digest (não vaza o tamanho nem o prefixo). */
+async function secretsIguais(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [da, db] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(a)),
+    crypto.subtle.digest("SHA-256", enc.encode(b)),
+  ]);
+  const va = new Uint8Array(da);
+  const vb = new Uint8Array(db);
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
+}
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
-  // 1) Autenticação por secret.
+  // 1) Autenticação por secret (comparação em tempo constante).
+  // O canal correto é o header x-webhook-secret. O fallback por query string
+  // (?secret=) segue aceito por compatibilidade com Zaps antigos, mas está
+  // DEPRECIADO — secrets em URL vazam em logs de proxy/CDN. Migrar o Zapier
+  // para o header e então remover o fallback (pendência registrada na
+  // auditoria de 2026-07-19).
   const secret = Deno.env.get("LEAD_INTAKE_SECRET");
-  const provided =
-    req.headers.get("x-webhook-secret") ?? new URL(req.url).searchParams.get("secret");
-  if (!secret || provided !== secret) return json({ error: "unauthorized" }, 401);
+  const viaHeader = req.headers.get("x-webhook-secret");
+  const viaQuery = new URL(req.url).searchParams.get("secret");
+  const provided = viaHeader ?? viaQuery;
+  if (!secret || !provided || !(await secretsIguais(provided, secret))) {
+    return json({ error: "unauthorized" }, 401);
+  }
+  if (!viaHeader && viaQuery) {
+    console.warn(
+      "lead-intake: secret recebido via query string (depreciado) — migrar o Zap para o header x-webhook-secret",
+    );
+  }
 
   // 2) Corpo.
   let body: Record<string, unknown>;

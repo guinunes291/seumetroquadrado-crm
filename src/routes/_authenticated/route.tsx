@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { verificarContaAtiva } from "@/lib/conta-ativa";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { NotificationBell } from "@/components/notification-bell";
@@ -73,33 +74,25 @@ export const Route = createFileRoute("/_authenticated")({
 
     // Verifica o estado da conta distinguindo NEGAÇÃO REAL (conta inativa/
     // bloqueada) de FALHA DE INFRAESTRUTURA (RPC ausente/PGRST202, timeout,
-    // 5xx, rede). Só a negação real encerra a sessão. Uma falha transitória
-    // NUNCA desloga — degradamos mantendo a sessão, pois RLS/has_role
-    // continuam sendo a barreira real no servidor. Um soluço de banco não
-    // pode derrubar todos os usuários (nem revogar suas outras sessões).
-    let contaAtiva: boolean | null = null;
-    let accountError: unknown = null;
-    for (let tentativa = 0; tentativa < 2; tentativa++) {
+    // 5xx, rede). Só a negação real encerra a sessão — decisão centralizada
+    // e testada em verificarContaAtiva (tests/auth-guard.test.ts).
+    const resultado = await verificarContaAtiva(async () => {
       const res = await supabase.rpc("conta_atual_ativa");
-      accountError = res.error;
-      contaAtiva = res.data as boolean | null;
-      if (!res.error) break;
-      if (tentativa === 0) await new Promise((resolve) => setTimeout(resolve, 400));
-    }
+      return { data: res.data as boolean | null, error: res.error };
+    });
 
-    if (!accountError && !contaAtiva) {
+    if (resultado === "inativa") {
       // Resposta definitiva do banco: conta inativa/bloqueada. Encerra apenas a
       // sessão LOCAL (escopo local não revoga os outros dispositivos) e redireciona.
       await supabase.auth.signOut({ scope: "local" });
       throw redirect({ to: "/auth", search: { next: "", motivo: "inativa" } });
     }
 
-    if (accountError) {
+    if (resultado === "indisponivel") {
       // Indisponibilidade do RPC: não desloga. Segue com a sessão atual; a RLS
       // barra o acesso a dados caso a conta não esteja realmente ativa.
       console.warn(
         "conta_atual_ativa indisponível; seguindo com a sessão (RLS permanece como barreira)",
-        accountError,
       );
     }
 

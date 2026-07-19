@@ -99,8 +99,18 @@ export function useLeadStatusMutation(opts: Options = {}) {
           qc.invalidateQueries({ queryKey: ["tarefas"] });
           qc.invalidateQueries({ queryKey: ["tarefas-lead", vars.id] });
         }
-      } catch {
-        // silencioso por design
+      } catch (err) {
+        // Best-effort: a etapa já mudou e isso não é revertido. Mas a falha do
+        // follow-up automático não pode ser invisível — sem a tarefa, o lead
+        // sai do radar (o motor existe exatamente para evitar isso).
+        console.error("Motor anti-perda: falha ao criar follow-up automático", {
+          leadId: vars.id,
+          status: vars.status,
+          err,
+        });
+        toast.warning("Etapa alterada, mas o follow-up automático falhou.", {
+          description: "Crie o follow-up manualmente para o lead não sair do radar.",
+        });
       }
     },
     onSettled: () => {

@@ -19,8 +19,11 @@ AS $$ SELECT EXISTS(SELECT 1 FROM public.service_bots WHERE user_id = _uid) $$;
 REVOKE ALL ON FUNCTION public.is_service_bot(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.is_service_bot(uuid) TO authenticated, service_role;
 
+-- Seed do bot legado: o UUID é de um usuário real de produção; em ambiente
+-- limpo (replay) o usuário não existe e o seed é um no-op.
 INSERT INTO public.service_bots(user_id, descricao)
-VALUES ('03c77162-cacc-4708-93b5-40ab5389f4e4','Bot legado de leitura de leads e documentacao')
+SELECT '03c77162-cacc-4708-93b5-40ab5389f4e4','Bot legado de leitura de leads e documentacao'
+WHERE EXISTS (SELECT 1 FROM auth.users WHERE id = '03c77162-cacc-4708-93b5-40ab5389f4e4')
 ON CONFLICT (user_id) DO NOTHING;
 
 -- 2) Trocar policies com UUID fixo por checagem de bot de servico

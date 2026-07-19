@@ -1,3 +1,4 @@
+DROP FUNCTION IF EXISTS public.copa_ranking();
 CREATE OR REPLACE FUNCTION public.copa_ranking()
 RETURNS TABLE(corretor_id uuid, nome text, bandeira text,
               agendamentos integer, visitas integer, analise integer,

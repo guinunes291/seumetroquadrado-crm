@@ -9,6 +9,7 @@ import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { mensagemPrimeiroContato } from "@/lib/whatsapp";
 import { notaSistemaPayload } from "@/lib/interacoes";
+import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
 import type { Lead } from "./types";
 
@@ -240,20 +241,22 @@ export function useLeadMutations(opts: {
         .select("id, nome, corretor_id")
         .in("id", ids);
       if (lErr) throw lErr;
-      const rows = (leadsData ?? []).map((l) => ({
-        titulo: `Follow-up com ${l.nome}`,
-        tipo: "follow_up" as const,
-        prioridade: "media" as const,
-        status: "pendente" as const,
-        lead_id: l.id,
-        corretor_id: l.corretor_id ?? autor,
-        criado_por: autor,
-        data_vencimento: iso,
-      }));
-      if (rows.length === 0) return 0;
-      const { error } = await supabase.from("tarefas").insert(rows as never);
-      if (error) throw error;
-      return rows.length;
+      // Passa pelo dedup canônico (garantirFollowUpAberto): reaplicar o lote
+      // ou já existir follow-up aberto próximo ATUALIZA em vez de duplicar.
+      let n = 0;
+      for (const l of leadsData ?? []) {
+        await garantirFollowUpAberto({
+          leadId: l.id,
+          tipo: "follow_up",
+          titulo: `Follow-up com ${l.nome}`,
+          prioridade: "media",
+          vencimento: iso,
+          corretorId: l.corretor_id ?? autor,
+          criadoPorId: autor,
+        });
+        n++;
+      }
+      return n;
     },
     onSuccess: (n) => {
       toast.success(`Follow-up definido em ${n} lead(s)`);

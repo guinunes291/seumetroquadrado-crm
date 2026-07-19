@@ -24,7 +24,7 @@ export const LIXEIRA_LABEL: Record<LixeiraTabela, string> = {
 export async function softDelete(tabela: LixeiraTabela, id: string) {
   const { error } = await supabase
     .from(tabela)
-    .update({ deleted_at: new Date().toISOString() } as never)
+    .update({ deleted_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
 }
@@ -34,7 +34,7 @@ export async function restaurar(tabela: LixeiraTabela, id: string) {
   const { error } = await supabase.rpc("restaurar_registro", {
     _tabela: tabela,
     _id: id,
-  } as never);
+  });
   if (error) throw error;
 }
 
@@ -48,10 +48,7 @@ export function diasAteExpiracao(deletedAt: string | null): number {
 }
 
 /** Resumo amigável para o card de listagem da lixeira */
-export function resumoRegistro(
-  tabela: LixeiraTabela,
-  row: Record<string, unknown>,
-): string {
+export function resumoRegistro(tabela: LixeiraTabela, row: Record<string, unknown>): string {
   switch (tabela) {
     case "leads":
       return String(row.nome ?? "Lead sem nome");

@@ -30,7 +30,7 @@ export function MissoesWidget(props: WidgetProps) {
         corretor_id: user!.id,
         criado_por: user!.id,
         data_vencimento: amanha.toISOString(),
-      } as never);
+      });
       if (error) throw error;
     },
     onSuccess: () => {

@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "crypto";
-import { checkRateLimit, jsonResponse } from "@/lib/public-api-auth";
+import { checkRateLimitDistribuido, jsonResponse } from "@/lib/public-api-auth";
 import { legacyApiWindowIsOpen } from "@/lib/api-legacy-window";
 
 export { legacyApiWindowIsOpen } from "@/lib/api-legacy-window";
@@ -124,7 +124,9 @@ export async function requireApiClientScope(
   scope: ApiClientScope,
   now = Date.now(),
 ): Promise<ApiClientContext | Response> {
-  const limited = checkRateLimit(request, now);
+  // Duas camadas: memória (por instância) + banco (compartilhado entre as
+  // instâncias do Worker) — ver checkRateLimitDistribuido.
+  const limited = await checkRateLimitDistribuido(request, now);
   if (limited) return limited;
 
   const provided = request.headers.get("x-api-key") ?? "";

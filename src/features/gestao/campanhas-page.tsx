@@ -27,7 +27,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -93,7 +100,6 @@ export function CampanhasPage() {
   const [tokenVisivel, setTokenVisivel] = useState<Record<string, boolean>>({});
   const qc = useQueryClient();
 
-
   const campanhasQ = useQuery({
     queryKey: ["gestao:campanhas"],
     enabled: podeVer,
@@ -128,7 +134,7 @@ export function CampanhasPage() {
     mutationFn: async ({ roletaId, projetoId }: { roletaId: string; projetoId: string | null }) => {
       const { error } = await supabase
         .from("roletas")
-        .update({ projeto_id: projetoId } as never)
+        .update({ projeto_id: projetoId })
         .eq("id", roletaId);
       if (error) throw error;
     },
@@ -144,23 +150,24 @@ export function CampanhasPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const slug = nome
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 60) || `projeto-${Date.now()}`;
+      const slug =
+        nome
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 60) || `projeto-${Date.now()}`;
       const { data: novo, error: e1 } = await supabase
         .from("projetos")
-        .insert({ nome, slug, ativo: true, criado_por: user?.id ?? null } as never)
+        .insert({ nome, slug, ativo: true, criado_por: user?.id ?? null })
         .select("id")
         .single();
 
       if (e1) throw e1;
       const { error: e2 } = await supabase
         .from("roletas")
-        .update({ projeto_id: (novo as { id: string }).id } as never)
+        .update({ projeto_id: (novo as { id: string }).id })
         .eq("id", roleta.id);
       if (e2) throw e2;
     },
@@ -172,7 +179,6 @@ export function CampanhasPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
 
   const recalcular = useMutation({
     mutationFn: async (slug: string) => {
@@ -223,10 +229,10 @@ export function CampanhasPage() {
         }
       />
       <p className="-mt-4 text-sm text-muted-foreground">
-        Cada campanha tem seu próprio token de webhook, sua equipe e sua distribuição ponderada
-        por tier (A={campanhasQ.data?.[0]?.peso_tier_a ?? 3}, B=
-        {campanhasQ.data?.[0]?.peso_tier_b ?? 2}, C={campanhasQ.data?.[0]?.peso_tier_c ?? 1}).
-        Os tokens abaixo alimentam a Data Table do n8n — não colam em documento.
+        Cada campanha tem seu próprio token de webhook, sua equipe e sua distribuição ponderada por
+        tier (A={campanhasQ.data?.[0]?.peso_tier_a ?? 3}, B=
+        {campanhasQ.data?.[0]?.peso_tier_b ?? 2}, C={campanhasQ.data?.[0]?.peso_tier_c ?? 1}). Os
+        tokens abaixo alimentam a Data Table do n8n — não colam em documento.
       </p>
 
       <Card>
@@ -274,7 +280,9 @@ export function CampanhasPage() {
                       >
                         <SelectTrigger className="h-8 w-64">
                           <SelectValue placeholder="Sem projeto (usa o nome da campanha)">
-                            {r.projeto_id ? projetosById.get(r.projeto_id) : "Sem projeto vinculado"}
+                            {r.projeto_id
+                              ? projetosById.get(r.projeto_id)
+                              : "Sem projeto vinculado"}
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -291,7 +299,6 @@ export function CampanhasPage() {
                           ))}
                         </SelectContent>
                       </Select>
-
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="flex items-center gap-1">
@@ -305,12 +312,14 @@ export function CampanhasPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() =>
-                            setTokenVisivel((s) => ({ ...s, [r.id]: !s[r.id] }))
-                          }
+                          onClick={() => setTokenVisivel((s) => ({ ...s, [r.id]: !s[r.id] }))}
                           title={showing ? "Ocultar" : "Mostrar"}
                         >
-                          {showing ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          {showing ? (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
                         </Button>
                         <Button
                           size="sm"
@@ -373,17 +382,13 @@ export function CampanhasPage() {
 
       <TierHistorico />
 
-      {equipeDe && (
-        <EquipeDialog roleta={equipeDe} onClose={() => setEquipeDe(null)} />
-      )}
+      {equipeDe && <EquipeDialog roleta={equipeDe} onClose={() => setEquipeDe(null)} />}
 
       {criarProjetoPara && (
         <CriarProjetoDialog
           roleta={criarProjetoPara}
           onClose={() => setCriarProjetoPara(null)}
-          onConfirm={(nome) =>
-            criarEVincular.mutate({ roleta: criarProjetoPara, nome })
-          }
+          onConfirm={(nome) => criarEVincular.mutate({ roleta: criarProjetoPara, nome })}
           pending={criarEVincular.isPending}
         />
       )}
@@ -410,8 +415,8 @@ function CriarProjetoDialog({
           <DialogTitle>Criar projeto</DialogTitle>
           <DialogDescription>
             O projeto será criado no CRM e vinculado automaticamente à campanha{" "}
-            <span className="font-medium">{roleta.nome}</span>. Você pode completar os
-            dados comerciais depois em Projetos.
+            <span className="font-medium">{roleta.nome}</span>. Você pode completar os dados
+            comerciais depois em Projetos.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
@@ -439,7 +444,6 @@ function CriarProjetoDialog({
     </Dialog>
   );
 }
-
 
 function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void }) {
   const qc = useQueryClient();
@@ -472,15 +476,11 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     queryKey: ["gestao:equipe-metricas", roleta.id],
     refetchInterval: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        "equipe_metricas_campanha" as never,
-        { _roleta_id: roleta.id } as never,
-      );
+      const { data, error } = await supabase.rpc("equipe_metricas_campanha", {
+        _roleta_id: roleta.id,
+      });
       if (error) throw error;
-      const map = new Map<
-        string,
-        { leads: number; agendamentos: number; vendas: number }
-      >();
+      const map = new Map<string, { leads: number; agendamentos: number; vendas: number }>();
       for (const row of (data ?? []) as Array<{
         corretor_id: string;
         leads_janela: number;
@@ -496,7 +496,6 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
       return map;
     },
   });
-
 
   const corretoresQ = useQuery({
     queryKey: ["gestao:corretores-elegiveis"],
@@ -525,7 +524,7 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     mutationFn: async (corretorId: string) => {
       const { error } = await supabase
         .from("roleta_participantes")
-        .insert({ roleta_id: roleta.id, corretor_id: corretorId, ativo: true } as never);
+        .insert({ roleta_id: roleta.id, corretor_id: corretorId, ativo: true });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -555,7 +554,7 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     mutationFn: async ({ id, limite }: { id: string; limite: number | null }) => {
       const { error } = await supabase
         .from("roleta_participantes")
-        .update({ limite_diario: limite } as never)
+        .update({ limite_diario: limite })
         .eq("id", id);
       if (error) throw error;
     },
@@ -629,49 +628,49 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                 const ags = live?.agendamentos ?? p.agendamentos_janela;
                 const vds = live?.vendas ?? p.vendas_janela;
                 return (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <div className="font-medium">{p.profile?.nome ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {p.profile?.presente ? "presente" : "ausente"} ·{" "}
-                      {p.profile?.ativo ? "ativo" : "inativo"} · score{" "}
-                      {Number(p.tier_score).toFixed(2)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={TIER_STYLE[p.tier]}>
-                      {p.tier}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{leads}</TableCell>
-                  <TableCell className="text-right tabular-nums">{ags}</TableCell>
-                  <TableCell className="text-right tabular-nums">{vds}</TableCell>
-                  <TableCell className="text-right">
-                    <Input
-                      className="ml-auto h-7 w-20 text-right"
-                      type="number"
-                      min={0}
-                      defaultValue={p.limite_diario ?? ""}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim();
-                        const n = v === "" ? null : Math.max(1, Number(v));
-                        if (n !== p.limite_diario) {
-                          atualizarLimite.mutate({ id: p.id, limite: n });
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => remover.mutate(p.id)}
-                      disabled={remover.isPending}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <div className="font-medium">{p.profile?.nome ?? "—"}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {p.profile?.presente ? "presente" : "ausente"} ·{" "}
+                        {p.profile?.ativo ? "ativo" : "inativo"} · score{" "}
+                        {Number(p.tier_score).toFixed(2)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={TIER_STYLE[p.tier]}>
+                        {p.tier}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{leads}</TableCell>
+                    <TableCell className="text-right tabular-nums">{ags}</TableCell>
+                    <TableCell className="text-right tabular-nums">{vds}</TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        className="ml-auto h-7 w-20 text-right"
+                        type="number"
+                        min={0}
+                        defaultValue={p.limite_diario ?? ""}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          const n = v === "" ? null : Math.max(1, Number(v));
+                          if (n !== p.limite_diario) {
+                            atualizarLimite.mutate({ id: p.id, limite: n });
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => remover.mutate(p.id)}
+                        disabled={remover.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
 
