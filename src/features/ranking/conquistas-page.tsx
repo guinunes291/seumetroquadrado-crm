@@ -50,7 +50,7 @@ export function ConquistasPage() {
     queryKey: ["conquistas:minhas", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("conquistas")
         .select("tipo_conquista_id, conquistado_em")
         .eq("corretor_id", user!.id);
