@@ -54,23 +54,47 @@ function AuthPage() {
   const [loginPwd, setLoginPwd] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  const authTimeout = (action: string) =>
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(`${action} demorou para responder. Tente novamente em instantes.`));
+      }, 12_000);
+    });
+
+  const authErrorMessage = (error: unknown) => {
+    if (error instanceof Error && error.message.trim()) return error.message;
+    if (error && typeof error === "object" && "message" in error) {
+      const message = String((error as { message?: unknown }).message ?? "").trim();
+      if (message) return message;
+    }
+    return "O servidor demorou para responder. Tente novamente em instantes.";
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPwd,
-    });
-    setLoading(false);
-    if (error) {
-      toast.error("Não foi possível entrar", { description: error.message });
-      return;
-    }
-    toast.success("Bem-vindo de volta!");
-    if (destino !== "/") {
-      window.location.href = destino;
-    } else {
-      navigate({ to: "/hoje" });
+    try {
+      const { error } = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: loginEmail.trim(),
+          password: loginPwd,
+        }),
+        authTimeout("O login"),
+      ]);
+      if (error) {
+        toast.error("Não foi possível entrar", { description: authErrorMessage(error) });
+        return;
+      }
+      toast.success("Bem-vindo de volta!");
+      if (destino !== "/") {
+        window.location.href = destino;
+      } else {
+        navigate({ to: "/hoje" });
+      }
+    } catch (error) {
+      toast.error("Não foi possível entrar", { description: authErrorMessage(error) });
+    } finally {
+      setLoading(false);
     }
   };
 
