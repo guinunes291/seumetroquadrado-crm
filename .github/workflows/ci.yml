@@ -67,6 +67,39 @@ jobs:
       - name: Auditoria de dependências de produção
         run: npm audit --omit=dev --audit-level=high
 
+  # Migrations + regras de negócio num Postgres REAL (auditoria 2026-07-19).
+  # Fecha o gap estrutural das ondas anteriores: replay das migrations do zero
+  # (shims de auth/storage/pg_cron/pg_net em scripts/db-harness) e a suíte
+  # tests/db (RLS por papel, máquina de estados, aprovar_venda, distribuição,
+  # dedup, follow-up, KPIs). Toda migration futura que quebrar o replay ou uma
+  # regra testada quebra este job.
+  db-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.19.0
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci --no-audit --no-fund
+
+      - name: Subir Postgres do harness (extensões fake montadas)
+        run: docker compose -f scripts/db-harness/docker-compose.yml up -d --wait
+
+      - name: Aplicar shims + todas as migrations (replay do zero)
+        run: bash scripts/db-harness/apply.sh
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:54329/postgres
+
+      - name: Suíte de banco (tests/db)
+        run: npm run test:db
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:54329/postgres
+
   # Smoke do ARTEFATO DE PRODUÇÃO num navegador real. É o gate que faltava: build
   # verde não garante que o app renderiza. Boota o build (preset node-server, cujo
   # bundle client é idêntico ao Cloudflare) e reprova em tela branca, erro de
