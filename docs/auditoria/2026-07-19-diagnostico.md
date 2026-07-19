@@ -93,12 +93,34 @@ A verificação desta onda **confirma no banco em execução** que essas fundaç
 - WhatsApp (Z-API) sem retry/fila própria (fallback: alertas in-app).
 - Dual-lockfile mantido (não foi possível confirmar se o builder do Lovable usa bun).
 
+## Divergências de KPI encontradas e corrigidas (migration 20260719130000)
+
+A suíte de consistência provou, com seed determinístico, que a MESMA pergunta dava
+números diferentes conforme a RPC:
+
+- **Escopo de gestor**: kanban (pipeline_snapshot_v3) escopava à equipe; lista,
+  dashboard, série, SLA e motivos de perda tratavam gestor como visão GLOBAL —
+  12 × 18 no cenário de teste, com vazamento de contagens de outras equipes via
+  SECURITY DEFINER. Unificado na régua do pipeline (= RLS).
+- **Vendas do dashboard**: venda pendente/rascunho contava em número e VGV
+  (3/230k × 2/180k reais). Agora só `status_venda='aprovada'`.
+- **Perda invisível**: o fluxo padrão de perda arquiva o lead na lixeira quando não
+  há corretor para repasse — e todos os medidores de perda filtravam lixeira: o lead
+  sumia das métricas no instante em que era perdido. Perda agora é fato histórico.
+- **gestao_metricas.aderencia** contava leads soft-deletados (único RPC sem o filtro).
+- **pos_venda** contava como lead "em aberto"; funil perdia `proposta_enviada`
+  (legado) e `pos_venda` das etapas cumulativas; lista do corretor escondia leads em
+  `novo` que o kanban mostrava.
+- **Timezone**: RPCs de série fixam America/Sao_Paulo; dashboard_kpis/funil usam a
+  janela crua do chamador — documentado como contrato (frontend deve enviar janelas SP).
+
 ## Números da onda
 
-- **Suíte de banco nova**: `tests/db/` — 9 arquivos, 190+ casos contra Postgres real
-  (sanidade, contrato FSM, RLS, venda, distribuição, dedup, follow-up, KPIs, jornadas).
-- **Suíte vitest existente**: 628 testes verdes (85 arquivos) após as mudanças.
-- **Migrations novas**: 4 (dedup hardening + guard de INSERT; reconciliação Copa;
-  correções da suíte SQL; rate limit distribuído). 7 migrations históricas receberam
-  guardas de idempotência (sem mudança de semântica).
+- **Suíte de banco nova**: `tests/db/` — 9 arquivos, **201 casos** contra Postgres real
+  (sanidade, contrato FSM, RLS, venda, distribuição, dedup, follow-up, KPIs, jornadas),
+  todos verdes, zero expected-fails.
+- **Suíte vitest existente**: 628 testes verdes (79 arquivos) após as mudanças.
+- **Migrations novas**: 5 (dedup hardening + guard de INSERT; reconciliação Copa;
+  correções da suíte SQL; rate limit distribuído; consistência de KPIs). 7 migrations
+  históricas receberam guardas de idempotência (sem mudança de semântica).
 - **CI**: novo job `db-tests` — replay do zero + suíte de banco a cada push.
