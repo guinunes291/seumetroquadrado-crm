@@ -1,7 +1,3 @@
-// Gerado a partir do schema das migrations aplicadas no harness local
-// (scripts/db-harness) + ajuste manual documentado: copa_ranking() usa o
-// shape real de produção (a definição viva não está capturada nas
-// migrations — drift registrado na auditoria de 2026-07-19).
 export type Json =
   | string
   | number
@@ -11,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       agendamentos: {
@@ -81,6 +82,7 @@ export type Database = {
           {
             foreignKeyName: "agendamentos_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -190,12 +192,14 @@ export type Database = {
           {
             foreignKeyName: "analises_credito_agendamento_id_fkey"
             columns: ["agendamento_id"]
+            isOneToOne: false
             referencedRelation: "agendamentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "analises_credito_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -242,6 +246,7 @@ export type Database = {
           {
             foreignKeyName: "api_cliente_auditoria_cliente_id_fkey"
             columns: ["cliente_id"]
+            isOneToOne: false
             referencedRelation: "api_clientes"
             referencedColumns: ["id"]
           },
@@ -270,6 +275,7 @@ export type Database = {
           {
             foreignKeyName: "api_cliente_escopos_cliente_id_fkey"
             columns: ["cliente_id"]
+            isOneToOne: false
             referencedRelation: "api_clientes"
             referencedColumns: ["id"]
           },
@@ -340,36 +346,42 @@ export type Database = {
           {
             foreignKeyName: "api_clientes_equipe_id_fkey"
             columns: ["equipe_id"]
+            isOneToOne: false
             referencedRelation: "equipes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "api_clientes_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "api_clientes_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "api_clientes_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
           {
             foreignKeyName: "api_clientes_rotacionado_de_id_fkey"
             columns: ["rotacionado_de_id"]
+            isOneToOne: false
             referencedRelation: "api_clientes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "api_clientes_substituido_por_id_fkey"
             columns: ["substituido_por_id"]
+            isOneToOne: false
             referencedRelation: "api_clientes"
             referencedColumns: ["id"]
           },
@@ -429,27 +441,6 @@ export type Database = {
           agente?: string
           ativo?: boolean
           created_at?: string
-        }
-        Relationships: []
-      }
-      api_rate_limits: {
-        Row: {
-          expires_at: string
-          key_hash: string
-          request_count: number
-          window_started_at: string
-        }
-        Insert: {
-          expires_at: string
-          key_hash: string
-          request_count?: number
-          window_started_at: string
-        }
-        Update: {
-          expires_at?: string
-          key_hash?: string
-          request_count?: number
-          window_started_at?: string
         }
         Relationships: []
       }
@@ -581,12 +572,14 @@ export type Database = {
           {
             foreignKeyName: "comissao_ledger_comissao_id_fkey"
             columns: ["comissao_id"]
+            isOneToOne: false
             referencedRelation: "comissoes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "comissao_ledger_venda_id_fkey"
             columns: ["venda_id"]
+            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
@@ -657,12 +650,14 @@ export type Database = {
           {
             foreignKeyName: "comissoes_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "comissoes_venda_id_fkey"
             columns: ["venda_id"]
+            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
@@ -691,34 +686,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
-      }
-      conquistas: {
-        Row: {
-          conquistado_em: string
-          corretor_id: string
-          id: string
-          tipo_conquista_id: string
-        }
-        Insert: {
-          conquistado_em?: string
-          corretor_id: string
-          id?: string
-          tipo_conquista_id: string
-        }
-        Update: {
-          conquistado_em?: string
-          corretor_id?: string
-          id?: string
-          tipo_conquista_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conquistas_tipo_conquista_id_fkey"
-            columns: ["tipo_conquista_id"]
-            referencedRelation: "tipos_conquista"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       conta_auditoria: {
         Row: {
@@ -794,6 +761,7 @@ export type Database = {
           {
             foreignKeyName: "convites_crm_equipe_id_fkey"
             columns: ["equipe_id"]
+            isOneToOne: false
             referencedRelation: "equipes"
             referencedColumns: ["id"]
           },
@@ -888,6 +856,7 @@ export type Database = {
           {
             foreignKeyName: "copa_confrontos_fase_id_fkey"
             columns: ["fase_id"]
+            isOneToOne: false
             referencedRelation: "copa_fases"
             referencedColumns: ["id"]
           },
@@ -955,6 +924,7 @@ export type Database = {
           {
             foreignKeyName: "copa_fases_edicao_id_fkey"
             columns: ["edicao_id"]
+            isOneToOne: false
             referencedRelation: "copa_edicao"
             referencedColumns: ["id"]
           },
@@ -992,12 +962,14 @@ export type Database = {
           {
             foreignKeyName: "copa_participantes_edicao_id_fkey"
             columns: ["edicao_id"]
+            isOneToOne: false
             referencedRelation: "copa_edicao"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "copa_participantes_selecao_id_fkey"
             columns: ["selecao_id"]
+            isOneToOne: false
             referencedRelation: "copa_selecoes"
             referencedColumns: ["id"]
           },
@@ -1053,6 +1025,7 @@ export type Database = {
           {
             foreignKeyName: "copa_pontuacoes_edicao_id_fkey"
             columns: ["edicao_id"]
+            isOneToOne: false
             referencedRelation: "copa_edicao"
             referencedColumns: ["id"]
           },
@@ -1132,6 +1105,7 @@ export type Database = {
           {
             foreignKeyName: "copiloto_eventos_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1166,6 +1140,7 @@ export type Database = {
           {
             foreignKeyName: "distribuicao_config_roleta_slug_fkey"
             columns: ["roleta_slug"]
+            isOneToOne: false
             referencedRelation: "roletas"
             referencedColumns: ["slug"]
           },
@@ -1224,6 +1199,7 @@ export type Database = {
           {
             foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1249,6 +1225,7 @@ export type Database = {
           {
             foreignKeyName: "distribuicao_log_contexto_log_id_fkey"
             columns: ["log_id"]
+            isOneToOne: true
             referencedRelation: "distribution_log"
             referencedColumns: ["id"]
           },
@@ -1319,6 +1296,7 @@ export type Database = {
           {
             foreignKeyName: "distribution_log_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1374,12 +1352,14 @@ export type Database = {
           {
             foreignKeyName: "documentacao_versoes_documentacao_id_fkey"
             columns: ["documentacao_id"]
+            isOneToOne: false
             referencedRelation: "documentacoes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "documentacao_versoes_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1423,6 +1403,7 @@ export type Database = {
           {
             foreignKeyName: "documentacoes_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1559,6 +1540,7 @@ export type Database = {
           {
             foreignKeyName: "google_event_mirrors_agendamento_id_fkey"
             columns: ["agendamento_id"]
+            isOneToOne: false
             referencedRelation: "agendamentos"
             referencedColumns: ["id"]
           },
@@ -1593,31 +1575,11 @@ export type Database = {
           {
             foreignKeyName: "historico_precos_unidade_id_fkey"
             columns: ["unidade_id"]
+            isOneToOne: false
             referencedRelation: "unidades"
             referencedColumns: ["id"]
           },
         ]
-      }
-      historico_presenca: {
-        Row: {
-          corretor_id: string
-          em: string
-          id: string
-          status: string
-        }
-        Insert: {
-          corretor_id: string
-          em?: string
-          id?: string
-          status: string
-        }
-        Update: {
-          corretor_id?: string
-          em?: string
-          id?: string
-          status?: string
-        }
-        Relationships: []
       }
       interacoes: {
         Row: {
@@ -1666,6 +1628,7 @@ export type Database = {
           {
             foreignKeyName: "interacoes_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1763,6 +1726,7 @@ export type Database = {
           {
             foreignKeyName: "lead_eventos_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1800,6 +1764,7 @@ export type Database = {
           {
             foreignKeyName: "lead_status_transitions_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -2014,18 +1979,21 @@ export type Database = {
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -2153,6 +2121,7 @@ export type Database = {
           {
             foreignKeyName: "leads_landing_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -2217,6 +2186,7 @@ export type Database = {
           {
             foreignKeyName: "links_uteis_acessos_link_id_fkey"
             columns: ["link_id"]
+            isOneToOne: false
             referencedRelation: "links_uteis"
             referencedColumns: ["id"]
           },
@@ -2272,6 +2242,7 @@ export type Database = {
           {
             foreignKeyName: "metas_equipe_id_fkey"
             columns: ["equipe_id"]
+            isOneToOne: false
             referencedRelation: "equipes"
             referencedColumns: ["id"]
           },
@@ -2405,12 +2376,14 @@ export type Database = {
           {
             foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "oferta_ativa_leads_oferta_id_fkey"
             columns: ["oferta_id"]
+            isOneToOne: false
             referencedRelation: "ofertas_ativas"
             referencedColumns: ["id"]
           },
@@ -2454,6 +2427,7 @@ export type Database = {
           {
             foreignKeyName: "ofertas_ativas_corretor_id_fkey"
             columns: ["corretor_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2581,6 +2555,7 @@ export type Database = {
           {
             foreignKeyName: "profiles_equipe_id_fkey"
             columns: ["equipe_id"]
+            isOneToOne: false
             referencedRelation: "equipes"
             referencedColumns: ["id"]
           },
@@ -2624,18 +2599,21 @@ export type Database = {
           {
             foreignKeyName: "projeto_foco_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "projeto_foco_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "projeto_foco_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -2664,7 +2642,6 @@ export type Database = {
           galeria_urls: string[]
           id: string
           lat: number | null
-          legacy_id: number | null
           lng: number | null
           logradouro: string | null
           mes_entrega: number | null
@@ -2717,7 +2694,6 @@ export type Database = {
           galeria_urls?: string[]
           id?: string
           lat?: number | null
-          legacy_id?: number | null
           lng?: number | null
           logradouro?: string | null
           mes_entrega?: number | null
@@ -2770,7 +2746,6 @@ export type Database = {
           galeria_urls?: string[]
           id?: string
           lat?: number | null
-          legacy_id?: number | null
           lng?: number | null
           logradouro?: string | null
           mes_entrega?: number | null
@@ -2856,30 +2831,35 @@ export type Database = {
           {
             foreignKeyName: "propostas_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "propostas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "propostas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "propostas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
           {
             foreignKeyName: "propostas_unidade_id_fkey"
             columns: ["unidade_id"]
+            isOneToOne: false
             referencedRelation: "unidades"
             referencedColumns: ["id"]
           },
@@ -2926,24 +2906,28 @@ export type Database = {
           {
             foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
             columns: ["convertido_lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "propostas_visitantes_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "propostas_visitantes_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "propostas_visitantes_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -3030,33 +3014,6 @@ export type Database = {
         }
         Relationships: []
       }
-      resumo_presenca_diaria: {
-        Row: {
-          corretor_id: string
-          dia: string
-          id: string
-          minutos_presente: number
-          primeiro_presente: string | null
-          ultimo_ausente: string | null
-        }
-        Insert: {
-          corretor_id: string
-          dia: string
-          id?: string
-          minutos_presente?: number
-          primeiro_presente?: string | null
-          ultimo_ausente?: string | null
-        }
-        Update: {
-          corretor_id?: string
-          dia?: string
-          id?: string
-          minutos_presente?: number
-          primeiro_presente?: string | null
-          ultimo_ausente?: string | null
-        }
-        Relationships: []
-      }
       roleta_participantes: {
         Row: {
           agendamentos_janela: number
@@ -3122,12 +3079,14 @@ export type Database = {
           {
             foreignKeyName: "roleta_participantes_corretor_id_fkey"
             columns: ["corretor_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "roleta_participantes_roleta_id_fkey"
             columns: ["roleta_id"]
+            isOneToOne: false
             referencedRelation: "roletas"
             referencedColumns: ["id"]
           },
@@ -3207,12 +3166,14 @@ export type Database = {
           {
             foreignKeyName: "roleta_tier_historico_corretor_id_fkey"
             columns: ["corretor_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "roleta_tier_historico_roleta_id_fkey"
             columns: ["roleta_id"]
+            isOneToOne: false
             referencedRelation: "roletas"
             referencedColumns: ["id"]
           },
@@ -3307,18 +3268,21 @@ export type Database = {
           {
             foreignKeyName: "roletas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "roletas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "roletas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -3392,12 +3356,14 @@ export type Database = {
           {
             foreignKeyName: "samiq_execucoes_equipe_id_fkey"
             columns: ["equipe_id"]
+            isOneToOne: false
             referencedRelation: "equipes"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "samiq_execucoes_prompt_version_fkey"
             columns: ["prompt_version"]
+            isOneToOne: false
             referencedRelation: "samiq_prompt_versions"
             referencedColumns: ["version"]
           },
@@ -3600,46 +3566,11 @@ export type Database = {
           {
             foreignKeyName: "tarefas_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
-      }
-      templates_comissao: {
-        Row: {
-          ativo: boolean
-          created_at: string
-          id: string
-          nome: string
-          percentual_comissao: number
-          percentual_corretor: number
-          percentual_gerente: number
-          percentual_superintendente: number
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          created_at?: string
-          id?: string
-          nome: string
-          percentual_comissao?: number
-          percentual_corretor?: number
-          percentual_gerente?: number
-          percentual_superintendente?: number
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          created_at?: string
-          id?: string
-          nome?: string
-          percentual_comissao?: number
-          percentual_corretor?: number
-          percentual_gerente?: number
-          percentual_superintendente?: number
-          updated_at?: string
-        }
-        Relationships: []
       }
       templates_mensagem: {
         Row: {
@@ -3682,67 +3613,25 @@ export type Database = {
           {
             foreignKeyName: "templates_mensagem_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "templates_mensagem_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "templates_mensagem_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
         ]
-      }
-      tipos_conquista: {
-        Row: {
-          ativo: boolean
-          chave: string
-          created_at: string
-          criterio_tipo: string
-          criterio_valor: number
-          descricao: string | null
-          icone: string | null
-          id: string
-          nome: string
-          ordem: number
-          pontos_bonus: number
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          chave: string
-          created_at?: string
-          criterio_tipo: string
-          criterio_valor?: number
-          descricao?: string | null
-          icone?: string | null
-          id?: string
-          nome: string
-          ordem?: number
-          pontos_bonus?: number
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          chave?: string
-          created_at?: string
-          criterio_tipo?: string
-          criterio_valor?: number
-          descricao?: string | null
-          icone?: string | null
-          id?: string
-          nome?: string
-          ordem?: number
-          pontos_bonus?: number
-          updated_at?: string
-        }
-        Relationships: []
       }
       unidades: {
         Row: {
@@ -3806,18 +3695,21 @@ export type Database = {
           {
             foreignKeyName: "unidades_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "unidades_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "unidades_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -3894,18 +3786,21 @@ export type Database = {
           {
             foreignKeyName: "venda_integridade_conflitos_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "venda_integridade_conflitos_venda_conflitante_id_fkey"
             columns: ["venda_conflitante_id"]
+            isOneToOne: true
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "venda_integridade_conflitos_venda_preservada_id_fkey"
             columns: ["venda_preservada_id"]
+            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
@@ -3955,6 +3850,7 @@ export type Database = {
           {
             foreignKeyName: "venda_metricas_ledger_venda_id_fkey"
             columns: ["venda_id"]
+            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
@@ -4049,24 +3945,28 @@ export type Database = {
           {
             foreignKeyName: "vendas_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vendas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vendas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "vendas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -4134,18 +4034,21 @@ export type Database = {
           {
             foreignKeyName: "visita_execucoes_agendamento_id_fkey"
             columns: ["agendamento_id"]
+            isOneToOne: true
             referencedRelation: "agendamentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "visita_execucoes_corretor_id_fkey"
             columns: ["corretor_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "visita_execucoes_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -4195,30 +4098,35 @@ export type Database = {
           {
             foreignKeyName: "visitas_agendamento_id_fkey"
             columns: ["agendamento_id"]
+            isOneToOne: false
             referencedRelation: "agendamentos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "visitas_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "visitas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "visitas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "visitas_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -4256,24 +4164,28 @@ export type Database = {
           {
             foreignKeyName: "vitrine_link_eventos_link_id_fkey"
             columns: ["link_id"]
+            isOneToOne: false
             referencedRelation: "vitrine_links"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vitrine_link_eventos_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vitrine_link_eventos_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "vitrine_link_eventos_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -4302,24 +4214,28 @@ export type Database = {
           {
             foreignKeyName: "vitrine_link_projetos_link_id_fkey"
             columns: ["link_id"]
+            isOneToOne: false
             referencedRelation: "vitrine_links"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vitrine_link_projetos_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "vitrine_link_projetos_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "vitrine_link_projetos_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -4378,6 +4294,7 @@ export type Database = {
           {
             foreignKeyName: "vitrine_links_lead_id_fkey"
             columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -4404,10 +4321,35 @@ export type Database = {
           {
             foreignKeyName: "copa_pontuacoes_edicao_id_fkey"
             columns: ["edicao_id"]
+            isOneToOne: false
             referencedRelation: "copa_edicao"
             referencedColumns: ["id"]
           },
         ]
+      }
+      metric_webhook_status: {
+        Row: {
+          enabled: boolean | null
+          id: number | null
+          token_set: boolean | null
+          updated_at: string | null
+          url: string | null
+        }
+        Insert: {
+          enabled?: boolean | null
+          id?: number | null
+          token_set?: never
+          updated_at?: string | null
+          url?: string | null
+        }
+        Update: {
+          enabled?: boolean | null
+          id?: number | null
+          token_set?: never
+          updated_at?: string | null
+          url?: string | null
+        }
+        Relationships: []
       }
       projetos_alternativa_regiao: {
         Row: {
@@ -4416,14 +4358,6 @@ export type Database = {
           alternativa_nome: string | null
           alternativa_preco: number | null
           projeto_id: string | null
-        }
-        Relationships: []
-      }
-      vw_leads_sem_projeto_telefone_duplicado: {
-        Row: {
-          lead_ids: string[] | null
-          qtd: number | null
-          telefone_digits: string | null
         }
         Relationships: []
       }
@@ -4438,18 +4372,21 @@ export type Database = {
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["alternativa_id"]
           },
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
+            isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
           },
@@ -4756,7 +4693,6 @@ export type Database = {
         }
         Returns: Json
       }
-      auto_checkout_presenca: { Args: never; Returns: number }
       begin_landing_webhook_request: {
         Args: {
           _key_hash: string
@@ -4826,22 +4762,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      conceder_conquistas: { Args: { _corretor: string }; Returns: number }
-      conceder_conquistas_todos: { Args: never; Returns: number }
-      consolidar_presenca_dia: { Args: { _dia: string }; Returns: number }
       consume_landing_webhook_rate_limit: {
-        Args: {
-          _key_hash: string
-          _max_requests: number
-          _window_seconds: number
-        }
-        Returns: {
-          allowed: boolean
-          remaining: number
-          retry_after_seconds: number
-        }[]
-      }
-      consumir_api_rate_limit: {
         Args: {
           _key_hash: string
           _max_requests: number
@@ -4858,7 +4779,12 @@ export type Database = {
         Returns: string
       }
       conta_atual_ativa: { Args: never; Returns: boolean }
+      copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
       copa_avancar_fase: { Args: never; Returns: string }
+      copa_definir_vencedor: {
+        Args: { _confronto_id: string; _corretor_id: string }
+        Returns: undefined
+      }
       copa_get_ajuste_manual: {
         Args: { _corretor_id: string; _semana: number }
         Returns: {
@@ -4869,6 +4795,10 @@ export type Database = {
         }[]
       }
       copa_inicializar_dados: { Args: never; Returns: Json }
+      copa_pontos_corretor: {
+        Args: { _corretor_id: string; _df: string; _di: string }
+        Returns: number
+      }
       copa_pontos_por_semana: {
         Args: never
         Returns: {
@@ -4893,7 +4823,9 @@ export type Database = {
           total_visitas: number
         }[]
       }
-      copa_realizar_sorteio: { Args: never; Returns: undefined }
+      copa_realizar_sorteio:
+        | { Args: never; Returns: undefined }
+        | { Args: { _edicao_id: string }; Returns: undefined }
       copa_salvar_pontuacao: {
         Args: {
           _ag: number
@@ -4919,7 +4851,9 @@ export type Database = {
         }
         Returns: undefined
       }
-      copa_set_participantes: { Args: { _ids: string[] }; Returns: undefined }
+      copa_set_participantes:
+        | { Args: { _edicao_id: string; _ids: string[] }; Returns: undefined }
+        | { Args: { _ids: string[] }; Returns: undefined }
       copa_set_vencedor: {
         Args: { _confronto_id: string; _vencedor_id: string }
         Returns: undefined
@@ -4943,7 +4877,6 @@ export type Database = {
         }
         Returns: string
       }
-      criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
       criar_vitrine_link: {
         Args: {
           _ator_id: string
@@ -4985,11 +4918,13 @@ export type Database = {
         Returns: {
           corretor_id: string
           corretor_nome: string
+          distribuido: boolean
           lead_id: string
           minutos_parado: number
           nome: string
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
+          total_count: number
         }[]
       }
       dashboard_metricas_por_corretor: {
@@ -5017,6 +4952,20 @@ export type Database = {
           motivo: string
           quantidade: number
         }[]
+      }
+      dashboard_origem: {
+        Args: { _corretor?: string; _df?: string; _di?: string }
+        Returns: {
+          chave: string
+          conv_pct: number
+          leads: number
+          nivel: string
+          vendas: number
+        }[]
+      }
+      dashboard_receita: {
+        Args: { _corretor?: string; _df?: string; _di?: string }
+        Returns: Json
       }
       dashboard_redistribuicoes: {
         Args: { _df: string; _di: string }
@@ -5361,7 +5310,6 @@ export type Database = {
           status: string
         }[]
       }
-      limpar_api_rate_limits: { Args: never; Returns: number }
       limpar_vitrine_eventos_expirados: {
         Args: { _antes?: string }
         Returns: number
@@ -5470,21 +5418,6 @@ export type Database = {
           elegivel: boolean
           pct_trabalhado: number
           total_ativos: number
-        }[]
-      }
-      ranking_atividades: {
-        Args: { _df: string; _di: string }
-        Returns: {
-          agendamentos: number
-          corretor_id: string
-          documentacoes: number
-          ligacoes: number
-          nome: string
-          pontuacao: number
-          vendas: number
-          vgv: number
-          visitas: number
-          whatsapps: number
         }[]
       }
       ranking_periodo_v2: {
@@ -5869,7 +5802,6 @@ export type Database = {
           total: number
         }[]
       }
-      verificar_minhas_conquistas: { Args: never; Returns: number }
       vitrine_galeria_urls_validas: {
         Args: { _urls: string[] }
         Returns: boolean
@@ -5952,7 +5884,11 @@ export type Database = {
       lead_temperatura: "quente" | "morno" | "frio"
       status_conta: "pendente" | "ativa" | "bloqueada"
       status_venda:
-        "rascunho" | "pendente" | "aprovada" | "rejeitada" | "cancelada"
+        | "rascunho"
+        | "pendente"
+        | "aprovada"
+        | "rejeitada"
+        | "cancelada"
       tarefa_prioridade: "baixa" | "media" | "alta" | "urgente"
       tarefa_status: "pendente" | "em_andamento" | "concluida" | "cancelada"
       tarefa_tipo:
@@ -5981,12 +5917,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6008,12 +5944,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6032,12 +5969,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6056,12 +5994,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6074,11 +6013,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -6196,4 +6135,3 @@ export const Constants = {
     },
   },
 } as const
-
