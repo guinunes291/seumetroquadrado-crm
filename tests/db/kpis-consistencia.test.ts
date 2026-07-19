@@ -2,7 +2,8 @@
  * CONSISTÊNCIA DOS NÚMEROS DO CRM — a mesma pergunta respondida por RPCs
  * diferentes tem que dar o mesmo número.
  *
- * Filtros REAIS de cada RPC de leitura (descobertos via pg_get_functiondef):
+ * Filtros REAIS de cada RPC de leitura (descobertos via pg_get_functiondef;
+ * divergências corrigidas na migration 20260719130000_kpis_consistencia):
  *
  * - pipeline_snapshot_v3(_query,_corretor_id,_projeto_id) SECURITY DEFINER:
  *     deleted_at IS NULL AND na_lixeira = false. Escopo: admin/superintendente
@@ -11,44 +12,48 @@
  *     corretor vê a própria carteira (INCLUSIVE status 'novo'). Devolve todas
  *     as etapas do enum (legados 'qualificado'/'proposta_enviada' incluídos).
  *     Não devolve linha de total — o total é a soma das etapas. Não filtra
- *     período (sem timezone envolvido).
+ *     período (sem timezone envolvido). É a RÉGUA DE ESCOPO das demais RPCs.
  * - pipeline_snapshot_v2: mesmos filtros; escopo via pode_acessar_lead
  *     (mesmo conjunto de leads do v3 para todo papel).
  * - leads_status_counts_v2(_na_lixeira,...) SECURITY DEFINER:
- *     deleted_at IS NULL AND na_lixeira = _na_lixeira. Escopo: admin, GESTOR e
- *     superintendente veem TODOS os leads (global, sem recorte de equipe!);
- *     corretor vê a própria carteira MENOS status 'novo' (status <> 'novo').
+ *     deleted_at IS NULL AND na_lixeira = _na_lixeira. Escopo (20260719130000):
+ *     mesma régua do pipeline_snapshot_v3 — admin/superintendente global,
+ *     gestor = carteira + equipe (sem leads órfãos), corretor = a própria
+ *     carteira INCLUSIVE status 'novo' (a lista bate com o kanban/RLS).
  *     Período (quando passado): created_at cru do chamador, exceto
  *     contrato_fechado que usa data_assinatura da última venda. Devolve linha
  *     '__total__'.
  * - dashboard_kpis(_di,_df,_corretor,_campo_data) SECURITY DEFINER:
- *     pipeline: deleted/lixeira fora; escopo gestor GLOBAL (scope NULL);
- *     'em_aberto' = status NOT IN ('contrato_fechado','perdido') → pos_venda
- *     (terminal) conta como aberto. periodo (dashboard_atividade_periodo):
- *     leads por created_at na janela CRUA (timezone é responsabilidade do
- *     chamador); 'vendas'/'vgv' = linhas de public.vendas com distrato=false,
- *     QUALQUER status_venda (pendente/rascunho contam!); visitas/perdidos por
- *     lead_status_transitions (para_status).
+ *     pipeline: deleted/lixeira fora; escopo (20260719130000) = régua do
+ *     pipeline_snapshot_v3; 'em_aberto'/'sem_corretor' tratam pos_venda como
+ *     TERMINAL (status NOT IN contrato_fechado/perdido/pos_venda). periodo
+ *     (dashboard_atividade_periodo): leads por created_at na janela CRUA
+ *     (timezone é responsabilidade do chamador); 'vendas'/'vgv' = SÓ vendas
+ *     APROVADAS sem distrato (20260719130000); visitas por
+ *     lead_status_transitions; 'perdidos' idem e SEM filtro de lixeira
+ *     (perda é fato histórico — 20260719130000).
  * - dashboard_funil(_di,_df,_corretor,_campo_data) SECURITY DEFINER:
- *     deleted/lixeira fora; escopo gestor GLOBAL; janela crua por created_at;
+ *     deleted/lixeira fora; escopo = régua do v3; janela crua por created_at;
  *     'Novos' = TODOS os leads criados na janela (qualquer status); etapas
- *     cumulativas NÃO incluem 'proposta_enviada' nem 'pos_venda'; 'Fechados' =
- *     só 'contrato_fechado'.
+ *     cumulativas incluem 'proposta_enviada' (até 'Visitas') e 'pos_venda'
+ *     (todas); 'Fechados' = contrato_fechado + pos_venda (20260719130000).
  * - dashboard_serie_diaria(...) SECURITY DEFINER: deleted/lixeira fora; escopo
- *     gestor GLOBAL; bucketiza os dias em America/Sao_Paulo.
+ *     (20260719130000) = régua do v3; bucketiza os dias em America/Sao_Paulo.
  * - gestao_metricas(_start,_end,_campo) SECURITY INVOKER (RLS do chamador):
- *     'aderencia' = leads com na_lixeira = false e status não-terminal, mas
- *     NÃO filtra deleted_at (soft-deletados contam); 'atividade' = interacoes
- *     com deleted_at IS NULL na janela crua.
+ *     'aderencia' = leads com deleted_at IS NULL (20260719130000), na_lixeira
+ *     = false e status não-terminal; 'atividade' = interacoes com deleted_at
+ *     IS NULL na janela crua.
  * - leads_sla_pendentes(_corretor) SECURITY DEFINER: deleted/lixeira fora;
- *     status IN ('novo','aguardando_atendimento'); escopo gestor GLOBAL.
+ *     status IN ('novo','aguardando_atendimento'); escopo (20260719130000) =
+ *     régua do v3.
  * - leads_com_sla(_corretor) SECURITY DEFINER: idem, mas todos os status
  *     não-terminais (sla_status = 'ok' fora de novo/aguardando_atendimento).
  * - metricas_periodo_v2(_inicio date,_fim date) SECURITY DEFINER: dias
  *     interpretados em America/Sao_Paulo; leads deleted/lixeira fora, escopo
- *     por pode_acessar_lead (gestor = equipe, SEM leads sem corretor — ao
- *     contrário do dashboard); 'vendas'/'vgv' vêm de atividades_diarias, que
- *     só recebe bump na APROVAÇÃO da venda (dia = aprovado_em em SP).
+ *     por pode_acessar_lead (gestor = equipe, SEM leads sem corretor — igual
+ *     ao dashboard após 20260719130000); 'vendas'/'vgv' vêm de
+ *     atividades_diarias, que só recebe bump na APROVAÇÃO da venda (dia =
+ *     aprovado_em em SP).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -505,36 +510,33 @@ describe("leads_status_counts_v2 vs pipeline_snapshot_v3", () => {
     expect(counts.get("__total__")).toBe(somaEtapas(pipeline));
   });
 
-  // BUG descoberto: para GESTOR o kanban (pipeline_snapshot_v3, recorte de
-  // equipe via corretores_do_gestor) e a lista de leads (leads_status_counts_v2,
-  // _is_gestor → visão GLOBAL, inclui outras equipes e leads sem corretor que o
-  // RLS nem deixa ele abrir) respondem "quantos leads tenho?" com números
-  // diferentes: 12 vs 18 neste seed. dashboard_kpis, dashboard_funil,
-  // dashboard_serie_diaria e leads_sla_pendentes/leads_com_sla usam o mesmo
-  // escopo global; metricas_periodo_v2 e o RLS usam o recorte de equipe.
-  it.fails("gestor: __total__ da lista == soma do pipeline do MESMO gestor", async () => {
+  // Corrigido na migration 20260719130000: leads_status_counts_v2 passou a
+  // usar a MESMA régua de escopo do pipeline_snapshot_v3 (ve_carteira_completa
+  // + corretores_do_gestor) — para gestor, o kanban e a lista respondem
+  // "quantos leads tenho?" com o mesmo número (a equipe, não a visão global).
+  it("gestor: __total__ da lista == soma do pipeline do MESMO gestor", async () => {
     const pipeline = await pipelineMap(gestorA.id);
     const counts = await countsMap(gestorA.id);
     expect(counts.get("__total__")).toBe(somaEtapas(pipeline));
   });
 
-  it("gestor: a divergência é exatamente equipe B + leads sem corretor (documenta o bug acima)", async () => {
+  it("gestor: equipe B e leads sem corretor ficam fora da lista E do kanban (mesma régua do RLS)", async () => {
+    // A base tem 4 leads da equipe B e 2 sem corretor — nenhum deles pode
+    // aparecer para o gestor da equipe A (igual RLS: lead órfão não é dele).
     const pipeline = await pipelineMap(gestorA.id);
     const counts = await countsMap(gestorA.id);
     const foraDaEquipe = await refCount(`${ATIVO} AND corretor_id = '${corretor3.id}'`);
     const semCorretor = await refCount(`${ATIVO} AND corretor_id IS NULL`);
     expect(foraDaEquipe).toBe(4);
     expect(semCorretor).toBe(2);
-    expect((counts.get("__total__") ?? 0) - somaEtapas(pipeline)).toBe(
-      foraDaEquipe + semCorretor,
-    );
+    expect(counts.get("__total__")).toBe(TIME_A_ATIVOS);
+    expect(somaEtapas(pipeline)).toBe(TIME_A_ATIVOS);
   });
 
-  // BUG descoberto: para CORRETOR, leads_status_counts_v2 esconde os leads em
-  // status 'novo' da própria carteira (filtro l.status <> 'novo'), enquanto
-  // pipeline_snapshot_v3 e o próprio RLS (leads_select_carteira) os mostram.
-  // O kanban diz 1 lead em 'novo'; a lista diz 0 e o total fica 1 menor.
-  it.fails("corretor: a lista mostra os MESMOS leads 'novo' que o kanban", async () => {
+  // Corrigido na migration 20260719130000: leads_status_counts_v2 não esconde
+  // mais os leads em status 'novo' da carteira do corretor — kanban, lista e
+  // RLS (leads_select_carteira) mostram o mesmo conjunto.
+  it("corretor: a lista mostra os MESMOS leads 'novo' que o kanban", async () => {
     const pipeline = await pipelineMap(corretor1.id);
     const counts = await countsMap(corretor1.id);
     expect(pipeline.get("novo")).toBe(1); // sanidade: o kanban mostra
@@ -561,11 +563,10 @@ describe("dashboard_funil vs referência (admin, sem período)", () => {
     expect(funil.get("Novos")).toBe(somaEtapas(pipeline));
   });
 
-  // BUG descoberto: 'Fechados' do funil conta só status 'contrato_fechado'.
-  // Lead que avançou para 'pos_venda' some da conversão final (e de todas as
-  // etapas intermediárias), embora continue contando em 'Novos'. Neste seed o
-  // funil reporta 2 fechados com 3 negócios fechados na base.
-  it.fails("'Fechados' conta também quem já avançou para pos_venda", async () => {
+  // Corrigido na migration 20260719130000: 'Fechados' do funil passou a contar
+  // contrato_fechado + pos_venda — negócio fechado que avançou para o
+  // pós-venda não some mais da conversão final.
+  it("'Fechados' conta também quem já avançou para pos_venda", async () => {
     const funil = await funilMap(admin.id, null, null);
     const refFechados = await refCount(
       `${ATIVO} AND status::text IN ('contrato_fechado','pos_venda')`,
@@ -574,11 +575,10 @@ describe("dashboard_funil vs referência (admin, sem período)", () => {
     expect(funil.get("Fechados")).toBe(refFechados);
   });
 
-  // BUG descoberto: a etapa cumulativa 'Em atendimento' não inclui o status
-  // legado 'proposta_enviada' (nem 'pos_venda'). Um lead legado em
-  // proposta_enviada aparece em 'Novos' e desaparece de TODAS as etapas
-  // seguintes do funil, deformando as taxas de conversão intermediárias.
-  it.fails("'Em atendimento' inclui os leads legados proposta_enviada (e pos_venda)", async () => {
+  // Corrigido na migration 20260719130000: as etapas cumulativas do funil
+  // incluem o status legado 'proposta_enviada' (até 'Visitas') e 'pos_venda'
+  // (todas) — nenhum lead ativo desaparece das etapas intermediárias.
+  it("'Em atendimento' inclui os leads legados proposta_enviada (e pos_venda)", async () => {
     const funil = await funilMap(admin.id, null, null);
     const ref = await refCount(
       `${ATIVO} AND status::text IN
@@ -618,11 +618,11 @@ describe("dashboard_kpis vs referência (admin)", () => {
     );
   });
 
-  // BUG descoberto: 'em_aberto' = status NOT IN ('contrato_fechado','perdido'),
-  // então lead em 'pos_venda' (status terminal, protegido pelo guard de
-  // fechamento) conta como lead EM ABERTO: 14 vs 13 neste seed. Diverge de
-  // leads_com_sla e de gestao_metricas, que tratam pos_venda como terminal.
-  it.fails("'em_aberto' == leads ativos não-terminais de referência", async () => {
+  // Corrigido na migration 20260719130000: 'em_aberto' (e 'sem_corretor')
+  // tratam pos_venda como TERMINAL — status NOT IN
+  // ('contrato_fechado','perdido','pos_venda') — igual leads_com_sla e
+  // gestao_metricas.
+  it("'em_aberto' == leads ativos não-terminais de referência", async () => {
     const k = await kpis(admin.id, null, null);
     expect(k.pipeline.em_aberto).toBe(NAO_TERMINAIS);
   });
@@ -643,18 +643,17 @@ describe("dashboard_kpis vs referência (admin)", () => {
     expect(m.fechados).toBe(2);
   });
 
-  // BUG descoberto: dashboard_kpis conta como "venda" QUALQUER linha de
-  // public.vendas com distrato=false — venda PENDENTE (ainda não aprovada pela
-  // gestão) entra no número: 3 vendas aqui contra 2 do metricas_periodo_v2 para
-  // a MESMA janela. O número de vendas do período muda conforme a tela.
-  it.fails("periodo.vendas == vendas aprovadas (mesmo número do metricas_periodo_v2)", async () => {
+  // Corrigido na migration 20260719130000: dashboard_atividade_periodo conta
+  // como "venda" apenas status_venda='aprovada' (sem distrato) — venda
+  // PENDENTE fica de fora, mesmo número do metricas_periodo_v2 em toda tela.
+  it("periodo.vendas == vendas aprovadas (mesmo número do metricas_periodo_v2)", async () => {
     const k = await kpis(admin.id, DI_SP, DF_SP);
     expect(k.periodo.vendas).toBe(VENDAS_APROVADAS);
   });
 
-  // BUG descoberto: idem para o VGV — o valor da venda pendente (50.000) entra
-  // no VGV do dashboard: 230.000 vs 180.000 do metricas_periodo_v2.
-  it.fails("periodo.vgv == VGV aprovado (mesmo número do metricas_periodo_v2)", async () => {
+  // Corrigido na migration 20260719130000: idem para o VGV — o valor da venda
+  // pendente (50.000) não entra mais no VGV do dashboard.
+  it("periodo.vgv == VGV aprovado (mesmo número do metricas_periodo_v2)", async () => {
     const k = await kpis(admin.id, DI_SP, DF_SP);
     expect(Number(k.periodo.vgv)).toBe(VGV_APROVADO);
   });
@@ -716,27 +715,26 @@ describe("gestao_metricas.aderencia vs leads ativos de referência", () => {
     return r.rows[0].a as { total: number; sem_corretor: number };
   }
 
-  // BUG descoberto: o bloco 'aderencia' filtra na_lixeira = false e status
-  // não-terminal, mas NÃO filtra deleted_at — lead soft-deletado continua
-  // contando como lead ativo da operação: total 14 vs 13 de referência (e vs
-  // leads_com_sla, que responde a mesma pergunta com o filtro certo).
-  it.fails("aderencia.total == contagem de leads ativos não-terminais (admin)", async () => {
+  // Corrigido na migration 20260719130000: o bloco 'aderencia' ganhou o filtro
+  // deleted_at IS NULL — lead soft-deletado não conta mais como lead ativo da
+  // operação (mesmo número do leads_com_sla).
+  it("aderencia.total == contagem de leads ativos não-terminais (admin)", async () => {
     const a = await aderencia(admin.id);
     expect(a.total).toBe(NAO_TERMINAIS);
   });
 
-  it("a diferença é exatamente o lead soft-deletado (documenta o bug acima)", async () => {
+  it("o lead soft-deletado existe mas fica fora da aderência (== leads_com_sla)", async () => {
     const a = await aderencia(admin.id);
     const deletadosForaDaLixeira = await refCount(
       `deleted_at IS NOT NULL AND na_lixeira = false AND status::text NOT IN ${TERMINAIS}`,
     );
-    expect(deletadosForaDaLixeira).toBe(1);
-    expect(a.total - NAO_TERMINAIS).toBe(deletadosForaDaLixeira);
-    // E diverge de leads_com_sla, que responde "quantos leads ativos" certo:
+    expect(deletadosForaDaLixeira).toBe(1); // o cenário de soft-delete existe
+    expect(a.total - NAO_TERMINAIS).toBe(0); // e não infla a aderência
+    // E bate com leads_com_sla, que responde a mesma pergunta:
     await comoUsuario(c, admin.id);
     const sla = await c.query(`SELECT count(*)::int AS n FROM public.leads_com_sla(NULL)`);
     await comoSuperuser(c);
-    expect(a.total).not.toBe(sla.rows[0].n);
+    expect(a.total).toBe(sla.rows[0].n);
   });
 });
 
@@ -804,10 +802,10 @@ describe("lixeira e deleted_at ficam fora das contagens ativas", () => {
     expect(somaEtapas(pipeline)).toBe(ATIVOS_TOTAL);
     expect(counts.get("__total__")).toBe(ATIVOS_TOTAL);
     expect(funil.get("Novos")).toBe(ATIVOS_TOTAL);
-    // em_aberto + terminais visíveis do kpis == 18 (conferência indireta):
+    // em_aberto + terminais == 18 (conferência indireta; desde a migration
+    // 20260719130000 'em_aberto' exclui também pos_venda, que é terminal):
     expect(
-      k.pipeline.em_aberto +
-        (await refCount(`${ATIVO} AND status::text IN ('contrato_fechado','perdido')`)),
+      k.pipeline.em_aberto + (await refCount(`${ATIVO} AND status::text IN ${TERMINAIS}`)),
     ).toBe(ATIVOS_TOTAL);
   });
 
@@ -818,7 +816,7 @@ describe("lixeira e deleted_at ficam fora das contagens ativas", () => {
     expect(lixeira.get("em_atendimento")).toBe(1);
   });
 
-  it("o lead soft-deletado não aparece em nenhuma contagem ativa (exceto gestao_metricas, bug já marcado)", async () => {
+  it("o lead soft-deletado não aparece em nenhuma contagem ativa (inclusive gestao_metricas, desde 20260719130000)", async () => {
     // Referência: com deleted_at preenchido o lead sai de pipeline, lista, funil,
     // kpis e SLA — os totais acima já provam (18, não 19). Conferência direta:
     await comoUsuario(c, admin.id);

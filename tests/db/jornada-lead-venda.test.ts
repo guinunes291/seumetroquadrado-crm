@@ -25,13 +25,15 @@
  *    lead para contrato_fechado, gera comissões + ledgers, e o trigger
  *    trg_leads_cancelar_followups cancela as tarefas de contato abertas.
  *
- * BUG descoberto (Jornada 2): o fluxo padrão de perda (marcar_lead_perdido_v2
- * sem corretor elegível para repasse) manda o lead para a lixeira
- * (na_lixeira = true) — e TODOS os medidores de perda (dashboard_kpis →
- * dashboard_atividade_periodo 'perdidos', dashboard_motivos_perda) filtram
- * na_lixeira = false. Resultado: o lead perdido pelo fluxo oficial some das
- * métricas de perda no mesmo instante em que é perdido. (dashboard_funil nem
- * possui etapa de perdidos — só Novos→Fechados.)
+ * Corrigido na migration 20260719130000 (Jornada 2): o fluxo padrão de perda
+ * (marcar_lead_perdido_v2 sem corretor elegível para repasse) manda o lead
+ * para a lixeira (na_lixeira = true) — e os medidores de perda (dashboard_kpis
+ * → dashboard_atividade_periodo 'perdidos', dashboard_motivos_perda)
+ * filtravam na_lixeira = false, sumindo com a perda no instante em que ela
+ * acontecia. Perda é fato histórico: os medidores deixaram de filtrar
+ * na_lixeira (só soft-delete tira da conta) e atribuem a perda ao corretor da
+ * transição para 'perdido' (mesmo com o lead redistribuído/órfão depois).
+ * (dashboard_funil segue sem etapa de perdidos — só Novos→Fechados.)
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -81,8 +83,8 @@ beforeAll(async () => {
       WHERE id IN ($1::uuid, $2::uuid)`,
     [corretorJ1.id, corretorJ2.id],
   );
-  // (criarProjeto do helpers está defasado: projetos.slug é NOT NULL sem
-  // default. limparDados preserva projetos entre execuções → upsert por slug.)
+  // (limparDados preserva projetos entre execuções → upsert por slug fixo
+  // para manter o mesmo registro entre rodadas.)
   const proj = await c.query(
     `INSERT INTO public.projetos (nome, slug) VALUES ('Residencial Jornada', 'residencial-jornada')
      ON CONFLICT (slug) DO UPDATE SET nome = EXCLUDED.nome
@@ -592,15 +594,14 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
     expect(log.rows[0].n).toBe(1);
   });
 
-  // BUG descoberto: marcar_lead_perdido_v2 (fluxo padrão de perda do app) manda
-  // o lead para a lixeira (na_lixeira = true) quando não há corretor elegível
-  // para repasse — e os medidores de perda do dashboard (dashboard_kpis →
-  // dashboard_atividade_periodo conta 'perdidos' via lead_status_transitions;
-  // dashboard_motivos_perda agrupa por categoria) filtram na_lixeira = false.
-  // O lead perdido pelo fluxo oficial desaparece das métricas de perda no
-  // instante em que é perdido; só perdas via transicionar_lead direto contam.
-  // (dashboard_funil sequer possui etapa de perdidos para conferir.)
-  it.fails("5. dashboards de perda deveriam contar o lead perdido pelo fluxo padrão", async () => {
+  // Corrigido na migration 20260719130000: os medidores de perda
+  // (dashboard_kpis → dashboard_atividade_periodo 'perdidos' e
+  // dashboard_motivos_perda) deixaram de filtrar na_lixeira — perda é fato
+  // histórico, e o lead mandado à lixeira pelo fluxo padrão
+  // (marcar_lead_perdido_v2 sem elegível para repasse) continua contando,
+  // atribuído ao corretor da transição para 'perdido' (visível ao gestor da
+  // equipe mesmo com o lead órfão depois do repasse frustrado).
+  it("5. dashboards de perda contam o lead perdido pelo fluxo padrão", async () => {
     await comoUsuario(c, gestor.id);
     const kpis = await c.query(`SELECT public.dashboard_kpis() AS k`);
     expect(Number(kpis.rows[0].k.periodo.perdidos)).toBe(1);

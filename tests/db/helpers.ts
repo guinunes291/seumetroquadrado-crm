@@ -95,12 +95,14 @@ export async function criarEquipe(
 
 export async function criarProjeto(
   c: Client,
-  opts: { nome?: string } = {},
+  opts: { nome?: string; slug?: string } = {},
 ): Promise<string> {
   await comoSuperuser(c);
+  const n = ++seq;
   const r = await c.query(
-    `INSERT INTO public.projetos (nome) VALUES ($1) RETURNING id`,
-    [opts.nome ?? `Projeto ${++seq}`],
+    `INSERT INTO public.projetos (nome, slug) VALUES ($1, $2) RETURNING id`,
+    // projetos.slug é NOT NULL sem default e único — gera um slug fresco.
+    [opts.nome ?? `Projeto ${n}`, opts.slug ?? `projeto-${n}-${randomUUID().slice(0, 8)}`],
   );
   return r.rows[0].id as string;
 }
