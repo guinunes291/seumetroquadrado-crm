@@ -28,7 +28,7 @@ REVOKE EXECUTE ON FUNCTION public.alerta_agendamento_criado() FROM PUBLIC, anon,
 -- ============================================================
 -- Migration 2: lead_status_transitions + trigger + backfill
 -- ============================================================
-CREATE TABLE public.lead_status_transitions (
+CREATE TABLE IF NOT EXISTS public.lead_status_transitions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   lead_id uuid NOT NULL REFERENCES public.leads(id) ON DELETE CASCADE,
   corretor_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -38,18 +38,20 @@ CREATE TABLE public.lead_status_transitions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_lst_lead ON public.lead_status_transitions(lead_id, created_at DESC);
-CREATE INDEX idx_lst_para_status ON public.lead_status_transitions(para_status, created_at);
-CREATE INDEX idx_lst_corretor ON public.lead_status_transitions(corretor_id, para_status, created_at);
+CREATE INDEX IF NOT EXISTS idx_lst_lead ON public.lead_status_transitions(lead_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_lst_para_status ON public.lead_status_transitions(para_status, created_at);
+CREATE INDEX IF NOT EXISTS idx_lst_corretor ON public.lead_status_transitions(corretor_id, para_status, created_at);
 
 GRANT SELECT ON public.lead_status_transitions TO authenticated;
 GRANT ALL ON public.lead_status_transitions TO service_role;
 ALTER TABLE public.lead_status_transitions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admin/gestor veem todas as transicoes" ON public.lead_status_transitions;
 CREATE POLICY "Admin/gestor veem todas as transicoes"
   ON public.lead_status_transitions FOR SELECT TO authenticated
   USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'gestor'));
 
+DROP POLICY IF EXISTS "Corretor ve transicoes dos seus leads" ON public.lead_status_transitions;
 CREATE POLICY "Corretor ve transicoes dos seus leads"
   ON public.lead_status_transitions FOR SELECT TO authenticated
   USING (EXISTS (

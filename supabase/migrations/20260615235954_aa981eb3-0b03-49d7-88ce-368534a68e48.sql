@@ -3,6 +3,9 @@ UPDATE public.copa_fases
 SET semana_inicio = 1, semana_fim = 7
 WHERE id = '3b986a16-13fb-4269-afe0-c77abf1eef32';
 
+-- A versão anterior (20260615200100) retornava void; troca de tipo de retorno
+-- exige DROP antes do CREATE.
+DROP FUNCTION IF EXISTS public.copa_inicializar_dados();
 CREATE OR REPLACE FUNCTION public.copa_inicializar_dados()
 RETURNS jsonb
 LANGUAGE plpgsql

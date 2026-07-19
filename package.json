@@ -22,6 +22,10 @@
     "format:check": "node scripts/check-changed-format.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "db:up": "docker compose -f scripts/db-harness/docker-compose.yml up -d --wait",
+    "db:apply": "bash scripts/db-harness/apply.sh",
+    "db:reset": "bash scripts/db-harness/reset.sh",
     "smoke": "node e2e/smoke.mjs"
   },
   "dependencies": {

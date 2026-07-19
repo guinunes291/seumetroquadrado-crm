@@ -1,6 +1,6 @@
 -- ============================ Tabelas ============================
 
-CREATE TABLE public.copa_edicao (
+CREATE TABLE IF NOT EXISTS public.copa_edicao (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nome text NOT NULL,
   data_inicio date NOT NULL,
@@ -10,14 +10,14 @@ CREATE TABLE public.copa_edicao (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE TABLE public.copa_selecoes (
+CREATE TABLE IF NOT EXISTS public.copa_selecoes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nome text NOT NULL,
   bandeira text NOT NULL,
   ativo boolean NOT NULL DEFAULT true
 );
 
-CREATE TABLE public.copa_participantes (
+CREATE TABLE IF NOT EXISTS public.copa_participantes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   edicao_id uuid NOT NULL REFERENCES public.copa_edicao(id) ON DELETE CASCADE,
   corretor_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -26,10 +26,10 @@ CREATE TABLE public.copa_participantes (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (edicao_id, corretor_id)
 );
-CREATE INDEX idx_copa_part_edicao ON public.copa_participantes(edicao_id);
-CREATE INDEX idx_copa_part_corretor ON public.copa_participantes(corretor_id);
+CREATE INDEX IF NOT EXISTS idx_copa_part_edicao ON public.copa_participantes(edicao_id);
+CREATE INDEX IF NOT EXISTS idx_copa_part_corretor ON public.copa_participantes(corretor_id);
 
-CREATE TABLE public.copa_fases (
+CREATE TABLE IF NOT EXISTS public.copa_fases (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   edicao_id uuid NOT NULL REFERENCES public.copa_edicao(id) ON DELETE CASCADE,
   nome text NOT NULL,
@@ -37,9 +37,9 @@ CREATE TABLE public.copa_fases (
   semana_inicio int NOT NULL,
   semana_fim int NOT NULL
 );
-CREATE INDEX idx_copa_fases_edicao ON public.copa_fases(edicao_id, ordem);
+CREATE INDEX IF NOT EXISTS idx_copa_fases_edicao ON public.copa_fases(edicao_id, ordem);
 
-CREATE TABLE public.copa_confrontos (
+CREATE TABLE IF NOT EXISTS public.copa_confrontos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   fase_id uuid NOT NULL REFERENCES public.copa_fases(id) ON DELETE CASCADE,
   corretor_a_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -50,9 +50,9 @@ CREATE TABLE public.copa_confrontos (
   posicao int NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX idx_copa_confrontos_fase ON public.copa_confrontos(fase_id, posicao);
+CREATE INDEX IF NOT EXISTS idx_copa_confrontos_fase ON public.copa_confrontos(fase_id, posicao);
 
-CREATE TABLE public.copa_pontuacoes (
+CREATE TABLE IF NOT EXISTS public.copa_pontuacoes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   edicao_id uuid NOT NULL REFERENCES public.copa_edicao(id) ON DELETE CASCADE,
   corretor_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -66,16 +66,16 @@ CREATE TABLE public.copa_pontuacoes (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (edicao_id, corretor_id, semana)
 );
-CREATE INDEX idx_copa_pont_edicao ON public.copa_pontuacoes(edicao_id, corretor_id);
+CREATE INDEX IF NOT EXISTS idx_copa_pont_edicao ON public.copa_pontuacoes(edicao_id, corretor_id);
 
-CREATE TABLE public.copa_config_pontos (
+CREATE TABLE IF NOT EXISTS public.copa_config_pontos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   chave text NOT NULL UNIQUE,
   label text NOT NULL,
   pontos int NOT NULL DEFAULT 0
 );
 
-CREATE TABLE public.copa_config_premios (
+CREATE TABLE IF NOT EXISTS public.copa_config_premios (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   posicao text NOT NULL,
   descricao text,
@@ -85,8 +85,10 @@ CREATE TABLE public.copa_config_premios (
 );
 
 -- ============================ Triggers updated_at ============================
+DROP TRIGGER IF EXISTS trg_copa_edicao_updated_at ON copa_edicao;
 CREATE TRIGGER trg_copa_edicao_updated_at BEFORE UPDATE ON public.copa_edicao
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+DROP TRIGGER IF EXISTS trg_copa_pontuacoes_updated_at ON copa_pontuacoes;
 CREATE TRIGGER trg_copa_pontuacoes_updated_at BEFORE UPDATE ON public.copa_pontuacoes
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
@@ -101,6 +103,7 @@ BEGIN
     EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated;', t);
     EXECUTE format('GRANT ALL ON public.%I TO service_role;', t);
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t);
+    EXECUTE format('DROP POLICY IF EXISTS "%1$s_admin_all" ON public.%1$I;', t);
     EXECUTE format($f$
       CREATE POLICY "%1$s_admin_all" ON public.%1$I FOR ALL TO authenticated
       USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'gestor'))
@@ -109,15 +112,31 @@ BEGIN
   END LOOP;
 END $$;
 
+DROP POLICY IF EXISTS "copa_edicao_select" ON public.copa_edicao;
 CREATE POLICY "copa_edicao_select" ON public.copa_edicao FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "copa_selecoes_select" ON public.copa_selecoes;
 CREATE POLICY "copa_selecoes_select" ON public.copa_selecoes FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "copa_participantes_select" ON public.copa_participantes;
 CREATE POLICY "copa_participantes_select" ON public.copa_participantes FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "copa_fases_select" ON public.copa_fases;
 CREATE POLICY "copa_fases_select" ON public.copa_fases FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "copa_confrontos_select" ON public.copa_confrontos;
 CREATE POLICY "copa_confrontos_select" ON public.copa_confrontos FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "copa_config_pontos_select" ON public.copa_config_pontos;
 CREATE POLICY "copa_config_pontos_select" ON public.copa_config_pontos FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "copa_config_premios_select" ON public.copa_config_premios;
 CREATE POLICY "copa_config_premios_select" ON public.copa_config_premios FOR SELECT TO authenticated USING (true);
 
 -- ============================ Seeds ============================
+-- Seed idempotente: só roda se a edição ainda não existir (esta migration é
+-- uma re-emissão da 20260615170000, que já semeia os mesmos dados).
+DO $seed$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.copa_edicao
+             WHERE id = 'a0000000-0000-4000-8000-000000000001') THEN
+    RETURN;
+  END IF;
+
 INSERT INTO public.copa_edicao (id, nome, data_inicio, data_fim, ativo)
 VALUES ('a0000000-0000-4000-8000-000000000001', 'Copa SMQ 2026', '2026-06-03', '2026-07-26', true);
 
@@ -151,6 +170,8 @@ INSERT INTO public.copa_selecoes (nome, bandeira) VALUES
   ('Camarões','🇨🇲'),('Suíça','🇨🇭'),('Dinamarca','🇩🇰'),('Polônia','🇵🇱'),
   ('Sérvia','🇷🇸'),('Equador','🇪🇨'),('Catar','🇶🇦'),('Austrália','🇦🇺'),
   ('Canadá','🇨🇦'),('Chile','🇨🇱'),('Peru','🇵🇪'),('Nigéria','🇳🇬');
+
+END $seed$;
 
 -- ============================ Funções (RPCs) ============================
 

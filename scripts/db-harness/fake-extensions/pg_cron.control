@@ -1,0 +1,5 @@
+# Shim de pg_cron para o harness local/CI (não agenda nada de verdade).
+comment = 'shim de pg_cron para testes'
+default_version = '1.0'
+relocatable = false
+schema = pg_catalog

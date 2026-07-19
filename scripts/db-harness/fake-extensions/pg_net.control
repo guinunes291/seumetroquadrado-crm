@@ -1,0 +1,5 @@
+# Shim de pg_net para o harness local/CI (não faz HTTP de verdade).
+comment = 'shim de pg_net para testes'
+default_version = '1.0'
+relocatable = false
+schema = pg_catalog
