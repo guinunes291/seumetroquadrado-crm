@@ -36,7 +36,7 @@ export function ConquistasPage() {
   const tiposQ = useQuery({
     queryKey: ["conquistas:tipos"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("tipos_conquista")
         .select("id, nome, descricao, icone, pontos_bonus, ordem")
         .eq("ativo", true)
@@ -50,7 +50,7 @@ export function ConquistasPage() {
     queryKey: ["conquistas:minhas", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("conquistas")
         .select("tipo_conquista_id, conquistado_em")
         .eq("corretor_id", user!.id);

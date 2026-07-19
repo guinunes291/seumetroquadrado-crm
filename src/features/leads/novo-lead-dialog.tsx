@@ -141,7 +141,7 @@ function NovoLeadForm({
         payload.status = "aguardando_atendimento";
       }
 
-      const { data: criacao, error } = await supabase.rpc("criar_lead_dedup", {
+      const { data: criacao, error } = await (supabase as any).rpc("criar_lead_dedup", {
         _payload: payload as never,
       });
       if (error) throw error;

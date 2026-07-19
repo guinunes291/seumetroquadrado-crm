@@ -129,7 +129,7 @@ export async function checkRateLimitDistribuido(
 
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.rpc("consumir_api_rate_limit", {
+    const { data, error } = await (supabaseAdmin as any).rpc("consumir_api_rate_limit", {
       _key_hash: keyHash,
       _max_requests: RATE_LIMIT_MAX,
       _window_seconds: Math.round(RATE_LIMIT_WINDOW_MS / 1000),
