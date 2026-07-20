@@ -200,6 +200,23 @@ async function countsMap(userId: string, naLixeira = false): Promise<Map<string,
   return new Map(r.rows.map((row) => [row.status as string, row.quantidade as number]));
 }
 
+/** leads_filtered_v2 (lista) como o usuário atual → linhas + total_count da RPC. */
+async function listaLeads(
+  userId: string,
+): Promise<{ ids: string[]; corretores: Array<string | null>; total: number }> {
+  await comoUsuario(c, userId);
+  const r = await c.query(
+    `SELECT id, corretor_id, total_count::int AS total_count
+     FROM public.leads_filtered_v2(_status => 'all', _limit => 200)`,
+  );
+  await comoSuperuser(c);
+  return {
+    ids: r.rows.map((row) => row.id as string),
+    corretores: r.rows.map((row) => (row.corretor_id as string | null) ?? null),
+    total: r.rows.length ? (r.rows[0].total_count as number) : 0,
+  };
+}
+
 function somaEtapas(m: Map<string, number>): number {
   let s = 0;
   for (const [etapa, n] of m) if (etapa !== "__total__") s += n;
@@ -548,6 +565,45 @@ describe("leads_status_counts_v2 vs pipeline_snapshot_v3", () => {
     const r = await c.query(`SELECT id FROM public.leads WHERE id = $1`, [lNovoC1]);
     await comoSuperuser(c);
     expect(r.rows).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// leads_filtered_v2 (LISTA de Leads): mesmo escopo do kanban/contagens
+// ---------------------------------------------------------------------------
+
+// Regressão da migration 20260720120000: a RPC da LISTA (leads_filtered_v2)
+// tinha ficado de fora da unificação de escopo de 20260719130000 — usava
+// `_is_gestor OR ...`, então QUALQUER gestor via TODOS os leads da empresa,
+// enquanto as contagens (leads_status_counts_v2) já eram por equipe. Agora a
+// lista usa a MESMA régua (ve_carteira_completa + corretores_do_gestor).
+describe("leads_filtered_v2 (lista) respeita o escopo de carteira/equipe", () => {
+  it("admin: a lista traz todos os leads ativos (== pipeline/contagens)", async () => {
+    const lista = await listaLeads(admin.id);
+    expect(lista.ids).toHaveLength(ATIVOS_TOTAL);
+    expect(lista.total).toBe(ATIVOS_TOTAL);
+  });
+
+  it("gestor: a lista traz só a EQUIPE e bate com a contagem __total__ e a soma do pipeline", async () => {
+    const lista = await listaLeads(gestorA.id);
+    const counts = await countsMap(gestorA.id);
+    const pipeline = await pipelineMap(gestorA.id);
+    expect(lista.ids).toHaveLength(TIME_A_ATIVOS);
+    expect(lista.total).toBe(TIME_A_ATIVOS);
+    expect(lista.total).toBe(counts.get("__total__"));
+    expect(lista.total).toBe(somaEtapas(pipeline));
+  });
+
+  it("gestor: nenhum lead da equipe B nem lead sem corretor aparece na lista", async () => {
+    const lista = await listaLeads(gestorA.id);
+    expect(lista.corretores).not.toContain(null); // órfão não é do gestor
+    expect(lista.corretores).not.toContain(corretor3.id); // equipe B
+  });
+
+  it("corretor: a lista traz só a própria carteira, INCLUSIVE o lead 'novo'", async () => {
+    const lista = await listaLeads(corretor1.id);
+    for (const cid of lista.corretores) expect(cid).toBe(corretor1.id);
+    expect(lista.ids).toContain(lNovoC1);
   });
 });
 
