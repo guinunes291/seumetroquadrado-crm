@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -41,7 +41,9 @@ type Equipe = {
 
 export function EquipesPage() {
   const { isAdmin, isGestor } = useUserRoles();
-  const podeCriar = isAdmin || isGestor;
+  const { user } = useAuth();
+  // Criar/desativar/remover equipe é admin-only; o gestor só edita a PRÓPRIA equipe.
+  const podeCriar = isAdmin;
   const qc = useQueryClient();
 
   const [open, setOpen] = useState(false);
@@ -219,7 +221,7 @@ export function EquipesPage() {
         meta: { align: "right" },
         cell: ({ row }) => (
           <div className="space-x-1 whitespace-nowrap">
-            {podeCriar && (
+            {(isAdmin || (isGestor && row.original.gestor_id === user?.id)) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -256,7 +258,7 @@ export function EquipesPage() {
         ),
       },
     ],
-    [podeCriar, isAdmin, startEdit, mutateAtivo, mutateRemove],
+    [isAdmin, isGestor, user?.id, startEdit, mutateAtivo, mutateRemove],
   );
 
   return (

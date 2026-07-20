@@ -7,7 +7,7 @@
  *    distribuicao_config (origem -> roleta_slug; 'site' -> 'landing'),
  *    distribuicao_settings (get_dist_setting), distribuicao_excecoes,
  *    distribution_log + distribuicao_log_contexto.
- *  - RPCs: triar_e_distribuir_lead(_lead_id,_gatilho) [gate admin/gestor
+ *  - RPCs: triar_e_distribuir_lead(_lead_id,_gatilho) [gate admin-only
  *    quando auth.uid() não é NULL; NULL = contexto de serviço/cron],
  *    distribuir_lead_v3 (wrapper com gate) -> _distribuir_lead_v3 (motor,
  *    EXECUTE só p/ service_role), gerenciar_participante_roleta,
@@ -39,7 +39,7 @@ import {
 
 const c = novoClient();
 
-let gestor: UsuarioTeste;
+let admin: UsuarioTeste; // opera a distribuição (admin-only desde 20260720180000)
 let corretorA: UsuarioTeste; // "Alfa" — cursor mais antigo (recebe primeiro)
 let corretorB: UsuarioTeste; // "Bravo"
 
@@ -67,7 +67,7 @@ beforeAll(async () => {
   await c.connect();
   await limparDados(c);
 
-  gestor = await criarUsuario(c, { nome: "Gina Gestora", papel: "gestor" });
+  admin = await criarUsuario(c, { nome: "Ada Admin", papel: "admin" });
   corretorA = await criarUsuario(c, { nome: "Alfa Corretor", papel: "corretor" });
   corretorB = await criarUsuario(c, { nome: "Bravo Corretor", papel: "corretor" });
 
@@ -77,11 +77,11 @@ beforeAll(async () => {
     `UPDATE public.profiles SET telefone = '1199999000' || CASE id
         WHEN $1::uuid THEN '1' WHEN $2::uuid THEN '2' ELSE '3' END
       WHERE id IN ($1::uuid, $2::uuid, $3::uuid)`,
-    [corretorA.id, corretorB.id, gestor.id],
+    [corretorA.id, corretorB.id, admin.id],
   );
 
-  // Gestor monta a roleta 'landing' (seed; criterio 'manual', exige presença).
-  await comoUsuario(c, gestor.id);
+  // Admin monta a roleta 'landing' (seed; criterio 'manual', exige presença).
+  await comoUsuario(c, admin.id);
   await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'incluir')`, [
     corretorA.id,
   ]);
@@ -117,12 +117,12 @@ afterAll(async () => {
 describe("triagem e atribuição inicial (roleta landing via origem 'site')", () => {
   let leadId: string;
 
-  it("gestor dispara triar_e_distribuir_lead: lead novo vai ao corretor há mais tempo sem receber e o guard de status NÃO bloqueia", async () => {
+  it("admin dispara triar_e_distribuir_lead: lead novo vai ao corretor há mais tempo sem receber e o guard de status NÃO bloqueia", async () => {
     leadId = await criarLead(c, { origem: "site" });
 
-    // Chamado como GESTOR autenticado — é o caminho onde o guard
+    // Chamado como ADMIN autenticado — é o caminho onde o guard
     // validar_status_lead_via_rpc poderia morder (auth.role()='authenticated').
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     const r = await c.query(
       `SELECT public.triar_e_distribuir_lead($1::uuid, 'teste_inicial') AS res`,
       [leadId],
@@ -166,7 +166,7 @@ describe("triagem e atribuição inicial (roleta landing via origem 'site')", ()
       roleta_slug: "landing",
       regra_aplicada: "rodizio_menos_recente",
       resultado: "sucesso",
-      distribuido_por_id: gestor.id,
+      distribuido_por_id: admin.id,
     });
     expect(log.rows[0].motivo).toContain("rodízio");
 
@@ -314,7 +314,7 @@ describe("fila de exceções (lead nunca se perde)", () => {
     expect(exc.rows[0]).toEqual({ n: 1, tentativas: 2 });
   });
 
-  it("corretor comum NÃO chama o motor (gate admin/gestor) e não pollui a fila", async () => {
+  it("corretor comum NÃO chama o motor (gate admin-only) e não pollui a fila", async () => {
     await comoUsuario(c, corretorA.id);
 
     // Gate explícito 'forbidden' (P0001) nas RPCs públicas.
@@ -364,13 +364,13 @@ describe("fila de exceções (lead nunca se perde)", () => {
     expect((await leadAtual(leadSemElegiveis)).corretor_id).toBeNull();
   });
 
-  it("reprocessar_excecao (gestor): com presença de volta, atribui e a exceção sai da fila como resolvida", async () => {
+  it("reprocessar_excecao (admin): com presença de volta, atribui e a exceção sai da fila como resolvida", async () => {
     await comoUsuario(c, corretorA.id);
     await c.query(`SELECT public.marcar_presenca(true)`);
     await comoUsuario(c, corretorB.id);
     await c.query(`SELECT public.marcar_presenca(true)`);
 
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT public.reprocessar_excecao($1::uuid) AS res`, [excecaoId]);
     const res = r.rows[0].res;
 
@@ -388,7 +388,7 @@ describe("fila de exceções (lead nunca se perde)", () => {
       [excecaoId],
     );
     expect(exc.rows[0].status).toBe("resolvida");
-    expect(exc.rows[0].resolvida_por).toBe(gestor.id);
+    expect(exc.rows[0].resolvida_por).toBe(admin.id);
     expect(exc.rows[0].resolvida_em).not.toBeNull();
     expect(exc.rows[0].resolucao).toContain("distribuído");
 
@@ -403,7 +403,7 @@ describe("fila de exceções (lead nunca se perde)", () => {
 describe("elegibilidade: pausa fura a vez no rodízio", () => {
   it("participante pausado é inapto ('pausado') e o lead vai ao outro, mesmo sendo a vez dele", async () => {
     // Após o reprocesso, A é o menos-recente (seria o próximo da vez).
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
 
     // Pausa exige data futura.
     expect(
@@ -435,7 +435,7 @@ describe("elegibilidade: pausa fura a vez no rodízio", () => {
     expect(res.corretor_id).toBe(corretorB.id); // pulou o pausado
 
     // Reativa A e ele volta a ser apto.
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     await c.query(`SELECT public.gerenciar_participante_roleta('landing', $1::uuid, 'reativar')`, [
       corretorA.id,
     ]);
@@ -470,7 +470,7 @@ describe("triagem: dados incompletos", () => {
     expect(log.rows[0]).toEqual({ regra_aplicada: "triagem", resultado: "excecao" });
 
     // Encerrado para não sujar a fila dos próximos casos.
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     await c.query(
       `SELECT public.resolver_excecao((SELECT id FROM public.distribuicao_excecoes WHERE lead_id = $1::uuid), 'arquivar', '{"motivo":"teste"}'::jsonb)`,
       [leadId],
@@ -481,7 +481,7 @@ describe("triagem: dados incompletos", () => {
 describe("distribuir_lead_ponderado (motor por tier / SWRR)", () => {
   beforeAll(async () => {
     // Roleta 'marquinhos' (seed): A no tier A (peso 3), B no tier C (peso 1).
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     await c.query(
       `SELECT public.gerenciar_participante_roleta('marquinhos', $1::uuid, 'incluir')`,
       [corretorA.id],
@@ -538,7 +538,7 @@ describe("distribuir_lead_ponderado (motor por tier / SWRR)", () => {
   // atribuído") nem FOR UPDATE no lead. Corrigido na migration
   // 20260719123000: FOR UPDATE + retorno {ok:false, motivo:'ja_atribuido'}.
   it("ponderado sobre lead já atribuído deveria ser idempotente (não roubar o lead)", async () => {
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     await c.query(
       `SELECT public.gerenciar_participante_roleta('marquinhos', $1::uuid, 'remover')`,
       [corretorB.id],

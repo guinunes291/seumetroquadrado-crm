@@ -72,6 +72,7 @@ export function NovoLeadDialogHost() {
         <NovoLeadForm
           onClose={() => setOpen(false)}
           canManage={canManage}
+          podeDistribuir={isAdmin}
           currentUserId={user?.id ?? null}
         />
       )}
@@ -82,10 +83,12 @@ export function NovoLeadDialogHost() {
 function NovoLeadForm({
   onClose,
   canManage,
+  podeDistribuir,
   currentUserId,
 }: {
   onClose: () => void;
   canManage: boolean;
+  podeDistribuir: boolean; // distribuição via roleta é admin-only (20260720180000)
   currentUserId: string | null;
 }) {
   const qc = useQueryClient();
@@ -161,7 +164,7 @@ function NovoLeadForm({
       }
       const data = { id: resultado.lead_id };
 
-      if (canManage && distribuirAuto && data?.id) {
+      if (podeDistribuir && distribuirAuto && data?.id) {
         // Distribuição v3: triagem única (origem → roleta → corretor apto).
         const { data: triagem } = await supabase.rpc("triar_e_distribuir_lead", {
           _lead_id: data.id,
@@ -182,7 +185,7 @@ function NovoLeadForm({
           ? "Lead criado e atribuído a você"
           : r.corretor
             ? "Lead criado e atribuído"
-            : canManage && distribuirAuto
+            : podeDistribuir && distribuirAuto
               ? "Lead criado (nenhum corretor disponível na fila)"
               : "Lead criado",
       );
@@ -254,7 +257,7 @@ function NovoLeadForm({
             onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
           />
         </div>
-        {canManage ? (
+        {podeDistribuir ? (
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -263,6 +266,10 @@ function NovoLeadForm({
             />
             Distribuir automaticamente via roleta
           </label>
+        ) : canManage ? (
+          <p className="text-xs text-muted-foreground">
+            O lead será criado sem corretor. Atribua a um corretor do seu time pela lista de leads.
+          </p>
         ) : (
           <p className="text-xs text-muted-foreground">
             Este lead será atribuído automaticamente a você.

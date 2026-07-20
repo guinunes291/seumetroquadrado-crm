@@ -117,11 +117,13 @@ function PainelGestorPage() {
       <TabsList className="h-auto flex-wrap justify-start">
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
-        <TabsTrigger value="estoque">Estoque</TabsTrigger>
-        <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
+        {/* Estoque (fila de distribuição), Campanhas e Comunicação (templates) são
+            operação/config org-wide — admin-only. Gestor fica no escopo da equipe. */}
+        {isAdmin && <TabsTrigger value="estoque">Estoque</TabsTrigger>}
+        {isAdmin && <TabsTrigger value="campanhas">Campanhas</TabsTrigger>}
         <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
         <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
-        <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
+        {isAdmin && <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>}
         {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
       <TabsContent value="visao">
@@ -130,12 +132,16 @@ function PainelGestorPage() {
       <TabsContent value="saude">
         <SaudePanel />
       </TabsContent>
-      <TabsContent value="estoque">
-        <EstoquePage />
-      </TabsContent>
-      <TabsContent value="campanhas">
-        <CampanhasPage />
-      </TabsContent>
+      {isAdmin && (
+        <TabsContent value="estoque">
+          <EstoquePage />
+        </TabsContent>
+      )}
+      {isAdmin && (
+        <TabsContent value="campanhas">
+          <CampanhasPage />
+        </TabsContent>
+      )}
       <TabsContent value="leads-corretor">
         <LeadsPorCorretorPage />
       </TabsContent>
@@ -144,9 +150,11 @@ function PainelGestorPage() {
         <CorretoresPage />
         <EquipesPage />
       </TabsContent>
-      <TabsContent value="comunicacao">
-        <TemplatesPage />
-      </TabsContent>
+      {isAdmin && (
+        <TabsContent value="comunicacao">
+          <TemplatesPage />
+        </TabsContent>
+      )}
       {isAdmin && (
         <TabsContent value="qualidade" className="space-y-10">
           <DuplicatasPage />

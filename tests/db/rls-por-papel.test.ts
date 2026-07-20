@@ -707,13 +707,18 @@ describe("metas · comportamento atual documentado", () => {
     expect(upd.rowCount).toBe(0);
   });
 
-  it("gestor de OUTRA equipe consegue editar meta de corretor alheio (policy sem escopo de equipe — comportamento atual documentado)", async () => {
-    // Policy viva: UPDATE exige apenas has_role(admin) OU has_role(gestor),
-    // sem amarrar o gestor à equipe do corretor da meta. G_B edita a meta de
-    // C_A1. decisão de produto pendente — descoberta registrada no retorno.
+  it("metas: gestor edita só a PRÓPRIA equipe — gestor de OUTRA equipe é bloqueado (escopo por equipe, 20260720180000)", async () => {
+    // Migration 20260720180000: a escrita de metas passou a ser recortada por
+    // equipe (public.pode_gerir_meta). G_B (equipe B) NÃO edita a meta de C_A1
+    // (equipe A); G_A (mesma equipe de C_A1) edita normalmente.
     await comoUsuario(c, gB.id);
-    const r = await c.query(`UPDATE public.metas SET meta_vendas = 3 WHERE id = $1`, [metaA1]);
-    expect(r.rowCount).toBe(1);
+    const alheio = await c.query(`UPDATE public.metas SET meta_vendas = 3 WHERE id = $1`, [metaA1]);
+    expect(alheio.rowCount).toBe(0);
+
+    await comoUsuario(c, gA.id);
+    const proprio = await c.query(`UPDATE public.metas SET meta_vendas = 3 WHERE id = $1`, [metaA1]);
+    expect(proprio.rowCount).toBe(1);
+
     await comoSuperuser(c);
     await c.query(`UPDATE public.metas SET meta_vendas = 2 WHERE id = $1`, [metaA1]);
   });

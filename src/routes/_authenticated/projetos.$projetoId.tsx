@@ -44,7 +44,7 @@ function ProjetoDetalhePage() {
   const { projetoId } = Route.useParams();
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
-  const canManage = isAdmin || isGestor;
+  const canManage = isAdmin;
   const qc = useQueryClient();
   const [unidadeOpen, setUnidadeOpen] = useState(false);
   const [editing, setEditing] = useState<UnidadeRow | null>(null);
