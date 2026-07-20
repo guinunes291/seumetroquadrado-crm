@@ -52,6 +52,7 @@ const c = novoClient();
 let equipeId: string;
 let projetoId: string;
 let gestor: UsuarioTeste;
+let admin: UsuarioTeste; // opera a distribuição (admin-only desde 20260720180000)
 let superintendente: UsuarioTeste;
 let corretorJ1: UsuarioTeste; // dono da jornada 1 (venda)
 let corretorJ2: UsuarioTeste; // dono da jornada 2 (perda)
@@ -67,6 +68,7 @@ beforeAll(async () => {
 
   equipeId = await criarEquipe(c);
   gestor = await criarUsuario(c, { nome: "Gina Gestora", papel: "gestor", equipeId });
+  admin = await criarUsuario(c, { nome: "Aldo Admin", papel: "admin" });
   superintendente = await criarUsuario(c, { nome: "Super Único", papel: "superintendente" });
   corretorJ1 = await criarUsuario(c, { nome: "Vito Vendedor", papel: "corretor", equipeId });
   corretorJ2 = await criarUsuario(c, { nome: "Perla Perdedora", papel: "corretor", equipeId });
@@ -203,16 +205,16 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     expect(lead.projeto_id).toBe(projetoId);
   });
 
-  it("2. gestor distribui (triar_e_distribuir_lead): corretor atribuído e distribution_log registrado", async () => {
+  it("2. admin distribui (triar_e_distribuir_lead): corretor atribuído e distribution_log registrado", async () => {
     // Monta a roleta 'plantao' (destino da origem facebook) com só o corretor J1.
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'incluir')`, [
       corretorJ1.id,
     ]);
     await comoUsuario(c, corretorJ1.id);
     await c.query(`SELECT public.marcar_presenca(true)`);
 
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada1') AS res`, [
       leadId,
     ]);
@@ -238,7 +240,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       tipo: "automatica",
       roleta_slug: "plantao",
       resultado: "sucesso",
-      distribuido_por_id: gestor.id,
+      distribuido_por_id: admin.id,
     });
   });
 
@@ -480,7 +482,7 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
   it("1. lead facebook distribuído para o corretor J2 (troca de participante na roleta plantao)", async () => {
     // J1 sai da roleta; J2 entra e marca presença — o repasse na perda (mais
     // adiante) não terá NINGUÉM elegível além de quem já tentou.
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     await c.query(`SELECT public.gerenciar_participante_roleta('plantao', $1::uuid, 'remover')`, [
       corretorJ1.id,
     ]);
@@ -491,7 +493,7 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
     await c.query(`SELECT public.marcar_presenca(true)`);
 
     leadId = await leadViaIntake("Cliente Jornada 2", "11977770002");
-    await comoUsuario(c, gestor.id);
+    await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada2') AS res`, [
       leadId,
     ]);

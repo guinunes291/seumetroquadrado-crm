@@ -85,7 +85,7 @@ function NegociosPage() {
 function CatalogoPanel() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
-  const canManage = isAdmin || isGestor;
+  const canManage = isAdmin;
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);

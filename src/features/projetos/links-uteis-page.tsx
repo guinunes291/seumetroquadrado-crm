@@ -96,7 +96,7 @@ function formatDataHora(d: string) {
 
 export function LinksUteisPage() {
   const { isAdmin, isGestor, loading: rolesLoading } = useUserRoles();
-  const canManage = isAdmin || isGestor;
+  const canManage = isAdmin;
   const qc = useQueryClient();
 
   const [search, setSearch] = useState("");

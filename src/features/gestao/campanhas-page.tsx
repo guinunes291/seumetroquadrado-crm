@@ -94,7 +94,7 @@ const TIER_STYLE: Record<"A" | "B" | "C", string> = {
 
 export function CampanhasPage() {
   const { isAdmin, isGestor } = useUserRoles();
-  const podeVer = isAdmin || isGestor;
+  const podeVer = isAdmin;
   const [equipeDe, setEquipeDe] = useState<Roleta | null>(null);
   const [criarProjetoPara, setCriarProjetoPara] = useState<Roleta | null>(null);
   const [tokenVisivel, setTokenVisivel] = useState<Record<string, boolean>>({});

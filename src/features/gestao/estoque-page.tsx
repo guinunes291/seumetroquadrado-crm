@@ -34,7 +34,7 @@ type EstoqueLead = {
  */
 export function EstoquePage() {
   const { isAdmin, isGestor } = useUserRoles();
-  const podeVer = isAdmin || isGestor;
+  const podeVer = isAdmin;
   const [busca, setBusca] = useState("");
   const qc = useQueryClient();
 
@@ -136,9 +136,7 @@ export function EstoquePage() {
         accessorKey: "projeto_nome",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Projeto" />,
         meta: { label: "Projeto", hideBelow: "sm" },
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.projeto_nome ?? "—"}</span>
-        ),
+        cell: ({ row }) => <span className="text-sm">{row.original.projeto_nome ?? "—"}</span>,
       },
       {
         accessorKey: "origem",
@@ -162,9 +160,7 @@ export function EstoquePage() {
           );
           return (
             <span
-              className={
-                dias >= 7 ? "font-semibold text-destructive" : "text-muted-foreground"
-              }
+              className={dias >= 7 ? "font-semibold text-destructive" : "text-muted-foreground"}
             >
               {dias === 0 ? "hoje" : `${dias}d`}
             </span>
@@ -215,10 +211,9 @@ export function EstoquePage() {
         }
       />
       <p className="-mt-4 text-sm text-muted-foreground">
-        Leads no CRM que ainda não foram atribuídos a nenhum corretor. Distribua manualmente
-        ou envie o lote para a roleta.
+        Leads no CRM que ainda não foram atribuídos a nenhum corretor. Distribua manualmente ou
+        envie o lote para a roleta.
       </p>
-
 
       <StatGrid>
         <StatTile

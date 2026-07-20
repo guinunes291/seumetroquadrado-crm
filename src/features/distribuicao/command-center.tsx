@@ -57,8 +57,10 @@ export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
 ];
 
 export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
-  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
-  const somenteLeitura = !isAdmin && !isGestor;
+  const { isAdmin } = useUserRoles();
+  // Distribuição é operação org-wide: só admin opera. Gestor e superintendente
+  // enxergam em modo leitura (decisão de produto — sem recorte por equipe).
+  const somenteLeitura = !isAdmin;
   const navigate = useNavigate();
   const activeTab: DistribuicaoTab = tab ?? "visao";
   const setTab = (v: string) =>
@@ -247,10 +249,9 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
         </TabsContent>
       </Tabs>
 
-      {isSuperintendente && somenteLeitura && (
+      {somenteLeitura && (
         <p className="mt-4 text-xs text-muted-foreground">
-          Acesso somente leitura — ações de distribuição são exclusivas de gestores e
-          administradores.
+          Acesso somente leitura — as ações de distribuição são exclusivas de administradores.
         </p>
       )}
     </div>
