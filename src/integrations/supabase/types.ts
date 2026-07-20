@@ -4877,6 +4877,7 @@ export type Database = {
         }
         Returns: string
       }
+      criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
       criar_vitrine_link: {
         Args: {
           _ator_id: string
