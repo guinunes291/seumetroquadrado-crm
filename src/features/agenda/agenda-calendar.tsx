@@ -6,6 +6,7 @@
 import { useMemo } from "react";
 import { addDays, format, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TIPO_DOT, type Agendamento } from "./types";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
