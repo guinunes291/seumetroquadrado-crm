@@ -6,6 +6,7 @@
 import { useMemo } from "react";
 import { addDays, format, isSameDay, isSameMonth, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TIPO_DOT, type Agendamento } from "./types";
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -109,9 +110,38 @@ export function AgendaCalendar({
                 </button>
               ))}
               {items.length > 3 && (
-                <div className="px-1 text-[10px] text-muted-foreground">
-                  +{items.length - 3} mais
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="press-scale w-full rounded px-1 py-0.5 text-left text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      +{items.length - 3} mais
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-72 p-2">
+                    <div className="mb-2 px-1 text-xs font-medium text-muted-foreground">
+                      {format(d, "dd/MM")} — {items.length} compromissos
+                    </div>
+                    <div className="max-h-80 space-y-1 overflow-y-auto">
+                      {items.map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => onSelect(a)}
+                          className="hover-lift press-scale flex w-full items-center gap-1.5 rounded border border-border-subtle bg-card px-2 py-1.5 text-left text-xs shadow-elev-1 hover:bg-accent"
+                          title={a.titulo}
+                        >
+                          <span
+                            className={cn("h-1.5 w-1.5 shrink-0 rounded-full", TIPO_DOT[a.tipo])}
+                          />
+                          <span className="truncate">
+                            {format(parseISO(a.data_inicio), "HH:mm")} {a.titulo}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           );
