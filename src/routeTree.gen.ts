@@ -56,6 +56,7 @@ import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
+import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
 import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_authenticated/projetos.$projetoId'
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
@@ -326,6 +327,11 @@ const ApiPublicMetricasRoute = ApiPublicMetricasRouteImport.update({
   path: '/api/public/metricas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicDocumentosRoute = ApiPublicDocumentosRouteImport.update({
+  id: '/api/public/documentos',
+  path: '/api/public/documentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedProjetosProjetoIdRoute =
   AuthenticatedProjetosProjetoIdRouteImport.update({
     id: '/projetos/$projetoId',
@@ -501,6 +507,7 @@ export interface FileRoutesByFullPath {
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -572,6 +579,7 @@ export interface FileRoutesByTo {
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
@@ -645,6 +653,7 @@ export interface FileRoutesById {
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
+  '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
@@ -718,6 +727,7 @@ export interface FileRouteTypes {
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
+    | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
     | '/leads/'
@@ -789,6 +799,7 @@ export interface FileRouteTypes {
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
     | '/projetos/$projetoId'
+    | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
     | '/leads'
@@ -861,6 +872,7 @@ export interface FileRouteTypes {
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
     | '/_authenticated/projetos/$projetoId'
+    | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
     | '/_authenticated/leads/'
@@ -898,6 +910,7 @@ export interface RootRouteChildren {
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
@@ -1247,6 +1260,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMetricasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/documentos': {
+      id: '/api/public/documentos'
+      path: '/api/public/documentos'
+      fullPath: '/api/public/documentos'
+      preLoaderRoute: typeof ApiPublicDocumentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/projetos/$projetoId': {
       id: '/_authenticated/projetos/$projetoId'
       path: '/projetos/$projetoId'
@@ -1527,6 +1547,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
