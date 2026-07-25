@@ -428,9 +428,13 @@ export async function aplicarDesconto(
   percentualDesconto: number,
   valorLiquido: number,
 ) {
-  const { error } = await supabase
-    .from("comissoes")
-    .update({ percentual_desconto: percentualDesconto, valor_liquido: valorLiquido })
-    .eq("id", id);
+  // Os valores da comissão são controlados pelo ledger: o ajuste passa pela RPC
+  // gerencial, que audita a alteração e libera o gate de mutação.
+  const { error } = await (supabase as any).rpc("aplicar_desconto_comissao", {
+    _comissao_id: id,
+    _percentual_desconto: percentualDesconto,
+    _valor_liquido: valorLiquido,
+  });
   if (error) throw error;
 }
+
