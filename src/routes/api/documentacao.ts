@@ -100,11 +100,25 @@ export const Route = createFileRoute("/api/documentacao")({
             return json({ ok: false, error: "invalid_document_id" }, 422);
           }
           const doc = await storageAuth.requireAccessibleDocument(auth, documentacaoId);
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+          // Caminho novo: arquivos vindos por WhatsApp (bucket documentos-leads).
+          // A regra é o mesmo prefixo {lead_id}/... — RLS do bucket também
+          // valida, mas já sabemos que o requester passou por `pode_acessar_lead`.
+          if (doc.arquivo_path && doc.arquivo_path.startsWith(`${doc.lead_id}/`)) {
+            const { data, error } = await supabaseAdmin.storage
+              .from("documentos-leads")
+              .createSignedUrl(doc.arquivo_path, 60 * 60);
+            if (error || !data?.signedUrl) {
+              console.error("[documentacao-api] assinatura (novo bucket) falhou", error?.message);
+              return json({ ok: false, error: "signed_url_failed" }, 502);
+            }
+            return json({ ok: true, signed_url: data.signedUrl, expires_in: 60 * 60 });
+          }
+
           if (!doc.url || /^https?:\/\//i.test(doc.url)) {
             return json({ ok: false, error: "private_file_not_found" }, 404);
           }
-
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           // `documentacoes.url` é editável em schemas legados. Exigir a versão
           // ativa correspondente impede usar o signer como confused deputy
           // para outro objeto conhecido do bucket.
