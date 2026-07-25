@@ -1367,34 +1367,61 @@ export type Database = {
       }
       documentacoes: {
         Row: {
+          arquivo_nome: string | null
+          arquivo_path: string | null
+          classificado_por: string | null
+          confianca_ia: number | null
           corretor_id: string | null
           created_at: string
           id: string
           lead_id: string
+          message_id: string | null
+          mime_type: string | null
           observacoes: string | null
+          origem: string | null
+          recebido_em: string | null
           status: string
+          tamanho_bytes: number | null
           tipo: string
           updated_at: string
           url: string | null
         }
         Insert: {
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          classificado_por?: string | null
+          confianca_ia?: number | null
           corretor_id?: string | null
           created_at?: string
           id?: string
           lead_id: string
+          message_id?: string | null
+          mime_type?: string | null
           observacoes?: string | null
+          origem?: string | null
+          recebido_em?: string | null
           status?: string
+          tamanho_bytes?: number | null
           tipo: string
           updated_at?: string
           url?: string | null
         }
         Update: {
+          arquivo_nome?: string | null
+          arquivo_path?: string | null
+          classificado_por?: string | null
+          confianca_ia?: number | null
           corretor_id?: string | null
           created_at?: string
           id?: string
           lead_id?: string
+          message_id?: string | null
+          mime_type?: string | null
           observacoes?: string | null
+          origem?: string | null
+          recebido_em?: string | null
           status?: string
+          tamanho_bytes?: number | null
           tipo?: string
           updated_at?: string
           url?: string | null
