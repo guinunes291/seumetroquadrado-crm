@@ -705,8 +705,7 @@ export function ComissoesPage() {
       <DescontoDialog
         row={descontoRow}
         onOpenChange={(o) => !o && setDescontoRow(null)}
-        onConfirm={(row, pct) => {
-          const liquido = calcularLiquido(row.valor_comissao, pct);
+        onConfirm={(row, pct, liquido) => {
           updateM.mutate({
             id: row.id,
             changes: { percentual_desconto: pct, valor_liquido: liquido },
@@ -720,6 +719,16 @@ export function ComissoesPage() {
   );
 }
 
+/** Converte um valor em reais digitado ("1.234,56" ou "1234.56") em número. */
+function parseValorBRL(s: string): number | null {
+  const t = s.trim().replace(/\s|R\$/g, "");
+  if (t === "") return null;
+  const normalizado = t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t;
+  if (!/^\d+(\.\d+)?$/.test(normalizado)) return null;
+  const n = Number(normalizado);
+  return Number.isFinite(n) ? n : null;
+}
+
 function DescontoDialog({
   row,
   onOpenChange,
@@ -727,16 +736,31 @@ function DescontoDialog({
 }: {
   row: ComissaoRow | null;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (row: ComissaoRow, pct: number) => void;
+  onConfirm: (row: ComissaoRow, pct: number, liquido: number) => void;
 }) {
   const [texto, setTexto] = useState("");
+  const [textoNf, setTextoNf] = useState("");
   useEffect(() => {
-    if (row) setTexto(String(row.percentual_desconto || ""));
+    if (row) {
+      setTexto(String(row.percentual_desconto || ""));
+      setTextoNf("");
+    }
   }, [row]);
 
-  const pct = parsePercent(texto);
-  const valido = pct !== null && pct >= 0 && pct <= 100;
-  const liquido = row && valido ? calcularLiquido(row.valor_comissao, pct) : null;
+  const bruto = Number(row?.valor_comissao) || 0;
+  const pctInput = texto.trim() === "" ? 0 : parsePercent(texto);
+  const nfInput = textoNf.trim() === "" ? 0 : parseValorBRL(textoNf);
+
+  const pctValido = pctInput !== null && pctInput >= 0 && pctInput <= 100;
+  const nfValido = nfInput !== null && nfInput >= 0;
+
+  const descontoValor =
+    pctValido && nfValido ? round2(bruto * ((pctInput ?? 0) / 100) + (nfInput ?? 0)) : null;
+  const valido = descontoValor !== null && descontoValor <= bruto;
+  const liquido = valido ? round2(bruto - (descontoValor ?? 0)) : null;
+  // Persiste o desconto total como percentual equivalente sobre o bruto.
+  const pctEquivalente =
+    valido && bruto > 0 ? round2(((descontoValor ?? 0) / bruto) * 100) : (pctInput ?? 0);
 
   return (
     <Dialog open={!!row} onOpenChange={onOpenChange}>
@@ -744,27 +768,57 @@ function DescontoDialog({
         <DialogHeader>
           <DialogTitle>Aplicar desconto</DialogTitle>
           <DialogDescription>
-            Desconto percentual sobre a comissão (ex.: antecipação). Valor bruto:{" "}
-            {formatBRL2(row?.valor_comissao ?? 0)}
+            Desconto percentual (ex.: antecipação) e/ou valor fixo de NF/impostos. Valor bruto:{" "}
+            {formatBRL2(bruto)}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="desconto-pct">Desconto (%)</Label>
-          <Input
-            id="desconto-pct"
-            inputMode="decimal"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="Ex: 10"
-            className="max-w-32"
-          />
-          {texto.trim() !== "" && !valido && (
-            <p className="text-xs text-destructive">Informe um percentual entre 0 e 100.</p>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="desconto-pct">Desconto (%)</Label>
+            <Input
+              id="desconto-pct"
+              inputMode="decimal"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Ex: 10"
+              className="max-w-32"
+            />
+            {texto.trim() !== "" && !pctValido && (
+              <p className="text-xs text-destructive">Informe um percentual entre 0 e 100.</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="desconto-nf">Desconto NF / impostos (R$)</Label>
+            <Input
+              id="desconto-nf"
+              inputMode="decimal"
+              value={textoNf}
+              onChange={(e) => setTextoNf(e.target.value)}
+              placeholder="Ex: 350,00"
+              className="max-w-40"
+            />
+            {textoNf.trim() !== "" && !nfValido && (
+              <p className="text-xs text-destructive">Informe um valor válido em reais.</p>
+            )}
+          </div>
+          {descontoValor !== null && descontoValor > bruto && (
+            <p className="text-xs text-destructive">
+              O desconto total ({formatBRL2(descontoValor)}) não pode ultrapassar o valor bruto.
+            </p>
           )}
           {liquido !== null && (
-            <p className="text-sm text-muted-foreground">
-              Valor líquido resultante: <span className="font-medium">{formatBRL2(liquido)}</span>
-            </p>
+            <div className="rounded-md border border-border-subtle bg-muted/40 p-2 text-sm text-muted-foreground">
+              <div>
+                Desconto total:{" "}
+                <span className="font-medium text-foreground">
+                  {formatBRL2(descontoValor ?? 0)}
+                </span>
+              </div>
+              <div>
+                Valor líquido:{" "}
+                <span className="font-medium text-foreground">{formatBRL2(liquido)}</span>
+              </div>
+            </div>
           )}
         </div>
         <DialogFooter>
@@ -774,7 +828,9 @@ function DescontoDialog({
           <Button
             type="button"
             disabled={!valido}
-            onClick={() => row && valido && onConfirm(row, pct)}
+            onClick={() =>
+              row && valido && liquido !== null && onConfirm(row, pctEquivalente, liquido)
+            }
           >
             Aplicar
           </Button>
@@ -783,3 +839,4 @@ function DescontoDialog({
     </Dialog>
   );
 }
+
