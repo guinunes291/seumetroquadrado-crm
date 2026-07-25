@@ -22,7 +22,7 @@ export const Route = createFileRoute("/api/public/comissoes/$id")({
         }
 
         const payload = validarPatch(corpo);
-        if ("status" in payload && "body" in payload) {
+        if ("body" in payload) {
           return jsonResponse(payload.body, payload.status);
         }
 

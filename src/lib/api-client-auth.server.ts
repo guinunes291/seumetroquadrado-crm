@@ -10,6 +10,7 @@ export const API_CLIENT_SCOPES = [
   "events:write",
   "sales:read",
   "commissions:read",
+  "commissions:write",
   "metrics:read",
 ] as const;
 
