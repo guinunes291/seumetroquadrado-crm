@@ -528,6 +528,7 @@ function DocRow({
   onUrl,
   onUpload,
   onClearArquivo,
+  onCorrigirTipo,
 }: {
   doc: Documentacao;
   uploading: boolean;
