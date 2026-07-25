@@ -289,12 +289,11 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
         <>
           <NaoClassificadosBloco
             docs={docs.filter((d) => d.tipo === "nao_classificado" || d.tipo === "outro")}
-            onCorrigirTipo={(id, tipo) => mudarStatus.mutate({ id, status: "recebido" }) /* noop */ }
-            onSalvarTipo={(id, tipo) => salvarUrl /* not used */ && void 0}
             onUpdateTipo={(id, tipo) =>
               atualizarDoc(id, { tipo }).then(invalidate).catch((e) => toast.error(e.message))
             }
           />
+
           <Card>
             <CardContent className="pt-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
