@@ -95,7 +95,7 @@ export function checklistPorPerfil(perfil: PerfilRenda, flags: ChecklistFlags = 
 
   switch (perfil) {
     case "clt":
-      tipos.push("carteira_trabalho", "holerites", "extrato_bancario");
+      tipos.push("carteira_trabalho", "holerites", "extrato_bancario_6m");
       break;
     case "autonomo":
       tipos.push("decore", "extrato_bancario_6m");
@@ -104,7 +104,7 @@ export function checklistPorPerfil(perfil: PerfilRenda, flags: ChecklistFlags = 
       tipos.push("contrato_social", "pro_labore", "irpj", "extrato_pj");
       break;
     case "aposentado":
-      tipos.push("extrato_beneficio", "extrato_bancario");
+      tipos.push("extrato_beneficio", "extrato_bancario_6m");
       break;
   }
 
