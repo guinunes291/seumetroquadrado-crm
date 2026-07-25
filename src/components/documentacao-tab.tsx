@@ -286,45 +286,120 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="pt-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                {resolvidos} de {total} recebidos
-              </span>
-              <span className="text-muted-foreground">{pendentes.length} pendente(s)</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                role="progressbar"
-                aria-label="Completude da documentação"
-                aria-valuemin={0}
-                aria-valuemax={total}
-                aria-valuenow={resolvidos}
-                className={cn(
-                  "h-full rounded-full",
-                  resolvidos === total ? "bg-green-500" : "bg-primary",
-                )}
-                style={{ width: `${total > 0 ? (resolvidos / total) * 100 : 0}%` }}
-              />
-            </div>
-            <div className="divide-y">
-              {docs.map((d) => (
-                <DocRow
-                  key={d.id}
-                  doc={d}
-                  uploading={anexar.isPending}
-                  onStatus={(status) => mudarStatus.mutate({ id: d.id, status })}
-                  onUrl={(url) => salvarUrl.mutate({ id: d.id, url })}
-                  onUpload={(file) => anexar.mutate({ doc: d, file })}
-                  onClearArquivo={() => limparArquivo.mutate(d)}
+        <>
+          <NaoClassificadosBloco
+            docs={docs.filter((d) => d.tipo === "nao_classificado" || d.tipo === "outro")}
+            onCorrigirTipo={(id, tipo) => mudarStatus.mutate({ id, status: "recebido" }) /* noop */ }
+            onSalvarTipo={(id, tipo) => salvarUrl /* not used */ && void 0}
+            onUpdateTipo={(id, tipo) =>
+              atualizarDoc(id, { tipo }).then(invalidate).catch((e) => toast.error(e.message))
+            }
+          />
+          <Card>
+            <CardContent className="pt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {resolvidos} de {total} recebidos
+                </span>
+                <span className="text-muted-foreground">{pendentes.length} pendente(s)</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  role="progressbar"
+                  aria-label="Completude da documentação"
+                  aria-valuemin={0}
+                  aria-valuemax={total}
+                  aria-valuenow={resolvidos}
+                  className={cn(
+                    "h-full rounded-full",
+                    resolvidos === total ? "bg-green-500" : "bg-primary",
+                  )}
+                  style={{ width: `${total > 0 ? (resolvidos / total) * 100 : 0}%` }}
                 />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+              <div className="divide-y">
+                {docs.map((d) => (
+                  <DocRow
+                    key={d.id}
+                    doc={d}
+                    uploading={anexar.isPending}
+                    onStatus={(status) => mudarStatus.mutate({ id: d.id, status })}
+                    onUrl={(url) => salvarUrl.mutate({ id: d.id, url })}
+                    onUpload={(file) => anexar.mutate({ doc: d, file })}
+                    onClearArquivo={() => limparArquivo.mutate(d)}
+                    onCorrigirTipo={(tipo) =>
+                      atualizarDoc(d.id, { tipo })
+                        .then(() => {
+                          toast.success("Tipo atualizado");
+                          invalidate();
+                        })
+                        .catch((e) => toast.error(e.message))
+                    }
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
+  );
+}
+
+/** Bloco em destaque no topo listando arquivos recebidos por WhatsApp que não
+ *  foram reconhecidos pela IA. O corretor corrige o tipo em um clique. */
+function NaoClassificadosBloco({
+  docs,
+  onUpdateTipo,
+}: {
+  docs: Documentacao[];
+  onCorrigirTipo?: (id: string, tipo: string) => void;
+  onSalvarTipo?: (id: string, tipo: string) => void;
+  onUpdateTipo: (id: string, tipo: string) => void;
+}) {
+  const pendentesRevisao = docs.filter((d) => d.arquivo_path);
+  if (pendentesRevisao.length === 0) return null;
+  const opcoes: string[] = [
+    "documento_identidade",
+    "cpf",
+    "comprovante_residencia",
+    "comprovante_estado_civil",
+    "carteira_trabalho",
+    "holerites",
+    "extrato_bancario_6m",
+    "decore",
+    "outro",
+  ];
+  return (
+    <Card className="border-amber-300 bg-amber-50/50">
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+          <AlertTriangle className="h-4 w-4" />
+          {pendentesRevisao.length} documento(s) precisa(m) de revisão
+        </div>
+        {pendentesRevisao.map((d) => (
+          <div
+            key={d.id}
+            className="flex flex-wrap items-center gap-2 rounded-md bg-white/70 p-2 text-sm"
+          >
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate">{d.arquivo_nome ?? nomeArquivo(d.url ?? "")}</span>
+            <Select onValueChange={(v) => onUpdateTipo(d.id, v)}>
+              <SelectTrigger className="h-9 w-[200px]">
+                <SelectValue placeholder="Classificar como…" />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoes.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {docLabel(o)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
