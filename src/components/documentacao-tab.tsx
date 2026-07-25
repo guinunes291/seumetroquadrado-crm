@@ -535,6 +535,7 @@ function DocRow({
   onUrl: (url: string | null) => void;
   onUpload: (file: File) => void;
   onClearArquivo: () => void;
+  onCorrigirTipo?: (tipo: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(doc.url ?? "");
