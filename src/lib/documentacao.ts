@@ -174,7 +174,12 @@ export async function criarDocs(
 
 export async function atualizarDoc(
   id: string,
-  patch: { status?: DocStatus; url?: string | null; observacoes?: string | null },
+  patch: {
+    status?: DocStatus;
+    url?: string | null;
+    observacoes?: string | null;
+    tipo?: string;
+  },
 ): Promise<void> {
   const { error } = await supabase.from("documentacoes").update(patch).eq("id", id);
   if (error) throw error;
