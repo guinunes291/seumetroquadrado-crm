@@ -720,3 +720,30 @@ function DocRow({
     </div>
   );
 }
+
+/** Miniatura para imagens — gera signed URL sob demanda e não bloqueia a lista. */
+function ImagemPreview({ docId }: { docId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [erro, setErro] = useState(false);
+  useEffect(() => {
+    let ativo = true;
+    urlAssinadaDoc(docId)
+      .then((u) => ativo && setUrl(u))
+      .catch(() => ativo && setErro(true));
+    return () => {
+      ativo = false;
+    };
+  }, [docId]);
+  if (erro) return null;
+  if (!url) return <div className="h-24 w-24 animate-pulse rounded-md bg-muted" />;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
+      <img
+        src={url}
+        alt="Prévia do documento"
+        className="h-24 w-24 rounded-md border object-cover"
+        loading="lazy"
+      />
+    </a>
+  );
+}
