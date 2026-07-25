@@ -563,13 +563,59 @@ function DocRow({
   return (
     <div className="py-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <span className="text-sm font-medium truncate">{docLabel(doc.tipo)}</span>
           <Badge variant="outline" className={cn("shrink-0", DOC_STATUS_TONE[doc.status])}>
             {DOC_STATUS_LABEL[doc.status]}
           </Badge>
+          {doc.origem === "whatsapp" && (
+            <Badge
+              variant="outline"
+              className="shrink-0 border-emerald-500 text-emerald-700"
+              title="Recebido pelo WhatsApp"
+            >
+              <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
+            </Badge>
+          )}
+          {doc.classificado_por === "ia" && (
+            <Badge
+              variant="outline"
+              className="shrink-0 border-violet-500 text-violet-700"
+              title={
+                doc.confianca_ia != null
+                  ? `Classificado pela IA (${Math.round(doc.confianca_ia * 100)}% de confiança)`
+                  : "Classificado pela IA"
+              }
+            >
+              <Sparkles className="h-3 w-3 mr-1" /> IA
+            </Badge>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {onCorrigirTipo && (doc.classificado_por === "ia" || doc.tipo === "nao_classificado") && (
+            <Select onValueChange={onCorrigirTipo}>
+              <SelectTrigger className="min-h-11 w-[150px]" title="Corrigir tipo">
+                <SelectValue placeholder="Corrigir tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  "documento_identidade",
+                  "cpf",
+                  "comprovante_residencia",
+                  "comprovante_estado_civil",
+                  "carteira_trabalho",
+                  "holerites",
+                  "extrato_bancario_6m",
+                  "decore",
+                  "outro",
+                ].map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {docLabel(t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={doc.status} onValueChange={(v) => onStatus(v as DocStatus)}>
             <SelectTrigger className="min-h-11 w-[130px]">
               <SelectValue />
@@ -584,6 +630,10 @@ function DocRow({
           </Select>
         </div>
       </div>
+
+      {doc.mime_type?.startsWith("image/") && doc.arquivo_path && (
+        <ImagemPreview docId={doc.id} />
+      )}
 
       {temArquivo ? (
         <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-sm">
