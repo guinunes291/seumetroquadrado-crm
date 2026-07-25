@@ -4583,6 +4583,14 @@ export type Database = {
       alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
       alertar_roletas_sem_apto: { Args: never; Returns: undefined }
       alertar_volume_desproporcional: { Args: never; Returns: undefined }
+      aplicar_desconto_comissao: {
+        Args: {
+          _comissao_id: string
+          _percentual_desconto: number
+          _valor_liquido: number
+        }
+        Returns: undefined
+      }
       aprovar_venda: {
         Args: {
           p_decisao: Database["public"]["Enums"]["status_venda"]
