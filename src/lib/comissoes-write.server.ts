@@ -123,8 +123,9 @@ export async function aplicarPatchComissao(
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
 
-  const { data: atual, error: erroLeitura } = await supabaseAdmin
+  const { data: atual, error: erroLeitura } = await db
     .from("comissoes")
     .select(SELECT_COMISSAO)
     .eq("id", comissaoId)
@@ -152,7 +153,7 @@ export async function aplicarPatchComissao(
     patch.data_pagamento = null;
   }
 
-  const { data: novo, error: erroUpdate } = await supabaseAdmin
+  const { data: novo, error: erroUpdate } = await db
     .from("comissoes")
     .update(patch)
     .eq("id", comissaoId)
