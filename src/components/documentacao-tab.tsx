@@ -23,6 +23,8 @@ import {
   FileText,
   Building2,
   X,
+  Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
