@@ -352,8 +352,6 @@ function NaoClassificadosBloco({
   onUpdateTipo,
 }: {
   docs: Documentacao[];
-  onCorrigirTipo?: (id: string, tipo: string) => void;
-  onSalvarTipo?: (id: string, tipo: string) => void;
   onUpdateTipo: (id: string, tipo: string) => void;
 }) {
   const pendentesRevisao = docs.filter((d) => d.arquivo_path);
