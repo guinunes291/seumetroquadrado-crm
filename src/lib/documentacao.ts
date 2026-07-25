@@ -57,7 +57,7 @@ export const DOC_LABEL: Record<string, string> = {
   comprovante_residencia: "Comprovante de residência atualizado",
   carteira_trabalho: "Carteira de trabalho (CTPS)",
   holerites: "3 últimos holerites / contracheques",
-  extrato_bancario: "Extrato bancário (3 meses)",
+  extrato_bancario: "Extrato bancário (6 meses)",
   decore: "DECORE ou declaração de renda",
   extrato_bancario_6m: "Extrato bancário (6 meses)",
   contrato_social: "Contrato social",
@@ -70,6 +70,7 @@ export const DOC_LABEL: Record<string, string> = {
   declaracao_ir: "Declaração de IR (completa) + recibo",
   conjuge_identidade: "Documento de identidade do cônjuge",
   conjuge_renda: "Comprovante de renda do cônjuge",
+  nao_classificado: "Documento não classificado (revisar)",
   outro: "Outro documento",
 };
 
