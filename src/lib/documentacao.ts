@@ -57,7 +57,7 @@ export const DOC_LABEL: Record<string, string> = {
   comprovante_residencia: "Comprovante de residência atualizado",
   carteira_trabalho: "Carteira de trabalho (CTPS)",
   holerites: "3 últimos holerites / contracheques",
-  extrato_bancario: "Extrato bancário (3 meses)",
+  extrato_bancario: "Extrato bancário (6 meses)",
   decore: "DECORE ou declaração de renda",
   extrato_bancario_6m: "Extrato bancário (6 meses)",
   contrato_social: "Contrato social",
@@ -70,6 +70,7 @@ export const DOC_LABEL: Record<string, string> = {
   declaracao_ir: "Declaração de IR (completa) + recibo",
   conjuge_identidade: "Documento de identidade do cônjuge",
   conjuge_renda: "Comprovante de renda do cônjuge",
+  nao_classificado: "Documento não classificado (revisar)",
   outro: "Outro documento",
 };
 
@@ -94,7 +95,7 @@ export function checklistPorPerfil(perfil: PerfilRenda, flags: ChecklistFlags = 
 
   switch (perfil) {
     case "clt":
-      tipos.push("carteira_trabalho", "holerites", "extrato_bancario");
+      tipos.push("carteira_trabalho", "holerites", "extrato_bancario_6m");
       break;
     case "autonomo":
       tipos.push("decore", "extrato_bancario_6m");
@@ -103,7 +104,7 @@ export function checklistPorPerfil(perfil: PerfilRenda, flags: ChecklistFlags = 
       tipos.push("contrato_social", "pro_labore", "irpj", "extrato_pj");
       break;
     case "aposentado":
-      tipos.push("extrato_beneficio", "extrato_bancario");
+      tipos.push("extrato_beneficio", "extrato_bancario_6m");
       break;
   }
 
@@ -132,6 +133,16 @@ export type Documentacao = {
   observacoes: string | null;
   created_at: string;
   updated_at: string;
+  // Recepção via WhatsApp / classificação automática (podem faltar em linhas antigas).
+  arquivo_path?: string | null;
+  arquivo_nome?: string | null;
+  mime_type?: string | null;
+  tamanho_bytes?: number | null;
+  origem?: string | null;
+  recebido_em?: string | null;
+  message_id?: string | null;
+  classificado_por?: string | null;
+  confianca_ia?: number | null;
 };
 
 export async function listarDocs(leadId: string): Promise<Documentacao[]> {
@@ -163,7 +174,12 @@ export async function criarDocs(
 
 export async function atualizarDoc(
   id: string,
-  patch: { status?: DocStatus; url?: string | null; observacoes?: string | null },
+  patch: {
+    status?: DocStatus;
+    url?: string | null;
+    observacoes?: string | null;
+    tipo?: string;
+  },
 ): Promise<void> {
   const { error } = await supabase.from("documentacoes").update(patch).eq("id", id);
   if (error) throw error;

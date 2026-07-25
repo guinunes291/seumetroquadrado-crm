@@ -59,7 +59,7 @@ export async function authenticateDocumentRequest(request: Request): Promise<Doc
 export async function requireAccessibleDocument(auth: DocumentRequestAuth, documentacaoId: string) {
   const { data, error } = await auth.supabase
     .from("documentacoes")
-    .select("id, lead_id, url")
+    .select("id, lead_id, url, arquivo_path")
     .eq("id", documentacaoId)
     .maybeSingle();
   if (error) {

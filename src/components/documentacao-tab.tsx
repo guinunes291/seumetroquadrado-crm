@@ -23,6 +23,8 @@ import {
   FileText,
   Building2,
   X,
+  Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
@@ -284,45 +286,117 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="pt-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                {resolvidos} de {total} recebidos
-              </span>
-              <span className="text-muted-foreground">{pendentes.length} pendente(s)</span>
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                role="progressbar"
-                aria-label="Completude da documentação"
-                aria-valuemin={0}
-                aria-valuemax={total}
-                aria-valuenow={resolvidos}
-                className={cn(
-                  "h-full rounded-full",
-                  resolvidos === total ? "bg-green-500" : "bg-primary",
-                )}
-                style={{ width: `${total > 0 ? (resolvidos / total) * 100 : 0}%` }}
-              />
-            </div>
-            <div className="divide-y">
-              {docs.map((d) => (
-                <DocRow
-                  key={d.id}
-                  doc={d}
-                  uploading={anexar.isPending}
-                  onStatus={(status) => mudarStatus.mutate({ id: d.id, status })}
-                  onUrl={(url) => salvarUrl.mutate({ id: d.id, url })}
-                  onUpload={(file) => anexar.mutate({ doc: d, file })}
-                  onClearArquivo={() => limparArquivo.mutate(d)}
+        <>
+          <NaoClassificadosBloco
+            docs={docs.filter((d) => d.tipo === "nao_classificado" || d.tipo === "outro")}
+            onUpdateTipo={(id, tipo) =>
+              atualizarDoc(id, { tipo }).then(invalidate).catch((e) => toast.error(e.message))
+            }
+          />
+
+          <Card>
+            <CardContent className="pt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">
+                  {resolvidos} de {total} recebidos
+                </span>
+                <span className="text-muted-foreground">{pendentes.length} pendente(s)</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  role="progressbar"
+                  aria-label="Completude da documentação"
+                  aria-valuemin={0}
+                  aria-valuemax={total}
+                  aria-valuenow={resolvidos}
+                  className={cn(
+                    "h-full rounded-full",
+                    resolvidos === total ? "bg-green-500" : "bg-primary",
+                  )}
+                  style={{ width: `${total > 0 ? (resolvidos / total) * 100 : 0}%` }}
                 />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+              <div className="divide-y">
+                {docs.map((d) => (
+                  <DocRow
+                    key={d.id}
+                    doc={d}
+                    uploading={anexar.isPending}
+                    onStatus={(status) => mudarStatus.mutate({ id: d.id, status })}
+                    onUrl={(url) => salvarUrl.mutate({ id: d.id, url })}
+                    onUpload={(file) => anexar.mutate({ doc: d, file })}
+                    onClearArquivo={() => limparArquivo.mutate(d)}
+                    onCorrigirTipo={(tipo) =>
+                      atualizarDoc(d.id, { tipo })
+                        .then(() => {
+                          toast.success("Tipo atualizado");
+                          invalidate();
+                        })
+                        .catch((e) => toast.error(e.message))
+                    }
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
+  );
+}
+
+/** Bloco em destaque no topo listando arquivos recebidos por WhatsApp que não
+ *  foram reconhecidos pela IA. O corretor corrige o tipo em um clique. */
+function NaoClassificadosBloco({
+  docs,
+  onUpdateTipo,
+}: {
+  docs: Documentacao[];
+  onUpdateTipo: (id: string, tipo: string) => void;
+}) {
+  const pendentesRevisao = docs.filter((d) => d.arquivo_path);
+  if (pendentesRevisao.length === 0) return null;
+  const opcoes: string[] = [
+    "documento_identidade",
+    "cpf",
+    "comprovante_residencia",
+    "comprovante_estado_civil",
+    "carteira_trabalho",
+    "holerites",
+    "extrato_bancario_6m",
+    "decore",
+    "outro",
+  ];
+  return (
+    <Card className="border-amber-300 bg-amber-50/50">
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+          <AlertTriangle className="h-4 w-4" />
+          {pendentesRevisao.length} documento(s) precisa(m) de revisão
+        </div>
+        {pendentesRevisao.map((d) => (
+          <div
+            key={d.id}
+            className="flex flex-wrap items-center gap-2 rounded-md bg-white/70 p-2 text-sm"
+          >
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate">{d.arquivo_nome ?? nomeArquivo(d.url ?? "")}</span>
+            <Select onValueChange={(v) => onUpdateTipo(d.id, v)}>
+              <SelectTrigger className="h-9 w-[200px]">
+                <SelectValue placeholder="Classificar como…" />
+              </SelectTrigger>
+              <SelectContent>
+                {opcoes.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {docLabel(o)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -451,6 +525,7 @@ function DocRow({
   onUrl,
   onUpload,
   onClearArquivo,
+  onCorrigirTipo,
 }: {
   doc: Documentacao;
   uploading: boolean;
@@ -458,6 +533,7 @@ function DocRow({
   onUrl: (url: string | null) => void;
   onUpload: (file: File) => void;
   onClearArquivo: () => void;
+  onCorrigirTipo?: (tipo: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(doc.url ?? "");
@@ -484,13 +560,59 @@ function DocRow({
   return (
     <div className="py-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <span className="text-sm font-medium truncate">{docLabel(doc.tipo)}</span>
           <Badge variant="outline" className={cn("shrink-0", DOC_STATUS_TONE[doc.status])}>
             {DOC_STATUS_LABEL[doc.status]}
           </Badge>
+          {doc.origem === "whatsapp" && (
+            <Badge
+              variant="outline"
+              className="shrink-0 border-emerald-500 text-emerald-700"
+              title="Recebido pelo WhatsApp"
+            >
+              <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
+            </Badge>
+          )}
+          {doc.classificado_por === "ia" && (
+            <Badge
+              variant="outline"
+              className="shrink-0 border-violet-500 text-violet-700"
+              title={
+                doc.confianca_ia != null
+                  ? `Classificado pela IA (${Math.round(doc.confianca_ia * 100)}% de confiança)`
+                  : "Classificado pela IA"
+              }
+            >
+              <Sparkles className="h-3 w-3 mr-1" /> IA
+            </Badge>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {onCorrigirTipo && (doc.classificado_por === "ia" || doc.tipo === "nao_classificado") && (
+            <Select onValueChange={onCorrigirTipo}>
+              <SelectTrigger className="min-h-11 w-[150px]" title="Corrigir tipo">
+                <SelectValue placeholder="Corrigir tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  "documento_identidade",
+                  "cpf",
+                  "comprovante_residencia",
+                  "comprovante_estado_civil",
+                  "carteira_trabalho",
+                  "holerites",
+                  "extrato_bancario_6m",
+                  "decore",
+                  "outro",
+                ].map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {docLabel(t)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={doc.status} onValueChange={(v) => onStatus(v as DocStatus)}>
             <SelectTrigger className="min-h-11 w-[130px]">
               <SelectValue />
@@ -505,6 +627,10 @@ function DocRow({
           </Select>
         </div>
       </div>
+
+      {doc.mime_type?.startsWith("image/") && doc.arquivo_path && (
+        <ImagemPreview docId={doc.id} />
+      )}
 
       {temArquivo ? (
         <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-sm">
@@ -589,5 +715,32 @@ function DocRow({
         </div>
       )}
     </div>
+  );
+}
+
+/** Miniatura para imagens — gera signed URL sob demanda e não bloqueia a lista. */
+function ImagemPreview({ docId }: { docId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [erro, setErro] = useState(false);
+  useEffect(() => {
+    let ativo = true;
+    urlAssinadaDoc(docId)
+      .then((u) => ativo && setUrl(u))
+      .catch(() => ativo && setErro(true));
+    return () => {
+      ativo = false;
+    };
+  }, [docId]);
+  if (erro) return null;
+  if (!url) return <div className="h-24 w-24 animate-pulse rounded-md bg-muted" />;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="inline-block">
+      <img
+        src={url}
+        alt="Prévia do documento"
+        className="h-24 w-24 rounded-md border object-cover"
+        loading="lazy"
+      />
+    </a>
   );
 }
