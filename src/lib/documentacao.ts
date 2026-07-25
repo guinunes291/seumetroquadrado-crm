@@ -133,6 +133,16 @@ export type Documentacao = {
   observacoes: string | null;
   created_at: string;
   updated_at: string;
+  // Recepção via WhatsApp / classificação automática (podem faltar em linhas antigas).
+  arquivo_path?: string | null;
+  arquivo_nome?: string | null;
+  mime_type?: string | null;
+  tamanho_bytes?: number | null;
+  origem?: string | null;
+  recebido_em?: string | null;
+  message_id?: string | null;
+  classificado_por?: string | null;
+  confianca_ia?: number | null;
 };
 
 export async function listarDocs(leadId: string): Promise<Documentacao[]> {
