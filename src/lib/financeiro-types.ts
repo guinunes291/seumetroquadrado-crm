@@ -25,7 +25,20 @@ export type FilaItem = {
   cliente_nome: string | null;
   travado: boolean;
   motivo_travamento: string | null;
+  /** Apto pelo recebimento, mas ainda sem beneficiário definido. */
+  aguardando_beneficiario: boolean;
 };
+
+/** Comissão aberta cujo venda_id não resolve para venda nenhuma. */
+export type ComissaoOrfaItem = {
+  id: string;
+  venda_id: string | null;
+  beneficiario_nome_bruto: string | null;
+  tipo: string;
+  valor_liquido: number;
+  created_at: string | null;
+};
+
 
 export type VendaItem = {
   id: string;
@@ -47,12 +60,17 @@ export type PessoaItem = { id: string; nome: string; ativo: boolean };
 export type PainelFinanceiro = {
   cabecalho: {
     em_aberto: { valor: number; qtd: number };
+    /** Comissões abertas sem venda vinculada — fora da fila, nota do cartão. */
+    sem_venda: { valor: number; qtd: number };
     travado: { valor: number; qtd: number };
     apto: { valor: number; qtd: number };
+    /** Subconjunto do apto que ainda não tem beneficiário. */
+    apto_sem_beneficiario: { valor: number; qtd: number };
     pago_mes: { valor: number; qtd: number };
     referencia_mes: string;
   };
   fila: FilaItem[];
+  comissoes_sem_venda: ComissaoOrfaItem[];
   recebiveis: VendaItem[];
   vendas_sem_corretor: VendaItem[];
   integridade: {
@@ -64,6 +82,7 @@ export type PainelFinanceiro = {
   }[];
   pessoas: PessoaItem[];
 };
+
 
 
 export type LinhaAuditoria = {

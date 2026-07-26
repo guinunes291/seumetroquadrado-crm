@@ -14,6 +14,7 @@ import {
 } from "@/lib/comissoes-write.server";
 import type { ApiClientContext } from "@/lib/api-client-auth.server";
 import type {
+  ComissaoOrfaItem,
   FilaItem,
   PainelFinanceiro,
   PessoaItem,
@@ -114,17 +115,28 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
       c.data_pagamento < inicioProximo,
   );
 
-  const fila: FilaItem[] = abertas
+  // Comissões cujo venda_id não resolve (nulo ou órfão) NÃO entram na fila de
+  // pagamento — viram bloco de integridade, decidido linha a linha.
+  const semVendaBruto = abertas.filter((c) => !c.venda_id || !vendaPorId.get(c.venda_id));
+  const comVenda = abertas.filter((c) => c.venda_id && vendaPorId.get(c.venda_id));
+
+  const comissoesSemVenda: ComissaoOrfaItem[] = semVendaBruto
+    .map((c) => ({
+      id: c.id,
+      venda_id: c.venda_id ?? null,
+      beneficiario_nome_bruto: c.beneficiario_nome ?? null,
+      tipo: c.tipo,
+      valor_liquido: num(c.valor_liquido),
+      created_at: c.created_at ?? null,
+    }))
+    .sort((a, b) => b.valor_liquido - a.valor_liquido);
+
+  const fila: FilaItem[] = comVenda
     .map((c) => {
-      const venda = c.venda_id ? vendaPorId.get(c.venda_id) : null;
+      const venda = vendaPorId.get(c.venda_id);
       const recebido = venda?.status_recebimento === "recebido";
       const benef = c.beneficiario_id ? pessoaPorId.get(c.beneficiario_id) : null;
-      let motivo: string | null = null;
-      if (!c.venda_id) motivo = "Comissão sem venda vinculada";
-      else if (!venda) motivo = "Venda vinculada indisponível";
-      else if (!recebido) motivo = "Venda ainda não recebida";
-      else if (!c.beneficiario_id) motivo = "Sem beneficiário definido";
-      else if (!venda.corretor_id) motivo = "Venda sem corretor";
+      const motivo: string | null = recebido ? null : "Venda ainda não recebida";
       return {
         id: c.id,
         status: c.status,
@@ -148,6 +160,7 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
           null,
         travado: Boolean(motivo),
         motivo_travamento: motivo,
+        aguardando_beneficiario: !motivo && !c.beneficiario_id,
       } satisfies FilaItem;
     })
     .sort((a, b) => Number(a.travado) - Number(b.travado) || b.valor_liquido - a.valor_liquido);
@@ -156,6 +169,8 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
     itens.reduce((acc, i) => acc + i.valor_liquido, 0);
   const travados = fila.filter((f) => f.travado);
   const aptos = fila.filter((f) => !f.travado);
+  const aptosSemBenef = aptos.filter((f) => f.aguardando_beneficiario);
+
 
   const abertasPorVenda = new Map<string, { qtd: number; valor: number }>();
   for (const c of abertas) {
@@ -195,8 +210,7 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
     .map(mapVenda)
     .sort((a, b) => (b.data_assinatura ?? "").localeCompare(a.data_assinatura ?? ""));
 
-  const comissoesSemVenda = abertas.filter((c) => !c.venda_id);
-  const comissoesSemBenef = abertas.filter((c) => !c.beneficiario_id);
+  const comissoesSemBenef = fila.filter((f) => !f.beneficiario_id);
   const comissoesBenefInativo = abertas.filter(
     (c) => c.beneficiario_id && pessoaPorId.get(c.beneficiario_id)?.ativo === false,
   );
@@ -211,8 +225,10 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
   return {
     cabecalho: {
       em_aberto: { valor: soma(fila), qtd: fila.length },
+      sem_venda: { valor: soma(comissoesSemVenda), qtd: comissoesSemVenda.length },
       travado: { valor: soma(travados), qtd: travados.length },
       apto: { valor: soma(aptos), qtd: aptos.length },
+      apto_sem_beneficiario: { valor: soma(aptosSemBenef), qtd: aptosSemBenef.length },
       pago_mes: {
         valor: pagasMes.reduce((acc, c) => acc + num(c.valor_liquido), 0),
         qtd: pagasMes.length,
@@ -220,16 +236,19 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
       referencia_mes: inicioMes.slice(0, 7),
     },
     fila,
+    comissoes_sem_venda: comissoesSemVenda,
     recebiveis,
     vendas_sem_corretor: semCorretor,
     integridade: [
       {
         chave: "comissao_sem_venda",
         titulo: "Comissões abertas sem venda vinculada",
-        descricao: "Não é possível validar recebimento sem a venda de origem.",
+        descricao:
+          "Fora da fila de pagamento: o venda_id não resolve para venda nenhuma. Decida linha a linha.",
         qtd: comissoesSemVenda.length,
         ids: comissoesSemVenda.map((c) => c.id),
       },
+
       {
         chave: "comissao_sem_beneficiario",
         titulo: "Comissões abertas sem beneficiário",

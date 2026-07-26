@@ -65,7 +65,7 @@ const hojeISO = () => new Date().toISOString().slice(0, 10);
 type AcaoAberta =
   | { tipo: "pagar"; item: FilaItem }
   | { tipo: "reabrir"; item: FilaItem }
-  | { tipo: "cancelar"; item: FilaItem }
+  | { tipo: "cancelar"; id: string; rotulo: string; valor: number }
   | { tipo: "beneficiario"; item: FilaItem }
   | { tipo: "lote"; ids: string[] }
   | { tipo: "corretor"; venda: VendaItem }
@@ -154,7 +154,7 @@ export function FechamentoPage() {
     );
   }, [dados, busca]);
 
-  const aptosSelecionaveis = filaFiltrada.filter((f) => !f.travado);
+  const aptosSelecionaveis = filaFiltrada.filter((f) => !f.travado && !f.aguardando_beneficiario);
   const todosMarcados =
     aptosSelecionaveis.length > 0 && aptosSelecionaveis.every((f) => selecionados.includes(f.id));
 
@@ -209,21 +209,43 @@ export function FechamentoPage() {
         <StatTile
           title="Em aberto"
           value={brl(c.em_aberto.valor)}
-          hint={`${c.em_aberto.qtd} comissões`}
+          hint={
+            <>
+              {c.em_aberto.qtd} comissões com venda vinculada
+              {c.sem_venda.qtd > 0 && (
+                <span className="mt-1 block text-warning">
+                  +{c.sem_venda.qtd} sem venda vinculada ({brl(c.sem_venda.valor)}) — ver
+                  Integridade
+                </span>
+              )}
+            </>
+          }
           icon={Wallet}
           intent="info"
         />
         <StatTile
-          title="Travado"
+          title="Travado por recebimento"
           value={brl(c.travado.valor)}
-          hint={`${c.travado.qtd} bloqueadas por pendência`}
+          hint={`${c.travado.qtd} com venda ainda não recebida`}
           icon={Lock}
           intent="danger"
         />
         <StatTile
           title="Apto a pagar"
           value={brl(c.apto.valor)}
-          hint={`${c.apto.qtd} liberadas`}
+          hint={
+            c.apto_sem_beneficiario.qtd > 0 ? (
+              <>
+                {c.apto.qtd} liberadas
+                <span className="mt-1 block text-warning">
+                  {c.apto_sem_beneficiario.qtd} · {brl(c.apto_sem_beneficiario.valor)} — aguardando
+                  beneficiário
+                </span>
+              </>
+            ) : (
+              `${c.apto.qtd} liberadas`
+            )
+          }
           icon={CheckCircle2}
           intent="success"
         />
@@ -235,6 +257,7 @@ export function FechamentoPage() {
           intent="neutral"
         />
       </StatGrid>
+
 
       <Tabs defaultValue="fila" className="mt-6">
         <TabsList>
@@ -295,7 +318,7 @@ export function FechamentoPage() {
                     <TableRow key={f.id}>
                       <TableCell>
                         <Checkbox
-                          disabled={f.travado}
+                          disabled={f.travado || f.aguardando_beneficiario}
                           checked={selecionados.includes(f.id)}
                           onCheckedChange={(v) =>
                             setSelecionados((prev) =>
@@ -328,6 +351,10 @@ export function FechamentoPage() {
                           <Badge variant="destructive" className="whitespace-normal">
                             {f.motivo_travamento}
                           </Badge>
+                        ) : f.aguardando_beneficiario ? (
+                          <Badge variant="outline" className="whitespace-normal">
+                            Apto · aguardando beneficiário
+                          </Badge>
                         ) : (
                           <Badge variant="secondary">Apto</Badge>
                         )}
@@ -337,7 +364,7 @@ export function FechamentoPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            disabled={f.travado}
+                            disabled={f.travado || f.aguardando_beneficiario}
                             onClick={() => setAcao({ tipo: "pagar", item: f })}
                           >
                             Pagar
@@ -353,11 +380,19 @@ export function FechamentoPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => setAcao({ tipo: "cancelar", item: f })}
+                            onClick={() =>
+                              setAcao({
+                                tipo: "cancelar",
+                                id: f.id,
+                                rotulo: f.beneficiario_nome ?? "sem beneficiário",
+                                valor: f.valor_liquido,
+                              })
+                            }
                             title="Cancelar comissão"
                           >
                             <Ban className="h-4 w-4" />
                           </Button>
+
                           <Button
                             size="sm"
                             variant="ghost"
@@ -414,7 +449,7 @@ export function FechamentoPage() {
           />
         </TabsContent>
 
-        <TabsContent value="integridade" className="mt-4">
+        <TabsContent value="integridade" className="mt-4 space-y-6">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {dados.integridade.map((i) => (
               <Card key={i.chave}>
@@ -428,7 +463,90 @@ export function FechamentoPage() {
               </Card>
             ))}
           </div>
+
+          {dados.comissoes_sem_venda.length > 0 && (
+            <section className="space-y-2">
+              <div>
+                <h2 className="text-base font-semibold">
+                  Sem venda vinculada ({dados.comissoes_sem_venda.length})
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Fora da fila de pagamento — provável resíduo de vendas apagadas/recriadas. Nome do
+                  beneficiário mostrado como está gravado, sem resolver. Única ação: cancelar com
+                  motivo, linha a linha.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border-subtle overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>comissao_id</TableHead>
+                      <TableHead>venda_id órfão</TableHead>
+                      <TableHead>Beneficiário gravado</TableHead>
+                      <TableHead>Papel</TableHead>
+                      <TableHead className="text-right">Valor líquido</TableHead>
+                      <TableHead>Criada em</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dados.comissoes_sem_venda.map((o) => (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-mono text-xs">{o.id}</TableCell>
+                        <TableCell className="font-mono text-xs">{o.venda_id ?? "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {o.beneficiario_nome_bruto ?? "— sem beneficiário —"}
+                        </TableCell>
+                        <TableCell className="capitalize text-muted-foreground">{o.tipo}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          {brl(o.valor_liquido)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {o.created_at ? new Date(o.created_at).toLocaleDateString("pt-BR") : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setAcao({
+                                  tipo: "cancelar",
+                                  id: o.id,
+                                  rotulo: o.beneficiario_nome_bruto ?? "sem beneficiário",
+                                  valor: o.valor_liquido,
+                                })
+                              }
+                            >
+                              <Ban className="mr-2 h-4 w-4" />
+                              Cancelar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                setAcao({
+                                  tipo: "historico",
+                                  entidade: "comissoes",
+                                  entidadeId: o.id,
+                                  titulo: `Histórico · comissão ${o.id.slice(0, 8)}`,
+                                })
+                              }
+                              title="Histórico"
+                            >
+                              <History className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+          )}
         </TabsContent>
+
       </Tabs>
 
       <DialogAcao
@@ -640,7 +758,8 @@ function DialogAcao({
             <DialogHeader>
               <DialogTitle>Cancelar comissão</DialogTitle>
               <DialogDescription>
-                Nada é apagado — a comissão fica com status cancelada e o motivo entra na auditoria.
+                {acao.rotulo} · {brl(acao.valor)}. Nada é apagado — a comissão fica com status
+                cancelada e o motivo entra na auditoria.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
@@ -659,7 +778,7 @@ function DialogAcao({
               <Button
                 variant="destructive"
                 disabled={!motivoValido || salvando}
-                onClick={() => onCancelar(acao.item.id, motivo.trim())}
+                onClick={() => onCancelar(acao.id, motivo.trim())}
               >
                 Cancelar comissão
               </Button>
