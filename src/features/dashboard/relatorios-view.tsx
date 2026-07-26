@@ -56,6 +56,7 @@ import {
   useDashboardLeadsUrgentes,
   useDashboardRedistribuicoes,
 } from "@/features/dashboard/queries";
+import type { DashboardKpisFlat } from "@/features/dashboard/derive";
 import { formatDuracaoParado } from "@/lib/utils";
 
 /**
@@ -285,13 +286,15 @@ export function RelatoriosView() {
 }
 
 const KPI_CARDS: Array<{
-  key: string;
+  key: keyof Omit<DashboardKpisFlat, "deltas">;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   status?: string;
+  /** Chave em `deltas` para exibir a variação vs. período anterior. */
+  delta?: keyof DashboardKpisFlat["deltas"];
   className?: string;
 }> = [
-  { key: "total", label: "Total de leads", icon: Users },
+  { key: "total", label: "Leads no período", icon: Users, delta: "total" },
   { key: "aguardando", label: "Aguardando", icon: Hourglass, status: "aguardando_atendimento" },
   { key: "em_atendimento", label: "Em atendimento", icon: Clock, status: "em_atendimento" },
   { key: "agendado", label: "Agendado", icon: Calendar, status: "agendado" },
@@ -302,16 +305,37 @@ const KPI_CARDS: Array<{
     label: "Vendas",
     icon: CheckCircle2,
     status: "contrato_fechado",
+    delta: "contrato_fechado",
     className: "border-emerald-500/40 bg-emerald-500/5",
   },
-  { key: "perdido", label: "Perdidos", icon: XCircle, status: "perdido" },
+  { key: "perdido", label: "Perdidos", icon: XCircle, status: "perdido", delta: "perdido" },
 ];
 
-function KpiGrid({ data, loading = false }: { data?: Record<string, number>; loading?: boolean }) {
+/** Perdidos subindo é ruim: inverte a cor do delta. */
+const DELTA_RUIM_QUANDO_SOBE = new Set<string>(["perdido"]);
+
+function DeltaBadge({ pct, badWhenUp }: { pct: number | null; badWhenUp: boolean }) {
+  if (pct === null || pct === 0) return null;
+  const up = pct > 0;
+  const positivo = badWhenUp ? !up : up;
+  return (
+    <span
+      className={`text-[11px] font-medium tabular-nums ${
+        positivo ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+      }`}
+      title="Variação vs. período anterior de mesma duração"
+    >
+      {up ? "▲" : "▼"} {Math.abs(pct)}%
+    </span>
+  );
+}
+
+function KpiGrid({ data, loading = false }: { data?: DashboardKpisFlat; loading?: boolean }) {
   return (
     <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
-      {KPI_CARDS.map(({ key, label, icon: Icon, status, className }) => {
+      {KPI_CARDS.map(({ key, label, icon: Icon, status, delta, className }) => {
         const value = data?.[key] ?? 0;
+        const deltaPct = delta ? (data?.deltas[delta] ?? null) : null;
         const inner = (
           <Card
             className={`transition-all hover:border-primary/40 hover:shadow-sm ${className ?? ""}`}
@@ -326,7 +350,10 @@ function KpiGrid({ data, loading = false }: { data?: Record<string, number>; loa
               {loading ? (
                 <Skeleton className="h-7 w-12" />
               ) : (
-                <div className="text-2xl font-semibold tabular-nums">{value}</div>
+                <div className="flex items-baseline gap-1.5">
+                  <div className="text-2xl font-semibold tabular-nums">{value}</div>
+                  {delta && <DeltaBadge pct={deltaPct} badWhenUp={DELTA_RUIM_QUANDO_SOBE.has(key)} />}
+                </div>
               )}
             </CardContent>
           </Card>

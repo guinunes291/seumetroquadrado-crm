@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { flattenDashboardKpis, type DashboardKpisFlat } from "@/features/dashboard/derive";
 
 /**
  * `campoData` controla qual coluna a RPC usa para o recorte de período:
@@ -22,7 +23,7 @@ export function useDashboardKpis(range: Range, corretor: string | null, enabled 
     enabled,
     staleTime: 30_000,
     refetchInterval: 60_000,
-    queryFn: async () => {
+    queryFn: async (): Promise<DashboardKpisFlat> => {
       const { data, error } = await rpc("dashboard_kpis", {
         _di: range.di,
         _df: range.df,
@@ -30,7 +31,9 @@ export function useDashboardKpis(range: Range, corretor: string | null, enabled 
         _campo_data: cd(range),
       });
       if (error) throw error;
-      return data as Record<string, number>;
+      // A RPC atual retorna {pipeline, periodo, prev}; versões antigas, um
+      // objeto plano. O flatten normaliza os dois para o shape da tela.
+      return flattenDashboardKpis(data);
     },
   });
 }
