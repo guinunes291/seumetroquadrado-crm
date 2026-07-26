@@ -361,7 +361,9 @@ export function ConciliacaoTab() {
                       <p className="text-sm text-muted-foreground">
                         {dataBR(t.data)} · {contaLabel(t.conta)} · {t.descricao}
                       </p>
+                      </div>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Badge variant={t.status === "conciliada" ? "secondary" : "outline"}>
                         {t.status}
