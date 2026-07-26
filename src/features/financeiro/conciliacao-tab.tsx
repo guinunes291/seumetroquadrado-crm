@@ -89,7 +89,14 @@ export function ConciliacaoTab() {
   const [motivoIgnorar, setMotivoIgnorar] = useState("");
   const [creditoAlvo, setCreditoAlvo] = useState<TransacaoItem | null>(null);
   const [vendasSelecionadas, setVendasSelecionadas] = useState<string[]>([]);
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [loteIgnorarOpen, setLoteIgnorarOpen] = useState(false);
+  const [motivoLote, setMotivoLote] = useState("");
+  const [confirmAlvo, setConfirmAlvo] = useState<
+    { transacao: TransacaoItem; sugestao: SugestaoComissao } | null
+  >(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const painel = useQuery({
     queryKey: ["financeiro-conciliacao"],
