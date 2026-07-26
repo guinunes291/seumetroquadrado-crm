@@ -61,10 +61,15 @@ function hojeISO(): string {
 /**
  * Valida o corpo (ou o item do lote). `camposExtraPermitidos` cobre o
  * `comissao_id` que só existe no formato de lote.
+ *
+ * `permitirMotivoLivre` é usado SOMENTE pela tela Financeiro, onde o motivo
+ * também justifica cancelamento/reabertura. As rotas públicas mantêm o
+ * contrato original (motivo só acompanha troca de beneficiário).
  */
 export function validarPatch(
   corpo: unknown,
   camposExtraPermitidos: string[] = [],
+  opcoes: { permitirMotivoLivre?: boolean } = {},
 ): PatchPayload | PatchErro {
   if (!corpo || typeof corpo !== "object" || Array.isArray(corpo)) {
     return { status: 400, body: { error: "corpo_invalido" } };
