@@ -38,6 +38,7 @@ import {
   type AgendamentoSlim,
   type VendaAprovadaSlim,
 } from "@/lib/metas";
+import { PacingPanel } from "@/features/metas/pacing-panel";
 
 // Realizado agregado aplicável a uma meta (corretor, equipe ou global).
 type RealizadoView = { leads_atendidos: number; visitas: number; vendas: number; vgv: number };
@@ -478,6 +479,10 @@ export function MetasPage() {
           </div>
         }
       />
+
+      {/* Tela 5 — Meta e Ritmo: projeção por dias úteis, cálculo reverso e gap
+          por corretor (RPC gestao_pacing; some se a migration não foi aplicada). */}
+      {canManage && <PacingPanel ano={ano} mes={mes} />}
 
       {/* Realizado do mês (todos os corretores) — mesmos agregados usados nas barras. */}
       <StatGrid>
