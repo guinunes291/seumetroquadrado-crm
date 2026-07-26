@@ -129,8 +129,8 @@ export function validarPatch(
 
   if ("motivo" in obj) {
     const motivo = obj.motivo;
-    if (payload.beneficiario_id === undefined) {
-      // `motivo` só existe para justificar troca de beneficiário.
+    if (payload.beneficiario_id === undefined && !opcoes.permitirMotivoLivre) {
+      // Na API, `motivo` só existe para justificar troca de beneficiário.
       return { status: 400, body: { error: "campo_nao_permitido", campo: "motivo" } };
     }
     if (typeof motivo !== "string" || motivo.trim().length < 10 || motivo.length > 500) {
