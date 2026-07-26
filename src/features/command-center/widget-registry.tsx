@@ -13,6 +13,9 @@ import { TarefasWidget } from "@/features/command-center/widgets/tarefas";
 import { MetasWidget } from "@/features/command-center/widgets/metas";
 import { RadarWidget } from "@/features/command-center/widgets/radar";
 import { ProdutividadeWidget } from "@/features/command-center/widgets/produtividade";
+import { GestaoDiaWidget } from "@/features/command-center/widgets/gestao-dia";
+import { GestaoPacingWidget } from "@/features/command-center/widgets/gestao-pacing";
+import { GestaoAtalhosWidget } from "@/features/command-center/widgets/gestao-atalhos";
 import type { Periodo } from "@/features/command-center/widgets/use-home-data";
 
 /**
@@ -53,13 +56,48 @@ export const WIDGET_SIZE_CLASS: Record<WidgetDef["size"], string> = {
   third: "lg:col-span-1 xl:col-span-2",
 };
 
-/** Ordem daqui = ordem padrão na tela. */
+/**
+ * Ordem daqui = ordem padrão na tela.
+ *
+ * A home tem DUAS caras (pedido de produto): a visão "operacao" é o cockpit
+ * de GESTÃO (exceções do dia, ritmo da meta, atalhos para relatórios e
+ * ferramentas) e a visão "minha" é o dia do corretor (próxima ação, missões,
+ * tarefas). Widgets pessoais não aparecem na operação e vice-versa — o
+ * gestor que também vende alterna no toggle Operação × Minha.
+ */
 export const HOME_WIDGETS: WidgetDef[] = [
-  { id: "nba", title: "Próxima melhor ação", size: "hero", Component: NbaWidget },
-  { id: "missoes", title: "Fila de missões", size: "third", Component: MissoesWidget },
+  // — Cockpit de gestão (visão operação; só papéis de gestão) —
+  {
+    id: "gestao-dia",
+    title: "O que exige ação hoje",
+    roles: ["admin", "gestor", "superintendente"],
+    escopos: ["operacao"],
+    size: "hero",
+    Component: GestaoDiaWidget,
+  },
+  {
+    id: "gestao-atalhos",
+    title: "Ferramentas de gestão",
+    roles: ["admin", "gestor", "superintendente"],
+    escopos: ["operacao"],
+    size: "third",
+    Component: GestaoAtalhosWidget,
+  },
+  {
+    id: "gestao-pacing",
+    title: "Ritmo do mês",
+    roles: ["admin", "gestor", "superintendente"],
+    escopos: ["operacao"],
+    size: "third",
+    Component: GestaoPacingWidget,
+  },
+  // — Dia do corretor (visão minha) —
+  { id: "nba", title: "Próxima melhor ação", escopos: ["minha"], size: "hero", Component: NbaWidget },
+  { id: "missoes", title: "Fila de missões", escopos: ["minha"], size: "third", Component: MissoesWidget },
   { id: "hoje-agenda", title: "Agenda de hoje", size: "third", Component: HojeAgendaWidget },
-  { id: "tarefas", title: "Tarefas & follow-ups", size: "third", Component: TarefasWidget },
-  { id: "metas", title: "Metas do dia", size: "third", Component: MetasWidget },
+  { id: "tarefas", title: "Tarefas & follow-ups", escopos: ["minha"], size: "third", Component: TarefasWidget },
+  { id: "metas", title: "Metas do dia", escopos: ["minha"], size: "third", Component: MetasWidget },
+  // — Comuns às duas visões (leitura de risco/entrega faz sentido nas duas) —
   { id: "radar", title: "Radar de risco", size: "third", Component: RadarWidget },
   { id: "produtividade", title: "Produtividade", size: "full", Component: ProdutividadeWidget },
 ];
@@ -89,10 +127,14 @@ export type HomeWidgetPrefs = {
 
 export function useHomeWidgetPrefs(escopo: string): HomeWidgetPrefs {
   const { roles } = useUserRoles();
-  const [pref, setPref] = usePreference<HomeWidgetPref>(`home:widgets:${escopo}`, PREF_PADRAO);
+  // A visão de operação foi reestruturada (cockpit de gestão): a chave v2
+  // garante que todo gestor receba o novo layout padrão, mesmo quem já tinha
+  // ordem salva da versão antiga (que enterraria os widgets novos no fim).
+  const prefKey = escopo === "operacao" ? "home:widgets:operacao:v2" : `home:widgets:${escopo}`;
+  const [pref, setPref] = usePreference<HomeWidgetPref>(prefKey, PREF_PADRAO);
 
-  // Papel/visão podem restringir um widget; hoje nenhum restringe — paridade
-  // com a página antiga, em que todas as seções apareciam para todos.
+  // Papel e visão restringem widgets: o cockpit de gestão só existe na
+  // operação (papéis de gestão) e os widgets pessoais só na visão "minha".
   const disponiveis = useMemo(() => {
     const porId = new Map(HOME_WIDGETS.map((w) => [w.id, w]));
     return mergeOrder(pref.order)
