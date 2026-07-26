@@ -35,7 +35,11 @@ import {
   saveViews,
   loadUltimoFiltro,
   saveUltimoFiltro,
+  mesclarFiltrosDaUrl,
+  searchParaFiltros,
+  temFiltrosNaUrl,
   type LeadFiltros,
+  type LeadSearchFiltros,
   type SavedView,
 } from "@/lib/leads-views";
 import {
@@ -126,11 +130,13 @@ import { isTypingTarget } from "@/lib/shortcuts";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
+  // Drill-through universal: todo filtro server-side da leads_filtered_v2 pode
+  // chegar pela URL (telas de gestão linkam para cá). URL vence localStorage.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { status?: string; view?: "lista" | "kanban" } => ({
-    status: typeof search.status === "string" ? search.status : undefined,
+  ): { view?: "lista" | "kanban" } & LeadSearchFiltros => ({
     view: search.view === "kanban" ? "kanban" : undefined,
+    ...searchParaFiltros(search),
   }),
   component: LeadsPage,
 });
@@ -199,7 +205,14 @@ function LeadsPage() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const { status: statusParam, view } = Route.useSearch();
+  const searchParams = Route.useSearch();
+  const { view } = searchParams;
+  const statusParam = searchParams.status;
+  // Filtros vindos da URL (drill-through das telas de gestão).
+  const urlFiltros = useMemo(
+    () => searchParaFiltros(searchParams as Record<string, unknown>),
+    [searchParams],
+  );
   const navigate = Route.useNavigate();
   const activeView: "lista" | "kanban" = view ?? "lista";
   const setView = (v: "lista" | "kanban") =>
@@ -273,10 +286,14 @@ function LeadsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  // Drill-down: ao chegar do dashboard com ?status=…, aplica o filtro de status.
+  // Drill-down: filtros da URL viram estado sempre que mudam (chegada de
+  // qualquer tela de gestão com ?status=…&corretor=…&periodo=…).
+  const urlFiltrosKey = JSON.stringify(urlFiltros);
   useEffect(() => {
-    if (statusParamValido) setStatusFilter(statusParamValido);
-  }, [statusParamValido]);
+    if (Object.keys(urlFiltros).length === 0) return;
+    aplicarFiltros(mesclarFiltrosDaUrl(urlFiltros, canManage));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlFiltrosKey, canManage]);
 
   // Filtros atuais como objeto (para salvar/restaurar/visões).
   const filtrosAtuais: LeadFiltros = {
@@ -302,10 +319,13 @@ function LeadsPage() {
   };
 
   // Carrega visões salvas e restaura o último filtro (1x, ao montar).
+  // Deep-link com filtros na URL VENCE o último filtro salvo — senão o
+  // drill-through das telas de gestão abriria a lista errada.
   useEffect(() => {
     if (!user?.id || filtrosRestauradosRef.current) return;
     filtrosRestauradosRef.current = true;
     setSavedViews(loadViews(user.id));
+    if (temFiltrosNaUrl(searchParams as Record<string, unknown>)) return;
     const ultimo = loadUltimoFiltro(user.id);
     if (ultimo) aplicarFiltros({ ...FILTRO_PADRAO, ...ultimo });
     // eslint-disable-next-line react-hooks/exhaustive-deps

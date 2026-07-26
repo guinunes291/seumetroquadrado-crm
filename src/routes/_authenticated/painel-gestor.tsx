@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoGeralPanel } from "@/features/gestao/visao-geral";
+import { PainelDiaView } from "@/features/gestao/painel-dia/painel-dia-view";
 import { CorretoresPage } from "@/features/gestao/corretores-page";
 import { EquipesPage } from "@/features/gestao/equipes-page";
 import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page";
@@ -50,6 +51,7 @@ import { EstoquePage } from "@/features/gestao/estoque-page";
 import { CampanhasPage } from "@/features/gestao/campanhas-page";
 
 type GestaoTab =
+  | "dia"
   | "visao"
   | "saude"
   | "estoque"
@@ -59,6 +61,7 @@ type GestaoTab =
   | "comunicacao"
   | "qualidade";
 const GESTAO_TABS: GestaoTab[] = [
+  "dia",
   "visao",
   "saude",
   "estoque",
@@ -99,9 +102,11 @@ function PainelGestorPage() {
   const podeVer = isAdmin || isGestor;
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const activeTab: GestaoTab = tab && tab !== "distribuicao" ? tab : "visao";
+  // "dia" (Painel do Dia) é a home do gestor; deep-links antigos (?tab=visao
+  // etc.) continuam válidos pelo validateSearch.
+  const activeTab: GestaoTab = tab && tab !== "distribuicao" ? tab : "dia";
   const onTabChange = (v: string) =>
-    navigate({ search: { tab: v === "visao" ? undefined : (v as GestaoTab) } });
+    navigate({ search: { tab: v === "dia" ? undefined : (v as GestaoTab) } });
 
   // Guarda real: corretor não acessa o hub de Gestão (antes recebia um painel
   // vazio). Enquanto os papéis carregam, evita o flash redirecionando só depois.
@@ -115,6 +120,7 @@ function PainelGestorPage() {
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
       <TabsList className="h-auto flex-wrap justify-start">
+        <TabsTrigger value="dia">Dia</TabsTrigger>
         <TabsTrigger value="visao">Visão geral</TabsTrigger>
         <TabsTrigger value="saude">Saúde</TabsTrigger>
         {/* Estoque (fila de distribuição), Campanhas e Comunicação (templates) são
@@ -126,6 +132,9 @@ function PainelGestorPage() {
         {isAdmin && <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>}
         {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
+      <TabsContent value="dia">
+        <PainelDiaView />
+      </TabsContent>
       <TabsContent value="visao">
         <VisaoGeralPanel />
       </TabsContent>

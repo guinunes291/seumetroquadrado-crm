@@ -79,6 +79,75 @@ export function passaContato(
 }
 
 // ---------------------------------------------------------------------------
+// Drill-through: filtros na URL (?status=…&corretor=…)
+// ---------------------------------------------------------------------------
+
+/** Chaves de LeadFiltros que viajam na URL para drill-through das telas de gestão. */
+export const FILTRO_URL_KEYS = [
+  "status",
+  "origem",
+  "corretor",
+  "temperatura",
+  "periodo",
+  "dataInicio",
+  "dataFim",
+  "contato",
+] as const;
+
+export type LeadSearchFiltros = Partial<Pick<LeadFiltros, (typeof FILTRO_URL_KEYS)[number]>>;
+
+/** Lê os filtros presentes na search da URL (ignora vazios e não-string). */
+export function searchParaFiltros(search: Record<string, unknown>): LeadSearchFiltros {
+  const out: LeadSearchFiltros = {};
+  for (const k of FILTRO_URL_KEYS) {
+    const v = search[k];
+    if (typeof v === "string" && v !== "" && v !== "all") out[k] = v;
+  }
+  return out;
+}
+
+/** Converte filtros em search params de URL, omitindo defaults ("all"/vazio). */
+export function filtrosParaSearch(f: Partial<LeadFiltros>): LeadSearchFiltros {
+  const out: LeadSearchFiltros = {};
+  for (const k of FILTRO_URL_KEYS) {
+    const v = f[k];
+    if (typeof v === "string" && v !== "" && v !== "all") out[k] = v;
+  }
+  return out;
+}
+
+/** True quando a URL carrega ao menos um filtro de drill (URL vence localStorage). */
+export function temFiltrosNaUrl(search: Record<string, unknown>): boolean {
+  return Object.keys(searchParaFiltros(search)).length > 0;
+}
+
+const PERIODOS_VALIDOS = ["all", "hoje", "7d", "30d", "90d", "custom"];
+const TEMPERATURAS_VALIDAS = ["quente", "morno", "frio"];
+
+/**
+ * Mescla filtros da URL sobre o padrão, saneando valores que a UI não
+ * conhece (um valor inválido em Select quebraria o controle). Datas soltas
+ * (dataInicio/dataFim sem periodo) ativam o modo "custom"; quem não gerencia
+ * não filtra por corretor.
+ */
+export function mesclarFiltrosDaUrl(url: LeadSearchFiltros, canManage: boolean): LeadFiltros {
+  const f: LeadFiltros = { ...FILTRO_PADRAO, ...url };
+  if (!PERIODOS_VALIDOS.includes(f.periodo)) f.periodo = "all";
+  if ((url.dataInicio || url.dataFim) && f.periodo === "all") f.periodo = "custom";
+  if (f.temperatura !== "all" && !TEMPERATURAS_VALIDAS.includes(f.temperatura)) {
+    f.temperatura = "all";
+  }
+  if (
+    f.contato !== "all" &&
+    !CONTATO_OPCOES.some((o) => o.value === f.contato)
+  ) {
+    f.contato = "all";
+  }
+  if (!canManage) f.corretor = "all";
+  return f;
+}
+
+// ---------------------------------------------------------------------------
 // Persistência (localStorage por usuário)
 // ---------------------------------------------------------------------------
 
