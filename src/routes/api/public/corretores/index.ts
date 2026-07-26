@@ -1,4 +1,4 @@
-// GET /api/public/corretores?ativo=true
+// GET /api/public/corretores?ativo=true&incluir_inativos=true
 // Auth: cliente X-API-Key com escopo leads:read.
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse } from "@/lib/public-api-auth";
@@ -38,8 +38,13 @@ export const Route = createFileRoute("/api/public/corretores/")({
 
         if (auth.equipeId) q = q.eq("equipe_id", auth.equipeId);
 
+        // Padrão: só ativos. `incluir_inativos=true` traz também quem saiu da
+        // operação (ex.: beneficiários de comissões históricas), sempre com o
+        // campo `ativo` explícito no item. `ativo=` continua tendo precedência.
+        const incluirInativos = url.searchParams.get("incluir_inativos") === "true";
         if (ativoParam === "true") q = q.eq("ativo", true);
         else if (ativoParam === "false") q = q.eq("ativo", false);
+        else if (!incluirInativos) q = q.eq("ativo", true);
 
         const { data, error } = await q;
         if (error) return jsonResponse({ error: error.message }, 500);

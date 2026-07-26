@@ -163,6 +163,8 @@ export type PatchResultado =
         beneficiario_id: string | null;
         beneficiario_nome: string | null;
       };
+      /** true|false quando o corpo trouxe beneficiario_id; null quando não trouxe. */
+      beneficiarioAtivo: boolean | null;
     }
   | { ok: false; erro: PatchErro };
 
@@ -193,6 +195,7 @@ export async function aplicarPatchComissao(
   }
 
   const patch: Record<string, unknown> = {};
+  let beneficiarioAtivo: boolean | null = null;
 
   if (payload.beneficiario_id !== undefined) {
     const statusAtual = String((atual as Record<string, unknown>).status ?? "");
@@ -219,9 +222,15 @@ export async function aplicarPatchComissao(
         },
       };
     }
-    if (!perfil.ativo) {
-      return { ok: false, erro: { status: 400, body: { error: "beneficiario_inativo" } } };
+    // Pessoa inativa NÃO é impedimento: "ativo" governa roleta/atendimento, não
+    // a titularidade de uma comissão que já aconteceu. Exigimos apenas motivo.
+    if (!perfil.ativo && !payload.motivo) {
+      return {
+        ok: false,
+        erro: { status: 409, body: { error: "motivo_obrigatorio_beneficiario_inativo" } },
+      };
     }
+    beneficiarioAtivo = Boolean(perfil.ativo);
     patch.beneficiario_id = perfil.id;
     patch.beneficiario_nome = perfil.nome;
   }
@@ -264,6 +273,7 @@ export async function aplicarPatchComissao(
 
   return {
     ok: true,
+    beneficiarioAtivo,
     comissao: novo as Record<string, unknown>,
     anterior: {
       status: (atual as Record<string, unknown>).status as string,
