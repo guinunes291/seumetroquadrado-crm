@@ -53,6 +53,7 @@ import {
   definirCorretorVendaFn,
 } from "@/lib/financeiro.functions";
 import type { FilaItem, VendaItem } from "@/lib/financeiro-types";
+import { ConciliacaoTab } from "@/features/financeiro/conciliacao-tab";
 
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -267,7 +268,12 @@ export function FechamentoPage() {
             Vendas sem corretor ({dados.vendas_sem_corretor.length})
           </TabsTrigger>
           <TabsTrigger value="integridade">Integridade</TabsTrigger>
+          <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="conciliacao" className="mt-4">
+          <ConciliacaoTab />
+        </TabsContent>
 
         <TabsContent value="fila" className="mt-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">

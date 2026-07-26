@@ -711,6 +711,79 @@ export type Database = {
           },
         ]
       }
+      conciliacoes: {
+        Row: {
+          comissao_id: string | null
+          confirmado_por: string | null
+          confirmado_por_nome: string | null
+          created_at: string
+          data_anterior: string | null
+          data_aplicada: string | null
+          desfeito_em: string | null
+          desfeito_por: string | null
+          desfeito_por_nome: string | null
+          id: string
+          tipo: string
+          transacao_id: string
+          updated_at: string
+          venda_id: string | null
+        }
+        Insert: {
+          comissao_id?: string | null
+          confirmado_por?: string | null
+          confirmado_por_nome?: string | null
+          created_at?: string
+          data_anterior?: string | null
+          data_aplicada?: string | null
+          desfeito_em?: string | null
+          desfeito_por?: string | null
+          desfeito_por_nome?: string | null
+          id?: string
+          tipo: string
+          transacao_id: string
+          updated_at?: string
+          venda_id?: string | null
+        }
+        Update: {
+          comissao_id?: string | null
+          confirmado_por?: string | null
+          confirmado_por_nome?: string | null
+          created_at?: string
+          data_anterior?: string | null
+          data_aplicada?: string | null
+          desfeito_em?: string | null
+          desfeito_por?: string | null
+          desfeito_por_nome?: string | null
+          id?: string
+          tipo?: string
+          transacao_id?: string
+          updated_at?: string
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conciliacoes_comissao_id_fkey"
+            columns: ["comissao_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacoes_transacao_id_fkey"
+            columns: ["transacao_id"]
+            isOneToOne: false
+            referencedRelation: "extrato_transacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacoes_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracao_pontuacao: {
         Row: {
           ativo: boolean
@@ -1511,6 +1584,57 @@ export type Database = {
           id?: string
           nome?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      extrato_transacoes: {
+        Row: {
+          arquivo: string | null
+          conta: string
+          contraparte: string | null
+          created_at: string
+          data: string
+          descricao: string
+          fitid: string
+          id: string
+          importado_em: string
+          importado_por: string | null
+          motivo_ignorada: string | null
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          arquivo?: string | null
+          conta: string
+          contraparte?: string | null
+          created_at?: string
+          data: string
+          descricao?: string
+          fitid: string
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          motivo_ignorada?: string | null
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          arquivo?: string | null
+          conta?: string
+          contraparte?: string | null
+          created_at?: string
+          data?: string
+          descricao?: string
+          fitid?: string
+          id?: string
+          importado_em?: string
+          importado_por?: string | null
+          motivo_ignorada?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number
         }
         Relationships: []
       }
