@@ -210,10 +210,17 @@ export function CommandPalette() {
       icon: Building2,
       go: () => navigate({ to: "/projetos" }),
     },
+    { label: "Oferta Ativa", icon: Users, go: () => navigate({ to: "/oferta-ativa" }) },
+    {
+      label: "Comissões",
+      icon: ListTodo,
+      go: () => navigate({ to: "/ranking", search: { tab: "comissoes" } }),
+    },
+    { label: "Links Úteis", icon: Building2, go: () => navigate({ to: "/links-uteis" }) },
     ...(canManage
       ? [
           {
-            label: "Gestão (Painel)",
+            label: "Gestão (Painel do Dia)",
             icon: Gauge,
             go: () => navigate({ to: "/painel-gestor" }),
           },
@@ -227,9 +234,14 @@ export function CommandPalette() {
     ...(canManage || isSuperintendente
       ? [
           {
-            label: "Inteligência (Relatórios)",
+            label: "Relatórios (Gestão)",
             icon: LayoutDashboard,
-            go: () => navigate({ to: "/inteligencia" }),
+            go: () => navigate({ to: "/painel-gestor", search: { tab: "relatorios" } }),
+          },
+          {
+            label: "Metas & Ritmo",
+            icon: LayoutDashboard,
+            go: () => navigate({ to: "/painel-gestor", search: { tab: "metas" } }),
           },
         ]
       : []),
@@ -335,7 +347,13 @@ export function CommandPalette() {
                     key={c.id}
                     value={`corretor-${c.id}`}
                     onSelect={() =>
-                      run(() => navigate({ to: "/painel-gestor", search: { tab: "pessoas" } }))
+                      // Drill do corretor na aba Time (Pessoas é admin-only).
+                      run(() =>
+                        navigate({
+                          to: "/painel-gestor",
+                          search: { tab: "time", corretor: c.id },
+                        }),
+                      )
                     }
                   >
                     <UserRound className="text-muted-foreground" />

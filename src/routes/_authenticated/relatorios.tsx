@@ -4,6 +4,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // compatibilidade para não quebrar links/atalhos salvos.
 export const Route = createFileRoute("/_authenticated/relatorios")({
   beforeLoad: () => {
-    throw redirect({ to: "/inteligencia" });
+    throw redirect({ to: "/painel-gestor", search: { tab: "relatorios" } });
   },
 });

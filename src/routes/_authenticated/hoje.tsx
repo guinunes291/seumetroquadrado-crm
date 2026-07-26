@@ -20,7 +20,9 @@ export const Route = createFileRoute("/_authenticated/hoje")({
     tab: typeof search.tab === "string" ? search.tab : undefined,
   }),
   beforeLoad: ({ search }) => {
-    if (search.tab === "analytics") throw redirect({ to: "/inteligencia" });
+    if (search.tab === "analytics") {
+      throw redirect({ to: "/painel-gestor", search: { tab: "relatorios" } });
+    }
   },
   head: () => ({ meta: [{ title: "Central de Comando — Seu Metro Quadrado" }] }),
   component: CommandCenterPage,
