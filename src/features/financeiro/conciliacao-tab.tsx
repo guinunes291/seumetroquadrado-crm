@@ -649,7 +649,88 @@ export function ConciliacaoTab() {
         </DialogContent>
       </Dialog>
 
+      {/* Ignorar em massa */}
+      <Dialog open={loteIgnorarOpen} onOpenChange={setLoteIgnorarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ignorar {selecionadas.length} lançamento(s)</DialogTitle>
+            <DialogDescription>
+              O mesmo motivo vale para todos. Cada item continua recuperável pelo filtro
+              "Ignoradas".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {MOTIVOS_IGNORAR.map((m) => (
+                <Button key={m} size="sm" variant="outline" onClick={() => setMotivoLote(m)}>
+                  {m}
+                </Button>
+              ))}
+            </div>
+            <Textarea
+              value={motivoLote}
+              onChange={(e) => setMotivoLote(e.target.value)}
+              placeholder="Motivo (obrigatório)"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLoteIgnorarOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                mutIgnorarLote.mutate({ transacaoIds: selecionadas, motivo: motivoLote })
+              }
+              disabled={motivoLote.trim().length < 4 || mutIgnorarLote.isPending}
+            >
+              Ignorar selecionados
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alerta de regravação de data real */}
+      <Dialog open={!!confirmAlvo} onOpenChange={(o) => !o && setConfirmAlvo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atenção: esta comissão já tem data real</DialogTitle>
+            <DialogDescription>
+              Confirmar vai substituir a data já conferida pela data desta transação
+              {confirmAlvo ? ` (${dataBR(confirmAlvo.transacao.data)})` : ""}. O motivo fica na
+              auditoria. Tem certeza?
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-1 text-sm">
+            {confirmAlvo &&
+              datasEmRisco(confirmAlvo.transacao, confirmAlvo.sugestao).map((c) => (
+                <li key={c.id} className="rounded-md border p-2">
+                  {c.projeto_nome ?? "sem projeto"} · {brl(c.valor_liquido)} · data real atual{" "}
+                  <strong>{dataBR(c.data_pagamento)}</strong> → vira{" "}
+                  <strong>{dataBR(confirmAlvo.transacao.data)}</strong>
+                </li>
+              ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmAlvo(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!confirmAlvo) return;
+                confirmarSugestao(confirmAlvo.transacao, confirmAlvo.sugestao);
+                setConfirmAlvo(null);
+              }}
+              disabled={mutComissoes.isPending}
+            >
+              Substituir a data mesmo assim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Crédito ↔ venda */}
+
       <Dialog open={!!creditoAlvo} onOpenChange={(o) => !o && setCreditoAlvo(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
