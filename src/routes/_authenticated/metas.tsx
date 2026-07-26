@@ -77,10 +77,10 @@ const fmtBRL = (n: number) =>
 const intentDoProgresso = (pct: number) =>
   pct >= 100 ? ("success" as const) : pct >= 60 ? ("info" as const) : ("warning" as const);
 
-// Rota legada mantida para deep-links: o conteúdo vive como aba do hub.
+// Rota legada mantida para deep-links: Metas & Ritmo vive no hub de Gestão.
 export const Route = createFileRoute("/_authenticated/metas")({
   beforeLoad: () => {
-    throw redirect({ to: "/ranking", search: { tab: "metas" } });
+    throw redirect({ to: "/painel-gestor", search: { tab: "metas" } });
   },
 });
 
