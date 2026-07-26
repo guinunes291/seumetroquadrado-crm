@@ -50,10 +50,14 @@ import {
 } from "@/lib/conciliacao.functions";
 import {
   CONTAS,
+  DATA_REFERENCIA_FALSA,
+  MOTIVO_TRANSFERENCIA_PROPRIA,
   MOTIVOS_IGNORAR,
   type ContaBancaria,
+  type SugestaoComissao,
   type TransacaoItem,
 } from "@/lib/conciliacao-types";
+
 
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
