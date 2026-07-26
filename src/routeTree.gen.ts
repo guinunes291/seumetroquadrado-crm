@@ -61,6 +61,7 @@ import { Route as AuthenticatedProjetosProjetoIdRouteImport } from './routes/_au
 import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_authenticated/oferta-ativa.nova'
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
+import { Route as AuthenticatedFinanceiroFechamentoRouteImport } from './routes/_authenticated/financeiro/fechamento'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicVendasIndexRouteImport } from './routes/api/public/vendas/index'
@@ -358,6 +359,12 @@ const AuthenticatedLeadsLeadIdRoute =
     path: '/leads/$leadId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFinanceiroFechamentoRoute =
+  AuthenticatedFinanceiroFechamentoRouteImport.update({
+    id: '/financeiro/fechamento',
+    path: '/financeiro/fechamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -515,6 +522,7 @@ export interface FileRoutesByFullPath {
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/financeiro/fechamento': typeof AuthenticatedFinanceiroFechamentoRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -589,6 +597,7 @@ export interface FileRoutesByTo {
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/financeiro/fechamento': typeof AuthenticatedFinanceiroFechamentoRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -665,6 +674,7 @@ export interface FileRoutesById {
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_authenticated/financeiro/fechamento': typeof AuthenticatedFinanceiroFechamentoRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
@@ -741,6 +751,7 @@ export interface FileRouteTypes {
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/financeiro/fechamento'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
@@ -815,6 +826,7 @@ export interface FileRouteTypes {
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/financeiro/fechamento'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
@@ -890,6 +902,7 @@ export interface FileRouteTypes {
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_authenticated/financeiro/fechamento'
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
@@ -1321,6 +1334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsLeadIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/financeiro/fechamento': {
+      id: '/_authenticated/financeiro/fechamento'
+      path: '/financeiro/fechamento'
+      fullPath: '/financeiro/fechamento'
+      preLoaderRoute: typeof AuthenticatedFinanceiroFechamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -1504,6 +1524,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
+  AuthenticatedFinanceiroFechamentoRoute: typeof AuthenticatedFinanceiroFechamentoRoute
   AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
   AuthenticatedOfertaAtivaOfertaIdRoute: typeof AuthenticatedOfertaAtivaOfertaIdRoute
   AuthenticatedOfertaAtivaNovaRoute: typeof AuthenticatedOfertaAtivaNovaRoute
@@ -1546,6 +1567,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,
+  AuthenticatedFinanceiroFechamentoRoute:
+    AuthenticatedFinanceiroFechamentoRoute,
   AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
   AuthenticatedOfertaAtivaOfertaIdRoute: AuthenticatedOfertaAtivaOfertaIdRoute,
   AuthenticatedOfertaAtivaNovaRoute: AuthenticatedOfertaAtivaNovaRoute,

@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Zap,
   Trophy,
+  Wallet,
   Sun,
   Building2,
   Map,
@@ -110,6 +111,12 @@ const NAV_ITEMS: Item[] = [
     badge: (b) => b.aprovacoes,
     children: [
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
+      {
+        to: "/financeiro/fechamento",
+        label: "Financeiro · Fechamento",
+        icon: Wallet,
+        roles: ["admin", "gestor"],
+      },
     ],
   },
   {

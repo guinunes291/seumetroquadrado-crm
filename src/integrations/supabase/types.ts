@@ -215,6 +215,9 @@ export type Database = {
           entidade_id: string
           id: string
           motivo: string | null
+          origem: string
+          usuario_id: string | null
+          usuario_nome: string | null
           valor_anterior: string | null
           valor_novo: string | null
         }
@@ -227,6 +230,9 @@ export type Database = {
           entidade_id: string
           id?: string
           motivo?: string | null
+          origem?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
           valor_anterior?: string | null
           valor_novo?: string | null
         }
@@ -239,6 +245,9 @@ export type Database = {
           entidade_id?: string
           id?: string
           motivo?: string | null
+          origem?: string
+          usuario_id?: string | null
+          usuario_nome?: string | null
           valor_anterior?: string | null
           valor_novo?: string | null
         }
