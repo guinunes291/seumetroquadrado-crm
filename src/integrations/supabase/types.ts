@@ -1677,6 +1677,30 @@ export type Database = {
         }
         Relationships: []
       }
+      gestao_config: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          descricao: string
+          valor: Json
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          descricao: string
+          valor: Json
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          descricao?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
       google_calendar_connections: {
         Row: {
           access_token: string | null
@@ -4681,6 +4705,7 @@ export type Database = {
         Args: { _lead_id: string; _tentativas: number }
         Returns: undefined
       }
+      _gestao_escopo: { Args: never; Returns: Record<string, unknown> }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _notificar_handoff_novo_dono: {
@@ -5325,7 +5350,12 @@ export type Database = {
         }[]
       }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
+      faixa_mcmv_norm: { Args: { _v: string }; Returns: string }
       fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }
+      funil_ordem: {
+        Args: { _s: Database["public"]["Enums"]["lead_status"] }
+        Returns: number
+      }
       gerar_alertas_agendamentos_proximos: { Args: never; Returns: undefined }
       gerar_alertas_leads_parados: { Args: never; Returns: undefined }
       gerar_alertas_tarefas_atrasadas: { Args: never; Returns: undefined }
@@ -5346,6 +5376,51 @@ export type Database = {
         }
         Returns: Json
       }
+      gestao_config_valor: { Args: { _chave: string }; Returns: Json }
+      gestao_funil_coorte: {
+        Args: {
+          _ate?: string
+          _corretor?: string
+          _de?: string
+          _origem?: string
+        }
+        Returns: {
+          atingiu_agendado: number
+          atingiu_analise: number
+          atingiu_atendimento: number
+          atingiu_visita: number
+          atualizado_em: string
+          cobertura_pct: number
+          leads: number
+          mes_coorte: string
+          perdidos: number
+          vendas: number
+        }[]
+      }
+      gestao_funil_snapshot: {
+        Args: { _corretor?: string }
+        Returns: {
+          etapa: string
+          followups_vencidos: number
+          ordem: number
+          parados: number
+          quantidade: number
+          vgv: number
+        }[]
+      }
+      gestao_gargalos: { Args: { _ate?: string; _de?: string }; Returns: Json }
+      gestao_heatmap_corretor_etapa: {
+        Args: { _ate?: string; _de?: string; _metrica?: string }
+        Returns: {
+          base: number
+          corretor_id: string
+          etapa: string
+          nome: string
+          ordem: number
+          valor: number
+        }[]
+      }
+      gestao_limiar_parado: { Args: { _temperatura: string }; Returns: number }
       gestao_metricas: {
         Args: {
           _campo_data?: string
@@ -5353,6 +5428,85 @@ export type Database = {
           _periodo_start: string
         }
         Returns: Json
+      }
+      gestao_motivos_perda: {
+        Args: { _ate?: string; _corretor?: string; _de?: string }
+        Returns: {
+          atualizado_em: string
+          categoria: string
+          quantidade: number
+          vgv_estimado: number
+        }[]
+      }
+      gestao_origens: {
+        Args: { _ate?: string; _de?: string }
+        Returns: {
+          atualizado_em: string
+          cobertura_pct: number
+          conv_pct: number
+          leads: number
+          origem: string
+          vendas: number
+        }[]
+      }
+      gestao_pacing: { Args: { _ano?: number; _mes?: number }; Returns: Json }
+      gestao_painel_dia: {
+        Args: { _corretor?: string; _limite?: number; _tipos?: string[] }
+        Returns: Json
+      }
+      gestao_performance_corretor_drill: {
+        Args: { _corretor: string; _meses?: number }
+        Returns: {
+          agendamentos_criados: number
+          analises: number
+          atualizado_em: string
+          contatos: number
+          interacoes: number
+          leads_recebidos: number
+          mes: string
+          no_shows: number
+          primeira_resposta_p50_min: number
+          tarefas_concluidas: number
+          vendas: number
+          vgv: number
+          visitas_realizadas: number
+        }[]
+      }
+      gestao_performance_corretores: {
+        Args: { _mes?: string }
+        Returns: {
+          agendamentos_criados: number
+          analises: number
+          atualizado_em: string
+          capacidade_pct: number
+          carga_ativa: number
+          contatos: number
+          corretor_id: string
+          interacoes: number
+          leads_recebidos: number
+          leads_respondidos: number
+          limite_diario_leads: number
+          no_shows: number
+          nome: string
+          presente: boolean
+          primeira_resposta_p50_min: number
+          tarefas_concluidas: number
+          vendas: number
+          vgv: number
+          visitas_realizadas: number
+        }[]
+      }
+      gestao_resumo_semanal: { Args: never; Returns: Json }
+      gestao_tempo_etapa: {
+        Args: { _ate?: string; _corretor?: string; _de?: string }
+        Returns: {
+          atualizado_em: string
+          etapa: string
+          horas_media: number
+          horas_p50: number
+          n: number
+          ordem: number
+        }[]
       }
       get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
@@ -5382,6 +5536,14 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
+      lead_ultima_atividade: {
+        Args: {
+          _ultima_interacao: string
+          _ultimo_contato: string
+          _updated_at: string
+        }
+        Returns: string
+      }
       leads_com_sla: {
         Args: { _corretor?: string }
         Returns: {

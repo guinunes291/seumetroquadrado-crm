@@ -102,19 +102,25 @@ export const Route = createFileRoute("/api/documentacao")({
           const doc = await storageAuth.requireAccessibleDocument(auth, documentacaoId);
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-          // Caminho novo: arquivos vindos por WhatsApp (bucket documentos-leads).
-          // A regra é o mesmo prefixo {lead_id}/... — RLS do bucket também
-          // valida, mas já sabemos que o requester passou por `pode_acessar_lead`.
+          // Caminho novo: arquivos ingeridos por WhatsApp, gravados com prefixo
+          // {lead_id}/... O objeto pode estar no bucket `documentos-leads`
+          // (ingestão antiga) ou em `documentacao` (rota pública atual), então
+          // tentamos os dois antes de falhar.
           if (doc.arquivo_path && doc.arquivo_path.startsWith(`${doc.lead_id}/`)) {
-            const { data, error } = await supabaseAdmin.storage
-              .from("documentos-leads")
-              .createSignedUrl(doc.arquivo_path, 60 * 60);
-            if (error || !data?.signedUrl) {
-              console.error("[documentacao-api] assinatura (novo bucket) falhou", error?.message);
-              return json({ ok: false, error: "signed_url_failed" }, 502);
+            let lastError: string | undefined;
+            for (const bucket of [BUCKET, "documentos-leads"]) {
+              const { data, error } = await supabaseAdmin.storage
+                .from(bucket)
+                .createSignedUrl(doc.arquivo_path, 60 * 60);
+              if (!error && data?.signedUrl) {
+                return json({ ok: true, signed_url: data.signedUrl, expires_in: 60 * 60 });
+              }
+              lastError = error?.message;
             }
-            return json({ ok: true, signed_url: data.signedUrl, expires_in: 60 * 60 });
+            console.error("[documentacao-api] assinatura (arquivo_path) falhou", lastError);
+            return json({ ok: false, error: "signed_url_failed" }, 502);
           }
+
 
           if (!doc.url || /^https?:\/\//i.test(doc.url)) {
             return json({ ok: false, error: "private_file_not_found" }, 404);
