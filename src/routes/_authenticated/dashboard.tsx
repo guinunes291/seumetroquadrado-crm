@@ -4,6 +4,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // não quebrar links/atalhos salvos.
 export const Route = createFileRoute("/_authenticated/dashboard")({
   beforeLoad: () => {
-    throw redirect({ to: "/inteligencia" });
+    throw redirect({ to: "/painel-gestor", search: { tab: "relatorios" } });
   },
 });
