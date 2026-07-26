@@ -5,6 +5,7 @@ import {
   excecoesParaExport,
   montarPainelDegradado,
   normalizarPainelDia,
+  resumoSemanalParaSheets,
   type Excecao,
 } from "@/features/gestao/painel-dia/derive";
 
@@ -135,5 +136,27 @@ describe("apresentação e drill", () => {
     expect(rows[0].Tipo).toBe("Parados");
     expect(rows[0].Lead).toBe("João");
     expect(rows[0]["Valor potencial (R$)"]).toBe(240000);
+  });
+});
+
+describe("resumoSemanalParaSheets", () => {
+  it("converte o jsonb do resumo em abas de XLSX", () => {
+    const sheets = resumoSemanalParaSheets({
+      semana: { de: "2026-07-19", ate: "2026-07-25" },
+      kpis: { leads_novos: 40, leads_novos_prev: 35, visitas: 12, vendas: 3, vendas_prev: 2, vgv: 600000, perdidos: 5 },
+      por_corretor: [
+        { nome: "Ana", leads_novos: 20, interacoes: 80, visitas: 7, vendas: 2, vgv: 400000 },
+      ],
+    });
+    expect(sheets.map((s) => s.name)).toEqual(["Resumo", "Por corretor"]);
+    expect(sheets[0].rows.find((r) => r.Indicador === "Vendas aprovadas")).toMatchObject({
+      Valor: 3,
+      "Semana anterior": 2,
+    });
+    expect(sheets[1].rows[0].Corretor).toBe("Ana");
+  });
+
+  it("payload inválido devolve lista vazia", () => {
+    expect(resumoSemanalParaSheets(null)).toEqual([]);
   });
 });

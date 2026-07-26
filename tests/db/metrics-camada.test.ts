@@ -287,6 +287,18 @@ describe("pacing", () => {
     await comoSuperuser(c);
   });
 
+  it("resumo semanal devolve kpis e linhas por corretor no escopo", async () => {
+    await comoUsuario(c, gestorA.id);
+    const r = await c.query(`SELECT public.gestao_resumo_semanal() AS p`);
+    const p = r.rows[0].p;
+    expect(p.kpis).toBeTruthy();
+    expect(typeof p.kpis.leads_novos).toBe("number");
+    const nomes = (p.por_corretor as Array<{ nome: string }>).map((x) => x.nome);
+    expect(nomes).toContain("Corretor A");
+    expect(nomes).not.toContain("Corretor B");
+    await comoSuperuser(c);
+  });
+
   it("gestor de outra equipe não vê a meta da equipe A", async () => {
     await comoSuperuser(c);
     const gestorB = await criarUsuario(c, {

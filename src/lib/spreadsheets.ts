@@ -116,6 +116,19 @@ export async function readTabularFile(file: File): Promise<TabularRow[]> {
   return rows;
 }
 
+function buildSheetData(rows: TabularRow[]) {
+  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  return {
+    data: [
+      headers.map((header) => ({ value: header, type: String, fontWeight: "bold" as const })),
+      ...rows.map((row) => headers.map((header) => exportCellValue(row[header]))),
+    ],
+    columns: headers.map((header) => ({
+      width: Math.min(40, Math.max(12, header.length + 2)),
+    })),
+  };
+}
+
 export async function exportRowsXlsx(
   rows: TabularRow[],
   options: { fileName: string; sheetName: string },
@@ -123,21 +136,38 @@ export async function exportRowsXlsx(
   if (rows.length === 0) throw new Error("Não há dados para exportar.");
 
   const { default: writeXlsxFile } = await import("write-excel-file/browser");
-  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
-  const sheetData = [
-    headers.map((header) => ({ value: header, type: String, fontWeight: "bold" as const })),
-    ...rows.map((row) => headers.map((header) => exportCellValue(row[header]))),
-  ];
+  const sheet = buildSheetData(rows);
   const fileName = options.fileName.endsWith(".xlsx")
     ? options.fileName
     : `${options.fileName}.xlsx`;
-  await writeXlsxFile(sheetData, {
+  await writeXlsxFile(sheet.data, {
     sheet: options.sheetName.slice(0, 31),
     stickyRowsCount: 1,
-    columns: headers.map((header) => ({
-      width: Math.min(40, Math.max(12, header.length + 2)),
-    })),
+    columns: sheet.columns,
   }).toFile(fileName);
+}
+
+/** Export multi-aba (ex.: resumo semanal) — abas vazias são omitidas. */
+export async function exportSheetsXlsx(
+  fileName: string,
+  sheets: Array<{ name: string; rows: TabularRow[] }>,
+): Promise<void> {
+  const preenchidas = sheets.filter((s) => s.rows.length > 0);
+  if (preenchidas.length === 0) throw new Error("Não há dados para exportar.");
+
+  const { default: writeXlsxFile } = await import("write-excel-file/browser");
+  const nome = fileName.endsWith(".xlsx") ? fileName : `${fileName}.xlsx`;
+  await writeXlsxFile(
+    preenchidas.map((s) => {
+      const dados = buildSheetData(s.rows);
+      return {
+        sheet: s.name.slice(0, 31),
+        data: dados.data,
+        columns: dados.columns,
+        stickyRowsCount: 1,
+      };
+    }),
+  ).toFile(nome);
 }
 
 function exportCellValue(value: unknown): string | number | boolean | Date | null {

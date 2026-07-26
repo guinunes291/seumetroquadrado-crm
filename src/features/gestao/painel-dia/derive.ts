@@ -272,6 +272,41 @@ export function detalheLegivel(e: Excecao): string {
   return "";
 }
 
+/**
+ * Converte o jsonb de gestao_resumo_semanal nas abas do XLSX semanal
+ * (Resumo + Por corretor). Puro para ser testável.
+ */
+export function resumoSemanalParaSheets(
+  raw: unknown,
+): Array<{ name: string; rows: Array<Record<string, unknown>> }> {
+  if (!raw || typeof raw !== "object") return [];
+  const r = raw as Record<string, unknown>;
+  const kpis = (r.kpis ?? {}) as Record<string, unknown>;
+  const semana = (r.semana ?? {}) as Record<string, unknown>;
+  const kpiRows = [
+    { Indicador: "Período", Valor: `${semana.de ?? "?"} a ${semana.ate ?? "?"}` },
+    { Indicador: "Leads novos", Valor: num(kpis.leads_novos), "Semana anterior": num(kpis.leads_novos_prev) },
+    { Indicador: "Visitas realizadas", Valor: num(kpis.visitas) },
+    { Indicador: "Vendas aprovadas", Valor: num(kpis.vendas), "Semana anterior": num(kpis.vendas_prev) },
+    { Indicador: "VGV (R$)", Valor: num(kpis.vgv) },
+    { Indicador: "Perdidos", Valor: num(kpis.perdidos) },
+  ];
+  const porCorretor = Array.isArray(r.por_corretor)
+    ? (r.por_corretor as Array<Record<string, unknown>>).map((c) => ({
+        Corretor: str(c.nome) ?? "—",
+        "Leads novos": num(c.leads_novos),
+        Interações: num(c.interacoes),
+        Visitas: num(c.visitas),
+        Vendas: num(c.vendas),
+        "VGV (R$)": num(c.vgv),
+      }))
+    : [];
+  return [
+    { name: "Resumo", rows: kpiRows },
+    { name: "Por corretor", rows: porCorretor },
+  ];
+}
+
 /** Linhas de export (XLSX) do feed filtrado. */
 export function excecoesParaExport(excecoes: Excecao[]): Array<Record<string, unknown>> {
   return excecoes.map((e) => ({

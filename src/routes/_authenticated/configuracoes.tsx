@@ -9,13 +9,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useUserRoles } from "@/hooks/use-auth";
 import { INTENT_BADGE } from "@/lib/status-tones";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
+import { GestaoConfigCard } from "@/features/gestao/gestao-config-card";
 import { Webhook, MessageCircle, Lock, User as UserIcon, BellRing } from "lucide-react";
 
-type ConfigTab = "integracoes" | "preferencias";
+type ConfigTab = "integracoes" | "preferencias" | "gestao";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   validateSearch: (search: Record<string, unknown>): { tab?: ConfigTab } => ({
-    tab: search.tab === "preferencias" ? "preferencias" : undefined,
+    tab:
+      search.tab === "preferencias" || search.tab === "gestao"
+        ? (search.tab as ConfigTab)
+        : undefined,
   }),
   head: () => ({ meta: [{ title: "Configurações — Seu Metro Quadrado" }] }),
   component: ConfiguracoesPage,
@@ -27,7 +31,9 @@ function ConfiguracoesPage() {
   const navigate = Route.useNavigate();
   const activeTab: ConfigTab = tab ?? "integracoes";
   const onTabChange = (v: string) =>
-    navigate({ search: { tab: v === "preferencias" ? "preferencias" : undefined } });
+    navigate({
+      search: { tab: v === "preferencias" || v === "gestao" ? (v as ConfigTab) : undefined },
+    });
 
   // Espera os papéis carregarem para não piscar "Acesso restrito" para o admin.
   if (rolesLoading) {
@@ -64,6 +70,7 @@ function ConfiguracoesPage() {
       <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
+          <TabsTrigger value="gestao">Gestão</TabsTrigger>
           <TabsTrigger value="preferencias">Preferências</TabsTrigger>
         </TabsList>
 
@@ -97,6 +104,10 @@ function ConfiguracoesPage() {
               </CardDescription>
             </CardHeader>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="gestao" className="grid gap-4 md:grid-cols-2">
+          <GestaoConfigCard />
         </TabsContent>
 
         <TabsContent value="preferencias" className="grid gap-4 md:grid-cols-2">

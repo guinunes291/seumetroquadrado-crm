@@ -26,11 +26,12 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLeadMutations } from "@/features/leads/use-lead-mutations";
-import { exportRowsXlsx } from "@/lib/spreadsheets";
+import { exportRowsXlsx, exportSheetsXlsx } from "@/lib/spreadsheets";
 import { cn } from "@/lib/utils";
 import {
   drillSearchDoTipo,
   excecoesParaExport,
+  resumoSemanalParaSheets,
   TIPO_META,
   TIPOS_ORDENADOS,
   type ExcecaoTipo,
@@ -116,6 +117,28 @@ export function PainelDiaView() {
     }
   };
 
+  // Resumo dos últimos 7 dias em XLSX multi-abas, pronto para o grupo do time.
+  const gerarResumoSemanal = async () => {
+    try {
+      const { data, error } = await (supabase as any).rpc("gestao_resumo_semanal", {});
+      if (error) throw error;
+      const sheets = resumoSemanalParaSheets(data);
+      if (sheets.length === 0) throw new Error("Resumo vazio — nada para exportar.");
+      await exportSheetsXlsx(
+        `resumo-semanal-${new Date().toISOString().slice(0, 10)}`,
+        sheets,
+      );
+      toast.success("Resumo semanal gerado.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Falha ao gerar o resumo.";
+      toast.error(
+        /does not exist|schema cache|could not find/i.test(msg)
+          ? "Resumo semanal indisponível: aplique as migrations da camada de gestão."
+          : msg,
+      );
+    }
+  };
+
   if (painelQ.isLoading) {
     return (
       <div className="space-y-4">
@@ -163,6 +186,15 @@ export function PainelDiaView() {
         <span className="text-xs text-muted-foreground">
           {painel.degradado ? "modo degradado" : "ao vivo"}
         </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto"
+          onClick={gerarResumoSemanal}
+          title="XLSX dos últimos 7 dias (resumo + por corretor), pronto para o grupo"
+        >
+          <Download className="mr-1 h-4 w-4" /> Resumo da semana
+        </Button>
       </div>
 
       {painel.degradado && (
