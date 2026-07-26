@@ -255,15 +255,23 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
 
 /* --------------------------------------------------------------- sugestões */
 
-const TOLERANCIA = 1; // centavos
+const TOL_EXATO = 5; // centavos
+const TOL_LOTE = 10; // centavos
+const QUASE_PCT = 0.01; // 1% do valor do débito
 
-/** Débito ↔ comissões pagas: match exato e match de lote por beneficiário. */
+/**
+ * Débito ↔ comissões pagas. Testa 4 modos: exato integral, exato ×0,94 (NF),
+ * lote integral e lote ×0,94; além disso marca como "quase" o que fica dentro
+ * de 1% de diferença. Nada é aplicado aqui — só sugerido.
+ */
 function sugerirComissoes(
   transacao: TransacaoItem,
   comissoes: any[],
   vendaPorId: Map<string, any>,
+  leadNome: Map<string, string>,
 ): SugestaoComissao[] {
   const alvo = cents(Math.abs(transacao.valor));
+  const quaseTol = Math.max(TOL_EXATO, Math.round(alvo * QUASE_PCT));
   const descricao = normalizar(`${transacao.descricao} ${transacao.contraparte ?? ""}`);
   const sugestoes: SugestaoComissao[] = [];
 
@@ -293,59 +301,126 @@ function sugerirComissoes(
     projeto_nome: c.venda_id ? (vendaPorId.get(c.venda_id)?.projeto_nome ?? null) : null,
   });
 
-  // 1) Exato.
-  for (const c of comissoes) {
-    if (Math.abs(cents(num(c.valor_liquido)) - alvo) <= TOLERANCIA) {
-      const nome = c.beneficiario_nome ?? "Sem beneficiário";
-      sugestoes.push({
-        tipo: "exato",
-        beneficiario_nome: nome,
-        comissoes: [mapear(c)],
-        total: num(c.valor_liquido),
-        score: 100 + pontuar(nome, [c.data_pagamento]),
+  /** MEMO do PIX cita o cliente ou o empreendimento da venda da comissão. */
+  const citaVenda = (conjunto: any[]) =>
+    conjunto.some((c) => {
+      const venda = c.venda_id ? vendaPorId.get(c.venda_id) : null;
+      if (!venda) return false;
+      const alvos = [venda.projeto_nome ?? "", venda.lead_id ? (leadNome.get(venda.lead_id) ?? "") : ""];
+      return alvos.some((texto) => {
+        const norm = normalizar(texto).trim();
+        if (norm.length > 5 && descricao.includes(norm)) return true;
+        // Também aceita a combinação de duas palavras significativas do nome.
+        const partes = norm.split(/\s+/).filter((p) => p.length > 3);
+        return partes.length >= 2 && partes.filter((p) => descricao.includes(p)).length >= 2;
       });
-    }
-  }
+    });
 
-  // 2) Lote por beneficiário (rodada de quarta): subconjunto de até 10 comissões
-  //    do mesmo beneficiário cuja soma bate com o débito.
-  const porBeneficiario = new Map<string, any[]>();
-  for (const c of comissoes) {
-    if (!c.beneficiario_id) continue;
-    const lista = porBeneficiario.get(c.beneficiario_id) ?? [];
-    lista.push(c);
-    porBeneficiario.set(c.beneficiario_id, lista);
-  }
-
-  for (const [, lista] of porBeneficiario) {
-    if (lista.length < 2) continue;
-    const candidatos = [...lista]
-      .sort((a, b) => cents(num(b.valor_liquido)) - cents(num(a.valor_liquido)))
-      .slice(0, 14);
-    const conjunto = subconjuntoQueSoma(candidatos, alvo);
-    if (!conjunto || conjunto.length < 2 || conjunto.length > 10) continue;
+  const adicionar = (
+    tipo: "exato" | "lote",
+    modo: "integral" | "liquido_nf",
+    conjunto: any[],
+    diffCents: number,
+    forte: boolean,
+  ) => {
     const nome = conjunto[0].beneficiario_nome ?? "Sem beneficiário";
+    const cita = citaVenda(conjunto);
+    const base = tipo === "exato" ? 100 : 90;
     sugestoes.push({
-      tipo: "lote",
+      tipo,
+      modo,
+      forca: forte ? "forte" : "quase",
+      diferenca: diffCents / 100,
+      cita_venda: cita,
       beneficiario_nome: nome,
       comissoes: conjunto.map(mapear),
       total: conjunto.reduce((acc, c) => acc + num(c.valor_liquido), 0),
-      score: 90 + pontuar(nome, conjunto.map((c) => c.data_pagamento)),
+      score:
+        base +
+        pontuar(nome, conjunto.map((c) => c.data_pagamento)) +
+        (forte ? 0 : -60) +
+        (cita ? 250 : 0),
     });
+  };
+
+  // 1 e 2) Exato integral e exato ×0,94.
+  for (const c of comissoes) {
+    const valor = cents(num(c.valor_liquido));
+    const modos: [("integral" | "liquido_nf"), number][] = [
+      ["integral", valor],
+      ["liquido_nf", Math.round(num(c.valor_liquido) * FATOR_NF * 100)],
+    ];
+    let jaForte = false;
+    for (const [modo, esperado] of modos) {
+      const diff = Math.abs(esperado - alvo);
+      if (diff <= TOL_EXATO) {
+        adicionar("exato", modo, [c], diff, true);
+        jaForte = true;
+      } else if (!jaForte && diff <= quaseTol) {
+        adicionar("exato", modo, [c], diff, false);
+      }
+    }
   }
 
-  return sugestoes.sort((a, b) => b.score - a.score).slice(0, 8);
+  // 3 e 4) Lote por beneficiário — nunca para débito com gêmeo de transferência
+  //        entre contas próprias (evita o falso positivo perigoso).
+  if (!transacao.gemeo_transferencia) {
+    const porBeneficiario = new Map<string, any[]>();
+    for (const c of comissoes) {
+      if (!c.beneficiario_id) continue;
+      const lista = porBeneficiario.get(c.beneficiario_id) ?? [];
+      lista.push(c);
+      porBeneficiario.set(c.beneficiario_id, lista);
+    }
+
+    for (const [, lista] of porBeneficiario) {
+      if (lista.length < 2) continue;
+      const candidatos = [...lista]
+        .sort((a, b) => cents(num(b.valor_liquido)) - cents(num(a.valor_liquido)))
+        .slice(0, 14);
+
+      const modos: [("integral" | "liquido_nf"), number][] = [
+        ["integral", alvo],
+        ["liquido_nf", Math.round(alvo / FATOR_NF)],
+      ];
+      for (const [modo, somaAlvo] of modos) {
+        const tolBusca = Math.max(TOL_LOTE, Math.round(somaAlvo * QUASE_PCT));
+        const conjunto = subconjuntoQueSoma(candidatos, somaAlvo, tolBusca);
+        if (!conjunto || conjunto.length < 2 || conjunto.length > 10) continue;
+        const soma = conjunto.reduce((acc, c) => acc + num(c.valor_liquido), 0);
+        const esperado = Math.round(soma * (modo === "integral" ? 1 : FATOR_NF) * 100);
+        const diff = Math.abs(esperado - alvo);
+        if (diff <= TOL_LOTE) adicionar("lote", modo, conjunto, diff, true);
+        else if (diff <= quaseTol) adicionar("lote", modo, conjunto, diff, false);
+      }
+    }
+  }
+
+  // Uma sugestão por conjunto de comissões: fica a de maior score.
+  const melhores = new Map<string, SugestaoComissao>();
+  for (const s of sugestoes) {
+    const chave = s.comissoes
+      .map((c) => c.id)
+      .sort()
+      .join("|");
+    const atual = melhores.get(chave);
+    if (!atual || s.score > atual.score) melhores.set(chave, s);
+  }
+
+  return Array.from(melhores.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
 }
 
-/** Busca em profundidade limitada por um subconjunto que soma exatamente o alvo. */
-function subconjuntoQueSoma(itens: any[], alvo: number): any[] | null {
+/** Busca em profundidade limitada por um subconjunto que soma o alvo (± tolerância). */
+function subconjuntoQueSoma(itens: any[], alvo: number, tolerancia: number): any[] | null {
   const valores = itens.map((c) => cents(num(c.valor_liquido)));
   const resultado: number[] = [];
   let passos = 0;
 
   const buscar = (i: number, restante: number, usados: number): boolean => {
-    if (Math.abs(restante) <= TOLERANCIA && usados > 0) return true;
-    if (i >= valores.length || usados >= 10 || restante < -TOLERANCIA) return false;
+    if (Math.abs(restante) <= tolerancia && usados > 0) return true;
+    if (i >= valores.length || usados >= 10 || restante < -tolerancia) return false;
     if ((passos += 1) > 20000) return false;
     resultado.push(i);
     if (buscar(i + 1, restante - valores[i], usados + 1)) return true;
@@ -355,6 +430,7 @@ function subconjuntoQueSoma(itens: any[], alvo: number): any[] | null {
 
   return buscar(0, alvo, 0) ? resultado.map((i) => itens[i]) : null;
 }
+
 
 /** Crédito ↔ venda: casa por contraparte (construtora). Valor é sinal fraco. */
 function sugerirVendas(
