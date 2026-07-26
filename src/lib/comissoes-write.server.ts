@@ -163,6 +163,8 @@ export type PatchResultado =
         beneficiario_id: string | null;
         beneficiario_nome: string | null;
       };
+      /** true|false quando o corpo trouxe beneficiario_id; null quando não trouxe. */
+      beneficiarioAtivo: boolean | null;
     }
   | { ok: false; erro: PatchErro };
 
@@ -193,6 +195,7 @@ export async function aplicarPatchComissao(
   }
 
   const patch: Record<string, unknown> = {};
+  let beneficiarioAtivo: boolean | null = null;
 
   if (payload.beneficiario_id !== undefined) {
     const statusAtual = String((atual as Record<string, unknown>).status ?? "");
@@ -270,6 +273,7 @@ export async function aplicarPatchComissao(
 
   return {
     ok: true,
+    beneficiarioAtivo,
     comissao: novo as Record<string, unknown>,
     anterior: {
       status: (atual as Record<string, unknown>).status as string,
