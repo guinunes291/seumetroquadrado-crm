@@ -3,7 +3,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
-import { validarPatch, aplicarPatchComissao } from "@/lib/comissoes-write.server";
+import {
+  validarPatch,
+  aplicarPatchComissao,
+  escoposNecessarios,
+} from "@/lib/comissoes-write.server";
+import type { ApiClientScope } from "@/lib/api-client-auth.server";
 
 const LOTE_MAX = 200;
 
@@ -16,8 +21,9 @@ export const Route = createFileRoute("/api/public/comissoes/")({
       // PATCH em lote — mesmas regras da rota unitária, item a item, sem abortar
       // no primeiro erro.
       PATCH: async ({ request }) => {
-        const auth = await requireApiClientScope(request, "commissions:write");
-        if (auth instanceof Response) return auth;
+        if (!request.headers.get("x-api-key")) {
+          return jsonResponse({ error: "Unauthorized" }, 401);
+        }
 
         let corpo: unknown;
         try {
@@ -32,19 +38,33 @@ export const Route = createFileRoute("/api/public/comissoes/")({
           return jsonResponse({ error: "lote_muito_grande", maximo: LOTE_MAX }, 400);
         }
 
+        // Escopos exigidos = união dos escopos de todos os itens válidos.
+        const payloads = itens.map((item) => validarPatch(item, ["comissao_id"]));
+        const exigidos = new Set<ApiClientScope>();
+        for (const p of payloads) {
+          if ("body" in p) continue;
+          for (const escopo of escoposNecessarios(p)) exigidos.add(escopo);
+        }
+        if (exigidos.size === 0) exigidos.add("commissions:write");
+
+        const auth = await requireApiClientScope(request, [...exigidos]);
+        if (auth instanceof Response) return auth;
+
         const resultados: Array<Record<string, unknown>> = [];
-        for (const item of itens) {
+        for (let i = 0; i < itens.length; i++) {
+          const item = itens[i];
           const comissaoId = (item as { comissao_id?: unknown } | null)?.comissao_id;
           if (typeof comissaoId !== "string" || !comissaoId) {
             resultados.push({ comissao_id: null, ok: false, error: "comissao_id_obrigatorio" });
             continue;
           }
-          const payload = validarPatch(item, ["comissao_id"]);
+          const payload = payloads[i];
           if ("body" in payload) {
             resultados.push({ comissao_id: comissaoId, ok: false, ...payload.body });
             continue;
           }
           const r = await aplicarPatchComissao(comissaoId, payload, auth);
+
           if (r.ok) {
             resultados.push({
               comissao_id: comissaoId,
