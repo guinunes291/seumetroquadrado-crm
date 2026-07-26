@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Zap,
   Trophy,
+  Wallet,
   Sun,
   Building2,
   Map,
