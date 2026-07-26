@@ -176,6 +176,23 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
     vinculosPorTransacao.set(c.transacao_id, lista);
   }
 
+  // Gêmeos de transferência entre contas próprias: crédito de MESMO valor e
+  // MESMA data em outra conta importada.
+  const creditosPorChave = new Map<string, Set<string>>();
+  for (const t of transacoes) {
+    if (num(t.valor) <= 0) continue;
+    const chave = `${t.data}|${cents(Math.abs(num(t.valor)))}`;
+    const contas = creditosPorChave.get(chave) ?? new Set<string>();
+    contas.add(t.conta);
+    creditosPorChave.set(chave, contas);
+  }
+  const temGemeo = (t: any) => {
+    if (num(t.valor) >= 0) return false;
+    const contas = creditosPorChave.get(`${t.data}|${cents(Math.abs(num(t.valor)))}`);
+    if (!contas) return false;
+    return Array.from(contas).some((c) => c !== t.conta);
+  };
+
   const itens: TransacaoItem[] = transacoes.map((t) => ({
     id: t.id,
     conta: t.conta,
@@ -187,6 +204,7 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
     arquivo: t.arquivo ?? null,
     status: t.status,
     motivo_ignorada: t.motivo_ignorada ?? null,
+    gemeo_transferencia: temGemeo(t),
     vinculos: vinculosPorTransacao.get(t.id) ?? [],
   }));
 
@@ -197,9 +215,10 @@ export async function carregarPainelConciliacao(): Promise<PainelConciliacao> {
     if (t.status !== "pendente") continue;
     sugestoes[t.id] =
       t.valor < 0
-        ? { debito: sugerirComissoes(t, abertasParaMatch, vendaPorId), credito: [] }
+        ? { debito: sugerirComissoes(t, abertasParaMatch, vendaPorId, leadNome), credito: [] }
         : { debito: [], credito: sugerirVendas(t, vendas, leadNome) };
   }
+
 
   const valorTotal = comissoes.reduce((acc, c) => acc + num(c.valor_liquido), 0);
   const valorConciliado = comissoes
