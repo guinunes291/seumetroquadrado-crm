@@ -296,7 +296,27 @@ export function ConciliacaoTab() {
             {f === "pendentes" ? "Pendentes" : f === "conciliadas" ? "Conciliadas" : "Ignoradas"}
           </Button>
         ))}
+        {filtro === "pendentes" && lista.length > 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              setSelecionadas((atual) => (atual.length ? [] : lista.map((t) => t.id)))
+            }
+          >
+            {selecionadas.length ? "Limpar seleção" : "Selecionar todos"}
+          </Button>
+        )}
       </div>
+
+      {filtro === "pendentes" && selecionadas.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 p-2 text-sm">
+          <span>{selecionadas.length} lançamento(s) selecionado(s)</span>
+          <Button size="sm" variant="outline" onClick={() => setLoteIgnorarOpen(true)}>
+            <Ban className="mr-1 h-4 w-4" /> Ignorar selecionados
+          </Button>
+        </div>
+      )}
 
       {lista.length === 0 ? (
         <EmptyState
@@ -316,11 +336,28 @@ export function ConciliacaoTab() {
               <Card key={t.id}>
                 <CardHeader className="pb-2">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
+                    <div className="flex items-start gap-2">
+                      {t.status === "pendente" && (
+                        <input
+                          type="checkbox"
+                          aria-label="Selecionar lançamento"
+                          className="mt-1.5 h-4 w-4"
+                          checked={selecionadas.includes(t.id)}
+                          onChange={(e) =>
+                            setSelecionadas((atual) =>
+                              e.target.checked
+                                ? [...atual, t.id]
+                                : atual.filter((id) => id !== t.id),
+                            )
+                          }
+                        />
+                      )}
+                      <div>
                       <CardTitle className="text-base">
                         {t.valor < 0 ? "− " : "+ "}
                         {brl(Math.abs(t.valor))}
                       </CardTitle>
+
                       <p className="text-sm text-muted-foreground">
                         {dataBR(t.data)} · {contaLabel(t.conta)} · {t.descricao}
                       </p>
