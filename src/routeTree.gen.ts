@@ -75,6 +75,7 @@ import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/
 import { Route as ApiPublicEscritaPingRouteImport } from './routes/api/public/escrita/ping'
 import { Route as ApiPublicEscritaHealthRouteImport } from './routes/api/public/escrita/health'
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
+import { Route as ApiPublicComissoesIdRouteImport } from './routes/api/public/comissoes/$id'
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 import { Route as ApiPublicLeadsIdPerdaRouteImport } from './routes/api/public/leads/$id.perda'
@@ -431,6 +432,11 @@ const ApiPublicCorretoresIdRoute = ApiPublicCorretoresIdRouteImport.update({
   path: '/api/public/corretores/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicComissoesIdRoute = ApiPublicComissoesIdRouteImport.update({
+  id: '/api/public/comissoes/$id',
+  path: '/api/public/comissoes/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGoogleOauthCallbackRoute = ApiGoogleOauthCallbackRouteImport.update({
   id: '/api/google/oauth/callback',
   path: '/api/google/oauth/callback',
@@ -514,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
+  '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
   '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
@@ -586,6 +593,7 @@ export interface FileRoutesByTo {
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
+  '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
   '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
@@ -660,6 +668,7 @@ export interface FileRoutesById {
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
+  '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
   '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
@@ -734,6 +743,7 @@ export interface FileRouteTypes {
     | '/oferta-ativa/'
     | '/projetos/'
     | '/api/google/oauth/callback'
+    | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
     | '/api/public/escrita/health'
     | '/api/public/escrita/ping'
@@ -806,6 +816,7 @@ export interface FileRouteTypes {
     | '/oferta-ativa'
     | '/projetos'
     | '/api/google/oauth/callback'
+    | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
     | '/api/public/escrita/health'
     | '/api/public/escrita/ping'
@@ -879,6 +890,7 @@ export interface FileRouteTypes {
     | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
     | '/api/google/oauth/callback'
+    | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
     | '/api/public/escrita/health'
     | '/api/public/escrita/ping'
@@ -914,6 +926,7 @@ export interface RootRouteChildren {
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
   ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
+  ApiPublicComissoesIdRoute: typeof ApiPublicComissoesIdRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
   ApiPublicEscritaHealthRoute: typeof ApiPublicEscritaHealthRoute
   ApiPublicEscritaPingRoute: typeof ApiPublicEscritaPingRoute
@@ -1393,6 +1406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCorretoresIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/comissoes/$id': {
+      id: '/api/public/comissoes/$id'
+      path: '/api/public/comissoes/$id'
+      fullPath: '/api/public/comissoes/$id'
+      preLoaderRoute: typeof ApiPublicComissoesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/google/oauth/callback': {
       id: '/api/google/oauth/callback'
       path: '/api/google/oauth/callback'
@@ -1551,6 +1571,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
   ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
+  ApiPublicComissoesIdRoute: ApiPublicComissoesIdRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
   ApiPublicEscritaHealthRoute: ApiPublicEscritaHealthRoute,
   ApiPublicEscritaPingRoute: ApiPublicEscritaPingRoute,

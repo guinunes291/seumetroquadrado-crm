@@ -3,6 +3,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { validarPatch, aplicarPatchComissao } from "@/lib/comissoes-write.server";
+
+const LOTE_MAX = 200;
 
 const MES_RE = /^(\d{4})-(\d{2})$/;
 
@@ -10,6 +13,61 @@ export const Route = createFileRoute("/api/public/comissoes/")({
   server: {
     handlers: {
       OPTIONS: async () => corsPreflight(),
+      // PATCH em lote — mesmas regras da rota unitária, item a item, sem abortar
+      // no primeiro erro.
+      PATCH: async ({ request }) => {
+        const auth = await requireApiClientScope(request, "commissions:write");
+        if (auth instanceof Response) return auth;
+
+        let corpo: unknown;
+        try {
+          corpo = await request.json();
+        } catch {
+          return jsonResponse({ error: "corpo_invalido" }, 400);
+        }
+        const itens = (corpo as { itens?: unknown } | null)?.itens;
+        if (!Array.isArray(itens)) return jsonResponse({ error: "itens_obrigatorio" }, 400);
+        if (itens.length === 0) return jsonResponse({ error: "itens_vazio" }, 400);
+        if (itens.length > LOTE_MAX) {
+          return jsonResponse({ error: "lote_muito_grande", maximo: LOTE_MAX }, 400);
+        }
+
+        const resultados: Array<Record<string, unknown>> = [];
+        for (const item of itens) {
+          const comissaoId = (item as { comissao_id?: unknown } | null)?.comissao_id;
+          if (typeof comissaoId !== "string" || !comissaoId) {
+            resultados.push({ comissao_id: null, ok: false, error: "comissao_id_obrigatorio" });
+            continue;
+          }
+          const payload = validarPatch(item, ["comissao_id"]);
+          if ("body" in payload) {
+            resultados.push({ comissao_id: comissaoId, ok: false, ...payload.body });
+            continue;
+          }
+          const r = await aplicarPatchComissao(comissaoId, payload, auth);
+          if (r.ok) {
+            resultados.push({
+              comissao_id: comissaoId,
+              ok: true,
+              anterior: r.anterior,
+              atual: r.comissao,
+            });
+          } else {
+            resultados.push({ comissao_id: comissaoId, ok: false, ...r.erro.body });
+          }
+        }
+
+        const aplicados = resultados.filter((r) => r.ok).length;
+        return jsonResponse(
+          {
+            total: resultados.length,
+            aplicados,
+            falhas: resultados.length - aplicados,
+            resultados,
+          },
+          200,
+        );
+      },
       GET: async ({ request }) => {
         const auth = await requireApiClientScope(request, "commissions:read");
         if (auth instanceof Response) return auth;

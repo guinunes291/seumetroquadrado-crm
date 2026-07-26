@@ -205,6 +205,42 @@ export type Database = {
           },
         ]
       }
+      api_alteracao_auditoria: {
+        Row: {
+          api_cliente_id: string | null
+          api_cliente_nome: string | null
+          campo: string
+          criado_em: string
+          entidade: string
+          entidade_id: string
+          id: string
+          valor_anterior: string | null
+          valor_novo: string | null
+        }
+        Insert: {
+          api_cliente_id?: string | null
+          api_cliente_nome?: string | null
+          campo: string
+          criado_em?: string
+          entidade: string
+          entidade_id: string
+          id?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Update: {
+          api_cliente_id?: string | null
+          api_cliente_nome?: string | null
+          campo?: string
+          criado_em?: string
+          entidade?: string
+          entidade_id?: string
+          id?: string
+          valor_anterior?: string | null
+          valor_novo?: string | null
+        }
+        Relationships: []
+      }
       api_cliente_auditoria: {
         Row: {
           cliente_id: string | null
@@ -5866,6 +5902,7 @@ export type Database = {
         | "sales:read"
         | "commissions:read"
         | "metrics:read"
+        | "commissions:write"
       app_role: "admin" | "gestor" | "corretor" | "superintendente"
       convite_crm_estado: "pendente" | "aceito" | "revogado" | "expirado"
       distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
@@ -6089,6 +6126,7 @@ export const Constants = {
         "sales:read",
         "commissions:read",
         "metrics:read",
+        "commissions:write",
       ],
       app_role: ["admin", "gestor", "corretor", "superintendente"],
       convite_crm_estado: ["pendente", "aceito", "revogado", "expirado"],
