@@ -7,12 +7,18 @@
 //    beneficiário NUNCA são recalculados aqui.
 //  - Nada é apagado — não existe DELETE.
 //  - Toda alteração efetiva vira linha em `api_alteracao_auditoria`.
-import type { ApiClientContext } from "@/lib/api-client-auth.server";
+import type { ApiClientContext, ApiClientScope } from "@/lib/api-client-auth.server";
 
 export const STATUS_ACEITOS = ["paga", "pendente", "pendente_assinatura", "cancelada"] as const;
 export type StatusComissao = (typeof STATUS_ACEITOS)[number];
 
-export const CAMPOS_PERMITIDOS = ["status", "data_pagamento", "observacao"] as const;
+export const CAMPOS_PERMITIDOS = [
+  "status",
+  "data_pagamento",
+  "observacao",
+  "beneficiario_id",
+  "motivo",
+] as const;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -23,7 +29,26 @@ export type PatchPayload = {
   status?: StatusComissao;
   data_pagamento?: string | null;
   observacao?: string;
+  beneficiario_id?: string;
+  motivo?: string;
 };
+
+/**
+ * Escopos exigidos pelo corpo. Trocar quem recebe dinheiro é mais sensível que
+ * mudar status: exige o escopo dedicado `commissions:write:beneficiary`.
+ */
+export function escoposNecessarios(payload: PatchPayload): ApiClientScope[] {
+  const escopos: ApiClientScope[] = [];
+  if (
+    payload.status !== undefined ||
+    payload.data_pagamento !== undefined ||
+    payload.observacao !== undefined
+  ) {
+    escopos.push("commissions:write");
+  }
+  if (payload.beneficiario_id !== undefined) escopos.push("commissions:write:beneficiary");
+  return escopos.length ? escopos : ["commissions:write"];
+}
 
 export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
@@ -46,6 +71,11 @@ export function validarPatch(
   }
   const obj = corpo as Record<string, unknown>;
   const permitidos = new Set<string>([...CAMPOS_PERMITIDOS, ...camposExtraPermitidos]);
+
+  // O nome do beneficiário é SEMPRE derivado do cadastro no servidor.
+  if ("beneficiario_nome" in obj) {
+    return { status: 400, body: { error: "campo_nao_permitido", campo: "beneficiario_nome" } };
+  }
 
   for (const campo of Object.keys(obj)) {
     if (!permitidos.has(campo)) {
@@ -85,6 +115,25 @@ export function validarPatch(
     payload.observacao = obs;
   }
 
+  if ("beneficiario_id" in obj) {
+    if (!isUuid(obj.beneficiario_id)) {
+      return { status: 400, body: { error: "beneficiario_id_invalido" } };
+    }
+    payload.beneficiario_id = obj.beneficiario_id as string;
+  }
+
+  if ("motivo" in obj) {
+    const motivo = obj.motivo;
+    if (payload.beneficiario_id === undefined) {
+      // `motivo` só existe para justificar troca de beneficiário.
+      return { status: 400, body: { error: "campo_nao_permitido", campo: "motivo" } };
+    }
+    if (typeof motivo !== "string" || motivo.trim().length < 10 || motivo.length > 500) {
+      return { status: 400, body: { error: "motivo_invalido" } };
+    }
+    payload.motivo = motivo.trim();
+  }
+
   if (Object.keys(payload).length === 0) {
     return {
       status: 400,
@@ -108,7 +157,12 @@ export type PatchResultado =
   | {
       ok: true;
       comissao: Record<string, unknown>;
-      anterior: { status: string | null; data_pagamento: string | null };
+      anterior: {
+        status: string | null;
+        data_pagamento: string | null;
+        beneficiario_id: string | null;
+        beneficiario_nome: string | null;
+      };
     }
   | { ok: false; erro: PatchErro };
 
@@ -139,6 +193,39 @@ export async function aplicarPatchComissao(
   }
 
   const patch: Record<string, unknown> = {};
+
+  if (payload.beneficiario_id !== undefined) {
+    const statusAtual = String((atual as Record<string, unknown>).status ?? "");
+    if (statusAtual === "paga" && !payload.motivo) {
+      return {
+        ok: false,
+        erro: { status: 409, body: { error: "motivo_obrigatorio_comissao_paga" } },
+      };
+    }
+    const { data: perfil, error: erroPerfil } = await db
+      .from("profiles")
+      .select("id,nome,ativo")
+      .eq("id", payload.beneficiario_id)
+      .maybeSingle();
+    if (erroPerfil) {
+      return { ok: false, erro: { status: 500, body: { error: erroPerfil.message } } };
+    }
+    if (!perfil) {
+      return {
+        ok: false,
+        erro: {
+          status: 400,
+          body: { error: "beneficiario_inexistente", beneficiario_id: payload.beneficiario_id },
+        },
+      };
+    }
+    if (!perfil.ativo) {
+      return { ok: false, erro: { status: 400, body: { error: "beneficiario_inativo" } } };
+    }
+    patch.beneficiario_id = perfil.id;
+    patch.beneficiario_nome = perfil.nome;
+  }
+
   if (payload.status !== undefined) patch.status = payload.status;
   if (payload.data_pagamento !== undefined) patch.data_pagamento = payload.data_pagamento;
   if (payload.observacao !== undefined) patch.observacoes = payload.observacao;
@@ -167,7 +254,13 @@ export async function aplicarPatchComissao(
     };
   }
 
-  await auditarAlteracao(comissaoId, atual as Record<string, unknown>, novo as Record<string, unknown>, contexto);
+  await auditarAlteracao(
+    comissaoId,
+    atual as Record<string, unknown>,
+    novo as Record<string, unknown>,
+    contexto,
+    payload.motivo ?? null,
+  );
 
   return {
     ok: true,
@@ -175,6 +268,12 @@ export async function aplicarPatchComissao(
     anterior: {
       status: (atual as Record<string, unknown>).status as string,
       data_pagamento: ((atual as Record<string, unknown>).data_pagamento ?? null) as string | null,
+      beneficiario_id: ((atual as Record<string, unknown>).beneficiario_id ?? null) as
+        | string
+        | null,
+      beneficiario_nome: ((atual as Record<string, unknown>).beneficiario_nome ?? null) as
+        | string
+        | null,
     },
   };
 }
@@ -185,9 +284,16 @@ async function auditarAlteracao(
   antes: Record<string, unknown>,
   depois: Record<string, unknown>,
   contexto: ApiClientContext,
+  motivo: string | null = null,
 ): Promise<void> {
   try {
-    const campos = ["status", "data_pagamento", "observacoes"];
+    const campos = [
+      "status",
+      "data_pagamento",
+      "observacoes",
+      "beneficiario_id",
+      "beneficiario_nome",
+    ];
     const linhas = campos
       .filter((campo) => String(antes[campo] ?? "") !== String(depois[campo] ?? ""))
       .map((campo) => ({
@@ -198,6 +304,7 @@ async function auditarAlteracao(
         valor_novo: depois[campo] == null ? null : String(depois[campo]),
         api_cliente_id: contexto.clientId,
         api_cliente_nome: contexto.clientName,
+        motivo,
       }));
     if (!linhas.length) return;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
