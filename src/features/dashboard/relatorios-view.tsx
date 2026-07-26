@@ -18,6 +18,7 @@ import {
 import {
   ResponsiveContainer,
   LineChart,
+  ComposedChart,
   Line,
   XAxis,
   YAxis,
@@ -42,6 +43,8 @@ import {
   TrendingUp,
   ArrowRight,
   RefreshCw,
+  Megaphone,
+  Building2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,14 +58,46 @@ import {
   useDashboardMotivosPerda,
   useDashboardLeadsUrgentes,
   useDashboardRedistribuicoes,
+  useOrigens,
+  useVendasAprovadas,
+  type OrigemRow,
 } from "@/features/dashboard/queries";
 import type { DashboardKpisFlat } from "@/features/dashboard/derive";
+import {
+  agruparVendasPorMes,
+  ticketMedio,
+  topProjetos,
+  type ProjetoResultado,
+  type VendasMes,
+} from "@/features/dashboard/relatorios-derive";
+import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { formatDuracaoParado } from "@/lib/utils";
 
+/** Link discreto para a aba de análise completa (Funil/Gargalos/Time). */
+function AbaLink({
+  tab,
+  label,
+}: {
+  tab: "funil" | "gargalos" | "performance";
+  label: string;
+}) {
+  return (
+    <Link
+      to="/inteligencia"
+      search={{ tab }}
+      className="ml-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-primary hover:underline"
+    >
+      {label} <ArrowRight className="h-3 w-3" />
+    </Link>
+  );
+}
+
 /**
- * Visão de Relatórios/Analytics. Extraída da antiga rota `/relatorios` para ser
- * reaproveitada como aba "Analytics" dentro de `/hoje` (consolidação Fase 1).
- * A rota `/relatorios` permanece como redirect de compatibilidade.
+ * Aba Relatórios da /inteligencia — visão EXECUTIVA em ordem de decisão:
+ * resultado em R$ (com delta), situação de agora, pipeline, quais canais
+ * VENDEM (mídia), tendência mensal, quais empreendimentos vendem (foco), e
+ * as leituras operacionais (funil, motivos, ranking) com atalho para a
+ * análise completa em cada aba. A rota /relatorios segue como redirect.
  */
 export function RelatoriosView() {
   const { user } = useAuth();
@@ -92,16 +127,25 @@ export function RelatoriosView() {
   const kpisQ = useDashboardKpis(range, scope);
   const urgentesQ = useDashboardLeadsUrgentes(scope, stage >= 2);
   const serieQ = useDashboardSerie(range, scope, stage >= 2);
+  const vendasQ = useVendasAprovadas(6, canSeeAll && stage >= 2);
   const funilQ = useDashboardFunil(range, scope, stage >= 3);
+  const origensQ = useOrigens(range, canSeeAll && stage >= 3);
   const porCorretorQ = useDashboardPorCorretor(range, canSeeAll && stage >= 3);
   const motivosQ = useDashboardMotivosPerda(range, scope, stage >= 4);
   const redistQ = useDashboardRedistribuicoes(range, canSeeAll && stage >= 4);
+
+  const vendasMensais = useMemo(() => agruparVendasPorMes(vendasQ.data ?? []), [vendasQ.data]);
+  const projetos = useMemo(() => topProjetos(vendasQ.data ?? []), [vendasQ.data]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Relatórios"
-        description={canSeeAll ? "Visão geral do time" : "Sua performance"}
+        description={
+          canSeeAll
+            ? "Resultado, canais e produto — a leitura executiva do negócio."
+            : "Sua performance"
+        }
         actions={
           <PeriodFilter
             preset={preset}
@@ -114,19 +158,19 @@ export function RelatoriosView() {
         }
       />
 
+      {/* 1. Resultado do período (R$ primeiro — é a leitura de negócio) */}
       <AsyncBoundary
         isLoading={kpisQ.isLoading}
         isError={kpisQ.isError}
         error={kpisQ.error}
         errorTitle="Não foi possível carregar os indicadores."
         onRetry={() => kpisQ.refetch()}
-        loadingFallback={<KpiGrid loading />}
+        loadingFallback={<ResultadoHero loading />}
       >
-        <KpiGrid data={kpisQ.data} />
+        <ResultadoHero data={kpisQ.data} />
       </AsyncBoundary>
 
-      {/* A seção agrega duas queries (urgentes + sem_corretor dos KPIs): se
-          qualquer uma falhou, mostra o erro em vez de "tudo em dia"/zeros. */}
+      {/* 2. Situação de agora (o que não pode esperar o relatório) */}
       {canSeeAll &&
         (urgentesQ.isError || kpisQ.isError ? (
           <QueryErrorState
@@ -144,6 +188,10 @@ export function RelatoriosView() {
           />
         ))}
 
+      {/* 3. Pipeline agora (estoque por etapa, clicável) */}
+      <PipelineAgora data={kpisQ.data} loading={kpisQ.isLoading} />
+
+      {/* 4. Evolução diária + funil compacto */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -170,6 +218,7 @@ export function RelatoriosView() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <ArrowRight className="h-4 w-4" /> Funil de vendas
+              {canSeeAll && <AbaLink tab="funil" label="análise completa" />}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -187,11 +236,121 @@ export function RelatoriosView() {
         </Card>
       </div>
 
+      {/* 5. Decisão de mídia e tendência de resultado */}
+      {canSeeAll && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Megaphone className="h-4 w-4" /> Origem que vende
+                {origensQ.data?.degradado && (
+                  <span className="text-xs font-normal text-warning">por status atual</span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AsyncBoundary
+                isLoading={origensQ.isLoading}
+                isError={origensQ.isError}
+                error={origensQ.error}
+                errorTitle="Não foi possível carregar as origens."
+                onRetry={() => origensQ.refetch()}
+                loadingFallback={<Skeleton className="h-48 w-full" />}
+              >
+                <OrigemTable rows={origensQ.data?.rows ?? []} />
+              </AsyncBoundary>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" /> Vendas e VGV por mês (6 meses)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <AsyncBoundary
+                className="h-full"
+                isLoading={vendasQ.isLoading}
+                isError={vendasQ.isError}
+                error={vendasQ.error}
+                errorTitle="Não foi possível carregar a evolução de vendas."
+                onRetry={() => vendasQ.refetch()}
+                loadingFallback={<Skeleton className="h-full w-full" />}
+              >
+                {vendasMensais.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sem vendas aprovadas nos últimos 6 meses.
+                  </p>
+                ) : (
+                  <EvolucaoMensalChart data={vendasMensais} />
+                )}
+              </AsyncBoundary>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 6. Produto e perdas */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {canSeeAll && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Building2 className="h-4 w-4" /> Top empreendimentos (6 meses)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AsyncBoundary
+                isLoading={vendasQ.isLoading}
+                isError={vendasQ.isError}
+                error={vendasQ.error}
+                errorTitle="Não foi possível carregar os empreendimentos."
+                onRetry={() => vendasQ.refetch()}
+                loadingFallback={<Skeleton className="h-40 w-full" />}
+              >
+                <TopProjetosTable rows={projetos} />
+              </AsyncBoundary>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <XCircle className="h-4 w-4" /> Motivos de perda
+              {canSeeAll && <AbaLink tab="gargalos" label="diagnóstico com R$" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            <AsyncBoundary
+              className="h-full"
+              isLoading={motivosQ.isLoading}
+              isError={motivosQ.isError}
+              error={motivosQ.error}
+              errorTitle="Não foi possível carregar os motivos de perda."
+              onRetry={() => motivosQ.refetch()}
+              loadingFallback={<Skeleton className="h-full w-full" />}
+            >
+              {(motivosQ.data?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Sem dados neste período. Ajuste o filtro de data acima.
+                </p>
+              ) : (
+                <MotivosChart data={motivosQ.data ?? []} />
+              )}
+            </AsyncBoundary>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 7. Pessoas */}
       {canSeeAll && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Trophy className="h-4 w-4" /> Ranking por corretor
+              <AbaLink tab="performance" label="performance completa" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -231,141 +390,147 @@ export function RelatoriosView() {
         </Card>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* 8. Operacional (fim da página) */}
+      {canSeeAll && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <XCircle className="h-4 w-4" /> Motivos de perda
+              <RefreshCw className="h-4 w-4" /> Redistribuições recentes
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-[280px]">
+          <CardContent>
             <AsyncBoundary
-              className="h-full"
-              isLoading={motivosQ.isLoading}
-              isError={motivosQ.isError}
-              error={motivosQ.error}
-              errorTitle="Não foi possível carregar os motivos de perda."
-              onRetry={() => motivosQ.refetch()}
-              loadingFallback={<Skeleton className="h-full w-full" />}
+              isLoading={redistQ.isLoading}
+              isError={redistQ.isError}
+              error={redistQ.error}
+              errorTitle="Não foi possível carregar as redistribuições."
+              onRetry={() => redistQ.refetch()}
+              loadingFallback={<Skeleton className="h-40 w-full" />}
             >
-              {(motivosQ.data?.length ?? 0) === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Sem dados neste período. Ajuste o filtro de data acima.
-                </p>
-              ) : (
-                <MotivosChart data={motivosQ.data ?? []} />
-              )}
+              <RedistTable rows={redistQ.data ?? []} />
             </AsyncBoundary>
           </CardContent>
         </Card>
-
-        {canSeeAll && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <RefreshCw className="h-4 w-4" /> Redistribuições recentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AsyncBoundary
-                isLoading={redistQ.isLoading}
-                isError={redistQ.isError}
-                error={redistQ.error}
-                errorTitle="Não foi possível carregar as redistribuições."
-                onRetry={() => redistQ.refetch()}
-                loadingFallback={<Skeleton className="h-40 w-full" />}
-              >
-                <RedistTable rows={redistQ.data ?? []} />
-              </AsyncBoundary>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      )}
     </div>
   );
 }
 
-const KPI_CARDS: Array<{
+const fmtBRLCompacto = (n: number) =>
+  n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+
+/**
+ * 1º bloco: resultado do período em linguagem de negócio — leads, vendas,
+ * VGV e ticket médio, sempre com a variação vs. o período anterior de mesma
+ * duração ("nunca um número solo").
+ */
+function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; loading?: boolean }) {
+  const ticket = data ? ticketMedio(data.vgv, data.contrato_fechado) : null;
+  return (
+    <StatGrid>
+      <StatTile
+        title="Leads no período"
+        value={data?.total ?? 0}
+        icon={Users}
+        loading={loading}
+        delta={data?.deltas.total ?? undefined}
+        deltaLabel="vs. período anterior"
+      />
+      <StatTile
+        title="Vendas"
+        value={data?.contrato_fechado ?? 0}
+        icon={CheckCircle2}
+        intent="success"
+        loading={loading}
+        delta={data?.deltas.contrato_fechado ?? undefined}
+        deltaLabel="vs. período anterior"
+      />
+      <StatTile
+        title="VGV"
+        value={data?.vgv ?? 0}
+        formatValue={fmtBRLCompacto}
+        icon={TrendingUp}
+        intent="success"
+        loading={loading}
+        delta={data?.deltas.vgv ?? undefined}
+        deltaLabel="vs. período anterior"
+      />
+      <StatTile
+        title="Ticket médio"
+        value={ticket === null ? "—" : fmtBRLCompacto(ticket)}
+        icon={FileCheck}
+        loading={loading}
+        hint={ticket === null ? "sem vendas no período" : "VGV ÷ vendas do período"}
+      />
+    </StatGrid>
+  );
+}
+
+const PIPELINE_CARDS: Array<{
   key: keyof Omit<DashboardKpisFlat, "deltas">;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   status?: string;
-  /** Chave em `deltas` para exibir a variação vs. período anterior. */
-  delta?: keyof DashboardKpisFlat["deltas"];
-  className?: string;
 }> = [
-  { key: "total", label: "Leads no período", icon: Users, delta: "total" },
   { key: "aguardando", label: "Aguardando", icon: Hourglass, status: "aguardando_atendimento" },
+  { key: "aguardando_retorno", label: "Ag. retorno", icon: Clock, status: "aguardando_retorno" },
   { key: "em_atendimento", label: "Em atendimento", icon: Clock, status: "em_atendimento" },
   { key: "agendado", label: "Agendado", icon: Calendar, status: "agendado" },
   { key: "visita_realizada", label: "Visita", icon: Eye, status: "visita_realizada" },
   { key: "analise_credito", label: "Análise crédito", icon: FileCheck, status: "analise_credito" },
-  {
-    key: "contrato_fechado",
-    label: "Vendas",
-    icon: CheckCircle2,
-    status: "contrato_fechado",
-    delta: "contrato_fechado",
-    className: "border-emerald-500/40 bg-emerald-500/5",
-  },
-  { key: "perdido", label: "Perdidos", icon: XCircle, status: "perdido", delta: "perdido" },
+  { key: "perdido", label: "Perdidos (per.)", icon: XCircle, status: "perdido" },
+  { key: "sem_corretor", label: "Sem corretor", icon: Users },
 ];
 
-/** Perdidos subindo é ruim: inverte a cor do delta. */
-const DELTA_RUIM_QUANDO_SOBE = new Set<string>(["perdido"]);
-
-function DeltaBadge({ pct, badWhenUp }: { pct: number | null; badWhenUp: boolean }) {
-  if (pct === null || pct === 0) return null;
-  const up = pct > 0;
-  const positivo = badWhenUp ? !up : up;
+/** 3º bloco: estoque ATUAL por etapa (foto de agora) — cada card abre a lista. */
+function PipelineAgora({
+  data,
+  loading = false,
+}: {
+  data?: DashboardKpisFlat;
+  loading?: boolean;
+}) {
   return (
-    <span
-      className={`text-[11px] font-medium tabular-nums ${
-        positivo ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-      }`}
-      title="Variação vs. período anterior de mesma duração"
-    >
-      {up ? "▲" : "▼"} {Math.abs(pct)}%
-    </span>
-  );
-}
-
-function KpiGrid({ data, loading = false }: { data?: DashboardKpisFlat; loading?: boolean }) {
-  return (
-    <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
-      {KPI_CARDS.map(({ key, label, icon: Icon, status, delta, className }) => {
-        const value = data?.[key] ?? 0;
-        const deltaPct = delta ? (data?.deltas[delta] ?? null) : null;
-        const inner = (
-          <Card
-            className={`transition-all hover:border-primary/40 hover:shadow-sm ${className ?? ""}`}
-          >
-            <CardContent className="p-3">
-              <div className="flex items-start justify-between mb-1 gap-1">
-                <span className="text-[11px] uppercase tracking-wide text-muted-foreground leading-tight">
-                  {label}
-                </span>
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-              {loading ? (
-                <Skeleton className="h-7 w-12" />
-              ) : (
-                <div className="flex items-baseline gap-1.5">
-                  <div className="text-2xl font-semibold tabular-nums">{value}</div>
-                  {delta && <DeltaBadge pct={deltaPct} badWhenUp={DELTA_RUIM_QUANDO_SOBE.has(key)} />}
+    <div>
+      <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+        Pipeline agora (estoque por etapa)
+      </p>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
+        {PIPELINE_CARDS.map(({ key, label, icon: Icon, status }) => {
+          const value = data?.[key] ?? 0;
+          const inner = (
+            <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between mb-1 gap-1">
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground leading-tight">
+                    {label}
+                  </span>
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-        return status ? (
-          <Link key={key} to="/leads" search={{ status }}>
-            {inner}
-          </Link>
-        ) : (
-          <div key={key}>{inner}</div>
-        );
-      })}
+                {loading ? (
+                  <Skeleton className="h-7 w-12" />
+                ) : (
+                  <div className="text-2xl font-semibold tabular-nums">{value}</div>
+                )}
+              </CardContent>
+            </Card>
+          );
+          return status ? (
+            <Link key={key} to="/leads" search={{ status }}>
+              {inner}
+            </Link>
+          ) : (
+            <Link key={key} to="/leads" search={{}}>
+              {inner}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -665,5 +830,144 @@ function RedistTable({
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+/** Origem que vende: leads × vendas × conversão por canal (decisão de mídia). */
+function OrigemTable({ rows }: { rows: OrigemRow[] }) {
+  if (rows.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">
+        Sem leads no período. Ajuste o filtro de data acima.
+      </p>
+    );
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Origem</TableHead>
+            <TableHead className="text-right">Leads</TableHead>
+            <TableHead className="text-right">Vendas</TableHead>
+            <TableHead className="text-right">Conv.</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.slice(0, 10).map((r) => {
+            const semDado = r.cobertura_pct !== null && Number(r.cobertura_pct) < 60;
+            return (
+              <TableRow key={r.origem}>
+                <TableCell className="font-medium capitalize">
+                  <Link
+                    to="/leads"
+                    search={{ origem: r.origem }}
+                    className="hover:underline"
+                  >
+                    {r.origem.replace(/_/g, " ")}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.leads.toLocaleString("pt-BR")}
+                </TableCell>
+                <TableCell className="text-right tabular-nums font-semibold text-success">
+                  {r.vendas}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {semDado ? (
+                    <span
+                      className="text-muted-foreground"
+                      title="Sem dado suficiente: boa parte destes leads não tem histórico de transições (import)"
+                    >
+                      sem dado
+                    </span>
+                  ) : (
+                    <Badge variant={Number(r.conv_pct) >= 1 ? "default" : "secondary"}>
+                      {r.conv_pct ?? 0}%
+                    </Badge>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+/** Vendas (barras) e VGV (linha) por mês — tendência de resultado. */
+function EvolucaoMensalChart({ data }: { data: VendasMes[] }) {
+  const formatted = data.map((d) => ({
+    ...d,
+    label: format(parseISO(d.mes), "MMM/yy", { locale: ptBR }),
+  }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={formatted} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="vendas" tick={{ fontSize: 11 }} allowDecimals={false} />
+        <YAxis
+          yAxisId="vgv"
+          orientation="right"
+          tick={{ fontSize: 11 }}
+          tickFormatter={(v: number) =>
+            v.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 })
+          }
+        />
+        <Tooltip
+          formatter={(value: number, name: string) =>
+            name === "VGV"
+              ? value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+              : value
+          }
+        />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar yAxisId="vendas" dataKey="vendas" name="Vendas" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+        <Line
+          yAxisId="vgv"
+          type="monotone"
+          dataKey="vgv"
+          name="VGV"
+          stroke="var(--success)"
+          strokeWidth={2}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Top empreendimentos por VGV — onde o resultado está sendo feito. */
+function TopProjetosTable({ rows }: { rows: ProjetoResultado[] }) {
+  if (rows.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">Sem vendas aprovadas nos últimos 6 meses.</p>
+    );
+  const maxVgv = Math.max(1, ...rows.map((r) => r.vgv));
+  return (
+    <ul className="space-y-2">
+      {rows.map((r) => (
+        <li key={r.projeto}>
+          <div className="mb-1 flex justify-between gap-2 text-sm">
+            <span className="truncate font-medium">{r.projeto}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">
+              {r.vendas} {r.vendas === 1 ? "venda" : "vendas"} ·{" "}
+              {r.vgv.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+                notation: "compact",
+                maximumFractionDigits: 1,
+              })}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary/70"
+              style={{ width: `${Math.max(3, Math.round((r.vgv / maxVgv) * 100))}%` }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

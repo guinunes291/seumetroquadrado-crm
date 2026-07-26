@@ -241,6 +241,91 @@ export function useTempoPrimeiraResposta(range: Range, enabled = true) {
   });
 }
 
+export type OrigemRow = {
+  origem: string;
+  leads: number;
+  vendas: number;
+  conv_pct: number | null;
+  cobertura_pct: number | null;
+  atualizado_em: string | null;
+};
+
+/**
+ * Origem que vende (Relatórios): leads × vendas × conversão por origem na
+ * leitura de coorte (gestao_origens sobre a MV). Fallback: rel_origem_efetiva
+ * (já em produção; conta por STATUS ATUAL, sem coorte — degradado=true para a
+ * UI avisar a diferença de régua).
+ */
+export function useOrigens(range: Range, enabled = true) {
+  return useQuery({
+    queryKey: ["dash:origens", range.di, range.df],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<{ rows: OrigemRow[]; degradado: boolean }> =>
+      rpcWithFallback(
+        async (): Promise<{ rows: OrigemRow[]; degradado: boolean }> => {
+          const { data, error } = await rpc("gestao_origens", {
+            _de: range.di,
+            _ate: range.df,
+          });
+          if (error) throw error;
+          return { rows: (data ?? []) as OrigemRow[], degradado: false };
+        },
+        async () => {
+          const { data, error } = await rpc("rel_origem_efetiva", {
+            _di: range.di,
+            _df: range.df,
+            _corretor: null,
+          });
+          if (error) throw error;
+          const rows = (
+            (data ?? []) as Array<{ origem: string; leads: number; fechados: number; conv_pct: number }>
+          ).map((r) => ({
+            origem: r.origem,
+            leads: r.leads,
+            vendas: r.fechados,
+            conv_pct: r.conv_pct,
+            cobertura_pct: null,
+            atualizado_em: null,
+          }));
+          return { rows, degradado: true };
+        },
+      ),
+  });
+}
+
+/**
+ * Vendas aprovadas (não distratadas) dos últimos N meses, direto da tabela —
+ * RLS já limita ao escopo do papel e o volume é pequeno. Base da evolução
+ * mensal de VGV e do top de empreendimentos (agregação pura no front).
+ */
+export function useVendasAprovadas(meses = 6, enabled = true) {
+  return useQuery({
+    queryKey: ["dash:vendas-aprovadas", meses],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const inicio = new Date();
+      inicio.setMonth(inicio.getMonth() - (meses - 1), 1);
+      inicio.setHours(0, 0, 0, 0);
+      const { data, error } = await supabase
+        .from("vendas")
+        .select("valor_venda, projeto_nome, aprovado_em, data_assinatura, created_at")
+        .eq("status_venda", "aprovada")
+        .eq("distrato", false)
+        .gte("created_at", inicio.toISOString());
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        valor_venda: number | string | null;
+        projeto_nome: string | null;
+        aprovado_em: string | null;
+        data_assinatura: string | null;
+        created_at: string | null;
+      }>;
+    },
+  });
+}
+
 export function useDashboardRedistribuicoes(range: Range, enabled = true) {
   return useQuery({
     queryKey: ["dash:redist", range],
