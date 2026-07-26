@@ -325,20 +325,57 @@ export function ConciliacaoTab() {
                     </ul>
                   )}
 
+                  {t.status === "pendente" && t.gemeo_transferencia && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-2">
+                      <p className="text-muted-foreground">
+                        Existe um crédito de mesmo valor e mesma data em outra conta — provável
+                        transferência entre contas próprias.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          mutIgnorar.mutate({
+                            transacaoId: t.id,
+                            motivo: MOTIVO_TRANSFERENCIA_PROPRIA,
+                          })
+                        }
+                        disabled={mutIgnorar.isPending}
+                      >
+                        Marcar como transferência própria
+                      </Button>
+                    </div>
+                  )}
+
                   {t.status === "pendente" && t.valor < 0 && (
                     <div className="space-y-2">
                       {sug?.debito?.length ? (
                         sug.debito.map((s, i) => (
                           <div
                             key={`${t.id}-${i}`}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
+                            className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 ${
+                              s.forca === "quase" ? "border-dashed opacity-90" : ""
+                            }`}
                           >
-                            <div>
+                            <div className="space-y-1">
                               <p className="font-medium">
                                 {s.tipo === "exato" ? "Match exato" : `Lote de ${s.comissoes.length}`}
                                 {" · "}
                                 {s.beneficiario_nome}
                               </p>
+                              <div className="flex flex-wrap gap-1">
+                                {s.modo === "liquido_nf" && (
+                                  <Badge variant="secondary">líquido NF (−6%)</Badge>
+                                )}
+                                {s.cita_venda && (
+                                  <Badge variant="secondary">mensagem do PIX cita a venda</Badge>
+                                )}
+                                {s.forca === "quase" && (
+                                  <Badge variant="outline">
+                                    possível — confira · dif {brl(s.diferenca)}
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-muted-foreground">
                                 {brl(s.total)} ·{" "}
                                 {s.comissoes
@@ -351,15 +388,13 @@ export function ConciliacaoTab() {
                             </div>
                             <Button
                               size="sm"
-                              onClick={() =>
-                                mutComissoes.mutate({
-                                  transacaoId: t.id,
-                                  comissaoIds: s.comissoes.map((c) => c.id),
-                                })
-                              }
+                              variant={s.forca === "quase" ? "outline" : "default"}
+                              onClick={() => pedirConfirmacao(t, s)}
                               disabled={mutComissoes.isPending}
                             >
-                              Confirmar
+                              {s.forca === "quase"
+                                ? `Confirmar mesmo assim (dif ${brl(s.diferenca)})`
+                                : "Confirmar"}
                             </Button>
                           </div>
                         ))
@@ -371,6 +406,7 @@ export function ConciliacaoTab() {
                       )}
                     </div>
                   )}
+
 
                   {t.status === "pendente" && t.valor >= 0 && (
                     <div className="flex items-center justify-between gap-2">
