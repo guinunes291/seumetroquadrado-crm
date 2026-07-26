@@ -63,10 +63,10 @@ export function parseOfx(conteudo: string): OfxResultado {
     const valorBruto = tag(bloco, "TRNAMT");
     if (!data || valorBruto == null) continue;
 
-    const valor = Number(valorBruto.replace(/\./g, (m, i, s) =>
-      // Formato brasileiro eventual: 1.234,56 → normaliza vírgula decimal.
-      s.includes(",") ? "" : m,
-    ).replace(",", "."));
+    const normalizado = valorBruto.includes(",")
+      ? valorBruto.replace(/\./g, "").replace(",", ".")
+      : valorBruto;
+    const valor = Number(normalizado);
     if (!Number.isFinite(valor)) continue;
 
     const memo = tag(bloco, "MEMO") ?? "";
