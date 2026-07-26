@@ -8,6 +8,8 @@
 import { aplicarPatchComissao } from "@/lib/comissoes-write.server";
 import type { ApiClientContext } from "@/lib/api-client-auth.server";
 import { parseOfx } from "@/lib/ofx";
+import { FATOR_NF } from "@/lib/conciliacao-types";
+
 import type {
   ContaBancaria,
   PainelConciliacao,
