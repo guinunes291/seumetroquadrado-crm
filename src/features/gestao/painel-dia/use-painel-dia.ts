@@ -15,24 +15,25 @@ const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).r
  * Feed do Painel do Dia. Caminho principal: RPC gestao_painel_dia (migration
  * 20260727112000). Sem a migration aplicada, degrada para a composição de
  * leads_sla_pendentes + dashboard_leads_urgentes — feed parcial com aviso.
+ * `corretorId` filtra as exceções de UM corretor (Raio-X).
  */
-export function usePainelDia(enabled = true) {
+export function usePainelDia(enabled = true, corretorId: string | null = null) {
   return useQuery({
-    queryKey: ["gestao:painel-dia"],
+    queryKey: ["gestao:painel-dia", corretorId],
     enabled,
     staleTime: 30_000,
     refetchInterval: 2 * 60_000,
     queryFn: async (): Promise<PainelDia> =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await rpc("gestao_painel_dia", {});
+          const { data, error } = await rpc("gestao_painel_dia", { _corretor: corretorId });
           if (error) throw error;
           return normalizarPainelDia(data);
         },
         async () => {
           const [sla, urgentes] = await Promise.all([
-            rpc("leads_sla_pendentes", { _corretor: null }),
-            rpc("dashboard_leads_urgentes", { _corretor: null, _min_minutos: 30 }),
+            rpc("leads_sla_pendentes", { _corretor: corretorId }),
+            rpc("dashboard_leads_urgentes", { _corretor: corretorId, _min_minutos: 30 }),
           ]);
           if (sla.error) throw sla.error;
           if (urgentes.error) throw urgentes.error;
