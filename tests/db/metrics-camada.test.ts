@@ -287,6 +287,18 @@ describe("pacing", () => {
     await comoSuperuser(c);
   });
 
+  it("gestao_origens agrega a coorte por origem só do escopo do gestor", async () => {
+    await comoUsuario(c, gestorA.id);
+    const r = await c.query(`SELECT * FROM public.gestao_origens(NULL, NULL)`);
+    // Equipe A: 2 leads visíveis, ambos origem 'outro' (factory default).
+    const outro = r.rows.find((x: { origem: string }) => x.origem === "outro");
+    expect(outro).toBeTruthy();
+    expect(outro.leads).toBe(2);
+    const totalLeads = r.rows.reduce((s: number, x: { leads: number }) => s + x.leads, 0);
+    expect(totalLeads).toBe(2); // lead da equipe B e lixeira ficam fora
+    await comoSuperuser(c);
+  });
+
   it("resumo semanal devolve kpis e linhas por corretor no escopo", async () => {
     await comoUsuario(c, gestorA.id);
     const r = await c.query(`SELECT public.gestao_resumo_semanal() AS p`);
