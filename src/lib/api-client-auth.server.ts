@@ -26,6 +26,14 @@ export type ApiClientContext = {
   equipeId: string | null;
   projetoId: string | null;
   mode: ApiClientAuthMode;
+  /**
+   * Origem da escrita na trilha de auditoria. As rotas públicas não informam
+   * nada e ficam como `api`; a tela Financeiro grava `tela_financeiro` com o
+   * usuário logado. Uma trilha só, duas origens identificáveis.
+   */
+  origem?: "api" | "tela_financeiro";
+  usuarioId?: string | null;
+  usuarioNome?: string | null;
 };
 
 export function sha256Hex(value: string): string {
