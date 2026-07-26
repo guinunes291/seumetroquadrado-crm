@@ -16,7 +16,7 @@ import type { ApiClientContext } from "@/lib/api-client-auth.server";
 
 export type ResultadoAcao =
   | { ok: true; mensagem?: string }
-  | { ok: false; erro: string; detalhe?: Record<string, unknown> };
+  | { ok: false; erro: string; detalhe?: string };
 
 export type FilaItem = {
   id: string;
@@ -370,7 +370,7 @@ export async function carregarHistorico(
 
 function erroDe(e: PatchErro): ResultadoAcao {
   const body = e.body as Record<string, unknown>;
-  return { ok: false, erro: String(body.error ?? "erro"), detalhe: body };
+  return { ok: false, erro: String(body.error ?? "erro"), detalhe: JSON.stringify(body) };
 }
 
 /**
