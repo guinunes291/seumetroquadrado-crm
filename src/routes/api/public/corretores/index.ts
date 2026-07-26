@@ -1,4 +1,4 @@
-// GET /api/public/corretores?ativo=true
+// GET /api/public/corretores?ativo=true&incluir_inativos=true
 // Auth: cliente X-API-Key com escopo leads:read.
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse } from "@/lib/public-api-auth";
