@@ -70,6 +70,7 @@ export const Route = createFileRoute("/api/public/comissoes/")({
               comissao_id: comissaoId,
               ok: true,
               anterior: r.anterior,
+              beneficiario_ativo: r.beneficiarioAtivo,
               atual: r.comissao,
             });
           } else {

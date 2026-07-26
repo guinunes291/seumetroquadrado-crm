@@ -39,7 +39,14 @@ export const Route = createFileRoute("/api/public/comissoes/$id")({
         const resultado = await aplicarPatchComissao(params.id, payload, auth);
         if (!resultado.ok) return jsonResponse(resultado.erro.body, resultado.erro.status);
 
-        return jsonResponse({ comissao: resultado.comissao, anterior: resultado.anterior }, 200);
+        return jsonResponse(
+          {
+            comissao: resultado.comissao,
+            anterior: resultado.anterior,
+            beneficiario_ativo: resultado.beneficiarioAtivo,
+          },
+          200,
+        );
       },
     },
   },
