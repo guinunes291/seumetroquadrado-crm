@@ -79,3 +79,14 @@ export const reativarTransacaoFn = createServerFn({ method: "POST" })
     const { reativarTransacao } = await import("@/lib/conciliacao.server");
     return reativarTransacao(data.transacaoId, ctx);
   });
+
+export const ignorarTransacoesEmLoteFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { transacaoIds: string[]; motivo: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { contextoFinanceiroOuNulo } = await import("@/lib/conciliacao-guard.server");
+    const ctx = await contextoFinanceiroOuNulo(context.supabase, context.userId);
+    if (!ctx) return { ok: false as const, erro: "forbidden" };
+    const { ignorarTransacoesEmLote } = await import("@/lib/conciliacao.server");
+    return ignorarTransacoesEmLote(data.transacaoIds ?? [], data.motivo ?? "", ctx);
+  });

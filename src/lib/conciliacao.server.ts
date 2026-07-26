@@ -773,3 +773,28 @@ export async function reativarTransacao(
 
   return { ok: true, mensagem: "Transação de volta na fila" };
 }
+
+/** Ignora várias transações pendentes com o MESMO motivo (qualidade de vida). */
+export async function ignorarTransacoesEmLote(
+  transacaoIds: string[],
+  motivo: string,
+  contexto: ApiClientContext,
+): Promise<ResultadoConciliacao & { aplicadas?: number; falhas?: number }> {
+  const ids = Array.from(new Set((transacaoIds ?? []).filter(Boolean))).slice(0, 300);
+  if (!ids.length) return { ok: false, erro: "parametros_invalidos" };
+
+  let aplicadas = 0;
+  let falhas = 0;
+  for (const id of ids) {
+    const r = await ignorarTransacao(id, motivo, contexto);
+    if (r.ok) aplicadas += 1;
+    else falhas += 1;
+  }
+  if (!aplicadas) return { ok: false, erro: "nenhuma_ignorada" };
+  return {
+    ok: true,
+    aplicadas,
+    falhas,
+    mensagem: `${aplicadas} lançamento(s) ignorado(s)${falhas ? ` · ${falhas} falha(s)` : ""}`,
+  };
+}
