@@ -81,6 +81,16 @@ export type SugestaoComissao = {
   score: number;
 };
 
+export type SugestaoVenda = {
+  venda_id: string;
+  projeto_nome: string | null;
+  cliente_nome: string | null;
+  valor_venda: number | null;
+  data_assinatura: string | null;
+  status_recebimento: string | null;
+  score: number;
+};
+
 
 export type PainelConciliacao = {
   progresso: {
