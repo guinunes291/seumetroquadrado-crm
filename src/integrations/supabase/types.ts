@@ -214,6 +214,7 @@ export type Database = {
           entidade: string
           entidade_id: string
           id: string
+          motivo: string | null
           valor_anterior: string | null
           valor_novo: string | null
         }
@@ -225,6 +226,7 @@ export type Database = {
           entidade: string
           entidade_id: string
           id?: string
+          motivo?: string | null
           valor_anterior?: string | null
           valor_novo?: string | null
         }
@@ -236,6 +238,7 @@ export type Database = {
           entidade?: string
           entidade_id?: string
           id?: string
+          motivo?: string | null
           valor_anterior?: string | null
           valor_novo?: string | null
         }
@@ -5903,6 +5906,7 @@ export type Database = {
         | "commissions:read"
         | "metrics:read"
         | "commissions:write"
+        | "commissions:write:beneficiary"
       app_role: "admin" | "gestor" | "corretor" | "superintendente"
       convite_crm_estado: "pendente" | "aceito" | "revogado" | "expirado"
       distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
@@ -6127,6 +6131,7 @@ export const Constants = {
         "commissions:read",
         "metrics:read",
         "commissions:write",
+        "commissions:write:beneficiary",
       ],
       app_role: ["admin", "gestor", "corretor", "superintendente"],
       convite_crm_estado: ["pendente", "aceito", "revogado", "expirado"],
