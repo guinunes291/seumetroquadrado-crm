@@ -1,18 +1,15 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { ArrowLeft, Download, GraduationCap, Info, Rocket } from "lucide-react";
+import { Download, GraduationCap, Info, Rocket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkline } from "@/components/ui/sparkline";
-import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { exportRowsXlsx } from "@/lib/spreadsheets";
 import { cn } from "@/lib/utils";
 import { AtualizadoEm } from "./atualizado-em";
+import { RaioXCorretor } from "./raio-x-corretor";
 import {
   conversaoPct,
   mediasDoTime,
@@ -21,11 +18,7 @@ import {
   sinalizar,
   type SinalCorretor,
 } from "./performance-derive";
-import {
-  usePerformanceCorretores,
-  usePerformanceDrill,
-  type PerformanceRow,
-} from "./queries";
+import { usePerformanceCorretores, type PerformanceRow } from "./queries";
 
 const fmtBRL = (n: number) =>
   n.toLocaleString("pt-BR", {
@@ -34,13 +27,6 @@ const fmtBRL = (n: number) =>
     notation: "compact",
     maximumFractionDigits: 1,
   });
-
-const fmtMes = (iso: string) => {
-  const d = new Date(`${iso}T12:00:00Z`);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
-};
 
 function SinalBadge({ sinal }: { sinal: SinalCorretor }) {
   if (!sinal) return null;
@@ -220,14 +206,7 @@ export function PerformanceView({
   );
 
   if (corretorDrill) {
-    const corretor = rows.find((r) => r.corretor_id === corretorDrill);
-    return (
-      <PerformanceDrill
-        corretorId={corretorDrill}
-        nome={corretor?.nome ?? "Corretor"}
-        onVoltar={() => onDrillChange(null)}
-      />
-    );
+    return <RaioXCorretor corretorId={corretorDrill} onVoltar={() => onDrillChange(null)} />;
   }
 
   return (
@@ -274,132 +253,6 @@ export function PerformanceView({
         Sinalizações vs média do time (amostra mínima 5 leads): esforço alto + conversão baixa →
         mentoria; esforço baixo + conversão alta → dar mais lead. Ranking visível só para gestão.
       </p>
-    </div>
-  );
-}
-
-function PerformanceDrill({
-  corretorId,
-  nome,
-  onVoltar,
-}: {
-  corretorId: string;
-  nome: string;
-  onVoltar: () => void;
-}) {
-  const drillQ = usePerformanceDrill(corretorId, 6);
-  const serie = drillQ.data ?? [];
-  const ultimo = serie[serie.length - 1];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button size="sm" variant="ghost" onClick={onVoltar}>
-          <ArrowLeft className="mr-1 h-4 w-4" /> Time
-        </Button>
-        <div className="flex items-center gap-2">
-          <AtualizadoEm quando={ultimo?.atualizado_em} />
-          <Button asChild size="sm" variant="outline">
-            <Link to="/leads" search={{ corretor: corretorId }}>
-              Ver leads
-            </Link>
-          </Button>
-        </div>
-      </div>
-      <h3 className="font-display text-lg font-semibold">{nome} — últimos 6 meses</h3>
-
-      {drillQ.isLoading ? (
-        <Skeleton className="h-64 w-full" />
-      ) : drillQ.data === null ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Info className="h-4 w-4 shrink-0" />
-          Sem dado suficiente: o histórico mensal depende da camada metrics ainda não aplicada.
-        </p>
-      ) : serie.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sem atividade registrada nos últimos 6 meses.</p>
-      ) : (
-        <>
-          <StatGrid>
-            <StatTile
-              title="Vendas (6m)"
-              value={serie.reduce((s, m) => s + m.vendas, 0)}
-              spark={serie.map((m) => m.vendas)}
-              intent="success"
-            />
-            <StatTile
-              title="VGV (6m)"
-              value={serie.reduce((s, m) => s + Number(m.vgv), 0)}
-              formatValue={fmtBRL}
-              spark={serie.map((m) => Number(m.vgv))}
-            />
-            <StatTile
-              title="Visitas realizadas (6m)"
-              value={serie.reduce((s, m) => s + m.visitas_realizadas, 0)}
-              spark={serie.map((m) => m.visitas_realizadas)}
-            />
-            <StatTile
-              title="Leads recebidos (6m)"
-              value={serie.reduce((s, m) => s + m.leads_recebidos, 0)}
-              spark={serie.map((m) => m.leads_recebidos)}
-            />
-          </StatGrid>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Evolução mensal</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="py-2 pr-2 font-medium">Mês</th>
-                    <th className="py-2 pr-2 text-right font-medium">Leads</th>
-                    <th className="py-2 pr-2 text-right font-medium">Contatos</th>
-                    <th className="py-2 pr-2 text-right font-medium">Agend.</th>
-                    <th className="py-2 pr-2 text-right font-medium">Visitas</th>
-                    <th className="py-2 pr-2 text-right font-medium">Análises</th>
-                    <th className="py-2 pr-2 text-right font-medium">Vendas</th>
-                    <th className="py-2 pr-2 text-right font-medium">VGV</th>
-                    <th className="py-2 text-right font-medium">1ª resp.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serie.map((m) => (
-                    <tr key={m.mes} className="border-b border-border-subtle last:border-0">
-                      <td className="py-2 pr-2 font-medium">{fmtMes(m.mes)}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{m.leads_recebidos}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{m.contatos}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{m.agendamentos_criados}</td>
-                      <td className="py-2 pr-2 text-right tabular-nums">
-                        {m.visitas_realizadas}
-                        {m.no_shows > 0 && (
-                          <span className="ml-1 text-xs text-destructive">({m.no_shows}ns)</span>
-                        )}
-                      </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">{m.analises}</td>
-                      <td className="py-2 pr-2 text-right font-semibold tabular-nums text-success">
-                        {m.vendas}
-                      </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">
-                        {Number(m.vgv) > 0 ? fmtBRL(Number(m.vgv)) : "—"}
-                      </td>
-                      <td className="py-2 text-right tabular-nums text-muted-foreground">
-                        {m.primeira_resposta_p50_min != null
-                          ? `${m.primeira_resposta_p50_min}m`
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Sparkline data={serie.map((m) => m.vendas)} /> evolução de vendas — base para o
-                escalonamento trimestral de comissão.
-              </p>
-            </CardContent>
-          </Card>
-        </>
-      )}
     </div>
   );
 }
