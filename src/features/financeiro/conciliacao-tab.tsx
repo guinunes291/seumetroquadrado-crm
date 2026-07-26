@@ -205,13 +205,13 @@ export function ConciliacaoTab() {
       <StatGrid>
         <StatTile
           icon={CheckCircle2}
-          label="Comissões conciliadas"
+          title="Comissões conciliadas"
           value={`${p.comissoes_conciliadas} de ${p.comissoes_pagas}`}
           hint={`${brl(p.valor_conciliado)} de ${brl(p.valor_total)}`}
         />
         <StatTile
           icon={ArrowDownCircle}
-          label="Débitos pendentes"
+          title="Débitos pendentes"
           value={String(
             dados.transacoes.filter((t) => t.status === "pendente" && t.valor < 0).length,
           )}
@@ -219,7 +219,7 @@ export function ConciliacaoTab() {
         />
         <StatTile
           icon={ArrowUpCircle}
-          label="Créditos pendentes"
+          title="Créditos pendentes"
           value={String(
             dados.transacoes.filter((t) => t.status === "pendente" && t.valor >= 0).length,
           )}
@@ -227,7 +227,7 @@ export function ConciliacaoTab() {
         />
         <StatTile
           icon={Landmark}
-          label="Lançamentos no extrato"
+          title="Lançamentos no extrato"
           value={String(dados.transacoes.length)}
           hint="Itaú LTDA + C6 EI"
         />
