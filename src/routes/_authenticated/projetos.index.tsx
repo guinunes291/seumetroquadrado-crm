@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
@@ -21,66 +20,30 @@ import {
   emptyFilters,
   type Filters,
 } from "@/components/projetos-filters";
-import { OfertaAtivaPage } from "@/features/projetos/oferta-ativa-page";
-import { ComissoesPage } from "@/features/comissoes/comissoes-page";
-import { LinksUteisPage } from "@/features/projetos/links-uteis-page";
-
-// O antigo "Radar" virou o Modo Fechamento do /pipeline.
-type NegociosTab = "catalogo" | "oferta" | "comissoes" | "links";
-const NEGOCIOS_TABS: NegociosTab[] = ["catalogo", "oferta", "comissoes", "links"];
+// Projetos agora é SÓ o catálogo de empreendimentos. As antigas abas foram
+// para os lugares certos: Oferta Ativa → /oferta-ativa (prospecção, mundo de
+// Leads); Comissões → /ranking?tab=comissoes (resultado do corretor);
+// Links Úteis → /links-uteis (material de apoio). Deep-links antigos
+// (?tab=…) redirecionam abaixo.
+const TAB_DESTINO: Record<string, { to: string; search?: Record<string, string> }> = {
+  oferta: { to: "/oferta-ativa" },
+  comissoes: { to: "/ranking", search: { tab: "comissoes" } },
+  links: { to: "/links-uteis" },
+};
 
 export const Route = createFileRoute("/_authenticated/projetos/")({
-  // `tab` permite abrir/linkar direto uma aba do hub de Negócios & Carteira.
-  validateSearch: (search: Record<string, unknown>): { tab?: NegociosTab } => ({
-    tab: NEGOCIOS_TABS.includes(search.tab as NegociosTab)
-      ? (search.tab as NegociosTab)
-      : undefined,
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
   }),
-  head: () => ({ meta: [{ title: "Negócios & Carteira — Seu Metro Quadrado" }] }),
-  component: NegociosPage,
+  beforeLoad: ({ search }) => {
+    const destino = search.tab ? TAB_DESTINO[search.tab] : undefined;
+    if (destino) {
+      throw redirect({ to: destino.to, search: destino.search ?? {} });
+    }
+  },
+  head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
+  component: CatalogoPanel,
 });
-
-// Hub de Negócios & Carteira: catálogo de empreendimentos, oferta ativa, radar de
-// fechamento, comissões e links úteis em abas internas (Fase 2). O Match IA fica
-// como rota própria (usa search params próprios) acessível pelo botão ao lado das
-// abas e pela página do lead. As rotas antigas seguem válidas para deep-link.
-function NegociosPage() {
-  const { tab } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const activeTab: NegociosTab = tab ?? "catalogo";
-  const onTabChange = (v: string) =>
-    navigate({ search: { tab: v === "catalogo" ? undefined : (v as NegociosTab) } });
-
-  return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <TabsList className="h-auto flex-wrap justify-start">
-          <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
-          <TabsTrigger value="oferta">Oferta Ativa</TabsTrigger>
-          <TabsTrigger value="comissoes">Comissões</TabsTrigger>
-          <TabsTrigger value="links">Links Úteis</TabsTrigger>
-        </TabsList>
-        <Button asChild variant="outline" size="sm">
-          <Link to="/match">
-            <Sparkles className="mr-1 h-4 w-4" /> Match IA
-          </Link>
-        </Button>
-      </div>
-      <TabsContent value="catalogo">
-        <CatalogoPanel />
-      </TabsContent>
-      <TabsContent value="oferta">
-        <OfertaAtivaPage />
-      </TabsContent>
-      <TabsContent value="comissoes">
-        <ComissoesPage />
-      </TabsContent>
-      <TabsContent value="links">
-        <LinksUteisPage />
-      </TabsContent>
-    </Tabs>
-  );
-}
 
 function CatalogoPanel() {
   const { user } = useAuth();
@@ -184,23 +147,30 @@ function CatalogoPanel() {
             : "Catálogo de empreendimentos disponíveis para indicação."
         }
         actions={
-          canManage && (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Importar projetos
-              </Button>
-              <Button
-                onClick={() => {
-                  setEditing(null);
-                  setOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo projeto
-              </Button>
-            </div>
-          )
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/match">
+                <Sparkles className="mr-1 h-4 w-4" /> Match IA
+              </Link>
+            </Button>
+            {canManage && (
+              <>
+                <Button variant="outline" onClick={() => setImportOpen(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar projetos
+                </Button>
+                <Button
+                  onClick={() => {
+                    setEditing(null);
+                    setOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo projeto
+                </Button>
+              </>
+            )}
+          </div>
         }
       />
 

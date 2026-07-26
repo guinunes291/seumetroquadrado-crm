@@ -1,9 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { OfertaAtivaPage } from "@/features/projetos/oferta-ativa-page";
 
-// Rota legada mantida para deep-links: o conteúdo vive como aba do hub
-// (features/projetos/oferta-ativa-page.tsx).
+// Oferta Ativa é prospecção de base (listas segmentadas para campanha) — vive
+// no mundo de Leads, com página própria. A antiga aba de /projetos redireciona
+// para cá.
 export const Route = createFileRoute("/_authenticated/oferta-ativa/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/projetos", search: { tab: "oferta" } });
-  },
+  head: () => ({ meta: [{ title: "Oferta Ativa — Seu Metro Quadrado" }] }),
+  component: OfertaAtivaPage,
 });
