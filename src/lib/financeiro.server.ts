@@ -393,8 +393,6 @@ export async function patchComissaoTela(
     return { ok: false, erro: "motivo_obrigatorio_cancelamento" };
   }
 
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  void supabaseAdmin;
   const resultado = await aplicarPatchComissao(comissaoId, payload, contexto);
   if (!resultado.ok) return erroDe(resultado.erro);
   return { ok: true };
