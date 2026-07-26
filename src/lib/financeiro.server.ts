@@ -90,11 +90,11 @@ export function contextoTela(usuarioId: string, usuarioNome: string): ApiClientC
     scope: "commissions:write",
     equipeId: null,
     projetoId: null,
-    mode: "api_key",
+    mode: "client",
     origem: "tela_financeiro",
     usuarioId,
     usuarioNome,
-  } as ApiClientContext;
+  };
 }
 
 /** Admin ou gestor. Superintendente e corretor não entram. */
@@ -394,12 +394,8 @@ export async function patchComissaoTela(
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const resultado = await aplicarPatchComissao(
-    supabaseAdmin as any,
-    comissaoId,
-    payload,
-    contexto,
-  );
+  void supabaseAdmin;
+  const resultado = await aplicarPatchComissao(comissaoId, payload, contexto);
   if (!resultado.ok) return erroDe(resultado.erro);
   return { ok: true };
 }
