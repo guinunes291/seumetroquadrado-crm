@@ -1,14 +1,75 @@
-// GET /api/public/vendas
-// Auth: X-API-Key. Filtros: status, corretor_id, desde, ate (data), empreendimento, limit, offset.
+// GET /api/public/vendas — leitura (escopo `sales:read`).
+// PATCH /api/public/vendas — correção do empreendimento em lote (`sales:write`).
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { validarPatchVenda, aplicarPatchVenda } from "@/lib/vendas-write.server";
+
+const LOTE_MAX = 200;
 
 export const Route = createFileRoute("/api/public/vendas/")({
   server: {
     handlers: {
       OPTIONS: async () => corsPreflight(),
+      // Lote — mesmas regras da rota unitária, item a item, sem abortar no
+      // primeiro erro.
+      PATCH: async ({ request }) => {
+        const auth = await requireApiClientScope(request, "sales:write");
+        if (auth instanceof Response) return auth;
+
+        let corpo: unknown;
+        try {
+          corpo = await request.json();
+        } catch {
+          return jsonResponse({ error: "corpo_invalido" }, 400);
+        }
+        const itens = (corpo as { itens?: unknown } | null)?.itens;
+        if (!Array.isArray(itens)) return jsonResponse({ error: "itens_obrigatorio" }, 400);
+        if (itens.length === 0) return jsonResponse({ error: "itens_vazio" }, 400);
+        if (itens.length > LOTE_MAX) {
+          return jsonResponse({ error: "lote_muito_grande", maximo: LOTE_MAX }, 400);
+        }
+
+        const resultados: Array<Record<string, unknown>> = [];
+        for (const item of itens) {
+          const vendaId = (item as { venda_id?: unknown } | null)?.venda_id;
+          if (typeof vendaId !== "string" || !vendaId) {
+            resultados.push({ venda_id: null, ok: false, error: "venda_id_obrigatorio" });
+            continue;
+          }
+          const payload = validarPatchVenda(item, ["venda_id"]);
+          if ("body" in payload) {
+            resultados.push({ venda_id: vendaId, ok: false, ...payload.body });
+            continue;
+          }
+          const r = await aplicarPatchVenda(vendaId, payload, auth);
+          if (r.ok) {
+            resultados.push({
+              venda_id: vendaId,
+              ok: true,
+              anterior: r.anterior,
+              atual: r.venda,
+              vinculado_ao_catalogo: r.vinculado_ao_catalogo,
+              comissoes_afetadas: r.comissoes_afetadas,
+            });
+          } else {
+            resultados.push({ venda_id: vendaId, ok: false, ...r.erro.body });
+          }
+        }
+
+        const aplicados = resultados.filter((r) => r.ok).length;
+        return jsonResponse(
+          {
+            total: resultados.length,
+            aplicados,
+            falhas: resultados.length - aplicados,
+            resultados,
+          },
+          200,
+        );
+      },
       GET: async ({ request }) => {
+
         const auth = await requireApiClientScope(request, "sales:read");
         if (auth instanceof Response) return auth;
 
