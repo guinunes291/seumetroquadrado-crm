@@ -28,7 +28,7 @@ import {
 
 const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).rpc(name, args);
 
-function usePacing(ano: number, mes: number) {
+export function usePacing(ano: number, mes: number) {
   return useQuery({
     queryKey: ["gestao:pacing", ano, mes],
     staleTime: 60_000,

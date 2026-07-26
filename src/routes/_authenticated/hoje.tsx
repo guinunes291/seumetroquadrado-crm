@@ -100,10 +100,10 @@ function CommandCenterPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Central de Comando"
+        title={escopo === "operacao" ? "Cockpit de Gestão" : "Central de Comando"}
         description={
           escopo === "operacao"
-            ? `${saudacao()}, ${primeiroNome} — a operação de hoje em ordem de prioridade.`
+            ? `${saudacao()}, ${primeiroNome} — o que exige ação, o ritmo da meta e os atalhos da gestão.`
             : `${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`
         }
         actions={
