@@ -2065,30 +2065,6 @@ export type Database = {
           },
         ]
       }
-      leads_import_tmp: {
-        Row: {
-          email: string | null
-          nome: string | null
-          projeto_nome: string | null
-          renda: string | null
-          telefone: string | null
-        }
-        Insert: {
-          email?: string | null
-          nome?: string | null
-          projeto_nome?: string | null
-          renda?: string | null
-          telefone?: string | null
-        }
-        Update: {
-          email?: string | null
-          nome?: string | null
-          projeto_nome?: string | null
-          renda?: string | null
-          telefone?: string | null
-        }
-        Relationships: []
-      }
       leads_landing: {
         Row: {
           created_at: string
