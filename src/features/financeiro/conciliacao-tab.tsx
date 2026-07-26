@@ -45,15 +45,20 @@ import {
   conciliarVendasFn,
   desconciliarTransacaoFn,
   ignorarTransacaoFn,
+  ignorarTransacoesEmLoteFn,
   importarExtratoFn,
   reativarTransacaoFn,
 } from "@/lib/conciliacao.functions";
 import {
   CONTAS,
+  DATA_REFERENCIA_FALSA,
+  MOTIVO_TRANSFERENCIA_PROPRIA,
   MOTIVOS_IGNORAR,
   type ContaBancaria,
+  type SugestaoComissao,
   type TransacaoItem,
 } from "@/lib/conciliacao-types";
+
 
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
@@ -75,6 +80,7 @@ export function ConciliacaoTab() {
   const conciliarVendas = useServerFn(conciliarVendasFn);
   const desconciliar = useServerFn(desconciliarTransacaoFn);
   const ignorar = useServerFn(ignorarTransacaoFn);
+  const ignorarLote = useServerFn(ignorarTransacoesEmLoteFn);
   const reativar = useServerFn(reativarTransacaoFn);
 
   const [filtro, setFiltro] = useState<Filtro>("pendentes");
@@ -85,7 +91,14 @@ export function ConciliacaoTab() {
   const [motivoIgnorar, setMotivoIgnorar] = useState("");
   const [creditoAlvo, setCreditoAlvo] = useState<TransacaoItem | null>(null);
   const [vendasSelecionadas, setVendasSelecionadas] = useState<string[]>([]);
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [loteIgnorarOpen, setLoteIgnorarOpen] = useState(false);
+  const [motivoLote, setMotivoLote] = useState("");
+  const [confirmAlvo, setConfirmAlvo] = useState<
+    { transacao: TransacaoItem; sugestao: SugestaoComissao } | null
+  >(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const painel = useQuery({
     queryKey: ["financeiro-conciliacao"],
@@ -170,6 +183,18 @@ export function ConciliacaoTab() {
     onError: (e: Error) => toast.error("Falha", { description: e.message }),
   });
 
+  const mutIgnorarLote = useMutation({
+    mutationFn: (p: { transacaoIds: string[]; motivo: string }) => ignorarLote({ data: p }),
+    onSuccess: (r: { ok: boolean; mensagem?: string; erro?: string; detalhe?: string }) => {
+      trataResultado(r);
+
+      setLoteIgnorarOpen(false);
+      setMotivoLote("");
+      setSelecionadas([]);
+    },
+    onError: (e: Error) => toast.error("Falha", { description: e.message }),
+  });
+
   const dados = painel.data;
 
   const lista = useMemo(() => {
@@ -178,6 +203,30 @@ export function ConciliacaoTab() {
       filtro === "pendentes" ? "pendente" : filtro === "conciliadas" ? "conciliada" : "ignorada";
     return dados.transacoes.filter((t) => t.status === alvo);
   }, [dados, filtro]);
+
+  /** Comissões da sugestão que já têm data real (≠ referência e ≠ data da transação). */
+  const datasEmRisco = (transacao: TransacaoItem, sugestao: SugestaoComissao) =>
+    sugestao.comissoes.filter(
+      (c) =>
+        c.data_pagamento &&
+        c.data_pagamento !== DATA_REFERENCIA_FALSA &&
+        c.data_pagamento !== transacao.data,
+    );
+
+  const confirmarSugestao = (transacao: TransacaoItem, sugestao: SugestaoComissao) =>
+    mutComissoes.mutate({
+      transacaoId: transacao.id,
+      comissaoIds: sugestao.comissoes.map((c) => c.id),
+    });
+
+  const pedirConfirmacao = (transacao: TransacaoItem, sugestao: SugestaoComissao) => {
+    if (datasEmRisco(transacao, sugestao).length) {
+      setConfirmAlvo({ transacao, sugestao });
+      return;
+    }
+    confirmarSugestao(transacao, sugestao);
+  };
+
 
   if (painel.isLoading) {
     return (
@@ -247,7 +296,27 @@ export function ConciliacaoTab() {
             {f === "pendentes" ? "Pendentes" : f === "conciliadas" ? "Conciliadas" : "Ignoradas"}
           </Button>
         ))}
+        {filtro === "pendentes" && lista.length > 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() =>
+              setSelecionadas((atual) => (atual.length ? [] : lista.map((t) => t.id)))
+            }
+          >
+            {selecionadas.length ? "Limpar seleção" : "Selecionar todos"}
+          </Button>
+        )}
       </div>
+
+      {filtro === "pendentes" && selecionadas.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 p-2 text-sm">
+          <span>{selecionadas.length} lançamento(s) selecionado(s)</span>
+          <Button size="sm" variant="outline" onClick={() => setLoteIgnorarOpen(true)}>
+            <Ban className="mr-1 h-4 w-4" /> Ignorar selecionados
+          </Button>
+        </div>
+      )}
 
       {lista.length === 0 ? (
         <EmptyState
@@ -267,15 +336,34 @@ export function ConciliacaoTab() {
               <Card key={t.id}>
                 <CardHeader className="pb-2">
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
+                    <div className="flex items-start gap-2">
+                      {t.status === "pendente" && (
+                        <input
+                          type="checkbox"
+                          aria-label="Selecionar lançamento"
+                          className="mt-1.5 h-4 w-4"
+                          checked={selecionadas.includes(t.id)}
+                          onChange={(e) =>
+                            setSelecionadas((atual) =>
+                              e.target.checked
+                                ? [...atual, t.id]
+                                : atual.filter((id) => id !== t.id),
+                            )
+                          }
+                        />
+                      )}
+                      <div>
                       <CardTitle className="text-base">
                         {t.valor < 0 ? "− " : "+ "}
                         {brl(Math.abs(t.valor))}
                       </CardTitle>
+
                       <p className="text-sm text-muted-foreground">
                         {dataBR(t.data)} · {contaLabel(t.conta)} · {t.descricao}
                       </p>
+                      </div>
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Badge variant={t.status === "conciliada" ? "secondary" : "outline"}>
                         {t.status}
@@ -325,20 +413,57 @@ export function ConciliacaoTab() {
                     </ul>
                   )}
 
+                  {t.status === "pendente" && t.gemeo_transferencia && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed p-2">
+                      <p className="text-muted-foreground">
+                        Existe um crédito de mesmo valor e mesma data em outra conta — provável
+                        transferência entre contas próprias.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          mutIgnorar.mutate({
+                            transacaoId: t.id,
+                            motivo: MOTIVO_TRANSFERENCIA_PROPRIA,
+                          })
+                        }
+                        disabled={mutIgnorar.isPending}
+                      >
+                        Marcar como transferência própria
+                      </Button>
+                    </div>
+                  )}
+
                   {t.status === "pendente" && t.valor < 0 && (
                     <div className="space-y-2">
                       {sug?.debito?.length ? (
                         sug.debito.map((s, i) => (
                           <div
                             key={`${t.id}-${i}`}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2"
+                            className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 ${
+                              s.forca === "quase" ? "border-dashed opacity-90" : ""
+                            }`}
                           >
-                            <div>
+                            <div className="space-y-1">
                               <p className="font-medium">
                                 {s.tipo === "exato" ? "Match exato" : `Lote de ${s.comissoes.length}`}
                                 {" · "}
                                 {s.beneficiario_nome}
                               </p>
+                              <div className="flex flex-wrap gap-1">
+                                {s.modo === "liquido_nf" && (
+                                  <Badge variant="secondary">líquido NF (−6%)</Badge>
+                                )}
+                                {s.cita_venda && (
+                                  <Badge variant="secondary">mensagem do PIX cita a venda</Badge>
+                                )}
+                                {s.forca === "quase" && (
+                                  <Badge variant="outline">
+                                    possível — confira · dif {brl(s.diferenca)}
+                                  </Badge>
+                                )}
+                              </div>
                               <p className="text-muted-foreground">
                                 {brl(s.total)} ·{" "}
                                 {s.comissoes
@@ -351,15 +476,13 @@ export function ConciliacaoTab() {
                             </div>
                             <Button
                               size="sm"
-                              onClick={() =>
-                                mutComissoes.mutate({
-                                  transacaoId: t.id,
-                                  comissaoIds: s.comissoes.map((c) => c.id),
-                                })
-                              }
+                              variant={s.forca === "quase" ? "outline" : "default"}
+                              onClick={() => pedirConfirmacao(t, s)}
                               disabled={mutComissoes.isPending}
                             >
-                              Confirmar
+                              {s.forca === "quase"
+                                ? `Confirmar mesmo assim (dif ${brl(s.diferenca)})`
+                                : "Confirmar"}
                             </Button>
                           </div>
                         ))
@@ -371,6 +494,7 @@ export function ConciliacaoTab() {
                       )}
                     </div>
                   )}
+
 
                   {t.status === "pendente" && t.valor >= 0 && (
                     <div className="flex items-center justify-between gap-2">
@@ -525,7 +649,88 @@ export function ConciliacaoTab() {
         </DialogContent>
       </Dialog>
 
+      {/* Ignorar em massa */}
+      <Dialog open={loteIgnorarOpen} onOpenChange={setLoteIgnorarOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ignorar {selecionadas.length} lançamento(s)</DialogTitle>
+            <DialogDescription>
+              O mesmo motivo vale para todos. Cada item continua recuperável pelo filtro
+              "Ignoradas".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {MOTIVOS_IGNORAR.map((m) => (
+                <Button key={m} size="sm" variant="outline" onClick={() => setMotivoLote(m)}>
+                  {m}
+                </Button>
+              ))}
+            </div>
+            <Textarea
+              value={motivoLote}
+              onChange={(e) => setMotivoLote(e.target.value)}
+              placeholder="Motivo (obrigatório)"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLoteIgnorarOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() =>
+                mutIgnorarLote.mutate({ transacaoIds: selecionadas, motivo: motivoLote })
+              }
+              disabled={motivoLote.trim().length < 4 || mutIgnorarLote.isPending}
+            >
+              Ignorar selecionados
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alerta de regravação de data real */}
+      <Dialog open={!!confirmAlvo} onOpenChange={(o) => !o && setConfirmAlvo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atenção: esta comissão já tem data real</DialogTitle>
+            <DialogDescription>
+              Confirmar vai substituir a data já conferida pela data desta transação
+              {confirmAlvo ? ` (${dataBR(confirmAlvo.transacao.data)})` : ""}. O motivo fica na
+              auditoria. Tem certeza?
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="space-y-1 text-sm">
+            {confirmAlvo &&
+              datasEmRisco(confirmAlvo.transacao, confirmAlvo.sugestao).map((c) => (
+                <li key={c.id} className="rounded-md border p-2">
+                  {c.projeto_nome ?? "sem projeto"} · {brl(c.valor_liquido)} · data real atual{" "}
+                  <strong>{dataBR(c.data_pagamento)}</strong> → vira{" "}
+                  <strong>{dataBR(confirmAlvo.transacao.data)}</strong>
+                </li>
+              ))}
+          </ul>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmAlvo(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!confirmAlvo) return;
+                confirmarSugestao(confirmAlvo.transacao, confirmAlvo.sugestao);
+                setConfirmAlvo(null);
+              }}
+              disabled={mutComissoes.isPending}
+            >
+              Substituir a data mesmo assim
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Crédito ↔ venda */}
+
       <Dialog open={!!creditoAlvo} onOpenChange={(o) => !o && setCreditoAlvo(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
