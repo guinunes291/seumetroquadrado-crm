@@ -183,8 +183,9 @@ export function ConciliacaoTab() {
 
   const mutIgnorarLote = useMutation({
     mutationFn: (p: { transacaoIds: string[]; motivo: string }) => ignorarLote({ data: p }),
-    onSuccess: (r) => {
+    onSuccess: (r: { ok: boolean; mensagem?: string; erro?: string; detalhe?: string }) => {
       trataResultado(r);
+
       setLoteIgnorarOpen(false);
       setMotivoLote("");
       setSelecionadas([]);
