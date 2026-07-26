@@ -73,17 +73,11 @@ import {
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { formatDuracaoParado } from "@/lib/utils";
 
-/** Link discreto para a aba de análise completa (Funil/Gargalos/Time). */
-function AbaLink({
-  tab,
-  label,
-}: {
-  tab: "funil" | "gargalos" | "performance";
-  label: string;
-}) {
+/** Link discreto para a aba de análise completa do hub de Gestão. */
+function AbaLink({ tab, label }: { tab: "funil" | "gargalos" | "time"; label: string }) {
   return (
     <Link
-      to="/inteligencia"
+      to="/painel-gestor"
       search={{ tab }}
       className="ml-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-primary hover:underline"
     >
@@ -350,7 +344,7 @@ export function RelatoriosView() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Trophy className="h-4 w-4" /> Ranking por corretor
-              <AbaLink tab="performance" label="performance completa" />
+              <AbaLink tab="time" label="performance completa" />
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -102,12 +102,13 @@ const NAV_ITEMS: Item[] = [
     children: [{ to: "/vitrine", label: "Vitrine (mapa)", icon: Map }],
   },
   {
-    // As sub-áreas (Pessoas, Comunicação, Qualidade…) são abas internas do hub
-    // /painel-gestor. A Distribuição (3 roletas + exceções) tem página própria.
+    // HUB ÚNICO de gestão: Dia, Relatórios, Funil, Gargalos, Time, Metas e
+    // Leads por corretor (+ bloco administrativo para admin) são abas internas.
+    // A antiga /inteligencia redireciona para cá.
     to: "/painel-gestor",
     label: "Gestão",
     icon: BarChart3,
-    roles: ["admin", "gestor"],
+    roles: ["admin", "gestor", "superintendente"],
     badge: (b) => b.aprovacoes,
     children: [
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
@@ -118,13 +119,6 @@ const NAV_ITEMS: Item[] = [
         roles: ["admin", "gestor"],
       },
     ],
-  },
-  {
-    // Insights em linguagem de negócio + relatórios completos (org-wide) → gestão.
-    to: "/inteligencia",
-    label: "Inteligência",
-    icon: LayoutDashboard,
-    roles: ["admin", "gestor", "superintendente"],
   },
 ];
 

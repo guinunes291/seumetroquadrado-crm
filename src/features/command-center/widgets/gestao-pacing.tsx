@@ -60,7 +60,7 @@ export function GestaoPacingWidget(_props: WidgetProps) {
           <Gauge className="h-4 w-4" /> Ritmo do mês
         </CardTitle>
         <Button asChild size="sm" variant="ghost">
-          <Link to="/ranking" search={{ tab: "metas" }}>
+          <Link to="/painel-gestor" search={{ tab: "metas" }}>
             Metas <ArrowRight className="ml-1 h-4 w-4" />
           </Link>
         </Button>

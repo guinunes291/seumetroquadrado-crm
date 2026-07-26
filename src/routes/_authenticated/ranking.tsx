@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,10 +35,8 @@ import {
   ArrowDown,
   Flag,
 } from "lucide-react";
-import { useUserRoles } from "@/hooks/use-auth";
 import { CopaPage } from "@/features/ranking/copa-page";
 import { ConquistasPage } from "@/features/ranking/conquistas-page";
-import { MetasPage } from "@/routes/_authenticated/metas";
 import { Podium } from "@/features/ranking/podium";
 import { Medal } from "@/features/ranking/medal";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
@@ -63,19 +61,22 @@ export const Route = createFileRoute("/_authenticated/ranking")({
       ? (search.tab as DesempenhoTab)
       : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    // Metas migrou para o hub único de Gestão — deep-links antigos seguem.
+    if (search.tab === "metas") {
+      throw redirect({ to: "/painel-gestor", search: { tab: "metas" } });
+    }
+  },
   head: () => ({ meta: [{ title: "Desempenho — Seu Metro Quadrado" }] }),
   component: DesempenhoPage,
 });
 
-// Hub de Desempenho: consolida ranking ao vivo, competição (Copa), conquistas e
-// metas em abas internas (Fase 2). Cada aba reaproveita a página existente; as
-// rotas antigas (/copa, /conquistas, /metas) seguem válidas para deep-link.
+// Hub de Desempenho do TIME: ranking ao vivo, competição (Copa) e conquistas —
+// a gamificação do corretor. A aba gerencial de Metas vive no hub de Gestão.
 function DesempenhoPage() {
-  const { isAdmin, isGestor } = useUserRoles();
-  const podeMetas = isAdmin || isGestor;
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const activeTab: DesempenhoTab = tab ?? "ranking";
+  const activeTab: DesempenhoTab = tab && tab !== "metas" ? tab : "ranking";
   const onTabChange = (v: string) =>
     navigate({ search: { tab: v === "ranking" ? undefined : (v as DesempenhoTab) } });
 
@@ -85,7 +86,6 @@ function DesempenhoPage() {
         <TabsTrigger value="ranking">Ranking</TabsTrigger>
         <TabsTrigger value="competicao">Competição</TabsTrigger>
         <TabsTrigger value="conquistas">Conquistas</TabsTrigger>
-        {podeMetas && <TabsTrigger value="metas">Metas</TabsTrigger>}
       </TabsList>
       <TabsContent value="ranking">
         <RankingPanel />
@@ -96,11 +96,6 @@ function DesempenhoPage() {
       <TabsContent value="conquistas">
         <ConquistasPage />
       </TabsContent>
-      {podeMetas && (
-        <TabsContent value="metas">
-          <MetasPage />
-        </TabsContent>
-      )}
     </Tabs>
   );
 }

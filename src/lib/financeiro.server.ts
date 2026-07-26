@@ -56,7 +56,28 @@ export async function podeOperarFinanceiro(
   return Boolean(admin) || Boolean(gestor);
 }
 
-export async function carregarPainel(): Promise<PainelFinanceiro> {
+export type EscopoFinanceiro = { veTudo: boolean; corretorIds: string[] };
+
+/**
+ * Escopo do financeiro (a tela usa service role, que fura RLS — o recorte é
+ * aplicado aqui): admin vê tudo; GESTOR só o financeiro dele e dos corretores
+ * da equipe (mesma régua de ve_carteira_completa/corretores_do_gestor).
+ */
+export async function escopoFinanceiro(
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> },
+  userId: string,
+): Promise<EscopoFinanceiro> {
+  const { data: veTudo } = await supabase.rpc("ve_carteira_completa", { _user_id: userId });
+  if (veTudo) return { veTudo: true, corretorIds: [] };
+  const { data } = await supabase.rpc("corretores_do_gestor", { _user_id: userId });
+  // SETOF uuid chega como array de strings; normaliza defensivamente.
+  const ids = (Array.isArray(data) ? data : [])
+    .map((r) => (typeof r === "string" ? r : ((r as any)?.corretores_do_gestor ?? (r as any)?.id)))
+    .filter((v): v is string => typeof v === "string");
+  return { veTudo: false, corretorIds: Array.from(new Set([...ids, userId])) };
+}
+
+export async function carregarPainel(escopo?: EscopoFinanceiro): Promise<PainelFinanceiro> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as any;
 
@@ -86,13 +107,28 @@ export async function carregarPainel(): Promise<PainelFinanceiro> {
     db.from("profiles").select("id,nome,ativo").order("nome").limit(2000),
   ]);
 
-  const comissoes: any[] = comissoesRes.data ?? [];
-  const vendas: any[] = vendasRes.data ?? [];
-  const pessoas: PessoaItem[] = (pessoasRes.data ?? []).map((p: any) => ({
-    id: p.id,
-    nome: p.nome ?? "Sem nome",
-    ativo: Boolean(p.ativo),
-  }));
+  // Recorte por equipe (gestor): vendas do time; comissões cujo beneficiário
+  // é do time OU cuja venda é do time; pessoas restritas ao time (selects).
+  // Vendas SEM corretor são tarefa de atribuição do admin — ficam fora.
+  const restringe = !!escopo && !escopo.veTudo;
+  const idsEquipe = new Set(escopo?.corretorIds ?? []);
+  const vendas: any[] = (vendasRes.data ?? []).filter(
+    (v: any) => !restringe || (v.corretor_id && idsEquipe.has(v.corretor_id)),
+  );
+  const vendasVisiveis = new Set(vendas.map((v: any) => v.id));
+  const comissoes: any[] = (comissoesRes.data ?? []).filter(
+    (c: any) =>
+      !restringe ||
+      (c.beneficiario_id && idsEquipe.has(c.beneficiario_id)) ||
+      (c.venda_id && vendasVisiveis.has(c.venda_id)),
+  );
+  const pessoas: PessoaItem[] = (pessoasRes.data ?? [])
+    .filter((p: any) => !restringe || idsEquipe.has(p.id))
+    .map((p: any) => ({
+      id: p.id,
+      nome: p.nome ?? "Sem nome",
+      ativo: Boolean(p.ativo),
+    }));
   const pessoaPorId = new Map(pessoas.map((p) => [p.id, p]));
   const vendaPorId = new Map(vendas.map((v) => [v.id, v]));
 
@@ -330,6 +366,49 @@ function erroDe(e: PatchErro): ResultadoAcao {
  * Escrita unitária da tela. Usa o mesmo validador das rotas públicas, com uma
  * regra adicional da tela: cancelar comissão exige motivo.
  */
+/**
+ * Ids de comissões FORA do escopo do chamador (a UI não as mostra, mas o
+ * guard impede escrita cega por id). Ids inexistentes contam como fora.
+ */
+export async function comissoesForaDoEscopo(
+  ids: string[],
+  escopo: EscopoFinanceiro,
+): Promise<string[]> {
+  if (escopo.veTudo || ids.length === 0) return [];
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const { data } = await db.from("comissoes").select("id,beneficiario_id,venda_id").in("id", ids);
+  const rows: any[] = data ?? [];
+  const vendaIds = rows.map((r) => r.venda_id).filter(Boolean);
+  const vendaCorretor = new Map<string, string | null>();
+  if (vendaIds.length) {
+    const { data: vs } = await db.from("vendas").select("id,corretor_id").in("id", vendaIds);
+    for (const v of vs ?? []) vendaCorretor.set(v.id, v.corretor_id);
+  }
+  const dentro = (r: any) =>
+    (r.beneficiario_id && escopo.corretorIds.includes(r.beneficiario_id)) ||
+    (r.venda_id && escopo.corretorIds.includes(vendaCorretor.get(r.venda_id) ?? ""));
+  const encontrados = new Set(rows.map((r) => r.id));
+  const fora = rows.filter((r) => !dentro(r)).map((r) => r.id as string);
+  for (const id of ids) if (!encontrados.has(id)) fora.push(id);
+  return fora;
+}
+
+/** True se a venda está fora do escopo (venda sem corretor = tarefa do admin). */
+export async function vendaForaDoEscopo(
+  vendaId: string,
+  escopo: EscopoFinanceiro,
+): Promise<boolean> {
+  if (escopo.veTudo) return false;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await (supabaseAdmin as any)
+    .from("vendas")
+    .select("corretor_id")
+    .eq("id", vendaId)
+    .maybeSingle();
+  return !data?.corretor_id || !escopo.corretorIds.includes(data.corretor_id);
+}
+
 export async function patchComissaoTela(
   corpo: Record<string, unknown>,
   contexto: ApiClientContext,
