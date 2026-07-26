@@ -52,7 +52,7 @@ import {
   patchComissoesLoteFinanceiroFn,
   definirCorretorVendaFn,
 } from "@/lib/financeiro.functions";
-import type { FilaItem, VendaItem } from "@/lib/financeiro.server";
+import type { FilaItem, VendaItem } from "@/lib/financeiro-types";
 
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);

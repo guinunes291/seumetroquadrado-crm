@@ -65,3 +65,16 @@ export type PainelFinanceiro = {
   pessoas: PessoaItem[];
 };
 
+
+export type LinhaAuditoria = {
+  id: string;
+  criado_em: string | null;
+  entidade: string;
+  entidade_id: string;
+  campo: string;
+  valor_anterior: string | null;
+  valor_novo: string | null;
+  motivo: string | null;
+  origem: string;
+  autor: string;
+};
