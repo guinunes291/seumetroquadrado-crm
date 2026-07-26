@@ -9,6 +9,7 @@ export const API_CLIENT_SCOPES = [
   "leads:write",
   "events:write",
   "sales:read",
+  "sales:write",
   "commissions:read",
   "commissions:write",
   "commissions:write:beneficiary",
@@ -49,10 +50,10 @@ function legacyContext(
   now: number,
 ): ApiClientContext | null {
   if (!legacyApiWindowIsOpen(now)) return null;
-  // `commissions:write` é escopo novo: nenhuma credencial global legada
-  // (nem a de leitura, nem a de escrita) pode concedê-lo. Só clientes de API
-  // com o escopo explicitamente concedido.
-  if (scope.startsWith("commissions:write")) return null;
+  // `commissions:write*` e `sales:write` são escopos novos: nenhuma credencial
+  // global legada (nem a de leitura, nem a de escrita) pode concedê-los. Só
+  // clientes de API com o escopo explicitamente concedido.
+  if (scope.startsWith("commissions:write") || scope === "sales:write") return null;
   const provided = request.headers.get("x-api-key") ?? "";
   const readKey = process.env.READ_API_KEY ?? "";
   const writeKey = process.env.MCP_WRITE_API_KEY ?? "";

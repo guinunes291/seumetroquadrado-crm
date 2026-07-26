@@ -5907,6 +5907,7 @@ export type Database = {
         | "metrics:read"
         | "commissions:write"
         | "commissions:write:beneficiary"
+        | "sales:write"
       app_role: "admin" | "gestor" | "corretor" | "superintendente"
       convite_crm_estado: "pendente" | "aceito" | "revogado" | "expirado"
       distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
@@ -6132,6 +6133,7 @@ export const Constants = {
         "metrics:read",
         "commissions:write",
         "commissions:write:beneficiary",
+        "sales:write",
       ],
       app_role: ["admin", "gestor", "corretor", "superintendente"],
       convite_crm_estado: ["pendente", "aceito", "revogado", "expirado"],
