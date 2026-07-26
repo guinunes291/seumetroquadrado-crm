@@ -9,6 +9,7 @@ export const API_CLIENT_SCOPES = [
   "leads:write",
   "events:write",
   "sales:read",
+  "sales:write",
   "commissions:read",
   "commissions:write",
   "commissions:write:beneficiary",
