@@ -168,7 +168,7 @@ function NovaOfertaPage() {
         description="A criação de listas de Oferta Ativa é exclusiva para gestores e administradores. Você trabalha as listas atribuídas a você na aba Oferta Ativa."
         action={
           <Button asChild variant="outline">
-            <Link to="/projetos" search={{ tab: "oferta" }}>
+            <Link to="/oferta-ativa">
               Voltar para Oferta Ativa
             </Link>
           </Button>

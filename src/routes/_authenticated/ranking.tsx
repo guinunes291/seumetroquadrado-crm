@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ComissoesPage } from "@/features/comissoes/comissoes-page";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,8 +52,14 @@ import {
   diasNoMes,
 } from "@/lib/periodo";
 
-type DesempenhoTab = "ranking" | "competicao" | "conquistas" | "metas";
-const DESEMPENHO_TABS: DesempenhoTab[] = ["ranking", "competicao", "conquistas", "metas"];
+type DesempenhoTab = "ranking" | "competicao" | "conquistas" | "comissoes" | "metas";
+const DESEMPENHO_TABS: DesempenhoTab[] = [
+  "ranking",
+  "competicao",
+  "conquistas",
+  "comissoes",
+  "metas",
+];
 
 export const Route = createFileRoute("/_authenticated/ranking")({
   // `tab` permite abrir/linkar direto uma aba do hub de Desempenho.
@@ -71,8 +78,10 @@ export const Route = createFileRoute("/_authenticated/ranking")({
   component: DesempenhoPage,
 });
 
-// Hub de Desempenho do TIME: ranking ao vivo, competição (Copa) e conquistas —
-// a gamificação do corretor. A aba gerencial de Metas vive no hub de Gestão.
+// Hub de Desempenho do TIME: ranking ao vivo, competição (Copa), conquistas e
+// as COMISSÕES do corretor (resultado financeiro pessoal — o pagamento é
+// gerido no Financeiro · Fechamento). A aba gerencial de Metas vive no hub de
+// Gestão.
 function DesempenhoPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -86,6 +95,7 @@ function DesempenhoPage() {
         <TabsTrigger value="ranking">Ranking</TabsTrigger>
         <TabsTrigger value="competicao">Competição</TabsTrigger>
         <TabsTrigger value="conquistas">Conquistas</TabsTrigger>
+        <TabsTrigger value="comissoes">Comissões</TabsTrigger>
       </TabsList>
       <TabsContent value="ranking">
         <RankingPanel />
@@ -95,6 +105,9 @@ function DesempenhoPage() {
       </TabsContent>
       <TabsContent value="conquistas">
         <ConquistasPage />
+      </TabsContent>
+      <TabsContent value="comissoes">
+        <ComissoesPage />
       </TabsContent>
     </Tabs>
   );

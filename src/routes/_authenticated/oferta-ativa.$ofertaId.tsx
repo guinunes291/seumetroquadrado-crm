@@ -336,7 +336,7 @@ function OfertaDetailPage() {
     onSuccess: () => {
       toast.success("Lista excluída");
       qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
-      navigate({ to: "/projetos", search: { tab: "oferta" } });
+      navigate({ to: "/oferta-ativa" });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -366,7 +366,7 @@ function OfertaDetailPage() {
         qc.invalidateQueries({ queryKey: ["ofertas-ativas"] });
         setAtribuirOpen(false);
         setCorretorSel(new Set());
-        navigate({ to: "/projetos", search: { tab: "oferta" } });
+        navigate({ to: "/oferta-ativa" });
       }
     },
     onError: (e: Error) => toast.error(e.message),
@@ -477,7 +477,7 @@ function OfertaDetailPage() {
         action={
           notFound ? (
             <Button asChild variant="outline">
-              <Link to="/projetos" search={{ tab: "oferta" }}>
+              <Link to="/oferta-ativa">
                 Voltar para Oferta Ativa
               </Link>
             </Button>
@@ -501,7 +501,7 @@ function OfertaDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/projetos" search={{ tab: "oferta" }} aria-label="Voltar para Oferta Ativa">
+          <Link to="/oferta-ativa" aria-label="Voltar para Oferta Ativa">
             <ArrowLeft className="w-4 h-4" />
           </Link>
         </Button>

@@ -22,6 +22,8 @@ import {
   Headset,
   Shuffle,
   MapPinned,
+  PhoneOutgoing,
+  Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,11 +52,15 @@ type Item = {
 // corretor vê 6 botões, gestor/admin 7 (Configurações vive no rodapé).
 const NAV_ITEMS: Item[] = [
   {
-    // A home é a Central de Comando; Desempenho (ranking/metas/copa) é filho.
+    // A home é a Central de Comando; Desempenho (ranking/copa/comissões) e o
+    // material de apoio (Links Úteis) são filhos.
     to: "/hoje",
     label: "Início",
     icon: Sun,
-    children: [{ to: "/ranking", label: "Desempenho", icon: Trophy }],
+    children: [
+      { to: "/ranking", label: "Desempenho", icon: Trophy },
+      { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
+    ],
   },
   {
     to: "/leads",
@@ -63,6 +69,8 @@ const NAV_ITEMS: Item[] = [
     badge: (b) => b.atendimento,
     children: [
       { to: "/blitz", label: "Modo Blitz", icon: Zap },
+      // Prospecção de base fria por listas segmentadas (ex-aba de /projetos).
+      { to: "/oferta-ativa", label: "Oferta Ativa", icon: PhoneOutgoing },
       {
         to: "/leads-landing",
         label: "Captação (Landing)",

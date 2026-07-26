@@ -1,9 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { LinksUteisPage } from "@/features/projetos/links-uteis-page";
 
-// Rota legada mantida para deep-links: o conteúdo vive como aba do hub
-// (features/projetos/links-uteis-page.tsx).
+// Links Úteis é material de apoio do dia a dia (tabelas, books, sistemas das
+// construtoras) — página própria, à mão a partir do Início. A antiga aba de
+// /projetos redireciona para cá.
 export const Route = createFileRoute("/_authenticated/links-uteis")({
-  beforeLoad: () => {
-    throw redirect({ to: "/projetos", search: { tab: "links" } });
-  },
+  head: () => ({ meta: [{ title: "Links Úteis — Seu Metro Quadrado" }] }),
+  component: LinksUteisPage,
 });
