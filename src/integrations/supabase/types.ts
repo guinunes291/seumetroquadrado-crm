@@ -2193,6 +2193,36 @@ export type Database = {
           },
         ]
       }
+      leads_merge_log: {
+        Row: {
+          chave_telefone: string
+          created_at: string
+          dados_mesclados: Json
+          id: string
+          lead_mantido: string
+          lead_mesclado: string
+          registros_repontados: Json
+        }
+        Insert: {
+          chave_telefone: string
+          created_at?: string
+          dados_mesclados?: Json
+          id?: string
+          lead_mantido: string
+          lead_mesclado: string
+          registros_repontados?: Json
+        }
+        Update: {
+          chave_telefone?: string
+          created_at?: string
+          dados_mesclados?: Json
+          id?: string
+          lead_mantido?: string
+          lead_mesclado?: string
+          registros_repontados?: Json
+        }
+        Relationships: []
+      }
       links_uteis: {
         Row: {
           categoria: string
@@ -5416,6 +5446,7 @@ export type Database = {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
       }
+      mesclar_leads_dup_lote: { Args: { p_limite?: number }; Returns: number }
       metricas_periodo_v2: {
         Args: { _fim: string; _inicio: string }
         Returns: Json
