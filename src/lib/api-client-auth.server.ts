@@ -11,6 +11,7 @@ export const API_CLIENT_SCOPES = [
   "sales:read",
   "commissions:read",
   "commissions:write",
+  "commissions:write:beneficiary",
   "metrics:read",
 ] as const;
 
@@ -51,7 +52,7 @@ function legacyContext(
   // `commissions:write` é escopo novo: nenhuma credencial global legada
   // (nem a de leitura, nem a de escrita) pode concedê-lo. Só clientes de API
   // com o escopo explicitamente concedido.
-  if (scope === "commissions:write") return null;
+  if (scope.startsWith("commissions:write")) return null;
   const provided = request.headers.get("x-api-key") ?? "";
   const readKey = process.env.READ_API_KEY ?? "";
   const writeKey = process.env.MCP_WRITE_API_KEY ?? "";
@@ -127,9 +128,11 @@ async function auditAuthentication(args: {
 /** Autentica X-API-Key, exige um escopo e retorna restricoes do cliente. */
 export async function requireApiClientScope(
   request: Request,
-  scope: ApiClientScope,
+  escopoOuEscopos: ApiClientScope | ApiClientScope[],
   now = Date.now(),
 ): Promise<ApiClientContext | Response> {
+  const scopes = Array.isArray(escopoOuEscopos) ? escopoOuEscopos : [escopoOuEscopos];
+  const scope = scopes[0];
   // Duas camadas: memória (por instância) + banco (compartilhado entre as
   // instâncias do Worker) — ver checkRateLimitDistribuido.
   const limited = await checkRateLimitDistribuido(request, now);
@@ -141,7 +144,9 @@ export async function requireApiClientScope(
   // Compatibilidade de rollout: a credencial global so e tentada dentro da
   // janela explicita. Assim a aplicacao pode entrar no ar antes do corte sem
   // transformar indisponibilidade do banco em bypass de autenticacao.
-  const legacy = legacyContext(request, scope, now);
+  const legacy = scopes.every((s) => legacyContext(request, s, now))
+    ? legacyContext(request, scope, now)
+    : null;
   if (legacy) {
     console.warn(
       `[api-client-auth] credencial global legada usada; escopo=${scope}; expira=${process.env.PUBLIC_API_LEGACY_UNTIL}`,
@@ -178,22 +183,23 @@ export async function requireApiClientScope(
         .from("api_cliente_escopos")
         .select("escopo")
         .eq("cliente_id", client.id)
-        .eq("escopo", scope)
-        .maybeSingle();
+        .in("escopo", scopes);
 
       if (scopeError) {
         console.error("[api-client-auth] consulta de escopo falhou", scopeError.message);
         return jsonResponse({ error: "authentication_unavailable" }, 503);
       }
-      if (!granted) {
+      const concedidos = new Set((granted ?? []).map((g) => g.escopo as string));
+      const faltando = scopes.find((s) => !concedidos.has(s));
+      if (faltando) {
         await auditAuthentication({
           request,
           clientId: client.id,
-          scope,
+          scope: faltando,
           resultado: "negado",
           status: 403,
         });
-        return jsonResponse({ error: "insufficient_scope", required_scope: scope }, 403);
+        return jsonResponse({ error: "insufficient_scope", required_scope: faltando }, 403);
       }
 
       const context: ApiClientContext = {
