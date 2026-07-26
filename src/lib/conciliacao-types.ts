@@ -16,10 +16,22 @@ export const CONTAS: { valor: ContaBancaria; rotulo: string; detalhe: string }[]
   },
 ];
 
+/** Desconto de NF aplicado no pagamento das comissões (débito = valor × 0,94). */
+export const FATOR_NF = 0.94;
+
+/** Data de referência falsa usada no lote histórico de comissões pagas. */
+export const DATA_REFERENCIA_FALSA = "2026-07-26";
+
+export const MOTIVO_TRANSFERENCIA_PROPRIA =
+  "transferência entre contas próprias (PJ→PF/PF→PJ)";
+
 export const MOTIVOS_IGNORAR = [
   "Tarifa bancária",
+  "Saldo / aplicação automática",
+  "Fatura de cartão",
+  "Imposto",
   "Despesa não relacionada a comissão",
-  "Transferência entre contas",
+  MOTIVO_TRANSFERENCIA_PROPRIA,
 ] as const;
 
 export type TransacaoItem = {
@@ -33,6 +45,8 @@ export type TransacaoItem = {
   arquivo: string | null;
   status: "pendente" | "conciliada" | "ignorada";
   motivo_ignorada: string | null;
+  /** Existe crédito de mesmo valor e mesma data em outra conta importada. */
+  gemeo_transferencia: boolean;
   /** Comissões/vendas vinculadas ativas. */
   vinculos: {
     id: string;
@@ -47,6 +61,14 @@ export type TransacaoItem = {
 
 export type SugestaoComissao = {
   tipo: "exato" | "lote";
+  /** integral = valor cheio; liquido_nf = valor × 0,94. */
+  modo: "integral" | "liquido_nf";
+  /** forte = dentro da tolerância; quase = diferença até 1%. */
+  forca: "forte" | "quase";
+  /** Diferença em R$ entre o débito e o valor esperado. */
+  diferenca: number;
+  /** MEMO do PIX cita cliente ou empreendimento de uma das comissões. */
+  cita_venda: boolean;
   beneficiario_nome: string;
   comissoes: {
     id: string;
@@ -59,15 +81,6 @@ export type SugestaoComissao = {
   score: number;
 };
 
-export type SugestaoVenda = {
-  venda_id: string;
-  projeto_nome: string | null;
-  cliente_nome: string | null;
-  valor_venda: number | null;
-  data_assinatura: string | null;
-  status_recebimento: string | null;
-  score: number;
-};
 
 export type PainelConciliacao = {
   progresso: {
