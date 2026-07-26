@@ -181,6 +181,17 @@ export function ConciliacaoTab() {
     onError: (e: Error) => toast.error("Falha", { description: e.message }),
   });
 
+  const mutIgnorarLote = useMutation({
+    mutationFn: (p: { transacaoIds: string[]; motivo: string }) => ignorarLote({ data: p }),
+    onSuccess: (r) => {
+      trataResultado(r);
+      setLoteIgnorarOpen(false);
+      setMotivoLote("");
+      setSelecionadas([]);
+    },
+    onError: (e: Error) => toast.error("Falha", { description: e.message }),
+  });
+
   const dados = painel.data;
 
   const lista = useMemo(() => {
@@ -189,6 +200,30 @@ export function ConciliacaoTab() {
       filtro === "pendentes" ? "pendente" : filtro === "conciliadas" ? "conciliada" : "ignorada";
     return dados.transacoes.filter((t) => t.status === alvo);
   }, [dados, filtro]);
+
+  /** Comissões da sugestão que já têm data real (≠ referência e ≠ data da transação). */
+  const datasEmRisco = (transacao: TransacaoItem, sugestao: SugestaoComissao) =>
+    sugestao.comissoes.filter(
+      (c) =>
+        c.data_pagamento &&
+        c.data_pagamento !== DATA_REFERENCIA_FALSA &&
+        c.data_pagamento !== transacao.data,
+    );
+
+  const confirmarSugestao = (transacao: TransacaoItem, sugestao: SugestaoComissao) =>
+    mutComissoes.mutate({
+      transacaoId: transacao.id,
+      comissaoIds: sugestao.comissoes.map((c) => c.id),
+    });
+
+  const pedirConfirmacao = (transacao: TransacaoItem, sugestao: SugestaoComissao) => {
+    if (datasEmRisco(transacao, sugestao).length) {
+      setConfirmAlvo({ transacao, sugestao });
+      return;
+    }
+    confirmarSugestao(transacao, sugestao);
+  };
+
 
   if (painel.isLoading) {
     return (
