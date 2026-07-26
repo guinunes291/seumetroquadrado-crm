@@ -219,9 +219,15 @@ export async function aplicarPatchComissao(
         },
       };
     }
-    if (!perfil.ativo) {
-      return { ok: false, erro: { status: 400, body: { error: "beneficiario_inativo" } } };
+    // Pessoa inativa NÃO é impedimento: "ativo" governa roleta/atendimento, não
+    // a titularidade de uma comissão que já aconteceu. Exigimos apenas motivo.
+    if (!perfil.ativo && !payload.motivo) {
+      return {
+        ok: false,
+        erro: { status: 409, body: { error: "motivo_obrigatorio_beneficiario_inativo" } },
+      };
     }
+    beneficiarioAtivo = Boolean(perfil.ativo);
     patch.beneficiario_id = perfil.id;
     patch.beneficiario_nome = perfil.nome;
   }
