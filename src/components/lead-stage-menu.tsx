@@ -1,4 +1,4 @@
-import { MoreHorizontal, ArrowRightCircle, Ban } from "lucide-react";
+import { MoreHorizontal, ArrowRightCircle, Ban, SquarePen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -72,7 +72,15 @@ export function LeadStageMenuItems({
         >
           {LEAD_STATUS_LABEL[s]}
           {stageRequiresModal(s) && (
-            <span className="ml-auto text-[10px] text-muted-foreground">…</span>
+            // Sinal claro de que a etapa abre um formulário antes de mover
+            // (o antigo "…" de 10px passava despercebido).
+            <span
+              className="ml-auto inline-flex items-center text-muted-foreground"
+              title="Abre formulário para registrar os dados da etapa"
+            >
+              <SquarePen className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only">(abre formulário)</span>
+            </span>
           )}
         </DropdownMenuItem>
       ))}

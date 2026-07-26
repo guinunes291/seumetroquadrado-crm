@@ -34,23 +34,28 @@ A base é forte — a revisão abaixo é de lapidação e de coerência, não de
 
 Fonte: MCP do CRM (funil canônico = `leads.status`), 26/07/2026:
 
-| Métrica | Valor |
-|---|---|
-| Total de leads | **55.060** |
-| Em status **legados/fora do enum da UI** (`descartado`, `ganho`, `proposta`, `vendido`, `visita_agendada`) | **45.660 (83%)** |
-| `em_atendimento` | 4.743 |
-| `aguardando_atendimento` | 3.504 |
-| `aguardando_retorno` | 1.051 |
-| `analise_credito` | 67 |
-| `perdido` | **7** |
-| Temperatura | 166 quentes · 21.214 mornos · 33.611 frios |
-| Corretores "ativos" | 41 (inclui ao menos 6 contas de teste/bot) |
+| Métrica                                                                                                                                                                 | Valor                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Total de leads                                                                                                                                                          | **55.060**                                 |
+| Em status **fora do funil exibido** (soma de `qualificado`, `agendado`, `visita_realizada`, `proposta_enviada`, `contrato_fechado`, `pos_venda`, `aguardando_corretor`) | **45.660 (83%)**                           |
+| `em_atendimento`                                                                                                                                                        | 4.743                                      |
+| `aguardando_atendimento`                                                                                                                                                | 3.504                                      |
+| `aguardando_retorno`                                                                                                                                                    | 1.051                                      |
+| `analise_credito`                                                                                                                                                       | 67                                         |
+| `perdido`                                                                                                                                                               | **7**                                      |
+| Temperatura                                                                                                                                                             | 166 quentes · 21.214 mornos · 33.611 frios |
+| Corretores "ativos"                                                                                                                                                     | 41 (inclui ao menos 6 contas de teste/bot) |
 
 Três conclusões operacionais saem direto daí:
 
-1. **A página só "enxerga" ~17% da base.** Os chips de status e o Kanban iteram apenas o enum
-   canônico; 45,6 mil leads importados com status legados aparecem somente no chip "Todos"
-   (que mostra 55 mil, enquanto a soma dos chips dá ~9,4 mil). Para o gestor, a conta nunca fecha.
+1. **A página só "enxerga" nos chips ~17% da base.** Os chips de status iteram apenas as 8
+   etapas do funil (`LEAD_STATUS_ORDER`); os 45,6 mil leads restantes estão em status **válidos
+   do enum** porém fora dessa lista (`qualificado`, `proposta_enviada`, `pos_venda`,
+   `aguardando_corretor`, `novo`…) e só aparecem no chip "Todos" (55 mil vs soma dos chips
+   ~9,4 mil). Para o gestor, a conta nunca fecha. _(Correção sobre a 1ª versão desta revisão:
+   `leads.status` é enum e nunca conteve `descartado`/`ganho`/`vendido` — esses valores são do
+   vocabulário do MCP, que falhou ao contá-los justamente por não existirem; o "(outros)" da
+   consulta é a soma dos status do enum que ele não enumerou.)_
 2. **Ninguém marca lead como perdido** (7 em 55 mil). O funil incha em `em_atendimento` /
    `aguardando_retorno` para sempre, e as taxas de conversão por etapa do Kanban ficam sem sentido.
 3. **O gargalo é priorização dentro do miolo do funil**: 4.743 leads em atendimento e 1.051
@@ -62,17 +67,20 @@ Três conclusões operacionais saem direto daí:
 
 ## 3. P0 — Incoerências que afetam a operação hoje
 
-### 3.1 Status legados invisíveis (83% da base)
-- **Problema:** chips, Kanban e badges conhecem só o enum canônico; status importados
-  (`descartado`, `ganho`, `proposta`, `vendido`, `visita_agendada`) ficam sem chip, sem cor de
-  badge (`LEAD_STATUS_BADGE_TONE[...]` = `undefined`) e fora de qualquer visão de trabalho.
-- **Proposta:** migration de saneamento mapeando legado → canônico (`descartado`→`perdido` com
-  `motivo_perda='outro'`, `ganho`/`vendido`→`contrato_fechado`, `proposta`→`proposta_enviada`,
-  `visita_agendada`→`agendado`) + CHECK/enum para impedir novos valores fora do mapa. Enquanto a
-  migração não roda, um chip "Legado · N" evita a conta que não fecha.
-- **Esforço M · P0** (decisão de produto sobre o mapeamento; o resto é mecânico).
+### 3.1 Status fora do funil invisíveis nos chips (83% da base)
+
+- **Problema:** os chips de status renderizam só as 8 etapas de `LEAD_STATUS_ORDER`; leads em
+  `qualificado`, `proposta_enviada`, `pos_venda`, `aguardando_corretor` e `novo` (45,6 mil hoje)
+  não têm chip próprio — só aparecem em "Todos", e a soma dos chips nunca bate com o total.
+  _(O enum `lead_status` já restringe os valores; não há valores "legados" fora dele — a
+  correção é de exibição, não de dados.)_
+- **Proposta:** chips **dinâmicos** para qualquer status com contagem > 0 fora do funil
+  (rótulo via `LEAD_STATUS_LABEL`), mantidos depois dos chips fixos. Decisão de produto
+  complementar: triar essa massa (requalificar/descartar) usando o descarte em lote de 3.3.
+- **Esforço P · P0.**
 
 ### 3.2 Gestor cria lead que ele mesmo não vê
+
 - **Problema:** o escopo vigente da `leads_filtered_v2` (20/07) exclui leads órfãos para gestor
   ("carteira + equipe, sem `corretor_id IS NULL`"), mas o dialog "Novo lead" faz o **gestor criar
   lead sem corretor** ("atribua depois pela lista"). Ele cria, o lead some. O filtro
@@ -84,6 +92,7 @@ Três conclusões operacionais saem direto daí:
 - **Esforço P-M · P0.**
 
 ### 3.3 Funil sem saída: disciplina de "perdido"
+
 - **Problema:** 7 perdidos em 55 mil. Existe categoria oficial de perda (11 motivos), fluxo
   dedicado e botão Descartar em cada linha — mas nada **empurra** o descarte; leads mortos ficam
   como "em atendimento" para sempre e poluem toda métrica.
@@ -94,6 +103,7 @@ Três conclusões operacionais saem direto daí:
 - **Esforço M · P0** (o descarte em lote com motivo é a peça que falta).
 
 ### 3.4 Bugs pontuais encontrados no código
+
 - **`TransferSlaBadge` invalida query key morta** `["kanban-leads"]` — o Kanban usa
   `["pipeline-stage-v2"]`/`["pipeline-snapshot-v2"]`; quando o repasse dispara, o quadro não
   atualiza. Também dispara a RPC **no corpo do render** (deveria ser `useEffect`). · **P · P0**
@@ -111,10 +121,11 @@ Três conclusões operacionais saem direto daí:
 ## 4. Melhorias para o CORRETOR (dia a dia)
 
 ### 4.1 Priorização de verdade no miolo do funil ⭐ maior alavanca
+
 - **Problema:** dentro do grupo "demais status" (4,7 mil leads em atendimento), a ordem padrão é
   `created_at DESC`. O **score de prioridade já existe** (`lib/priority.ts`, 0-100 com temperatura
-  + etapa + SLA + dias parado) mas só aparece no peek e no modo foco — nunca na tabela, nunca como
-  ordenação, e **sempre sem o componente de SLA** (nenhum chamador passa `slaStatus`).
+  - etapa + SLA + dias parado) mas só aparece no peek e no modo foco — nunca na tabela, nunca como
+    ordenação, e **sempre sem o componente de SLA** (nenhum chamador passa `slaStatus`).
 - **Proposta:** levar o score para o servidor (coluna calculada na `leads_filtered_v2` ou
   materializada por cron junto com a temperatura) e: (a) coluna "Prioridade" sortable na tabela,
   (b) tornar o score o critério de desempate da prioridade operacional padrão, (c) alimentar
@@ -122,6 +133,7 @@ Três conclusões operacionais saem direto daí:
 - **Esforço M · P1.**
 
 ### 4.2 Modo foco como esteira de trabalho completa
+
 - **Problemas:** a fila é só a **página atual (50)**, não o recorte filtrado; `startId` está
   implementado mas nunca alimentado (não existe "trabalhar a fila a partir deste lead");
   não há atalhos de ação (só J/K navegam); depois de agir é preciso avançar manualmente.
@@ -132,11 +144,13 @@ Três conclusões operacionais saem direto daí:
 - **Esforço M · P1.**
 
 ### 4.3 Coluna e sort "Última interação" (quick win)
+
 - A whitelist da v2 **já aceita** `ultima_interacao` — a tabela é que não oferece a coluna.
   Adicionar coluna "Último contato" (relativa: "há 3 dias" / "nunca") sortable. Com ela, o
   corretor ordena a carteira por "quem estou deixando esfriar" em 1 clique. · **P · P1**
 
 ### 4.4 Follow-up visível na linha (dado hoje morto)
+
 - **Problema:** a v2 devolve `tem_followup` e o campo morre no tipo — nenhuma coluna, chip ou
   flag o exibe; o booleano nem diz se está vencido.
 - **Proposta:** evoluir a RPC para devolver `proximo_followup` (data) e expor: chip
@@ -144,6 +158,7 @@ Três conclusões operacionais saem direto daí:
   "+ Follow-up" na linha (hoje follow-up só existe em lote). · **P-M · P1**
 
 ### 4.5 Uma régua única de "lead esfriando"
+
 - **Problema:** quatro réguas divergentes para a mesma ideia: flags (5d/10d), badge "Nd parado"
   (2d/5d), Kanban (2d/5d no card, 7d no header), filtro "Sem contato 5+ dias" — com listas de
   status excluídos diferentes entre `lead-flags.ts` e `lead-indicators.tsx` (ex.: lead em `novo`
@@ -154,6 +169,7 @@ Três conclusões operacionais saem direto daí:
   dias dentro: "Parado · 12d"). · **P-M · P1**
 
 ### 4.6 Peek drawer que resolve sem sair dele
+
 - **Problemas:** sem "Registrar contato" e sem "Mudar etapa" (só o botão de próxima ação); não
   mostra flags nem SLA (linha e peek contam histórias diferentes); erros de query são engolidos
   (viram "nenhuma interação"); queries duplicam `use-lead-detail` com limites diferentes.
@@ -161,6 +177,7 @@ Três conclusões operacionais saem direto daí:
   tratamento de erro) e exibir os mesmos chips/flags da linha. · **P-M · P1**
 
 ### 4.7 Kanban integrado à lista
+
 - **Problemas:** trocar Lista↔Kanban **descarta todos os filtros** (o Kanban tem busca própria e
   nenhum filtro, embora a RPC aceite `_corretor_id`/`_projeto_id`); o card não abre o lead nem o
   peek; o filtro cliente extra usa o texto **não debounced** e só nome/telefone (dessincroniza do
@@ -171,6 +188,7 @@ Três conclusões operacionais saem direto daí:
   cliente duplicado. · **M · P1**
 
 ### 4.8 Papercuts de ação
+
 - "Descartar" duplicado (botão `Ban` + item do menu ⋯) — manter um. · **P · P2**
 - Bulk "Registrar ligação" e "Temperatura" usam `window.confirm` (feio e inconsistente com o
   `AlertDialog` usado no resto). · **P · P2**
@@ -183,6 +201,7 @@ Três conclusões operacionais saem direto daí:
 ## 5. Melhorias para o GESTOR
 
 ### 5.1 Seleção e lote na escala real da base
+
 - **Problema:** a seleção é limitada à página (50); com 3,5 mil aguardando atendimento, transferir
   ou descartar uma safra inteira exige 70 repetições. Não existe "distribuir em lote pela roleta"
   (só individual) nem "descartar em lote com motivo".
@@ -192,11 +211,13 @@ Três conclusões operacionais saem direto daí:
   parciais ("87 de 100 transferidos, 13 falharam"). · **M-G · P1**
 
 ### 5.2 Export CSV do recorte filtrado
+
 - Não existe nenhum export na página (só import). Gestor vive pedindo a lista para planilha.
   Botão "Exportar CSV" com os filtros ativos (server function paginando a v2 até o teto, com as
   colunas visíveis). · **P-M · P1**
 
 ### 5.3 Importação operacionalmente completa
+
 - **Problemas:** insere linha a linha (planilha grande = minutos sem feedback), telefone salvo
   **cru** (sem normalização — mina o dedup futuro), não usa o `criar_lead_dedup` transacional,
   não atribui corretor nem dispara roleta (tudo cai em `novo` e depende de distribuição
@@ -206,23 +227,27 @@ Três conclusões operacionais saem direto daí:
   erros". · **M · P1**
 
 ### 5.4 Higiene do cadastro de corretores
+
 - 41 "ativos" incluem `docs-bot`, "Edson teste junior", 2× "Meu metro De Login", 2× "Leticia
   amaral braga" (e-mails descartáveis). Essas contas aparecem no filtro de corretor, no dialog de
   transferência e (pior) são elegíveis na roleta. Desativar/flagar contas de teste e esconder
   bots dos selects. · **P · P0-P1**
 
 ### 5.5 Sinais agregados que o banco já entrega e a UI joga fora
+
 - O snapshot do Kanban devolve `followups_vencidos` e `sem_proxima_acao` por etapa e o quadro não
   os exibe. São exatamente os dois números de cobrança do gestor. Exibir como badges no header da
   coluna (clicáveis → filtram). · **P · P1**
 
 ### 5.6 Filtros compartilháveis (URL de saída)
+
 - A URL só **entra** (drill-through); mexer nos filtros não a atualiza. Gestor não consegue mandar
   "olha essa fila" para um corretor. Sincronizar filtros → URL (o helper `filtrosParaSearch` já
   existe e está sem uso) e, num segundo passo, visões salvas no banco (compartilháveis por equipe)
   em vez de localStorage. · **P (URL) / M (visões no banco) · P1-P2**
 
 ### 5.7 Coerência de escopo entre as camadas
+
 - Hoje: lista = carteira+equipe sem órfãos; contagens = equipe; `leads_sla_pendentes` = org
   inteira; `tem_followup` = qualquer corretor; Kanban = `pode_acessar_lead` por linha. Cada
   superfície responde "quantos leads tenho?" de um jeito. Consolidar numa única função de escopo

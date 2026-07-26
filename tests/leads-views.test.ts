@@ -13,37 +13,104 @@ describe("passaContato — filtros rápidos da lista", () => {
 
   it("contato_7d: dentro de 7 dias passa; fora não; sem interação não", () => {
     expect(
-      passaContato("contato_7d", { ultimaInteracao: dAtras(2), status: "em_atendimento", temFollowup: false }),
+      passaContato("contato_7d", {
+        ultimaInteracao: dAtras(2),
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(true);
     expect(
-      passaContato("contato_7d", { ultimaInteracao: dAtras(10), status: "em_atendimento", temFollowup: false }),
+      passaContato("contato_7d", {
+        ultimaInteracao: dAtras(10),
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(false);
     expect(
-      passaContato("contato_7d", { ultimaInteracao: null, status: "em_atendimento", temFollowup: false }),
+      passaContato("contato_7d", {
+        ultimaInteracao: null,
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(false);
   });
 
   it("sem_contato_5d: parado 5+ dias (ou sem contato) e ativo passa; recente ou finalizado não", () => {
     expect(
-      passaContato("sem_contato_5d", { ultimaInteracao: dAtras(6), status: "em_atendimento", temFollowup: false }),
+      passaContato("sem_contato_5d", {
+        ultimaInteracao: dAtras(6),
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(true);
     expect(
-      passaContato("sem_contato_5d", { ultimaInteracao: null, status: "aguardando_atendimento", temFollowup: false }),
+      passaContato("sem_contato_5d", {
+        ultimaInteracao: null,
+        status: "aguardando_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(true);
     expect(
-      passaContato("sem_contato_5d", { ultimaInteracao: hAtras(2), status: "em_atendimento", temFollowup: false }),
+      passaContato("sem_contato_5d", {
+        ultimaInteracao: hAtras(2),
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(false);
     expect(
-      passaContato("sem_contato_5d", { ultimaInteracao: dAtras(30), status: "contrato_fechado", temFollowup: false }),
+      passaContato("sem_contato_5d", {
+        ultimaInteracao: dAtras(30),
+        status: "contrato_fechado",
+        temFollowup: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("sem_contato_30d: só leads ativos parados há 30+ dias (higiene/descarte)", () => {
+    expect(
+      passaContato("sem_contato_30d", {
+        ultimaInteracao: dAtras(45),
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
+    ).toBe(true);
+    expect(
+      passaContato("sem_contato_30d", {
+        ultimaInteracao: null,
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
+    ).toBe(true);
+    expect(
+      passaContato("sem_contato_30d", {
+        ultimaInteracao: dAtras(10),
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
+    ).toBe(false);
+    expect(
+      passaContato("sem_contato_30d", {
+        ultimaInteracao: dAtras(90),
+        status: "perdido",
+        temFollowup: false,
+      }),
     ).toBe(false);
   });
 
   it("com_followup respeita a flag", () => {
     expect(
-      passaContato("com_followup", { ultimaInteracao: null, status: "em_atendimento", temFollowup: true }),
+      passaContato("com_followup", {
+        ultimaInteracao: null,
+        status: "em_atendimento",
+        temFollowup: true,
+      }),
     ).toBe(true);
     expect(
-      passaContato("com_followup", { ultimaInteracao: null, status: "em_atendimento", temFollowup: false }),
+      passaContato("com_followup", {
+        ultimaInteracao: null,
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
     ).toBe(false);
   });
 });

@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 type Row = { origem: string; timeout_minutos: number };
 
 /** Cache global (react-query) do mapa origem → timeout_minutos. */
+// eslint-disable-next-line react-refresh/only-export-components -- hook acoplado ao badge (mesmo dado, mesma tela); conviver com o componente é intencional
 export function useTransferTimeouts() {
   const q = useQuery({
     queryKey: ["transfer-timeouts"],
@@ -90,7 +91,7 @@ export function TransferSlaBadge({
   className,
   leadId,
 }: TransferSlaBadgeProps) {
-  const [, force] = useState(0);
+  const [tick, setTick] = useState(0);
   const qc = useQueryClient();
   const firingRef = useRef(false);
 
@@ -109,9 +110,44 @@ export function TransferSlaBadge({
   useEffect(() => {
     if (!ativo) return;
     // Tica de 1s — mostrar 4:59, 4:58, 4:57… realmente contando.
-    const id = setInterval(() => force((t) => (t + 1) % 1_000_000), 1000);
+    const id = setInterval(() => setTick((t) => (t + 1) % 1_000_000), 1000);
     return () => clearInterval(id);
   }, [ativo]);
+
+  // O contador estourou? Calculado antes dos early-returns porque o efeito de
+  // disparo abaixo precisa rodar em toda renderização (regras de hooks).
+  const slaEstourado =
+    ativo &&
+    !!dataDistribuicao &&
+    Date.now() - new Date(dataDistribuicao).getTime() >= (timeouts.get(origem ?? "") ?? 0) * 60_000;
+
+  // Ao chegar em 0:00, dispara o repasse imediato (RPC idempotente com os
+  // mesmos guarda-corpos do cron). Efeito (não corpo do render): disparar RPC
+  // durante a renderização é efeito colateral fora do ciclo do React. `tick`
+  // nas deps reavalia a cada segundo — o dedup (60s por lead + firingRef por
+  // sessão) é quem impede spam e permite a retentativa após o cooldown.
+  useEffect(() => {
+    if (!leadId || !slaEstourado || firingRef.current) return;
+    const ultimo = disparadoEm.get(leadId) ?? 0;
+    if (Date.now() - ultimo <= 60_000) return;
+    firingRef.current = true;
+    disparadoEm.set(leadId, Date.now());
+    void (async () => {
+      try {
+        const { data } = await supabase.rpc("disparar_repasse_sla_lead", { _lead_id: leadId });
+        if (data === true) {
+          qc.invalidateQueries({ queryKey: ["leads"] });
+          qc.invalidateQueries({ queryKey: ["leads-transfer-info"] });
+          qc.invalidateQueries({ queryKey: ["pipeline-stage-v2"] });
+          qc.invalidateQueries({ queryKey: ["pipeline-snapshot-v2"] });
+        }
+      } catch {
+        /* silencioso — cron de 1 min segue como fallback */
+      } finally {
+        firingRef.current = false;
+      }
+    })();
+  }, [slaEstourado, leadId, qc, tick]);
 
   if (status !== "aguardando_atendimento") return null;
   if (viaWebhook === false) return null;
@@ -154,30 +190,6 @@ export function TransferSlaBadge({
   const restanteMs = totalMs - decorridosMs;
   const restanteSec = Math.ceil(restanteMs / 1000);
   const ratio = decorridosMs / Math.max(totalMs, 1);
-
-  // Ao chegar em 0:00, dispara o repasse imediato (RPC idempotente com os
-  // mesmos guarda-corpos do cron). Dedup: 60s por lead + por sessão.
-  if (leadId && ratio >= 1 && !firingRef.current) {
-    const ultimo = disparadoEm.get(leadId) ?? 0;
-    if (Date.now() - ultimo > 60_000) {
-      firingRef.current = true;
-      disparadoEm.set(leadId, Date.now());
-      (async () => {
-        try {
-          const { data } = await supabase.rpc("disparar_repasse_sla_lead", { _lead_id: leadId });
-          if (data === true) {
-            qc.invalidateQueries({ queryKey: ["leads"] });
-            qc.invalidateQueries({ queryKey: ["leads-transfer-info"] });
-            qc.invalidateQueries({ queryKey: ["kanban-leads"] });
-          }
-        } catch {
-          /* silencioso — cron de 1 min segue como fallback */
-        } finally {
-          firingRef.current = false;
-        }
-      })();
-    }
-  }
 
   const status_ = ratio >= 1 ? "estourado" : ratio > 0.6 ? "atencao" : "ok";
   const tone =

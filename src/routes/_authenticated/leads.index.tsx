@@ -36,6 +36,7 @@ import {
   loadUltimoFiltro,
   saveUltimoFiltro,
   mesclarFiltrosDaUrl,
+  filtrosParaSearch,
   searchParaFiltros,
   temFiltrosNaUrl,
   type LeadFiltros,
@@ -78,6 +79,7 @@ import {
   Snowflake,
   AlertTriangle,
   ArrowRightLeft,
+  Ban,
   Bookmark,
   ChevronDown,
   CalendarClock,
@@ -88,6 +90,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  Shuffle,
 } from "lucide-react";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,10 +103,13 @@ import {
   LEAD_STATUS_ORDER,
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
+  MOTIVO_PERDA_CATEGORIAS,
+  MOTIVO_PERDA_LABEL,
   PROXIMA_ACAO,
   leadStatusLabel,
   resolveStageAction,
   type LeadStatus,
+  type MotivoPerdaCategoria,
 } from "@/lib/leads";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import {
@@ -115,8 +121,8 @@ import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla
 import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
 import { ORIGEM_OPTIONS, abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import type { Lead } from "@/features/leads/types";
-import { InatividadeBadge } from "@/features/leads/lead-indicators";
 import { LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
+import { rpcLeadsFiltered, rpcLeadsStatusCounts } from "@/features/leads/leads-rpc";
 import { useLeadMutations } from "@/features/leads/use-lead-mutations";
 import { LeadsTable, FlagChips } from "@/features/leads/leads-table";
 import { FocusMode } from "@/features/leads/focus-mode";
@@ -130,12 +136,18 @@ import { isTypingTarget } from "@/lib/shortcuts";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
-  // Drill-through universal: todo filtro server-side da leads_filtered_v2 pode
+  // Drill-through universal: todo filtro server-side da leads_filtered pode
   // chegar pela URL (telas de gestão linkam para cá). URL vence localStorage.
+  // A página também ESCREVE os filtros/página na URL (replace) — a visão
+  // corrente vira link compartilhável e sobrevive ao voltar do detalhe.
   validateSearch: (
     search: Record<string, unknown>,
-  ): { view?: "lista" | "kanban" } & LeadSearchFiltros => ({
+  ): { view?: "lista" | "kanban"; pagina?: number } & LeadSearchFiltros => ({
     view: search.view === "kanban" ? "kanban" : undefined,
+    pagina:
+      typeof search.pagina === "number" && Number.isFinite(search.pagina) && search.pagina > 1
+        ? Math.floor(search.pagina)
+        : undefined,
     ...searchParaFiltros(search),
   }),
   component: LeadsPage,
@@ -222,10 +234,10 @@ function LeadsPage() {
         view: v === "kanban" ? "kanban" : undefined,
       }),
     });
+  // Aceita qualquer status conhecido (não só os do funil) — o drill-through e
+  // os chips dinâmicos cobrem também novo/qualificado/proposta_enviada/etc.
   const statusParamValido =
-    statusParam && (LEAD_STATUS_ORDER as readonly string[]).includes(statusParam)
-      ? statusParam
-      : undefined;
+    statusParam && statusParam in LEAD_STATUS_LABEL ? statusParam : undefined;
   const [statusFilter, setStatusFilter] = useState<string>(
     statusParamValido ?? (canManage ? "all" : "aguardando_atendimento"),
   );
@@ -237,7 +249,8 @@ function LeadsPage() {
   const [dataFimFilter, setDataFimFilter] = useState("");
   const [contatoFilter, setContatoFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
-  const [page, setPage] = useState(1);
+  // Página inicial pode vir da URL (?pagina=N) — voltar do detalhe não reseta.
+  const [page, setPage] = useState(searchParams.pagina ?? 1);
   const [viewMode, setViewMode] = useState<"tabela" | "cards">(() => {
     if (typeof window === "undefined") return "tabela";
     const saved = window.localStorage.getItem("smq:leads-view-mode");
@@ -257,6 +270,18 @@ function LeadsPage() {
   const [bulkTarget, setBulkTarget] = useState<string>("");
   const [bulkFollowupOpen, setBulkFollowupOpen] = useState(false);
   const [bulkFollowupData, setBulkFollowupData] = useState<string>("");
+  // Descarte em lote com motivo (higiene do funil).
+  const [bulkDescarteOpen, setBulkDescarteOpen] = useState(false);
+  const [descarteCategoria, setDescarteCategoria] = useState<MotivoPerdaCategoria | "">("");
+  const [descarteDetalhe, setDescarteDetalhe] = useState("");
+  // Confirmação padrão das ações em lote (substitui os window.confirm).
+  const [confirmState, setConfirmState] = useState<{
+    titulo: string;
+    descricao?: string;
+    acao: () => void;
+  } | null>(null);
+  // "Selecionar todos os N do filtro" (cap 1000) — busca os ids paginando a RPC.
+  const [selecionandoTudo, setSelecionandoTudo] = useState(false);
   const [contactLead, setContactLead] = useState<Lead | null>(null);
   // Último tipo de contato usado, para o split "Iniciar atendimento" em 1 clique.
   const [lastContactType, setLastContactType] = useState<"ligacao" | "whatsapp">(() => {
@@ -347,6 +372,33 @@ function LeadsPage() {
     contatoFilter,
   ]);
 
+  // Filtros/página → URL (replace, sem sujar o histórico): a visão corrente
+  // vira link compartilhável ("olha essa fila") e voltar do detalhe do lead
+  // restaura filtros E página. Idempotente com o efeito de drill-through:
+  // reaplicar os mesmos valores não muda estado.
+  useEffect(() => {
+    if (!filtrosRestauradosRef.current) return;
+    navigate({
+      replace: true,
+      search: (prev: Record<string, unknown>) => ({
+        view: prev.view === "kanban" ? ("kanban" as const) : undefined,
+        ...(page > 1 ? { pagina: page } : {}),
+        ...filtrosParaSearch(filtrosAtuais),
+      }),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    statusFilter,
+    origemFilter,
+    corretorFilter,
+    temperaturaFilter,
+    periodoFilter,
+    dataInicioFilter,
+    dataFimFilter,
+    contatoFilter,
+    page,
+  ]);
+
   const salvarVisaoAtual = () => {
     const nome = viewName.trim();
     if (!nome || !user?.id) return;
@@ -386,6 +438,8 @@ function LeadsPage() {
   }, [corretores]);
 
   // Query principal — aplica os filtros direto no banco; em Venda usa data_assinatura.
+  // SEM page de propósito: as contagens e a fila do foco reusam esta key e não
+  // dependem da página (antes cada troca de página refazia os counts à toa).
   const baseQueryKey = {
     debouncedSearch,
     origemFilter,
@@ -398,7 +452,6 @@ function LeadsPage() {
     canManage,
     uid: user?.id,
     contatoFilter,
-    page,
   };
 
   const periodoRange = useMemo(() => {
@@ -411,70 +464,84 @@ function LeadsPage() {
     return { start: periodoStart(periodoFilter), end: periodoEnd(periodoFilter) };
   }, [periodoFilter, dataInicioFilter, dataFimFilter]);
 
+  // Parâmetros compartilhados entre a query principal, os counts e a fila do
+  // modo foco — uma única montagem para os três consumidores.
+  const buildParams = () => {
+    const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
+    const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
+    return {
+      _na_lixeira: showLixeira,
+      _status: statusFilter,
+      _origem: origemFilter,
+      _corretor: corretorFilter,
+      _temperatura: temperaturaFilter,
+      _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
+      _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
+      _search: sNorm,
+      _search_digits: sDig,
+    };
+  };
+
+  type LeadsSource = "v3" | "v2" | "v1";
+
   const {
     data: leadsResult,
     isLoading,
     isError: leadsError,
     refetch: refetchLeads,
   } = useQuery({
-    queryKey: ["leads", baseQueryKey, statusFilter, sorting],
-    queryFn: async (): Promise<{ rows: Lead[]; source: "v2" | "v1" }> => {
-      const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
-      const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const paramsV1 = {
-        _na_lixeira: showLixeira,
-        _status: statusFilter,
-        _origem: origemFilter,
-        _corretor: corretorFilter,
-        _temperatura: temperaturaFilter,
-        _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
-        _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
-        _search: sNorm,
-        _search_digits: sDig,
+    queryKey: ["leads", baseQueryKey, statusFilter, sorting, page],
+    queryFn: async (): Promise<{ rows: Lead[]; source: LeadsSource }> => {
+      const paramsV1 = buildParams();
+      const paramsPaginados = {
+        ...paramsV1,
+        _contato: contatoFilter,
+        _sort: sorting[0]?.id ?? null,
+        _sort_dir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
+        _limit: LEADS_PAGE_SIZE,
+        _offset: (page - 1) * LEADS_PAGE_SIZE,
       };
-      return rpcWithFallback<{ rows: Lead[]; source: "v2" | "v1" }>(
-        // v2 (P2-15): contato, sort e paginação 100% no servidor — sempre
-        // uma página de LEADS_PAGE_SIZE, mesmo com filtro de contato ativo.
-        async () => {
-          const { data, error } = await supabase.rpc(
-            "leads_filtered_v2" as never,
-            {
-              ...paramsV1,
-              _contato: contatoFilter,
-              _sort: sorting[0]?.id ?? null,
-              _sort_dir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
-              _limit: LEADS_PAGE_SIZE,
-              _offset: (page - 1) * LEADS_PAGE_SIZE,
-            } as never,
-          );
-          if (error) throw error;
-          return { rows: (data ?? []) as Lead[], source: "v2" as const };
-        },
-        // v1 (fallback enquanto a migration não está aplicada): filtros de
-        // contato ainda dependem do conjunto completo — baixa até 1000 linhas
-        // e fatia no cliente; os demais paginam no banco.
-        async () => {
-          const v1ServerPaginated = contatoFilter === "all";
-          const { data, error } = await supabase.rpc("leads_filtered", {
-            ...paramsV1,
-            _limit: v1ServerPaginated ? LEADS_PAGE_SIZE : 1000,
-            _offset: v1ServerPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
-          });
-          if (error) throw error;
-          // O Row gerado da RPC é atribuível a Lead (campos `T` vs `T | null`)
-          // — dispensa o antigo double-cast via unknown.
-          return { rows: data ?? [], source: "v1" as const };
-        },
+      return rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
+        // v3: tudo da v2 + score de prioridade e proximo_followup por linha,
+        // sort por score, recorte sem_contato_30d e escopo de gestor com órfãos.
+        async () => ({
+          rows: await rpcLeadsFiltered("v3", paramsPaginados),
+          source: "v3" as const,
+        }),
+        () =>
+          rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
+            // v2 (P2-15): contato, sort e paginação 100% no servidor — sempre
+            // uma página de LEADS_PAGE_SIZE, mesmo com filtro de contato ativo.
+            async () => ({
+              rows: await rpcLeadsFiltered("v2", paramsPaginados),
+              source: "v2" as const,
+            }),
+            // v1 (fallback enquanto a migration não está aplicada): filtros de
+            // contato ainda dependem do conjunto completo — baixa até 1000 linhas
+            // e fatia no cliente; os demais paginam no banco.
+            async () => {
+              const v1ServerPaginated = contatoFilter === "all";
+              const { data, error } = await supabase.rpc("leads_filtered", {
+                ...paramsV1,
+                _limit: v1ServerPaginated ? LEADS_PAGE_SIZE : 1000,
+                _offset: v1ServerPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
+              });
+              if (error) throw error;
+              // O Row gerado da RPC é atribuível a Lead (campos `T` vs `T | null`)
+              // — dispensa o antigo double-cast via unknown.
+              return { rows: data ?? [], source: "v1" as const };
+            },
+          ),
       );
     },
     enabled: canManage || !!user?.id,
   });
 
   const leadsAll = leadsResult?.rows;
-  const source = leadsResult?.source ?? "v2";
-  // Com a v2 a paginação é sempre no servidor; no fallback v1 só quando não há
-  // filtro de contato (que ainda fatia no cliente).
-  const serverPaginated = source === "v2" ? true : contatoFilter === "all";
+  const source: LeadsSource = leadsResult?.source ?? "v3";
+  // Com v2/v3 a paginação é sempre no servidor; no fallback v1 só quando não
+  // há filtro de contato (que ainda fatia no cliente).
+  const serverPaginated = source !== "v1" ? true : contatoFilter === "all";
 
   // IDs de leads com follow-up pendente — só no fallback v1 (a v2 resolve o
   // recorte "com_followup" no próprio servidor e devolve `tem_followup`).
@@ -514,33 +581,21 @@ function LeadsPage() {
   } = useQuery({
     queryKey: ["leads-status-counts", baseQueryKey],
     queryFn: async () => {
-      const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
-      const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
-      const countParams = {
-        _na_lixeira: showLixeira,
-        _origem: origemFilter,
-        _corretor: corretorFilter,
-        _temperatura: temperaturaFilter,
-        _periodo_start: periodoRange.start ? periodoRange.start.toISOString() : undefined,
-        _periodo_end: periodoRange.end ? periodoRange.end.toISOString() : undefined,
-        _search: sNorm,
-        _search_digits: sDig,
-      };
+      const { _status: _ignorado, ...countParams } = buildParams();
+      void _ignorado;
       const rows = await rpcWithFallback<unknown[]>(
-        // v2: as abas de status contam respeitando também o recorte de contato.
-        async () => {
-          const { data, error } = await supabase.rpc(
-            "leads_status_counts_v2" as never,
-            { ...countParams, _contato: contatoFilter } as never,
-          );
-          if (error) throw error;
-          return data ?? [];
-        },
-        async () => {
-          const { data, error } = await supabase.rpc("leads_status_counts", countParams);
-          if (error) throw error;
-          return data ?? [];
-        },
+        // v3: mesmo escopo da lista (gestor vê órfãos) + recorte sem_contato_30d.
+        () => rpcLeadsStatusCounts("v3", { ...countParams, _contato: contatoFilter }),
+        () =>
+          rpcWithFallback<unknown[]>(
+            // v2: as abas de status contam respeitando também o recorte de contato.
+            () => rpcLeadsStatusCounts("v2", { ...countParams, _contato: contatoFilter }),
+            async () => {
+              const { data, error } = await supabase.rpc("leads_status_counts", countParams);
+              if (error) throw error;
+              return data ?? [];
+            },
+          ),
       );
       const counts: Record<string, number> = {};
       let total = 0;
@@ -553,7 +608,8 @@ function LeadsPage() {
     enabled: canManage || !!user?.id,
   });
 
-  const statusCounts = statusCountsData?.counts ?? {};
+  // useMemo para o memo dos chips dinâmicos não recalcular a cada render.
+  const statusCounts = useMemo(() => statusCountsData?.counts ?? {}, [statusCountsData]);
   const leadQueryTotal = Number(leadsAll?.[0]?.total_count ?? leadsAll?.length ?? 0);
   const totalLeadsCount = statusCountsData?.total ?? leadQueryTotal;
   const followupFilterFailed = contatoFilter === "com_followup" && followupError;
@@ -562,9 +618,23 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
-    // v2: o servidor já aplicou o recorte de contato e a ordenação (sort de
+    // v2/v3: o servidor já aplicou o recorte de contato e a ordenação (sort de
     // coluna ou prioridade operacional) — a página recebe a lista pronta.
-    if (source === "v2") return leadsAll;
+    // Exceção transitória: sem_contato_30d só existe na v3; se o backend ainda
+    // está na v2, filtra a página localmente (total fica aproximado até a
+    // migration v3 ser aplicada).
+    if (source !== "v1") {
+      if (source === "v2" && contatoFilter === "sem_contato_30d") {
+        return leadsAll.filter((l) =>
+          passaContato("sem_contato_30d", {
+            ultimaInteracao: l.ultima_interacao,
+            status: l.status,
+            temFollowup: l.tem_followup ?? false,
+          }),
+        );
+      }
+      return leadsAll;
+    }
     let base = leadsAll;
     if (contatoFilter !== "all") {
       base = base.filter((l) =>
@@ -677,17 +747,61 @@ function LeadsPage() {
     if (typeof window !== "undefined") window.localStorage.setItem("smq:leads-view-mode", viewMode);
   }, [viewMode]);
 
-  // Limpa seleção quando o conjunto filtrado muda
+  // Limpa a seleção quando o RECORTE muda (filtros/busca/lixeira) — mas não ao
+  // trocar de página: a seleção pode atravessar páginas ("selecionar todos os
+  // N do filtro") e o antigo prune por linhas visíveis a destruía.
   useEffect(() => {
-    setSelectedIds((prev) => {
-      const ids = new Set(filtered.map((l) => l.id));
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (ids.has(id)) next.add(id);
-      });
-      return next.size === prev.size ? prev : next;
-    });
-  }, [filtered]);
+    setSelectedIds(new Set());
+  }, [
+    statusFilter,
+    origemFilter,
+    corretorFilter,
+    temperaturaFilter,
+    periodoFilter,
+    dataInicioFilter,
+    dataFimFilter,
+    contatoFilter,
+    debouncedSearch,
+    showLixeira,
+  ]);
+
+  // "Selecionar todos os N do filtro": pagina a RPC (200 por chamada) até o
+  // teto de 1000 ids — o suficiente para transferir/descartar uma safra sem
+  // 20 repetições de página, sem derrubar o navegador.
+  const SELECAO_MAX = 1000;
+  const selecionarTodosDoFiltro = async () => {
+    setSelecionandoTudo(true);
+    try {
+      const paramsV1 = buildParams();
+      const ids: string[] = [];
+      for (let offset = 0; offset < SELECAO_MAX; offset += 200) {
+        const paramsPagina = {
+          ...paramsV1,
+          _contato: contatoFilter,
+          _sort: null,
+          _sort_dir: null,
+          _limit: 200,
+          _offset: offset,
+        };
+        const rows = await rpcWithFallback<Lead[]>(
+          () => rpcLeadsFiltered("v3", paramsPagina),
+          () => rpcLeadsFiltered("v2", paramsPagina),
+        );
+        ids.push(...rows.map((l) => l.id));
+        if (rows.length < 200) break;
+      }
+      setSelectedIds(new Set(ids));
+      if (visibleTotal > SELECAO_MAX) {
+        toast.info(
+          `Selecionados os primeiros ${SELECAO_MAX.toLocaleString("pt-BR")} leads do filtro — refine o recorte para cobrir o restante.`,
+        );
+      }
+    } catch (e) {
+      toast.error((e as Error).message || "Não foi possível selecionar todos os leads.");
+    } finally {
+      setSelecionandoTudo(false);
+    }
+  };
 
   function toggleOne(id: string) {
     setSelectedIds((prev) => {
@@ -705,6 +819,8 @@ function LeadsPage() {
     bulkTemperatura,
     bulkFollowup,
     bulkRegistrarLigacao,
+    bulkDescartar,
+    bulkRoleta,
     iniciarAtendimento,
   } = useLeadMutations({
     clearSelection: () => setSelectedIds(new Set()),
@@ -732,6 +848,36 @@ function LeadsPage() {
     else updateStatus.mutate({ id: l.id, status: acao.target });
   };
 
+  // Fila do modo foco = o RECORTE inteiro (até 200 ids na ordem operacional),
+  // não só a página de 50 — sem isso o "trabalhar a fila" acabava no lead 50.
+  const { data: focusIdsData } = useQuery({
+    queryKey: ["leads-focus-ids", baseQueryKey, statusFilter],
+    enabled: focusOpen && source !== "v1",
+    staleTime: 30_000,
+    queryFn: async (): Promise<string[]> => {
+      const paramsFila = {
+        ...buildParams(),
+        _contato: contatoFilter,
+        _sort: null,
+        _sort_dir: null,
+        _limit: 200,
+        _offset: 0,
+      };
+      const rows = await rpcWithFallback<Lead[]>(
+        () => rpcLeadsFiltered("v3", paramsFila),
+        () => rpcLeadsFiltered("v2", paramsFila),
+      );
+      return rows.map((l) => l.id);
+    },
+  });
+  const focusQueue = useMemo(() => {
+    const ids = focusIdsData ?? filtered.map((l) => l.id);
+    // "Focar a partir daqui" num lead fora da 1ª leva (ex.: página 5): garante
+    // o lead clicado na fila, na frente.
+    if (focusStart && !ids.includes(focusStart)) return [focusStart, ...ids];
+    return ids;
+  }, [focusIdsData, filtered, focusStart]);
+
   // Atalho F abre o modo foco com a fila filtrada atual (só na view lista,
   // nunca digitando em campo de texto).
   useEffect(() => {
@@ -741,12 +887,30 @@ function LeadsPage() {
       if (isTypingTarget(e.target)) return;
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
+        setFocusStart(undefined);
         setFocusOpen(true);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [activeView]);
+
+  // Chips dinâmicos: status VÁLIDOS do enum porém fora do funil exibido
+  // (novo, aguardando_corretor, qualificado, proposta_enviada, pos_venda…).
+  // Sem eles, 83% da base só aparecia no "Todos" e a soma dos chips nunca
+  // batia com o total (docs/revisao-pagina-leads.md §3.1).
+  const statusForaDoFunil = useMemo(() => {
+    const funil = new Set<string>(LEAD_STATUS_ORDER);
+    const ordem = ["novo", "aguardando_corretor", "qualificado", "proposta_enviada", "pos_venda"];
+    return Object.keys(statusCounts)
+      .filter((s) => !funil.has(s) && s !== "__total__" && (statusCounts[s] ?? 0) > 0)
+      .filter((s) => canManage || s !== "novo")
+      .sort((a, b) => {
+        const ia = ordem.indexOf(a);
+        const ib = ordem.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+      });
+  }, [statusCounts, canManage]);
 
   const activeFiltersCount =
     (statusFilter !== "all" && statusFilter !== "aguardando_atendimento" ? 1 : 0) +
@@ -815,7 +979,12 @@ function LeadsPage() {
       />
 
       {activeView === "kanban" ? (
-        <KanbanBoard />
+        // Kanban herda a busca e o corretor da lista — trocar de visão não
+        // descarta mais o recorte que o usuário montou.
+        <KanbanBoard
+          initialSearch={search || undefined}
+          corretorId={canManage && corretorFilter !== "all" ? corretorFilter : undefined}
+        />
       ) : (
         <>
           {/* Chips de status com contagem */}
@@ -848,6 +1017,28 @@ function LeadsPage() {
                   }`}
                 >
                   {LEAD_STATUS_LABEL[s]} · {n}
+                </button>
+              );
+            })}
+            {/* Status fora do funil com leads (a soma dos chips = "Todos") —
+                visual tracejado para diferenciar das etapas de trabalho. */}
+            {statusForaDoFunil.map((s) => {
+              const n = statusCounts[s] ?? 0;
+              const active = statusFilter === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(active ? "all" : s)}
+                  aria-pressed={active}
+                  title="Status fora do funil de trabalho — triagem recomendada"
+                  className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border border-dashed whitespace-nowrap transition ${
+                    active
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {leadStatusLabel(s)} · {n}
                 </button>
               );
             })}
@@ -1148,12 +1339,12 @@ function LeadsPage() {
                   disabled={bulkRegistrarLigacao.isPending}
                   onClick={() => {
                     const n = selectedIds.size;
-                    if (
-                      window.confirm(
-                        `Registrar ligação em ${n} lead${n > 1 ? "s" : ""} selecionado${n > 1 ? "s" : ""}?`,
-                      )
-                    )
-                      bulkRegistrarLigacao.mutate(Array.from(selectedIds));
+                    setConfirmState({
+                      titulo: `Registrar ligação em ${n} lead${n > 1 ? "s" : ""}?`,
+                      descricao:
+                        "Cria uma interação de ligação (saída) na timeline de cada lead selecionado.",
+                      acao: () => bulkRegistrarLigacao.mutate(Array.from(selectedIds)),
+                    });
                   }}
                 >
                   <PhoneCall className="h-3.5 w-3.5 mr-1" /> Registrar ligação
@@ -1177,13 +1368,14 @@ function LeadsPage() {
                         key={opt.key}
                         onSelect={() => {
                           const n = selectedIds.size;
-                          if (
-                            window.confirm(`Marcar ${n} lead${n > 1 ? "s" : ""} como ${opt.label}?`)
-                          )
-                            bulkTemperatura.mutate({
-                              ids: Array.from(selectedIds),
-                              temp: opt.key,
-                            });
+                          setConfirmState({
+                            titulo: `Marcar ${n} lead${n > 1 ? "s" : ""} como ${opt.label}?`,
+                            acao: () =>
+                              bulkTemperatura.mutate({
+                                ids: Array.from(selectedIds),
+                                temp: opt.key,
+                              }),
+                          });
                         }}
                       >
                         {opt.key === "quente" && (
@@ -1201,6 +1393,34 @@ function LeadsPage() {
                 <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
                   <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  disabled={bulkDescartar.isPending}
+                  onClick={() => setBulkDescarteOpen(true)}
+                >
+                  <Ban className="h-3.5 w-3.5 mr-1" /> Descartar
+                </Button>
+                {isAdmin && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={bulkRoleta.isPending}
+                    onClick={() => {
+                      const n = selectedIds.size;
+                      setConfirmState({
+                        titulo: `Distribuir ${n} lead${n > 1 ? "s" : ""} pela roleta?`,
+                        descricao:
+                          "Cada lead passa pela triagem v3 (origem → roleta → corretor apto). Quem a roleta recusar cai na fila de exceções da Distribuição.",
+                        acao: () => bulkRoleta.mutate(Array.from(selectedIds)),
+                      });
+                    }}
+                  >
+                    <Shuffle className="h-3.5 w-3.5 mr-1" />
+                    {bulkRoleta.isPending ? "Distribuindo…" : "Roleta"}
+                  </Button>
+                )}
                 {canManage && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
@@ -1212,11 +1432,14 @@ function LeadsPage() {
                       onClick={() => {
                         const n = selectedIds.size;
                         const acao = showLixeira ? "Restaurar" : "Mover p/ lixeira";
-                        if (window.confirm(`${acao} ${n} lead${n > 1 ? "s" : ""}?`))
-                          moverLixeira.mutate({
-                            ids: Array.from(selectedIds),
-                            lixeira: !showLixeira,
-                          });
+                        setConfirmState({
+                          titulo: `${acao} ${n} lead${n > 1 ? "s" : ""}?`,
+                          acao: () =>
+                            moverLixeira.mutate({
+                              ids: Array.from(selectedIds),
+                              lixeira: !showLixeira,
+                            }),
+                        });
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
@@ -1225,6 +1448,33 @@ function LeadsPage() {
                   </>
                 )}
               </BulkActionBar>
+
+              {/* Seleção além da página: banner "selecionar todos os N do filtro". */}
+              {paginated.length > 0 &&
+                paginated.every((l) => selectedIds.has(l.id)) &&
+                visibleTotal > paginated.length &&
+                selectedIds.size < Math.min(visibleTotal, SELECAO_MAX) && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md border border-info/40 bg-info/10 px-3 py-2 text-xs">
+                    <span>
+                      Os {selectedIds.size} desta página estão selecionados — o filtro tem{" "}
+                      {visibleTotal.toLocaleString("pt-BR")} lead(s).
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="link"
+                      className="h-auto p-0 text-xs"
+                      disabled={selecionandoTudo}
+                      onClick={() => void selecionarTodosDoFiltro()}
+                    >
+                      {selecionandoTudo
+                        ? "Selecionando…"
+                        : `Selecionar todos os ${Math.min(visibleTotal, SELECAO_MAX).toLocaleString("pt-BR")} do filtro`}
+                    </Button>
+                    {visibleTotal > SELECAO_MAX && (
+                      <span className="text-muted-foreground">(máx. 1.000 por vez)</span>
+                    )}
+                  </div>
+                )}
 
               {listError ? (
                 <Card>
@@ -1295,6 +1545,15 @@ function LeadsPage() {
                   onLixeira={(l) =>
                     moverLixeira.mutate({ ids: [l.id], lixeira: !l.na_lixeira, nome: l.nome })
                   }
+                  onSetTemperatura={(l, temp) => bulkTemperatura.mutate({ ids: [l.id], temp })}
+                  onFocar={(l) => {
+                    setFocusStart(l.id);
+                    setFocusOpen(true);
+                  }}
+                  onFollowup={(l) => {
+                    setSelectedIds(new Set([l.id]));
+                    setBulkFollowupOpen(true);
+                  }}
                 />
               ) : listLoading ? (
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1328,7 +1587,41 @@ function LeadsPage() {
                             aria-label={`Selecionar ${l.nome}`}
                             className="mt-0.5"
                           />
-                          <TemperatureChip temperatura={l.temperatura} size="sm" pulse={false} />
+                          {/* Temperatura clicável: requalifica sem abrir o lead. */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`Mudar temperatura de ${l.nome}`}
+                                title="Mudar temperatura"
+                              >
+                                <TemperatureChip
+                                  temperatura={l.temperatura}
+                                  size="sm"
+                                  pulse={false}
+                                />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {(
+                                [
+                                  { key: "quente", label: "🔥 Quente" },
+                                  { key: "morno", label: "🌡️ Morno" },
+                                  { key: "frio", label: "❄️ Frio" },
+                                ] as const
+                              ).map((opt) => (
+                                <DropdownMenuItem
+                                  key={opt.key}
+                                  disabled={l.temperatura === opt.key}
+                                  onSelect={() =>
+                                    bulkTemperatura.mutate({ ids: [l.id], temp: opt.key })
+                                  }
+                                >
+                                  {opt.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           <Link
                             to="/leads/$leadId"
                             params={{ leadId: l.id }}
@@ -1394,7 +1687,6 @@ function LeadsPage() {
                               sem corretor
                             </span>
                           )}
-                          <InatividadeBadge lead={l} />
                         </div>
 
                         <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
@@ -1547,9 +1839,9 @@ function LeadsPage() {
             }}
           />
 
-          {/* Modo foco — fila = lista filtrada atual, navegada com J/K */}
+          {/* Modo foco — fila = recorte inteiro (até 200), navegada com J/K */}
           <FocusMode
-            leadIds={filtered.map((l) => l.id)}
+            leadIds={focusQueue}
             startId={focusStart}
             open={focusOpen}
             onOpenChange={setFocusOpen}
@@ -1668,6 +1960,109 @@ function LeadsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Descartar em lote com motivo — higiene do funil sem redistribuição. */}
+          <Dialog
+            open={bulkDescarteOpen}
+            onOpenChange={(o) => {
+              setBulkDescarteOpen(o);
+              if (!o) {
+                setDescarteCategoria("");
+                setDescarteDetalhe("");
+              }
+            }}
+          >
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Descartar {selectedIds.size} lead(s)</DialogTitle>
+                <DialogDescription>
+                  Todos os selecionados serão marcados como perdidos com o motivo abaixo — sem
+                  redistribuição pela roleta. Um lead perdido pode ser reativado pela gestão.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>Motivo da perda *</Label>
+                  <Select
+                    value={descarteCategoria}
+                    onValueChange={(v) => setDescarteCategoria(v as MotivoPerdaCategoria)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o motivo…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MOTIVO_PERDA_CATEGORIAS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {MOTIVO_PERDA_LABEL[c]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>
+                    {descarteCategoria === "outro"
+                      ? "Descreva o motivo *"
+                      : "Observação (opcional)"}
+                  </Label>
+                  <Textarea
+                    rows={3}
+                    value={descarteDetalhe}
+                    onChange={(e) => setDescarteDetalhe(e.target.value)}
+                    placeholder="Contexto adicional sobre o descarte…"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setBulkDescarteOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={
+                    bulkDescartar.isPending ||
+                    !descarteCategoria ||
+                    (descarteCategoria === "outro" && !descarteDetalhe.trim())
+                  }
+                  onClick={() =>
+                    bulkDescartar.mutate(
+                      {
+                        ids: Array.from(selectedIds),
+                        categoria: descarteCategoria,
+                        detalhe: descarteDetalhe,
+                      },
+                      { onSuccess: () => setBulkDescarteOpen(false) },
+                    )
+                  }
+                >
+                  {bulkDescartar.isPending ? "Descartando…" : "Descartar leads"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Confirmação padrão das ações em lote (substitui window.confirm). */}
+          <AlertDialog open={!!confirmState} onOpenChange={(o) => !o && setConfirmState(null)}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{confirmState?.titulo}</AlertDialogTitle>
+                {confirmState?.descricao && (
+                  <AlertDialogDescription>{confirmState.descricao}</AlertDialogDescription>
+                )}
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    confirmState?.acao();
+                    setConfirmState(null);
+                  }}
+                >
+                  Confirmar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>

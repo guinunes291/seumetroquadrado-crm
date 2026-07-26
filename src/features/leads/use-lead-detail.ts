@@ -54,7 +54,9 @@ async function fetchLead(leadId: string): Promise<LeadDetail> {
   return data as unknown as LeadDetail;
 }
 
-async function fetchInteracoes(leadId: string): Promise<InteracaoResumo[]> {
+/** Exportado para telas que compõem a própria query (ex.: peek) com a MESMA
+ *  chave/limite — um cache só entre lista, peek e modo foco. */
+export async function fetchInteracoes(leadId: string): Promise<InteracaoResumo[]> {
   const { data, error } = await supabase
     .from("interacoes")
     .select("id, tipo, direcao, titulo, conteudo, ocorreu_em")
@@ -65,7 +67,8 @@ async function fetchInteracoes(leadId: string): Promise<InteracaoResumo[]> {
   return (data ?? []) as InteracaoResumo[];
 }
 
-async function fetchTarefas(leadId: string): Promise<TarefaResumo[]> {
+/** Exportado pelo mesmo motivo de `fetchInteracoes`. */
+export async function fetchTarefas(leadId: string): Promise<TarefaResumo[]> {
   const { data, error } = await supabase
     .from("tarefas")
     .select("id, titulo, data_vencimento")

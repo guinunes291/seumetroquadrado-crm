@@ -40,7 +40,7 @@ import {
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
-import { FLAG_META, leadFlags } from "@/lib/lead-flags";
+import { leadFlagsDetalhadas } from "@/lib/lead-flags";
 import { describeInteracao, formatRelativeTime } from "@/lib/interacoes";
 import { PROXIMA_ACAO, type LeadStatus, type StageModal } from "@/lib/leads";
 import { scoreLead } from "@/lib/priority";
@@ -51,6 +51,9 @@ import { useLeadDetail, usePrefetchLeadDetail, type LeadDetail } from "./use-lea
 registerShortcut({ keys: "F", description: "Abrir modo foco na lista", group: "Leads" });
 registerShortcut({ keys: "J / →", description: "Próximo lead da fila", group: "Modo Foco" });
 registerShortcut({ keys: "K / ←", description: "Lead anterior", group: "Modo Foco" });
+registerShortcut({ keys: "W", description: "Abrir WhatsApp do lead", group: "Modo Foco" });
+registerShortcut({ keys: "L", description: "Ligar para o lead", group: "Modo Foco" });
+registerShortcut({ keys: "R", description: "Registrar contato", group: "Modo Foco" });
 registerShortcut({ keys: "Esc", description: "Sair do modo foco", group: "Modo Foco" });
 
 export type FocusModeProps = {
@@ -175,6 +178,7 @@ export function FocusMode({
               interacoes={interacoes.data ?? []}
               interacoesLoading={interacoes.isLoading}
               tarefas={tarefas.data ?? []}
+              onAvancar={index < total - 1 ? goNext : undefined}
             />
           )}
         </div>
@@ -247,6 +251,7 @@ function FocusBody({
   interacoes,
   interacoesLoading,
   tarefas,
+  onAvancar,
 }: {
   lead: LeadDetail;
   interacoes: {
@@ -259,6 +264,8 @@ function FocusBody({
   }[];
   interacoesLoading: boolean;
   tarefas: { id: string; titulo: string; data_vencimento: string | null }[];
+  /** Avança para o próximo da fila após concluir uma ação (esteira). */
+  onAvancar?: () => void;
 }) {
   const abrirWhatsApp = useWhatsAppLead();
   const [contatoOpen, setContatoOpen] = useState(false);
@@ -267,12 +274,50 @@ function FocusBody({
 
   const mudarStatus = useLeadStatusMutation({
     optimisticKeys: [["leads"]],
-    invalidateKeys: [["leads"], ["leads-status-counts"], ["lead-detail"], ["leads-kanban"]],
+    invalidateKeys: [
+      ["leads"],
+      ["leads-status-counts"],
+      ["lead-detail"],
+      ["pipeline-stage-v2"],
+      ["pipeline-snapshot-v2"],
+    ],
+    // Esteira: mudou a etapa, o lead está trabalhado — segue para o próximo.
+    onSuccess: () => onAvancar?.(),
   });
+
+  // Atalhos de ação (W/L/R) — só com o corpo visível, fora de campos de texto
+  // e com nenhum diálogo interno aberto (senão "W" digitado num form agiria).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (contatoOpen || modalState || perdidoLead) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable))
+        return;
+      if (e.key === "w" || e.key === "W") {
+        e.preventDefault();
+        abrirWhatsApp({
+          id: lead.id,
+          nome: lead.nome,
+          telefone: lead.telefone,
+          projeto_nome: lead.projeto_nome,
+        });
+      } else if (e.key === "l" || e.key === "L") {
+        e.preventDefault();
+        window.location.href = `tel:${lead.telefone.replace(/\D/g, "")}`;
+      } else if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        setContatoOpen(true);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.id, contatoOpen, modalState, perdidoLead]);
 
   const flags = useMemo(
     () =>
-      leadFlags({
+      leadFlagsDetalhadas({
         status: lead.status,
         temperatura: lead.temperatura,
         created_at: lead.created_at,
@@ -313,8 +358,8 @@ function FocusBody({
         {flags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {flags.map((f) => (
-              <Badge key={f} variant="outline" className="text-xs">
-                {FLAG_META[f].label}
+              <Badge key={f.flag} variant="outline" className="text-xs">
+                {f.label}
               </Badge>
             ))}
           </div>
@@ -488,12 +533,14 @@ function FocusBody({
           open={contatoOpen}
           onOpenChange={setContatoOpen}
           lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id }}
+          onDone={onAvancar}
         />
         <LeadStageModals
           modalState={modalState}
           onModalOpenChange={(open) => !open && setModalState(null)}
           perdidoLead={perdidoLead}
           onPerdidoOpenChange={(open) => !open && setPerdidoLead(null)}
+          onDone={onAvancar}
         />
       </section>
     </div>

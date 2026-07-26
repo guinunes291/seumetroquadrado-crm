@@ -11,7 +11,9 @@ import {
   Phone,
   DollarSign,
   ArrowRightLeft,
+  CalendarClock,
   ChevronDown,
+  Crosshair,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -87,6 +89,8 @@ export function LeadRowMenu({
   onRoleta,
   onTransferir,
   onLixeira,
+  onFocar,
+  onFollowup,
 }: {
   lead: Lead;
   canManage: boolean;
@@ -97,9 +101,14 @@ export function LeadRowMenu({
   onRoleta: () => void;
   onTransferir: () => void;
   onLixeira: () => void;
+  /** "Focar a partir daqui": abre o modo foco com a fila posicionada neste lead. */
+  onFocar?: () => void;
+  /** "+ Follow-up": agenda o próximo follow-up sem abrir o lead. */
+  onFollowup?: () => void;
 }) {
   const showStages = canAct && !lead.na_lixeira && lead.status !== "aguardando_atendimento";
-  if (!showStages && !canManage) return null;
+  const showTrabalhar = !!(onFocar || onFollowup);
+  if (!showStages && !canManage && !showTrabalhar) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -115,6 +124,21 @@ export function LeadRowMenu({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
+        {showTrabalhar && (
+          <>
+            {onFocar && (
+              <DropdownMenuItem onSelect={onFocar}>
+                <Crosshair className="h-4 w-4 mr-2" /> Focar a partir daqui
+              </DropdownMenuItem>
+            )}
+            {onFollowup && (
+              <DropdownMenuItem onSelect={onFollowup}>
+                <CalendarClock className="h-4 w-4 mr-2" /> Agendar follow-up
+              </DropdownMenuItem>
+            )}
+            {(showStages || canManage) && <DropdownMenuSeparator />}
+          </>
+        )}
         {showStages && (
           <LeadStageMenuItems
             lead={lead}

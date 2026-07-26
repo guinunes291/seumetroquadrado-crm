@@ -22,8 +22,17 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Upload,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Download,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useUserRoles } from "@/hooks/use-auth";
 import { importarLeads, type ImportResult } from "@/lib/leads-import.functions";
 import { readTabularFile } from "@/lib/spreadsheets";
 
@@ -53,6 +62,26 @@ type Mapping = {
   projeto_nome: string;
 };
 
+// Relatório de erros do import (não confundir com export de leads): CSV das
+// linhas que NÃO entraram, gerado client-side a partir de `detalhes`.
+function baixarRelatorioErros(resultado: ImportResult) {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const linhas = [
+    ["linha", "nome", "telefone", "motivo"].join(";"),
+    ...resultado.detalhes.map((d) =>
+      [String(d.linha), esc(d.nome ?? ""), esc(d.telefone ?? ""), esc(d.motivo)].join(";"),
+    ),
+  ];
+  // BOM para o Excel pt-BR reconhecer UTF-8; `;` como separador pelo mesmo motivo
+  const blob = new Blob(["\uFEFF" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `import-erros-${resultado.batchId.slice(0, 8)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function ImportLeadsDialog({
   open,
   onOpenChange,
@@ -71,7 +100,10 @@ export function ImportLeadsDialog({
     projeto_nome: NONE,
   });
   const [projetoFixo, setProjetoFixo] = useState<string>(NONE);
+  const [corretorId, setCorretorId] = useState<string>(NONE);
+  const [distribuirRoleta, setDistribuirRoleta] = useState(false);
   const [resultado, setResultado] = useState<ImportResult | null>(null);
+  const { isAdmin } = useUserRoles();
 
   const importarFn = useServerFn(importarLeads);
 
@@ -85,12 +117,29 @@ export function ImportLeadsDialog({
     enabled: open,
   });
 
+  const { data: corretores } = useQuery({
+    queryKey: ["corretores-import"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      // docs-bot é conta de serviço (documentação) — nunca recebe lead
+      return (data ?? []).filter((c) => c.nome.trim().toLowerCase() !== "docs-bot");
+    },
+    enabled: open,
+  });
+
   function reset() {
     setStep("upload");
     setFileName("");
     setParsed(null);
     setMapping({ nome: "", telefone: "", email: NONE, projeto_nome: NONE });
     setProjetoFixo(NONE);
+    setCorretorId(NONE);
+    setDistribuirRoleta(false);
     setResultado(null);
   }
 
@@ -150,6 +199,8 @@ export function ImportLeadsDialog({
         data: {
           rows,
           projeto_id: projetoFixo !== NONE ? projetoFixo : null,
+          corretorId: corretorId !== NONE ? corretorId : null,
+          distribuirRoleta,
         },
       });
     },
@@ -208,8 +259,10 @@ export function ImportLeadsDialog({
             </Card>
             <div className="text-xs text-muted-foreground space-y-1">
               <p>
-                • Todos os leads importados ficam com status <strong>novo</strong> e origem{" "}
-                <strong>importação</strong>.
+                • Todos os leads entram com origem <strong>importação</strong>. No próximo passo
+                você escolhe o destino: sem corretor (status <strong>novo</strong>), atribuídos a um
+                corretor (status <strong>aguardando atendimento</strong>) ou distribuídos pela
+                roleta.
               </p>
               <p>• Telefones que já existem na base são pulados automaticamente.</p>
               <p>
@@ -271,6 +324,44 @@ export function ImportLeadsDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Destino: corretor fixo OU roleta (mutuamente exclusivos — o servidor valida de novo) */}
+            <div className="space-y-3 border rounded-md p-3">
+              <Label>Destino dos leads</Label>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Atribuir a corretor</Label>
+                <Select
+                  value={corretorId}
+                  onValueChange={setCorretorId}
+                  disabled={distribuirRoleta}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sem corretor (distribuir depois)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Sem corretor (distribuir depois)</SelectItem>
+                    {(corretores ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="distribuir-roleta"
+                    checked={distribuirRoleta}
+                    onCheckedChange={(v) => setDistribuirRoleta(v === true)}
+                    disabled={corretorId !== NONE}
+                  />
+                  <Label htmlFor="distribuir-roleta" className="text-sm font-normal">
+                    Distribuir automaticamente via roleta
+                  </Label>
+                </div>
+              )}
             </div>
 
             {preview.length > 0 && (
@@ -351,6 +442,14 @@ export function ImportLeadsDialog({
                   <div className="text-xs text-muted-foreground">Inválidos</div>
                 </CardContent>
               </Card>
+              {resultado.erros > 0 && (
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="text-2xl font-bold text-destructive">{resultado.erros}</div>
+                    <div className="text-xs text-muted-foreground">Erros</div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardContent className="pt-4">
                   <div className="text-2xl font-bold text-muted-foreground">{resultado.total}</div>
@@ -359,12 +458,28 @@ export function ImportLeadsDialog({
               </Card>
             </div>
 
+            {resultado.distribuidos != null && (
+              <p className="text-sm text-muted-foreground">
+                {resultado.distribuidos} distribuídos pela roleta.
+              </p>
+            )}
+
             {resultado.detalhes.length > 0 && (
               <div className="space-y-2">
-                <Label className="flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
-                  Linhas não importadas ({resultado.detalhes.length})
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    Linhas não importadas ({resultado.detalhes.length})
+                  </Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => baixarRelatorioErros(resultado)}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Baixar relatório (CSV)
+                  </Button>
+                </div>
                 <div className="border rounded-md max-h-64 overflow-y-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-muted sticky top-0">

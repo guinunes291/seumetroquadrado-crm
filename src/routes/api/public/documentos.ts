@@ -106,10 +106,7 @@ export const Route = createFileRoute("/api/public/documentos")({
           .eq("lead_id", leadId!)
           .order("created_at", { ascending: true });
         if (error) {
-          return jsonResponse(
-            { ok: false, erro: "leitura_falhou", detalhe: error.message },
-            500,
-          );
+          return jsonResponse({ ok: false, erro: "leitura_falhou", detalhe: error.message }, 500);
         }
 
         return jsonResponse({
@@ -160,10 +157,7 @@ export const Route = createFileRoute("/api/public/documentos")({
           );
         }
         if (parsed.bytes.byteLength < 1) {
-          return jsonResponse(
-            { ok: false, erro: "arquivo_vazio", detalhe: "0 bytes" },
-            422,
-          );
+          return jsonResponse({ ok: false, erro: "arquivo_vazio", detalhe: "0 bytes" }, 422);
         }
         if (parsed.bytes.byteLength > MAX_BYTES) {
           return jsonResponse(
@@ -230,10 +224,7 @@ export const Route = createFileRoute("/api/public/documentos")({
             cacheControl: "0",
           });
         if (upErr) {
-          return jsonResponse(
-            { ok: false, erro: "upload_falhou", detalhe: upErr.message },
-            502,
-          );
+          return jsonResponse({ ok: false, erro: "upload_falhou", detalhe: upErr.message }, 502);
         }
 
         // 5) Upsert em documentacoes: promove "pendente" existente do mesmo tipo.
@@ -247,13 +238,10 @@ export const Route = createFileRoute("/api/public/documentos")({
           .limit(1)
           .maybeSingle();
 
-        const observacoes = [
-          parsed.caption,
-          tipoOriginal ? `Tipo original: ${tipoOriginal}` : null,
-          `via ${agente}`,
-        ]
-          .filter(Boolean)
-          .join("\n") || null;
+        const observacoes =
+          [parsed.caption, tipoOriginal ? `Tipo original: ${tipoOriginal}` : null, `via ${agente}`]
+            .filter(Boolean)
+            .join("\n") || null;
 
         const patch = {
           lead_id: lead.id,
@@ -352,8 +340,7 @@ async function parseBody(req: Request): Promise<ParsedFile> {
       origem: (fd.get("origem") as string) || null,
       tipoBruto: String(fd.get("tipo") ?? "").trim() || "nao_classificado",
       caption: (fd.get("caption") as string) || null,
-      messageId:
-        (fd.get("messageId") as string) || (fd.get("message_id") as string) || null,
+      messageId: (fd.get("messageId") as string) || (fd.get("message_id") as string) || null,
       confianca:
         fd.get("confianca") != null
           ? Number(fd.get("confianca"))
@@ -399,7 +386,7 @@ function decodeBase64(s: string): Uint8Array {
 
 function sanitizeName(name: string): string {
   return (name || "arquivo")
-    .replace(/[^\w.\-]+/g, "_")
+    .replace(/[^\w.-]+/g, "_")
     .replace(/_+/g, "_")
     .slice(0, 120);
 }
@@ -408,7 +395,12 @@ function onlyDigits(s: string | null | undefined): string {
   return (s ?? "").replace(/\D/g, "");
 }
 
-type LeadMin = { id: string; nome: string | null; telefone: string | null; corretor_id: string | null };
+type LeadMin = {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
+  corretor_id: string | null;
+};
 
 /**
  * Casa lead pelos últimos 8-9 dígitos do telefone (ignora 55, DDD e 9º).
