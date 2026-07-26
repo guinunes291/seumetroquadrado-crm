@@ -45,6 +45,7 @@ import {
   conciliarVendasFn,
   desconciliarTransacaoFn,
   ignorarTransacaoFn,
+  ignorarTransacoesEmLoteFn,
   importarExtratoFn,
   reativarTransacaoFn,
 } from "@/lib/conciliacao.functions";
@@ -79,6 +80,7 @@ export function ConciliacaoTab() {
   const conciliarVendas = useServerFn(conciliarVendasFn);
   const desconciliar = useServerFn(desconciliarTransacaoFn);
   const ignorar = useServerFn(ignorarTransacaoFn);
+  const ignorarLote = useServerFn(ignorarTransacoesEmLoteFn);
   const reativar = useServerFn(reativarTransacaoFn);
 
   const [filtro, setFiltro] = useState<Filtro>("pendentes");
