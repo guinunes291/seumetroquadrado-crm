@@ -323,6 +323,9 @@ async function auditarAlteracao(
         valor_novo: depois[campo] == null ? null : String(depois[campo]),
         api_cliente_id: contexto.clientId,
         api_cliente_nome: contexto.clientName,
+        origem: contexto.origem ?? "api",
+        usuario_id: contexto.usuarioId ?? null,
+        usuario_nome: contexto.usuarioNome ?? null,
         motivo,
       }));
     if (!linhas.length) return;
