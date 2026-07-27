@@ -17,6 +17,9 @@ import {
   RefreshCw,
   AlertCircle,
   Ban,
+  CalendarClock,
+  HelpCircle,
+  ChevronsLeftRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rpcWithFallback } from "@/lib/supabase-errors";
@@ -46,6 +49,9 @@ import { SlaBadge } from "@/components/sla-badge";
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { ResponsiveTabs } from "@/components/ui/responsive-tabs";
+import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer";
+import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
@@ -115,21 +121,71 @@ type SlaRow = {
   sla_status: string;
 };
 
+// Colunas recolhidas são preferência de layout do usuário (não estado do
+// funil) — persistem entre sessões no localStorage.
+const CHAVE_COLAPSADAS = "smq:kanban-colapsadas";
+function lerColapsadas(): Set<LeadStatus> {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(CHAVE_COLAPSADAS) ?? "[]");
+    if (!Array.isArray(raw)) return new Set();
+    // Filtra lixo/etapas antigas — um rename de etapa não pode quebrar o board.
+    return new Set(
+      raw.filter(
+        (s): s is LeadStatus =>
+          typeof s === "string" && (FUNNEL_STAGES as readonly string[]).includes(s),
+      ),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+// O drawer não carrega os campos financeiros (renda/entrada/FGTS) — a página
+// da etapa é enxuta de propósito. Defaults neutros satisfazem o PeekLead
+// estrutural sem alargar o payload do quadro.
+function toPeekLead(lead: Lead): PeekLead {
+  return {
+    ...lead,
+    origem: lead.origem ?? "outro",
+    renda_informada: null,
+    entrada_disponivel: null,
+    usa_fgts: null,
+  };
+}
+
+type KanbanBoardProps = {
+  /** Semeia a busca interna no mount (o input continua editável). */
+  initialSearch?: string;
+  /** uuid do corretor para filtrar o quadro; "all"/"unassigned" são ignorados. */
+  corretorId?: string;
+};
+
 /**
  * Quadro Kanban dos leads. Extraído da antiga rota `/kanban` para ser usado como
  * uma das visões (toggle Lista/Kanban) dentro de `/leads` — consolidação Fase 1.
  * A rota `/kanban` permanece como redirect de compatibilidade.
  */
-export function KanbanBoard() {
+export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}) {
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch ?? "");
   const debouncedSearch = useDebounce(search.trim(), 300);
   const [mobileStage, setMobileStage] = useState<LeadStatus>(COLUMNS[0].id);
   const [extraPages, setExtraPages] = useState<Partial<Record<LeadStatus, StagePage>>>({});
   const [loadingMore, setLoadingMore] = useState<LeadStatus | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const boardScrollRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const abrirWhatsApp = useWhatsAppLead();
+  const [peekLead, setPeekLead] = useState<Lead | null>(null);
+  const [colapsadas, setColapsadas] = useState<Set<LeadStatus>>(lerColapsadas);
+
+  // Filtro de corretor: pipeline_stage_page_v2 E os snapshots v2/v3 aceitam
+  // `_corretor_id` (migrations 20260711124000_scale_read_models_v2.sql e
+  // 20260715100000_pipeline_snapshot_v3.sql), então cards e contadores das
+  // colunas filtram JUNTOS — sem divergência entre badge e coluna.
+  const corretorFiltro =
+    corretorId && corretorId !== "all" && corretorId !== "unassigned" ? corretorId : undefined;
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min"],
@@ -146,11 +202,12 @@ export function KanbanBoard() {
 
   const stageQueries = useQueries({
     queries: COLUMNS.map((column) => ({
-      queryKey: ["pipeline-stage-v2", column.id, debouncedSearch],
+      queryKey: ["pipeline-stage-v2", column.id, debouncedSearch, corretorFiltro ?? null],
       queryFn: async (): Promise<StagePage> => {
         const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
           _status: column.id,
           _query: debouncedSearch || undefined,
+          _corretor_id: corretorFiltro,
           _limit: 20,
           _cursor: undefined,
         });
@@ -162,12 +219,13 @@ export function KanbanBoard() {
   // Snapshot v3 traz o VGV por etapa; sem a migration aplicada, cai para a v2
   // e os chips de valor simplesmente não aparecem (rpcWithFallback).
   const snapshotQuery = useQuery({
-    queryKey: ["pipeline-snapshot-v2", debouncedSearch],
+    queryKey: ["pipeline-snapshot-v2", debouncedSearch, corretorFiltro ?? null],
     queryFn: async () =>
       rpcWithFallback(
         async () => {
           const { data, error } = await supabase.rpc("pipeline_snapshot_v3", {
             _query: debouncedSearch || undefined,
+            _corretor_id: corretorFiltro,
           });
           if (error) throw error;
           return data as {
@@ -182,6 +240,7 @@ export function KanbanBoard() {
         async () => {
           const { data, error } = await supabase.rpc("pipeline_snapshot_v2", {
             _query: debouncedSearch || undefined,
+            _corretor_id: corretorFiltro,
           });
           if (error) throw error;
           return data;
@@ -189,7 +248,7 @@ export function KanbanBoard() {
       ),
   });
 
-  useEffect(() => setExtraPages({}), [debouncedSearch]);
+  useEffect(() => setExtraPages({}), [debouncedSearch, corretorFiltro]);
 
   const initialPages = useMemo(
     () =>
@@ -225,6 +284,7 @@ export function KanbanBoard() {
       const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
         _status: status,
         _query: debouncedSearch || undefined,
+        _corretor_id: corretorFiltro,
         _limit: 20,
         _cursor: cursor,
       });
@@ -330,9 +390,10 @@ export function KanbanBoard() {
   const byColumn = useMemo(() => {
     const map = new Map<string, Lead[]>();
     COLUMNS.forEach((c) => map.set(c.id, []));
-    const s = search.trim().toLowerCase();
+    // O servidor já filtra via `_query` (debounced) na página da etapa e no
+    // snapshot. Refiltrar aqui com o texto cru era mais restrito (só nome e
+    // telefone, sem unaccent) e dessincronizava os cards dos contadores.
     (leads ?? []).forEach((l) => {
-      if (s && !l.nome.toLowerCase().includes(s) && !l.telefone.includes(s)) return;
       map.get(l.status)?.push(l);
     });
     // Em "Em atendimento", quem está há mais tempo sem interação sobe pro topo
@@ -351,7 +412,7 @@ export function KanbanBoard() {
       });
     }
     return map;
-  }, [leads, search]);
+  }, [leads]);
 
   const snapshotByStage = useMemo(
     () => new Map((snapshotQuery.data ?? []).map((row) => [row.etapa, row])),
@@ -377,6 +438,49 @@ export function KanbanBoard() {
     [snapshotQuery.data],
   );
 
+  // VGV total do quadro: soma só as etapas do funil (stageMetrics já exclui
+  // perdido/pós-venda). null quando o snapshot em uso é a v2 (sem `vgv`).
+  const vgvTotal = useMemo(() => {
+    let soma = 0;
+    let temVgv = false;
+    stageMetrics.forEach((m) => {
+      if (m.vgv != null) {
+        temVgv = true;
+        soma += m.vgv;
+      }
+    });
+    return temVgv ? soma : null;
+  }, [stageMetrics]);
+  const vgvTotalLabel = formatVgvCompact(vgvTotal);
+
+  const toggleColapso = (id: LeadStatus) => {
+    setColapsadas((atual) => {
+      const next = new Set(atual);
+      const recolhendo = !next.has(id);
+      if (recolhendo) next.add(id);
+      else next.delete(id);
+      try {
+        localStorage.setItem(CHAVE_COLAPSADAS, JSON.stringify([...next]));
+      } catch {
+        /* storage indisponível (modo privado/quota) — a preferência só não persiste */
+      }
+      setAnnouncement(`Coluna ${LEAD_STATUS_LABEL[id]} ${recolhendo ? "recolhida" : "expandida"}.`);
+      return next;
+    });
+  };
+
+  // Próxima ação a partir do peek — mesma rota dos cards (PROXIMA_ACAO +
+  // routeStage). Fecha o peek ANTES: modal/fluxo de perda e drawer abertos ao
+  // mesmo tempo disputariam foco e overlay.
+  const proximaAcaoDoPeek = () => {
+    if (!peekLead) return;
+    const acao = PROXIMA_ACAO[peekLead.status as LeadStatus];
+    if (!acao) return;
+    const lead = peekLead;
+    setPeekLead(null);
+    routeStage(lead, acao.target);
+  };
+
   return (
     <div className="space-y-4">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -387,13 +491,24 @@ export function KanbanBoard() {
           Arraste os cards entre as colunas. Pelo teclado ou toque, use o menu “Mudar etapa do lead”
           em cada card.
         </p>
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar lead…"
-          aria-label="Buscar leads no funil"
-          className="min-h-11 w-full sm:w-64"
-        />
+        <div className="flex w-full flex-col gap-1 sm:w-auto sm:items-end">
+          {/* Só aparece com o snapshot v3 aplicado (a v2 não traz `vgv`). */}
+          {vgvTotalLabel && (
+            <span
+              className="text-xs font-medium tabular-nums text-gold-700 dark:text-gold-400"
+              title="Soma do VGV potencial das etapas ativas do funil"
+            >
+              VGV no funil: {vgvTotalLabel}
+            </span>
+          )}
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar lead…"
+            aria-label="Buscar leads no funil"
+            className="min-h-11 w-full sm:w-64"
+          />
+        </div>
       </div>
 
       <div className="md:hidden">
@@ -455,6 +570,44 @@ export function KanbanBoard() {
               const items = byColumn.get(col.id) ?? [];
               const metrics = stageMetrics.get(col.id);
               const vgvLabel = formatVgvCompact(metrics?.vgv ?? null);
+              const quantidade = Number(snapshotByStage.get(col.id)?.quantidade ?? items.length);
+              // Colapso é recurso de desktop: no mobile a ResponsiveTabs já
+              // mostra uma etapa por vez — uma barra de 40px ali seria só ruído.
+              const colapsada = colapsadas.has(col.id) && !isMobile;
+              if (colapsada) {
+                return (
+                  <section
+                    key={col.id}
+                    ref={registerColumn(col.id)}
+                    aria-labelledby={`kanban-col-${col.id}`}
+                    className={cn(
+                      "hidden w-10 shrink-0 rounded-lg border-2 border-dashed transition-colors md:block",
+                      col.tone,
+                      dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",
+                    )}
+                  >
+                    {/* A barra continua alvo de drop: o rect é cacheado no
+                        início do arrasto como o de qualquer coluna. */}
+                    <button
+                      type="button"
+                      className="flex min-h-[220px] w-full flex-col items-center gap-2 rounded-lg py-2"
+                      aria-label={`Expandir coluna ${col.label} (${quantidade} leads)`}
+                      aria-expanded={false}
+                      onClick={() => toggleColapso(col.id)}
+                    >
+                      <Badge variant="secondary" className="text-[10px] tabular-nums">
+                        {quantidade}
+                      </Badge>
+                      <span
+                        id={`kanban-col-${col.id}`}
+                        className="rotate-180 text-xs font-semibold [writing-mode:vertical-rl]"
+                      >
+                        {col.label}
+                      </span>
+                    </button>
+                  </section>
+                );
+              }
               return (
                 <section
                   key={col.id}
@@ -473,23 +626,57 @@ export function KanbanBoard() {
                     </h2>
                     <div className="flex items-center gap-1">
                       {(() => {
-                        // Snapshot agregado: cards sem interação há sete dias.
-                        const parados = Number(snapshotByStage.get(col.id)?.parados_ha_7_dias ?? 0);
-                        return parados > 0 ? (
-                          <Badge
-                            variant="secondary"
-                            className="gap-0.5 bg-warning/15 text-[10px] text-warning"
-                            title={`${parados} lead(s) parados há 7+ dias nesta etapa`}
-                          >
-                            <AlertCircle className="h-3 w-3" /> {parados}
-                          </Badge>
-                        ) : null;
+                        // Sinais agregados do snapshot: dão o diagnóstico da
+                        // etapa sem precisar paginar a coluna inteira.
+                        const snap = snapshotByStage.get(col.id);
+                        const vencidos = Number(snap?.followups_vencidos ?? 0);
+                        const semAcao = Number(snap?.sem_proxima_acao ?? 0);
+                        const parados = Number(snap?.parados_ha_7_dias ?? 0);
+                        return (
+                          <>
+                            {vencidos > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-0.5 bg-destructive/15 text-[10px] text-destructive"
+                                title={`${vencidos} follow-up(s) vencido(s) nesta etapa`}
+                              >
+                                <CalendarClock className="h-3 w-3" /> {vencidos}
+                              </Badge>
+                            )}
+                            {semAcao > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-0.5 bg-muted text-[10px] text-muted-foreground"
+                                title={`${semAcao} lead(s) sem próxima ação registrada`}
+                              >
+                                <HelpCircle className="h-3 w-3" /> {semAcao}
+                              </Badge>
+                            )}
+                            {parados > 0 && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-0.5 bg-warning/15 text-[10px] text-warning"
+                                title={`${parados} lead(s) parados há 7+ dias nesta etapa`}
+                              >
+                                <AlertCircle className="h-3 w-3" /> {parados}
+                              </Badge>
+                            )}
+                          </>
+                        );
                       })()}
                       <Badge variant="secondary" className="text-[10px] tabular-nums">
-                        <AnimatedNumber
-                          value={Number(snapshotByStage.get(col.id)?.quantidade ?? items.length)}
-                        />
+                        <AnimatedNumber value={quantidade} />
                       </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hidden h-7 w-7 text-muted-foreground hover:text-foreground md:inline-flex"
+                        aria-label={`Recolher coluna ${col.label}`}
+                        title="Recolher coluna"
+                        onClick={() => toggleColapso(col.id)}
+                      >
+                        <ChevronsLeftRight className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                   {/* Economia da etapa: VGV potencial + conversão acumulada. */}
@@ -530,7 +717,17 @@ export function KanbanBoard() {
                             aria-hidden="true"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">{lead.nome}</div>
+                            {/* O nome abre o dossiê-relâmpago. Botões são
+                                ignorados pelo onPointerDown do drag, então o
+                                clique nunca vira arrasto. */}
+                            <button
+                              type="button"
+                              className="block w-full truncate text-left text-sm font-medium hover:underline focus-visible:underline"
+                              aria-label={`Abrir visão rápida de ${lead.nome}`}
+                              onClick={() => setPeekLead(lead)}
+                            >
+                              {lead.nome}
+                            </button>
                             {lead.projeto_nome && (
                               <div className="text-[11px] text-muted-foreground truncate">
                                 {lead.projeto_nome}
@@ -670,6 +867,14 @@ export function KanbanBoard() {
           setExtraPages({});
           void refetchLeads();
         }}
+      />
+      {/* Dossiê-relâmpago (peek) — contexto e ação sem abrir a página do lead */}
+      <LeadPeekDrawer
+        lead={peekLead ? toPeekLead(peekLead) : null}
+        onOpenChange={(o) => !o && setPeekLead(null)}
+        corretorNome={peekLead?.corretor_id ? corretoresMap.get(peekLead.corretor_id) : undefined}
+        onWhatsApp={abrirWhatsApp}
+        onProximaAcao={proximaAcaoDoPeek}
       />
     </div>
   );

@@ -28,13 +28,20 @@ export const CONTATO_OPCOES = [
   { value: "contato_30d", label: "Contato 30 dias" },
   { value: "com_followup", label: "Com follow-up" },
   { value: "sem_contato_5d", label: "Sem contato 5+ dias" },
+  // Rotina de higiene: candidatos a descarte com motivo (RPC v3; nos
+  // fallbacks v1/v2 a página filtra no cliente).
+  { value: "sem_contato_30d", label: "Sem contato 30+ dias" },
 ] as const;
 
 export type SavedView = { id: string; nome: string; filtros: LeadFiltros };
 
 /** Visões prontas (sempre disponíveis, não removíveis). */
 export const VISOES_PADRAO: SavedView[] = [
-  { id: "preset-quentes", nome: "🔥 Quentes", filtros: { ...FILTRO_PADRAO, temperatura: "quente" } },
+  {
+    id: "preset-quentes",
+    nome: "🔥 Quentes",
+    filtros: { ...FILTRO_PADRAO, temperatura: "quente" },
+  },
   {
     id: "preset-followup",
     nome: "Com follow-up",
@@ -44,6 +51,11 @@ export const VISOES_PADRAO: SavedView[] = [
     id: "preset-parados",
     nome: "Sem contato 5+ dias",
     filtros: { ...FILTRO_PADRAO, contato: "sem_contato_5d" },
+  },
+  {
+    id: "preset-higiene",
+    nome: "Sem contato 30+ dias (descartar?)",
+    filtros: { ...FILTRO_PADRAO, contato: "sem_contato_30d" },
   },
   { id: "preset-hoje", nome: "Criados hoje", filtros: { ...FILTRO_PADRAO, periodo: "hoje" } },
 ];
@@ -73,6 +85,8 @@ export function passaContato(
       return args.temFollowup;
     case "sem_contato_5d":
       return (ui == null || ui < now - 5 * DIA) && !STATUS_FINALIZADOS.includes(args.status);
+    case "sem_contato_30d":
+      return (ui == null || ui < now - 30 * DIA) && !STATUS_FINALIZADOS.includes(args.status);
     default:
       return true;
   }
@@ -137,10 +151,7 @@ export function mesclarFiltrosDaUrl(url: LeadSearchFiltros, canManage: boolean):
   if (f.temperatura !== "all" && !TEMPERATURAS_VALIDAS.includes(f.temperatura)) {
     f.temperatura = "all";
   }
-  if (
-    f.contato !== "all" &&
-    !CONTATO_OPCOES.some((o) => o.value === f.contato)
-  ) {
+  if (f.contato !== "all" && !CONTATO_OPCOES.some((o) => o.value === f.contato)) {
     f.contato = "all";
   }
   if (!canManage) f.corretor = "all";

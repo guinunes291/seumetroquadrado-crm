@@ -9,6 +9,10 @@ export type TransicionarLeadInput = {
   motivo?: string | null;
   proximaAcao?: string | null;
   proximoFollowup?: string | null;
+  /** Categoria oficial de perda (MOTIVO_PERDA_CATEGORIAS) — só faz sentido
+   *  quando status = 'perdido'. Vai para leads.motivo_perda_categoria via a
+   *  própria RPC (perda "seca", SEM a redistribuição do marcar_lead_perdido). */
+  motivoCategoria?: string | null;
 };
 
 /** Única fronteira frontend suportada para alterar a etapa de um lead. */
@@ -20,7 +24,8 @@ export async function transicionarLead(input: TransicionarLeadInput) {
     p_novo_status: input.status,
     p_proxima_acao: input.proximaAcao ?? template?.titulo ?? undefined,
     p_proximo_followup: input.proximoFollowup ?? template?.vencimento ?? undefined,
-  });
+    ...(input.motivoCategoria ? { p_motivo_categoria: input.motivoCategoria } : {}),
+  } as never);
   if (error) throw error;
   return data;
 }

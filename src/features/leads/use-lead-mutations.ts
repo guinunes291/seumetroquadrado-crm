@@ -141,7 +141,11 @@ export function useLeadMutations(opts: {
 
       // RPC canônica: além do corretor_id, renova data_distribuicao (sem isso o
       // job de redistribuição desfazia a transferência) e registra no log.
+      // Um chunk que falha NÃO aborta os demais — o resultado reporta o
+      // parcial ("X de N") em vez de fingir tudo-ou-nada.
       const batchSize = 100;
+      const okIds: string[] = [];
+      let primeiroErro: string | null = null;
       for (let i = 0; i < ids.length; i += batchSize) {
         const lote = ids.slice(i, i + batchSize);
         const { error } = await supabase.rpc(
@@ -150,31 +154,41 @@ export function useLeadMutations(opts: {
         );
         if (error) {
           console.error("[bulkTransferir]", { error, loteInicio: i, loteTamanho: lote.length });
-          throw error;
+          primeiroErro ??= error.message;
+        } else {
+          okIds.push(...lote);
         }
+      }
+      if (okIds.length === 0) {
+        throw new Error(primeiroErro ?? "Falha ao transferir leads.");
       }
 
       // Histórico: a transferência em lote pela UI só registrava no
       // distribution_log; agora deixa nota na timeline de cada lead (mesmo
-      // rastro da realocação individual via API).
+      // rastro da realocação individual via API). Em chunks e best-effort —
+      // a transferência já aconteceu; a nota não pode derrubá-la.
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
-      await supabase.from("interacoes").insert(
-        ids.map((id) =>
-          notaSistemaPayload({
-            leadId: id,
-            autorId: uid,
-            titulo: "Lead transferido",
-            conteudo: "Lead realocado em lote para outro corretor.",
-            metadata: { acao: "transferencia_lote", corretor_novo: corretorId },
-          }),
-        ) as never,
-      );
+      for (let i = 0; i < okIds.length; i += 500) {
+        const lote = okIds.slice(i, i + 500);
+        const { error: notaErr } = await supabase.from("interacoes").insert(
+          lote.map((id) =>
+            notaSistemaPayload({
+              leadId: id,
+              autorId: uid,
+              titulo: "Lead transferido",
+              conteudo: "Lead realocado em lote para outro corretor.",
+              metadata: { acao: "transferencia_lote", corretor_novo: corretorId },
+            }),
+          ) as never,
+        );
+        if (notaErr) console.error("[bulkTransferir] nota de timeline falhou", notaErr);
+      }
 
-      // Notifica via WhatsApp leads com origem=facebook (best-effort).
+      // Notifica via WhatsApp (best-effort; a edge function decide por origem).
       const notifyBatchSize = 20;
-      for (let i = 0; i < ids.length; i += notifyBatchSize) {
-        const lote = ids.slice(i, i + notifyBatchSize);
+      for (let i = 0; i < okIds.length; i += notifyBatchSize) {
+        const lote = okIds.slice(i, i + notifyBatchSize);
         await Promise.allSettled(
           lote.map((id) =>
             supabase.functions.invoke("notify-lead-transfer", {
@@ -183,16 +197,121 @@ export function useLeadMutations(opts: {
           ),
         );
       }
-      return ids.length;
+      return { ok: okIds.length, total: ids.length, erro: primeiroErro };
     },
-    onSuccess: (n) => {
-      toast.success(`${n} lead(s) transferido(s)`);
+    onSuccess: ({ ok, total, erro }) => {
+      if (ok < total) {
+        toast.warning(`${ok} de ${total} lead(s) transferido(s) — o restante falhou.`, {
+          description: erro ?? undefined,
+        });
+      } else {
+        toast.success(`${ok} lead(s) transferido(s)`);
+      }
       clearSelection();
       fecharDialogs?.transferir?.();
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
     },
     onError: (e: Error) => toast.error(e.message || "Falha ao transferir leads."),
+  });
+
+  // Descarte em lote COM motivo — a peça que faltava para a higiene do funil
+  // (7 perdidos em 55 mil leads): marca perdido via transicionar_lead com a
+  // categoria oficial, SEM a redistribuição do fluxo individual (descartar
+  // 300 leads mortos não pode reinjetá-los na roleta do time).
+  const bulkDescartar = useMutation({
+    mutationFn: async ({
+      ids,
+      categoria,
+      detalhe,
+    }: {
+      ids: string[];
+      categoria: string;
+      detalhe?: string;
+    }) => {
+      if (!ids.length) throw new Error("Selecione ao menos um lead.");
+      if (!categoria) throw new Error("Escolha o motivo da perda.");
+      let ok = 0;
+      let primeiroErro: string | null = null;
+      // Concorrência limitada (10 por vez): cada transição é uma RPC própria.
+      const paralelo = 10;
+      for (let i = 0; i < ids.length; i += paralelo) {
+        const lote = ids.slice(i, i + paralelo);
+        const resultados = await Promise.allSettled(
+          lote.map((id) =>
+            transicionarLead({
+              id,
+              status: "perdido",
+              motivo: detalhe?.trim() || categoria,
+              motivoCategoria: categoria,
+            }),
+          ),
+        );
+        for (const r of resultados) {
+          if (r.status === "fulfilled") ok++;
+          else primeiroErro ??= (r.reason as Error)?.message ?? String(r.reason);
+        }
+      }
+      if (ok === 0) throw new Error(primeiroErro ?? "Nenhum lead pôde ser descartado.");
+      return { ok, total: ids.length, erro: primeiroErro };
+    },
+    onSuccess: ({ ok, total, erro }) => {
+      if (ok < total) {
+        toast.warning(`${ok} de ${total} lead(s) descartado(s) — o restante falhou.`, {
+          description: erro ?? undefined,
+        });
+      } else {
+        toast.success(`${ok} lead(s) marcados como perdidos`);
+      }
+      clearSelection();
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
+      qc.invalidateQueries({ queryKey: ["pipeline-stage-v2"] });
+      qc.invalidateQueries({ queryKey: ["pipeline-snapshot-v2"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Roleta em lote (admin): triagem v3 lead a lead, com placar no final.
+  // Leads que a roleta recusar caem na fila de exceções da Distribuição.
+  const bulkRoleta = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!ids.length) throw new Error("Selecione ao menos um lead.");
+      let distribuidos = 0;
+      let semCorretor = 0;
+      let falhas = 0;
+      const paralelo = 5;
+      for (let i = 0; i < ids.length; i += paralelo) {
+        const lote = ids.slice(i, i + paralelo);
+        const resultados = await Promise.allSettled(
+          lote.map(async (id) => {
+            const { data, error } = await supabase.rpc("triar_e_distribuir_lead", {
+              _lead_id: id,
+              _gatilho: "manual_roleta",
+            });
+            if (error) throw error;
+            const res = data as { ok?: boolean; corretor_id?: string } | null;
+            return res?.ok ? (res.corretor_id ?? null) : null;
+          }),
+        );
+        for (const r of resultados) {
+          if (r.status === "rejected") falhas++;
+          else if (r.value) distribuidos++;
+          else semCorretor++;
+        }
+      }
+      return { distribuidos, semCorretor, falhas, total: ids.length };
+    },
+    onSuccess: ({ distribuidos, semCorretor, falhas }) => {
+      const partes = [`${distribuidos} distribuído(s)`];
+      if (semCorretor) partes.push(`${semCorretor} na fila de exceções`);
+      if (falhas) partes.push(`${falhas} falha(s)`);
+      (falhas ? toast.warning : toast.success)(`Roleta: ${partes.join(" · ")}`);
+      clearSelection();
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   // Muda a temperatura de todos os leads selecionados de uma vez.
@@ -330,6 +449,8 @@ export function useLeadMutations(opts: {
     bulkTemperatura,
     bulkFollowup,
     bulkRegistrarLigacao,
+    bulkDescartar,
+    bulkRoleta,
     iniciarAtendimento,
   };
 }

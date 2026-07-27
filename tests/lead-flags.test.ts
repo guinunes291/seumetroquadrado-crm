@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadFlags, leadRowIntent } from "@/lib/lead-flags";
+import { diasSemContato, leadFlags, leadFlagsDetalhadas, leadRowIntent } from "@/lib/lead-flags";
 
 const NOW = new Date("2026-07-13T12:00:00Z");
 const horasAtras = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
@@ -100,6 +100,100 @@ describe("leadFlags", () => {
       { now: NOW },
     );
     expect(flags).toContain("com_visita");
+  });
+
+  it("follow-up no passado marca followup_vencido (danger)", () => {
+    const flags = leadFlags(
+      {
+        status: "em_atendimento",
+        temperatura: null,
+        created_at: diasAtras(10),
+        ultima_interacao: diasAtras(1),
+        proximo_followup: horasAtras(3),
+      },
+      { now: NOW },
+    );
+    expect(flags).toContain("followup_vencido");
+    expect(flags).not.toContain("followup_hoje");
+    expect(leadRowIntent(flags)).toBe("danger");
+  });
+
+  it("follow-up mais tarde hoje marca followup_hoje", () => {
+    const emDuasHoras = new Date(NOW.getTime() + 2 * 3_600_000).toISOString();
+    const flags = leadFlags(
+      {
+        status: "em_atendimento",
+        temperatura: null,
+        created_at: diasAtras(10),
+        ultima_interacao: diasAtras(1),
+        proximo_followup: emDuasHoras,
+      },
+      { now: NOW },
+    );
+    expect(flags).toContain("followup_hoje");
+    expect(flags).not.toContain("followup_vencido");
+  });
+
+  it("lead finalizado não ganha flag de follow-up", () => {
+    const flags = leadFlags(
+      {
+        status: "perdido",
+        temperatura: null,
+        created_at: diasAtras(10),
+        ultima_interacao: diasAtras(1),
+        proximo_followup: horasAtras(3),
+      },
+      { now: NOW },
+    );
+    expect(flags).toEqual([]);
+  });
+});
+
+describe("leadFlagsDetalhadas", () => {
+  it("parado/sem_contato carregam os dias no rótulo", () => {
+    const parado = leadFlagsDetalhadas(
+      {
+        status: "em_atendimento",
+        temperatura: null,
+        created_at: diasAtras(30),
+        ultima_interacao: diasAtras(12),
+      },
+      { now: NOW },
+    );
+    expect(parado.map((f) => f.label)).toContain("Parado · 12d");
+
+    const semContato = leadFlagsDetalhadas(
+      {
+        status: "em_atendimento",
+        temperatura: null,
+        created_at: diasAtras(30),
+        ultima_interacao: diasAtras(6),
+      },
+      { now: NOW },
+    );
+    expect(semContato.map((f) => f.label)).toContain("Sem contato · 6d");
+  });
+
+  it("lead nunca contatado conta os dias desde a criação", () => {
+    const flags = leadFlagsDetalhadas(
+      {
+        status: "em_atendimento",
+        temperatura: null,
+        created_at: diasAtras(15),
+        ultima_interacao: null,
+      },
+      { now: NOW },
+    );
+    expect(flags.map((f) => f.label)).toContain("Parado · 15d");
+  });
+});
+
+describe("diasSemContato", () => {
+  it("usa ultima_interacao quando existe, senão created_at", () => {
+    expect(diasSemContato({ ultima_interacao: diasAtras(3), created_at: diasAtras(30) }, NOW)).toBe(
+      3,
+    );
+    expect(diasSemContato({ ultima_interacao: null, created_at: diasAtras(30) }, NOW)).toBe(30);
   });
 });
 

@@ -8,7 +8,7 @@
 
 import { Link } from "@tanstack/react-router";
 import type { OnChangeFn } from "@tanstack/react-table";
-import { Ban, MessageCircle, Phone, UserPlus } from "lucide-react";
+import { MessageCircle, Phone, Thermometer, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +18,18 @@ import {
   type DataTableProps,
   type SortingState,
 } from "@/components/ui/data-table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ScoreRing } from "@/components/ui/score-ring";
 import { TransferSlaBadge } from "@/components/transfer-sla-badge";
-import { FLAG_META, leadFlags, leadRowIntent } from "@/lib/lead-flags";
+import { FLAG_META, leadFlags, leadFlagsDetalhadas, leadRowIntent } from "@/lib/lead-flags";
+import { formatRelativeTime } from "@/lib/interacoes";
+import { scoreLead, TIER_LABEL } from "@/lib/priority";
 import {
   LEAD_STATUS_BADGE_TONE,
   PROXIMA_ACAO,
@@ -30,7 +39,7 @@ import {
 } from "@/lib/leads";
 import type { Intent } from "@/lib/status-tones";
 import { abrirNovoLead } from "./novo-lead-dialog";
-import { TempIcon, InatividadeBadge } from "./lead-indicators";
+import { TempIcon } from "./lead-indicators";
 import { FinanceiroPopover, LeadRowMenu, IniciarSplitButton } from "./row-actions";
 import type { Lead } from "./types";
 
@@ -46,19 +55,27 @@ const ROW_INTENT_CLASS: Record<Intent, string | undefined> = {
   neutral: undefined,
 };
 
-/** Chips compactos das flags do lead (máx. `max` + contador do excedente). */
+/** Chips compactos das flags do lead (máx. `max` + contador do excedente).
+ *  Os rótulos vêm de leadFlagsDetalhadas (régua única, com dias embutidos:
+ *  "Parado · 12d"); o "+N" ganha title com as flags escondidas. */
 export function FlagChips({ lead, max = 2 }: { lead: Lead; max?: number }) {
-  const flags = leadFlags(lead);
+  const flags = leadFlagsDetalhadas(lead);
   if (flags.length === 0) return null;
+  const escondidas = flags.slice(max);
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       {flags.slice(0, max).map((f) => (
-        <Badge key={f} variant="outline" className="px-1.5 py-0 text-[10px]">
-          {FLAG_META[f].label}
+        <Badge key={f.flag} variant="outline" className="px-1.5 py-0 text-[10px]">
+          {f.label}
         </Badge>
       ))}
-      {flags.length > max && (
-        <span className="text-[10px] text-muted-foreground">+{flags.length - max}</span>
+      {escondidas.length > 0 && (
+        <span
+          className="text-[10px] text-muted-foreground"
+          title={escondidas.map((f) => f.label).join(", ")}
+        >
+          +{escondidas.length}
+        </span>
       )}
     </span>
   );
@@ -74,12 +91,12 @@ export type LeadsTableProps = {
   leads: Lead[];
   loading: boolean;
   /**
-   * Origem dos dados da lista. Com a v2 o servidor aplica o sort da coluna
-   * (whitelist) OU a prioridade operacional; no fallback v1 o clique no
-   * cabeçalho só alterna o indicador — a RPC antiga não conhece `_sort`,
-   * então a ordem não muda (aceitável enquanto a migration não é aplicada).
+   * Origem dos dados da lista. Com v2/v3 o servidor aplica o sort da coluna
+   * (whitelist) OU a prioridade operacional; no fallback v1 a RPC antiga não
+   * conhece `_sort`, então o sort é DESABILITADO nos cabeçalhos (antes o
+   * indicador alternava sem reordenar). O sort por score exige a v3.
    */
-  source: "v1" | "v2";
+  source: "v1" | "v2" | "v3";
   canManage: boolean;
   userId: string | undefined;
   corretoresMap: Map<string, string>;
@@ -105,11 +122,18 @@ export type LeadsTableProps = {
   onRoleta: (lead: Lead) => void;
   onTransferir: (lead: Lead) => void;
   onLixeira: (lead: Lead) => void;
+  /** Troca de temperatura em 1 clique (chip clicável na célula Nome). */
+  onSetTemperatura: (lead: Lead, temp: "quente" | "morno" | "frio") => void;
+  /** Item "Focar a partir daqui" do menu da linha (modo foco com startId). */
+  onFocar: (lead: Lead) => void;
+  /** Item "+ Follow-up" do menu da linha (reusa o diálogo de follow-up). */
+  onFollowup: (lead: Lead) => void;
 };
 
 export function LeadsTable({
   leads,
   loading,
+  source,
   canManage,
   userId,
   corretoresMap,
@@ -134,21 +158,70 @@ export function LeadsTable({
   onRoleta,
   onTransferir,
   onLixeira,
+  onSetTemperatura,
+  onFocar,
+  onFollowup,
 }: LeadsTableProps) {
+  // No fallback v1 a RPC não conhece `_sort`: clicar no cabeçalho mudaria só o
+  // indicador, sem reordenar — melhor não oferecer o affordance do que mentir.
+  const sortable = source !== "v1";
+  // O sort por score só existe na v3; na v2 o clique cairia na ordem padrão.
+  const sortableScore = source === "v3";
   // Sem useMemo de propósito: os handlers chegam da página como arrows novas
   // a cada render, então a memoização nunca acertaria o cache. Os ids das
-  // colunas sortáveis (nome/created_at/status) casam com a whitelist da RPC.
+  // colunas sortáveis casam com a whitelist da RPC (v3).
   const columns: ColumnDef<Lead, unknown>[] = [
     {
       accessorKey: "nome",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Nome" />,
+      header: ({ column }) =>
+        sortable ? <DataTableColumnHeader column={column} title="Nome" /> : <>Nome</>,
+      enableSorting: sortable,
       meta: { label: "Nome" },
       cell: ({ row }) => {
         const l = row.original;
         return (
           <div>
             <div className="flex items-center gap-2">
-              <TempIcon temp={l.temperatura} />
+              {/* Temperatura clicável: 1 clique para requalificar sem abrir o lead. */}
+              <span data-no-row-click>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-muted"
+                      aria-label={`Mudar temperatura de ${l.nome}`}
+                      title="Mudar temperatura"
+                    >
+                      {l.temperatura ? (
+                        <TempIcon temp={l.temperatura} />
+                      ) : (
+                        // Sem temperatura ainda: ícone apagado como convite a definir.
+                        <Thermometer
+                          className="h-3.5 w-3.5 text-muted-foreground/50"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {(
+                      [
+                        { key: "quente", label: "🔥 Quente" },
+                        { key: "morno", label: "🌡️ Morno" },
+                        { key: "frio", label: "❄️ Frio" },
+                      ] as const
+                    ).map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.key}
+                        disabled={l.temperatura === opt.key}
+                        onSelect={() => onSetTemperatura(l, opt.key)}
+                      >
+                        {opt.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </span>
               <Link
                 to="/leads/$leadId"
                 params={{ leadId: l.id }}
@@ -163,7 +236,6 @@ export function LeadsTable({
             )}
             <div className="mt-1 flex flex-wrap items-center gap-1">
               <FlagChips lead={l} />
-              <InatividadeBadge lead={l} />
             </div>
           </div>
         );
@@ -221,7 +293,9 @@ export function LeadsTable({
     },
     {
       accessorKey: "status",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      header: ({ column }) =>
+        sortable ? <DataTableColumnHeader column={column} title="Status" /> : <>Status</>,
+      enableSorting: sortable,
       meta: { label: "Status" },
       cell: ({ row }) => {
         const l = row.original;
@@ -249,6 +323,63 @@ export function LeadsTable({
       },
     },
     {
+      // Score de prioridade 0-100 — na v3 vem do servidor (com componente de
+      // SLA); nos fallbacks é calculado no cliente (sem SLA) só para exibição.
+      id: "score",
+      header: ({ column }) =>
+        sortableScore ? (
+          <DataTableColumnHeader column={column} title="Prioridade" />
+        ) : (
+          <>Prioridade</>
+        ),
+      enableSorting: sortableScore,
+      meta: { label: "Prioridade", hideBelow: "md" },
+      cell: ({ row }) => {
+        const l = row.original;
+        const client = scoreLead({
+          temperatura: l.temperatura,
+          status: l.status,
+          ultimaInteracao: l.ultima_interacao,
+        });
+        const valor = typeof l.score === "number" ? l.score : client.score;
+        const tier = valor >= 60 ? "alta" : valor >= 35 ? "media" : "baixa";
+        const intent = tier === "alta" ? "danger" : tier === "media" ? "warning" : "neutral";
+        return (
+          <ScoreRing
+            value={valor}
+            size={32}
+            strokeWidth={3}
+            intent={intent}
+            title={`Prioridade ${TIER_LABEL[tier]} (${valor}) — ${client.motivo}`}
+          />
+        );
+      },
+    },
+    {
+      accessorKey: "ultima_interacao",
+      header: ({ column }) =>
+        sortable ? (
+          <DataTableColumnHeader column={column} title="Último contato" />
+        ) : (
+          <>Último contato</>
+        ),
+      enableSorting: sortable,
+      meta: { label: "Último contato", hideBelow: "md" },
+      cell: ({ row }) => {
+        const l = row.original;
+        return l.ultima_interacao ? (
+          <span
+            className="text-xs text-muted-foreground"
+            title={new Date(l.ultima_interacao).toLocaleString("pt-BR")}
+          >
+            {formatRelativeTime(l.ultima_interacao)}
+          </span>
+        ) : (
+          <span className="text-xs italic text-muted-foreground">nunca</span>
+        );
+      },
+    },
+    {
       id: "corretor",
       header: "Corretor",
       enableSorting: false,
@@ -264,7 +395,9 @@ export function LeadsTable({
     },
     {
       accessorKey: "created_at",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Data" />,
+      header: ({ column }) =>
+        sortable ? <DataTableColumnHeader column={column} title="Data" /> : <>Data</>,
+      enableSorting: sortable,
       meta: { label: "Data", hideBelow: "sm" },
       cell: ({ row }) => {
         const l = row.original;
@@ -308,6 +441,8 @@ export function LeadsTable({
                 {proxima.label}
               </Button>
             )}
+            {/* "Descartar" vive só no menu ⋯ ("Marcar como perdido") — o botão
+                Ban duplicado saiu para reduzir ruído na linha. */}
             <LeadRowMenu
               lead={l}
               canManage={canManage}
@@ -318,22 +453,9 @@ export function LeadsTable({
               onRoleta={() => onRoleta(l)}
               onTransferir={() => onTransferir(l)}
               onLixeira={() => onLixeira(l)}
+              onFocar={canAct && !l.na_lixeira ? () => onFocar(l) : undefined}
+              onFollowup={canAct && !l.na_lixeira ? () => onFollowup(l) : undefined}
             />
-            {canAct && !l.na_lixeira && l.status !== "perdido" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                aria-label="Descartar lead"
-                title="Descartar lead"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPickPerdido(l);
-                }}
-              >
-                <Ban className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         );
       },

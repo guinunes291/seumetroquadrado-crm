@@ -20,7 +20,12 @@ export type Lead = {
   entrada_disponivel: string | null;
   usa_fgts: boolean | null;
   data_venda: string | null;
-  /** Só na RPC v2: lead tem follow-up pendente/em andamento (flag de linha). */
+  /** Só na RPC v2+: lead tem follow-up pendente/em andamento (flag de linha). */
   tem_followup?: boolean;
+  /** Só na RPC v3: data do próximo follow-up aberto (espelho de tarefas). */
+  proximo_followup?: string | null;
+  /** Só na RPC v3: score de prioridade 0-100 calculado no servidor
+   *  (espelho de src/lib/priority.ts, incluindo o componente de SLA). */
+  score?: number | null;
   total_count?: number | null;
 };

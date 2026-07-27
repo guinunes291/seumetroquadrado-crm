@@ -3,9 +3,10 @@
 // qualquer tela pelo evento "open-novo-lead" (botão da lista, palette ⌘K).
 
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,7 +45,12 @@ export const ORIGEM_OPTIONS = [
   "outro",
 ] as const;
 
+// Sentinel do select "Atribuir a": Radix Select não aceita value="", então o
+// item "Sem corretor (triagem manual)" usa este valor reservado.
+const SEM_CORRETOR = "__sem_corretor__";
+
 /** Abre o diálogo global de novo lead (de botões, palette ou atalho). */
+// eslint-disable-next-line react-refresh/only-export-components -- helper imperativo do mesmo evento global; conviver com o componente é intencional
 export function abrirNovoLead(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event("open-novo-lead"));
@@ -101,6 +107,30 @@ function NovoLeadForm({
     observacoes: "",
   });
   const [distribuirAuto, setDistribuirAuto] = useState(true);
+  // Atribuição manual: default "sem corretor" para o gestor (triagem depois).
+  const [corretorId, setCorretorId] = useState<string>(SEM_CORRETOR);
+
+  // O select "Atribuir a" vale para quem gerencia: gestor sempre; admin apenas
+  // com a roleta DESMARCADA (roleta e atribuição manual são mutuamente
+  // exclusivas — com a roleta ligada, quem decide é a triagem v3).
+  const mostrarAtribuirA = canManage && (!podeDistribuir || !distribuirAuto);
+
+  const { data: corretores } = useQuery({
+    queryKey: ["corretores-atribuir-novo-lead"],
+    enabled: mostrarAtribuirA,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .eq("ativo", true)
+        // "docs-bot" é a conta de serviço (perfil ativo para operar via API);
+        // nunca atende lead, então fica fora das opções de atribuição.
+        .neq("nome", "docs-bot")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const create = useMutation({
     mutationFn: async () => {
@@ -139,13 +169,20 @@ function NovoLeadForm({
         observacoes: form.observacoes.trim() || null,
       };
       // Corretor: atribui automaticamente a si mesmo e já entra como "aguardando atendimento"
+      const atribuicaoManual = mostrarAtribuirA && corretorId !== SEM_CORRETOR;
       if (!canManage && currentUserId) {
         payload.corretor_id = currentUserId;
         payload.status = "aguardando_atendimento";
+      } else if (atribuicaoManual) {
+        // Gestor/admin escolheu um corretor: mesmo padrão da auto-atribuição
+        // acima — o lead já nasce na carteira dele, aguardando atendimento.
+        payload.corretor_id = corretorId;
+        payload.status = "aguardando_atendimento";
       }
 
-      const { data: criacao, error } = await (supabase as any).rpc("criar_lead_dedup", {
-        _payload: payload as never,
+      // RPC já presente nos tipos gerados — chamada tipada, sem cast do client.
+      const { data: criacao, error } = await supabase.rpc("criar_lead_dedup", {
+        _payload: payload as Json,
       });
       if (error) throw error;
       const resultado = criacao as {
@@ -174,22 +211,38 @@ function NovoLeadForm({
         return {
           id: data.id,
           corretor: res?.ok ? (res.corretor_id ?? null) : null,
+          corretorNome: null as string | null,
           selfAssigned: false,
         };
       }
-      return { id: data!.id, corretor: null, selfAssigned: !canManage };
+      return {
+        id: data!.id,
+        corretor: atribuicaoManual ? corretorId : null,
+        // Nome para o toast — resolvido da lista já carregada no select.
+        corretorNome: atribuicaoManual
+          ? ((corretores ?? []).find((c) => c.id === corretorId)?.nome ?? null)
+          : null,
+        selfAssigned: !canManage,
+      };
     },
     onSuccess: (r) => {
       toast.success(
         r.selfAssigned
           ? "Lead criado e atribuído a você"
-          : r.corretor
-            ? "Lead criado e atribuído"
-            : podeDistribuir && distribuirAuto
-              ? "Lead criado (nenhum corretor disponível na fila)"
-              : "Lead criado",
+          : r.corretorNome
+            ? `Lead criado e atribuído a ${r.corretorNome}`
+            : r.corretor
+              ? "Lead criado e atribuído"
+              : podeDistribuir && distribuirAuto
+                ? "Lead criado (nenhum corretor disponível na fila)"
+                : "Lead criado",
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
+      // Contadores e Kanban: sem estas invalidações, criar lead com o board
+      // aberto deixava os números defasados até o próximo refetch.
+      qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
+      qc.invalidateQueries({ queryKey: ["pipeline-stage-v2"] });
+      qc.invalidateQueries({ queryKey: ["pipeline-snapshot-v2"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -257,7 +310,7 @@ function NovoLeadForm({
             onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
           />
         </div>
-        {podeDistribuir ? (
+        {podeDistribuir && (
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -266,14 +319,35 @@ function NovoLeadForm({
             />
             Distribuir automaticamente via roleta
           </label>
-        ) : canManage ? (
-          <p className="text-xs text-muted-foreground">
-            O lead será criado sem corretor. Atribua a um corretor do seu time pela lista de leads.
-          </p>
+        )}
+        {mostrarAtribuirA ? (
+          <div>
+            <Label>Atribuir a</Label>
+            <Select value={corretorId} onValueChange={setCorretorId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SEM_CORRETOR}>Sem corretor (triagem manual)</SelectItem>
+                {(corretores ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {corretorId === SEM_CORRETOR
+                ? "O lead ficará sem corretor até você atribuir — ele aparece na sua lista de leads."
+                : "O lead entra direto na carteira do corretor escolhido, aguardando atendimento."}
+            </p>
+          </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            Este lead será atribuído automaticamente a você.
-          </p>
+          !canManage && (
+            <p className="text-xs text-muted-foreground">
+              Este lead será atribuído automaticamente a você.
+            </p>
+          )
         )}
       </div>
       <DialogFooter>
