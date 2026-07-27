@@ -26,7 +26,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowRightLeft, Search, Users, UserCheck, UserX, Trophy } from "lucide-react";
+import {
+  ArrowRightLeft,
+  CircleDashed,
+  Clock,
+  Search,
+  Users,
+  UserCheck,
+  UserX,
+  Trophy,
+} from "lucide-react";
 import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
@@ -50,18 +59,30 @@ type Stats = {
   total: number;
   emAtendimento: number;
   aguardando: number;
+  aguardandoRetorno: number;
   ganhos: number;
   perdidos: number;
 };
 
-/** Linha da RPC leads_stats_por_corretor (agregação server-side da base inteira). */
+/** Linha da RPC leads_stats_por_corretor (agregação server-side da base inteira).
+ *  `aguardando_retorno` chega só na v2 da RPC — ausente, cai em 0. */
 type StatsRow = {
   corretor_id: string | null;
   total: number;
   em_atendimento: number;
   aguardando: number;
+  aguardando_retorno?: number;
   ganhos: number;
   perdidos: number;
+};
+
+const STATS_ZERADAS: Stats = {
+  total: 0,
+  emAtendimento: 0,
+  aguardando: 0,
+  aguardandoRetorno: 0,
+  ganhos: 0,
+  perdidos: 0,
 };
 
 /** Limite de leads baixados para a LISTAGEM (a agregação dos cards é no servidor). */
@@ -188,6 +209,7 @@ export function LeadsPorCorretorPage() {
           total: Number(r.total),
           emAtendimento: Number(r.em_atendimento),
           aguardando: Number(r.aguardando),
+          aguardandoRetorno: Number(r.aguardando_retorno ?? 0),
           ganhos: Number(r.ganhos),
           perdidos: Number(r.perdidos),
         });
@@ -197,16 +219,11 @@ export function LeadsPorCorretorPage() {
     // Fallback (RPC ausente): agregação antiga sobre os 2.000 mais recentes.
     (leads ?? []).forEach((l) => {
       const key = l.corretor_id ?? "__unassigned__";
-      const s = map.get(key) ?? {
-        total: 0,
-        emAtendimento: 0,
-        aguardando: 0,
-        ganhos: 0,
-        perdidos: 0,
-      };
+      const s = map.get(key) ?? { ...STATS_ZERADAS };
       s.total++;
       if (l.status === "em_atendimento") s.emAtendimento++;
       if (l.status === "aguardando_atendimento" || l.status === "novo") s.aguardando++;
+      if (l.status === "aguardando_retorno") s.aguardandoRetorno++;
       if (l.status === "contrato_fechado" || l.status === "pos_venda") s.ganhos++;
       if (l.status === "perdido") s.perdidos++;
       map.set(key, s);
@@ -404,13 +421,7 @@ export function LeadsPorCorretorPage() {
           />
         )}
         {(corretores ?? []).map((c) => {
-          const s = statsByCorretor.get(c.id) ?? {
-            total: 0,
-            emAtendimento: 0,
-            aguardando: 0,
-            ganhos: 0,
-            perdidos: 0,
-          };
+          const s = statsByCorretor.get(c.id) ?? STATS_ZERADAS;
           return (
             <CorretorCard
               key={c.id}
@@ -577,6 +588,10 @@ function CorretorCard({
           <span>{stats.aguardando} aguardando</span>
         </div>
         <div className="flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-info" />
+          <span>{stats.aguardandoRetorno} aguardando retorno</span>
+        </div>
+        <div className="flex items-center gap-2">
           <Trophy className="h-3.5 w-3.5 text-green-600" />
           <span>{stats.ganhos} ganhos</span>
         </div>
@@ -584,6 +599,27 @@ function CorretorCard({
           <UserX className="h-3.5 w-3.5 text-destructive" />
           <span>{stats.perdidos} perdidos</span>
         </div>
+        {(() => {
+          // O total inclui também qualificado/agendado/visita/proposta/análise;
+          // a linha derivada fecha a conta do card sem mais uma coluna na RPC.
+          const outras =
+            stats.total -
+            stats.emAtendimento -
+            stats.aguardando -
+            stats.aguardandoRetorno -
+            stats.ganhos -
+            stats.perdidos;
+          if (outras <= 0) return null;
+          return (
+            <div
+              className="flex items-center gap-2 text-muted-foreground"
+              title="Leads em qualificado, agendado, visita realizada, proposta enviada ou análise de crédito"
+            >
+              <CircleDashed className="h-3.5 w-3.5" />
+              <span>{outras} em outras etapas</span>
+            </div>
+          );
+        })()}
         {(redistribuidos ?? 0) > 0 && (
           <div
             className="flex items-center gap-2 text-muted-foreground"
