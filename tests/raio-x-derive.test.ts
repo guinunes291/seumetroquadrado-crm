@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   compararComTime,
   evolucaoTrimestral,
+  filtrarSerieJanela,
   funilLadoALado,
+  mesesDesde,
   resumoComissoes,
   raioXParaSheets,
 } from "@/features/inteligencia/raio-x-derive";
@@ -118,6 +120,36 @@ describe("evolucaoTrimestral", () => {
       { trimestre: "2026-T1", vendas: 3, vgv: 300, visitas: 2 },
       { trimestre: "2026-T2", vendas: 3, vgv: 300, visitas: 1 },
     ]);
+  });
+});
+
+describe("janela personalizada", () => {
+  it("mesesDesde conta meses-calendário do início até hoje (inclusive)", () => {
+    expect(mesesDesde("2026-05-15", "2026-07-27")).toBe(3); // mai, jun, jul
+    expect(mesesDesde("2026-07-01", "2026-07-27")).toBe(1);
+    expect(mesesDesde("2025-07-27", "2026-07-27")).toBe(13);
+  });
+
+  it("mesesDesde limita a 1..24 e cai para 6 com data inválida", () => {
+    expect(mesesDesde("2020-01-01", "2026-07-27")).toBe(24);
+    expect(mesesDesde("2027-01-01", "2026-07-27")).toBe(1); // início no futuro
+    expect(mesesDesde("nada", "2026-07-27")).toBe(6);
+  });
+
+  it("filtrarSerieJanela recorta pelos meses que contêm as datas", () => {
+    const serie = [
+      { mes: "2026-03-01" },
+      { mes: "2026-04-01" },
+      { mes: "2026-05-01" },
+      { mes: "2026-06-01" },
+    ];
+    expect(filtrarSerieJanela(serie, "2026-04-10", "2026-05-20").map((m) => m.mes)).toEqual([
+      "2026-04-01",
+      "2026-05-01",
+    ]);
+    // Sem "até": vai até o fim da série; sem "de": desde o início.
+    expect(filtrarSerieJanela(serie, "2026-05-01", null)).toHaveLength(2);
+    expect(filtrarSerieJanela(serie, null, "2026-03-31")).toHaveLength(1);
   });
 });
 

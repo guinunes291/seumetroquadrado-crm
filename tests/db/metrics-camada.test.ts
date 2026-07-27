@@ -195,6 +195,34 @@ describe("escopo por papel", () => {
     await comoSuperuser(c);
   });
 
+  it("performance em janela agrega meses e respeita o escopo do gestor", async () => {
+    await comoUsuario(c, gestorA.id);
+    const r = await c.query(
+      `SELECT corretor_id, leads_recebidos, vendas
+       FROM public.gestao_performance_corretores_janela(
+         (date_trunc('month', now()) - interval '5 months')::date, NULL)`,
+    );
+    const ids = r.rows.map((x: { corretor_id: string }) => x.corretor_id);
+    expect(ids).toContain(corretorA.id);
+    expect(ids).not.toContain(corretorB.id);
+    // Janela contém o mês corrente: totais ≥ os do mês (aqui, iguais — só há
+    // atividade no mês corrente; os 2 leads visíveis da equipe A contam).
+    const linhaA = r.rows.find((x: { corretor_id: string }) => x.corretor_id === corretorA.id) as {
+      leads_recebidos: number;
+    };
+    expect(Number(linhaA.leads_recebidos)).toBe(2);
+    await comoSuperuser(c);
+  });
+
+  it("performance em janela dá forbidden para corretor", async () => {
+    await comoUsuario(c, corretorA.id);
+    const code = await errCode(
+      c.query(`SELECT * FROM public.gestao_performance_corretores_janela(current_date, NULL)`),
+    );
+    expect(code).toBe("P0001");
+    await comoSuperuser(c);
+  });
+
   it("corretor não acessa drill de outro corretor, mas acessa o próprio", async () => {
     await comoUsuario(c, corretorA.id);
     const proibido = await errCode(

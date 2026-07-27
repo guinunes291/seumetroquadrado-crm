@@ -7,6 +7,8 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Bar,
   BarChart,
@@ -23,6 +25,7 @@ import {
 import {
   AlertTriangle,
   ArrowLeft,
+  CalendarRange,
   CheckCircle2,
   Download,
   GraduationCap,
@@ -33,7 +36,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/ui/sparkline";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
@@ -58,7 +63,9 @@ import { SINAL_LABEL, mediasDoTime, sinalizar } from "./performance-derive";
 import {
   compararComTime,
   evolucaoTrimestral,
+  filtrarSerieJanela,
   funilLadoALado,
+  mesesDesde,
   raioXParaSheets,
   resumoComissoes,
   type ComissaoRow,
@@ -70,6 +77,7 @@ import {
   useMotivosPerdaGestao,
   usePerformanceCorretores,
   usePerformanceDrill,
+  usePerformanceJanela,
   type FiltrosInteligencia,
   type PerformanceDrillRow,
 } from "./queries";
@@ -111,14 +119,36 @@ export function RaioXCorretor({
 }) {
   const hoje = new Date();
   const mesAtual = `${hoje.toISOString().slice(0, 8)}01`;
-  // Um único filtro de período rege TODAS as janelas de análise (funil,
-  // evolução, perdas, comissões). O cabeçalho continua sendo "o mês".
+  const hojeIso = hoje.toISOString().slice(0, 10);
+  // Um único filtro de período rege TODAS as janelas de análise — inclusive
+  // os KPIs do topo: presets 3/6/12 meses ou intervalo personalizado. O grão
+  // da camada metrics é mensal, então datas valem pelos meses que as contêm.
   const [meses, setMeses] = useState<Periodo>(6);
-  const filtrosDele = useMemo(() => ({ ...janela(meses), corretor: corretorId }), [corretorId, meses]);
-  const filtrosTime = useMemo(() => janela(meses), [meses]);
+  const [custom, setCustom] = useState<{ from?: Date; to?: Date } | null>(null);
+  const janelaAtual = useMemo<FiltrosInteligencia>(() => {
+    if (custom?.from) {
+      return {
+        de: format(custom.from, "yyyy-MM-dd"),
+        ate: custom.to ? format(custom.to, "yyyy-MM-dd") : null,
+        corretor: null,
+      };
+    }
+    return janela(meses);
+  }, [custom, meses]);
+  const labelJanela = custom?.from
+    ? `${format(custom.from, "dd/MM/yy")} – ${custom.to ? format(custom.to, "dd/MM/yy") : "hoje"}`
+    : `${meses} meses`;
+  const filtrosDele = useMemo(
+    () => ({ ...janelaAtual, corretor: corretorId }),
+    [corretorId, janelaAtual],
+  );
+  const filtrosTime = janelaAtual;
+  const mesesDrill =
+    custom?.from && janelaAtual.de ? mesesDesde(janelaAtual.de, hojeIso) : meses;
 
   const perfQ = usePerformanceCorretores(mesAtual);
-  const drillQ = usePerformanceDrill(corretorId, meses);
+  const perfJanelaQ = usePerformanceJanela(janelaAtual);
+  const drillQ = usePerformanceDrill(corretorId, mesesDrill);
   const coorteDeleQ = useFunilCoorte(filtrosDele, null);
   const coorteTimeQ = useFunilCoorte(filtrosTime, null);
   const snapshotQ = useFunilSnapshot(corretorId);
@@ -128,15 +158,16 @@ export function RaioXCorretor({
   const coberturaMin = useCoberturaMinima().data ?? 60;
 
   const comissoesQ = useQuery({
-    queryKey: ["raiox:comissoes", corretorId, meses],
+    queryKey: ["raiox:comissoes", corretorId, janelaAtual.de, janelaAtual.ate],
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<ComissaoRow[]> => {
-      const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1).toISOString();
-      const { data, error } = await supabase
+      let q = supabase
         .from("comissoes")
         .select("status, valor_liquido, valor_comissao")
         .eq("beneficiario_id", corretorId)
-        .gte("created_at", inicio);
+        .gte("created_at", `${janelaAtual.de ?? "1900-01-01"}T00:00:00`);
+      if (janelaAtual.ate) q = q.lte("created_at", `${janelaAtual.ate}T23:59:59.999`);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as ComissaoRow[];
     },
@@ -146,9 +177,13 @@ export function RaioXCorretor({
   const corretor = time.find((r) => r.corretor_id === corretorId);
   const medias = useMemo(() => mediasDoTime(time), [time]);
   const sinal = corretor ? sinalizar(corretor, medias) : null;
+  // KPIs do topo e comparações vs. time na JANELA selecionada (a identidade,
+  // a carga e o sinal de gestão continuam sendo leituras do mês/agora).
+  const timeJanela = perfJanelaQ.data?.rows ?? [];
+  const corretorJanela = timeJanela.find((r) => r.corretor_id === corretorId);
   const comparacoes = useMemo(
-    () => (corretor ? compararComTime(corretor, time) : []),
-    [corretor, time],
+    () => (corretorJanela ? compararComTime(corretorJanela, timeJanela) : []),
+    [corretorJanela, timeJanela],
   );
 
   const coorteDele = useMemo(
@@ -162,7 +197,10 @@ export function RaioXCorretor({
   const funil = useMemo(() => funilLadoALado(coorteDele, coorteTime), [coorteDele, coorteTime]);
   const funilSemDado = coorteDele === null || coorteSemDado(coorteDele.cobertura_pct, coberturaMin);
 
-  const serie = drillQ.data ?? [];
+  const serie = useMemo(
+    () => filtrarSerieJanela(drillQ.data ?? [], janelaAtual.de, janelaAtual.ate),
+    [drillQ.data, janelaAtual],
+  );
   const trimestres = useMemo(() => evolucaoTrimestral(serie), [serie]);
   const comissoes = useMemo(() => resumoComissoes(comissoesQ.data ?? []), [comissoesQ.data]);
 
@@ -211,18 +249,45 @@ export function RaioXCorretor({
           <Button size="sm" variant="ghost" onClick={onVoltar}>
             <ArrowLeft className="mr-1 h-4 w-4" /> Time
           </Button>
-          {/* Filtro de período: rege funil, evolução, perdas e comissões. */}
+          {/* Filtro de período: rege KPIs, funil, evolução, perdas e comissões. */}
           <div className="inline-flex rounded-md border bg-card p-0.5">
             {PERIODOS.map((p) => (
               <Button
                 key={p}
                 size="sm"
-                variant={meses === p ? "default" : "ghost"}
-                onClick={() => setMeses(p)}
+                variant={!custom?.from && meses === p ? "default" : "ghost"}
+                onClick={() => {
+                  setCustom(null);
+                  setMeses(p);
+                }}
               >
                 {p} meses
               </Button>
             ))}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant={custom?.from ? "default" : "ghost"}>
+                  <CalendarRange className="mr-1 h-4 w-4" />
+                  {custom?.from
+                    ? `${format(custom.from, "dd/MM/yy")}${custom.to ? ` – ${format(custom.to, "dd/MM/yy")}` : ""}`
+                    : "Personalizado"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  initialFocus
+                  mode="range"
+                  defaultMonth={custom?.from}
+                  selected={{ from: custom?.from, to: custom?.to }}
+                  onSelect={(r) => setCustom(r?.from ? { from: r.from, to: r.to } : null)}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                />
+                <p className="max-w-[280px] border-t px-3 py-2 text-[11px] text-muted-foreground sm:max-w-none">
+                  A análise agrega meses-calendário: as datas valem pelos meses que as contêm.
+                </p>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -279,6 +344,16 @@ export function RaioXCorretor({
         </div>
       </div>
 
+      {perfJanelaQ.data?.degradado && (
+        <p className="flex items-center gap-1 text-xs text-warning">
+          <Info className="h-3 w-3 shrink-0" />
+          Modo degradado: os números abaixo são do mês corrente — aplique a migration
+          gestao_performance_corretores_janela para que respeitem o período.
+        </p>
+      )}
+      {perfJanelaQ.isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : (
       <StatGrid>
         {comparacoes
           .filter((c) => ["vendas", "vgv", "visitas_realizadas", "primeira_resposta"].includes(c.chave))
@@ -315,6 +390,7 @@ export function RaioXCorretor({
             );
           })}
       </StatGrid>
+      )}
 
       {/* 2. Sinal de gestão */}
       <Card
@@ -347,7 +423,7 @@ export function RaioXCorretor({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-            Onde o funil dele trava ({meses} meses, coorte)
+            Onde o funil dele trava ({labelJanela}, coorte)
             <AtualizadoEm quando={coorteDeleQ.data?.[0]?.atualizado_em} />
           </CardTitle>
         </CardHeader>
@@ -405,7 +481,7 @@ export function RaioXCorretor({
       {/* 4. Evolução + trimestres */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Evolução ({meses} meses)</CardTitle>
+          <CardTitle className="text-base">Evolução ({labelJanela})</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {drillQ.isLoading ? (
@@ -577,7 +653,7 @@ export function RaioXCorretor({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Onde ele(a) mais perde ({meses} meses)</CardTitle>
+            <CardTitle className="text-base">Onde ele(a) mais perde ({labelJanela})</CardTitle>
           </CardHeader>
           <CardContent>
             {perdasQ.isLoading ? (
@@ -595,7 +671,7 @@ export function RaioXCorretor({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-4 w-4" /> Comissões ({meses} meses)
+              <Wallet className="h-4 w-4" /> Comissões ({labelJanela})
             </CardTitle>
           </CardHeader>
           <CardContent>

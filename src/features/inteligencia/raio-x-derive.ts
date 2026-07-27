@@ -131,6 +131,40 @@ export function evolucaoTrimestral(serie: PerformanceDrillRow[]): Trimestre[] {
 }
 
 // ---------------------------------------------------------------------------
+// Janela de análise (período personalizado)
+// ---------------------------------------------------------------------------
+
+/**
+ * Quantos meses-calendário buscar no drill para cobrir a janela: do mês de
+ * `de` até o mês de `hoje` (inclusive) — a RPC de drill ancora em now().
+ * Limitado a 1..24 (a MV guarda ~12 meses; acima disso volta vazio, honesto).
+ */
+export function mesesDesde(deIso: string, hojeIso: string): number {
+  const de = new Date(`${deIso.slice(0, 10)}T12:00:00Z`);
+  const hoje = new Date(`${hojeIso.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(de.getTime()) || Number.isNaN(hoje.getTime())) return 6;
+  const n =
+    (hoje.getUTCFullYear() - de.getUTCFullYear()) * 12 +
+    (hoje.getUTCMonth() - de.getUTCMonth()) +
+    1;
+  return Math.min(24, Math.max(1, n));
+}
+
+/** Recorta a série mensal aos meses-calendário que contêm [de, ate]. */
+export function filtrarSerieJanela<T extends { mes: string }>(
+  serie: T[],
+  de: string | null,
+  ate: string | null,
+): T[] {
+  const mesDe = de ? de.slice(0, 7) : null;
+  const mesAte = ate ? ate.slice(0, 7) : null;
+  return serie.filter((m) => {
+    const mm = m.mes.slice(0, 7);
+    return (!mesDe || mm >= mesDe) && (!mesAte || mm <= mesAte);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Comissões (resumo)
 // ---------------------------------------------------------------------------
 

@@ -339,6 +339,35 @@ export function usePerformanceCorretores(mes: string | null, enabled = true) {
   });
 }
 
+/**
+ * Performance por corretor agregada na janela [de, ate] (meses-calendário —
+ * grão da MV). Mesmo shape da versão mensal para reaproveitar compararComTime.
+ * Sem a RPC de janela em produção, degrada para o mês corrente com aviso.
+ */
+export function usePerformanceJanela(f: FiltrosInteligencia, enabled = true) {
+  return useQuery({
+    queryKey: ["intel:performance-janela", f.de, f.ate],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async (): Promise<{ rows: PerformanceRow[]; degradado: boolean }> =>
+      rpcWithFallback(
+        async (): Promise<{ rows: PerformanceRow[]; degradado: boolean }> => {
+          const { data, error } = await rpc("gestao_performance_corretores_janela", {
+            _de: f.de,
+            _ate: f.ate,
+          });
+          if (error) throw error;
+          return { rows: (data ?? []) as PerformanceRow[], degradado: false };
+        },
+        async () => {
+          const { data, error } = await rpc("gestao_performance_corretores", { _mes: null });
+          if (error) throw error;
+          return { rows: (data ?? []) as PerformanceRow[], degradado: true };
+        },
+      ),
+  });
+}
+
 export function usePerformanceDrill(corretorId: string | null, meses = 6) {
   return useQuery({
     queryKey: ["intel:performance-drill", corretorId, meses],
