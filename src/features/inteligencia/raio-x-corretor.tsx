@@ -8,6 +8,19 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
@@ -58,6 +71,7 @@ import {
   usePerformanceCorretores,
   usePerformanceDrill,
   type FiltrosInteligencia,
+  type PerformanceDrillRow,
 } from "./queries";
 
 const fmtBRL = (n: number) =>
@@ -75,15 +89,18 @@ const fmtMes = (iso: string) => {
     : d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
 };
 
-/** Janela padrão do Raio-X: últimos 3 meses fechando em hoje. */
-function janela3m(): FiltrosInteligencia {
+/** Janela do Raio-X: últimos N meses fechando em hoje. */
+function janela(meses: number): FiltrosInteligencia {
   const d = new Date();
   return {
-    de: new Date(d.getFullYear(), d.getMonth() - 2, 1).toISOString().slice(0, 10),
+    de: new Date(d.getFullYear(), d.getMonth() - (meses - 1), 1).toISOString().slice(0, 10),
     ate: null,
     corretor: null,
   };
 }
+
+const PERIODOS = [3, 6, 12] as const;
+type Periodo = (typeof PERIODOS)[number];
 
 export function RaioXCorretor({
   corretorId,
@@ -94,11 +111,14 @@ export function RaioXCorretor({
 }) {
   const hoje = new Date();
   const mesAtual = `${hoje.toISOString().slice(0, 8)}01`;
-  const filtrosDele = useMemo(() => ({ ...janela3m(), corretor: corretorId }), [corretorId]);
-  const filtrosTime = useMemo(() => janela3m(), []);
+  // Um único filtro de período rege TODAS as janelas de análise (funil,
+  // evolução, perdas, comissões). O cabeçalho continua sendo "o mês".
+  const [meses, setMeses] = useState<Periodo>(6);
+  const filtrosDele = useMemo(() => ({ ...janela(meses), corretor: corretorId }), [corretorId, meses]);
+  const filtrosTime = useMemo(() => janela(meses), [meses]);
 
   const perfQ = usePerformanceCorretores(mesAtual);
-  const drillQ = usePerformanceDrill(corretorId, 6);
+  const drillQ = usePerformanceDrill(corretorId, meses);
   const coorteDeleQ = useFunilCoorte(filtrosDele, null);
   const coorteTimeQ = useFunilCoorte(filtrosTime, null);
   const snapshotQ = useFunilSnapshot(corretorId);
@@ -108,10 +128,10 @@ export function RaioXCorretor({
   const coberturaMin = useCoberturaMinima().data ?? 60;
 
   const comissoesQ = useQuery({
-    queryKey: ["raiox:comissoes", corretorId],
+    queryKey: ["raiox:comissoes", corretorId, meses],
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<ComissaoRow[]> => {
-      const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 5, 1).toISOString();
+      const inicio = new Date(hoje.getFullYear(), hoje.getMonth() - (meses - 1), 1).toISOString();
       const { data, error } = await supabase
         .from("comissoes")
         .select("status, valor_liquido, valor_comissao")
@@ -187,9 +207,24 @@ export function RaioXCorretor({
     <div className="space-y-4">
       {/* Barra de ações */}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
-        <Button size="sm" variant="ghost" onClick={onVoltar}>
-          <ArrowLeft className="mr-1 h-4 w-4" /> Time
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" onClick={onVoltar}>
+            <ArrowLeft className="mr-1 h-4 w-4" /> Time
+          </Button>
+          {/* Filtro de período: rege funil, evolução, perdas e comissões. */}
+          <div className="inline-flex rounded-md border bg-card p-0.5">
+            {PERIODOS.map((p) => (
+              <Button
+                key={p}
+                size="sm"
+                variant={meses === p ? "default" : "ghost"}
+                onClick={() => setMeses(p)}
+              >
+                {p} meses
+              </Button>
+            ))}
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <AtualizadoEm quando={corretor.atualizado_em} />
           <Button asChild size="sm" variant="outline">
@@ -312,7 +347,7 @@ export function RaioXCorretor({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-            Onde o funil dele trava (3 meses, coorte)
+            Onde o funil dele trava ({meses} meses, coorte)
             <AtualizadoEm quando={coorteDeleQ.data?.[0]?.atualizado_em} />
           </CardTitle>
         </CardHeader>
@@ -326,6 +361,10 @@ export function RaioXCorretor({
               camada metrics não aplicada) — as taxas seriam enganosas.
             </p>
           ) : (
+            <>
+            <div className="mb-4 h-[220px]">
+              <FunilComparadoChart data={funil} nome={corretor.nome.split(" ")[0]} />
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -358,14 +397,15 @@ export function RaioXCorretor({
                 ))}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* 4. Evolução 6 meses + trimestres */}
+      {/* 4. Evolução + trimestres */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Evolução (6 meses)</CardTitle>
+          <CardTitle className="text-base">Evolução ({meses} meses)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {drillQ.isLoading ? (
@@ -376,6 +416,14 @@ export function RaioXCorretor({
             </p>
           ) : (
             <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="h-[220px]">
+                  <ResultadoMensalChart serie={serie} />
+                </div>
+                <div className="h-[220px]">
+                  <EsforcoMensalChart serie={serie} />
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
                   <thead>
@@ -529,7 +577,7 @@ export function RaioXCorretor({
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Onde ele(a) mais perde (3 meses)</CardTitle>
+            <CardTitle className="text-base">Onde ele(a) mais perde ({meses} meses)</CardTitle>
           </CardHeader>
           <CardContent>
             {perdasQ.isLoading ? (
@@ -537,20 +585,9 @@ export function RaioXCorretor({
             ) : (perdasQ.data?.rows ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">Sem perdas registradas na janela.</p>
             ) : (
-              <ul className="space-y-1.5 text-sm">
-                {(perdasQ.data?.rows ?? []).slice(0, 6).map((p) => (
-                  <li key={p.categoria} className="flex items-baseline justify-between gap-2">
-                    <span className="truncate">
-                      {MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ??
-                        p.categoria}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {p.quantidade}
-                      {p.vgv_estimado != null && ` · ~${fmtBRL(Number(p.vgv_estimado))}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="h-[220px]">
+                <PerdasChart rows={(perdasQ.data?.rows ?? []).slice(0, 6)} />
+              </div>
             )}
           </CardContent>
         </Card>
@@ -558,7 +595,7 @@ export function RaioXCorretor({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-4 w-4" /> Comissões (6 meses)
+              <Wallet className="h-4 w-4" /> Comissões ({meses} meses)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -591,5 +628,129 @@ export function RaioXCorretor({
         </Card>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gráficos do Raio-X (recharts — o hub já carrega esta região em lazy)
+// ---------------------------------------------------------------------------
+
+/** Vendas (barras) + VGV (linha) por mês. */
+function ResultadoMensalChart({ serie }: { serie: PerformanceDrillRow[] }) {
+  const data = serie.map((m) => ({
+    label: fmtMes(m.mes),
+    vendas: m.vendas,
+    vgv: Number(m.vgv) || 0,
+  }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+        <YAxis yAxisId="vendas" tick={{ fontSize: 11 }} allowDecimals={false} />
+        <YAxis
+          yAxisId="vgv"
+          orientation="right"
+          tick={{ fontSize: 11 }}
+          tickFormatter={(v: number) =>
+            v.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 })
+          }
+        />
+        <Tooltip
+          formatter={(value: number, name: string) =>
+            name === "VGV"
+              ? value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+              : value
+          }
+        />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar yAxisId="vendas" dataKey="vendas" name="Vendas" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+        <Line yAxisId="vgv" type="monotone" dataKey="vgv" name="VGV" stroke="var(--success)" strokeWidth={2} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Esforço mensal: leads recebidos, contatos e visitas realizadas. */
+function EsforcoMensalChart({ serie }: { serie: PerformanceDrillRow[] }) {
+  const data = serie.map((m) => ({
+    label: fmtMes(m.mes),
+    leads: m.leads_recebidos,
+    contatos: m.contatos,
+    visitas: m.visitas_realizadas,
+  }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+        <Tooltip />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Line type="monotone" dataKey="leads" name="Leads" stroke="var(--chart-3)" strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="contatos" name="Contatos" stroke="var(--chart-2)" strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="visitas" name="Visitas" stroke="var(--chart-1)" strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Funil comparado: taxa de passagem dele × time, por etapa. */
+function FunilComparadoChart({
+  data,
+  nome,
+}: {
+  data: Array<{ etapa: string; minhaTaxa: number | null; taxaTime: number | null }>;
+  nome: string;
+}) {
+  const rows = data.map((f) => ({
+    etapa: f.etapa,
+    corretor: f.minhaTaxa,
+    time: f.taxaTime,
+  }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={rows} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis dataKey="etapa" tick={{ fontSize: 10 }} interval={0} />
+        <YAxis tick={{ fontSize: 11 }} unit="%" />
+        <Tooltip formatter={(value: number) => `${value}%`} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="corretor" name={nome} fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="time" name="Média do time" fill="var(--chart-5)" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+/** Perdas por categoria (barras horizontais; VGV estimado no tooltip). */
+function PerdasChart({
+  rows,
+}: {
+  rows: Array<{ categoria: string; quantidade: number; vgv_estimado: number | null }>;
+}) {
+  const data = rows.map((p) => ({
+    categoria:
+      MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ?? p.categoria,
+    quantidade: p.quantidade,
+    vgv: p.vgv_estimado != null ? Number(p.vgv_estimado) : null,
+  }));
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12, top: 4, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+        <YAxis type="category" dataKey="categoria" tick={{ fontSize: 11 }} width={150} interval={0} />
+        <Tooltip
+          formatter={(value: number, _name: string, item: { payload?: { vgv?: number | null } }) => {
+            const vgv = item?.payload?.vgv;
+            return vgv != null
+              ? [`${value} leads · ~${vgv.toLocaleString("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 })} (estimado)`, "Perdas"]
+              : [`${value} leads`, "Perdas"];
+          }}
+        />
+        <Bar dataKey="quantidade" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
