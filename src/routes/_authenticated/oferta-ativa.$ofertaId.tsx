@@ -246,6 +246,11 @@ function OfertaDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [atribuirOpen, setAtribuirOpen] = useState(false);
   const [corretorSel, setCorretorSel] = useState<Set<string>>(new Set());
+  const [atribuirProgress, setAtribuirProgress] = useState<{
+    processados: number;
+    total: number;
+    restantes: number;
+  } | null>(null);
   const [confirmBulk, setConfirmBulk] = useState<{ ids: string[]; valor: boolean } | null>(null);
   const [confirmConcluir, setConfirmConcluir] = useState(false);
   const [confirmExcluir, setConfirmExcluir] = useState(false);
@@ -352,8 +357,19 @@ function OfertaDetailPage() {
   });
 
   const atribuirM = useMutation({
-    mutationFn: (ids: string[]) => atribuirOferta(ofertaId, ids),
+    mutationFn: (ids: string[]) =>
+      atribuirOferta(ofertaId, ids, {
+        batchSize: 50,
+        onProgress: (res) => {
+          setAtribuirProgress({
+            processados: res.processados ?? 0,
+            total: res.total_leads ?? statsAll.total,
+            restantes: res.restantes ?? 0,
+          });
+        },
+      }),
     onSuccess: (res) => {
+      setAtribuirProgress(null);
       if (res.modo === "single") {
         toast.success("Lista atribuída ao corretor");
         qc.invalidateQueries({ queryKey: ["oferta-detail", ofertaId] });
@@ -369,7 +385,10 @@ function OfertaDetailPage() {
         navigate({ to: "/oferta-ativa" });
       }
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      setAtribuirProgress(null);
+      toast.error(e.message);
+    },
   });
 
   const rows = useMemo(() => q.data?.leads ?? [], [q.data]);
@@ -1038,9 +1057,32 @@ function OfertaDetailPage() {
                 </span>
               </div>
             )}
+            {atribuirProgress && (
+              <div className="rounded-md bg-muted/50 border p-3 text-xs text-muted-foreground space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Distribuindo leads…</span>
+                  <span className="font-medium text-foreground">
+                    {atribuirProgress.processados}/{atribuirProgress.total}
+                  </span>
+                </div>
+                <Progress
+                  value={
+                    atribuirProgress.total > 0
+                      ? Math.round((atribuirProgress.processados / atribuirProgress.total) * 100)
+                      : 0
+                  }
+                  className="h-1.5"
+                />
+                <span>{atribuirProgress.restantes} restante(s)</span>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAtribuirOpen(false)}>
+            <Button
+              variant="outline"
+              disabled={atribuirM.isPending}
+              onClick={() => setAtribuirOpen(false)}
+            >
               Cancelar
             </Button>
             <Button
