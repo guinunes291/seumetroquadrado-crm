@@ -2225,6 +2225,36 @@ export type Database = {
           },
         ]
       }
+      leads_import_tmp: {
+        Row: {
+          created_at: string
+          email: string | null
+          empreendimento: string | null
+          id: number
+          nome: string | null
+          projeto_id: string | null
+          telefone: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          empreendimento?: string | null
+          id?: number
+          nome?: string | null
+          projeto_id?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          empreendimento?: string | null
+          id?: number
+          nome?: string | null
+          projeto_id?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       leads_landing: {
         Row: {
           created_at: string
