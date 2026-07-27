@@ -2022,7 +2022,6 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
-          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
@@ -2091,7 +2090,6 @@ export type Database = {
           fgts_valor?: number | null
           handoff_em?: string | null
           id?: string
-          import_batch_id?: string | null
           legacy_id?: number | null
           motivo_handoff?: string | null
           motivo_perda_categoria?: string | null
@@ -2160,7 +2158,6 @@ export type Database = {
           fgts_valor?: number | null
           handoff_em?: string | null
           id?: string
-          import_batch_id?: string | null
           legacy_id?: number | null
           motivo_handoff?: string | null
           motivo_perda_categoria?: string | null
@@ -4745,7 +4742,6 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
-          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
@@ -5500,6 +5496,30 @@ export type Database = {
           visitas_realizadas: number
         }[]
       }
+      gestao_performance_corretores_janela: {
+        Args: { _ate?: string; _de: string }
+        Returns: {
+          agendamentos_criados: number
+          analises: number
+          atualizado_em: string
+          capacidade_pct: number
+          carga_ativa: number
+          contatos: number
+          corretor_id: string
+          interacoes: number
+          leads_recebidos: number
+          leads_respondidos: number
+          limite_diario_leads: number
+          no_shows: number
+          nome: string
+          presente: boolean
+          primeira_resposta_p50_min: number
+          tarefas_concluidas: number
+          vendas: number
+          vgv: number
+          visitas_realizadas: number
+        }[]
+      }
       gestao_resumo_semanal: { Args: never; Returns: Json }
       gestao_tempo_etapa: {
         Args: { _ate?: string; _corretor?: string; _de?: string }
@@ -6065,7 +6085,6 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
-          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
@@ -6148,7 +6167,6 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
-          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
