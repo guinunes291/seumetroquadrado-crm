@@ -60,6 +60,9 @@ export function FinanceiroPopover({ lead }: { lead: Lead }) {
         <div className="font-medium mb-2">Resumo do lead</div>
         <dl className="space-y-1">
           <FinRow label="Empreendimento" value={lead.projeto_nome} />
+          {/* E-mail mora aqui desde que a coluna Contato foi fundida no bloco
+              do nome (tabela sem scroll lateral). */}
+          <FinRow label="E-mail" value={lead.email} />
           <FinRow label="Renda" value={lead.renda_informada} />
           <FinRow label="Entrada" value={lead.entrada_disponivel} />
           <FinRow
@@ -185,12 +188,15 @@ export function IniciarSplitButton({
   pending,
   onIniciar,
   onEscolher,
+  compact = false,
 }: {
   lead: Lead;
   lastContactType: "ligacao" | "whatsapp";
   pending: boolean;
   onIniciar: (lead: Lead, tipo: "ligacao" | "whatsapp") => void;
   onEscolher: (lead: Lead) => void;
+  /** Rótulo curto ("Iniciar") para a tabela — o ícone já diz o canal. */
+  compact?: boolean;
 }) {
   return (
     <div className="flex items-center">
@@ -199,13 +205,14 @@ export function IniciarSplitButton({
         className="rounded-r-none"
         onClick={() => onIniciar(lead, lastContactType)}
         disabled={pending}
+        title={`Iniciar por ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
       >
         {lastContactType === "whatsapp" ? (
           <MessageCircle className="h-3.5 w-3.5 mr-1" />
         ) : (
           <Phone className="h-3.5 w-3.5 mr-1" />
         )}
-        Iniciar {lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}
+        {compact ? "Iniciar" : `Iniciar ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
