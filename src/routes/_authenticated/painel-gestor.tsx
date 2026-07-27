@@ -26,6 +26,7 @@ import { CampanhasPage } from "@/features/gestao/campanhas-page";
 import { MetasPage } from "@/routes/_authenticated/metas";
 import { ORIGEM_OPTIONS } from "@/features/leads/novo-lead-dialog";
 import type { FiltrosInteligencia } from "@/features/inteligencia/queries";
+import { origemLabel } from "@/lib/origem";
 
 // Recharts (~105KB gz) só desce quando uma aba analítica abre — mesmo padrão
 // que a antiga /inteligencia usava.
@@ -254,7 +255,7 @@ function PainelGestorPage() {
                 <SelectItem value="all">Todas as origens</SelectItem>
                 {ORIGEM_OPTIONS.map((o) => (
                   <SelectItem key={o} value={o}>
-                    {o.replace(/_/g, " ")}
+                    {origemLabel(o)}
                   </SelectItem>
                 ))}
               </SelectContent>
