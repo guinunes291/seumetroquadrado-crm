@@ -72,6 +72,7 @@ import {
 } from "@/features/dashboard/relatorios-derive";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { formatDuracaoParado } from "@/lib/utils";
+import { origemLabel } from "@/lib/origem";
 
 /** Link discreto para a aba de análise completa do hub de Gestão. */
 function AbaLink({ tab, label }: { tab: "funil" | "gargalos" | "time"; label: string }) {
@@ -857,7 +858,7 @@ function OrigemTable({ rows }: { rows: OrigemRow[] }) {
                     search={{ origem: r.origem }}
                     className="hover:underline"
                   >
-                    {r.origem.replace(/_/g, " ")}
+                    {origemLabel(r.origem)}
                   </Link>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">

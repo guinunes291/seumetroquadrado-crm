@@ -43,6 +43,7 @@ import {
 import { scoreLead } from "@/lib/priority";
 import type { Lead } from "./types";
 import { fetchInteracoes, fetchTarefas } from "./use-lead-detail";
+import { origemLabel } from "@/lib/origem";
 
 /** Campos mínimos que o peek precisa — o Lead da listagem satisfaz por estrutura. */
 export type PeekLead = {
@@ -258,7 +259,7 @@ function PeekBody({
         <InfoCell label="E-mail" value={lead.email} />
         <InfoCell
           label="Origem"
-          value={<span className="capitalize">{lead.origem.replace(/_/g, " ")}</span>}
+          value={<span>{origemLabel(lead.origem)}</span>}
         />
         <InfoCell label="Empreendimento" value={lead.projeto_nome} />
         <InfoCell label="Renda" value={lead.renda_informada} />
