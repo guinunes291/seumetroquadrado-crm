@@ -170,18 +170,22 @@ export function LeadsTable({
   // Sem useMemo de propósito: os handlers chegam da página como arrows novas
   // a cada render, então a memoização nunca acertaria o cache. Os ids das
   // colunas sortáveis casam com a whitelist da RPC (v3).
+  // Colunas AGRUPADAS de propósito (sem scroll lateral): o bloco "Lead" reúne
+  // identidade + contato + flags; origem vira legenda do Status; a data vira
+  // legenda do Corretor; e-mail fica no popover $ (Resumo do lead). Antes eram
+  // 10 colunas e as ações só apareciam rolando para o lado.
   const columns: ColumnDef<Lead, unknown>[] = [
     {
       accessorKey: "nome",
       header: ({ column }) =>
-        sortable ? <DataTableColumnHeader column={column} title="Nome" /> : <>Nome</>,
+        sortable ? <DataTableColumnHeader column={column} title="Lead" /> : <>Lead</>,
       enableSorting: sortable,
-      meta: { label: "Nome" },
+      meta: { label: "Lead" },
       cell: ({ row }) => {
         const l = row.original;
         return (
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0 max-w-[340px]">
+            <div className="flex items-center gap-1.5">
               {/* Temperatura clicável: 1 clique para requalificar sem abrir o lead. */}
               <span data-no-row-click>
                 <DropdownMenu>
@@ -225,71 +229,46 @@ export function LeadsTable({
               <Link
                 to="/leads/$leadId"
                 params={{ leadId: l.id }}
-                className="font-medium hover:underline"
+                className="min-w-0 truncate font-medium hover:underline"
               >
                 {l.nome}
               </Link>
               <FinanceiroPopover lead={l} />
+              <span className="flex items-center" data-no-row-click>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                  aria-label={`Abrir WhatsApp de ${l.nome}`}
+                  title="Abrir WhatsApp com mensagem pronta"
+                  onClick={() => onWhatsApp(l)}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+                <Button
+                  asChild
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-info hover:text-info hover:bg-info/10"
+                  aria-label={`Ligar para ${l.nome}`}
+                  title="Ligar"
+                >
+                  <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
+                    <Phone className="h-4 w-4" />
+                  </a>
+                </Button>
+              </span>
             </div>
-            {l.projeto_nome && (
-              <div className="text-xs text-muted-foreground">{l.projeto_nome}</div>
-            )}
+            <div className="truncate text-xs text-muted-foreground">
+              {l.telefone}
+              {l.projeto_nome ? ` · ${l.projeto_nome}` : ""}
+            </div>
             <div className="mt-1 flex flex-wrap items-center gap-1">
               <FlagChips lead={l} />
             </div>
           </div>
         );
       },
-    },
-    {
-      id: "contato",
-      header: "Contato",
-      enableSorting: false,
-      meta: { label: "Contato" },
-      cell: ({ row }) => {
-        const l = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            <div className="min-w-0">
-              <div className="text-sm">{l.telefone}</div>
-              <div className="text-xs text-muted-foreground truncate">{l.email ?? "—"}</div>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="text-success hover:text-success hover:bg-success/10"
-                aria-label={`Abrir WhatsApp de ${l.nome}`}
-                title="Abrir WhatsApp com mensagem pronta"
-                onClick={() => onWhatsApp(l)}
-              >
-                <MessageCircle className="h-4 w-4" />
-              </Button>
-              <Button
-                asChild
-                size="icon"
-                variant="ghost"
-                className="text-info hover:text-info hover:bg-info/10"
-                aria-label={`Ligar para ${l.nome}`}
-                title="Ligar"
-              >
-                <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
-                  <Phone className="h-4 w-4" />
-                </a>
-              </Button>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "origem",
-      header: "Origem",
-      enableSorting: false,
-      meta: { label: "Origem", hideBelow: "md" },
-      cell: ({ row }) => (
-        <span className="capitalize text-sm">{row.original.origem.replace(/_/g, " ")}</span>
-      ),
     },
     {
       accessorKey: "status",
@@ -305,6 +284,9 @@ export function LeadsTable({
             <Badge className={LEAD_STATUS_BADGE_TONE[l.status as LeadStatus]} variant="secondary">
               {leadStatusLabel(l.status)}
             </Badge>
+            <span className="text-[11px] capitalize text-muted-foreground">
+              {l.origem.replace(/_/g, " ")}
+            </span>
             {info && (
               <TransferSlaBadge
                 leadId={l.id}
@@ -333,7 +315,7 @@ export function LeadsTable({
           <>Prioridade</>
         ),
       enableSorting: sortableScore,
-      meta: { label: "Prioridade", hideBelow: "md" },
+      meta: { label: "Prioridade", hideBelow: "sm" },
       cell: ({ row }) => {
         const l = row.original;
         const client = scoreLead({
@@ -380,33 +362,35 @@ export function LeadsTable({
       },
     },
     {
+      // Corretor + data (criação, ou assinatura na Venda) num bloco só. O sort
+      // por created_at saiu do cabeçalho: recência já é o desempate da ordem
+      // padrão e o recorte temporal tem o filtro de período.
       id: "corretor",
       header: "Corretor",
       enableSorting: false,
       meta: { label: "Corretor", hideBelow: "lg" },
       cell: ({ row }) => {
         const l = row.original;
-        return l.corretor_id ? (
-          <span className="text-sm">{corretoresMap.get(l.corretor_id) ?? "—"}</span>
-        ) : (
-          <span className="text-sm text-muted-foreground italic">sem corretor</span>
-        );
-      },
-    },
-    {
-      accessorKey: "created_at",
-      header: ({ column }) =>
-        sortable ? <DataTableColumnHeader column={column} title="Data" /> : <>Data</>,
-      enableSorting: sortable,
-      meta: { label: "Data", hideBelow: "sm" },
-      cell: ({ row }) => {
-        const l = row.original;
+        const data =
+          l.status === "contrato_fechado" && l.data_venda
+            ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
+            : new Date(l.created_at).toLocaleDateString("pt-BR");
         return (
-          <span className="text-xs text-muted-foreground">
-            {l.status === "contrato_fechado" && l.data_venda
-              ? new Date(`${l.data_venda}T00:00:00`).toLocaleDateString("pt-BR")
-              : new Date(l.created_at).toLocaleDateString("pt-BR")}
-          </span>
+          <div className="min-w-0">
+            {l.corretor_id ? (
+              <div className="truncate text-sm">{corretoresMap.get(l.corretor_id) ?? "—"}</div>
+            ) : (
+              <div className="text-sm italic text-muted-foreground">sem corretor</div>
+            )}
+            <div
+              className="text-[11px] text-muted-foreground"
+              title={
+                l.status === "contrato_fechado" && l.data_venda ? "Data da venda" : "Criado em"
+              }
+            >
+              {data}
+            </div>
+          </div>
         );
       },
     },
@@ -429,6 +413,7 @@ export function LeadsTable({
                 pending={iniciarPending}
                 onIniciar={onIniciar}
                 onEscolher={onEscolherContato}
+                compact
               />
             )}
             {!l.na_lixeira && canAct && l.status !== "aguardando_atendimento" && proxima && (
