@@ -339,22 +339,61 @@ export async function deleteOferta(id: string) {
   if (error) throw error;
 }
 
+export type AtribuirOfertaResultado = {
+  modo: "single" | "split";
+  oferta_id?: string;
+  original_id?: string;
+  criadas?: string[];
+  total_leads?: number;
+  processados?: number;
+  lote_processado?: number;
+  restantes?: number;
+  concluido?: boolean;
+};
+
+async function atribuirOfertaLote(
+  ofertaId: string,
+  corretorIds: string[],
+  batchSize: number,
+): Promise<AtribuirOfertaResultado> {
+  const { data, error } = await supabase.rpc("atribuir_oferta_ativa_lote", {
+    _oferta_id: ofertaId,
+    _corretor_ids: corretorIds,
+    _batch_size: batchSize,
+  });
+  if (error) throw error;
+  return data as AtribuirOfertaResultado;
+}
+
 /**
- * Atribui a lista a um ou mais corretores.
- * - 1 corretor: apenas troca o dono da lista.
- * - N corretores: cria N novas listas ("… — parte i/N") com os leads divididos
- *   igualmente ao acaso e arquiva a original.
+ * Atribui a lista a um ou mais corretores em lotes pequenos para evitar timeout.
+ * - 1 corretor: troca o dono da lista e atualiza os leads em lotes.
+ * - N corretores: cria N novas listas e distribui os leads em lotes até concluir.
  */
 export async function atribuirOferta(
   ofertaId: string,
   corretorIds: string[],
-): Promise<{ modo: "single" | "split"; criadas?: string[]; total_leads?: number }> {
-  const { data, error } = await supabase.rpc("atribuir_oferta_ativa", {
-    _oferta_id: ofertaId,
-    _corretor_ids: corretorIds,
-  });
-  if (error) throw error;
-  return data as never;
+  options?: { batchSize?: number; onProgress?: (resultado: AtribuirOfertaResultado) => void },
+): Promise<AtribuirOfertaResultado> {
+  const batchSize = options?.batchSize ?? 50;
+  let last: AtribuirOfertaResultado | null = null;
+
+  for (let tentativa = 0; tentativa < 500; tentativa += 1) {
+    last = await atribuirOfertaLote(ofertaId, corretorIds, batchSize);
+    options?.onProgress?.(last);
+
+    if (last.concluido !== false || (last.restantes ?? 0) <= 0) {
+      return last;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 120));
+  }
+
+  throw new Error(
+    last?.restantes
+      ? `A distribuição ainda tem ${last.restantes} lead(s) pendente(s). Tente novamente para continuar.`
+      : "A distribuição não foi concluída. Tente novamente.",
+  );
 }
 
 /** Só a linha da oferta (sem vínculos) — usada no prefill do "Duplicar lista". */
