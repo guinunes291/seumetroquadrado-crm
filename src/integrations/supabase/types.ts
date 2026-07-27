@@ -2022,6 +2022,7 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
+          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
@@ -2090,6 +2091,7 @@ export type Database = {
           fgts_valor?: number | null
           handoff_em?: string | null
           id?: string
+          import_batch_id?: string | null
           legacy_id?: number | null
           motivo_handoff?: string | null
           motivo_perda_categoria?: string | null
@@ -2158,6 +2160,7 @@ export type Database = {
           fgts_valor?: number | null
           handoff_em?: string | null
           id?: string
+          import_batch_id?: string | null
           legacy_id?: number | null
           motivo_handoff?: string | null
           motivo_perda_categoria?: string | null
@@ -4742,6 +4745,7 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
+          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
@@ -6085,6 +6089,7 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
+          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
@@ -6167,6 +6172,7 @@ export type Database = {
           fgts_valor: number | null
           handoff_em: string | null
           id: string
+          import_batch_id: string | null
           legacy_id: number | null
           motivo_handoff: string | null
           motivo_perda_categoria: string | null
