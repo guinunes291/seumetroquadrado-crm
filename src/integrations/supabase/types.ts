@@ -5759,6 +5759,7 @@ export type Database = {
         Args: never
         Returns: {
           aguardando: number
+          aguardando_retorno: number
           corretor_id: string
           em_atendimento: number
           ganhos: number
