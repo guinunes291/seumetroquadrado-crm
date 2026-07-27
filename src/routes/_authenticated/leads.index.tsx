@@ -133,6 +133,7 @@ import { EntityCard } from "@/components/ui/entity-card";
 import type { SortingState } from "@/components/ui/data-table";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { isTypingTarget } from "@/lib/shortcuts";
+import { origemLabel } from "@/lib/origem";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
@@ -1252,7 +1253,7 @@ function LeadsPage() {
                         <SelectItem value="all">Todas as origens</SelectItem>
                         {ORIGEM_OPTIONS.map((o) => (
                           <SelectItem key={o} value={o}>
-                            {o.replace(/_/g, " ")}
+                            {origemLabel(o)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1655,7 +1656,7 @@ function LeadsPage() {
                         })()}
 
                         <div className="text-xs text-muted-foreground capitalize">
-                          {l.projeto_nome || "Sem empreendimento"} · {l.origem.replace(/_/g, " ")}
+                          {l.projeto_nome || "Sem empreendimento"} · {origemLabel(l.origem)}
                         </div>
                         <div className="text-sm truncate">
                           {l.telefone}

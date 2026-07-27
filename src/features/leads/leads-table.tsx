@@ -42,6 +42,7 @@ import { abrirNovoLead } from "./novo-lead-dialog";
 import { TempIcon } from "./lead-indicators";
 import { FinanceiroPopover, LeadRowMenu, IniciarSplitButton } from "./row-actions";
 import type { Lead } from "./types";
+import { origemLabel } from "@/lib/origem";
 
 /**
  * Borda esquerda pela pior flag da linha — classes ESTÁTICAS mapeadas por
@@ -285,7 +286,7 @@ export function LeadsTable({
               {leadStatusLabel(l.status)}
             </Badge>
             <span className="text-[11px] capitalize text-muted-foreground">
-              {l.origem.replace(/_/g, " ")}
+              {origemLabel(l.origem)}
             </span>
             {info && (
               <TransferSlaBadge

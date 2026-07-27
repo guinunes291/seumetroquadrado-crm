@@ -39,6 +39,7 @@ import {
   useRoletas,
   type RoletaRow,
 } from "./queries";
+import { origemLabel } from "@/lib/origem";
 
 const SEM_ROLETA = "__nenhuma__";
 
@@ -358,7 +359,7 @@ export function TabConfiguracoes() {
                 {(configQ.data ?? []).map((c) => (
                   <TableRow key={c.origem}>
                     <TableCell className="font-medium capitalize">
-                      {String(c.origem).replace(/_/g, " ")}
+                      {origemLabel(String(c.origem))}
                     </TableCell>
                     <TableCell>
                       <Select

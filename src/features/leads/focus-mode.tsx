@@ -47,6 +47,7 @@ import { scoreLead } from "@/lib/priority";
 import { registerShortcut } from "@/lib/shortcuts";
 import { cn } from "@/lib/utils";
 import { useLeadDetail, usePrefetchLeadDetail, type LeadDetail } from "./use-lead-detail";
+import { origemLabel } from "@/lib/origem";
 
 registerShortcut({ keys: "F", description: "Abrir modo foco na lista", group: "Leads" });
 registerShortcut({ keys: "J / →", description: "Próximo lead da fila", group: "Modo Foco" });
@@ -370,7 +371,7 @@ function FocusBody({
           <InfoCell label="E-mail" value={lead.email} />
           <InfoCell
             label="Origem"
-            value={<span className="capitalize">{lead.origem.replace(/_/g, " ")}</span>}
+            value={<span>{origemLabel(lead.origem)}</span>}
           />
           <InfoCell label="Projeto" value={lead.projeto_nome} />
           <InfoCell label="Renda" value={lead.renda_informada} />

@@ -29,6 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
 import { maskPhoneBR } from "@/lib/masks";
+import { origemLabel } from "@/lib/origem";
 
 export const ORIGEM_OPTIONS = [
   "facebook",
@@ -288,7 +289,7 @@ function NovoLeadForm({
               <SelectContent>
                 {ORIGEM_OPTIONS.map((o) => (
                   <SelectItem key={o} value={o}>
-                    {o.replace(/_/g, " ")}
+                    {origemLabel(o)}
                   </SelectItem>
                 ))}
               </SelectContent>
