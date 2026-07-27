@@ -1,10 +1,12 @@
 // Filas de Atendimento — lógica PURA que responde "quem eu chamo primeiro?".
 // Cada lead ativo entra em NO MÁXIMO uma fila (a mais urgente), para a tela
 // nunca duplicar gente. Ordem de urgência das filas:
-//   1. responder  — o cliente falou por último (mensagem recebida sem resposta)
-//   2. followups  — follow-up combinado venceu
-//   3. esfriando  — quente/morno sem contato há 3+ dias
-//   4. docs       — documentação pendente/reprovada travando a pasta
+//   1. novos      — chegou para o corretor e aguarda o PRIMEIRO contato (SLA)
+//   2. responder  — o cliente falou por último (mensagem recebida sem resposta)
+//   3. followups  — follow-up combinado venceu
+//   4. esfriando  — quente/morno sem contato há 3+ dias (régua única: sem
+//                   interação registrada, conta desde a chegada do lead)
+//   5. docs       — documentação pendente/reprovada travando a pasta
 // Dentro de cada fila, ordena pelo Score de prioridade (lib/priority.ts).
 
 import { diasDesde, scoreLead, type ScoreTier } from "@/lib/priority";
@@ -33,7 +35,7 @@ export type UltimaInteracaoRow = {
   ocorreu_em: string;
 };
 
-export type QueueKey = "responder" | "followups" | "esfriando" | "docs";
+export type QueueKey = "novos" | "responder" | "followups" | "esfriando" | "docs";
 
 export type QueueItem = {
   lead: AtendimentoLead;
@@ -46,6 +48,7 @@ export type QueueItem = {
 export type AtendimentoQueues = Record<QueueKey, QueueItem[]>;
 
 export const QUEUE_LABEL: Record<QueueKey, string> = {
+  novos: "Primeiro contato",
   responder: "Responder agora",
   followups: "Follow-ups vencidos",
   esfriando: "Esfriando",
@@ -53,6 +56,7 @@ export const QUEUE_LABEL: Record<QueueKey, string> = {
 };
 
 export const QUEUE_HINT: Record<QueueKey, string> = {
+  novos: "lead novo na sua mesa — o SLA do primeiro contato está correndo",
   responder: "o cliente falou por último — cada minuto conta",
   followups: "você combinou de voltar — o prazo passou",
   esfriando: "quentes e mornos sem contato há 3+ dias",
@@ -60,6 +64,8 @@ export const QUEUE_HINT: Record<QueueKey, string> = {
 };
 
 const ETAPAS_ENCERRADAS = ["perdido", "contrato_fechado", "pos_venda"];
+/** Lead ainda sem primeiro atendimento — a fila de entrada do corretor. */
+const ETAPAS_PRIMEIRO_CONTATO = ["novo", "aguardando_atendimento"];
 const LIMITE_POR_FILA = 15;
 
 export function buildAtendimentoQueues(input: {
@@ -79,7 +85,13 @@ export function buildAtendimentoQueues(input: {
     if (!ultimaPorLead.has(i.lead_id)) ultimaPorLead.set(i.lead_id, i);
   }
 
-  const filas: AtendimentoQueues = { responder: [], followups: [], esfriando: [], docs: [] };
+  const filas: AtendimentoQueues = {
+    novos: [],
+    responder: [],
+    followups: [],
+    esfriando: [],
+    docs: [],
+  };
 
   for (const lead of input.leads) {
     if (ETAPAS_ENCERRADAS.includes(lead.status)) continue;
@@ -96,11 +108,18 @@ export function buildAtendimentoQueues(input: {
     const ultima = ultimaPorLead.get(lead.id);
     const followupVencido =
       lead.proximo_followup && new Date(lead.proximo_followup).getTime() <= agoraMs;
-    const dias = diasDesde(lead.ultima_interacao, agora);
+    // Régua única: sem interação registrada, o relógio conta desde a chegada
+    // (espelha a v3 no banco, que ainda considera ultimo_contato importado).
+    const dias = diasDesde(lead.ultima_interacao ?? lead.created_at, agora);
     const esfriando =
       (lead.temperatura === "quente" || lead.temperatura === "morno") && dias !== null && dias >= 3;
 
-    if (ultima && ultima.direcao === "entrada") {
+    if (ETAPAS_PRIMEIRO_CONTATO.includes(lead.status)) {
+      filas.novos.push({
+        ...base,
+        motivo: `chegou ${formatDesde(lead.created_at, agora)} e aguarda o primeiro contato`,
+      });
+    } else if (ultima && ultima.direcao === "entrada") {
       filas.responder.push({
         ...base,
         motivo: `respondeu ${formatDesde(ultima.ocorreu_em, agora)} e aguarda retorno`,
@@ -148,6 +167,8 @@ export function scriptParaFila(fila: QueueKey, nome: string, projetoNome?: strin
   const primeiro = nome.split(" ")[0] ?? nome;
   const projeto = projetoNome ? ` sobre o ${projetoNome}` : "";
   switch (fila) {
+    case "novos":
+      return `Oi, ${primeiro}! Recebi seu interesse${projeto} e sou eu que vou te acompanhar a partir de agora. Posso te fazer duas perguntas rápidas para já te indicar o melhor caminho?`;
     case "responder":
       return `Oi, ${primeiro}! Vi sua mensagem aqui — me conta, como posso te ajudar${projeto}?`;
     case "followups":

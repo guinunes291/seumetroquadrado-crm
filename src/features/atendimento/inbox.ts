@@ -1,7 +1,13 @@
 import { z } from "zod";
 import type { AtendimentoQueues, QueueKey } from "@/features/atendimento/derive";
 
-export const ATENDIMENTO_QUEUE_KEYS = ["responder", "followups", "esfriando", "docs"] as const;
+export const ATENDIMENTO_QUEUE_KEYS = [
+  "novos",
+  "responder",
+  "followups",
+  "esfriando",
+  "docs",
+] as const;
 
 const atendimentoLeadSchema = z.object({
   id: z.string().uuid(),
@@ -51,8 +57,15 @@ export type AtendimentoInbox = {
 
 export function parseAtendimentoInbox(input: unknown): AtendimentoInbox {
   const rows = z.array(inboxRowSchema).parse(input);
-  const filas: AtendimentoQueues = { responder: [], followups: [], esfriando: [], docs: [] };
+  const filas: AtendimentoQueues = {
+    novos: [],
+    responder: [],
+    followups: [],
+    esfriando: [],
+    docs: [],
+  };
   const counts: Record<QueueKey, number> = {
+    novos: 0,
     responder: 0,
     followups: 0,
     esfriando: 0,

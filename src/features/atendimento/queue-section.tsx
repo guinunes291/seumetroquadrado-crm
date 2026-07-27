@@ -17,6 +17,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const QUEUE_ACCENT: Record<QueueKey, string> = {
+  novos: "border-primary/30",
   responder: "border-destructive/30",
   followups: "border-warning/30",
   esfriando: "border-info/30",
