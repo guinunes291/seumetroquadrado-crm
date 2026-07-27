@@ -4922,6 +4922,14 @@ export type Database = {
         Args: { _corretor_ids: string[]; _oferta_id: string }
         Returns: Json
       }
+      atribuir_oferta_ativa_lote: {
+        Args: {
+          _batch_size?: number
+          _corretor_ids: string[]
+          _oferta_id: string
+        }
+        Returns: Json
+      }
       atualizar_distribuicao_config: {
         Args: {
           _limpar_roleta?: boolean
