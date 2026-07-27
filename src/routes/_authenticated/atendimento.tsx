@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { rpcWithFallback } from "@/lib/supabase-errors";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
+import { rpcAtendimentoInbox } from "@/features/atendimento/atendimento-rpc";
 import { QUEUE_LABEL, type QueueItem, type QueueKey } from "@/features/atendimento/derive";
 import { QueueSection } from "@/features/atendimento/queue-section";
 import {
@@ -20,6 +21,7 @@ import {
   CheckCircle2,
   FileWarning,
   MessageCircleReply,
+  Sparkles,
   ThermometerSnowflake,
   Zap,
 } from "lucide-react";
@@ -36,6 +38,7 @@ const QUEUE_ORDER: {
   icon: typeof MessageCircleReply;
   iconClass: string;
 }[] = [
+  { key: "novos", icon: Sparkles, iconClass: "text-primary" },
   { key: "responder", icon: MessageCircleReply, iconClass: "text-destructive" },
   { key: "followups", icon: CalendarClock, iconClass: "text-warning" },
   { key: "esfriando", icon: ThermometerSnowflake, iconClass: "text-info" },
@@ -49,24 +52,40 @@ function AtendimentoPage() {
 
   // Classificação, deduplicação e contagens acontecem no banco. A resposta traz
   // no máximo 15 cards por fila, mas as contagens consideram a carteira inteira.
+  // v3 traz a fila "novos" (primeiro contato); sem a migration aplicada, cai na
+  // v2 com a fila de novos zerada — a tela nunca quebra (rpcWithFallback).
   const inboxQ = useQuery({
     queryKey: ["atendimento:inbox", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("atendimento_inbox_v2", {
-        _corretor_id: user!.id,
-        _limit_per_queue: 15,
-      });
-      if (error) throw error;
-      return parseAtendimentoInbox(data ?? []);
+      const params = { _corretor_id: user!.id, _limit_per_queue: 15 };
+      return rpcWithFallback(
+        async () => parseAtendimentoInbox(await rpcAtendimentoInbox("v3", params)),
+        async () => {
+          const rows = await rpcAtendimentoInbox("v2", params);
+          return parseAtendimentoInbox([{ fila: "novos", total_count: 0, items: [] }, ...rows]);
+        },
+      );
     },
   });
 
   // Um único canal para as 3 tabelas (o hook aceita array) — P3-10.
   useRealtimeInvalidate(["leads", "interacoes", "documentacoes"], [["atendimento:inbox"]]);
 
-  const filas = inboxQ.data?.filas ?? { responder: [], followups: [], esfriando: [], docs: [] };
-  const counts = inboxQ.data?.counts ?? { responder: 0, followups: 0, esfriando: 0, docs: 0 };
+  const filas = inboxQ.data?.filas ?? {
+    novos: [],
+    responder: [],
+    followups: [],
+    esfriando: [],
+    docs: [],
+  };
+  const counts = inboxQ.data?.counts ?? {
+    novos: 0,
+    responder: 0,
+    followups: 0,
+    esfriando: 0,
+    docs: 0,
+  };
   const total = QUEUE_ORDER.reduce((acc, q) => acc + counts[q.key], 0);
 
   const onWhatsApp = (item: QueueItem, mensagem: string) => {
@@ -129,8 +148,8 @@ function AtendimentoPage() {
                   Caixa de atendimento zerada
                 </div>
                 <p className="max-w-md text-sm text-muted-foreground">
-                  Ninguém esperando resposta, nenhum follow-up vencido, ninguém esfriando. Bom
-                  momento para prospectar na{" "}
+                  Nenhum lead novo na mesa, ninguém esperando resposta, nenhum follow-up vencido,
+                  ninguém esfriando. Bom momento para prospectar na{" "}
                   <Link to="/blitz" className="text-primary hover:underline">
                     Blitz
                   </Link>{" "}
