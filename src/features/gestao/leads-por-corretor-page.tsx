@@ -33,6 +33,7 @@ import {
   leadStatusLabel,
   type LeadStatus,
 } from "@/lib/leads";
+import { rpcWithFallback } from "@/lib/supabase-errors";
 
 type Corretor = { id: string; nome: string; ativo: boolean };
 type Lead = {
@@ -53,7 +54,17 @@ type Stats = {
   perdidos: number;
 };
 
-/** Limite de leads baixados para a agregação client-side dos cards por corretor. */
+/** Linha da RPC leads_stats_por_corretor (agregação server-side da base inteira). */
+type StatsRow = {
+  corretor_id: string | null;
+  total: number;
+  em_atendimento: number;
+  aguardando: number;
+  ganhos: number;
+  perdidos: number;
+};
+
+/** Limite de leads baixados para a LISTAGEM (a agregação dos cards é no servidor). */
 const LIMITE_LEADS = 2000;
 
 export function LeadsPorCorretorPage() {
@@ -81,6 +92,24 @@ export function LeadsPorCorretorPage() {
     },
   });
 
+  // Contagens dos cards: agregação SERVER-SIDE da base inteira (bug antigo: a
+  // tela somava só os 2.000 mais recentes e os cards apareciam zerados). O
+  // fallback devolve null e os cards caem na agregação antiga enquanto a
+  // migration da RPC não está aplicada.
+  const { data: statsRows } = useQuery({
+    queryKey: ["leads-stats-corretor"],
+    queryFn: async () =>
+      rpcWithFallback<StatsRow[] | null>(
+        async () => {
+          const { data, error } = await supabase.rpc("leads_stats_por_corretor" as never);
+          if (error) throw error;
+          return (data ?? []) as StatsRow[];
+        },
+        () => null,
+      ),
+  });
+  const statsDoServidor = statsRows != null;
+
   const {
     data: leads,
     isLoading,
@@ -94,14 +123,38 @@ export function LeadsPorCorretorPage() {
         .from("leads")
         .select("id, nome, email, telefone, status, corretor_id, created_at")
         .eq("na_lixeira", false)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(LIMITE_LEADS);
       if (error) throw error;
       return (data ?? []) as Lead[];
     },
   });
-  // Corte silencioso exposto: acima do limite, os cards agregam só os mais recentes.
   const truncado = (leads?.length ?? 0) >= LIMITE_LEADS;
+
+  // Listagem por corretor: com um card selecionado, os leads DELE vêm do
+  // servidor — antes a tabela filtrava o recorte dos 2.000 recentes e uma
+  // carteira antiga aparecia vazia.
+  const { data: leadsDoCorretor, isLoading: loadingDoCorretor } = useQuery({
+    queryKey: ["leads-do-corretor", selectedCorretor],
+    enabled: !!selectedCorretor,
+    queryFn: async () => {
+      let q = supabase
+        .from("leads")
+        .select("id, nome, email, telefone, status, corretor_id, created_at")
+        .eq("na_lixeira", false)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(LIMITE_LEADS);
+      q =
+        selectedCorretor === "unassigned"
+          ? q.is("corretor_id", null)
+          : q.eq("corretor_id", selectedCorretor as string);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as Lead[];
+    },
+  });
 
   // Churn de redistribuição automática dos últimos 7 dias, por corretor — para
   // o gestor VER quando uma carteira está sendo movida pelo job de parados.
@@ -128,6 +181,20 @@ export function LeadsPorCorretorPage() {
 
   const statsByCorretor = useMemo(() => {
     const map = new Map<string, Stats>();
+    // Caminho canônico: contagens da RPC (base inteira, escopo por papel).
+    if (statsRows) {
+      statsRows.forEach((r) => {
+        map.set(r.corretor_id ?? "__unassigned__", {
+          total: Number(r.total),
+          emAtendimento: Number(r.em_atendimento),
+          aguardando: Number(r.aguardando),
+          ganhos: Number(r.ganhos),
+          perdidos: Number(r.perdidos),
+        });
+      });
+      return map;
+    }
+    // Fallback (RPC ausente): agregação antiga sobre os 2.000 mais recentes.
     (leads ?? []).forEach((l) => {
       const key = l.corretor_id ?? "__unassigned__";
       const s = map.get(key) ?? {
@@ -145,17 +212,14 @@ export function LeadsPorCorretorPage() {
       map.set(key, s);
     });
     return map;
-  }, [leads]);
+  }, [statsRows, leads]);
 
   const unassignedStats = statsByCorretor.get("__unassigned__");
 
   const filteredLeads = useMemo(() => {
-    let list = leads ?? [];
-    if (selectedCorretor === "unassigned") {
-      list = list.filter((l) => !l.corretor_id);
-    } else if (selectedCorretor) {
-      list = list.filter((l) => l.corretor_id === selectedCorretor);
-    }
+    // Com corretor selecionado a base vem do servidor (carteira completa até o
+    // limite); sem seleção, é o recorte dos mais recentes.
+    let list = selectedCorretor ? (leadsDoCorretor ?? []) : (leads ?? []);
     if (statusFilter !== "all") list = list.filter((l) => l.status === statusFilter);
     const s = search.trim().toLowerCase();
     if (s) {
@@ -167,7 +231,7 @@ export function LeadsPorCorretorPage() {
       );
     }
     return list;
-  }, [leads, selectedCorretor, statusFilter, search]);
+  }, [leads, leadsDoCorretor, selectedCorretor, statusFilter, search]);
 
   const transferMutation = useMutation({
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
@@ -193,6 +257,8 @@ export function LeadsPorCorretorPage() {
       setTransferOpen(false);
       setTargetCorretor("");
       qc.invalidateQueries({ queryKey: ["leads-por-corretor"] });
+      qc.invalidateQueries({ queryKey: ["leads-do-corretor"] });
+      qc.invalidateQueries({ queryKey: ["leads-stats-corretor"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -318,8 +384,9 @@ export function LeadsPorCorretorPage() {
 
       {truncado && (
         <p className="text-[11px] text-muted-foreground">
-          Mostrando os {LIMITE_LEADS.toLocaleString("pt-BR")} leads mais recentes (limite de
-          exibição) — os totais por corretor podem estar subestimados.
+          {statsDoServidor
+            ? `A lista abaixo mostra os ${LIMITE_LEADS.toLocaleString("pt-BR")} leads mais recentes (limite de exibição) — os números dos cards contam a base inteira.`
+            : `Mostrando os ${LIMITE_LEADS.toLocaleString("pt-BR")} leads mais recentes (limite de exibição) — os totais por corretor podem estar subestimados até a migration leads_stats_por_corretor ser aplicada.`}
         </p>
       )}
 
@@ -408,7 +475,7 @@ export function LeadsPorCorretorPage() {
             aria-label="Leads por corretor"
             columns={columns}
             data={filteredLeads}
-            loading={isLoading}
+            loading={selectedCorretor ? loadingDoCorretor : isLoading}
             error={isError ? error : undefined}
             onRetry={() => void refetch()}
             enableSelection
