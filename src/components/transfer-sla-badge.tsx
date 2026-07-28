@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { Timer, AlertTriangle, Flame, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { origemLabel } from "@/lib/origem";
 
 /**
  * Contador visual do SLA de repasse por webhook/chatbot.
