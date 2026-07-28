@@ -14,7 +14,8 @@
 //   campanha=<texto>         → ILIKE em campanha
 //   handoff=true|false       → handoff_em not null/null
 //   opt_out=true|false       → opt_out = bool
-//   q=<texto>                → ILIKE nome/telefone/email
+//   q=<texto>                → ILIKE nome/telefone/email; se parecer telefone,
+//                              casa também por dígitos em telefone_e164 (F-063)
 //   criado_apos=YYYY-MM-DD   → created_at >=
 //   criado_antes=YYYY-MM-DD  → created_at <= (inclusivo, +1d)
 //   atualizado_apos=YYYY-MM-DD → updated_at >=
@@ -26,6 +27,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, PUBLIC_LEAD_SELECT, shapeLeadForPublic } from "@/lib/public-api-auth";
 import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
 import { escapeLike } from "@/lib/validators";
+import { filtrarLeadVivo, filtroBuscaLead } from "@/lib/lead-busca-telefone";
 
 const PARADOS_RE = /^(\d+)d$/i;
 const ORDER_BY_ALLOWED = new Set(["created_at", "updated_at", "ultima_interacao", "temperatura"]);
@@ -66,11 +68,11 @@ export const Route = createFileRoute("/api/public/leads/")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        let query = supabaseAdmin
-          .from("leads")
-          .select(PUBLIC_LEAD_SELECT, { count: "exact" })
-          .eq("na_lixeira", false)
-          .is("deleted_at", null);
+        // Lead vivo (fora da lixeira, não excluído) — mesmo critério que o
+        // resolvedor de POST /api/public/documentos usa (F-071).
+        let query = filtrarLeadVivo(
+          supabaseAdmin.from("leads").select(PUBLIC_LEAD_SELECT, { count: "exact" }),
+        );
 
         if (auth.projetoId) query = query.eq("projeto_id", auth.projetoId);
         const equipeCorretorIds = await restrictedCorretorIds(auth);
@@ -134,13 +136,12 @@ export const Route = createFileRoute("/api/public/leads/")({
         const optOut = parseBool(q.get("opt_out"));
         if (optOut !== null) query = query.eq("opt_out", optOut);
 
-        // Busca textual
+        // Busca textual. Quando o termo parece telefone, casa também por dígitos
+        // em telefone_e164 — sem isso, telefone armazenado formatado
+        // ("(11) 98477-0862") não é achado por "984770862" (F-063).
         const qText = q.get("q");
         if (qText && qText.trim()) {
-          // Remove separadores do PostgREST .or() e escapa curingas do ILIKE.
-          const s = escapeLike(qText.trim().replace(/[,()]/g, " "));
-          const like = `%${s}%`;
-          query = query.or(`nome.ilike.${like},email.ilike.${like},telefone.ilike.${like}`);
+          query = query.or(filtroBuscaLead(qText, escapeLike));
         }
 
         // Datas

@@ -15,6 +15,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import { apiClientAgent, requireApiClientScope } from "@/lib/api-client-auth.server";
+import { apenasDigitos, resolverLeadPorTelefone } from "@/lib/lead-busca-telefone";
 
 const BUCKET = "documentacao";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -85,6 +86,10 @@ export const Route = createFileRoute("/api/public/documentos")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // `documentacoes` está fora do recorte dos types gerados que este cliente
+        // carrega; o escape fica num ponto só do handler.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = supabaseAdmin as any;
 
         let leadId = leadIdParam ?? null;
         let ambiguo = false;
@@ -100,7 +105,7 @@ export const Route = createFileRoute("/api/public/documentos")({
           ambiguo = resolved.ambiguo;
         }
 
-        const { data, error } = await (supabaseAdmin as any)
+        const { data, error } = await db
           .from("documentacoes")
           .select("id, tipo, arquivo_nome, status, created_at")
           .eq("lead_id", leadId!)
@@ -139,7 +144,7 @@ export const Route = createFileRoute("/api/public/documentos")({
           );
         }
 
-        if (!parsed.telefone || onlyDigits(parsed.telefone).length < 8) {
+        if (!parsed.telefone || apenasDigitos(parsed.telefone).length < 8) {
           return jsonResponse(
             { ok: false, erro: "telefone_ausente", detalhe: "telefone com ao menos 8 dígitos" },
             422,
@@ -175,10 +180,14 @@ export const Route = createFileRoute("/api/public/documentos")({
         const tipoOriginal = tipoNorm === "outro" && parsed.tipoBruto ? parsed.tipoBruto : null;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        // `documentacoes`, `interacoes` e o bucket estão fora do recorte dos types
+        // gerados que este cliente carrega; o escape fica num ponto só do handler.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = supabaseAdmin as any;
 
         // 1) Idempotência por messageId — devolve o registro existente.
         if (parsed.messageId) {
-          const { data: dup } = await (supabaseAdmin as any)
+          const { data: dup } = await db
             .from("documentacoes")
             .select("id, lead_id, tipo, arquivo_path, arquivo_nome")
             .eq("message_id", parsed.messageId)
@@ -216,19 +225,17 @@ export const Route = createFileRoute("/api/public/documentos")({
         const objectPath = `${lead.id}/${docId}/${nomeSan}`;
 
         // 4) Upload no bucket privado.
-        const { error: upErr } = await (supabaseAdmin as any).storage
-          .from(BUCKET)
-          .upload(objectPath, parsed.bytes, {
-            contentType: parsed.mime_type,
-            upsert: false,
-            cacheControl: "0",
-          });
+        const { error: upErr } = await db.storage.from(BUCKET).upload(objectPath, parsed.bytes, {
+          contentType: parsed.mime_type,
+          upsert: false,
+          cacheControl: "0",
+        });
         if (upErr) {
           return jsonResponse({ ok: false, erro: "upload_falhou", detalhe: upErr.message }, 502);
         }
 
         // 5) Upsert em documentacoes: promove "pendente" existente do mesmo tipo.
-        const { data: existente } = await (supabaseAdmin as any)
+        const { data: existente } = await db
           .from("documentacoes")
           .select("id")
           .eq("lead_id", lead.id)
@@ -263,13 +270,13 @@ export const Route = createFileRoute("/api/public/documentos")({
 
         let documentoId: string;
         if (existente) {
-          const { error: updErr } = await (supabaseAdmin as any)
+          const { error: updErr } = await db
             .from("documentacoes")
             .update(patch)
             .eq("id", existente.id);
           if (updErr) {
             // best-effort rollback
-            await (supabaseAdmin as any).storage.from(BUCKET).remove([objectPath]);
+            await db.storage.from(BUCKET).remove([objectPath]);
             return jsonResponse(
               { ok: false, erro: "gravacao_falhou", detalhe: updErr.message },
               500,
@@ -277,11 +284,9 @@ export const Route = createFileRoute("/api/public/documentos")({
           }
           documentoId = existente.id;
         } else {
-          const { error: insErr } = await (supabaseAdmin as any)
-            .from("documentacoes")
-            .insert({ id: docId, ...patch });
+          const { error: insErr } = await db.from("documentacoes").insert({ id: docId, ...patch });
           if (insErr) {
-            await (supabaseAdmin as any).storage.from(BUCKET).remove([objectPath]);
+            await db.storage.from(BUCKET).remove([objectPath]);
             return jsonResponse(
               { ok: false, erro: "gravacao_falhou", detalhe: insErr.message },
               500,
@@ -291,7 +296,7 @@ export const Route = createFileRoute("/api/public/documentos")({
         }
 
         // 6) Timeline (best-effort).
-        await (supabaseAdmin as any)
+        await db
           .from("interacoes")
           .insert({
             lead_id: lead.id,
@@ -391,55 +396,9 @@ function sanitizeName(name: string): string {
     .slice(0, 120);
 }
 
-function onlyDigits(s: string | null | undefined): string {
-  return (s ?? "").replace(/\D/g, "");
-}
-
-type LeadMin = {
-  id: string;
-  nome: string | null;
-  telefone: string | null;
-  corretor_id: string | null;
-};
-
-/**
- * Casa lead pelos últimos 8-9 dígitos do telefone (ignora 55, DDD e 9º).
- * Quando mais de um casa, escolhe o de ultima_interacao mais recente e sinaliza
- * `ambiguo: true` — o automatizador decide se prossegue ou pede confirmação.
- */
-async function resolverLeadPorTelefone(
-  supabase: any,
-  telefone: string,
-): Promise<{ lead: LeadMin; ambiguo: boolean } | null> {
-  const digits = onlyDigits(telefone);
-  if (digits.length < 8) return null;
-  const sufixos: string[] = [];
-  if (digits.length >= 9) sufixos.push(digits.slice(-9));
-  if (digits.length >= 8) sufixos.push(digits.slice(-8));
-
-  for (const suf of sufixos) {
-    const { data } = await supabase
-      .from("leads")
-      .select("id, nome, telefone, corretor_id, ultima_interacao, deleted_at")
-      .or(`telefone.ilike.%${suf},telefone_e164.ilike.%${suf}`)
-      .is("deleted_at", null)
-      .order("ultima_interacao", { ascending: false, nullsFirst: false })
-      .limit(10);
-    const matches = (data ?? []).filter((l: any) => onlyDigits(l.telefone).endsWith(suf));
-    if (matches.length >= 1) {
-      return {
-        lead: {
-          id: matches[0].id,
-          nome: matches[0].nome,
-          telefone: matches[0].telefone,
-          corretor_id: matches[0].corretor_id,
-        },
-        ambiguo: matches.length > 1,
-      };
-    }
-  }
-  return null;
-}
+// `onlyDigits` e `resolverLeadPorTelefone` mudaram para @/lib/lead-busca-telefone,
+// que é onde esta rota e o GET /api/public/leads passam a compartilhar o mesmo
+// critério de telefone e de "lead vivo" (F-063, F-071).
 
 async function assinar(supabase: any, path: string): Promise<string | null> {
   const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
