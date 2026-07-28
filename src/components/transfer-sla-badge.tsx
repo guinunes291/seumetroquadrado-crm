@@ -230,7 +230,7 @@ export function TransferSlaBadge({
         <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="text-xs space-y-0.5">
           <div className="font-medium">Repasse automático em {timeoutMin} min</div>
-          <div>Origem: {origem}</div>
+          <div>Origem: {origemLabel(origem)}</div>
           <div>Restante: {label}</div>
           <div>
             {status_ === "estourado"
