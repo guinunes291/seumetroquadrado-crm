@@ -10,6 +10,7 @@ import { SlaBadge } from "@/components/sla-badge";
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { leadStatusLabel, motivoPerdaLabel } from "@/lib/leads";
+import { origemLabel } from "@/lib/origem";
 import type { DossieLead } from "@/features/leads/dossie/types";
 
 export function LeadStatusCards({ leadId, lead }: { leadId: string; lead: DossieLead }) {
@@ -94,7 +95,7 @@ export function LeadStatusCards({ leadId, lead }: { leadId: string; lead: Dossie
           <CardTitle className="text-sm">Origem</CardTitle>
         </CardHeader>
         <CardContent className="text-sm">
-          {lead.origem}
+          {origemLabel(lead.origem)}
           {lead.campanha && (
             <div className="text-xs text-muted-foreground mt-1">{lead.campanha}</div>
           )}

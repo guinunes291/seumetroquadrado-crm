@@ -21,6 +21,7 @@ import {
   type LeadStatus,
   type StageLead,
 } from "@/lib/leads";
+import { origemLabel } from "@/lib/origem";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
@@ -334,7 +335,7 @@ function BlitzPage() {
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                   {current.projeto_nome && <span>{current.projeto_nome}</span>}
                   {current.campanha && <span>· {current.campanha}</span>}
-                  <span>· {current.origem}</span>
+                  <span>· {origemLabel(current.origem)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
