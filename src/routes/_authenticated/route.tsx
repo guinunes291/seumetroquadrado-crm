@@ -8,6 +8,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
+import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
 import { Search } from "lucide-react";
 
@@ -141,6 +142,7 @@ function AuthenticatedLayout() {
         </header>
         {/* pb-24 reserva o espaço do BottomNav no mobile. */}
         <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
+          <AvatarRequiredBanner />
           <Outlet />
         </div>
       </main>

@@ -16,6 +16,7 @@ import { PushOptInCard } from "@/components/push-opt-in-banner";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import { MinhaElegibilidadeCard } from "@/components/minha-elegibilidade-card";
 import { maskPhoneBR } from "@/lib/masks";
+import { AvatarUploadCard } from "@/components/avatar-upload-card";
 
 export const Route = createFileRoute("/_authenticated/meu-perfil")({
   head: () => ({ meta: [{ title: "Meu perfil — Seu Metro Quadrado" }] }),
@@ -140,7 +141,15 @@ function MeuPerfilPage() {
           </div>
         }
       >
+        <div className="mb-4">
+          <AvatarUploadCard
+            avatarUrl={perfilQuery.data?.avatar_url ?? null}
+            nome={perfilQuery.data?.nome ?? null}
+          />
+        </div>
+
         <Card className="mb-4 border-primary/30">
+
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
               <span>Presença de hoje</span>
