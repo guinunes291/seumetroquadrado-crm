@@ -517,10 +517,11 @@ export function CopaPage() {
             {faseGruposAtiva && gruposOrdenados.length > 0 && (() => {
               const ativos = participantes.filter((p) => p.ativo && p.grupo).length;
               const isSemi = faseGruposAtiva.tipo === "semifinal";
+              const isTerceiro = faseGruposAtiva.tipo === "terceiro";
               const perGrupo = gruposOrdenados.length > 0
                 ? Math.round(ativos / gruposOrdenados.length)
                 : 0;
-              const topN = isSemi ? 1 : 4;
+              const topN = isSemi || isTerceiro ? 1 : 4;
               const si = faseGruposAtiva.semana_inicio ?? 1;
               const sf = faseGruposAtiva.semana_fim ?? si;
               const periodoLabel = si === sf ? `SEMANA ${si}` : `SEMANAS ${si}–${sf}`;
@@ -538,7 +539,14 @@ export function CopaPage() {
                       lineHeight: 1.6,
                     }}
                   >
-                    {isSemi ? (
+                    {isTerceiro ? (
+                      <>
+                        {ativos} corretores em <strong style={{ color: GOLD }}>grupo único</strong>.
+                        O <strong style={{ color: GOLD }}>1º colocado</strong> leva o{" "}
+                        <strong style={{ color: RED }}>3º lugar</strong> da Copa. Pontuação zerada —
+                        conta apenas o que for feito nesta fase.
+                      </>
+                    ) : isSemi ? (
                       <>
                         {ativos} corretores em {gruposOrdenados.length} grupos de {perGrupo}.
                         <strong style={{ color: GOLD }}> 1º de cada grupo</strong> vai para a Final;{" "}
@@ -555,6 +563,7 @@ export function CopaPage() {
                       </>
                     )}
                   </p>
+
                   <div
                     style={{
                       display: "grid",
