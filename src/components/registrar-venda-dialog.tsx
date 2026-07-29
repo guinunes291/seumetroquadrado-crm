@@ -91,6 +91,7 @@ export function RegistrarVendaDialog() {
     setValor("");
     setDataAssinatura(hoje());
     setProjetoId("none");
+    setProjetoManual("");
     setObservacoes("");
   };
 
