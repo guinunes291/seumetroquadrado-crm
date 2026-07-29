@@ -313,7 +313,9 @@ export function useVendasAprovadas(meses = 6, enabled = true) {
         .select("valor_venda, projeto_nome, aprovado_em, data_assinatura, created_at")
         .eq("status_venda", "aprovada")
         .eq("distrato", false)
-        .gte("created_at", inicio.toISOString());
+        // Janela pela data de assinatura (data do negócio), não pelo registro:
+        // uma venda assinada em julho conta em julho mesmo se aprovada depois.
+        .gte("data_assinatura", inicio.toISOString().slice(0, 10));
       if (error) throw error;
       return (data ?? []) as Array<{
         valor_venda: number | string | null;
