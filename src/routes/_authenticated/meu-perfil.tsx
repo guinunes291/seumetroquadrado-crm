@@ -141,7 +141,15 @@ function MeuPerfilPage() {
           </div>
         }
       >
+        <div className="mb-4">
+          <AvatarUploadCard
+            avatarUrl={perfilQuery.data?.avatar_url ?? null}
+            nome={perfilQuery.data?.nome ?? null}
+          />
+        </div>
+
         <Card className="mb-4 border-primary/30">
+
           <CardHeader>
             <CardTitle className="text-base flex items-center justify-between">
               <span>Presença de hoje</span>
