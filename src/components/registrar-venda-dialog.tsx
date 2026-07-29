@@ -300,6 +300,20 @@ export function RegistrarVendaDialog() {
                   ))}
                 </SelectContent>
               </Select>
+              {projetoId === "none" && (
+                <div className="space-y-1.5 pt-1">
+                  <Label>Empreendimento (digitar manualmente)</Label>
+                  <Input
+                    value={projetoManual}
+                    onChange={(e) => setProjetoManual(e.target.value)}
+                    placeholder="Ex.: Residencial Vista Verde"
+                    maxLength={160}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use quando o empreendimento ainda não está cadastrado no sistema.
+                  </p>
+                </div>
+              )}
             </div>
 
             <ComissaoSplitFields
