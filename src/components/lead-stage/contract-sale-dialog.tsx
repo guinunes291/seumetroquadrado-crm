@@ -87,8 +87,10 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       if (!corretorDaVenda) {
         throw new Error("Não foi possível identificar o corretor responsável pela venda.");
       }
-      const projetoNome =
-        projetoId !== "none"
+      const manual = projetoId === "manual";
+      const projetoNome = manual
+        ? projetoManual.trim() || null
+        : projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
           : projetoManual.trim() || (lead.projeto_nome ?? null);
 
@@ -96,8 +98,9 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
         leadId: lead.id,
         corretorId: corretorDaVenda,
         criadoPorId: uid,
-        projetoId:
-          projetoId !== "none"
+        projetoId: manual
+          ? null
+          : projetoId !== "none"
             ? projetoId
             : projetoManual.trim()
               ? null
@@ -165,6 +168,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">— Sem projeto vinculado —</SelectItem>
+                <SelectItem value="manual">✏️ Digitar empreendimento manualmente</SelectItem>
                 {projetosOpcoes.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.nome}
@@ -173,7 +177,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
                 ))}
               </SelectContent>
             </Select>
-            {projetoId === "none" && (
+            {(projetoId === "none" || projetoId === "manual") && (
               <div className="space-y-1.5 pt-1">
                 <Label>Empreendimento (digitar manualmente)</Label>
                 <Input

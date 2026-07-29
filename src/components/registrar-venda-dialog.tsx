@@ -145,8 +145,10 @@ export function RegistrarVendaDialog() {
 
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
-      const projetoNome =
-        projetoId !== "none"
+      const manual = projetoId === "manual";
+      const projetoNome = manual
+        ? projetoManual.trim() || null
+        : projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
           : projetoManual.trim() || lead.projeto_nome;
 
@@ -154,7 +156,13 @@ export function RegistrarVendaDialog() {
         leadId: lead.id,
         corretorId: lead.corretor_id ?? uid,
         criadoPorId: uid,
-        projetoId: projetoId !== "none" ? projetoId : projetoManual.trim() ? null : lead.projeto_id,
+        projetoId: manual
+          ? null
+          : projetoId !== "none"
+            ? projetoId
+            : projetoManual.trim()
+              ? null
+              : lead.projeto_id,
         projetoNome,
         valorVenda: valorNum,
         dataAssinatura,
@@ -292,6 +300,7 @@ export function RegistrarVendaDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— Sem projeto vinculado —</SelectItem>
+                  <SelectItem value="manual">✏️ Digitar empreendimento manualmente</SelectItem>
                   {projetosOpcoes.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.nome}
@@ -300,7 +309,7 @@ export function RegistrarVendaDialog() {
                   ))}
                 </SelectContent>
               </Select>
-              {projetoId === "none" && (
+              {(projetoId === "none" || projetoId === "manual") && (
                 <div className="space-y-1.5 pt-1">
                   <Label>Empreendimento (digitar manualmente)</Label>
                   <Input
