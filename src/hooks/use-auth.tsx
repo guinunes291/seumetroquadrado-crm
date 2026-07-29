@@ -40,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const currentUserId = useRef<string | null>(null);
+  // Marca se já processamos alguma resposta de auth: o primeiro veredito
+  // sempre invalida o router (o guard rodou antes da sessão existir).
+  const iniciado = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -48,15 +51,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       const nextUserId = next?.user.id ?? null;
       const previousUserId = currentUserId.current;
+      const primeiraResposta = !iniciado.current;
+      const trocouUsuario = previousUserId !== nextUserId;
 
       if (previousUserId && previousUserId !== nextUserId) {
         queryClient.clear();
       }
 
+      iniciado.current = true;
       currentUserId.current = nextUserId;
       setSession(next);
       setLoading(false);
-      void router.invalidate();
+
+      // PERF: router.invalidate() re-executa o beforeLoad do guard E os loaders
+      // de todas as rotas casadas. Só faz sentido quando a IDENTIDADE muda
+      // (login, logout, troca de conta). Antes rodava em TODO evento de auth:
+      // o supabase-js emite INITIAL_SESSION no mount (somado ao getSession()
+      // abaixo, dois invalidates seguidos já na abertura) e TOKEN_REFRESHED a
+      // cada renovação de token — inclusive ao voltar para a aba. Cada um
+      // disparava um recarregamento geral de dados: era o "sistema travado"
+      // que aparecia do nada, sem ninguém clicar em nada.
+      if (primeiraResposta || trocouUsuario) {
+        void router.invalidate();
+      }
     };
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {

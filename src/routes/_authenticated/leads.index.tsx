@@ -570,8 +570,16 @@ function LeadsPage() {
 
   // Corretor só precisa acordar com mudanças da própria carteira; gestor/admin
   // veem tudo, então não filtram. O debounce do hook coalesce rajadas.
+  //
+  // PERF: sem filtro (gestão) o canal recebe TODA mudança de lead/venda da
+  // empresa — com o intake automático rodando, isso é um fluxo contínuo. Cada
+  // invalidação refaz duas RPCs que varrem a base inteira (leads_filtered_v3 +
+  // leads_status_counts_v3), então a janela de coalescing precisa ser bem
+  // maior nesse caso: 8s de atraso na lista custa muito menos que a tela
+  // travada em refetch permanente.
   useRealtimeInvalidate(["leads", "vendas"], [["leads"], ["leads-status-counts"]], {
     filter: !canManage && user?.id ? `corretor_id=eq.${user.id}` : undefined,
+    debounceMs: canManage ? 8_000 : 1_500,
   });
 
   // Contagens reais por status — respeita filtros e usa data_assinatura para Venda.

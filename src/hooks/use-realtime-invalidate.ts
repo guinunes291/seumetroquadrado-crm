@@ -34,8 +34,19 @@ export function useRealtimeInvalidate(
     // Coalescing por janela: no máximo uma invalidação a cada `debounceMs`
     // durante uma rajada (garante atualização contínua sem starvation).
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // PERF: aba em segundo plano não recebe invalidação — ela só marca que há
+    // mudança pendente e refaz UMA vez quando o usuário volta. Sem isso, uma
+    // aba esquecida aberta na tela de Leads ficava refazendo as RPCs pesadas
+    // (leads_filtered_v3 + leads_status_counts_v3) em loop, no ritmo do intake
+    // de leads — carga no banco que deixava lento quem estava trabalhando.
+    let pendente = false;
     const flush = () => {
       timer = null;
+      if (typeof document !== "undefined" && document.hidden) {
+        pendente = true;
+        return;
+      }
+      pendente = false;
       queryKeys.forEach((key) => {
         qc.invalidateQueries({ queryKey: key });
       });
@@ -43,6 +54,9 @@ export function useRealtimeInvalidate(
     const agendarInvalidacao = () => {
       if (timer) return;
       timer = setTimeout(flush, debounceMs);
+    };
+    const aoVoltarParaAba = () => {
+      if (!document.hidden && pendente) flush();
     };
 
     tablesArr.forEach((table) => {
@@ -54,8 +68,10 @@ export function useRealtimeInvalidate(
     });
 
     channel.subscribe();
+    document.addEventListener("visibilitychange", aoVoltarParaAba);
     return () => {
       if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", aoVoltarParaAba);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

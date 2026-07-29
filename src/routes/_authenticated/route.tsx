@@ -65,12 +65,42 @@ function markPresenceSafely() {
   })();
 }
 
+// Resultado do gate de conta ativa, memorizado por usuário.
+//
+// PERF: `beforeLoad` roda em TODA navegação para dentro de /_authenticated —
+// sem cache, cada clique no menu pagava um round-trip de conta_atual_ativa
+// (e até dois, porque verificarContaAtiva tenta de novo após 400ms quando o
+// RPC falha) ANTES de qualquer pixel novo aparecer. Era a maior fatia do
+// "lento nos carregamentos". O veredito vale por CONTA_ATIVA_TTL_MS; a RLS
+// segue barrando os dados no servidor, então uma conta bloqueada perde o
+// acesso na hora mesmo que o menu ainda apareça por até 1 minuto.
+const CONTA_ATIVA_TTL_MS = 60_000;
+let contaAtivaCache: { userId: string; em: number } | null = null;
+
+function contaAtivaRecenteOk(userId: string) {
+  return (
+    contaAtivaCache !== null &&
+    contaAtivaCache.userId === userId &&
+    Date.now() - contaAtivaCache.em < CONTA_ATIVA_TTL_MS
+  );
+}
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // PERF: getSession() lê a sessão do storage local (e só renova o token
+    // quando expirado); getUser() batia na API de auth a cada navegação. Para
+    // um guard de ROTA a sessão local basta — quem valida o JWT de verdade é o
+    // servidor, a cada request, via RLS.
+    const { data, error } = await supabase.auth.getSession();
+    const usuario = data.session?.user ?? null;
+    if (error || !usuario) {
       throw redirect({ to: "/auth", search: { next: location.href } });
+    }
+
+    if (contaAtivaRecenteOk(usuario.id)) {
+      markPresenceSafely();
+      return { user: usuario };
     }
 
     // Verifica o estado da conta distinguindo NEGAÇÃO REAL (conta inativa/
@@ -83,6 +113,7 @@ export const Route = createFileRoute("/_authenticated")({
     });
 
     if (resultado === "inativa") {
+      contaAtivaCache = null;
       // Resposta definitiva do banco: conta inativa/bloqueada. Encerra apenas a
       // sessão LOCAL (escopo local não revoga os outros dispositivos) e redireciona.
       await supabase.auth.signOut({ scope: "local" });
@@ -91,15 +122,19 @@ export const Route = createFileRoute("/_authenticated")({
 
     if (resultado === "indisponivel") {
       // Indisponibilidade do RPC: não desloga. Segue com a sessão atual; a RLS
-      // barra o acesso a dados caso a conta não esteja realmente ativa.
+      // barra o acesso a dados caso a conta não esteja realmente ativa. NÃO
+      // memoriza: o veredito ainda não veio, então a próxima navegação tenta
+      // de novo em vez de congelar a dúvida por um minuto.
       console.warn(
         "conta_atual_ativa indisponível; seguindo com a sessão (RLS permanece como barreira)",
       );
+    } else {
+      contaAtivaCache = { userId: usuario.id, em: Date.now() };
     }
 
     // Auto check-in para liberar a distribuição automática de leads.
     markPresenceSafely();
-    return { user: data.user };
+    return { user: usuario };
   },
   component: AuthenticatedLayout,
 });
