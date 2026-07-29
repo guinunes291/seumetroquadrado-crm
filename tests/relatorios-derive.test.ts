@@ -16,10 +16,10 @@ const venda = (p: Partial<VendaAprovadaRow>): VendaAprovadaRow => ({
 });
 
 describe("agruparVendasPorMes", () => {
-  it("agrupa pelo mês da aprovação (fallback assinatura → registro)", () => {
+  it("agrupa pelo mês da assinatura (fallback aprovação → registro)", () => {
     const meses = agruparVendasPorMes([
-      venda({ valor_venda: 200000, aprovado_em: "2026-06-10T12:00:00Z" }),
-      venda({ valor_venda: "150000", data_assinatura: "2026-06-25" }),
+      venda({ valor_venda: 200000, data_assinatura: "2026-06-10" }),
+      venda({ valor_venda: "150000", aprovado_em: "2026-06-25T12:00:00Z" }),
       venda({ valor_venda: 300000, created_at: "2026-07-02T09:00:00Z" }),
     ]);
     expect(meses).toEqual([
