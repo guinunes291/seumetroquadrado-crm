@@ -300,6 +300,7 @@ export function RegistrarVendaDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— Sem projeto vinculado —</SelectItem>
+                  <SelectItem value="manual">✏️ Digitar empreendimento manualmente</SelectItem>
                   {projetosOpcoes.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.nome}
@@ -308,7 +309,7 @@ export function RegistrarVendaDialog() {
                   ))}
                 </SelectContent>
               </Select>
-              {projetoId === "none" && (
+              {(projetoId === "none" || projetoId === "manual") && (
                 <div className="space-y-1.5 pt-1">
                   <Label>Empreendimento (digitar manualmente)</Label>
                   <Input
