@@ -1481,19 +1481,27 @@ function RankingPanel() {
                 for (const m of metasQ.data ?? []) {
                   if (m.corretor_id) metasMap.set(m.corretor_id, m.meta_vendas || 0);
                 }
+                // Ticket médio do mês — converte meta (em nº de vendas) para VGV
+                // equivalente, já que a barra passou a medir VGV.
+                const ticketMedio =
+                  totaisMes.vendas > 0 ? totaisMes.vgv / totaisMes.vendas : 0;
                 const rows = rankingMes
-                  .filter((r) => r.vendas > 0 || metasMap.has(r.corretorId))
-                  .map((r) => ({ ...r, meta: metasMap.get(r.corretorId) || 0 }));
+                  .filter((r) => r.vgv > 0 || r.vendas > 0 || metasMap.has(r.corretorId))
+                  .map((r) => {
+                    const metaQtd = metasMap.get(r.corretorId) || 0;
+                    return { ...r, metaQtd, metaVgv: metaQtd * ticketMedio };
+                  })
+                  .sort((a, b) => b.vgv - a.vgv || b.vendas - a.vendas);
                 if (rows.length === 0)
                   return (
                     <p className="text-sm text-navy-400 text-center py-6">Sem dados para o mês</p>
                   );
-                const max = Math.max(...rows.map((r) => Math.max(r.vendas, r.meta)), 1);
+                const max = Math.max(...rows.map((r) => Math.max(r.vgv, r.metaVgv)), 1);
                 return (
                   <div className="space-y-3">
                     {rows.slice(0, 12).map((r) => {
-                      const valW = (r.vendas / max) * 100;
-                      const metaW = r.meta > 0 ? (r.meta / max) * 100 : 0;
+                      const valW = (r.vgv / max) * 100;
+                      const metaW = r.metaVgv > 0 ? (r.metaVgv / max) * 100 : 0;
                       return (
                         <div key={r.corretorId} className="space-y-1">
                           <div className="flex justify-between text-xs">
@@ -1501,14 +1509,14 @@ function RankingPanel() {
                               {r.nome}
                             </span>
                             <div className="flex items-center gap-3">
-                              {r.meta > 0 && (
-                                <span className="text-navy-400 tabular-nums">Meta: {r.meta}</span>
-                              )}
-                              {r.vgv > 0 && (
-                                <span className="text-emerald-300 font-semibold tabular-nums">
-                                  {fmtBRL(r.vgv)}
+                              {r.metaVgv > 0 && (
+                                <span className="text-navy-400 tabular-nums">
+                                  Meta: {fmtBRL(r.metaVgv)}
                                 </span>
                               )}
+                              <span className="text-emerald-300 font-semibold tabular-nums">
+                                {fmtBRL(r.vgv)}
+                              </span>
                               <span className="text-white font-semibold tabular-nums">
                                 {r.vendas}
                               </span>
@@ -1531,7 +1539,7 @@ function RankingPanel() {
                     })}
                     <div className="text-[10px] text-navy-400 mt-1 flex items-center gap-1">
                       <span className="w-3 h-px bg-white/60 inline-block" /> Linha branca = meta
-                      individual
+                      individual em VGV (meta de vendas × ticket médio do mês)
                     </div>
                   </div>
                 );
