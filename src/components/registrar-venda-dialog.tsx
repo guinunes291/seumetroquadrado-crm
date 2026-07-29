@@ -148,13 +148,13 @@ export function RegistrarVendaDialog() {
       const projetoNome =
         projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
-          : lead.projeto_nome;
+          : projetoManual.trim() || lead.projeto_nome;
 
       await registrarVenda({
         leadId: lead.id,
         corretorId: lead.corretor_id ?? uid,
         criadoPorId: uid,
-        projetoId: projetoId !== "none" ? projetoId : lead.projeto_id,
+        projetoId: projetoId !== "none" ? projetoId : projetoManual.trim() ? null : lead.projeto_id,
         projetoNome,
         valorVenda: valorNum,
         dataAssinatura,
