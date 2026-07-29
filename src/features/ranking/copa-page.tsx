@@ -33,6 +33,15 @@ import {
   AdminLancarPontuacao,
 } from "@/features/ranking/copa-admin";
 
+/** Rótulo de período de uma fase em datas reais (ex.: "29/07 A 30/08"). */
+function periodoFaseLabel(si: number | null, sf: number | null): string {
+  if (!si) return "";
+  const fim = sf ?? si;
+  const ini = SEMANAS[si - 1]?.periodo.split("–")[0] ?? `SEM ${si}`;
+  const fimStr = SEMANAS[fim - 1]?.periodo.split("–")[1] ?? `SEM ${fim}`;
+  return `${ini} A ${fimStr}`;
+}
+
 export function CopaPage() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
@@ -206,6 +215,14 @@ export function CopaPage() {
   function ptsSem(id: string | null, sem: number | null): number {
     if (!id || !sem) return 0;
     return ptsSemMap.get(`${sem}:${id}`) ?? 0;
+  }
+  /** Soma dos pontos de um corretor no intervalo de semanas [si, sf]. */
+  function ptsIntervalo(id: string | null, si: number | null, sf: number | null): number {
+    if (!id || !si) return 0;
+    const fim = sf ?? si;
+    let total = 0;
+    for (let s = si; s <= fim; s++) total += ptsSemMap.get(`${s}:${id}`) ?? 0;
+    return total;
   }
 
   const faseGrupos = fases.find((f) => f.tipo === "grupos");
@@ -524,7 +541,7 @@ export function CopaPage() {
               const topN = isSemi || isTerceiro ? 1 : 4;
               const si = faseGruposAtiva.semana_inicio ?? 1;
               const sf = faseGruposAtiva.semana_fim ?? si;
-              const periodoLabel = si === sf ? `SEMANA ${si}` : `SEMANAS ${si}–${sf}`;
+              const periodoLabel = periodoFaseLabel(si, sf);
               return (
                 <div style={{ marginBottom: 48 }}>
                   <FaseHeader
@@ -695,7 +712,7 @@ export function CopaPage() {
                   <div key={f.id} style={{ marginBottom: 40 }}>
                     <FaseHeader
                       nome={f.nome}
-                      periodo={`${f.semana_inicio ?? ""} A ${f.semana_fim ?? ""}`}
+                      periodo={periodoFaseLabel(f.semana_inicio, f.semana_fim)}
                       cor={
                         (f.tipo ?? "").startsWith("repescagem")
                           ? RED
@@ -717,8 +734,8 @@ export function CopaPage() {
                           c={c}
                           nomeCorretor={nomeCorretor}
                           selecaoCorretor={selecaoCorretor}
-                          ptsTotal={(id) => ptsSem(id, c.semana_ref)}
-                          semanaLabel={c.semana_ref ? `SEM ${c.semana_ref}` : null}
+                          ptsTotal={(id) => ptsIntervalo(id, f.semana_inicio, f.semana_fim)}
+                          semanaLabel={periodoFaseLabel(f.semana_inicio, f.semana_fim)}
                         />
                       ))}
                     </div>
