@@ -217,16 +217,17 @@ export function CopaPage() {
   const faseTerceiro = fases.find((f) => f.tipo === "terceiro");
   const faseFinal = fases.find((f) => f.tipo === "final");
 
-  // Fase "de grupos" a exibir no topo: prioriza Semifinal quando ela já tem
-  // participantes atribuídos a grupos (formato de grupinhos, não chaveamento).
+  // Fase "de grupos" a exibir no topo: prioriza a Disputa de 3º Lugar (grupo
+  // único) e, na sequência, a Semifinal, quando já há participantes com grupo.
   const faseGruposAtiva = useMemo(() => {
-    const temGrupo = participantes.some((p) => p.ativo && p.grupo);
-    if (faseSemi && temGrupo) {
-      const semiPart = participantes.filter((p) => p.ativo && p.grupo);
-      if (semiPart.length <= 8) return faseSemi;
+    const comGrupo = participantes.filter((p) => p.ativo && p.grupo);
+    if (comGrupo.length > 0 && comGrupo.length <= 12) {
+      if (faseTerceiro) return faseTerceiro;
+      if (faseSemi) return faseSemi;
     }
     return faseGrupos;
-  }, [faseSemi, faseGrupos, participantes]);
+  }, [faseTerceiro, faseSemi, faseGrupos, participantes]);
+
 
   // Pontos por corretor escopados ao intervalo de semanas da fase exibida.
   const pontosNaFase = useMemo(() => {
