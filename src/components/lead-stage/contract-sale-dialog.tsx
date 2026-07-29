@@ -90,13 +90,18 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       const projetoNome =
         projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
-          : (lead.projeto_nome ?? null);
+          : projetoManual.trim() || (lead.projeto_nome ?? null);
 
       await registrarVenda({
         leadId: lead.id,
         corretorId: corretorDaVenda,
         criadoPorId: uid,
-        projetoId: projetoId !== "none" ? projetoId : (lead.projeto_id ?? null),
+        projetoId:
+          projetoId !== "none"
+            ? projetoId
+            : projetoManual.trim()
+              ? null
+              : (lead.projeto_id ?? null),
         projetoNome,
         valorVenda: valorNum,
         dataAssinatura,
