@@ -541,7 +541,7 @@ export function CopaPage() {
               const topN = isSemi || isTerceiro ? 1 : 4;
               const si = faseGruposAtiva.semana_inicio ?? 1;
               const sf = faseGruposAtiva.semana_fim ?? si;
-              const periodoLabel = si === sf ? `SEMANA ${si}` : `SEMANAS ${si}–${sf}`;
+              const periodoLabel = periodoFaseLabel(si, sf);
               return (
                 <div style={{ marginBottom: 48 }}>
                   <FaseHeader
