@@ -33,6 +33,15 @@ import {
   AdminLancarPontuacao,
 } from "@/features/ranking/copa-admin";
 
+/** Rótulo de período de uma fase em datas reais (ex.: "29/07 A 30/08"). */
+function periodoFaseLabel(si: number | null, sf: number | null): string {
+  if (!si) return "";
+  const fim = sf ?? si;
+  const ini = SEMANAS[si - 1]?.periodo.split("–")[0] ?? `SEM ${si}`;
+  const fimStr = SEMANAS[fim - 1]?.periodo.split("–")[1] ?? `SEM ${fim}`;
+  return `${ini} A ${fimStr}`;
+}
+
 export function CopaPage() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
