@@ -703,7 +703,7 @@ export function CopaPage() {
                   <div key={f.id} style={{ marginBottom: 40 }}>
                     <FaseHeader
                       nome={f.nome}
-                      periodo={`${f.semana_inicio ?? ""} A ${f.semana_fim ?? ""}`}
+                      periodo={periodoFaseLabel(f.semana_inicio, f.semana_fim)}
                       cor={
                         (f.tipo ?? "").startsWith("repescagem")
                           ? RED
@@ -725,8 +725,8 @@ export function CopaPage() {
                           c={c}
                           nomeCorretor={nomeCorretor}
                           selecaoCorretor={selecaoCorretor}
-                          ptsTotal={(id) => ptsSem(id, c.semana_ref)}
-                          semanaLabel={c.semana_ref ? `SEM ${c.semana_ref}` : null}
+                          ptsTotal={(id) => ptsIntervalo(id, f.semana_inicio, f.semana_fim)}
+                          semanaLabel={periodoFaseLabel(f.semana_inicio, f.semana_fim)}
                         />
                       ))}
                     </div>
