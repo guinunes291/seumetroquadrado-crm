@@ -145,8 +145,10 @@ export function RegistrarVendaDialog() {
 
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
-      const projetoNome =
-        projetoId !== "none"
+      const manual = projetoId === "manual";
+      const projetoNome = manual
+        ? projetoManual.trim() || null
+        : projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
           : projetoManual.trim() || lead.projeto_nome;
 
@@ -154,7 +156,13 @@ export function RegistrarVendaDialog() {
         leadId: lead.id,
         corretorId: lead.corretor_id ?? uid,
         criadoPorId: uid,
-        projetoId: projetoId !== "none" ? projetoId : projetoManual.trim() ? null : lead.projeto_id,
+        projetoId: manual
+          ? null
+          : projetoId !== "none"
+            ? projetoId
+            : projetoManual.trim()
+              ? null
+              : lead.projeto_id,
         projetoNome,
         valorVenda: valorNum,
         dataAssinatura,
