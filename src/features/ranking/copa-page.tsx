@@ -207,6 +207,14 @@ export function CopaPage() {
     if (!id || !sem) return 0;
     return ptsSemMap.get(`${sem}:${id}`) ?? 0;
   }
+  /** Soma dos pontos de um corretor no intervalo de semanas [si, sf]. */
+  function ptsIntervalo(id: string | null, si: number | null, sf: number | null): number {
+    if (!id || !si) return 0;
+    const fim = sf ?? si;
+    let total = 0;
+    for (let s = si; s <= fim; s++) total += ptsSemMap.get(`${s}:${id}`) ?? 0;
+    return total;
+  }
 
   const faseGrupos = fases.find((f) => f.tipo === "grupos");
   const faseRep1 = fases.find((f) => f.tipo === "repescagem1");
