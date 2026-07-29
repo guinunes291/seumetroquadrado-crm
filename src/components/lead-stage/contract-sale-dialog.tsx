@@ -42,6 +42,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const [valor, setValor] = useState("");
   const [dataAssinatura, setDataAssinatura] = useState(hoje());
   const [projetoId, setProjetoId] = useState<string>(lead.projeto_id ?? "none");
+  const [projetoManual, setProjetoManual] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
@@ -89,13 +90,18 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       const projetoNome =
         projetoId !== "none"
           ? (projetosOpcoes.find((p) => p.id === projetoId)?.nome ?? null)
-          : (lead.projeto_nome ?? null);
+          : projetoManual.trim() || (lead.projeto_nome ?? null);
 
       await registrarVenda({
         leadId: lead.id,
         corretorId: corretorDaVenda,
         criadoPorId: uid,
-        projetoId: projetoId !== "none" ? projetoId : (lead.projeto_id ?? null),
+        projetoId:
+          projetoId !== "none"
+            ? projetoId
+            : projetoManual.trim()
+              ? null
+              : (lead.projeto_id ?? null),
         projetoNome,
         valorVenda: valorNum,
         dataAssinatura,
@@ -167,6 +173,20 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
                 ))}
               </SelectContent>
             </Select>
+            {projetoId === "none" && (
+              <div className="space-y-1.5 pt-1">
+                <Label>Empreendimento (digitar manualmente)</Label>
+                <Input
+                  value={projetoManual}
+                  onChange={(e) => setProjetoManual(e.target.value)}
+                  placeholder="Ex.: Residencial Vista Verde"
+                  maxLength={160}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use quando o empreendimento ainda não está cadastrado no sistema.
+                </p>
+              </div>
+            )}
           </div>
 
           <ComissaoSplitFields
