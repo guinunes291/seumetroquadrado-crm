@@ -142,6 +142,7 @@ function AuthenticatedLayout() {
         </header>
         {/* pb-24 reserva o espaço do BottomNav no mobile. */}
         <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
+          <AvatarRequiredBanner />
           <Outlet />
         </div>
       </main>
