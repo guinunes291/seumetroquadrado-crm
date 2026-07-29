@@ -14,9 +14,9 @@ const valor = (v: number | string | null): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** Data de negócio da venda: aprovação; fallback assinatura; fallback registro. */
+/** Data de negócio da venda: assinatura; fallback aprovação; fallback registro. */
 function dataDaVenda(r: VendaAprovadaRow): string | null {
-  return r.aprovado_em ?? r.data_assinatura ?? r.created_at;
+  return r.data_assinatura ?? r.aprovado_em ?? r.created_at;
 }
 
 export type VendasMes = { mes: string; vendas: number; vgv: number };
