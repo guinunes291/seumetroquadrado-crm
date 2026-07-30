@@ -1608,25 +1608,25 @@ function RankingPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               <div className="lg:col-span-2 bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-yellow-400" /> Pódio — Vendas
+                  <Trophy className="w-4 h-4 text-yellow-400" /> Pódio — VGV
                 </h3>
                 <Podium
                   entries={podiumEntries(
-                    rankingMes.filter((r) => r.vendas > 0),
-                    "vendas",
+                    rankingMes.filter((r) => r.vgv > 0).sort((a, b) => b.vgv - a.vgv),
+                    "vgv",
                   )}
                 />
               </div>
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Flag className="w-4 h-4 text-cyan-400" /> Ranking de Vendas
+                  <Flag className="w-4 h-4 text-cyan-400" /> Ranking de VGV
                 </h3>
                 <RankingLateral
                   ranking={rankingProd
-                    .filter((r) => r.vendas > 0)
-                    .sort((a, b) => b.vendas - a.vendas)
+                    .filter((r) => r.vgv > 0)
+                    .sort((a, b) => b.vgv - a.vgv)
                     .slice(0, 15)}
-                  type="vendas"
+                  type="vgv"
                 />
               </div>
             </div>
