@@ -441,13 +441,16 @@ type RankRow = {
 };
 
 /** Adapta as linhas do ranking para o Pódio hero (mesmos dados da lista). */
-function podiumEntries(ranking: RankRow[], type: "vendas" | "pontos") {
+function podiumEntries(ranking: RankRow[], type: "vendas" | "pontos" | "vgv") {
   return ranking.slice(0, 3).map((r) => ({
     id: r.corretorId,
     nome: r.nome.split(" ")[0],
     foto: r.foto,
-    valor: type === "vendas" ? r.vendas : r.pontos,
-    unidade: type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
+    valor: type === "vgv" ? r.vgv : type === "vendas" ? r.vendas : r.pontos,
+    valorTexto: type === "vgv" ? fmtBRL(r.vgv) : undefined,
+    unidade: type === "vgv" ? "VGV" : type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
+    detalhe:
+      type === "vgv" ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}` : null,
   }));
 }
 
