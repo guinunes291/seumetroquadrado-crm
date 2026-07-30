@@ -20,8 +20,12 @@ export type PodiumEntry = {
   /** Emblema no lugar da foto (ex.: bandeira da seleção). */
   emblema?: string | null;
   valor: number;
+  /** Texto já formatado no lugar do número animado (ex.: VGV em R$). */
+  valorTexto?: string;
   /** Sufixo curto do valor: "vendas", "pts"… */
   unidade: string;
+  /** Linha extra abaixo da unidade (ex.: "3 vendas"). */
+  detalhe?: string | null;
 };
 
 const TIER_BY_POS: Record<1 | 2 | 3, MedalTier> = { 1: "ouro", 2: "prata", 3: "bronze" };
