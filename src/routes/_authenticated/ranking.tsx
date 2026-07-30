@@ -460,7 +460,7 @@ function RankingLateral({
   positionChanges,
 }: {
   ranking: RankRow[];
-  type: "vendas" | "pontos";
+  type: "vendas" | "pontos" | "vgv";
   positionChanges?: Map<string, number>;
 }) {
   return (
@@ -468,12 +468,14 @@ function RankingLateral({
       <div className="grid grid-cols-12 gap-2 text-[10px] text-navy-400 uppercase tracking-wider px-2 pb-2 border-b border-navy-700/50">
         <div className="col-span-1">#</div>
         <div className="col-span-7">Executivo</div>
-        <div className="col-span-4 text-right">{type === "vendas" ? "Vendas" : "Pontos"}</div>
+        <div className="col-span-4 text-right">
+          {type === "vgv" ? "VGV" : type === "vendas" ? "Vendas" : "Pontos"}
+        </div>
       </div>
       <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
         {ranking.map((item, index) => {
           const change = positionChanges?.get(item.corretorId);
-          const val = type === "vendas" ? item.vendas : item.pontos;
+          const val = type === "vgv" ? item.vgv : type === "vendas" ? item.vendas : item.pontos;
           return (
             <div
               key={item.corretorId}
