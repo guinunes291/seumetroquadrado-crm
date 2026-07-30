@@ -20,8 +20,12 @@ export type PodiumEntry = {
   /** Emblema no lugar da foto (ex.: bandeira da seleção). */
   emblema?: string | null;
   valor: number;
+  /** Texto já formatado no lugar do número animado (ex.: VGV em R$). */
+  valorTexto?: string;
   /** Sufixo curto do valor: "vendas", "pts"… */
   unidade: string;
+  /** Linha extra abaixo da unidade (ex.: "3 vendas"). */
+  detalhe?: string | null;
 };
 
 const TIER_BY_POS: Record<1 | 2 | 3, MedalTier> = { 1: "ouro", 2: "prata", 3: "bronze" };
@@ -98,9 +102,12 @@ function PodiumCard({ entry, pos }: { entry: PodiumEntry; pos: 1 | 2 | 3 }) {
           first ? "text-3xl" : "text-xl",
         )}
       >
-        <AnimatedNumber value={entry.valor} />
+        {entry.valorTexto ?? <AnimatedNumber value={entry.valor} />}
       </div>
       <div className="text-[11px] uppercase tracking-wider text-navy-300">{entry.unidade}</div>
+      {entry.detalhe && (
+        <div className="text-[11px] text-navy-400">{entry.detalhe}</div>
+      )}
     </div>
   );
 }

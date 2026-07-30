@@ -441,13 +441,16 @@ type RankRow = {
 };
 
 /** Adapta as linhas do ranking para o Pódio hero (mesmos dados da lista). */
-function podiumEntries(ranking: RankRow[], type: "vendas" | "pontos") {
+function podiumEntries(ranking: RankRow[], type: "vendas" | "pontos" | "vgv") {
   return ranking.slice(0, 3).map((r) => ({
     id: r.corretorId,
     nome: r.nome.split(" ")[0],
     foto: r.foto,
-    valor: type === "vendas" ? r.vendas : r.pontos,
-    unidade: type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
+    valor: type === "vgv" ? r.vgv : type === "vendas" ? r.vendas : r.pontos,
+    valorTexto: type === "vgv" ? fmtBRL(r.vgv) : undefined,
+    unidade: type === "vgv" ? "VGV" : type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
+    detalhe:
+      type === "vgv" ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}` : null,
   }));
 }
 
@@ -457,7 +460,7 @@ function RankingLateral({
   positionChanges,
 }: {
   ranking: RankRow[];
-  type: "vendas" | "pontos";
+  type: "vendas" | "pontos" | "vgv";
   positionChanges?: Map<string, number>;
 }) {
   return (
@@ -465,12 +468,14 @@ function RankingLateral({
       <div className="grid grid-cols-12 gap-2 text-[10px] text-navy-400 uppercase tracking-wider px-2 pb-2 border-b border-navy-700/50">
         <div className="col-span-1">#</div>
         <div className="col-span-7">Executivo</div>
-        <div className="col-span-4 text-right">{type === "vendas" ? "Vendas" : "Pontos"}</div>
+        <div className="col-span-4 text-right">
+          {type === "vgv" ? "VGV" : type === "vendas" ? "Vendas" : "Pontos"}
+        </div>
       </div>
       <div className="space-y-1 max-h-[420px] overflow-y-auto pr-1">
         {ranking.map((item, index) => {
           const change = positionChanges?.get(item.corretorId);
-          const val = type === "vendas" ? item.vendas : item.pontos;
+          const val = type === "vgv" ? item.vgv : type === "vendas" ? item.vendas : item.pontos;
           return (
             <div
               key={item.corretorId}
@@ -499,8 +504,17 @@ function RankingLateral({
                 </Avatar>
                 <span className="text-white text-xs font-medium truncate">{item.nome}</span>
               </div>
-              <div className="col-span-4 text-right text-cyan-300 text-sm font-bold tabular-nums">
-                {formatNum(val)}
+              <div className="col-span-4 text-right">
+                <div
+                  className={`text-sm font-bold tabular-nums ${type === "vgv" ? "text-emerald-300" : "text-cyan-300"}`}
+                >
+                  {type === "vgv" ? fmtBRL(val) : formatNum(val)}
+                </div>
+                {type === "vgv" && (
+                  <div className="text-[10px] text-navy-400 tabular-nums">
+                    {formatNum(item.vendas)} {item.vendas === 1 ? "venda" : "vendas"}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1594,25 +1608,25 @@ function RankingPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               <div className="lg:col-span-2 bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-yellow-400" /> Pódio — Vendas
+                  <Trophy className="w-4 h-4 text-yellow-400" /> Pódio — VGV
                 </h3>
                 <Podium
                   entries={podiumEntries(
-                    rankingMes.filter((r) => r.vendas > 0),
-                    "vendas",
+                    rankingMes.filter((r) => r.vgv > 0).sort((a, b) => b.vgv - a.vgv),
+                    "vgv",
                   )}
                 />
               </div>
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
                 <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Flag className="w-4 h-4 text-cyan-400" /> Ranking de Vendas
+                  <Flag className="w-4 h-4 text-cyan-400" /> Ranking de VGV
                 </h3>
                 <RankingLateral
                   ranking={rankingProd
-                    .filter((r) => r.vendas > 0)
-                    .sort((a, b) => b.vendas - a.vendas)
+                    .filter((r) => r.vgv > 0)
+                    .sort((a, b) => b.vgv - a.vgv)
                     .slice(0, 15)}
-                  type="vendas"
+                  type="vgv"
                 />
               </div>
             </div>
