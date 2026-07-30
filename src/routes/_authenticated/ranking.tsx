@@ -504,8 +504,17 @@ function RankingLateral({
                 </Avatar>
                 <span className="text-white text-xs font-medium truncate">{item.nome}</span>
               </div>
-              <div className="col-span-4 text-right text-cyan-300 text-sm font-bold tabular-nums">
-                {formatNum(val)}
+              <div className="col-span-4 text-right">
+                <div
+                  className={`text-sm font-bold tabular-nums ${type === "vgv" ? "text-emerald-300" : "text-cyan-300"}`}
+                >
+                  {type === "vgv" ? fmtBRL(val) : formatNum(val)}
+                </div>
+                {type === "vgv" && (
+                  <div className="text-[10px] text-navy-400 tabular-nums">
+                    {formatNum(item.vendas)} {item.vendas === 1 ? "venda" : "vendas"}
+                  </div>
+                )}
               </div>
             </div>
           );
