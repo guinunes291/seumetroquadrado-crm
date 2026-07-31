@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { addDays, format } from "date-fns";
+import { addDays, format, isPast, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   CalendarDays,
@@ -83,6 +83,9 @@ const formSchema = z
   .object({
     notaTranscrita: z.string().max(5000, "A nota pode ter no máximo 5.000 caracteres."),
     observacoes: z.string().max(5000, "As observações podem ter no máximo 5.000 caracteres."),
+    // "nao_compareceu" é desfecho, não etapa do lead: quem não apareceu volta
+    // para aguardando_retorno. O agendamento é que fica marcado como no-show.
+    desfecho: z.enum(["realizada", "nao_compareceu"]),
     proximaEtapa: z.enum(["visita_realizada", "aguardando_retorno"]),
     proximaAcao: z.string().max(500, "A próxima ação pode ter no máximo 500 caracteres."),
     proximoFollowup: z.string(),
@@ -95,7 +98,7 @@ const formSchema = z
         message: "Informe a próxima ação ou um follow-up.",
       });
     }
-    if (value.proximaEtapa === "aguardando_retorno") {
+    if (value.proximaEtapa === "aguardando_retorno" || value.desfecho === "nao_compareceu") {
       const followup = Date.parse(value.proximoFollowup);
       if (!value.proximoFollowup || Number.isNaN(followup) || followup <= Date.now()) {
         context.addIssue({
@@ -165,12 +168,66 @@ function toLocalInput(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/**
+ * Rascunho local da visita em andamento.
+ *
+ * O Modo Visita é usado em estande e subsolo, onde a conexão cai, e a nota
+ * pode levar minutos de ditado. Antes, trocar de visita no seletor disparava
+ * um form.reset() e o texto sumia sem aviso. O rascunho fica por agendamento,
+ * é gravado a cada mudança e some no primeiro salvamento bem-sucedido.
+ */
+type RascunhoVisita = {
+  valores: Partial<FormValues>;
+  checklist: Partial<Record<ChecklistKey, boolean>>;
+  salvoEm: number;
+};
+
+const RASCUNHO_PREFIXO = "modo-visita:rascunho:";
+/** Rascunho velho não ajuda ninguém: some depois de 7 dias. */
+const RASCUNHO_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function lerRascunho(agendamentoId: string): RascunhoVisita | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const bruto = window.localStorage.getItem(RASCUNHO_PREFIXO + agendamentoId);
+    if (!bruto) return null;
+    const rascunho = JSON.parse(bruto) as RascunhoVisita;
+    if (!rascunho?.salvoEm || Date.now() - rascunho.salvoEm > RASCUNHO_VALIDADE_MS) {
+      window.localStorage.removeItem(RASCUNHO_PREFIXO + agendamentoId);
+      return null;
+    }
+    return rascunho;
+  } catch {
+    return null;
+  }
+}
+
+function gravarRascunho(agendamentoId: string, rascunho: RascunhoVisita) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(RASCUNHO_PREFIXO + agendamentoId, JSON.stringify(rascunho));
+  } catch {
+    // Cota cheia ou storage bloqueado: seguir sem rascunho é melhor que travar
+    // o corretor no meio da visita.
+  }
+}
+
+function limparRascunho(agendamentoId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(RASCUNHO_PREFIXO + agendamentoId);
+  } catch {
+    /* idem */
+  }
+}
+
 export function ModoVisitaPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [checklist, setChecklist] = useState(CHECKLIST_INICIAL);
   const [listening, setListening] = useState(false);
+  const [rascunhoEm, setRascunhoEm] = useState<number | null>(null);
   const [speechConsent, setSpeechConsent] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionSupported = useMemo(() => speechRecognitionConstructor() !== null, []);
@@ -180,6 +237,7 @@ export function ModoVisitaPage() {
     defaultValues: {
       notaTranscrita: "",
       observacoes: "",
+      desfecho: "realizada",
       proximaEtapa: "visita_realizada",
       proximaAcao: "Confirmar documentação e preparar a próxima proposta",
       proximoFollowup: toLocalInput(addDays(new Date(), 1)),
@@ -191,7 +249,11 @@ export function ModoVisitaPage() {
     enabled: Boolean(user?.id),
     staleTime: 30_000,
     queryFn: async (): Promise<Agenda[]> => {
-      const inicio = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      // Janela retroativa de 7 dias (era 12h): visita de terça que o corretor
+      // não validou na hora sumia da tela na quarta — e, como a métrica conta
+      // agendamento VALIDADO, visita que some é visita que não entra no
+      // relatório. Aqui é onde ela volta a ser alcançável.
+      const inicio = subDays(new Date(), 7).toISOString();
       const fim = addDays(new Date(), 7).toISOString();
       const { data, error } = await supabase
         .from("agendamentos")
@@ -240,10 +302,10 @@ export function ModoVisitaPage() {
     for (const item of CHECKLIST) {
       nextChecklist[item.key] = execucao?.checklist[item.key] ?? false;
     }
-    setChecklist(nextChecklist);
-    form.reset({
+    const doServidor: FormValues = {
       notaTranscrita: execucao?.nota_transcrita ?? "",
       observacoes: execucao?.observacoes ?? "",
+      desfecho: "realizada",
       proximaEtapa:
         execucao?.proxima_etapa === "aguardando_retorno"
           ? "aguardando_retorno"
@@ -252,8 +314,34 @@ export function ModoVisitaPage() {
       proximoFollowup: execucao?.proximo_followup
         ? toLocalInput(new Date(execucao.proximo_followup))
         : toLocalInput(addDays(new Date(), 1)),
-    });
+    };
+
+    // Rascunho local vence o servidor: em campo a conexão cai, o corretor
+    // troca de visita no seletor ou o navegador descarta a aba — e antes
+    // disso tudo a nota digitada ia embora sem aviso.
+    const rascunho = lerRascunho(selected.id);
+    if (rascunho && execucao?.status !== "concluida") {
+      setChecklist({ ...nextChecklist, ...rascunho.checklist });
+      form.reset({ ...doServidor, ...rascunho.valores });
+      setRascunhoEm(rascunho.salvoEm);
+    } else {
+      setChecklist(nextChecklist);
+      form.reset(doServidor);
+      setRascunhoEm(null);
+    }
   }, [execucaoQ.data, form, selected]);
+
+  // Autosave do rascunho a cada mudança (form ou checklist), com debounce
+  // curto — o custo é um write em localStorage, o ganho é nunca perder a nota.
+  const valoresAtuais = form.watch();
+  useEffect(() => {
+    if (!selected || execucaoQ.data?.status === "concluida") return;
+    const timer = setTimeout(() => {
+      gravarRascunho(selected.id, { valores: valoresAtuais, checklist, salvoEm: Date.now() });
+    }, 600);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id, JSON.stringify(valoresAtuais), checklist]);
 
   useEffect(
     () => () => {
@@ -277,11 +365,15 @@ export function ModoVisitaPage() {
           concluir && values.proximoFollowup
             ? new Date(values.proximoFollowup).toISOString()
             : undefined,
+        p_compareceu: values.desfecho === "realizada",
       });
       if (error) throw error;
       return { data: execucaoSchema.parse(data), concluir };
     },
     onSuccess: async ({ concluir }) => {
+      // O que está no servidor não precisa mais de rascunho local.
+      if (selected) limparRascunho(selected.id);
+      setRascunhoEm(null);
       toast.success(concluir ? "Visita concluída e próxima etapa registrada." : "Progresso salvo.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["modo-visita"] }),
@@ -347,6 +439,13 @@ export function ModoVisitaPage() {
     form.handleSubmit((values) => saveMutation.mutate({ values, concluir }))();
 
   const completed = execucaoQ.data?.status === "concluida";
+  const naoCompareceu = form.watch("desfecho") === "nao_compareceu";
+  /** Visitas cujo horário já passou e que seguem sem validação — sem elas o
+   *  relatório de visitas fica menor do que a operação realmente fez. */
+  const pendentesValidacao = useMemo(
+    () => (agendaQ.data ?? []).filter((item) => isPast(new Date(item.data_fim))).length,
+    [agendaQ.data],
+  );
   const mapUrl = selected?.local
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.local)}`
     : null;
@@ -385,6 +484,20 @@ export function ModoVisitaPage() {
           />
         ) : (
           <div className="space-y-5">
+            {pendentesValidacao > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
+                <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                <p>
+                  <strong>
+                    {pendentesValidacao}{" "}
+                    {pendentesValidacao === 1 ? "visita já passou" : "visitas já passaram"}
+                  </strong>{" "}
+                  e {pendentesValidacao === 1 ? "continua" : "continuam"} sem validação. Enquanto
+                  não forem concluídas aqui, não entram no relatório de visitas.
+                </p>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="visita-atual">Visita em campo</Label>
               <Select value={selectedId ?? undefined} onValueChange={setSelectedId}>
@@ -398,6 +511,7 @@ export function ModoVisitaPage() {
                         locale: ptBR,
                       })}
                       {item.lead ? ` — ${item.lead.nome}` : ""}
+                      {isPast(new Date(item.data_fim)) ? " · pendente" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -557,6 +671,13 @@ export function ModoVisitaPage() {
                               {listening ? "Parar ditado" : "Ditar nota"}
                             </Button>
                           </div>
+                          {rascunhoEm && !completed && (
+                            <p className="rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm">
+                              Rascunho local restaurado (
+                              {format(new Date(rascunhoEm), "dd/MM 'às' HH:mm", { locale: ptBR })}).
+                              Ele fica só neste aparelho até você salvar.
+                            </p>
+                          )}
                           <p className="text-sm text-muted-foreground">
                             O CRM não grava nem armazena o áudio, mas o navegador pode enviá-lo ao
                             próprio provedor de reconhecimento. Use somente com autorização do
@@ -607,11 +728,48 @@ export function ModoVisitaPage() {
                           <CardTitle className="text-base">Próximo passo</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                          <FieldError message={form.formState.errors.desfecho?.message}>
+                            <Label htmlFor="desfecho-visita">A visita aconteceu?</Label>
+                            <Select
+                              value={form.watch("desfecho")}
+                              disabled={completed}
+                              onValueChange={(value) => {
+                                const desfecho = value as FormValues["desfecho"];
+                                form.setValue("desfecho", desfecho, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                });
+                                // Quem não apareceu não vira "visita realizada":
+                                // volta para a fila de retorno, com follow-up.
+                                if (desfecho === "nao_compareceu") {
+                                  form.setValue("proximaEtapa", "aguardando_retorno", {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  });
+                                  form.setValue(
+                                    "proximaAcao",
+                                    "Retomar contato e reagendar a visita",
+                                    { shouldDirty: true },
+                                  );
+                                }
+                              }}
+                            >
+                              <SelectTrigger id="desfecho-visita" className="min-h-11">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="realizada">Sim — cliente compareceu</SelectItem>
+                                <SelectItem value="nao_compareceu">
+                                  Não — cliente não compareceu
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FieldError>
                           <FieldError message={form.formState.errors.proximaEtapa?.message}>
                             <Label htmlFor="proxima-etapa">Etapa ao concluir</Label>
                             <Select
                               value={form.watch("proximaEtapa")}
-                              disabled={completed}
+                              disabled={completed || naoCompareceu}
                               onValueChange={(value) =>
                                 form.setValue("proximaEtapa", value as FormValues["proximaEtapa"], {
                                   shouldDirty: true,
@@ -623,7 +781,9 @@ export function ModoVisitaPage() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="visita_realizada">Visita realizada</SelectItem>
+                                <SelectItem value="visita_realizada" disabled={naoCompareceu}>
+                                  Visita realizada
+                                </SelectItem>
                                 <SelectItem value="aguardando_retorno">
                                   Aguardando retorno
                                 </SelectItem>
@@ -664,7 +824,11 @@ export function ModoVisitaPage() {
                               disabled={saveMutation.isPending || completed}
                             >
                               <CheckCircle2 className="mr-2 h-4 w-4" />
-                              {completed ? "Visita concluída" : "Concluir visita"}
+                              {completed
+                                ? "Visita concluída"
+                                : naoCompareceu
+                                  ? "Registrar não comparecimento"
+                                  : "Concluir visita"}
                             </Button>
                           </div>
                         </CardContent>
