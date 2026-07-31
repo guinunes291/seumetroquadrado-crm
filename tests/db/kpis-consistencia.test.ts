@@ -33,10 +33,13 @@
  *     lead_status_transitions; 'perdidos' idem e SEM filtro de lixeira
  *     (perda é fato histórico — 20260719130000).
  * - dashboard_funil(_di,_df,_corretor,_campo_data) SECURITY DEFINER:
- *     deleted/lixeira fora; escopo = régua do v3; janela crua por created_at;
- *     'Novos' = TODOS os leads criados na janela (qualquer status); etapas
- *     cumulativas incluem 'proposta_enviada' (até 'Visitas') e 'pos_venda'
- *     (todas); 'Fechados' = contrato_fechado + pos_venda (20260719130000).
+ *     desde 20260731122000 conta EVENTOS da janela (leads distintos), cada
+ *     etapa pela data do próprio fato: 'Novos' = leads criados; 'Em
+ *     atendimento'/'Análise crédito' = transições de status na janela;
+ *     'Agendados' = agendamentos criados (sem os auto_gerado); 'Visitas' =
+ *     agendamentos de visita VALIDADOS, pelo dia da visita (data_inicio);
+ *     'Fechados' = vendas aprovadas pela data_assinatura. Não é mais
+ *     cumulativo por status atual — etapa pode superar a anterior.
  * - dashboard_serie_diaria(...) SECURITY DEFINER: deleted/lixeira fora; escopo
  *     (20260719130000) = régua do v3; bucketiza os dias em America/Sao_Paulo.
  * - gestao_metricas(_start,_end,_campo) SECURITY INVOKER (RLS do chamador):
@@ -619,30 +622,41 @@ describe("dashboard_funil vs referência (admin, sem período)", () => {
     expect(funil.get("Novos")).toBe(somaEtapas(pipeline));
   });
 
-  // Corrigido na migration 20260719130000: 'Fechados' do funil passou a contar
-  // contrato_fechado + pos_venda — negócio fechado que avançou para o
-  // pós-venda não some mais da conversão final.
-  it("'Fechados' conta também quem já avançou para pos_venda", async () => {
+  // Mudou na migration 20260731122000: o funil deixou de ser cumulativo por
+  // STATUS ATUAL e passou a contar EVENTOS do período, cada um pela data do
+  // próprio fato. 'Fechados' agora é venda ASSINADA (aprovada, sem distrato),
+  // não lead parado em contrato_fechado/pos_venda — status de lead pode ter
+  // sido ajustado à mão, venda assinada é fato com data.
+  it("'Fechados' conta venda assinada, não o status atual do lead", async () => {
     const funil = await funilMap(admin.id, null, null);
-    const refFechados = await refCount(
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT count(DISTINCT lead_id)::int AS n FROM public.vendas
+        WHERE status_venda = 'aprovada' AND distrato = false AND data_assinatura IS NOT NULL`,
+    );
+    expect(funil.get("Fechados")).toBe(r.rows[0].n as number);
+    // A régua antiga (por status) daria outro número — é o ponto da mudança.
+    const porStatus = await refCount(
       `${ATIVO} AND status::text IN ('contrato_fechado','pos_venda')`,
     );
-    expect(refFechados).toBe(3); // sanidade da referência
-    expect(funil.get("Fechados")).toBe(refFechados);
+    expect(porStatus).toBe(3);
   });
 
-  // Corrigido na migration 20260719130000: as etapas cumulativas do funil
-  // incluem o status legado 'proposta_enviada' (até 'Visitas') e 'pos_venda'
-  // (todas) — nenhum lead ativo desaparece das etapas intermediárias.
-  it("'Em atendimento' inclui os leads legados proposta_enviada (e pos_venda)", async () => {
+  // 'Em atendimento' passou a contar quem ENTROU em atendimento na janela
+  // (transição), não quem está parado nesses status. Leads da fixture nascem
+  // já no status final, sem transição — logo não são produção de período
+  // nenhum. A prova comportamental com transições reais está em
+  // tests/db/regua-datas.test.ts.
+  it("'Em atendimento' conta quem entrou em atendimento na janela (transição)", async () => {
     const funil = await funilMap(admin.id, null, null);
-    const ref = await refCount(
-      `${ATIVO} AND status::text IN
-       ('aguardando_retorno','em_atendimento','qualificado','agendado',
-        'visita_realizada','proposta_enviada','analise_credito','contrato_fechado','pos_venda')`,
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT count(DISTINCT t.lead_id)::int AS n
+         FROM public.lead_status_transitions t
+         JOIN public.leads l ON l.id = t.lead_id AND l.deleted_at IS NULL
+        WHERE t.para_status::text IN ('em_atendimento','qualificado','aguardando_retorno')`,
     );
-    expect(ref).toBe(12); // sanidade da referência
-    expect(funil.get("Em atendimento")).toBe(ref);
+    expect(funil.get("Em atendimento")).toBe(r.rows[0].n as number);
   });
 });
 

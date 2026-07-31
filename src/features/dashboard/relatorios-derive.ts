@@ -4,9 +4,7 @@
 export type VendaAprovadaRow = {
   valor_venda: number | string | null;
   projeto_nome: string | null;
-  aprovado_em: string | null;
   data_assinatura: string | null;
-  created_at: string | null;
 };
 
 const valor = (v: number | string | null): number => {
@@ -14,9 +12,15 @@ const valor = (v: number | string | null): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** Data de negócio da venda: assinatura; fallback aprovação; fallback registro. */
+/**
+ * Data de negócio da venda: SEMPRE a assinatura. Nunca a data de aprovação
+ * nem a de cadastro — uma venda assinada em junho é resultado de junho,
+ * independente de quando foi lançada ou aprovada. A coluna é obrigatória e
+ * (desde 20260731122000) sem default, então uma venda nunca herda a data do
+ * dia do cadastro; linha sem assinatura simplesmente não entra na janela.
+ */
 function dataDaVenda(r: VendaAprovadaRow): string | null {
-  return r.data_assinatura ?? r.aprovado_em ?? r.created_at;
+  return r.data_assinatura;
 }
 
 export type VendasMes = { mes: string; vendas: number; vgv: number };
@@ -44,6 +48,9 @@ export type ProjetoResultado = { projeto: string; vendas: number; vgv: number };
 export function topProjetos(rows: VendaAprovadaRow[], n = 8): ProjetoResultado[] {
   const projetos = new Map<string, { vendas: number; vgv: number }>();
   for (const r of rows) {
+    // Mesma régua da evolução mensal: sem data de assinatura, a venda não
+    // pertence à janela analisada e não pode inflar o ranking de produto.
+    if (!dataDaVenda(r)) continue;
     const nome = r.projeto_nome?.trim() || "Sem projeto";
     const acc = projetos.get(nome) ?? { vendas: 0, vgv: 0 };
     acc.vendas += 1;

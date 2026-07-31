@@ -102,9 +102,7 @@ export function RelatoriosView() {
 
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
-  const [campoData, setCampoData] = useState<"criacao" | "evento">("criacao");
-  const base = useDateFilter(preset, custom);
-  const range = useMemo(() => ({ ...base, campoData }), [base, campoData]);
+  const range = useDateFilter(preset, custom);
 
   // Carregamento por tiers
   const [stage, setStage] = useState(1);
@@ -147,8 +145,6 @@ export function RelatoriosView() {
             onPresetChange={setPreset}
             custom={custom}
             onCustomChange={setCustom}
-            campoData={campoData}
-            onCampoDataChange={setCampoData}
           />
         }
       />
@@ -164,6 +160,9 @@ export function RelatoriosView() {
       >
         <ResultadoHero data={kpisQ.data} />
       </AsyncBoundary>
+
+      {/* 1b. Produção do período (cada atividade na data em que aconteceu) */}
+      <ProducaoPeriodo data={kpisQ.data} loading={kpisQ.isLoading} />
 
       {/* 2. Situação de agora (o que não pode esperar o relatório) */}
       {canSeeAll &&
@@ -212,7 +211,7 @@ export function RelatoriosView() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <ArrowRight className="h-4 w-4" /> Funil de vendas
+              <ArrowRight className="h-4 w-4" /> Funil do período
               {canSeeAll && <AbaLink tab="funil" label="análise completa" />}
             </CardTitle>
           </CardHeader>
@@ -466,6 +465,83 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
   );
 }
 
+/**
+ * 1º-B bloco: o que a operação PRODUZIU no período, cada atividade contada
+ * na data do próprio fato — agendamento na criação, visita no dia em que a
+ * visita estava marcada (validada pelo corretor, uma por agendamento), pasta
+ * no dia em que ficou montada e análise no dia da mudança de status.
+ */
+function ProducaoPeriodo({
+  data,
+  loading = false,
+}: {
+  data?: DashboardKpisFlat;
+  loading?: boolean;
+}) {
+  const comparecimento =
+    data && data.visitas_agendadas_periodo > 0
+      ? Math.round((data.visitas_periodo / data.visitas_agendadas_periodo) * 100)
+      : null;
+  return (
+    <div>
+      <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+        Produção do período (cada atividade na data em que aconteceu)
+      </p>
+      <StatGrid>
+        <StatTile
+          title="Agendamentos criados"
+          value={data?.agendamentos_periodo ?? 0}
+          icon={Calendar}
+          loading={loading}
+          hint="pela data em que o agendamento foi criado"
+        />
+        <StatTile
+          title="Visitas realizadas"
+          value={data?.visitas_periodo ?? 0}
+          icon={Eye}
+          loading={loading}
+          hint="pelo dia da visita, validada pelo corretor"
+        />
+        <StatTile
+          title="Comparecimento"
+          value={comparecimento === null ? "—" : `${comparecimento}%`}
+          icon={CheckCircle2}
+          intent={comparecimento !== null && comparecimento < 50 ? "warning" : "neutral"}
+          loading={loading}
+          hint={
+            data && data.visitas_agendadas_periodo > 0
+              ? `${data.visitas_periodo} de ${data.visitas_agendadas_periodo} visitas marcadas · ${data.no_shows_periodo} não compareceu`
+              : "sem visitas marcadas no período"
+          }
+        />
+        <StatTile
+          title="Pastas montadas"
+          value={data?.pastas_periodo ?? 0}
+          icon={FileCheck}
+          loading={loading}
+          hint="3+ documentos recebidos"
+        />
+        <StatTile
+          title="Análises de crédito"
+          value={data?.analises_periodo ?? 0}
+          icon={FileCheck}
+          loading={loading}
+          hint="pela data da mudança de status"
+        />
+        <StatTile
+          title="Perdidos"
+          value={data?.perdido ?? 0}
+          icon={XCircle}
+          loading={loading}
+          delta={data?.deltas.perdido ?? undefined}
+          deltaLabel="vs. período anterior"
+          hint="pela data da perda"
+        />
+      </StatGrid>
+    </div>
+  );
+}
+
 const PIPELINE_CARDS: Array<{
   key: keyof Omit<DashboardKpisFlat, "deltas">;
   label: string;
@@ -483,17 +559,11 @@ const PIPELINE_CARDS: Array<{
 ];
 
 /** 3º bloco: estoque ATUAL por etapa (foto de agora) — cada card abre a lista. */
-function PipelineAgora({
-  data,
-  loading = false,
-}: {
-  data?: DashboardKpisFlat;
-  loading?: boolean;
-}) {
+function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; loading?: boolean }) {
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-        Pipeline agora (estoque por etapa)
+        Pipeline agora (estoque por etapa — foto de hoje, não segue o filtro de período)
       </p>
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
         {PIPELINE_CARDS.map(({ key, label, icon: Icon, status }) => {
@@ -629,10 +699,19 @@ function SerieChart({
   );
 }
 
+/**
+ * Funil por EVENTOS do período: cada etapa conta os leads que passaram por
+ * ela DENTRO do recorte, pela data do próprio fato. Como não é coorte, uma
+ * etapa pode superar a anterior (lead criado no mês passado que visitou
+ * agora) — é produção do período, não inconsistência.
+ */
 function FunilView({ data }: { data: Array<{ etapa: string; quantidade: number }> }) {
   const max = Math.max(1, ...data.map((d) => d.quantidade));
   return (
     <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">
+        Leads que passaram por cada etapa no período, pela data do fato.
+      </p>
       {data.map((d) => {
         const pct = Math.round((d.quantidade / max) * 100);
         return (
@@ -853,11 +932,7 @@ function OrigemTable({ rows }: { rows: OrigemRow[] }) {
             return (
               <TableRow key={r.origem}>
                 <TableCell className="font-medium capitalize">
-                  <Link
-                    to="/leads"
-                    search={{ origem: r.origem }}
-                    className="hover:underline"
-                  >
+                  <Link to="/leads" search={{ origem: r.origem }} className="hover:underline">
                     {origemLabel(r.origem)}
                   </Link>
                 </TableCell>
@@ -918,7 +993,13 @@ function EvolucaoMensalChart({ data }: { data: VendasMes[] }) {
           }
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar yAxisId="vendas" dataKey="vendas" name="Vendas" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+        <Bar
+          yAxisId="vendas"
+          dataKey="vendas"
+          name="Vendas"
+          fill="var(--chart-2)"
+          radius={[4, 4, 0, 0]}
+        />
         <Line
           yAxisId="vgv"
           type="monotone"
