@@ -231,8 +231,12 @@ function LeadDetailPage() {
         title={lead.nome}
         description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
         actions={
-          <div className="hidden flex-wrap gap-2 md:flex">
-            <Button asChild variant="outline">
+          // No celular, Ligar e WhatsApp já vivem na barra fixa de ações lá
+          // embaixo — repetir aqui só rouba espaço. Registrar contato e Editar
+          // dados não têm outro caminho, então aparecem em qualquer tamanho de
+          // tela (antes o bloco inteiro era `hidden md:flex` e sumiam).
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="hidden md:inline-flex">
               <a href={telHref}>
                 <Phone className="h-4 w-4 mr-2" /> Ligar
               </a>
@@ -240,17 +244,21 @@ function LeadDetailPage() {
             <Button variant="outline" onClick={() => setContatoOpen(true)}>
               <PhoneCall className="h-4 w-4 mr-2" /> Registrar contato
             </Button>
-            <WhatsappLeadDialog
-              open={waOpen}
-              onOpenChange={setWaOpen}
-              leadId={leadId}
-              lead={{
-                nome: lead.nome,
-                telefone: lead.telefone,
-                projeto_nome: lead.projeto_nome,
-                objecoes: lead.objecoes,
-              }}
-            />
+            {/* O conteúdo do diálogo é portalado para o body: esconder só o
+                gatilho no celular não impede a barra fixa de abrir o WhatsApp. */}
+            <div className="hidden md:block">
+              <WhatsappLeadDialog
+                open={waOpen}
+                onOpenChange={setWaOpen}
+                leadId={leadId}
+                lead={{
+                  nome: lead.nome,
+                  telefone: lead.telefone,
+                  projeto_nome: lead.projeto_nome,
+                  objecoes: lead.objecoes,
+                }}
+              />
+            </div>
             <EditarLeadDialog leadId={leadId} lead={lead} />
           </div>
         }
@@ -323,7 +331,12 @@ function LeadDetailPage() {
         </div>
       </GlassCard>
 
-      <Card className="mb-6 hidden md:block">
+      {/* Etapas do funil — a única forma de mover o lead para uma etapa que não
+          seja a "próxima sugerida". Era `hidden md:block`: no celular o corretor
+          ficava preso ao botão "Próxima etapa" da barra fixa, sem conseguir
+          pular, voltar ou marcar como perdido. São 7 etapas + perdido, que
+          quebram em poucas linhas na tela do telefone. */}
+      <Card className="mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Etapas do funil</CardTitle>
         </CardHeader>

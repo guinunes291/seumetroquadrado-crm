@@ -53,8 +53,6 @@ import {
   type Documentacao,
   type PerfilRenda,
 } from "@/lib/documentacao";
-import { FUNNEL_STAGES, transicaoLeadPermitida, type LeadStatus } from "@/lib/leads";
-import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 
 type Props = {
   leadId: string;
@@ -90,7 +88,15 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
     queryFn: () => listarDocs(leadId),
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["documentacoes", leadId] });
+  // Mexer em documento pode mover o lead: a regra "3 documentos → análise de
+  // crédito" mora no banco (trigger pasta_montada_after_doc). Recarregamos o
+  // lead junto para a tela acompanhar a transição em vez de ficar defasada.
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["documentacoes", leadId] });
+    qc.invalidateQueries({ queryKey: ["lead", leadId] });
+    qc.invalidateQueries({ queryKey: ["leads"] });
+    qc.invalidateQueries({ queryKey: ["leads-kanban"] });
+  };
 
   const gerar = useMutation({
     mutationFn: async () => {
@@ -149,36 +155,21 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
     return { total, resolvidos, pendentes };
   }, [docs]);
 
-  // Auto-avanço: assim que o corretor envia o 3º documento (recebido/aprovado), o
-  // lead passa para "análise de crédito" — desde que ainda esteja antes dessa
-  // etapa no funil (não anda para trás nem re-dispara). Reaproveita o motor de
-  // status, que registra a transição no histórico e cria o follow-up de crédito.
-  const avancarCredito = useLeadStatusMutation({
-    invalidateKeys: [["lead", leadId], ["leads"], ["leads-kanban"], ["leads-status-counts"]],
-    onSuccess: () => toast.success("3 documentos recebidos — lead movido para Análise de Crédito"),
-  });
-  const baselineDocs = useRef<number | null>(null);
-  const jaAvancou = useRef(false);
+  // Auto-avanço para Análise de crédito no 3º documento: a regra passou a ser
+  // do BANCO (trigger pasta_montada_after_doc, migration 20260731120000), que
+  // vale para qualquer caminho — upload pela tela, WhatsApp da Sami, API. Antes
+  // havia uma cópia da regra aqui, que só rodava com esta aba aberta; manter as
+  // duas significava duas decisões sobre o mesmo fato. Aqui ficou só o aviso:
+  // quando o lead muda de etapa sozinho, o corretor é avisado.
+  const statusAnterior = useRef<string | null>(null);
   useEffect(() => {
-    if (!docsCarregados) return; // espera a 1ª carga concluir
-    if (baselineDocs.current === null) {
-      // Fixa o baseline na 1ª carga: não dispara só por abrir um lead que já
-      // tinha 3+ documentos — apenas quando novos documentos chegam a partir daqui.
-      baselineDocs.current = resolvidos;
-      return;
+    if (!docsCarregados) return;
+    const anterior = statusAnterior.current;
+    statusAnterior.current = lead.status;
+    if (anterior && anterior !== lead.status && lead.status === "analise_credito") {
+      toast.success("Pasta montada — lead movido para Análise de Crédito");
     }
-    if (jaAvancou.current || resolvidos < 3) return;
-    const ordem = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
-    const alvo = FUNNEL_STAGES.indexOf("analise_credito");
-    if (ordem < 0 || ordem >= alvo) return; // só avança se está antes da etapa
-    // A máquina de estados do banco não aceita pular direto de qualquer etapa
-    // (ex.: aguardando_atendimento → analise_credito). Sem este guarda, o
-    // auto-avanço disparava um erro de transição "do nada" para o corretor.
-    if (!transicaoLeadPermitida(lead.status, "analise_credito", false)) return;
-    jaAvancou.current = true;
-    avancarCredito.mutate({ id: leadId, status: "analise_credito" });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docsCarregados, resolvidos, lead.status, leadId]);
+  }, [docsCarregados, lead.status]);
 
   // Abre o WhatsApp e registra a interação na timeline (antes o envio do
   // checklist/cobrança não deixava rastro no histórico do lead).
@@ -290,7 +281,9 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
           <NaoClassificadosBloco
             docs={docs.filter((d) => d.tipo === "nao_classificado" || d.tipo === "outro")}
             onUpdateTipo={(id, tipo) =>
-              atualizarDoc(id, { tipo }).then(invalidate).catch((e) => toast.error(e.message))
+              atualizarDoc(id, { tipo })
+                .then(invalidate)
+                .catch((e) => toast.error(e.message))
             }
           />
 
@@ -559,7 +552,10 @@ function DocRow({
 
   return (
     <div className="py-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      {/* No celular os dois seletores (corrigir tipo + status) somam ~290px e
+          espremiam o nome do documento contra a borda: em telas estreitas eles
+          descem para a própria linha. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           <span className="text-sm font-medium truncate">{docLabel(doc.tipo)}</span>
           <Badge variant="outline" className={cn("shrink-0", DOC_STATUS_TONE[doc.status])}>
@@ -588,7 +584,7 @@ function DocRow({
             </Badge>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
           {onCorrigirTipo && (doc.classificado_por === "ia" || doc.tipo === "nao_classificado") && (
             <Select onValueChange={onCorrigirTipo}>
               <SelectTrigger className="min-h-11 w-[150px]" title="Corrigir tipo">
@@ -628,9 +624,7 @@ function DocRow({
         </div>
       </div>
 
-      {doc.mime_type?.startsWith("image/") && doc.arquivo_path && (
-        <ImagemPreview docId={doc.id} />
-      )}
+      {doc.mime_type?.startsWith("image/") && doc.arquivo_path && <ImagemPreview docId={doc.id} />}
 
       {temArquivo ? (
         <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-sm">
