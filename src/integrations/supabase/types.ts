@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       agendamentos: {
         Row: {
+          auto_gerado: boolean
           corretor_id: string
           created_at: string
           criado_por_id: string | null
@@ -37,6 +38,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_gerado?: boolean
           corretor_id: string
           created_at?: string
           criado_por_id?: string | null
@@ -58,6 +60,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_gerado?: boolean
           corretor_id?: string
           created_at?: string
           criado_por_id?: string | null
@@ -2033,6 +2036,7 @@ export type Database = {
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em: string | null
           projeto_id: string | null
           projeto_nome: string | null
           proxima_acao: string | null
@@ -2102,6 +2106,7 @@ export type Database = {
           observacoes?: string | null
           opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           proxima_acao?: string | null
@@ -2171,6 +2176,7 @@ export type Database = {
           observacoes?: string | null
           opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em?: string | null
           projeto_id?: string | null
           projeto_nome?: string | null
           proxima_acao?: string | null
@@ -4177,7 +4183,7 @@ export type Database = {
           corretor_id?: string | null
           created_at?: string
           criado_por_id?: string | null
-          data_assinatura?: string
+          data_assinatura: string
           data_distrato?: string | null
           data_recebimento?: string | null
           distrato?: boolean
@@ -4786,6 +4792,7 @@ export type Database = {
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em: string | null
           projeto_id: string | null
           projeto_nome: string | null
           proxima_acao: string | null
@@ -5902,6 +5909,7 @@ export type Database = {
         }[]
       }
       painel_distribuicao_resumo: { Args: never; Returns: Json }
+      pasta_min_documentos: { Args: never; Returns: number }
       pipeline_snapshot_v2: {
         Args: { _corretor_id?: string; _projeto_id?: string; _query?: string }
         Returns: {
@@ -6217,6 +6225,7 @@ export type Database = {
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em: string | null
           projeto_id: string | null
           projeto_nome: string | null
           proxima_acao: string | null
@@ -6300,6 +6309,7 @@ export type Database = {
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em: string | null
           projeto_id: string | null
           projeto_nome: string | null
           proxima_acao: string | null
@@ -6345,11 +6355,38 @@ export type Database = {
         Args: {
           _agendamento_id: string
           _compareceu?: boolean
-          _observacoes?: string | null
+          _observacoes?: string
           _proxima_etapa?: Database["public"]["Enums"]["lead_status"]
-          _resultado?: string | null
+          _resultado?: string
         }
-        Returns: Database["public"]["Tables"]["agendamentos"]["Row"]
+        Returns: {
+          auto_gerado: boolean
+          corretor_id: string
+          created_at: string
+          criado_por_id: string | null
+          data_fim: string
+          data_inicio: string
+          deleted_at: string | null
+          descricao: string | null
+          google_event_id: string | null
+          id: string
+          lead_id: string | null
+          lembrete_minutos: number
+          local: string | null
+          motivo_cancelamento: string | null
+          realizado_em: string | null
+          status: Database["public"]["Enums"]["agendamento_status"]
+          timezone: string
+          tipo: Database["public"]["Enums"]["agendamento_tipo"]
+          titulo: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "agendamentos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       ve_carteira_completa: { Args: { _user_id: string }; Returns: boolean }
       vendas_mes_anterior: {
