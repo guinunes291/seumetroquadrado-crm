@@ -940,7 +940,10 @@ function LeadsPage() {
         title="Leads"
         description="Funil de leads, distribuição e qualificação."
         actions={
-          <div className="flex max-w-full items-center gap-2 overflow-x-auto [&_a]:min-h-11 [&_button]:min-h-11">
+          // Quebra linha em vez de rolar de lado: no celular a rolagem
+          // horizontal escondia "Novo lead" fora da tela, que é justamente a
+          // ação principal da página.
+          <div className="flex max-w-full flex-wrap items-center gap-2 [&_a]:min-h-11 [&_button]:min-h-11">
             <div className="inline-flex rounded-md border bg-card p-0.5">
               <Button
                 size="sm"
@@ -988,161 +991,6 @@ function LeadsPage() {
         />
       ) : (
         <>
-          {/* Chips de status com contagem */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("all")}
-              aria-pressed={statusFilter === "all"}
-              className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
-                statusFilter === "all"
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background hover:bg-muted"
-              }`}
-            >
-              Todos · {statusCountsData ? totalLeadsCount : "—"}
-            </button>
-            {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
-              const n = statusCountsData ? (statusCounts[s] ?? 0) : "—";
-              const active = statusFilter === s;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatusFilter(active ? "all" : s)}
-                  aria-pressed={active}
-                  className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border whitespace-nowrap transition ${
-                    active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted"
-                  }`}
-                >
-                  {LEAD_STATUS_LABEL[s]} · {n}
-                </button>
-              );
-            })}
-            {/* Status fora do funil com leads (a soma dos chips = "Todos") —
-                visual tracejado para diferenciar das etapas de trabalho. */}
-            {statusForaDoFunil.map((s) => {
-              const n = statusCounts[s] ?? 0;
-              const active = statusFilter === s;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatusFilter(active ? "all" : s)}
-                  aria-pressed={active}
-                  title="Status fora do funil de trabalho — triagem recomendada"
-                  className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border border-dashed whitespace-nowrap transition ${
-                    active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {leadStatusLabel(s)} · {n}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Filtros rápidos (por contato) + Visões salvas */}
-          <div className="flex flex-wrap items-center gap-2">
-            {CONTATO_OPCOES.map((o) => {
-              const active = contatoFilter === o.value;
-              return (
-                <button
-                  key={o.value}
-                  type="button"
-                  onClick={() => setContatoFilter(active ? "all" : o.value)}
-                  aria-pressed={active}
-                  className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
-                    active
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background hover:bg-muted"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
-            <div className="ml-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="min-h-11">
-                    <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
-                    <ChevronDown className="h-3.5 w-3.5 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-60">
-                  <DropdownMenuLabel>Visões prontas</DropdownMenuLabel>
-                  {VISOES_PADRAO.map((v) => (
-                    <DropdownMenuItem key={v.id} onSelect={() => aplicarFiltros(v.filtros)}>
-                      {v.nome}
-                    </DropdownMenuItem>
-                  ))}
-                  {savedViews.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel>Minhas visões</DropdownMenuLabel>
-                      {savedViews.map((v) => (
-                        <DropdownMenuItem
-                          key={v.id}
-                          onSelect={() => aplicarFiltros(v.filtros)}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span className="truncate">{v.nome}</span>
-                          <button
-                            type="button"
-                            aria-label={`Excluir visão ${v.nome}`}
-                            className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setConfirmDeleteView({ id: v.id, nome: v.nome });
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </DropdownMenuItem>
-                      ))}
-                    </>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
-                    <Bookmark className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <AlertDialog
-                open={!!confirmDeleteView}
-                onOpenChange={(o) => !o && setConfirmDeleteView(null)}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Excluir a visão "{confirmDeleteView?.nome}"?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta visão salva de filtros será removida. Esta ação não pode ser desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => {
-                        if (confirmDeleteView) excluirVisao(confirmDeleteView.id);
-                        setConfirmDeleteView(null);
-                      }}
-                    >
-                      Excluir
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-
           <Dialog open={saveViewOpen} onOpenChange={setSaveViewOpen}>
             <DialogContent className="max-w-sm">
               <DialogHeader>
@@ -1174,6 +1022,172 @@ function LeadsPage() {
               <FilterBar
                 activeCount={activeFiltersCount}
                 onClear={limparFiltros}
+                chips={
+                  // Chips de status/contato e visões salvas moraram soltos na
+                  // página até aqui. No celular viravam ~8 linhas de chips antes
+                  // do primeiro lead; agora recolhem junto com os demais filtros
+                  // (que é o que eles são) e o dedo chega na lista.
+                  <div className="space-y-3">
+                    {/* Chips de status com contagem */}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setStatusFilter("all")}
+                        aria-pressed={statusFilter === "all"}
+                        className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
+                          statusFilter === "all"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        Todos · {statusCountsData ? totalLeadsCount : "—"}
+                      </button>
+                      {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
+                        const n = statusCountsData ? (statusCounts[s] ?? 0) : "—";
+                        const active = statusFilter === s;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setStatusFilter(active ? "all" : s)}
+                            aria-pressed={active}
+                            className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border whitespace-nowrap transition ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-muted"
+                            }`}
+                          >
+                            {LEAD_STATUS_LABEL[s]} · {n}
+                          </button>
+                        );
+                      })}
+                      {/* Status fora do funil com leads (a soma dos chips = "Todos") —
+                        visual tracejado para diferenciar das etapas de trabalho. */}
+                      {statusForaDoFunil.map((s) => {
+                        const n = statusCounts[s] ?? 0;
+                        const active = statusFilter === s;
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setStatusFilter(active ? "all" : s)}
+                            aria-pressed={active}
+                            title="Status fora do funil de trabalho — triagem recomendada"
+                            className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border border-dashed whitespace-nowrap transition ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background text-muted-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {leadStatusLabel(s)} · {n}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Filtros rápidos (por contato) + Visões salvas */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {CONTATO_OPCOES.map((o) => {
+                        const active = contatoFilter === o.value;
+                        return (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => setContatoFilter(active ? "all" : o.value)}
+                            aria-pressed={active}
+                            className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-muted"
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        );
+                      })}
+                      <div className="ml-auto">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="min-h-11">
+                              <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
+                              <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-60">
+                            <DropdownMenuLabel>Visões prontas</DropdownMenuLabel>
+                            {VISOES_PADRAO.map((v) => (
+                              <DropdownMenuItem
+                                key={v.id}
+                                onSelect={() => aplicarFiltros(v.filtros)}
+                              >
+                                {v.nome}
+                              </DropdownMenuItem>
+                            ))}
+                            {savedViews.length > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel>Minhas visões</DropdownMenuLabel>
+                                {savedViews.map((v) => (
+                                  <DropdownMenuItem
+                                    key={v.id}
+                                    onSelect={() => aplicarFiltros(v.filtros)}
+                                    className="flex items-center justify-between gap-2"
+                                  >
+                                    <span className="truncate">{v.nome}</span>
+                                    <button
+                                      type="button"
+                                      aria-label={`Excluir visão ${v.nome}`}
+                                      className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setConfirmDeleteView({ id: v.id, nome: v.nome });
+                                      }}
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </DropdownMenuItem>
+                                ))}
+                              </>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
+                              <Bookmark className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <AlertDialog
+                          open={!!confirmDeleteView}
+                          onOpenChange={(o) => !o && setConfirmDeleteView(null)}
+                        >
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Excluir a visão "{confirmDeleteView?.nome}"?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta visão salva de filtros será removida. Esta ação não pode ser
+                                desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => {
+                                  if (confirmDeleteView) excluirVisao(confirmDeleteView.id);
+                                  setConfirmDeleteView(null);
+                                }}
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  </div>
+                }
                 resultsLabel={
                   listError
                     ? "Não foi possível calcular os resultados"
