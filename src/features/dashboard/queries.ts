@@ -4,16 +4,16 @@ import { rpcWithFallback } from "@/lib/supabase-errors";
 import { flattenDashboardKpis, type DashboardKpisFlat } from "@/features/dashboard/derive";
 
 /**
- * `campoData` controla qual coluna a RPC usa para o recorte de período:
- *   - "criacao" (padrão): data em que o corretor registrou o item no CRM
- *     (created_at de agendamento, venda, interação, etc).
- *   - "evento":  data informada pelo corretor no próprio registro (data da
- *     visita, data da assinatura, data de início do agendamento).
- * Leads só têm data de criação — o parâmetro é ignorado nas RPCs de leads.
+ * Não existe mais "data de registro × data do evento": cada métrica tem UMA
+ * data canônica, sempre a data do fato, aplicada dentro das RPCs —
+ *   lead ......... criação do lead
+ *   agendamento .. criação do agendamento
+ *   visita ....... dia da visita agendada, por agendamento validado
+ *   pasta ........ dia em que a pasta ficou montada
+ *   análise ...... dia da mudança de status
+ *   venda/VGV .... dia da ASSINATURA (sem assinatura não conta em período)
  */
-export type CampoData = "criacao" | "evento";
-type Range = { di: string | null; df: string | null; campoData?: CampoData };
-const cd = (r: Range): CampoData => r.campoData ?? "criacao";
+type Range = { di: string | null; df: string | null };
 
 const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).rpc(name, args);
 
@@ -28,7 +28,6 @@ export function useDashboardKpis(range: Range, corretor: string | null, enabled 
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
-        _campo_data: cd(range),
       });
       if (error) throw error;
       // A RPC atual retorna {pipeline, periodo, prev}; versões antigas, um
@@ -48,7 +47,6 @@ export function useDashboardSerie(range: Range, corretor: string | null, enabled
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
-        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{
@@ -72,7 +70,6 @@ export function useDashboardFunil(range: Range, corretor: string | null, enabled
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
-        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{ etapa: string; ordem: number; quantidade: number }>;
@@ -89,7 +86,6 @@ export function useDashboardPorCorretor(range: Range, enabled = true) {
       const { data, error } = await rpc("dashboard_metricas_por_corretor", {
         _di: range.di,
         _df: range.df,
-        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{
@@ -117,14 +113,12 @@ export function useDashboardMotivosPerda(range: Range, corretor: string | null, 
         _di: range.di,
         _df: range.df,
         _corretor: corretor,
-        _campo_data: cd(range),
       });
       if (error) throw error;
       return (data ?? []) as Array<{ motivo: string; quantidade: number }>;
     },
   });
 }
-
 
 export function useDashboardLeadsUrgentes(corretor: string | null, enabled = true) {
   return useQuery({
@@ -279,7 +273,12 @@ export function useOrigens(range: Range, enabled = true) {
           });
           if (error) throw error;
           const rows = (
-            (data ?? []) as Array<{ origem: string; leads: number; fechados: number; conv_pct: number }>
+            (data ?? []) as Array<{
+              origem: string;
+              leads: number;
+              fechados: number;
+              conv_pct: number;
+            }>
           ).map((r) => ({
             origem: r.origem,
             leads: r.leads,
@@ -310,19 +309,18 @@ export function useVendasAprovadas(meses = 6, enabled = true) {
       inicio.setHours(0, 0, 0, 0);
       const { data, error } = await supabase
         .from("vendas")
-        .select("valor_venda, projeto_nome, aprovado_em, data_assinatura, created_at")
+        .select("valor_venda, projeto_nome, data_assinatura")
         .eq("status_venda", "aprovada")
         .eq("distrato", false)
         // Janela pela data de assinatura (data do negócio), não pelo registro:
         // uma venda assinada em julho conta em julho mesmo se aprovada depois.
+        // Venda sem assinatura não entra — é pendência, não resultado do mês.
         .gte("data_assinatura", inicio.toISOString().slice(0, 10));
       if (error) throw error;
       return (data ?? []) as Array<{
         valor_venda: number | string | null;
         projeto_nome: string | null;
-        aprovado_em: string | null;
         data_assinatura: string | null;
-        created_at: string | null;
       }>;
     },
   });

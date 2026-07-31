@@ -6341,6 +6341,16 @@ export type Database = {
         Args: { _gatilho?: string; _lead_id: string }
         Returns: Json
       }
+      validar_visita: {
+        Args: {
+          _agendamento_id: string
+          _compareceu?: boolean
+          _observacoes?: string | null
+          _proxima_etapa?: Database["public"]["Enums"]["lead_status"]
+          _resultado?: string | null
+        }
+        Returns: Database["public"]["Tables"]["agendamentos"]["Row"]
+      }
       ve_carteira_completa: { Args: { _user_id: string }; Returns: boolean }
       vendas_mes_anterior: {
         Args: never

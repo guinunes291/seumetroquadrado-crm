@@ -142,15 +142,17 @@ beforeAll(async () => {
 
   vendaA = (
     await c.query(
-      `INSERT INTO public.vendas (lead_id, corretor_id, criado_por_id, valor_venda, status_venda)
-       VALUES ($1, $2, $2, 300000, 'pendente') RETURNING id`,
+      `INSERT INTO public.vendas
+         (lead_id, corretor_id, criado_por_id, valor_venda, data_assinatura, status_venda)
+       VALUES ($1, $2, $2, 300000, current_date, 'pendente') RETURNING id`,
       [leadA1, cA1.id],
     )
   ).rows[0].id;
   vendaB = (
     await c.query(
-      `INSERT INTO public.vendas (lead_id, corretor_id, criado_por_id, valor_venda, status_venda)
-       VALUES ($1, $2, $2, 250000, 'pendente') RETURNING id`,
+      `INSERT INTO public.vendas
+         (lead_id, corretor_id, criado_por_id, valor_venda, data_assinatura, status_venda)
+       VALUES ($1, $2, $2, 250000, current_date, 'pendente') RETURNING id`,
       [leadB, cB.id],
     )
   ).rows[0].id;
@@ -716,7 +718,9 @@ describe("metas · comportamento atual documentado", () => {
     expect(alheio.rowCount).toBe(0);
 
     await comoUsuario(c, gA.id);
-    const proprio = await c.query(`UPDATE public.metas SET meta_vendas = 3 WHERE id = $1`, [metaA1]);
+    const proprio = await c.query(`UPDATE public.metas SET meta_vendas = 3 WHERE id = $1`, [
+      metaA1,
+    ]);
     expect(proprio.rowCount).toBe(1);
 
     await comoSuperuser(c);

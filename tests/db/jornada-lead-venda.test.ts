@@ -462,8 +462,11 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     expect(porStatus.contrato_fechado).toBe(1);
     expect(porStatus.__total__).toBe(1);
 
-    // dashboard_funil (gestor): funil cumulativo — o lead fechado conta em
-    // TODAS as etapas do funil (Novos..Fechados). Não existe etapa de perdidos.
+    // dashboard_funil (gestor): desde 20260731122000 o funil conta EVENTOS da
+    // janela. A jornada inteira aconteceu hoje, então o lead aparece em todas
+    // as etapas — inclusive 'Visitas': mover para visita_realizada sem agenda
+    // gera o agendamento validado correspondente (rede de segurança da régua
+    // de datas), para a visita não sumir da métrica.
     const funil = await c.query(`SELECT etapa, quantidade FROM public.dashboard_funil()`);
     for (const row of funil.rows) {
       expect(Number(row.quantidade), `funil etapa ${row.etapa}`).toBe(1);

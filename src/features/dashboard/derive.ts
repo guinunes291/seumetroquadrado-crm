@@ -30,10 +30,19 @@ export type DashboardKpisFlat = {
   analise_credito: number;
   em_aberto: number;
   sem_corretor: number;
-  /** Fluxo do período filtrado. */
+  /** Fluxo do período filtrado, cada um na sua data canônica. */
   total: number;
   agendamentos_periodo: number;
+  /** Visitas validadas, contadas no dia em que a visita estava marcada. */
   visitas_periodo: number;
+  /** Agendamentos de visita do período em que o cliente não compareceu. */
+  no_shows_periodo: number;
+  /** Visitas marcadas para o período (base do comparecimento). */
+  visitas_agendadas_periodo: number;
+  /** Pastas montadas (3+ documentos recebidos) no período. */
+  pastas_periodo: number;
+  /** Leads que entraram em análise de crédito no período (1x por lead). */
+  analises_periodo: number;
   contrato_fechado: number;
   perdido: number;
   vgv: number;
@@ -54,9 +63,11 @@ export function pctDelta(atual: Num, anterior: Num): number | null {
   return Math.round(((n(atual) - anterior) / anterior) * 100);
 }
 
-function isNested(
-  raw: DashboardKpisRaw,
-): raw is { pipeline?: Record<string, Num> | null; periodo?: Record<string, Num> | null; prev?: Record<string, Num> | null } {
+function isNested(raw: DashboardKpisRaw): raw is {
+  pipeline?: Record<string, Num> | null;
+  periodo?: Record<string, Num> | null;
+  prev?: Record<string, Num> | null;
+} {
   return !!raw && typeof raw === "object" && ("pipeline" in raw || "periodo" in raw);
 }
 
@@ -74,6 +85,10 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
     total: 0,
     agendamentos_periodo: 0,
     visitas_periodo: 0,
+    no_shows_periodo: 0,
+    visitas_agendadas_periodo: 0,
+    pastas_periodo: 0,
+    analises_periodo: 0,
     contrato_fechado: 0,
     perdido: 0,
     vgv: 0,
@@ -98,6 +113,10 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
       total: n(per.leads_novos),
       agendamentos_periodo: n(per.agendamentos),
       visitas_periodo: n(per.visitas),
+      no_shows_periodo: n(per.no_shows),
+      visitas_agendadas_periodo: n(per.visitas_agendadas),
+      pastas_periodo: n(per.pastas),
+      analises_periodo: n(per.analises),
       contrato_fechado: n(per.vendas),
       perdido: n(per.perdidos),
       vgv: n(per.vgv),
