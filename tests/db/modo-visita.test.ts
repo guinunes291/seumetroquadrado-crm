@@ -42,7 +42,14 @@ async function agendamentoDeVisita(leadId: string): Promise<string> {
 
 async function concluir(
   agendamentoId: string,
-  opts: { compareceu: boolean; etapa: string; followupDias?: number },
+  opts: {
+    compareceu: boolean;
+    etapa: string;
+    followupDias?: number;
+    interesse?: string | null;
+    objecao?: string | null;
+    reagendarDias?: number | null;
+  },
 ) {
   await comoUsuario(c, corretor.id);
   const r = await c.query(
@@ -55,9 +62,23 @@ async function concluir(
        $2::public.lead_status,
        'Enviar simulação atualizada',
        now() + ($3 || ' days')::interval,
-       $4
+       $4,
+       $5,
+       $6,
+       CASE WHEN $7::text IS NULL THEN NULL
+            ELSE now() + ($7 || ' days')::interval END
      ) AS execucao`,
-    [agendamentoId, opts.etapa, String(opts.followupDias ?? 2), opts.compareceu],
+    [
+      agendamentoId,
+      opts.etapa,
+      String(opts.followupDias ?? 2),
+      opts.compareceu,
+      opts.interesse ?? (opts.compareceu ? "alto" : null),
+      opts.objecao ?? null,
+      opts.reagendarDias === undefined || opts.reagendarDias === null
+        ? null
+        : String(opts.reagendarDias),
+    ],
   );
   await comoSuperuser(c);
   return r.rows[0].execucao;
@@ -203,5 +224,142 @@ describe("idempotência", () => {
       [lead],
     );
     expect(i.rows[0].n).toBe(1);
+  });
+});
+
+describe("resultado estruturado", () => {
+  it("grava interesse e objeção, e leva os dois para a timeline", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+
+    await concluir(ag, {
+      compareceu: true,
+      etapa: "visita_realizada",
+      interesse: "medio",
+      objecao: "preco_parcela",
+    });
+
+    const e = await c.query(
+      `SELECT interesse, objecao_principal FROM public.visita_execucoes WHERE agendamento_id = $1`,
+      [ag],
+    );
+    expect(e.rows[0]).toEqual({ interesse: "medio", objecao_principal: "preco_parcela" });
+
+    const i = await c.query(
+      `SELECT metadata->>'interesse' AS interesse, metadata->>'objecao_principal' AS objecao
+         FROM public.interacoes WHERE lead_id = $1 AND tipo = 'visita'`,
+      [lead],
+    );
+    expect(i.rows[0]).toEqual({ interesse: "medio", objecao: "preco_parcela" });
+  });
+
+  it("recusa valor fora da lista — front e banco não podem divergir", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+    // 23514 = check constraint
+    expect(
+      await errCode(
+        concluir(ag, { compareceu: true, etapa: "visita_realizada", interesse: "empolgadissimo" }),
+      ),
+    ).toBe("23514");
+  });
+
+  it("quem não compareceu não tem leitura de interesse", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+    expect(
+      await errCode(
+        concluir(ag, { compareceu: false, etapa: "aguardando_retorno", interesse: "alto" }),
+      ),
+    ).toBe("22023");
+  });
+
+  it("objeção cruza com motivo de perda: a chave é a mesma", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+    await concluir(ag, {
+      compareceu: true,
+      etapa: "visita_realizada",
+      interesse: "baixo",
+      objecao: "preco_parcela",
+    });
+    // 'preco_parcela' também é categoria válida de motivo_perda — é o que
+    // permite perguntar "quantos que reclamaram de preço na visita viraram
+    // perda por preço?" sem tradução manual.
+    const r = await c.query(
+      `SELECT count(*)::int AS n FROM public.visita_execucoes
+        WHERE objecao_principal = 'preco_parcela'`,
+    );
+    expect(r.rows[0].n).toBe(1);
+  });
+});
+
+describe("reagendamento", () => {
+  it("no-show com data nova cria o próximo agendamento na mesma transação", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+
+    await concluir(ag, { compareceu: false, etapa: "aguardando_retorno", reagendarDias: 3 });
+
+    const ags = await c.query(
+      `SELECT status::text, data_inicio > now() AS futuro
+         FROM public.agendamentos WHERE lead_id = $1 ORDER BY data_inicio`,
+      [lead],
+    );
+    expect(ags.rows).toHaveLength(2);
+    expect(ags.rows[0].status).toBe("nao_compareceu"); // a que falhou
+    expect(ags.rows[1].status).toBe("agendado"); // a nova
+    expect(ags.rows[1].futuro).toBe(true);
+  });
+
+  it("preserva a duração e o local da visita original", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    await comoSuperuser(c);
+    const r = await c.query(
+      `INSERT INTO public.agendamentos
+         (lead_id, corretor_id, titulo, tipo, status, data_inicio, data_fim, local)
+       VALUES ($1, $2, 'Visita', 'visita', 'confirmado',
+               now() - interval '1 day', now() - interval '1 day' + interval '90 minutes',
+               'Estande Rua X, 100')
+       RETURNING id`,
+      [lead, corretor.id],
+    );
+
+    await concluir(r.rows[0].id, {
+      compareceu: false,
+      etapa: "aguardando_retorno",
+      reagendarDias: 2,
+    });
+
+    const nova = await c.query(
+      `SELECT local, EXTRACT(EPOCH FROM (data_fim - data_inicio))/60 AS minutos
+         FROM public.agendamentos WHERE lead_id = $1 AND status = 'agendado'`,
+      [lead],
+    );
+    expect(nova.rows[0].local).toBe("Estande Rua X, 100");
+    expect(Number(nova.rows[0].minutos)).toBe(90);
+  });
+
+  it("recusa reagendamento no passado", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+    expect(
+      await errCode(
+        concluir(ag, { compareceu: false, etapa: "aguardando_retorno", reagendarDias: -2 }),
+      ),
+    ).toBe("22023");
+  });
+
+  it("reconcluir não cria um segundo reagendamento", async () => {
+    const lead = await criarLead(c, { corretorId: corretor.id, status: "agendado" });
+    const ag = await agendamentoDeVisita(lead);
+    await concluir(ag, { compareceu: false, etapa: "aguardando_retorno", reagendarDias: 3 });
+    await concluir(ag, { compareceu: false, etapa: "aguardando_retorno", reagendarDias: 3 });
+
+    const n = await c.query(
+      `SELECT count(*)::int AS n FROM public.agendamentos WHERE lead_id = $1`,
+      [lead],
+    );
+    expect(n.rows[0].n).toBe(2);
   });
 });
