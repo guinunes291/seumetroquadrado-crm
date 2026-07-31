@@ -160,3 +160,127 @@ describe("DataTable", () => {
     expect(screen.getByText(/rolagem virtualizada/)).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Celular: a tabela vira cartão por registro.
+//
+// Numa tela de telefone o layout de tabela só comporta 2 ou 3 colunas — o
+// resto some junto com o `hideBelow`, inclusive telefone e responsável, que é
+// o que o gestor olha no celular. Abaixo de 768px cada linha vira um cartão
+// com TODOS os campos visíveis, rotulados.
+// ---------------------------------------------------------------------------
+describe("DataTable no celular", () => {
+  const COLUNAS_COM_ESCONDIDAS: ColumnDef<Row, unknown>[] = [
+    {
+      accessorKey: "nome",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Nome" />,
+      meta: { label: "Nome" },
+    },
+    {
+      accessorKey: "valor",
+      header: "Valor",
+      meta: { label: "Valor", hideBelow: "md" },
+    },
+    {
+      id: "contato",
+      header: "Contato",
+      meta: { label: "Contato", hideBelow: "lg" },
+      cell: () => <span>11 90000-0000</span>,
+    },
+    {
+      id: "acoes",
+      header: "",
+      enableHiding: false,
+      cell: () => <button type="button">Transferir</button>,
+    },
+  ];
+
+  function renderMobile(props: Partial<React.ComponentProps<typeof DataTable<Row>>> = {}) {
+    return render(
+      <DataTable tableId="m1" columns={COLUNAS_COM_ESCONDIDAS} data={DATA} {...props} />,
+    );
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("innerWidth", 390);
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+  });
+
+  it("mostra as colunas que a tabela esconderia por breakpoint, com rótulo", () => {
+    const { container } = renderMobile();
+    // Sem <table>: é lista de cartões.
+    expect(container.querySelector("table")).toBeNull();
+    expect(container.querySelectorAll("li").length).toBe(DATA.length);
+
+    // Valor (hideBelow md) e Contato (hideBelow lg) aparecem rotulados.
+    expect(screen.getAllByText("Valor").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Contato").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("11 90000-0000")).toHaveLength(DATA.length);
+  });
+
+  it("primeira coluna vira título do cartão e ação fica sem rótulo", () => {
+    const { container } = renderMobile();
+    const primeiro = container.querySelectorAll("li")[0];
+    expect(primeiro.textContent).toContain("Bruna");
+    expect(primeiro.querySelector("button")?.textContent).toBe("Transferir");
+    // O título não entra na lista de campos rotulados.
+    expect(primeiro.querySelector("dl")?.textContent).not.toContain("Bruna");
+  });
+
+  it("seleção em massa continua funcionando no cartão", () => {
+    const onSelectedChange = vi.fn();
+    renderMobile({ enableSelection: true, selected: new Set(), onSelectedChange });
+    const checks = screen.getAllByRole("checkbox", { name: /selecionar linha/i });
+    expect(checks).toHaveLength(DATA.length);
+    fireEvent.click(checks[0]);
+    expect(onSelectedChange).toHaveBeenCalledWith(new Set(["1"]));
+  });
+
+  it("lista longa carrega em lotes em vez de despejar tudo na tela", () => {
+    const big: Row[] = Array.from({ length: 120 }, (_, i) => ({
+      id: String(i),
+      nome: `Lead ${i}`,
+      valor: i,
+    }));
+    const { container } = render(
+      <DataTable tableId="m2" columns={COLUNAS_COM_ESCONDIDAS} data={big} />,
+    );
+    expect(container.querySelectorAll("li").length).toBe(40);
+
+    fireEvent.click(screen.getByRole("button", { name: /mostrar mais 40 de 80/i }));
+    expect(container.querySelectorAll("li").length).toBe(80);
+  });
+
+  it("estado vazio e erro continuam padronizados", () => {
+    const { unmount } = render(
+      <DataTable
+        tableId="m3"
+        columns={COLUNAS_COM_ESCONDIDAS}
+        data={[]}
+        empty={<span>Nada</span>}
+      />,
+    );
+    expect(screen.getByText("Nada")).toBeInTheDocument();
+    unmount();
+
+    const onRetry = vi.fn();
+    render(
+      <DataTable
+        tableId="m4"
+        columns={COLUNAS_COM_ESCONDIDAS}
+        data={[]}
+        error={new Error("boom")}
+        onRetry={onRetry}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /tentar novamente/i }));
+    expect(onRetry).toHaveBeenCalled();
+  });
+});

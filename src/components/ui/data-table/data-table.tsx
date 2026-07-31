@@ -17,9 +17,11 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { DataTablePagination, type DataTablePaginationProps } from "./table-pagination";
 import { DataTableViewOptions } from "./view-options";
@@ -52,6 +54,20 @@ const ALIGN: Record<string, string> = {
 };
 
 const ROW_HEIGHT: Record<TableDensity, number> = { comfortable: 44, compact: 36 };
+
+/** Quantos cartões o celular mostra por vez (sem paginação própria). */
+const MOBILE_PAGE = 40;
+
+/**
+ * Rótulo do campo no cartão do celular: `meta.label` quando existe, senão o
+ * header quando ele é texto puro. Coluna sem rótulo (ex.: botões de ação) fica
+ * sem legenda e vai para o topo do cartão, junto do título.
+ */
+function fieldLabel(header: unknown, label?: string): string | null {
+  if (label) return label;
+  if (typeof header === "string" && header.trim()) return header.trim();
+  return null;
+}
 
 export type DataTableProps<TData> = {
   /** Identificador estável — chave das preferências (`table:${tableId}`). */
@@ -118,6 +134,7 @@ export function DataTable<TData>({
   className,
   "aria-label": ariaLabel,
 }: DataTableProps<TData>) {
+  const isMobile = useIsMobile();
   const {
     prefs,
     density: prefDensity,
@@ -297,6 +314,159 @@ export function DataTable<TData>({
         </tr>
       );
     });
+
+  // ---- Celular: cartão por registro.
+  //
+  // Numa tela de telefone uma tabela só cabe com 2 ou 3 colunas, e o resto
+  // some — inclusive telefone e responsável, que é justamente o que se olha
+  // no celular. Abaixo de 768px cada linha vira um cartão com TODOS os campos
+  // visíveis (o `hideBelow` só vale para o layout de tabela), rotulados.
+  const [mobileLimite, setMobileLimite] = React.useState(MOBILE_PAGE);
+  React.useEffect(() => setMobileLimite(MOBILE_PAGE), [data, sorting]);
+
+  const mobileRows = pagination ? rows : rows.slice(0, mobileLimite);
+  const restantes = pagination ? 0 : rows.length - mobileRows.length;
+
+  const cardList = (
+    <ul className="divide-y divide-border-subtle rounded-xl border border-border-subtle bg-card shadow-elev-1">
+      {mobileRows.map((row) => {
+        const original = row.original;
+        const cells = row.getVisibleCells();
+        const selectCell = cells.find((c) => c.column.id === "__select");
+        const conteudo = cells.filter((c) => c.column.id !== "__select");
+        const rotulados = conteudo.filter((c) =>
+          fieldLabel(c.column.columnDef.header, c.column.columnDef.meta?.label),
+        );
+        const semRotulo = conteudo.filter(
+          (c) => !fieldLabel(c.column.columnDef.header, c.column.columnDef.meta?.label),
+        );
+        const [titulo, ...campos] = rotulados;
+
+        return (
+          <li
+            key={row.id}
+            data-row-key={rowKey(original)}
+            onClick={
+              onRowClick
+                ? (e) => {
+                    const el = e.target as HTMLElement;
+                    if (
+                      el.closest(
+                        "button, a, input, select, textarea, [role=menuitem], [role=checkbox], [data-no-row-click]",
+                      )
+                    )
+                      return;
+                    onRowClick(original);
+                  }
+                : undefined
+            }
+            className={cn(
+              "space-y-2 p-3",
+              onRowClick && "cursor-pointer active:bg-muted/50",
+              rowClassName?.(original),
+            )}
+          >
+            <div className="flex items-start gap-2">
+              {selectCell && (
+                <div className="pt-0.5">
+                  {flexRender(selectCell.column.columnDef.cell, selectCell.getContext())}
+                </div>
+              )}
+              {titulo && (
+                <div className="min-w-0 flex-1 font-medium">
+                  {flexRender(titulo.column.columnDef.cell, titulo.getContext())}
+                </div>
+              )}
+              {semRotulo.length > 0 && (
+                <div className="flex shrink-0 items-center gap-1">
+                  {semRotulo.map((cell) => (
+                    <React.Fragment key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {campos.length > 0 && (
+              <dl className="grid grid-cols-[minmax(0,auto)_1fr] gap-x-3 gap-y-1 text-sm">
+                {campos.map((cell) => (
+                  <React.Fragment key={cell.id}>
+                    <dt className="text-muted-foreground">
+                      {fieldLabel(cell.column.columnDef.header, cell.column.columnDef.meta?.label)}
+                    </dt>
+                    <dd className="min-w-0 break-words">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </dd>
+                  </React.Fragment>
+                ))}
+              </dl>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  if (isMobile) {
+    return (
+      <div className={cn("space-y-2", className)}>
+        {!hideToolbar && (
+          <div className="flex items-center justify-end gap-2">
+            {toolbar}
+            <DataTableViewOptions
+              table={table}
+              density={density}
+              onDensityChange={setDensity}
+              onReset={reset}
+            />
+          </div>
+        )}
+
+        {error ? (
+          <QueryErrorState
+            error={error}
+            title="Não foi possível carregar os dados."
+            onRetry={onRetry}
+          />
+        ) : loading ? (
+          <ul className="divide-y divide-border-subtle rounded-xl border border-border-subtle bg-card shadow-elev-1">
+            {Array.from({ length: Math.min(skeletonRows, 6) }).map((_, i) => (
+              <li key={`sk-${i}`} className="space-y-2 p-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-full max-w-56" />
+                <Skeleton className="h-3 w-full max-w-40" />
+              </li>
+            ))}
+          </ul>
+        ) : rows.length === 0 ? (
+          <div className="rounded-xl border border-border-subtle bg-card p-6 shadow-elev-1">
+            {empty ?? (
+              <p className="text-center text-sm text-muted-foreground">
+                Nenhum registro encontrado.
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            {cardList}
+            {restantes > 0 && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setMobileLimite((n) => n + MOBILE_PAGE)}
+              >
+                Mostrar mais {Math.min(restantes, MOBILE_PAGE)} de{" "}
+                {restantes.toLocaleString("pt-BR")}
+              </Button>
+            )}
+          </>
+        )}
+
+        {pagination && !loading && !error && <DataTablePagination {...pagination} />}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-2", className)}>
