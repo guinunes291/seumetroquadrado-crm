@@ -43,7 +43,9 @@ export function LeadStatusCards({ leadId, lead }: { leadId: string; lead: Dossie
           <CardTitle className="text-sm">Status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="flex items-center gap-2">
+          {/* flex-wrap: no celular os selos de SLA/repasse estouravam a largura
+              do cartão e ficavam cortados na borda direita. */}
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline" className="text-xs">
               {leadStatusLabel(lead.status)}
             </Badge>
