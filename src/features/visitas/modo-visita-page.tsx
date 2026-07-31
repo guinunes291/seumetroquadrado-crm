@@ -70,20 +70,25 @@ const agendaLeadSchema = z.object({
   renda_informada: z.string().nullable(),
   proxima_acao: z.string().nullable(),
   proximo_followup: z.string().nullable(),
-  // Briefing e potencial de crédito
-  temperatura: z.string().nullable(),
-  tipo_renda: z.string().nullable(),
-  faixa_mcmv: z.string().nullable(),
-  entrada_disponivel: z.union([z.string(), z.number()]).nullable(),
-  fgts_valor: z.union([z.string(), z.number()]).nullable(),
-  usa_fgts: z.boolean().nullable(),
-  objecoes: z.string().nullable(),
-  observacoes: z.string().nullable(),
-  ultima_interacao: z.string().nullable(),
-  created_at: z.string().nullable(),
+  // Briefing e potencial de crédito.
+  //
+  // Todos com .catch(): são campos de EXIBIÇÃO. Um deles vir com tipo
+  // diferente do esperado tem que degradar aquela linha do briefing, nunca
+  // derrubar a tela do corretor no meio do estande — foi exatamente o que
+  // aconteceu quando `objecoes` (text[]) foi declarado como string.
+  temperatura: z.string().nullable().catch(null),
+  tipo_renda: z.string().nullable().catch(null),
+  faixa_mcmv: z.string().nullable().catch(null),
+  entrada_disponivel: z.union([z.string(), z.number()]).nullable().catch(null),
+  fgts_valor: z.union([z.string(), z.number()]).nullable().catch(null),
+  usa_fgts: z.boolean().nullable().catch(null),
+  objecoes: z.array(z.string()).nullable().catch(null),
+  observacoes: z.string().nullable().catch(null),
+  ultima_interacao: z.string().nullable().catch(null),
+  created_at: z.string().nullable().catch(null),
 });
 
-const agendaSchema = z.object({
+export const agendaSchema = z.object({
   id: z.string().uuid(),
   data_inicio: z.string(),
   data_fim: z.string(),
