@@ -78,6 +78,41 @@ describe("primitives responsivos do CRM", () => {
     expect(onClear).toHaveBeenCalledOnce();
   });
 
+  it("recolhe os chips de filtro junto com os demais, e mantém as ações visíveis", () => {
+    // Regressão: os chips de status/contato ficavam soltos na página de leads e,
+    // no celular, viravam uma parede de ~8 linhas antes do primeiro resultado.
+    // Já as ações (modo foco, alternador de visão) NÃO são filtros e sumiam
+    // junto com eles.
+    render(
+      <FilterBar
+        activeCount={1}
+        chips={<button type="button">Quente · 12</button>}
+        actions={<button type="button">Modo foco</button>}
+        primary={<input aria-label="Busca principal" />}
+      >
+        <label>
+          Origem
+          <input />
+        </label>
+      </FilterBar>,
+    );
+
+    const conteudo = document.getElementById(
+      screen.getByRole("button", { name: "Mostrar filtros" }).getAttribute("aria-controls") ?? "",
+    );
+    // Recolhido: o painel com chips + filtros está escondido no celular…
+    expect(conteudo).toHaveClass("hidden");
+    expect(conteudo).toContainElement(screen.getByRole("button", { name: "Quente · 12" }));
+    // …mas busca e ações continuam ao alcance do dedo.
+    expect(screen.getByRole("textbox", { name: "Busca principal" })).toBeInTheDocument();
+    const acao = screen.getByRole("button", { name: "Modo foco" });
+    expect(conteudo).not.toContainElement(acao);
+    expect(acao.closest(".hidden")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mostrar filtros" }));
+    expect(conteudo).not.toHaveClass("hidden");
+  });
+
   it("mantém seleção e ações em lote acima da navegação mobile", () => {
     const onClear = vi.fn();
     render(

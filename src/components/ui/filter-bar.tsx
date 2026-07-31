@@ -8,6 +8,12 @@ export type FilterBarProps = {
   children: ReactNode;
   /** Busca/controle primário que continua visível mesmo com filtros recolhidos. */
   primary?: ReactNode;
+  /**
+   * Atalhos de filtro em formato de chip (status, temperatura, visões salvas).
+   * Recolhem junto com os demais filtros no celular — solto na página, viravam
+   * uma parede de chips antes do primeiro resultado.
+   */
+  chips?: ReactNode;
   activeCount?: number;
   onClear?: () => void;
   resultsLabel?: string;
@@ -22,6 +28,7 @@ export type FilterBarProps = {
 export function FilterBar({
   children,
   primary,
+  chips,
   activeCount = 0,
   onClear,
   resultsLabel,
@@ -67,12 +74,11 @@ export function FilterBar({
           {mobileOpen ? "Ocultar filtros" : "Mostrar filtros"}
         </Button>
 
-        <div
-          className={cn(
-            "w-full flex-wrap items-center justify-between gap-2 md:ml-auto md:flex md:w-auto md:justify-end",
-            mobileOpen ? "flex" : "hidden md:flex",
-          )}
-        >
+        {/* Ações (modo foco, alternador de visão, lixeira) NÃO são filtros:
+            ficam sempre visíveis. No celular caem numa linha própria logo
+            abaixo do título; no desktop voltam para a direita do cabeçalho.
+            Antes recolhiam junto com os filtros e sumiam da tela pequena. */}
+        <div className="flex w-full flex-wrap items-center gap-2 md:ml-auto md:w-auto md:justify-end">
           {actions}
           {activeCount > 0 && onClear && (
             <Button type="button" variant="ghost" className="min-h-11" onClick={onClear}>
@@ -88,6 +94,7 @@ export function FilterBar({
         id={contentId}
         className={cn("mt-3", mobileOpen ? "block" : "hidden md:block", contentClassName)}
       >
+        {chips && <div className="mb-3">{chips}</div>}
         {children}
       </div>
 
