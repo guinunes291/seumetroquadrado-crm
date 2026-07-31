@@ -42,6 +42,13 @@ import {
 import { StickyActionRail } from "@/components/ui/sticky-action-rail";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
+import { BriefingVisita } from "@/features/visitas/briefing-visita";
+import {
+  ehFalhaDeRede,
+  enfileirar,
+  listarFila,
+  sincronizarFila,
+} from "@/features/visitas/fila-offline";
 import { supabase } from "@/integrations/supabase/client";
 import { leadStatusLabel, type LeadStatus } from "@/lib/leads";
 import { buildWhatsAppUrl } from "@/lib/templates";
@@ -55,6 +62,17 @@ const agendaLeadSchema = z.object({
   renda_informada: z.string().nullable(),
   proxima_acao: z.string().nullable(),
   proximo_followup: z.string().nullable(),
+  // Briefing e potencial de crédito
+  temperatura: z.string().nullable(),
+  tipo_renda: z.string().nullable(),
+  faixa_mcmv: z.string().nullable(),
+  entrada_disponivel: z.union([z.string(), z.number()]).nullable(),
+  fgts_valor: z.union([z.string(), z.number()]).nullable(),
+  usa_fgts: z.boolean().nullable(),
+  objecoes: z.string().nullable(),
+  observacoes: z.string().nullable(),
+  ultima_interacao: z.string().nullable(),
+  created_at: z.string().nullable(),
 });
 
 const agendaSchema = z.object({
@@ -228,6 +246,7 @@ export function ModoVisitaPage() {
   const [checklist, setChecklist] = useState(CHECKLIST_INICIAL);
   const [listening, setListening] = useState(false);
   const [rascunhoEm, setRascunhoEm] = useState<number | null>(null);
+  const [pendentesOffline, setPendentesOffline] = useState(0);
   const [speechConsent, setSpeechConsent] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recognitionSupported = useMemo(() => speechRecognitionConstructor() !== null, []);
@@ -258,7 +277,10 @@ export function ModoVisitaPage() {
       const { data, error } = await supabase
         .from("agendamentos")
         .select(
-          "id, data_inicio, data_fim, local, titulo, status, lead_id, lead:leads(id, nome, telefone, status, projeto_nome, renda_informada, proxima_acao, proximo_followup)",
+          "id, data_inicio, data_fim, local, titulo, status, lead_id, " +
+            "lead:leads(id, nome, telefone, status, projeto_nome, renda_informada, proxima_acao, " +
+            "proximo_followup, temperatura, tipo_renda, faixa_mcmv, entrada_disponivel, " +
+            "fgts_valor, usa_fgts, objecoes, observacoes, ultima_interacao, created_at)",
         )
         .eq("tipo", "visita")
         .not("lead_id", "is", null)
@@ -350,10 +372,49 @@ export function ModoVisitaPage() {
     [],
   );
 
+  // Fila offline: tenta subir ao abrir a página e sempre que a conexão volta.
+  // O corretor sai do estande, pega sinal no carro e a visita entra sozinha.
+  useEffect(() => {
+    let vivo = true;
+    const subir = async () => {
+      if (listarFila().length === 0) {
+        if (vivo) setPendentesOffline(0);
+        return;
+      }
+      const { enviados, pendentes } = await sincronizarFila(
+        async (payload) => {
+          const { error } = await supabase.rpc("salvar_modo_visita", payload as never);
+          if (error) throw error;
+        },
+        (item, erro) => {
+          // Falha de regra não volta para a fila: o corretor precisa saber.
+          toast.error(`A visita de ${item.leadNome} não pôde ser registrada.`, {
+            description: erro instanceof Error ? erro.message : "Abra a visita e revise.",
+          });
+        },
+      );
+      if (!vivo) return;
+      setPendentesOffline(pendentes);
+      if (enviados > 0) {
+        toast.success(
+          enviados === 1 ? "1 visita pendente foi enviada." : `${enviados} visitas foram enviadas.`,
+        );
+        await queryClient.invalidateQueries({ queryKey: ["modo-visita"] });
+        await queryClient.invalidateQueries({ queryKey: ["leads"] });
+      }
+    };
+    void subir();
+    window.addEventListener("online", subir);
+    return () => {
+      vivo = false;
+      window.removeEventListener("online", subir);
+    };
+  }, [queryClient]);
+
   const saveMutation = useMutation({
     mutationFn: async ({ values, concluir }: { values: FormValues; concluir: boolean }) => {
       if (!selected) throw new Error("Selecione uma visita.");
-      const { data, error } = await supabase.rpc("salvar_modo_visita", {
+      const payload = {
         p_agendamento_id: selected.id,
         p_checklist: checklist,
         p_nota_transcrita: values.notaTranscrita.trim() || undefined,
@@ -366,14 +427,35 @@ export function ModoVisitaPage() {
             ? new Date(values.proximoFollowup).toISOString()
             : undefined,
         p_compareceu: values.desfecho === "realizada",
-      });
-      if (error) throw error;
-      return { data: execucaoSchema.parse(data), concluir };
+      };
+      const { data, error } = await supabase.rpc("salvar_modo_visita", payload);
+      if (error) {
+        // Sem rede, a visita não se perde: vai para a fila do aparelho e sobe
+        // quando a conexão voltar. Erro de REGRA continua na cara do corretor.
+        if (concluir && ehFalhaDeRede(error)) {
+          enfileirar({
+            agendamentoId: selected.id,
+            leadNome: selected.lead?.nome ?? "lead",
+            payload,
+          });
+          setPendentesOffline(listarFila().length);
+          return { data: null, concluir, enfileirado: true as const };
+        }
+        throw error;
+      }
+      return { data: execucaoSchema.parse(data), concluir, enfileirado: false as const };
     },
-    onSuccess: async ({ concluir }) => {
-      // O que está no servidor não precisa mais de rascunho local.
+    onSuccess: async ({ concluir, enfileirado }) => {
+      // O que está no servidor (ou na fila) não precisa mais de rascunho local.
       if (selected) limparRascunho(selected.id);
       setRascunhoEm(null);
+      if (enfileirado) {
+        toast.success("Sem conexão: visita salva no aparelho.", {
+          description: "Ela sobe sozinha assim que a internet voltar.",
+        });
+        setSelectedId(null);
+        return;
+      }
       toast.success(concluir ? "Visita concluída e próxima etapa registrada." : "Progresso salvo.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["modo-visita"] }),
@@ -484,6 +566,20 @@ export function ModoVisitaPage() {
           />
         ) : (
           <div className="space-y-5">
+            {pendentesOffline > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+                <Save className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <p>
+                  <strong>
+                    {pendentesOffline} {pendentesOffline === 1 ? "visita salva" : "visitas salvas"}{" "}
+                    no aparelho
+                  </strong>{" "}
+                  aguardando conexão. {pendentesOffline === 1 ? "Ela sobe" : "Elas sobem"} sozinha
+                  {pendentesOffline === 1 ? "" : "s"} assim que a internet voltar.
+                </p>
+              </div>
+            )}
+
             {pendentesValidacao > 0 && (
               <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
                 <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
@@ -612,6 +708,8 @@ export function ModoVisitaPage() {
                           </div>
                         </CardContent>
                       </Card>
+
+                      <BriefingVisita lead={selected.lead} />
 
                       <Card>
                         <CardHeader>
