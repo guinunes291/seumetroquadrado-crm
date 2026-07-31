@@ -32,7 +32,7 @@ export type LeadBriefing = {
   entrada_disponivel: string | number | null;
   fgts_valor: string | number | null;
   usa_fgts: boolean | null;
-  objecoes: string | null;
+  objecoes: string[] | null;
   observacoes: string | null;
   ultima_interacao: string | null;
   created_at: string | null;
@@ -139,14 +139,18 @@ export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ati
           </div>
         )}
 
-        {lead.objecoes && (
+        {(lead.objecoes?.length ?? 0) > 0 && (
           <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Objeções já registradas
               </p>
-              <p className="whitespace-pre-wrap">{lead.objecoes}</p>
+              <ul className="list-inside list-disc">
+                {lead.objecoes?.map((o) => (
+                  <li key={o}>{o}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
