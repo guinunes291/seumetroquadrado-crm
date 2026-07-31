@@ -44,6 +44,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { BriefingVisita } from "@/features/visitas/briefing-visita";
 import {
+  INTERESSE_LABEL,
+  INTERESSE_VISITA,
+  OBJECAO_LABEL,
+  OBJECAO_VISITA,
+  temperaturaSugerida,
+  type InteresseVisita,
+} from "@/features/visitas/resultado-visita";
+import {
   ehFalhaDeRede,
   enfileirar,
   listarFila,
@@ -95,6 +103,8 @@ const execucaoSchema = z.object({
   proxima_etapa: z.string().nullable(),
   proxima_acao: z.string().nullable(),
   proximo_followup: z.string().nullable(),
+  interesse: z.string().nullable().optional(),
+  objecao_principal: z.string().nullable().optional(),
 });
 
 const formSchema = z
@@ -104,6 +114,9 @@ const formSchema = z
     // "nao_compareceu" é desfecho, não etapa do lead: quem não apareceu volta
     // para aguardando_retorno. O agendamento é que fica marcado como no-show.
     desfecho: z.enum(["realizada", "nao_compareceu"]),
+    interesse: z.enum(INTERESSE_VISITA).or(z.literal("")),
+    objecao: z.enum(OBJECAO_VISITA).or(z.literal("")),
+    reagendarPara: z.string(),
     proximaEtapa: z.enum(["visita_realizada", "aguardando_retorno"]),
     proximaAcao: z.string().max(500, "A próxima ação pode ter no máximo 500 caracteres."),
     proximoFollowup: z.string(),
@@ -115,6 +128,25 @@ const formSchema = z
         path: ["proximaAcao"],
         message: "Informe a próxima ação ou um follow-up.",
       });
+    }
+    // Visita que aconteceu sem leitura de interesse é a visita que ninguém
+    // consegue analisar depois — é o dado que estamos aqui para capturar.
+    if (value.desfecho === "realizada" && !value.interesse) {
+      context.addIssue({
+        code: "custom",
+        path: ["interesse"],
+        message: "Diga como o cliente saiu da visita.",
+      });
+    }
+    if (value.reagendarPara) {
+      const quando = Date.parse(value.reagendarPara);
+      if (Number.isNaN(quando) || quando <= Date.now()) {
+        context.addIssue({
+          code: "custom",
+          path: ["reagendarPara"],
+          message: "O reagendamento precisa ser no futuro.",
+        });
+      }
     }
     if (value.proximaEtapa === "aguardando_retorno" || value.desfecho === "nao_compareceu") {
       const followup = Date.parse(value.proximoFollowup);
@@ -257,6 +289,9 @@ export function ModoVisitaPage() {
       notaTranscrita: "",
       observacoes: "",
       desfecho: "realizada",
+      interesse: "",
+      objecao: "",
+      reagendarPara: "",
       proximaEtapa: "visita_realizada",
       proximaAcao: "Confirmar documentação e preparar a próxima proposta",
       proximoFollowup: toLocalInput(addDays(new Date(), 1)),
@@ -308,7 +343,8 @@ export function ModoVisitaPage() {
       const { data, error } = await supabase
         .from("visita_execucoes")
         .select(
-          "id, checklist, nota_transcrita, observacoes, status, proxima_etapa, proxima_acao, proximo_followup",
+          "id, checklist, nota_transcrita, observacoes, status, proxima_etapa, proxima_acao, " +
+            "proximo_followup, interesse, objecao_principal",
         )
         .eq("agendamento_id", selectedId!)
         .maybeSingle();
@@ -328,6 +364,9 @@ export function ModoVisitaPage() {
       notaTranscrita: execucao?.nota_transcrita ?? "",
       observacoes: execucao?.observacoes ?? "",
       desfecho: "realizada",
+      interesse: (execucao?.interesse ?? "") as FormValues["interesse"],
+      objecao: (execucao?.objecao_principal ?? "") as FormValues["objecao"],
+      reagendarPara: "",
       proximaEtapa:
         execucao?.proxima_etapa === "aguardando_retorno"
           ? "aguardando_retorno"
@@ -427,6 +466,12 @@ export function ModoVisitaPage() {
             ? new Date(values.proximoFollowup).toISOString()
             : undefined,
         p_compareceu: values.desfecho === "realizada",
+        p_interesse: concluir && values.interesse ? values.interesse : undefined,
+        p_objecao_principal: concluir && values.objecao ? values.objecao : undefined,
+        p_reagendar_para:
+          concluir && values.reagendarPara
+            ? new Date(values.reagendarPara).toISOString()
+            : undefined,
       };
       const { data, error } = await supabase.rpc("salvar_modo_visita", payload);
       if (error) {
@@ -522,6 +567,7 @@ export function ModoVisitaPage() {
 
   const completed = execucaoQ.data?.status === "concluida";
   const naoCompareceu = form.watch("desfecho") === "nao_compareceu";
+  const interesseAtual = (form.watch("interesse") || null) as InteresseVisita | null;
   /** Visitas cujo horário já passou e que seguem sem validação — sem elas o
    *  relatório de visitas fica menor do que a operação realmente fez. */
   const pendentesValidacao = useMemo(
@@ -863,6 +909,89 @@ export function ModoVisitaPage() {
                               </SelectContent>
                             </Select>
                           </FieldError>
+                          {/* Resultado estruturado: sem estes dois campos, "por que
+                              as visitas do mês não viraram venda" não tem resposta. */}
+                          {!naoCompareceu && (
+                            <FieldError message={form.formState.errors.interesse?.message}>
+                              <Label htmlFor="interesse-visita">Como o cliente saiu?</Label>
+                              <Select
+                                value={form.watch("interesse")}
+                                disabled={completed}
+                                onValueChange={(value) =>
+                                  form.setValue("interesse", value as FormValues["interesse"], {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }
+                              >
+                                <SelectTrigger id="interesse-visita" className="min-h-11">
+                                  <SelectValue placeholder="Selecione o interesse" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {INTERESSE_VISITA.map((i) => (
+                                    <SelectItem key={i} value={i}>
+                                      {INTERESSE_LABEL[i]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {interesseAtual && (
+                                <p className="text-xs text-muted-foreground">
+                                  Sugere temperatura{" "}
+                                  <strong>{temperaturaSugerida(interesseAtual)}</strong> — ajuste no
+                                  lead se discordar.
+                                </p>
+                              )}
+                            </FieldError>
+                          )}
+
+                          {!naoCompareceu && (
+                            <FieldError message={form.formState.errors.objecao?.message}>
+                              <Label htmlFor="objecao-visita">O que trava a decisão?</Label>
+                              <Select
+                                value={form.watch("objecao")}
+                                disabled={completed}
+                                onValueChange={(value) =>
+                                  form.setValue("objecao", value as FormValues["objecao"], {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  })
+                                }
+                              >
+                                <SelectTrigger id="objecao-visita" className="min-h-11">
+                                  <SelectValue placeholder="Objeção principal" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {OBJECAO_VISITA.map((o) => (
+                                    <SelectItem key={o} value={o}>
+                                      {OBJECAO_LABEL[o]}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FieldError>
+                          )}
+
+                          {/* Reagendar aqui: cliente que não veio sai com data nova,
+                              não com uma intenção de remarcar. */}
+                          <FieldError message={form.formState.errors.reagendarPara?.message}>
+                            <Label htmlFor="reagendar-para">
+                              {naoCompareceu
+                                ? "Reagendar a visita"
+                                : "Marcar nova visita (opcional)"}
+                            </Label>
+                            <Input
+                              id="reagendar-para"
+                              type="datetime-local"
+                              disabled={completed}
+                              {...form.register("reagendarPara")}
+                              aria-invalid={Boolean(form.formState.errors.reagendarPara)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Preenchido, cria o novo agendamento junto com a conclusão.
+                            </p>
+                          </FieldError>
+
                           <FieldError message={form.formState.errors.proximaEtapa?.message}>
                             <Label htmlFor="proxima-etapa">Etapa ao concluir</Label>
                             <Select
