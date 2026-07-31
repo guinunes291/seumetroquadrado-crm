@@ -6,6 +6,9 @@ export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
 
   React.useEffect(() => {
+    // Ambiente sem matchMedia (SSR, jsdom sem shim): fica no layout desktop em
+    // vez de derrubar a árvore inteira que depende do hook.
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     const onChange = () => {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
