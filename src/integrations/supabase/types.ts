@@ -579,6 +579,27 @@ export type Database = {
         }
         Relationships: []
       }
+      bkp_f085_arquivadas_20260731: {
+        Row: {
+          arquivado_em: string | null
+          id: string | null
+          lead_id: string | null
+          status_anterior: string | null
+        }
+        Insert: {
+          arquivado_em?: string | null
+          id?: string | null
+          lead_id?: string | null
+          status_anterior?: string | null
+        }
+        Update: {
+          arquivado_em?: string | null
+          id?: string | null
+          lead_id?: string | null
+          status_anterior?: string | null
+        }
+        Relationships: []
+      }
       comissao_ledger: {
         Row: {
           beneficiario_id: string | null
@@ -4275,8 +4296,10 @@ export type Database = {
           criada_por: string
           id: string
           iniciada_em: string
+          interesse: string | null
           lead_id: string
           nota_transcrita: string | null
+          objecao_principal: string | null
           observacoes: string | null
           proxima_acao: string | null
           proxima_etapa: Database["public"]["Enums"]["lead_status"] | null
@@ -4294,8 +4317,10 @@ export type Database = {
           criada_por: string
           id?: string
           iniciada_em?: string
+          interesse?: string | null
           lead_id: string
           nota_transcrita?: string | null
+          objecao_principal?: string | null
           observacoes?: string | null
           proxima_acao?: string | null
           proxima_etapa?: Database["public"]["Enums"]["lead_status"] | null
@@ -4313,8 +4338,10 @@ export type Database = {
           criada_por?: string
           id?: string
           iniciada_em?: string
+          interesse?: string | null
           lead_id?: string
           nota_transcrita?: string | null
+          objecao_principal?: string | null
           observacoes?: string | null
           proxima_acao?: string | null
           proxima_etapa?: Database["public"]["Enums"]["lead_status"] | null
@@ -6088,12 +6115,16 @@ export type Database = {
         Args: {
           p_agendamento_id: string
           p_checklist?: Json
+          p_compareceu?: boolean
           p_concluir?: boolean
+          p_interesse?: string
           p_nota_transcrita?: string
+          p_objecao_principal?: string
           p_observacoes?: string
           p_proxima_acao?: string
           p_proxima_etapa?: Database["public"]["Enums"]["lead_status"]
           p_proximo_followup?: string
+          p_reagendar_para?: string
         }
         Returns: {
           agendamento_id: string
@@ -6105,8 +6136,10 @@ export type Database = {
           criada_por: string
           id: string
           iniciada_em: string
+          interesse: string | null
           lead_id: string
           nota_transcrita: string | null
+          objecao_principal: string | null
           observacoes: string | null
           proxima_acao: string | null
           proxima_etapa: Database["public"]["Enums"]["lead_status"] | null
