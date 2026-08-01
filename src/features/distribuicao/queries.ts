@@ -269,6 +269,72 @@ export function useRoletas(enabled = true) {
   });
 }
 
+export interface RoletaDoCorretor {
+  slug: string;
+  nome: string;
+  tipo: string;
+}
+
+/**
+ * Em quais roletas cada corretor ENTRA NO RODÍZIO hoje.
+ *
+ * Existe por causa de um incidente real: a gestão marcou uma corretora como
+ * Inapta na Marquinhos e ela continuou recebendo lead de chatbot — porque
+ * seguia ativa numa roleta de CAMPANHA, que consome a mesma origem por um
+ * endpoint próprio (webhook por token). Cada aba mostrava a verdade da sua
+ * roleta e nenhuma mostrava a do corretor.
+ *
+ * Mesma regra de rodízio do motor (`_elegibilidade_roleta`): participante
+ * ativo, não pausado, na roleta ativa. Os demais critérios (presença, cota,
+ * % trabalhado) são do dia e não interessam aqui — a pergunta é "de onde mais
+ * pode cair lead pra ele", não "cai agora".
+ */
+export interface ParticipacaoBruta {
+  corretor_id: string;
+  ativo: boolean;
+  pausado_ate: string | null;
+  // O embed é to-one, mas o PostgREST tipa como array em algumas versões.
+  roleta:
+    | { slug: string; nome: string; tipo: string; ativo: boolean }
+    | Array<{ slug: string; nome: string; tipo: string; ativo: boolean }>
+    | null;
+}
+
+/** Regra de rodízio, isolada do React Query para poder ser testada direto. */
+export function agruparRoletasPorCorretor(
+  linhas: ParticipacaoBruta[],
+  agora: number = Date.now(),
+): Map<string, RoletaDoCorretor[]> {
+  const mapa = new Map<string, RoletaDoCorretor[]>();
+  for (const linha of linhas) {
+    const r = Array.isArray(linha.roleta) ? linha.roleta[0] : linha.roleta;
+    if (!r?.ativo || !linha.ativo) continue;
+    if (linha.pausado_ate && new Date(linha.pausado_ate).getTime() > agora) continue;
+    const atual = mapa.get(linha.corretor_id) ?? [];
+    atual.push({ slug: r.slug, nome: r.nome, tipo: r.tipo });
+    mapa.set(linha.corretor_id, atual);
+  }
+  for (const lista of mapa.values()) lista.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return mapa;
+}
+
+export function useRoletasPorCorretor(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:roletas-por-corretor"],
+    enabled,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("roleta_participantes")
+        .select(
+          "corretor_id, ativo, pausado_ate, roleta:roletas!roleta_participantes_roleta_id_fkey(slug, nome, tipo, ativo)",
+        );
+      if (error) throw error;
+      return agruparRoletasPorCorretor((data ?? []) as unknown as ParticipacaoBruta[]);
+    },
+  });
+}
+
 export function useParticipantesLog(roletaId: string | null, enabled = true) {
   return useQuery({
     queryKey: ["distribuicao:participantes-log", roletaId],
@@ -411,6 +477,7 @@ export const DISTRIBUICAO_KEYS = [
   ["distribuicao:historico"],
   ["distribuicao:participantes-log"],
   ["distribuicao:roletas"],
+  ["distribuicao:roletas-por-corretor"],
   ["distribuicao:settings"],
   ["distribuicao:config"],
   ["distribuicao:minha-elegibilidade"],

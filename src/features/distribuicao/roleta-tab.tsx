@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
+  AlertTriangle,
   BadgeCheck,
   CalendarOff,
   Crown,
@@ -81,13 +82,50 @@ import {
   useMarcarPresencaAdmin,
   useNomesPerfis,
   useRecebidosSemana,
+  useRoletasPorCorretor,
   useVendasMesAnterior,
   type ElegibilidadeLinha,
+  type RoletaDoCorretor,
 } from "./queries";
 
 function fmtDataHora(iso: string | null): string {
   if (!iso) return "—";
   return format(parseISO(iso), "dd/MM HH:mm", { locale: ptBR });
+}
+
+/**
+ * Onde MAIS este corretor recebe lead.
+ *
+ * Cada aba mostra a verdade da sua roleta, e é fácil ler "Inapto" como "parou
+ * de receber". Não para: um corretor costuma estar em várias roletas ao mesmo
+ * tempo — inclusive nas de CAMPANHA, que entram por webhook próprio e são
+ * geridas em outra tela. Desligar numa não desliga nas outras, e é aí que a
+ * gestão se perde.
+ */
+function OutrasRoletas({
+  slugAtual,
+  roletas,
+  aptoAqui,
+}: {
+  slugAtual: string;
+  roletas: RoletaDoCorretor[] | undefined;
+  aptoAqui: boolean;
+}) {
+  const outras = (roletas ?? []).filter((r) => r.slug !== slugAtual);
+  if (outras.length === 0) return null;
+  const nomes = outras.map((r) => r.nome).join(", ");
+
+  if (aptoAqui) {
+    return (
+      <p className="mt-0.5 text-[11px] font-normal text-muted-foreground">Também em: {nomes}</p>
+    );
+  }
+  return (
+    <p className="mt-0.5 flex items-start gap-1 text-[11px] font-normal text-warning">
+      <AlertTriangle className="mt-px h-3 w-3 shrink-0" aria-hidden="true" />
+      <span>Inapto aqui, mas continua recebendo em: {nomes}</span>
+    </p>
+  );
 }
 
 export function RoletaTab({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
@@ -102,6 +140,7 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
   const nomesQ = useNomesPerfis();
+  const outrasRoletasQ = useRoletasPorCorretor();
   const gerenciar = useGerenciarParticipante();
   const presencaAdmin = useMarcarPresencaAdmin();
 
@@ -205,6 +244,11 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
                             )}
                             {l.nome}
                           </span>
+                          <OutrasRoletas
+                            slugAtual={slug}
+                            roletas={outrasRoletasQ.data?.get(l.corretor_id)}
+                            aptoAqui={l.apto}
+                          />
                         </TableCell>
                         {ehPlantao && (
                           <TableCell>
@@ -679,6 +723,7 @@ function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
   const slug: RoletaSlug = "marquinhos";
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(true);
+  const outrasRoletasQ = useRoletasPorCorretor();
   const gerenciar = useGerenciarParticipante();
 
   const [incluirAberto, setIncluirAberto] = useState(false);
@@ -761,7 +806,14 @@ function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
                   const apto = l.participante_ativo && !l.pausado;
                   return (
                     <TableRow key={l.corretor_id}>
-                      <TableCell className="font-medium">{l.nome}</TableCell>
+                      <TableCell className="font-medium">
+                        {l.nome}
+                        <OutrasRoletas
+                          slugAtual={slug}
+                          roletas={outrasRoletasQ.data?.get(l.corretor_id)}
+                          aptoAqui={apto}
+                        />
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         <span className="font-semibold">{venda?.qtd ?? 0}</span>
                         <span className="ml-1 text-xs text-muted-foreground">venda(s)</span>
