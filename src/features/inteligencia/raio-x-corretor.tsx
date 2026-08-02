@@ -27,10 +27,13 @@ import {
   ArrowLeft,
   CalendarRange,
   CheckCircle2,
-  Download,
+  ChevronDown,
+  FileText,
   GraduationCap,
   Info,
+  Loader2,
   Rocket,
+  Table2,
   Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +41,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/ui/sparkline";
@@ -54,6 +63,7 @@ import { usePainelDia } from "@/features/gestao/painel-dia/use-painel-dia";
 import { TIPO_META } from "@/features/gestao/painel-dia/derive";
 import { usePacing } from "@/features/metas/pacing-panel";
 import { projecaoLinear, semaforo } from "@/features/metas/pacing";
+import { useAuth } from "@/hooks/use-auth";
 import { exportSheetsXlsx } from "@/lib/spreadsheets";
 import { leadStatusLabel, MOTIVO_PERDA_LABEL } from "@/lib/leads";
 import { cn } from "@/lib/utils";
@@ -70,6 +80,7 @@ import {
   resumoComissoes,
   type ComissaoRow,
 } from "./raio-x-derive";
+import { montarRelatorioRaioX, type RaioXRelatorioInput } from "./raio-x-relatorio";
 import {
   useCoberturaMinima,
   useFunilCoorte,
@@ -143,8 +154,7 @@ export function RaioXCorretor({
     [corretorId, janelaAtual],
   );
   const filtrosTime = janelaAtual;
-  const mesesDrill =
-    custom?.from && janelaAtual.de ? mesesDesde(janelaAtual.de, hojeIso) : meses;
+  const mesesDrill = custom?.from && janelaAtual.de ? mesesDesde(janelaAtual.de, hojeIso) : meses;
 
   const perfQ = usePerformanceCorretores(mesAtual);
   const perfJanelaQ = usePerformanceJanela(janelaAtual);
@@ -206,21 +216,97 @@ export function RaioXCorretor({
 
   const metaDele = pacingQ.data?.por_corretor.find((c) => c.corretor_id === corretorId);
   const du = pacingQ.data?.dias_uteis;
-  const projVgv =
-    metaDele && du ? projecaoLinear(metaDele.vgv, du.passados, du.total) : null;
+  const projVgv = metaDele && du ? projecaoLinear(metaDele.vgv, du.passados, du.total) : null;
   const farol = metaDele ? semaforo(projVgv, metaDele.meta_gmv) : "neutro";
 
-  const exportar = async () => {
+  const { user } = useAuth();
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+
+  /**
+   * Insumo do relatório em PDF. Junta o que a tela já carregou — nada de query
+   * extra na hora de exportar: o que o gestor vê é o que sai no papel.
+   */
+  const relatorioInput = (): RaioXRelatorioInput => ({
+    nome: corretor?.nome ?? "Corretor",
+    periodoLabel: labelJanela,
+    de: janelaAtual.de,
+    ate: janelaAtual.ate,
+    geradoEm: new Date(),
+    geradoPor:
+      (user?.user_metadata?.full_name as string | undefined) ??
+      (user?.user_metadata?.nome as string | undefined) ??
+      user?.email ??
+      null,
+    presente: corretor?.presente ?? null,
+    cargaAtiva: corretor?.carga_ativa ?? 0,
+    capacidadePct: corretor?.capacidade_pct ?? null,
+    sinal,
+    comparacoes,
+    funil,
+    funilIndisponivel: funilSemDado,
+    coorte: coorteDele,
+    coberturaMinima: coberturaMin,
+    serie,
+    trimestres,
+    carteira: (snapshotQ.data?.rows ?? []).map((r) => ({
+      etapa: r.etapa,
+      label: leadStatusLabel(r.etapa),
+      quantidade: r.quantidade,
+      parados: r.parados,
+      vgv: r.vgv,
+    })),
+    excecoes: (excecoesQ.data?.excecoes ?? []).map((e) => ({
+      tipo: e.tipo,
+      tipoLabel: TIPO_META[e.tipo].label,
+      leadNome: e.lead_nome,
+    })),
+    perdas: (perdasQ.data?.rows ?? []).map((p) => ({
+      ...p,
+      label: MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ?? p.categoria,
+    })),
+    comissoes,
+    meta:
+      metaDele && metaDele.meta_gmv > 0
+        ? {
+            metaVgv: metaDele.meta_gmv,
+            metaVendas: metaDele.meta_vendas,
+            realizadoVgv: metaDele.vgv,
+            realizadoVendas: metaDele.vendas,
+            projecaoVgv: projVgv,
+            farol,
+            diasUteis: du ?? null,
+          }
+        : null,
+    atualizadoEm: corretor?.atualizado_em ?? null,
+  });
+
+  const exportarPdf = async () => {
+    setGerandoPdf(true);
     try {
-      await exportSheetsXlsx(`raio-x-${(corretor?.nome ?? "corretor").toLowerCase().replace(/\s+/g, "-")}`, [
-        ...raioXParaSheets({
-          nome: corretor?.nome ?? "Corretor",
-          comparacoes,
-          serie,
-          funil,
-          perdas: perdasQ.data?.rows ?? [],
-        }),
-      ]);
+      const { imprimirRaioX } = await import("./raio-x-pdf");
+      imprimirRaioX(montarRelatorioRaioX(relatorioInput()));
+      toast.success("Relatório pronto — escolha “Salvar como PDF” na impressão.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao gerar o PDF.");
+    } finally {
+      setGerandoPdf(false);
+    }
+  };
+
+  const exportarPlanilha = async () => {
+    try {
+      await exportSheetsXlsx(
+        `raio-x-${(corretor?.nome ?? "corretor").toLowerCase().replace(/\s+/g, "-")}`,
+        [
+          ...raioXParaSheets({
+            nome: corretor?.nome ?? "Corretor",
+            comparacoes,
+            serie,
+            funil,
+            perdas: perdasQ.data?.rows ?? [],
+          }),
+        ],
+      );
       toast.success("Raio-X exportado.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao exportar.");
@@ -297,9 +383,42 @@ export function RaioXCorretor({
               Ver leads
             </Link>
           </Button>
-          <Button size="sm" onClick={exportar}>
-            <Download className="mr-1 h-4 w-4" /> Exportar Raio-X
-          </Button>
+          {/* Ação principal = relatório em PDF (o material da 1:1). A planilha
+              continua disponível para quem vai fatiar os números no Excel. */}
+          <div className="inline-flex">
+            <Button
+              size="sm"
+              className="rounded-r-none"
+              onClick={exportarPdf}
+              disabled={gerandoPdf}
+            >
+              {gerandoPdf ? (
+                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="mr-1 h-4 w-4" />
+              )}
+              Relatório PDF
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="rounded-l-none border-l border-primary-foreground/25 px-2"
+                  aria-label="Outros formatos de exportação"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => void exportarPdf()}>
+                  <FileText className="mr-2 h-4 w-4" /> Relatório PDF (1:1)
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void exportarPlanilha()}>
+                  <Table2 className="mr-2 h-4 w-4" /> Planilha .xlsx (dados brutos)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -354,42 +473,53 @@ export function RaioXCorretor({
       {perfJanelaQ.isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-      <StatGrid>
-        {comparacoes
-          .filter((c) => ["vendas", "vgv", "visitas_realizadas", "primeira_resposta"].includes(c.chave))
-          .map((c) => {
-            const acima = c.deltaPct !== null && (c.menorMelhor ? c.deltaPct < 0 : c.deltaPct > 0);
-            return (
-              <StatTile
-                key={c.chave}
-                title={c.label}
-                value={
-                  c.chave === "vgv"
-                    ? c.valor === null
-                      ? "—"
-                      : fmtBRL(c.valor)
-                    : (c.valor ?? "—")
-                }
-                intent={c.deltaPct === null ? "neutral" : acima ? "success" : "warning"}
-                hint={
-                  c.mediaTime === null ? (
-                    "média do time: sem amostra"
-                  ) : (
-                    <span>
-                      time: {c.chave === "vgv" ? fmtBRL(c.mediaTime) : Math.round(c.mediaTime * 10) / 10}
-                      {c.deltaPct !== null && (
-                        <span className={cn("ml-1 font-medium", acima ? "text-success" : "text-warning")}>
-                          ({c.deltaPct > 0 ? "+" : ""}
-                          {c.deltaPct}%)
-                        </span>
-                      )}
-                    </span>
-                  )
-                }
-              />
-            );
-          })}
-      </StatGrid>
+        <StatGrid>
+          {comparacoes
+            .filter((c) =>
+              ["vendas", "vgv", "visitas_realizadas", "primeira_resposta"].includes(c.chave),
+            )
+            .map((c) => {
+              const acima =
+                c.deltaPct !== null && (c.menorMelhor ? c.deltaPct < 0 : c.deltaPct > 0);
+              return (
+                <StatTile
+                  key={c.chave}
+                  title={c.label}
+                  value={
+                    c.chave === "vgv"
+                      ? c.valor === null
+                        ? "—"
+                        : fmtBRL(c.valor)
+                      : (c.valor ?? "—")
+                  }
+                  intent={c.deltaPct === null ? "neutral" : acima ? "success" : "warning"}
+                  hint={
+                    c.mediaTime === null ? (
+                      "média do time: sem amostra"
+                    ) : (
+                      <span>
+                        time:{" "}
+                        {c.chave === "vgv"
+                          ? fmtBRL(c.mediaTime)
+                          : Math.round(c.mediaTime * 10) / 10}
+                        {c.deltaPct !== null && (
+                          <span
+                            className={cn(
+                              "ml-1 font-medium",
+                              acima ? "text-success" : "text-warning",
+                            )}
+                          >
+                            ({c.deltaPct > 0 ? "+" : ""}
+                            {c.deltaPct}%)
+                          </span>
+                        )}
+                      </span>
+                    )
+                  }
+                />
+              );
+            })}
+        </StatGrid>
       )}
 
       {/* 2. Sinal de gestão */}
@@ -438,41 +568,41 @@ export function RaioXCorretor({
             </p>
           ) : (
             <>
-            <div className="mb-4 h-[220px]">
-              <FunilComparadoChart data={funil} nome={corretor.nome.split(" ")[0]} />
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Etapa</TableHead>
-                  <TableHead className="text-right">Ele(a)</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                  <TableHead className="text-right">Gap</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {funil.map((f) => (
-                  <TableRow key={f.etapa}>
-                    <TableCell className="font-medium">{f.etapa}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {f.minhaTaxa === null ? "—" : `${f.minhaTaxa}%`}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {f.taxaTime === null ? "—" : `${f.taxaTime}%`}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right font-medium tabular-nums",
-                        f.gapPp !== null && f.gapPp < -5 && "text-destructive",
-                        f.gapPp !== null && f.gapPp > 5 && "text-success",
-                      )}
-                    >
-                      {f.gapPp === null ? "—" : `${f.gapPp > 0 ? "+" : ""}${f.gapPp} p.p.`}
-                    </TableCell>
+              <div className="mb-4 h-[220px]">
+                <FunilComparadoChart data={funil} nome={corretor.nome.split(" ")[0]} />
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Etapa</TableHead>
+                    <TableHead className="text-right">Ele(a)</TableHead>
+                    <TableHead className="text-right">Time</TableHead>
+                    <TableHead className="text-right">Gap</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {funil.map((f) => (
+                    <TableRow key={f.etapa}>
+                      <TableCell className="font-medium">{f.etapa}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {f.minhaTaxa === null ? "—" : `${f.minhaTaxa}%`}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {f.taxaTime === null ? "—" : `${f.taxaTime}%`}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right font-medium tabular-nums",
+                          f.gapPp !== null && f.gapPp < -5 && "text-destructive",
+                          f.gapPp !== null && f.gapPp > 5 && "text-success",
+                        )}
+                      >
+                        {f.gapPp === null ? "—" : `${f.gapPp > 0 ? "+" : ""}${f.gapPp} p.p.`}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </>
           )}
         </CardContent>
@@ -740,8 +870,21 @@ function ResultadoMensalChart({ serie }: { serie: PerformanceDrillRow[] }) {
           }
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar yAxisId="vendas" dataKey="vendas" name="Vendas" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
-        <Line yAxisId="vgv" type="monotone" dataKey="vgv" name="VGV" stroke="var(--success)" strokeWidth={2} />
+        <Bar
+          yAxisId="vendas"
+          dataKey="vendas"
+          name="Vendas"
+          fill="var(--chart-2)"
+          radius={[4, 4, 0, 0]}
+        />
+        <Line
+          yAxisId="vgv"
+          type="monotone"
+          dataKey="vgv"
+          name="VGV"
+          stroke="var(--success)"
+          strokeWidth={2}
+        />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -763,9 +906,30 @@ function EsforcoMensalChart({ serie }: { serie: PerformanceDrillRow[] }) {
         <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
         <Tooltip />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Line type="monotone" dataKey="leads" name="Leads" stroke="var(--chart-3)" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="contatos" name="Contatos" stroke="var(--chart-2)" strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="visitas" name="Visitas" stroke="var(--chart-1)" strokeWidth={2} dot={false} />
+        <Line
+          type="monotone"
+          dataKey="leads"
+          name="Leads"
+          stroke="var(--chart-3)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="contatos"
+          name="Contatos"
+          stroke="var(--chart-2)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="visitas"
+          name="Visitas"
+          stroke="var(--chart-1)"
+          strokeWidth={2}
+          dot={false}
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -806,8 +970,7 @@ function PerdasChart({
   rows: Array<{ categoria: string; quantidade: number; vgv_estimado: number | null }>;
 }) {
   const data = rows.map((p) => ({
-    categoria:
-      MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ?? p.categoria,
+    categoria: MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ?? p.categoria,
     quantidade: p.quantidade,
     vgv: p.vgv_estimado != null ? Number(p.vgv_estimado) : null,
   }));
@@ -816,12 +979,25 @@ function PerdasChart({
       <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12, top: 4, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-        <YAxis type="category" dataKey="categoria" tick={{ fontSize: 11 }} width={150} interval={0} />
+        <YAxis
+          type="category"
+          dataKey="categoria"
+          tick={{ fontSize: 11 }}
+          width={150}
+          interval={0}
+        />
         <Tooltip
-          formatter={(value: number, _name: string, item: { payload?: { vgv?: number | null } }) => {
+          formatter={(
+            value: number,
+            _name: string,
+            item: { payload?: { vgv?: number | null } },
+          ) => {
             const vgv = item?.payload?.vgv;
             return vgv != null
-              ? [`${value} leads · ~${vgv.toLocaleString("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 })} (estimado)`, "Perdas"]
+              ? [
+                  `${value} leads · ~${vgv.toLocaleString("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 })} (estimado)`,
+                  "Perdas",
+                ]
               : [`${value} leads`, "Perdas"];
           }}
         />
