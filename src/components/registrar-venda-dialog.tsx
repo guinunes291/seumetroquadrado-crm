@@ -166,6 +166,8 @@ export function RegistrarVendaDialog() {
               ? null
               : lead.projeto_id,
         projetoNome,
+        unidade,
+
         valorVenda: valorNum,
         dataAssinatura,
         split: split!,
