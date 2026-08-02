@@ -43,7 +43,9 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const [dataAssinatura, setDataAssinatura] = useState(hoje());
   const [projetoId, setProjetoId] = useState<string>(lead.projeto_id ?? "none");
   const [projetoManual, setProjetoManual] = useState("");
+  const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
     corretor: "1.85",
