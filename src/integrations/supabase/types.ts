@@ -442,34 +442,49 @@ export type Database = {
         Row: {
           acao: string | null
           agente: string | null
+          ator: string | null
+          diff: Json | null
           http_status: number | null
           id: string
           ip: string | null
           lead_id: string | null
+          origem: string | null
           payload: Json | null
+          registro_id: string | null
           resultado: string | null
+          tabela: string | null
           ts: string
         }
         Insert: {
           acao?: string | null
           agente?: string | null
+          ator?: string | null
+          diff?: Json | null
           http_status?: number | null
           id?: string
           ip?: string | null
           lead_id?: string | null
+          origem?: string | null
           payload?: Json | null
+          registro_id?: string | null
           resultado?: string | null
+          tabela?: string | null
           ts?: string
         }
         Update: {
           acao?: string | null
           agente?: string | null
+          ator?: string | null
+          diff?: Json | null
           http_status?: number | null
           id?: string
           ip?: string | null
           lead_id?: string | null
+          origem?: string | null
           payload?: Json | null
+          registro_id?: string | null
           resultado?: string | null
+          tabela?: string | null
           ts?: string
         }
         Relationships: []
@@ -2504,6 +2519,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mcp_config: {
+        Row: {
+          chave: string
+          updated_at: string
+          valor: Json
+        }
+        Insert: {
+          chave: string
+          updated_at?: string
+          valor: Json
+        }
+        Update: {
+          chave?: string
+          updated_at?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
+      mcp_identidade: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          nota: string | null
+          uid: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          nota?: string | null
+          uid: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          nota?: string | null
+          uid?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       metas: {
         Row: {
@@ -4649,6 +4706,22 @@ export type Database = {
           },
         ]
       }
+      mcp_escrita_hoje: {
+        Row: {
+          acao: string | null
+          resultado: string | null
+          tabela: string | null
+          total: number | null
+          ultima: string | null
+        }
+        Relationships: []
+      }
+      mcp_tabelas_sem_guarda: {
+        Row: {
+          tabela: string | null
+        }
+        Relationships: []
+      }
       metric_webhook_status: {
         Row: {
           enabled: boolean | null
@@ -5634,6 +5707,7 @@ export type Database = {
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
+      is_mcp: { Args: never; Returns: boolean }
       is_service_bot: { Args: { _uid: string }; Returns: boolean }
       isleadavancado_status:
         | {
@@ -5919,6 +5993,21 @@ export type Database = {
       marcar_presenca_admin: {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined
+      }
+      mcp_aplicar_guardas: {
+        Args: never
+        Returns: {
+          acao: string
+          tabela: string
+        }[]
+      }
+      mcp_log_bloqueio: {
+        Args: { _acao: string; _detalhe: string; _tabela: string }
+        Returns: undefined
+      }
+      mcp_marcar_perdido: {
+        Args: { _lead_id: string; _motivo: string; _motivo_categoria: string }
+        Returns: Json
       }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
