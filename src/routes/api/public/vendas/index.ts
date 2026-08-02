@@ -2,7 +2,9 @@
 // PATCH /api/public/vendas — correção do empreendimento em lote (`sales:write`).
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
-import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { requireApiClientScope } from "@/lib/api-client-auth.server";
+import { mesCorrente, lerVendasAgregado } from "@/lib/vendas-agregado.server";
+
 import { validarPatchVenda, aplicarPatchVenda } from "@/lib/vendas-write.server";
 
 const LOTE_MAX = 200;
@@ -68,8 +70,10 @@ export const Route = createFileRoute("/api/public/vendas/")({
           200,
         );
       },
+      // Leitura agregada por DATA DA VENDA (data_assinatura).
+      // Compatibilidade: os campos legados `data` e `count` continuam no
+      // payload para os consumidores externos já existentes.
       GET: async ({ request }) => {
-
         const auth = await requireApiClientScope(request, "sales:read");
         if (auth instanceof Response) return auth;
 
@@ -77,64 +81,49 @@ export const Route = createFileRoute("/api/public/vendas/")({
         const q = url.searchParams;
         const limit = Math.min(Number(q.get("limit")) || 100, 500);
         const offset = Math.max(Number(q.get("offset")) || 0, 0);
+        const def = mesCorrente();
+        const desde = q.get("desde") ?? q.get("data_inicio") ?? def.desde;
+        const ate = q.get("ate") ?? q.get("data_fim") ?? def.ate;
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        let query = supabaseAdmin
-          .from("vendas")
-          .select(
-            "id, lead_id, corretor_id, projeto_id, projeto_nome, valor_venda, data_assinatura, status_recebimento, status_venda, aprovado_em, distrato, created_at",
-            { count: "exact" },
-          )
-          .eq("status_venda", "aprovada");
-
-        if (auth.projetoId) query = query.eq("projeto_id", auth.projetoId);
-        const equipeCorretorIds = await restrictedCorretorIds(auth);
-        if (equipeCorretorIds) {
-          query = query.in(
-            "corretor_id",
-            equipeCorretorIds.length ? equipeCorretorIds : ["00000000-0000-0000-0000-000000000000"],
-          );
+        let agregado;
+        try {
+          agregado = await lerVendasAgregado({ auth, desde, ate, limit, offset });
+        } catch (e) {
+          return jsonResponse({ error: e instanceof Error ? e.message : "erro_inesperado" }, 500);
         }
 
-        const status = q.get("status");
-        if (status) query = query.eq("status_recebimento", status);
-
+        // Filtros opcionais legados aplicados sobre a página retornada.
         const corretorId = q.get("corretor_id");
-        if (corretorId) query = query.eq("corretor_id", corretorId);
-
-        const desde = q.get("desde") ?? q.get("data_inicio");
-        if (desde) query = query.gte("data_assinatura", desde);
-        const ate = q.get("ate") ?? q.get("data_fim");
-        if (ate) query = query.lte("data_assinatura", ate);
-
         const empreendimento = q.get("empreendimento");
-        if (empreendimento) query = query.ilike("projeto_nome", `%${empreendimento}%`);
+        let itens = agregado.vendas;
+        if (corretorId) itens = itens.filter((v) => v.corretor_id === corretorId);
+        if (empreendimento) {
+          const alvo = empreendimento.toLowerCase();
+          itens = itens.filter((v) => (v.projeto_nome ?? "").toLowerCase().includes(alvo));
+        }
 
-        query = query
-          .order("data_assinatura", { ascending: false })
-          .range(offset, offset + limit - 1);
-
-        const { data, error, count } = await query;
-        if (error) return jsonResponse({ error: error.message }, 500);
-
-        const mapped = (data ?? []).map((v) => ({
-          venda_id: v.id,
-          id: v.id,
-          lead_id: v.lead_id,
-          crm_lead_id: v.lead_id,
-          corretor_id: v.corretor_id,
-          empreendimento: v.projeto_nome,
-          projeto_id: v.projeto_id,
-          valor: v.valor_venda,
-          data: v.data_assinatura,
-          status: v.distrato ? "distrato" : v.status_recebimento,
-          status_aprovacao: v.status_venda,
-          aprovado_em: v.aprovado_em,
-          distrato: v.distrato,
-        }));
-
-        return jsonResponse({ data: mapped, count: count ?? mapped.length, limit, offset });
+        return jsonResponse({
+          ...agregado,
+          vendas: itens,
+          // Formato legado (não remover sem avisar integrações externas).
+          data: itens.map((v) => ({
+            venda_id: v.id,
+            id: v.id,
+            lead_id: v.lead_id,
+            crm_lead_id: v.lead_id,
+            corretor_id: v.corretor_id,
+            empreendimento: v.projeto_nome,
+            projeto_id: v.projeto_id,
+            valor: v.valor,
+            data: v.data_venda,
+            status: v.distrato ? "distrato" : "aprovada",
+            status_aprovacao: "aprovada",
+            distrato: v.distrato,
+          })),
+          count: agregado.totais.vendas,
+        });
       },
+
     },
   },
 });

@@ -7,6 +7,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse } from "@/lib/public-api-auth";
 import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { lerVendasAgregado } from "@/lib/vendas-agregado.server";
+
 
 function monthRange() {
   const now = new Date();
@@ -42,43 +44,34 @@ export const Route = createFileRoute("/api/public/metricas")({
           .is("deleted_at", null)
           .gte("created_at", desde)
           .lt("created_at", ateExclusivo);
-        let vendasQuery = supabaseAdmin
-          .from("vendas")
-          .select("valor_venda,corretor_id,projeto_id,aprovado_em")
-          .eq("status_venda", "aprovada")
-          .gte("aprovado_em", desde)
-          .lt("aprovado_em", ateExclusivo);
-        let distratosQuery = supabaseAdmin
-          .from("vendas")
-          .select("id,corretor_id,projeto_id,status_venda_updated_at")
-          .eq("status_venda", "cancelada")
-          .gte("status_venda_updated_at", desde)
-          .lt("status_venda_updated_at", ateExclusivo);
 
-        if (auth.projetoId) {
-          leadsQuery = leadsQuery.eq("projeto_id", auth.projetoId);
-          vendasQuery = vendasQuery.eq("projeto_id", auth.projetoId);
-          distratosQuery = distratosQuery.eq("projeto_id", auth.projetoId);
-        }
+        if (auth.projetoId) leadsQuery = leadsQuery.eq("projeto_id", auth.projetoId);
         const equipeCorretorIds = await restrictedCorretorIds(auth);
         if (equipeCorretorIds) {
           const ids = equipeCorretorIds.length
             ? equipeCorretorIds
             : ["00000000-0000-0000-0000-000000000000"];
           leadsQuery = leadsQuery.in("corretor_id", ids);
-          vendasQuery = vendasQuery.in("corretor_id", ids);
-          distratosQuery = distratosQuery.in("corretor_id", ids);
         }
 
-        const [leadsRes, vendasRes, distratosRes] = await Promise.all([
+        const ateInclusivo = new Date(ateExclusivo);
+        ateInclusivo.setDate(ateInclusivo.getDate() - 1);
+        const ateData = ateInclusivo.toISOString().slice(0, 10);
+
+        const notas: string[] = [];
+        const [leadsRes, agregadoRes] = await Promise.all([
           leadsQuery,
-          vendasQuery,
-          distratosQuery,
+          lerVendasAgregado({ auth, desde, ate: ateData, limit: 1, offset: 0 }).catch(
+            (e: unknown) => {
+              notas.push(
+                `Fonte de vendas indisponível: ${e instanceof Error ? e.message : "erro desconhecido"}`,
+              );
+              return null;
+            },
+          ),
         ]);
 
         if (leadsRes.error) return jsonResponse({ error: leadsRes.error.message }, 500);
-        if (vendasRes.error) return jsonResponse({ error: vendasRes.error.message }, 500);
-        if (distratosRes.error) return jsonResponse({ error: distratosRes.error.message }, 500);
 
         const bump = (m: Record<string, number>, k: string | null | undefined) => {
           const key = k ?? "(vazio)";
@@ -95,21 +88,33 @@ export const Route = createFileRoute("/api/public/metricas")({
           bump(leadsPorCorretor, l.corretor_id);
         }
 
-        const vendasPorCorretor: Record<string, { qtd: number; vgv: number }> = {};
-        let vendasQtd = 0;
-        let vgv = 0;
-        for (const v of vendasRes.data ?? []) {
-          vendasQtd++;
-          const valor = Number(v.valor_venda) || 0;
-          vgv += valor;
-          const key = v.corretor_id ?? "(sem_corretor)";
-          if (!vendasPorCorretor[key]) vendasPorCorretor[key] = { qtd: 0, vgv: 0 };
-          vendasPorCorretor[key].qtd++;
-          vendasPorCorretor[key].vgv += valor;
+        // Vendas: mesma fonte do endpoint /api/public/vendas, sempre por
+        // data_assinatura. Sem fonte ou sem linhas => null + nota, nunca zero
+        // silencioso.
+        let vendas: Record<string, unknown> | null = null;
+        if (agregadoRes) {
+          if (agregadoRes.totais.vendas === 0 && agregadoRes.totais.distratos === 0) {
+            notas.push(
+              agregadoRes.aviso ?? "Nenhuma venda aprovada com data de assinatura no período.",
+            );
+          } else {
+            const porCorretor: Record<string, { qtd: number; vgv: number }> = {};
+            for (const c of agregadoRes.por_corretor) {
+              porCorretor[c.corretor_id ?? "(sem_corretor)"] = { qtd: c.vendas, vgv: c.vgv };
+            }
+            vendas = {
+              total: agregadoRes.totais.vendas,
+              distratos: agregadoRes.totais.distratos,
+              vgv: agregadoRes.totais.vgv,
+              ticket_medio: agregadoRes.totais.ticket_medio,
+              por_corretor: porCorretor,
+              por_projeto: agregadoRes.por_projeto,
+            };
+          }
         }
 
         return jsonResponse({
-          periodo: { desde, ate: ateInput ?? def.fim },
+          periodo: { desde, ate: ateData },
           leads: {
             total: leadsRes.data?.length ?? 0,
             por_status: porStatus,
@@ -117,13 +122,10 @@ export const Route = createFileRoute("/api/public/metricas")({
             por_origem: porOrigem,
             por_corretor: leadsPorCorretor,
           },
-          vendas: {
-            total: vendasQtd,
-            distratos: distratosRes.data?.length ?? 0,
-            vgv,
-            por_corretor: vendasPorCorretor,
-          },
+          vendas,
+          notas,
         });
+
       },
     },
   },
