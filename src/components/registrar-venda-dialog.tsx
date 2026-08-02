@@ -78,7 +78,9 @@ export function RegistrarVendaDialog() {
   const [dataAssinatura, setDataAssinatura] = useState(hoje());
   const [projetoId, setProjetoId] = useState<string>("none");
   const [projetoManual, setProjetoManual] = useState("");
+  const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
     corretor: "1.85",
