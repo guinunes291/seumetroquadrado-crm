@@ -327,7 +327,17 @@ export function RegistrarVendaDialog() {
                   </p>
                 </div>
               )}
+              <div className="space-y-1.5 pt-1">
+                <Label>Unidade</Label>
+                <Input
+                  value={unidade}
+                  onChange={(e) => setUnidade(e.target.value)}
+                  placeholder="Ex.: Torre B — apto 1204"
+                  maxLength={60}
+                />
+              </div>
             </div>
+
 
             <ComissaoSplitFields
               valorVenda={parseCurrencyBRL(valor)}
