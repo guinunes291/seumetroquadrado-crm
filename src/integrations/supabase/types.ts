@@ -4195,6 +4195,7 @@ export type Database = {
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
+          unidade: string | null
           updated_at: string
           valor_venda: number
         }
@@ -4223,6 +4224,7 @@ export type Database = {
           status_recebimento?: string
           status_venda?: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at?: string
+          unidade?: string | null
           updated_at?: string
           valor_venda?: number
         }
@@ -4251,6 +4253,7 @@ export type Database = {
           status_recebimento?: string
           status_venda?: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at?: string
+          unidade?: string | null
           updated_at?: string
           valor_venda?: number
         }
@@ -4917,6 +4920,7 @@ export type Database = {
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
+          unidade: string | null
           updated_at: string
           valor_venda: number
         }
