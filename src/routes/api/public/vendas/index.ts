@@ -2,7 +2,9 @@
 // PATCH /api/public/vendas — correção do empreendimento em lote (`sales:write`).
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
-import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { requireApiClientScope } from "@/lib/api-client-auth.server";
+import { mesCorrente, lerVendasAgregado } from "@/lib/vendas-agregado.server";
+
 import { validarPatchVenda, aplicarPatchVenda } from "@/lib/vendas-write.server";
 
 const LOTE_MAX = 200;
