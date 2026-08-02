@@ -108,6 +108,8 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
               ? null
               : (lead.projeto_id ?? null),
         projetoNome,
+        unidade,
+
         valorVenda: valorNum,
         dataAssinatura,
         split: split!,
