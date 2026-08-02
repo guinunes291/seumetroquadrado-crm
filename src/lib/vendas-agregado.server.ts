@@ -82,7 +82,7 @@ export async function lerVendasAgregado(args: {
   let query = supabaseAdmin
     .from("vendas")
     .select(
-      "id,lead_id,corretor_id,projeto_id,projeto_nome,valor_venda,data_assinatura,distrato,data_distrato,status_venda",
+      "id,lead_id,corretor_id,projeto_id,projeto_nome,unidade,valor_venda,data_assinatura,distrato,data_distrato,status_venda",
     )
     .eq("status_venda", "aprovada")
     .gte("data_assinatura", desde)
@@ -140,8 +140,7 @@ export async function lerVendasAgregado(args: {
     projeto_id: v.projeto_id,
     projeto_nome: v.projeto_id ? (projeto.get(v.projeto_id)?.nome ?? null) : v.projeto_nome,
     construtora: v.projeto_id ? (projeto.get(v.projeto_id)?.construtora ?? null) : null,
-    // O CRM ainda não vincula a unidade vendida à venda (ver proposta no chat).
-    unidade: null,
+    unidade: (v as { unidade?: string | null }).unidade ?? null,
     valor: Number(v.valor_venda) || 0,
     data_venda: v.data_assinatura,
     distrato: Boolean(v.distrato),
