@@ -43,7 +43,9 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const [dataAssinatura, setDataAssinatura] = useState(hoje());
   const [projetoId, setProjetoId] = useState<string>(lead.projeto_id ?? "none");
   const [projetoManual, setProjetoManual] = useState("");
+  const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
     corretor: "1.85",
@@ -106,6 +108,8 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
               ? null
               : (lead.projeto_id ?? null),
         projetoNome,
+        unidade,
+
         valorVenda: valorNum,
         dataAssinatura,
         split: split!,
@@ -191,7 +195,17 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
                 </p>
               </div>
             )}
+            <div className="space-y-1.5 pt-1">
+              <Label>Unidade</Label>
+              <Input
+                value={unidade}
+                onChange={(e) => setUnidade(e.target.value)}
+                placeholder="Ex.: Torre B — apto 1204"
+                maxLength={60}
+              />
+            </div>
           </div>
+
 
           <ComissaoSplitFields
             valorVenda={parseCurrencyBRL(valor)}

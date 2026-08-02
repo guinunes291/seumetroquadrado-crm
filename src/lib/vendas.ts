@@ -33,6 +33,8 @@ export type RegistrarVendaInput = {
   criadoPorId: string | null;
   projetoId: string | null;
   projetoNome: string | null;
+  /** Unidade/apartamento vendido (opcional, texto curto). */
+  unidade?: string | null;
   valorVenda: number;
   dataAssinatura: string;
   split: SplitPercentuais;
@@ -52,6 +54,7 @@ export async function registrarVenda(input: RegistrarVendaInput): Promise<string
       criado_por_id: input.criadoPorId,
       projeto_id: input.projetoId,
       projeto_nome: input.projetoNome,
+      unidade: input.unidade?.trim() || null,
       valor_venda: input.valorVenda,
       data_assinatura: input.dataAssinatura,
       percentual_comissao: input.split.total,
@@ -66,3 +69,4 @@ export async function registrarVenda(input: RegistrarVendaInput): Promise<string
   if (insErr) throw insErr;
   return criada.id;
 }
+
