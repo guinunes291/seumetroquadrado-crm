@@ -75,6 +75,7 @@ import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/
 import { Route as ApiPublicHooksPushDispatchRouteImport } from './routes/api/public/hooks/push-dispatch'
 import { Route as ApiPublicHooksCopilotoHandoffRouteImport } from './routes/api/public/hooks/copiloto-handoff'
 import { Route as ApiPublicEscritaPingRouteImport } from './routes/api/public/escrita/ping'
+import { Route as ApiPublicEscritaLogRouteImport } from './routes/api/public/escrita/log'
 import { Route as ApiPublicEscritaHealthRouteImport } from './routes/api/public/escrita/health'
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiPublicComissoesIdRouteImport } from './routes/api/public/comissoes/$id'
@@ -435,6 +436,11 @@ const ApiPublicEscritaPingRoute = ApiPublicEscritaPingRouteImport.update({
   path: '/api/public/escrita/ping',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEscritaLogRoute = ApiPublicEscritaLogRouteImport.update({
+  id: '/api/public/escrita/log',
+  path: '/api/public/escrita/log',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicEscritaHealthRoute = ApiPublicEscritaHealthRouteImport.update({
   id: '/api/public/escrita/health',
   path: '/api/public/escrita/health',
@@ -537,6 +543,7 @@ export interface FileRoutesByFullPath {
   '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
+  '/api/public/escrita/log': typeof ApiPublicEscritaLogRoute
   '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
@@ -612,6 +619,7 @@ export interface FileRoutesByTo {
   '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
+  '/api/public/escrita/log': typeof ApiPublicEscritaLogRoute
   '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
@@ -689,6 +697,7 @@ export interface FileRoutesById {
   '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
   '/api/public/escrita/health': typeof ApiPublicEscritaHealthRoute
+  '/api/public/escrita/log': typeof ApiPublicEscritaLogRoute
   '/api/public/escrita/ping': typeof ApiPublicEscritaPingRoute
   '/api/public/hooks/copiloto-handoff': typeof ApiPublicHooksCopilotoHandoffRoute
   '/api/public/hooks/push-dispatch': typeof ApiPublicHooksPushDispatchRoute
@@ -766,6 +775,7 @@ export interface FileRouteTypes {
     | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
     | '/api/public/escrita/health'
+    | '/api/public/escrita/log'
     | '/api/public/escrita/ping'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
@@ -841,6 +851,7 @@ export interface FileRouteTypes {
     | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
     | '/api/public/escrita/health'
+    | '/api/public/escrita/log'
     | '/api/public/escrita/ping'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
@@ -917,6 +928,7 @@ export interface FileRouteTypes {
     | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
     | '/api/public/escrita/health'
+    | '/api/public/escrita/log'
     | '/api/public/escrita/ping'
     | '/api/public/hooks/copiloto-handoff'
     | '/api/public/hooks/push-dispatch'
@@ -954,6 +966,7 @@ export interface RootRouteChildren {
   ApiPublicComissoesIdRoute: typeof ApiPublicComissoesIdRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
   ApiPublicEscritaHealthRoute: typeof ApiPublicEscritaHealthRoute
+  ApiPublicEscritaLogRoute: typeof ApiPublicEscritaLogRoute
   ApiPublicEscritaPingRoute: typeof ApiPublicEscritaPingRoute
   ApiPublicHooksCopilotoHandoffRoute: typeof ApiPublicHooksCopilotoHandoffRoute
   ApiPublicHooksPushDispatchRoute: typeof ApiPublicHooksPushDispatchRoute
@@ -1432,6 +1445,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEscritaPingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/escrita/log': {
+      id: '/api/public/escrita/log'
+      path: '/api/public/escrita/log'
+      fullPath: '/api/public/escrita/log'
+      preLoaderRoute: typeof ApiPublicEscritaLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/escrita/health': {
       id: '/api/public/escrita/health'
       path: '/api/public/escrita/health'
@@ -1617,6 +1637,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicComissoesIdRoute: ApiPublicComissoesIdRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
   ApiPublicEscritaHealthRoute: ApiPublicEscritaHealthRoute,
+  ApiPublicEscritaLogRoute: ApiPublicEscritaLogRoute,
   ApiPublicEscritaPingRoute: ApiPublicEscritaPingRoute,
   ApiPublicHooksCopilotoHandoffRoute: ApiPublicHooksCopilotoHandoffRoute,
   ApiPublicHooksPushDispatchRoute: ApiPublicHooksPushDispatchRoute,
