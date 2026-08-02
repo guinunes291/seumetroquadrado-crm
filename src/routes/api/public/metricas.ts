@@ -7,6 +7,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse } from "@/lib/public-api-auth";
 import { requireApiClientScope, restrictedCorretorIds } from "@/lib/api-client-auth.server";
+import { lerVendasAgregado } from "@/lib/vendas-agregado.server";
+
 
 function monthRange() {
   const now = new Date();
