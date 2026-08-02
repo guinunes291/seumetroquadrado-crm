@@ -4706,6 +4706,13 @@ export type Database = {
           },
         ]
       }
+      mcp_colunas_sem_grant: {
+        Row: {
+          coluna: string | null
+          tabela: string | null
+        }
+        Relationships: []
+      }
       mcp_escrita_hoje: {
         Row: {
           acao: string | null
@@ -6001,6 +6008,13 @@ export type Database = {
           tabela: string
         }[]
       }
+      mcp_colunas_segredo: {
+        Args: never
+        Returns: {
+          coluna: string
+          tabela: string
+        }[]
+      }
       mcp_log_bloqueio: {
         Args: { _acao: string; _detalhe: string; _tabela: string }
         Returns: undefined
@@ -6008,6 +6022,14 @@ export type Database = {
       mcp_marcar_perdido: {
         Args: { _lead_id: string; _motivo: string; _motivo_categoria: string }
         Returns: Json
+      }
+      mcp_sincronizar_grants_colunas: {
+        Args: never
+        Returns: {
+          acao: string
+          coluna: string
+          tabela: string
+        }[]
       }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
