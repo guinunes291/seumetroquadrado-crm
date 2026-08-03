@@ -34,32 +34,48 @@ import { isTypingTarget } from "@/lib/shortcuts";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+type Role = "admin" | "gestor" | "corretor" | "superintendente";
+
 type Item = {
   to?: string;
+  /** Search params do destino — o badge precisa levar à ABA onde a ação vive. */
+  search?: Record<string, string>;
   label: string;
   icon: typeof LayoutDashboard;
-  roles?: ("admin" | "gestor" | "corretor" | "superintendente")[];
+  roles?: Role[];
   comingSoon?: boolean;
   /** Subitens recolhíveis — usados para consolidar o menu sem esconder rotas. */
   children?: Item[];
   /** Qual contador de pendências este destino carrega (badge discreto). */
   badge?: (b: NavBadges) => number;
+  /** Papéis que veem o BADGE, quando diferem de quem vê o item.
+   *  Ex.: Desempenho é de todos, mas só a gestão aprova venda. */
+  badgeRoles?: Role[];
 };
 
-// Navegação por INTENÇÃO com TETO DE 7 BOTÕES principais (Fase 1 da reestruturação).
-// Cada botão é um "destino" que agrupa as rotas relacionadas como subitens recolhíveis.
-// Nenhuma rota foi removida — tudo continua acessível, só consolidado em 7 grupos:
-// corretor vê 6 botões, gestor/admin 7 (Configurações vive no rodapé).
+// Navegação por INTENÇÃO com TETO DE 7 BOTÕES principais.
+// Cada botão é um "destino" que agrupa as rotas relacionadas como subitens
+// recolhíveis. Nenhuma rota foi removida — tudo continua acessível.
+// Corretor vê 6 botões, gestor/admin 7 (Configurações vive no rodapé).
 const NAV_ITEMS: Item[] = [
   {
-    // A home é a Central de Comando; Desempenho (ranking/copa/comissões) e o
-    // material de apoio (Links Úteis) são filhos.
+    // A home é a Central de Comando; Desempenho (ranking/copa/comissões) é
+    // filho. Links Úteis foi promovido a botão próprio no fim da lista.
     to: "/hoje",
     label: "Início",
     icon: Sun,
     children: [
-      { to: "/ranking", label: "Desempenho", icon: Trophy },
-      { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
+      {
+        // O contador de aprovações vive AQUI porque é aqui que se aprova:
+        // PendingSalesApproval é montado na aba Comissões (comissoes-page.tsx),
+        // não no hub de Gestão. O badge leva direto à aba que tem a ação.
+        to: "/ranking",
+        search: { tab: "comissoes" },
+        label: "Desempenho",
+        icon: Trophy,
+        badge: (b) => b.aprovacoes,
+        badgeRoles: ["admin", "gestor", "superintendente"],
+      },
     ],
   },
   {
@@ -117,7 +133,6 @@ const NAV_ITEMS: Item[] = [
     label: "Gestão",
     icon: BarChart3,
     roles: ["admin", "gestor", "superintendente"],
-    badge: (b) => b.aprovacoes,
     children: [
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
       {
@@ -127,6 +142,15 @@ const NAV_ITEMS: Item[] = [
         roles: ["admin", "gestor"],
       },
     ],
+  },
+  {
+    // Material de apoio das construtoras (books, tabelas, sistemas): consulta
+    // diária em campo. Era filho de Início — dois níveis para um uso de todo
+    // dia. Botão único no fim da lista: a posição respeita a frequência sem
+    // competir com os destinos de decisão pelo topo da leitura.
+    to: "/links-uteis",
+    label: "Links Úteis",
+    icon: Link2,
   },
 ];
 
@@ -155,13 +179,14 @@ function SidebarContent({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const badges = useNavBadges();
 
-  const canSee = (it: Item) => {
-    if (!it.roles) return true;
+  const temPapel = (permitidos: Role[]) => {
     if (isAdmin) return true;
-    return it.roles.some(
+    return permitidos.some(
       (r) => (r === "admin" && isAdmin) || (r === "gestor" && isGestor) || roles.includes(r),
     );
   };
+
+  const canSee = (it: Item) => (it.roles ? temPapel(it.roles) : true);
 
   const visibleChildren = (it: Item) => (it.children ?? []).filter(canSee);
 
@@ -177,7 +202,12 @@ function SidebarContent({
     window.location.href = "/auth";
   };
 
-  const badgeCount = (it: Item): number => (badges && it.badge ? it.badge(badges) : 0);
+  const badgeCount = (it: Item): number => {
+    if (!badges || !it.badge) return 0;
+    // Badge de ação que o papel não pode executar é ruído: some.
+    if (it.badgeRoles && !temPapel(it.badgeRoles)) return 0;
+    return it.badge(badges);
+  };
 
   // Item ativo: trilho dourado à esquerda + texto/ícone dourados sobre um véu
   // sutil — o dourado é acento, não bloco (moeda rara do design system).
@@ -231,6 +261,7 @@ function SidebarContent({
     return (
       <Link
         to={it.to}
+        search={it.search}
         onClick={onNavigate}
         aria-current={isActivePath(pathname, it.to) ? "page" : undefined}
         className={cn(leafClasses(isActivePath(pathname, it.to)), opts?.nested && "pl-9")}

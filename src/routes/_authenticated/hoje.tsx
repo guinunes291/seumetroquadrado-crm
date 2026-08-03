@@ -1,16 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
-import { useHomeWidgetPrefs, WIDGET_SIZE_CLASS } from "@/features/command-center/widget-registry";
-import { CustomizeHomeDialog } from "@/features/command-center/widgets/customize-dialog";
+import { useHomeWidgets, WIDGET_SIZE_CLASS } from "@/features/command-center/widget-registry";
 import type { Periodo } from "@/features/command-center/widgets/use-home-data";
 
 export const Route = createFileRoute("/_authenticated/hoje")({
@@ -39,8 +35,8 @@ function saudacao(): string {
  * Central de Comando como cockpit de widgets: a rota calcula o ESCOPO
  * (minha/operação — PR #78) e entrega o resultado pronto a cada widget via
  * props; cada widget busca os próprios dados e falha isolado no seu
- * AsyncBoundary. Quais widgets aparecem — e em que ordem — é preferência do
- * usuário (useHomeWidgetPrefs), ajustável pelo diálogo de personalização.
+ * AsyncBoundary. Quais widgets aparecem depende do papel e do escopo
+ * (useHomeWidgets); a ordem é fixa, definida em HOME_WIDGETS.
  */
 function CommandCenterPage() {
   const { user } = useAuth();
@@ -49,13 +45,11 @@ function CommandCenterPage() {
   // "produtividade" compartilham o mesmo seletor (e as mesmas queries).
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
 
-  // Escopo da tela: "minha" (carteira do usuário) x "operacao" (visão gerencial).
+  // Escopo da tela, derivado do PAPEL — não há mais alternância manual.
   // admin/superintendente veem TUDO; gestor vê a própria equipe; corretor só
-  // tem "minha". Default é "operacao" para quem pode — o admin abre a Hoje e vê
-  // a operação, não um dia pessoal vazio.
+  // tem "minha". Quem gere abre a Hoje na operação; quem vende, no próprio dia.
   const podeOperacao = isAdmin || isSuperintendente || isGestor;
-  const [escopoManual, setEscopoManual] = useState<"minha" | "operacao" | null>(null);
-  const escopo: "minha" | "operacao" = escopoManual ?? (podeOperacao ? "operacao" : "minha");
+  const escopo: "minha" | "operacao" = podeOperacao ? "operacao" : "minha";
 
   // Corretores da equipe do gestor (inclui ele mesmo). Só busca quando um gestor
   // sem papel global está na visão de operação.
@@ -91,7 +85,7 @@ function CommandCenterPage() {
   // Evita disparar as queries com escopo incompleto (gestor esperando a equipe).
   const scopeReady = !precisaEquipe || equipeCorretorIds !== undefined;
 
-  const prefs = useHomeWidgetPrefs(escopo);
+  const widgets = useHomeWidgets(escopo);
 
   const primeiroNome =
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
@@ -108,25 +102,6 @@ function CommandCenterPage() {
             ? `${saudacao()}, ${primeiroNome} — o que exige ação, o ritmo da meta e os atalhos da gestão.`
             : `${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`
         }
-        actions={
-          <>
-            {podeOperacao ? (
-              <div className="inline-flex rounded-md border bg-card p-0.5">
-                {(["operacao", "minha"] as const).map((e) => (
-                  <Button
-                    key={e}
-                    size="sm"
-                    variant={escopo === e ? "default" : "ghost"}
-                    onClick={() => setEscopoManual(e)}
-                  >
-                    {e === "operacao" ? "Operação" : "Minha"}
-                  </Button>
-                ))}
-              </div>
-            ) : undefined}
-            <CustomizeHomeDialog prefs={prefs} />
-          </>
-        }
       />
 
       {/* O escopo de equipe do gestor é pré-requisito de TODOS os widgets: se a
@@ -142,31 +117,23 @@ function CommandCenterPage() {
         onRetry={() => void equipeQ.refetch()}
         loadingLabel="Carregando a sua equipe…"
       >
-        {prefs.visible.length === 0 ? (
-          <EmptyState
-            icon={LayoutGrid}
-            title="Todos os widgets estão ocultos"
-            description="Use o botão de personalização no topo da página para reativá-los."
-          />
-        ) : (
-          <div className="stagger-children grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-6">
-            {prefs.visible.map((w) => {
-              const Widget = w.Component;
-              return (
-                <div key={w.id} className={cn("min-w-0", WIDGET_SIZE_CLASS[w.size])}>
-                  <Widget
-                    escopo={escopo}
-                    scopeIds={scopeIds}
-                    scopeKey={scopeKey}
-                    scopeReady={scopeReady}
-                    periodo={periodo}
-                    onPeriodoChange={setPeriodo}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="stagger-children grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-6">
+          {widgets.map((w) => {
+            const Widget = w.Component;
+            return (
+              <div key={w.id} className={cn("min-w-0", WIDGET_SIZE_CLASS[w.size])}>
+                <Widget
+                  escopo={escopo}
+                  scopeIds={scopeIds}
+                  scopeKey={scopeKey}
+                  scopeReady={scopeReady}
+                  periodo={periodo}
+                  onPeriodoChange={setPeriodo}
+                />
+              </div>
+            );
+          })}
+        </div>
       </AsyncBoundary>
     </div>
   );

@@ -5,7 +5,7 @@ import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { cn } from "@/lib/utils";
 import { leadStatusLabel } from "@/lib/leads";
 import { TIER_DOT } from "@/lib/priority";
-import { Copy, MessageCircle, Phone } from "lucide-react";
+import { Copy, MessageCircle, Phone, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import {
   QUEUE_HINT,
@@ -26,7 +26,8 @@ const QUEUE_ACCENT: Record<QueueKey, string> = {
 
 /**
  * Uma fila do Atendimento: cabeçalho com propósito + linhas com ação em
- * 1 clique. O WhatsApp abre já com o script certo para o momento da fila.
+ * 1 clique. O WhatsApp abre já com o script certo para o momento da fila, e
+ * registrar o contato não exige abrir o lead — é a ação mais repetida do dia.
  */
 export function QueueSection({
   queue,
@@ -36,6 +37,7 @@ export function QueueSection({
   iconClass,
   onWhatsApp,
   onPeek,
+  onRegistrarContato,
 }: {
   queue: QueueKey;
   items: QueueItem[];
@@ -44,6 +46,7 @@ export function QueueSection({
   iconClass: string;
   onWhatsApp: (item: QueueItem, mensagem: string) => void;
   onPeek: (item: QueueItem) => void;
+  onRegistrarContato: (item: QueueItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -126,6 +129,17 @@ export function QueueSection({
                   <a href={`tel:${l.telefone.replace(/\D/g, "")}`}>
                     <Phone className="h-4 w-4" />
                   </a>
+                </Button>
+                {/* Fecha o ciclo da fila sem sair dela: ligou/falou, registra
+                    aqui. Antes exigia abrir o peek do lead primeiro. */}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 text-primary hover:bg-primary/10"
+                  title="Registrar contato e marcar o próximo follow-up"
+                  onClick={() => onRegistrarContato(item)}
+                >
+                  <PhoneCall className="h-4 w-4" />
                 </Button>
               </div>
             </div>

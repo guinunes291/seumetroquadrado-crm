@@ -212,6 +212,14 @@ export function CommandPalette() {
     },
     { label: "Oferta Ativa", icon: Users, go: () => navigate({ to: "/oferta-ativa" }) },
     {
+      // /match não tem entrada no menu (é ferramenta de contexto, chamada da
+      // ficha do lead e do hub de projetos). Sem estar aqui, era a única página
+      // viva do sistema impossível de alcançar sem saber a URL de cor.
+      label: "Match Cliente ↔ Empreendimento",
+      icon: Building2,
+      go: () => navigate({ to: "/match" }),
+    },
+    {
       label: "Comissões",
       icon: ListTodo,
       go: () => navigate({ to: "/ranking", search: { tab: "comissoes" } }),

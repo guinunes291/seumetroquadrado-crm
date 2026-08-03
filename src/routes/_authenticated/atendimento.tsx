@@ -12,9 +12,15 @@ import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer";
+import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcAtendimentoInbox } from "@/features/atendimento/atendimento-rpc";
-import { QUEUE_LABEL, type QueueItem, type QueueKey } from "@/features/atendimento/derive";
+import {
+  QUEUE_LABEL,
+  type AtendimentoLead,
+  type QueueItem,
+  type QueueKey,
+} from "@/features/atendimento/derive";
 import { QueueSection } from "@/features/atendimento/queue-section";
 import {
   CalendarClock,
@@ -49,6 +55,7 @@ function AtendimentoPage() {
   const { user } = useAuth();
   const abrirWhatsApp = useWhatsAppLead();
   const [peek, setPeek] = useState<PeekLead | null>(null);
+  const [contatoLead, setContatoLead] = useState<AtendimentoLead | null>(null);
 
   // Classificação, deduplicação e contagens acontecem no banco. A resposta traz
   // no máximo 15 cards por fila, mas as contagens consideram a carteira inteira.
@@ -173,12 +180,28 @@ function AtendimentoPage() {
                   iconClass={iconClass}
                   onWhatsApp={onWhatsApp}
                   onPeek={(item) => setPeek(item.lead)}
+                  onRegistrarContato={(item) => setContatoLead(item.lead)}
                 />
               ))}
             </div>
           )}
         </div>
       </AsyncBoundary>
+
+      {/* Uma instância só para todas as filas — reusa o fluxo existente
+          (interação + próximo follow-up num gesto). Nenhuma mutação nova. */}
+      {contatoLead && (
+        <RegistrarContatoDialog
+          open
+          onOpenChange={(o) => !o && setContatoLead(null)}
+          lead={{
+            id: contatoLead.id,
+            nome: contatoLead.nome,
+            corretor_id: contatoLead.corretor_id,
+          }}
+          onDone={() => setContatoLead(null)}
+        />
+      )}
 
       <LeadPeekDrawer
         lead={peek}

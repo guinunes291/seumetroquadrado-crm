@@ -125,6 +125,9 @@ export function RegistrarContatoDialog({
       qc.invalidateQueries({ queryKey: ["meu-dia:sem-acao"] });
       qc.invalidateQueries({ queryKey: ["meu-dia:tarefas"] });
       qc.invalidateQueries({ queryKey: ["blitz-queue"] });
+      // Registrar contato tira o lead das filas de "responder"/"esfriando" —
+      // sem isto o card só sumia quando o realtime chegasse (ou não chegasse).
+      qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
       onDone?.();
     },
