@@ -42,7 +42,11 @@ Isso leva #2 de 4 para 3 e está proposto como item novo **1.11**, fora do que j
 
 | # | Item | Arquivos | Impacto | Esf. | Risco |
 |---|---|---|---|---|---|
-| 1.11 | **"Registrar contato" in-line no card de Atendimento** | `features/atendimento/queue-section.tsx`, `registrar-contato-dialog.tsx` | **~100 cliques/sem** (#2: 4 → 3) | P | baixo — o dialog já existe e recebe o lead do card |
+| 1.11 | **"Registrar contato" in-line no card de Atendimento** ✅ entregue | `features/atendimento/queue-section.tsx`, `atendimento.tsx`, `registrar-contato-dialog.tsx` | **~100 cliques/sem** (#2: 4 → 3) | P | baixo — o dialog já existe e recebe o lead do card |
+
+> Na implementação apareceu um bug de cache pré-existente: `RegistrarContatoDialog` invalidava
+> `blitz-queue` mas não `atendimento:inbox`, então um contato registrado pelo peek em
+> `/atendimento` só sumia da fila quando o realtime de `interacoes` chegasse. Corrigido junto.
 
 ---
 
