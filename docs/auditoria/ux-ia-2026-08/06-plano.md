@@ -20,13 +20,29 @@ Sem migração de dados, **sem mudança de rota**, sem tocar schema. Tudo revers
 | 1.6 | **Fixar ordem dos widgets**, remover personalização | `hoje.tsx:127`, `widget-registry.tsx` | H-Sinal; ninguém usou **[DECIDIDO]** | P | baixo | 1.5 |
 | 1.7 | **`/match` entra no ⌘K** | `command-palette.tsx:197-244` | torna achável a única página fora de toda navegação | P | nenhum | — |
 | 1.8 | **Etapa in-line no card de Atender** | `features/atendimento/queue-section.tsx`, `lead-stage-menu.tsx` | **~40 cliques/sem** (#3: 4→3) | M | médio — transição só via `transicionarLead` | — |
-| 1.9 | **Filtro "parado há X dias" parametrizável** | `leads.index.tsx:507, 588` | #13 deixa de ser fixo em 30d | M | baixo | RPC `leads_filtered_v3` já aceita recorte |
+| ~~1.9~~ | **Filtro "parado há X dias" — MOVIDO PARA A ONDA 2** | — | — | — | — | ver 2.11 |
 | 1.10 | **Corrigir o badge de aprovações** — apontar para onde a ação está | `app-sidebar.tsx:120`, `features/nav/use-nav-badges.ts` | #15: para de mentir | P | nenhum | — |
 
-**Total Onda 1: ~300 cliques/semana por corretor**, sem uma única rota alterada.
+**Total Onda 1 entregue: ~160 cliques/semana por corretor**, sem uma única rota alterada.
 
 > Item 1.10 é o mais barato do backlog e conserta um loop de trabalho quebrado. Deve ser o
 > primeiro commit.
+
+### Correção sobre o item 1.1 (descoberta na implementação)
+
+A estimativa original creditava ao FAB a redução da tarefa #2 (registrar interação) de 4 para
+2 cliques — **isso estava errado**. `RegistrarContatoDialog` exige um lead
+(`registrar-contato-dialog.tsx:64-70`), e a partir de um botão global não há lead no contexto:
+o caminho seria FAB → Registrar contato → escolher o lead → Salvar, os mesmos 4 toques de hoje.
+
+O FAB entrega ganho real em **Novo lead** e **Projetos** (#6: 4 → 2). A redução da tarefa #2
+depende de uma ação in-line no card da fila de Atendimento — o card hoje tem copiar script,
+WhatsApp e ligar (`features/atendimento/queue-section.tsx:101-129`), mas não registrar contato.
+Isso leva #2 de 4 para 3 e está proposto como item novo **1.11**, fora do que já foi aprovado.
+
+| # | Item | Arquivos | Impacto | Esf. | Risco |
+|---|---|---|---|---|---|
+| 1.11 | **"Registrar contato" in-line no card de Atendimento** | `features/atendimento/queue-section.tsx`, `registrar-contato-dialog.tsx` | **~100 cliques/sem** (#2: 4 → 3) | P | baixo — o dialog já existe e recebe o lead do card |
 
 ---
 
@@ -46,6 +62,17 @@ Fusão de páginas, drawers e rotas novas **com redirect das antigas**.
 | 2.8 | **Oferta Ativa dividida por papel** **[DECIDIDO]** | `/oferta-ativa/nova` → aba Campanhas | coerência de papel | M | baixo | 2.1 |
 | 2.9 | **Landing vira aba de Distribuição** | `leads-landing.tsx` → `/distribuicao?tab=landing` | tira item de gestão do menu do corretor | M | baixo | — |
 | 2.10 | **Comparação lado a lado** em Funil e Relatórios | `funil-view.tsx`, `relatorios-view.tsx:104` | **#10 e #11**, hoje impossíveis | **G** | médio | 2.2 |
+| 2.11 | **Filtro "parado há X dias"** — veio da Onda 1 | `lib/leads-views.ts:25-34`, `lib/leads-filtros.ts:66-91`, nova `leads_filtered_v4` | #13 deixa de aceitar só 5 ou 30 | M | médio | **exige migração** |
+
+> **Por que 2.11 saiu da Onda 1.** A Onda 1 é "sem migração", e este item não cabe nessa
+> restrição sem virar bug. O `CASE` de `leads_filtered_v3` termina em `ELSE true`
+> (`20260728100000_leads_filtered_v3.sql:246`): um valor de `_contato` que o servidor não
+> conhece devolve **a lista inteira, sem filtro**. E no caminho v3 o cliente não re-filtra —
+> `if (source !== "v1") return leadsAll` (`leads.index.tsx:637`). Resultado de adicionar um
+> preset só no front: a tela mostraria todos os leads como se fossem os parados. Errado em
+> silêncio, na tela usada para decidir quem cobrar. Precisa de `leads_filtered_v4` +
+> `leads_status_counts_v4` (as contagens dos chips leem o mesmo `_contato`), com
+> `rpcWithFallback` para degradar sem quebrar.
 
 > **2.7 é o item de maior risco do plano inteiro.** Recomendo quebrá-lo em três PRs: (a) modo
 > Consulta dentro de Atender lendo a mesma query de `/leads`; (b) migrar filtros para drawer;
