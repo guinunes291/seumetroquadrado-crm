@@ -115,11 +115,14 @@ Consequência: a Fase 5 desenha **dois** menus (corretor e gestão), não três.
 - **Decisão:** executar volume de contato sem custo de escolha
 - **Objeto central:** lead
 - **Frequência:** diária ou semanal, conforme rotina do corretor
-- **Veredito:** **VIRAR MODO DE `/atendimento`** **[ASSUNÇÃO]**
-- **Justificativa:** está vivo **[DECIDIDO]**, então não elimino. Mas a pergunta que ele responde
-  é uma variante da pergunta de Atendimento — "quem eu procuro agora" com fila mais estreita e
-  sem escolha. Duas rotas para a mesma intenção é o sinal D1 do inventário. Como *modo* dentro
-  de Atendimento ele mantém a função e libera um slot de menu.
+- **Veredito:** **VIRAR MODO DE `/atendimento`** **[DECIDIDO]**
+- **Justificativa:** você definiu a diferença em uma frase — **"Blitz é volume, Atendimento é
+  prioridade"**. Isso confirma que são duas *intensidades* da mesma intenção ("quem eu procuro
+  agora"), não duas perguntas. Duas rotas de 1º nível para a mesma intenção é o sinal D1 do
+  inventário. Como modo dentro de Atendimento, o Blitz mantém a função (fila estreita, sem
+  custo de escolha, execução em série) e libera um slot de menu.
+- **Consequência de design:** o seletor de modo em Atendimento passa a ser
+  *Prioridade* (5 filas por score) × *Volume* (fila corrida do Blitz).
 
 ## Oferta Ativa — `/oferta-ativa`, `/oferta-ativa/nova`, `/oferta-ativa/$ofertaId`
 
@@ -129,10 +132,13 @@ Consequência: a Fase 5 desenha **dois** menus (corretor e gestão), não três.
 - **Decisão:** para quem ofertar o quê
 - **Objeto central:** lista de leads segmentada
 - **Frequência:** semanal a mensal
-- **Veredito:** **MANTER, MAS REBAIXAR** **[ASSUNÇÃO]**
-- **Justificativa:** está vivo **[DECIDIDO]**. São 1.613 linhas em 3 rotas — o terceiro maior
-  bloco do sistema — para um uso que não é diário. A criação (`/nova`, admin/gestor) é ato de
-  gestão; a execução é ato de corretor. Hoje as duas coisas moram no mesmo lugar, sob Leads.
+- **Veredito:** **DIVIDIR por papel** **[DECIDIDO]**
+- **Justificativa:** você confirmou — **gestor cria, corretor executa**. São dois atos, duas
+  personas e duas perguntas: *"que campanha eu monto?"* (gestão) e *"que lista eu trabalho
+  hoje?"* (corretor). Hoje as duas moram na mesma rota sob **Leads**, e a criação já é
+  admin/gestor-only (`oferta-ativa.nova.tsx`) — ou seja, o corretor vê uma porta cuja metade
+  ele não pode abrir. A criação (`/nova`) vai para o mundo de gestão; a execução
+  (`/oferta-ativa`, `/$ofertaId`) fica como modo de trabalho do corretor, junto com Blitz.
 
 ## Captação (Landing) — `/leads-landing`
 
@@ -208,11 +214,12 @@ Consequência: a Fase 5 desenha **dois** menus (corretor e gestão), não três.
 - **Decisão:** abrir o material certo
 - **Objeto central:** material de apoio
 - **Frequência:** semanal
-- **Veredito:** **VIRAR ABA DE `/projetos`** **[ASSUNÇÃO]**
-- **Justificativa:** o objeto é o mesmo (empreendimento/construtora) e a pergunta é vizinha.
-  Hoje é filho de **Início**, o que quebra a associação mental: material de projeto vive fora
-  do mundo de projetos. Nota: essa aba **já existiu** em `/projetos` e foi promovida a página
-  (`links-uteis.tsx:3-6`) — antes de reverter, quero saber por que foi promovida. **[DÚVIDA]**
+- **Veredito:** **MANTER como página, e MOVER para filho de Projetos** **[DECIDIDO]**
+- **Justificativa:** você respondeu que é **usada o dia todo** — então não vira aba. Reverter a
+  promoção seria repetir o erro que a promoção corrigiu. Mas o lugar dela no menu está errado:
+  hoje é filho de **Início**, e o objeto é empreendimento/construtora. Mover para baixo de
+  Projetos preserva o acesso e conserta a associação mental. Se é uso diário em campo, a Fase 5
+  precisa medir quantos toques custa chegar nela pelo celular.
 
 ## Desempenho — `/ranking`
 
@@ -309,11 +316,11 @@ Consequência: a Fase 5 desenha **dois** menus (corretor e gestão), não três.
 | Veredito | Páginas |
 |---|---|
 | **MANTER** | `/hoje`, `/leads/$leadId`, `/atendimento`, `/distribuicao`, `/vitrine`, `/modo-visita`, `/meu-perfil`, públicas |
-| **MANTER, MAS REBAIXAR** | `/pipeline`, `/oferta-ativa` |
-| **MANTER E PROMOVER (mobile)** | `/projetos`, `/agendamentos` |
+| **MANTER, MAS REBAIXAR** | `/pipeline` |
+| **MANTER E PROMOVER (mobile)** | `/projetos`, `/agendamentos`, `/links-uteis` |
 | **FUNDIR** | `/leads` → `/atendimento` · Comissões de `/ranking` → `/financeiro` |
-| **VIRAR ABA/MODO DE** | `/blitz` → modo de Atendimento · `/leads-landing` → aba de Distribuição · `/links-uteis` → aba de Projetos |
-| **DIVIDIR** | `/painel-gestor` (bloco admin → `/configuracoes`) · `/ranking` (Comissões sai) |
+| **VIRAR ABA/MODO DE** | `/blitz` → modo "Volume" de Atendimento · `/leads-landing` → aba de Distribuição |
+| **DIVIDIR** | `/painel-gestor` (bloco admin → `/configuracoes`) · `/ranking` (Comissões sai) · `/oferta-ativa` (criação → gestão, execução → corretor) |
 | **MANTER FORA DO MENU** | `/match` |
 | **ELIMINAR** | nenhuma página. As candidatas naturais (Blitz, Oferta Ativa, Modo Visita, Match) foram confirmadas vivas por você. |
 
@@ -323,27 +330,75 @@ mesma tela**.
 
 ---
 
-# Dúvidas que preciso responder antes da Fase 3
+# Dúvidas — resolvidas
 
-Sete, dentro do teto de oito.
+As sete foram respondidas. Registro aqui o que cada resposta mudou.
 
-1. **As 5 etapas fora do funil** (`novo`, `aguardando_corretor`, `qualificado`,
-   `proposta_enviada`, `pos_venda`) ainda recebem lead? E falta alguma etapa do processo
-   comercial que o CRM não modela? *(você pediu para revisar comigo — bloqueia a Fase 4)*
-2. **`/links-uteis` já foi aba de `/projetos` e foi promovida a página** (`links-uteis.tsx:3-6`).
-   Por quê? Se foi por dificuldade de achar, devolvê-la a aba repete o erro.
-3. **`/oferta-ativa`**: quem cria a campanha e quem executa? Se são pessoas diferentes, a
-   criação vai para gestão e a execução fica com o corretor.
-4. **`/blitz` × `/atendimento`**: qual a diferença na cabeça do corretor? Se ele não souber
-   dizer em uma frase, viram um só.
-5. **`gestao_metricas`, `leads_search_v2` e ~28 outras RPCs sem tela**: foram construídas para
-   telas que não vieram, ou substituídas? Quero saber se elimino ou se conecto.
-6. **Aprovação de venda**: você não marcou "aprovar venda pendente" entre as tarefas a medir,
-   mas existe `pending-sales-approval.tsx` e a RPC `aprovar_venda`. Não é tarefa sua?
-7. **Badge de "aprovações" no menu Gestão** (`app-sidebar.tsx:120`): se aprovar venda não é
-   tarefa medida, esse badge está cobrando algo que ninguém trata?
+| # | Dúvida | Resposta | Consequência |
+|---|---|---|---|
+| 1 | Etapas fora do funil | Só `novo` + `aguardando_corretor` recebem lead | Ver **A1** abaixo |
+| 2 | Etapa faltante no CRM | Falta **Em Análise / Aprovada / Reprovada** | Ver **A2** abaixo |
+| 3 | `/links-uteis` | Usada o dia todo | Vira página mantida, movida para filho de Projetos |
+| 4 | `/blitz` × `/atendimento` | "Blitz é volume, Atendimento é prioridade" | Blitz vira modo de Atendimento |
+| 5 | `/oferta-ativa` | Gestor cria, corretor executa | Rota dividida por papel |
+| 6 | RPCs sem tela | "creio que são para leitura de MCP" | Ver **A3** abaixo — **não confirmado** |
+| 7 | Aprovar venda | "É minha — esqueci de marcar" | Entra na Fase 4; o badge de aprovações está correto |
+
+## A1 — A caixa de entrada está fora do funil
+
+`novo` e `aguardando_corretor` recebem lead **[DECIDIDO]**, mas nenhum dos dois está em
+`LEAD_STATUS_ORDER` (`lib/leads.ts:24-33`).
+
+**Consequência:** o kanban de `/pipeline` e a visão Kanban de `/leads` **não mostram o lead
+recém-chegado**. Ele existe, tem dono ou espera dono, e é invisível na tela que o time usa para
+enxergar o funil. Quem vê esse lead hoje: a fila "novos" de `/atendimento`
+(`atendimento.tsx:38`), a `/distribuicao` e a `/leads-landing` — três telas diferentes, nenhuma
+delas o funil.
+
+`qualificado`, `proposta_enviada` e `pos_venda` **não recebem mais lead** — são histórico.
+Ficam como status legado de leitura, sem coluna.
+
+## A2 — `analise_credito` é uma etapa onde a operação tem três
+
+Você apontou que faltam **Em Análise**, **Análise Aprovada** e **Análise Reprovada**. Hoje o CRM
+tem um único `analise_credito` (`lib/leads.ts:16`), com modal obrigatório na entrada
+(`lib/leads.ts:104-110`).
+
+**Consequência:** um lead com crédito **aprovado** e um com crédito **reprovado** são
+indistinguíveis no funil. O gestor não consegue responder "quantos negócios estão liberados
+para fechar?" nem "quantos morreram no banco?" sem abrir lead por lead. Como MCMV vive ou morre
+na aprovação da Caixa, esta é a lacuna de modelagem mais cara do sistema — e explica parte da
+sensação de que o CRM "não ajuda a gerir".
+
+Isso **não é ajuste de UX**: exige mudança de domínio (novos status, transições, migração dos
+leads que hoje estão em `analise_credito`). Vai para a **Onda 3** da Fase 6, com desenho próprio.
+
+## A3 — A hipótese do MCP não se confirma neste repositório
+
+Sua leitura foi que as ~30 RPCs órfãs servem ao MCP. Verifiquei as três portas que existem
+neste repo:
+
+| Porta | O que encontrei |
+|---|---|
+| Servidor MCP interno (`src/lib/mcp/`) | Expõe **4 ferramentas**: `get_lead`, `list_meus_leads`, `list_meus_agendamentos`, `list_minhas_tarefas`. Todas consultam **tabelas direto** (`leads`, `agendamentos`, `tarefas`) — **nenhuma RPC órfã** |
+| Endpoints `api/public/*` | Usam 7 RPCs: `buscar_lead_duplicado`, `claim_push_outbox`, `consumir_api_rate_limit`, `pode_escrever`, `transferir_leads`, `transicionar_lead_api_perda`, `triar_e_distribuir_lead`. **Nenhuma órfã** |
+| `api/public/metricas.ts` | Agrega **direto das tabelas** `leads` e `vendas` (`:39, 46, 52`) — não usa `metricas_periodo_v2` nem `gestao_metricas`, que existem exatamente para isso |
+
+**O que isso significa:** dentro deste repositório, nada consome essas funções. O que **não
+posso descartar** daqui é um cliente externo (um MCP hospedado fora, um n8n, um script) chamando
+a RPC direto na API do Supabase com service key — esse caminho não passa por este código e é
+invisível para mim.
+
+**Como fechar a questão sem achismo:** olhar `pg_stat_statements` ou os logs de API do Supabase
+por 7 dias e ver quais dessas funções recebem chamada. O que tiver zero chamada é morto de fato.
+Deixo isso como item de verificação da Fase 6, não como conclusão da Fase 2.
+
+O caso mais eloquente independe da resposta: **`leads_search_v2` existe e o ⌘K não a usa** —
+faz `supabase.from("leads").ilike(...)` no cliente (`command-palette.tsx:91-104`). Aqui não há
+dúvida de consumidor externo: a tela que deveria usá-la está do lado, fazendo pior.
 
 ---
 
-**Status:** Fases 1 e 2 entregues. Parado para sua revisão, conforme combinado **[DECIDIDO]**.
-Fases 3 a 6 e o sumário executivo entram depois do seu aval.
+**Status:** Fases 1 e 2 completas, com as 7 dúvidas resolvidas.
+Parado para sua revisão, conforme combinado. Fases 3 a 6 e o sumário executivo entram depois do
+seu aval.
