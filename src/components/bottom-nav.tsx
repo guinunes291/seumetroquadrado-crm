@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Building2, Headset, Plus, Sparkles, Sun, Trello, UserPlus, Users } from "lucide-react";
+import { Building2, Headset, Plus, Search, Sparkles, Sun, UserPlus, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,14 +17,16 @@ type Slot = {
 
 // Os 4 destinos de polegar do corretor. O slot central (dourado) é o botão de
 // AÇÃO: um toque abre o que o corretor cria/dispara em campo.
+//
+// O 4º slot é a BUSCA, não o Pipeline: achar um lead pelo telefone é o gesto
+// mais repetido do dia e vivia só na lupa do header — alvo pequeno, no topo,
+// longe do polegar. O kanban é revisão de desktop; no celular o avanço de
+// etapa acontece pela ficha do lead. Pipeline continua no menu lateral.
 const LEFT: Slot[] = [
   { to: "/hoje", label: "Início", icon: Sun },
   { to: "/leads", label: "Leads", icon: Users },
 ];
-const RIGHT: Slot[] = [
-  { to: "/atendimento", label: "Atender", icon: Headset },
-  { to: "/pipeline", label: "Pipeline", icon: Trello },
-];
+const RIGHT: Slot[] = [{ to: "/atendimento", label: "Atender", icon: Headset }];
 
 function isActive(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(to + "/");
@@ -95,6 +97,15 @@ export function BottomNav() {
         {RIGHT.map((s) => (
           <NavSlot key={s.to} slot={s} active={isActive(pathname, s.to)} />
         ))}
+        <button
+          type="button"
+          aria-label="Buscar lead, projeto ou tarefa"
+          onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+          className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <Search className="h-5 w-5" />
+          <span className="truncate">Buscar</span>
+        </button>
       </div>
     </nav>
   );
