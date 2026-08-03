@@ -214,12 +214,12 @@ Consequência: a Fase 5 desenha **dois** menus (corretor e gestão), não três.
 - **Decisão:** abrir o material certo
 - **Objeto central:** material de apoio
 - **Frequência:** semanal
-- **Veredito:** **MANTER como página, e MOVER para filho de Projetos** **[DECIDIDO]**
-- **Justificativa:** você respondeu que é **usada o dia todo** — então não vira aba. Reverter a
-  promoção seria repetir o erro que a promoção corrigiu. Mas o lugar dela no menu está errado:
-  hoje é filho de **Início**, e o objeto é empreendimento/construtora. Mover para baixo de
-  Projetos preserva o acesso e conserta a associação mental. Se é uso diário em campo, a Fase 5
-  precisa medir quantos toques custa chegar nela pelo celular.
+- **Veredito:** **PROMOVER a item de 1º nível — botão único, última posição** **[DECIDIDO]**
+- **Justificativa:** é usada o dia todo e hoje está enterrada como filho de **Início** (2 cliques
+  no desktop, 3 toques no celular). Uso diário não pode custar navegação em dois níveis. Vai
+  para o menu principal como botão sem filhos, no fim da lista — a posição final respeita a
+  frequência sem competir com os destinos de decisão (Atendimento, Pipeline, Gestão) pelo topo
+  da leitura.
 
 ## Desempenho — `/ranking`
 
