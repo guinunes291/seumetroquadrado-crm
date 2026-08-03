@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { useHomeWidgetPrefs, WIDGET_SIZE_CLASS } from "@/features/command-center/widget-registry";
@@ -49,13 +48,11 @@ function CommandCenterPage() {
   // "produtividade" compartilham o mesmo seletor (e as mesmas queries).
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
 
-  // Escopo da tela: "minha" (carteira do usuário) x "operacao" (visão gerencial).
+  // Escopo da tela, derivado do PAPEL — não há mais alternância manual.
   // admin/superintendente veem TUDO; gestor vê a própria equipe; corretor só
-  // tem "minha". Default é "operacao" para quem pode — o admin abre a Hoje e vê
-  // a operação, não um dia pessoal vazio.
+  // tem "minha". Quem gere abre a Hoje na operação; quem vende, no próprio dia.
   const podeOperacao = isAdmin || isSuperintendente || isGestor;
-  const [escopoManual, setEscopoManual] = useState<"minha" | "operacao" | null>(null);
-  const escopo: "minha" | "operacao" = escopoManual ?? (podeOperacao ? "operacao" : "minha");
+  const escopo: "minha" | "operacao" = podeOperacao ? "operacao" : "minha";
 
   // Corretores da equipe do gestor (inclui ele mesmo). Só busca quando um gestor
   // sem papel global está na visão de operação.
@@ -108,25 +105,7 @@ function CommandCenterPage() {
             ? `${saudacao()}, ${primeiroNome} — o que exige ação, o ritmo da meta e os atalhos da gestão.`
             : `${saudacao()}, ${primeiroNome} — este é o seu dia em ordem de prioridade.`
         }
-        actions={
-          <>
-            {podeOperacao ? (
-              <div className="inline-flex rounded-md border bg-card p-0.5">
-                {(["operacao", "minha"] as const).map((e) => (
-                  <Button
-                    key={e}
-                    size="sm"
-                    variant={escopo === e ? "default" : "ghost"}
-                    onClick={() => setEscopoManual(e)}
-                  >
-                    {e === "operacao" ? "Operação" : "Minha"}
-                  </Button>
-                ))}
-              </div>
-            ) : undefined}
-            <CustomizeHomeDialog prefs={prefs} />
-          </>
-        }
+        actions={<CustomizeHomeDialog prefs={prefs} />}
       />
 
       {/* O escopo de equipe do gestor é pré-requisito de TODOS os widgets: se a
