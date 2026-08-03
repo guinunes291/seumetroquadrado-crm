@@ -1,5 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Sun, Users, Sparkles, Headset, Trello } from "lucide-react";
+import { Headset, Plus, Sparkles, Sun, Trello, UserPlus, Users } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import { cn } from "@/lib/utils";
 
 type Slot = {
@@ -8,8 +15,8 @@ type Slot = {
   icon: typeof Sun;
 };
 
-// Os 4 destinos de polegar do corretor. O slot central (dourado) invoca o
-// SamiQ — o copiloto fica literalmente sob o polegar do corretor em campo.
+// Os 4 destinos de polegar do corretor. O slot central (dourado) é o botão de
+// AÇÃO: um toque abre o que o corretor cria/dispara em campo.
 const LEFT: Slot[] = [
   { to: "/hoje", label: "Início", icon: Sun },
   { to: "/leads", label: "Leads", icon: Users },
@@ -56,14 +63,27 @@ export function BottomNav() {
         {LEFT.map((s) => (
           <NavSlot key={s.to} slot={s} active={isActive(pathname, s.to)} />
         ))}
-        <button
-          type="button"
-          aria-label="Abrir SamiQ"
-          onClick={() => window.dispatchEvent(new Event("open-samiq"))}
-          className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full bg-gradient-gold text-navy-900 shadow-glow-gold transition-transform active:scale-95"
-        >
-          <Sparkles className="h-5 w-5" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Ações rápidas"
+              className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full bg-gradient-gold text-navy-900 shadow-glow-gold transition-transform active:scale-95"
+            >
+              <Plus className="h-6 w-6" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center" side="top" sideOffset={12} className="min-w-52">
+            <DropdownMenuItem onSelect={() => abrirNovoLead()}>
+              <UserPlus className="h-4 w-4" />
+              Novo lead
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event("open-samiq"))}>
+              <Sparkles className="h-4 w-4" />
+              SamiQ
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {RIGHT.map((s) => (
           <NavSlot key={s.to} slot={s} active={isActive(pathname, s.to)} />
         ))}
