@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Headset, Plus, Sparkles, Sun, Trello, UserPlus, Users } from "lucide-react";
+import { Building2, Headset, Plus, Sparkles, Sun, Trello, UserPlus, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +77,14 @@ export function BottomNav() {
             <DropdownMenuItem onSelect={() => abrirNovoLead()}>
               <UserPlus className="h-4 w-4" />
               Novo lead
+            </DropdownMenuItem>
+            {/* Consulta de preço com o cliente na frente: sem isto, Projetos
+                custa hambúrguer > Projetos > card > tabela (4 toques). */}
+            <DropdownMenuItem asChild>
+              <Link to="/projetos">
+                <Building2 className="h-4 w-4" />
+                Projetos e preços
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event("open-samiq"))}>
               <Sparkles className="h-4 w-4" />
