@@ -53,14 +53,14 @@ type Item = {
   badgeRoles?: Role[];
 };
 
-// Navegação por INTENÇÃO com TETO DE 7 BOTÕES principais (Fase 1 da reestruturação).
-// Cada botão é um "destino" que agrupa as rotas relacionadas como subitens recolhíveis.
-// Nenhuma rota foi removida — tudo continua acessível, só consolidado em 7 grupos:
-// corretor vê 6 botões, gestor/admin 7 (Configurações vive no rodapé).
+// Navegação por INTENÇÃO com TETO DE 7 BOTÕES principais.
+// Cada botão é um "destino" que agrupa as rotas relacionadas como subitens
+// recolhíveis. Nenhuma rota foi removida — tudo continua acessível.
+// Corretor vê 6 botões, gestor/admin 7 (Configurações vive no rodapé).
 const NAV_ITEMS: Item[] = [
   {
-    // A home é a Central de Comando; Desempenho (ranking/copa/comissões) e o
-    // material de apoio (Links Úteis) são filhos.
+    // A home é a Central de Comando; Desempenho (ranking/copa/comissões) é
+    // filho. Links Úteis foi promovido a botão próprio no fim da lista.
     to: "/hoje",
     label: "Início",
     icon: Sun,
@@ -76,7 +76,6 @@ const NAV_ITEMS: Item[] = [
         badge: (b) => b.aprovacoes,
         badgeRoles: ["admin", "gestor", "superintendente"],
       },
-      { to: "/links-uteis", label: "Links Úteis", icon: Link2 },
     ],
   },
   {
@@ -143,6 +142,15 @@ const NAV_ITEMS: Item[] = [
         roles: ["admin", "gestor"],
       },
     ],
+  },
+  {
+    // Material de apoio das construtoras (books, tabelas, sistemas): consulta
+    // diária em campo. Era filho de Início — dois níveis para um uso de todo
+    // dia. Botão único no fim da lista: a posição respeita a frequência sem
+    // competir com os destinos de decisão pelo topo da leitura.
+    to: "/links-uteis",
+    label: "Links Úteis",
+    icon: Link2,
   },
 ];
 
