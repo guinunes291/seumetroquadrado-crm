@@ -30,9 +30,10 @@ Nenhuma reorganização de menu resolve uma tela que não foi feita.
   **nenhum é de documentação**. Só o corretor vê a fila da própria carteira. Existe uma
   ferramenta MCP externa `crm_listar_pastas_por_status` — ou seja, **a pergunta é feita, só não
   pelo CRM**.
-- **Comparar período ou corretor com a referência.** Filtrar *substitui* os números; não compara.
-  "Melhorei ou piorei?" e "este corretor está acima ou abaixo da média?" dependem de anotar e
-  comparar de cabeça.
+- **Comparar um corretor com a média do time.** Filtrar *substitui* os números; não compara.
+  "Este corretor está acima ou abaixo da média?" depende de anotar e comparar de cabeça.
+  *(A comparação com o período anterior, que eu havia listado aqui, na verdade existe — ver
+  a correção em `04-cliques.md`, tarefa 11.)*
 
 ### 2. O aviso aponta para um lugar e a ação está em outro
 O badge de aprovações pendentes é exibido no item **Gestão** da sidebar (`app-sidebar.tsx:120`),
@@ -40,17 +41,22 @@ mas a tela que aprova a venda está montada dentro de `comissoes-page.tsx`, serv
 **Desempenho → Comissões**. Quem seguir o aviso não encontra a ação. Você confirmou que aprovar
 venda é tarefa sua: são **5 cliques com o sistema apontando para o lugar errado**.
 
-### 3. O funil não mostra quem acabou de chegar
-`novo` e `aguardando_corretor` recebem lead — você confirmou — mas nenhum dos dois está em
-`LEAD_STATUS_ORDER` (`lib/leads.ts:24-33`). **O kanban, que existe para mostrar onde os negócios
-estão, não mostra os que entraram.** Eles só aparecem em Atendimento, Distribuição e Captação:
-três telas, nenhuma delas o funil.
+### 3. O funil não mostrava quem acabou de chegar ✅ RESOLVIDO
+`novo` e `aguardando_corretor` recebem lead — você confirmou — mas nenhum dos dois estava em
+`LEAD_STATUS_ORDER`. **O kanban, que existe para mostrar onde os negócios estão, não mostrava os
+que entraram.** Eles só apareciam em Atendimento, Distribuição e Captação: três telas, nenhuma
+delas o funil. Resolvido na Onda 3 com colunas de entrada no quadro, `novo` restrito à gestão.
 
-### 4. `analise_credito` é uma etapa onde a operação tem três
-Você apontou que faltam **Em Análise**, **Aprovada** e **Reprovada**. Hoje um negócio liberado
-pela Caixa e um negócio morto no banco são **visualmente idênticos** no funil. Em MCMV, onde o
-negócio vive ou morre na aprovação, esta é a lacuna de modelagem mais cara do sistema — e
-explica boa parte da sensação de que o CRM "não ajuda a gerir".
+### 4. `analise_credito` era uma etapa onde a operação tem três ✅ RESOLVIDO
+Você apontou que faltavam **Em Análise**, **Aprovada** e **Reprovada**. Um negócio liberado pela
+Caixa e um negócio morto no banco eram **visualmente idênticos** no funil. Em MCMV, onde o
+negócio vive ou morre na aprovação, era a lacuna de modelagem mais cara do sistema.
+
+Resolvido na Onda 3, e mais barato do que a auditoria estimou: mantendo `analise_credito` como
+"Em análise" e só acrescentando os dois desfechos, **nenhum dado precisou ser migrado**.
+Descoberta que fechou o caso: o modal de análise **já capturava** Aprovada/Reprovada num select
+e jogava a resposta fora num `metadata` — a operação registrava o desfecho havia meses; o funil
+é que o ignorava.
 
 ### 5. Duas telas concentram o excesso
 - **`/leads`**: 2.071 linhas, ~20 ações competindo no nível primário, com um kanban que duplica

@@ -86,17 +86,29 @@ Fusão de páginas, drawers e rotas novas **com redirect das antigas**.
 
 ## Onda 3 — Estrutural
 
-| # | Item | Impacto | Esf. | Risco |
-|---|---|---|---|---|
-| 3.1 | **Etapas de crédito: Em Análise / Aprovada / Reprovada** **[DECIDIDO]** | responde "quantos negócios estão liberados?" — hoje impossível | **G** | **alto** — muda `LEAD_STATUS_ORDER`, transições, modais, kanban, e exige migração dos leads em `analise_credito` |
-| 3.2 | **`novo` e `aguardando_corretor` entram no funil** | o kanban passa a mostrar quem acabou de chegar | M | médio — muda a leitura de todos os gráficos de funil |
-| 3.3 | **Home por papel** (sem toggle) | separa as duas caras de vez | M | baixo | 
-| 3.4 | **Verificação das ~30 RPCs órfãs** por `pg_stat_statements` (7 dias) | fecha a dúvida sobre consumidor externo antes de eliminar | P | nenhum |
-| 3.5 | **Conectar `leads_search_v2` ao ⌘K** | tira a query `ilike` do cliente | P | baixo |
-| 3.6 | **Remover o papel `superintendente`** dos guards **[DECIDIDO: legado]** | simplifica a matriz de permissão | M | médio — tocar RLS exige cuidado |
+| # | Item | Impacto | Esf. | Risco | Status |
+|---|---|---|---|---|---|
+| 3.1 | **Etapas de crédito: Em Análise / Aprovada / Reprovada** **[DECIDIDO]** | responde "quantos negócios estão liberados?" — antes impossível | M | médio | ✅ **entregue** |
+| 3.2 | **`novo` e `aguardando_corretor` no funil** | o kanban passa a mostrar quem acabou de chegar | P | baixo | ✅ **entregue** |
+| 3.3 | **Home por papel** (sem toggle) | separa as duas caras | P | baixo | ✅ entregue na Onda 1 (`23225f5`) |
+| 3.4 | **Verificação das ~30 RPCs órfãs** por `pg_stat_statements` | fecha a dúvida sobre consumidor externo antes de eliminar | P | nenhum | 📋 script em `07-verificar-rpcs-orfas.sql` — **precisa de acesso ao banco** |
+| 3.5 | **Conectar `leads_search_v2` ao ⌘K** | ranking de relevância no servidor | P | baixo | ✅ **entregue** |
+| 3.6 | **Remover o papel `superintendente`** dos guards **[DECIDIDO: legado]** | simplifica a matriz de permissão | M | médio — tocar RLS exige cuidado | ⏳ pendente |
 
-> **3.1 antes de 3.2.** Ambas mexem no funil; fazer juntas dobra a superfície de erro num
-> componente que o time inteiro usa.
+### O que a implementação corrigiu no plano
+
+**3.1 era "G, alto risco, exige migração de dados" — não era.** A estimativa partia de renomear
+`analise_credito`. Mantendo-o como "Em análise" e só acrescentando os dois desfechos, **nenhum
+dado se move** e os ~43 objetos SQL que dependem dele seguem intactos. De G/alto para M/médio.
+
+**3.2 não passou por `LEAD_STATUS_ORDER`.** Colocar as etapas de entrada ali as ofereceria no
+menu "Mover para", onde a máquina de estados as recusa — menu poluído com destinos mortos.
+Viraram uma lista própria (`ETAPAS_ENTRADA`) que só o quadro consome. De M/médio para P/baixo, e
+sem mexer na leitura dos gráficos de funil.
+
+**A ordem "3.1 antes de 3.2" continuou certa** — mas por outra razão. Não era a sobreposição de
+risco que eu previa: é que 3.1 estabeleceu o teste de espelho TS↔SQL
+(`tests/funil-espelho-sql.test.ts`), que passou a proteger 3.2 de graça.
 
 ---
 

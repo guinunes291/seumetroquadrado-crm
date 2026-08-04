@@ -42,7 +42,7 @@
 |---|---|---|---|---|---|---|
 | 9 | Funil consolidado e onde acumula | Gestão → aba "Gargalos" | **2** | 1 | ≤2 | ✅ OK. Mas a resposta está partida em duas abas: "Funil" mostra a distribuição, "Gargalos" mostra o acúmulo — os mesmos filtros nas duas (`painel-gestor.tsx:192`) |
 | 10 | Funil de UM corretor vs média do time | Gestão → Funil → abre select "Corretor" → escolhe | **4** 🔴 | 1 | ≤2 | E **a comparação não existe**: o filtro *troca* a visão, não compara. Para ver a média é preciso limpar o filtro e memorizar o número — H-Reconh violada na tarefa central de gestão de time |
-| 11 | KPIs do mês vs mês anterior | Gestão → Relatórios *(preset já vem "este mês")* | **2** | 1 | ≤2 | ✅ para o mês atual (`relatorios-view.tsx:104`). **Comparar com o anterior: INEXISTENTE** — trocar o preset substitui os números, não os coloca lado a lado. A pergunta "melhorei ou piorei?" exige anotar e comparar de cabeça |
+| 11 | KPIs do mês vs mês anterior | Gestão → Relatórios *(preset já vem "este mês")* | **2** | 1 | ≤2 | ✅ **CORRIGIDO — eu errei aqui.** Escrevi que a comparação era INEXISTENTE. Ela existe: `dashboard_kpis` calcula `prev` deslocando a janela e `derive.ts:124-127` mostra a variação % de leads novos, vendas, perdidos e VGV. O que **não** existe é comparação do conjunto todo lado a lado — mas as 4 métricas que importam já vêm com delta, em 2 cliques |
 | 12 | Redistribuir/realocar lead | Gestão *(aba Dia é a padrão)* → exceção → "Transferir" → escolhe corretor → confirma | **4** | 1 | ≤5 | ✅ dentro da meta geral. Ação in-line no Painel do Dia é o melhor padrão do sistema (`painel-dia-view.tsx:335-358`). O caminho alternativo por `/leads` custa **5** |
 | 13 | Leads parados há mais de X dias | Leads → filtro de contato → "Sem contato 5+ dias" ou "30+ dias" | **3** | 1 | ≤2 | ⚠️ **X só aceita 5 ou 30** (`lib/leads-views.ts:30-33`). Não há como perguntar "parados há 15". Ampliar exige migração: o `CASE` de `leads_filtered_v3` termina em `ELSE true` (`20260728100000_leads_filtered_v3.sql:246`), então um valor novo devolveria a lista inteira sem filtro — e no caminho v3 o cliente confia no servidor (`leads.index.tsx:637`) |
 | 14 | Pastas travadas por pendência (toda a operação) | **INEXISTENTE** | — | — | ≤2 | 🔴 O Painel do Dia tem 7 tipos de exceção e **nenhum é de documentação** (`painel-dia/derive.ts:9-15`). Só o corretor vê a fila "docs" da própria carteira (`atendimento.tsx:42`). O gestor não tem tela para a pergunta — existe ferramenta MCP externa `crm_listar_pastas_por_status`, ou seja, **a pergunta é feita, só não pelo CRM** |
@@ -58,12 +58,18 @@
 
 | Situação | Tarefas |
 |---|---|
-| ✅ Dentro da meta | 1, 3 (sem modal), 4, 7, 8, 9, 12, 16, 17 |
+| ✅ Dentro da meta | 1, 3 (sem modal), 4, 7, 8, 9, **11**, 12, 16, 17 |
 | 🔴 Estoura a meta | 2, 3 (com modal), 5a, 6, 10, 13, 15 |
-| ⛔ **INEXISTENTE** | 5b (confirmar visita), 11 (comparar com período anterior), 14 (pastas travadas — gestor) |
+| ⛔ **INEXISTENTE** | 5b (confirmar visita), 14 (pastas travadas — gestor) |
 
-Três tarefas que você faz ou precisa fazer **não têm caminho no sistema**. Isso é achado de
-auditoria, não de UX: nenhuma quantidade de reorganização de menu resolve uma tela que não existe.
+**Duas** tarefas que você precisa fazer não têm caminho no sistema. Isso é achado de auditoria,
+não de UX: nenhuma reorganização de menu resolve uma tela que não existe.
+
+> **Correção.** A primeira versão desta fase listava três inexistentes, incluindo "comparar com
+> o período anterior". Estava errado — a comparação existe desde sempre em `dashboard_kpis`
+> (`prev`) e aparece como variação % em Relatórios. Encontrei ao reescrever a função para a
+> Onda 3 e ver o retorno real `{pipeline, periodo, prev}`. Contei o caminho que o código
+> permite, e neste caso li o consumidor errado.
 
 ---
 
