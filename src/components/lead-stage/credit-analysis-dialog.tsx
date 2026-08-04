@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { StageLead } from "@/lib/leads";
+import { LEAD_STATUS_LABEL, type LeadStatus, type StageLead } from "@/lib/leads";
 import { criarFollowUpAutomatico } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
 
@@ -32,6 +32,17 @@ const STATUS_LABEL: Record<(typeof STATUS_OPTIONS)[number], string> = {
   pendente: "Pendente",
 };
 
+/** Desfecho da análise → etapa do funil. Este select já existia e o resultado
+ *  ia só para o metadata da interação: o lead caía em `analise_credito` fosse
+ *  qual fosse a resposta do banco, e aprovado e reprovado ficavam idênticos no
+ *  kanban. Agora o desfecho move a etapa. */
+const STATUS_ETAPA: Record<(typeof STATUS_OPTIONS)[number], LeadStatus> = {
+  enviada: "analise_credito",
+  pendente: "analise_credito",
+  aprovada: "analise_aprovada",
+  reprovada: "analise_reprovada",
+};
+
 type Props = {
   lead: StageLead;
   onOpenChange: (open: boolean) => void;
@@ -39,7 +50,8 @@ type Props = {
 };
 
 /** Modal de "Análise de crédito": registra os dados na timeline (interação) e
- *  move o lead para `analise_credito`. */
+ *  move o lead para a etapa que corresponde ao desfecho — em análise, crédito
+ *  aprovado ou crédito reprovado. */
 export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
   const qc = useQueryClient();
   const [statusAnalise, setStatusAnalise] = useState<(typeof STATUS_OPTIONS)[number]>("enviada");
@@ -61,27 +73,36 @@ export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
       });
       if (insErr) throw insErr;
 
+      // Passa SEMPRE por `analise_credito` primeiro: o lead pode estar vindo de
+      // visita/proposta, de onde a máquina de estados não permite ir direto ao
+      // resultado. Assim o histórico registra a entrada na análise (que de fato
+      // aconteceu) e o desfecho, na ordem certa.
       await transicionarLead({ id: lead.id, nome: lead.nome, status: "analise_credito" });
+      const etapaFinal = STATUS_ETAPA[statusAnalise];
+      if (etapaFinal !== "analise_credito") {
+        await transicionarLead({ id: lead.id, nome: lead.nome, status: etapaFinal });
+      }
 
-      // Motor anti-perda: cria a tarefa de cobrar o retorno do banco.
+      // Motor anti-perda: a tarefa muda com o desfecho — cobrar o banco,
+      // fechar contrato ou recompor renda.
       let followUp = false;
       try {
         followUp = await criarFollowUpAutomatico({
           leadId: lead.id,
           nome: lead.nome,
           corretorId: lead.corretor_id ?? uid,
-          status: "analise_credito",
+          status: etapaFinal,
           criadoPorId: uid,
         });
       } catch (e) {
         console.warn("follow-up automático (análise) falhou", e);
       }
-      return { followUp };
+      return { followUp, etapaFinal };
     },
     onSuccess: (res) => {
       toast.success(
-        "Análise registrada · lead movido para Análise de crédito" +
-          (res?.followUp ? " · follow-up de cobrança criado" : ""),
+        `Análise registrada · lead movido para ${LEAD_STATUS_LABEL[res.etapaFinal]}` +
+          (res?.followUp ? " · follow-up criado" : ""),
       );
       qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       qc.invalidateQueries({ queryKey: ["leads-kanban"] });
