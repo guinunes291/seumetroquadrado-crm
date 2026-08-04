@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { rpcWithFallback } from "@/lib/supabase-errors";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Command,
@@ -85,25 +86,58 @@ export function CommandPalette() {
   const { data: leads = [], isFetching } = useQuery({
     queryKey: ["cmdk:leads", debounced],
     enabled: open && buscando,
-    queryFn: async (): Promise<LeadHit[]> => {
-      const { normalizeSearch, onlyDigits } = await import("@/lib/validators");
-      const s = normalizeSearch(debounced).replace(/[%,]/g, "");
-      const digits = onlyDigits(debounced);
-      let q = supabase.from("leads").select("id, nome, telefone, status").eq("na_lixeira", false);
-      if (digits.length >= 3) {
-        q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
-      } else {
-        const termos = s.split(" ").filter((t) => t.length >= 2);
-        if (termos.length > 1) {
-          for (const t of termos) q = q.ilike("search_text", `%${t}%`);
-        } else {
-          q = q.ilike("search_text", `%${s}%`);
-        }
-      }
-      const { data, error } = await q.limit(8);
-      if (error) throw error;
-      return (data ?? []) as LeadHit[];
-    },
+    queryFn: async (): Promise<LeadHit[]> =>
+      rpcWithFallback(
+        // Caminho principal: leads_search_v2 ordena por RELEVÂNCIA no banco
+        // (prefixo de nome e telefone pesam mais que casamento no meio) e
+        // autoriza lead a lead com pode_acessar_lead. A busca montada no
+        // cliente devolvia o que o ilike achasse primeiro, sem ranking.
+        async () => {
+          const { data, error } = await supabase.rpc(
+            "leads_search_v2" as never,
+            {
+              _query: debounced,
+              _limit: 8,
+            } as never,
+          );
+          if (error) throw error;
+          const items = (data as { items?: unknown } | null)?.items;
+          if (!Array.isArray(items)) throw new Error("leads_search_v2: resposta inesperada");
+          return items.map((raw) => {
+            const l = raw as Record<string, unknown>;
+            return {
+              id: String(l.id),
+              nome: String(l.nome ?? ""),
+              telefone: typeof l.telefone === "string" ? l.telefone : null,
+              status: String(l.status ?? ""),
+            };
+          });
+        },
+        // Sem a migration aplicada, cai na busca de sempre — a paleta nunca
+        // fica sem busca de lead.
+        async () => {
+          const { normalizeSearch, onlyDigits } = await import("@/lib/validators");
+          const s = normalizeSearch(debounced).replace(/[%,]/g, "");
+          const digits = onlyDigits(debounced);
+          let q = supabase
+            .from("leads")
+            .select("id, nome, telefone, status")
+            .eq("na_lixeira", false);
+          if (digits.length >= 3) {
+            q = q.or(`search_text.ilike.%${s}%,search_text.ilike.%${digits}%`);
+          } else {
+            const termos = s.split(" ").filter((t) => t.length >= 2);
+            if (termos.length > 1) {
+              for (const t of termos) q = q.ilike("search_text", `%${t}%`);
+            } else {
+              q = q.ilike("search_text", `%${s}%`);
+            }
+          }
+          const { data, error } = await q.limit(8);
+          if (error) throw error;
+          return (data ?? []) as LeadHit[];
+        },
+      ),
   });
 
   // Buscas paralelas secundárias: falha em uma NUNCA derruba a paleta —
