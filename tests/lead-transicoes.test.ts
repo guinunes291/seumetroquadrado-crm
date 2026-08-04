@@ -27,6 +27,45 @@ describe("transicaoLeadPermitida — espelho da máquina de estados do banco", (
     expect(transicaoLeadPermitida("analise_credito", "contrato_fechado", false)).toBe(true);
   });
 
+  describe("resultado da análise de crédito", () => {
+    it("a análise resolve para aprovada ou reprovada, sem exigir gestão", () => {
+      expect(transicaoLeadPermitida("analise_credito", "analise_aprovada", false)).toBe(true);
+      expect(transicaoLeadPermitida("analise_credito", "analise_reprovada", false)).toBe(true);
+    });
+
+    it("o caminho direto análise → venda continua valendo", () => {
+      // Quem registra a venda sem passar pelo resultado (fluxo de hoje) não
+      // pode ser bloqueado pela etapa nova.
+      expect(transicaoLeadPermitida("analise_credito", "contrato_fechado", false)).toBe(true);
+    });
+
+    it("aprovada leva à venda e aceita reabertura da análise", () => {
+      expect(transicaoLeadPermitida("analise_aprovada", "contrato_fechado", false)).toBe(true);
+      expect(transicaoLeadPermitida("analise_aprovada", "analise_credito", false)).toBe(true);
+    });
+
+    it("reprovada NÃO é terminal — o lead segue vivo no funil", () => {
+      for (const alvo of [
+        "analise_credito",
+        "em_atendimento",
+        "aguardando_retorno",
+        "agendado",
+        "visita_realizada",
+      ] as LeadStatus[]) {
+        expect(transicaoLeadPermitida("analise_reprovada", alvo, false)).toBe(true);
+      }
+      // Mas não vira venda sem reabrir a análise.
+      expect(transicaoLeadPermitida("analise_reprovada", "contrato_fechado", false)).toBe(false);
+    });
+
+    it("não se entra no resultado pulando a análise", () => {
+      for (const de of ["visita_realizada", "agendado", "em_atendimento"] as LeadStatus[]) {
+        expect(transicaoLeadPermitida(de, "analise_aprovada", false)).toBe(false);
+        expect(transicaoLeadPermitida(de, "analise_reprovada", false)).toBe(false);
+      }
+    });
+  });
+
   it("aguardando_atendimento não pula direto para etapas avançadas", () => {
     for (const alvo of ["agendado", "visita_realizada", "analise_credito"] as LeadStatus[]) {
       expect(transicaoLeadPermitida("aguardando_atendimento", alvo, false)).toBe(false);

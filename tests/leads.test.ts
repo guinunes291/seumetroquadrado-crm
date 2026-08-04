@@ -15,11 +15,25 @@ describe("funil — avanço a partir dos cards", () => {
       expect(FUNNEL_STAGES).not.toContain("perdido");
     });
 
-    it("tem 7 etapas, preservando a ordem do funil do corretor", () => {
+    it("tem 9 etapas, preservando a ordem do funil do corretor", () => {
       expect(FUNNEL_STAGES).toEqual(LEAD_STATUS_ORDER.filter((s) => s !== "perdido"));
-      expect(FUNNEL_STAGES).toHaveLength(7);
+      expect(FUNNEL_STAGES).toHaveLength(9);
       expect(FUNNEL_STAGES[0]).toBe("aguardando_atendimento");
       expect(FUNNEL_STAGES[FUNNEL_STAGES.length - 1]).toBe("contrato_fechado");
+    });
+
+    it("desdobra a análise de crédito nos três estados da operação", () => {
+      // Antes havia UMA etapa para em análise, aprovada e reprovada — no funil,
+      // um negócio liberado pela Caixa e um negócio morto eram idênticos.
+      const analise = FUNNEL_STAGES.filter((s) => s.startsWith("analise_"));
+      expect(analise).toEqual(["analise_credito", "analise_aprovada", "analise_reprovada"]);
+      // Os dois resultados ficam ENTRE a análise e a venda.
+      expect(FUNNEL_STAGES.indexOf("analise_aprovada")).toBeGreaterThan(
+        FUNNEL_STAGES.indexOf("analise_credito"),
+      );
+      expect(FUNNEL_STAGES.indexOf("analise_aprovada")).toBeLessThan(
+        FUNNEL_STAGES.indexOf("contrato_fechado"),
+      );
     });
 
     it("inclui 'aguardando_retorno' e exclui status legados do funil", () => {
