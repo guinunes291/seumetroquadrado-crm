@@ -553,7 +553,13 @@ const PIPELINE_CARDS: Array<{
   { key: "em_atendimento", label: "Em atendimento", icon: Clock, status: "em_atendimento" },
   { key: "agendado", label: "Agendado", icon: Calendar, status: "agendado" },
   { key: "visita_realizada", label: "Visita", icon: Eye, status: "visita_realizada" },
-  { key: "analise_credito", label: "Análise crédito", icon: FileCheck, status: "analise_credito" },
+  { key: "analise_credito", label: "Em análise", icon: FileCheck, status: "analise_credito" },
+  {
+    key: "analise_aprovada",
+    label: "Crédito aprovado",
+    icon: FileCheck,
+    status: "analise_aprovada",
+  },
   { key: "perdido", label: "Perdidos (per.)", icon: XCircle, status: "perdido" },
   { key: "sem_corretor", label: "Sem corretor", icon: Users },
 ];

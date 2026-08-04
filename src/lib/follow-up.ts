@@ -68,6 +68,20 @@ export function followUpParaStatus(
         prioridade: "media",
         vencimento: emDias(3),
       };
+    case "analise_aprovada":
+      return {
+        titulo: `Crédito aprovado: fechar contrato com ${nome}`,
+        tipo: "follow_up",
+        prioridade: "alta",
+        vencimento: emDias(1),
+      };
+    case "analise_reprovada":
+      return {
+        titulo: `Crédito negado: recompor renda ou trocar projeto com ${nome}`,
+        tipo: "follow_up",
+        prioridade: "alta",
+        vencimento: emDias(2),
+      };
     case "em_atendimento":
       return {
         titulo: `Follow-up com ${nome}`,

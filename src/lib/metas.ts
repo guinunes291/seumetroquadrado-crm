@@ -5,6 +5,8 @@ export const LEAD_STATUS_VISITA = [
   "visita_realizada",
   "proposta_enviada",
   "analise_credito",
+  "analise_aprovada",
+  "analise_reprovada",
   "contrato_fechado",
   "pos_venda",
 ] as const;
@@ -15,6 +17,8 @@ export const LEAD_STATUS_ATENDIDO = [
   "visita_realizada",
   "proposta_enviada",
   "analise_credito",
+  "analise_aprovada",
+  "analise_reprovada",
   "contrato_fechado",
   "pos_venda",
   "perdido",

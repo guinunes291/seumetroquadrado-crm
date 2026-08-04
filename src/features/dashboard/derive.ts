@@ -28,6 +28,8 @@ export type DashboardKpisFlat = {
   agendado: number;
   visita_realizada: number;
   analise_credito: number;
+  analise_aprovada: number;
+  analise_reprovada: number;
   em_aberto: number;
   sem_corretor: number;
   /** Fluxo do período filtrado, cada um na sua data canônica. */
@@ -80,6 +82,8 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
     agendado: 0,
     visita_realizada: 0,
     analise_credito: 0,
+    analise_aprovada: 0,
+    analise_reprovada: 0,
     em_aberto: 0,
     sem_corretor: 0,
     total: 0,
@@ -108,6 +112,8 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
       agendado: n(p.agendado),
       visita_realizada: n(p.visita_realizada),
       analise_credito: n(p.analise_credito),
+      analise_aprovada: n(p.analise_aprovada),
+      analise_reprovada: n(p.analise_reprovada),
       em_aberto: n(p.em_aberto),
       sem_corretor: n(p.sem_corretor),
       total: n(per.leads_novos),
@@ -140,6 +146,8 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
     agendado: n(flat.agendado),
     visita_realizada: n(flat.visita_realizada),
     analise_credito: n(flat.analise_credito),
+    analise_aprovada: n(flat.analise_aprovada),
+    analise_reprovada: n(flat.analise_reprovada),
     em_aberto: n(flat.em_aberto),
     sem_corretor: n(flat.sem_corretor),
     total: n(flat.total),

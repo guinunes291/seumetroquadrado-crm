@@ -20,7 +20,9 @@ export type ScoreResult = { score: number; tier: ScoreTier; motivo: string };
 
 /** Peso por etapa — quanto mais perto da venda, mais cara é a oportunidade. */
 const PESO_ETAPA: Record<string, number> = {
+  analise_aprovada: 30,
   analise_credito: 25,
+  analise_reprovada: 8,
   visita_realizada: 22,
   agendado: 16,
   em_atendimento: 12,

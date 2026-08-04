@@ -14,6 +14,8 @@ export type LeadStatus =
   | "visita_realizada"
   | "proposta_enviada"
   | "analise_credito"
+  | "analise_aprovada"
+  | "analise_reprovada"
   | "contrato_fechado"
   | "pos_venda"
   | "perdido";
@@ -28,6 +30,8 @@ export const LEAD_STATUS_ORDER: LeadStatus[] = [
   "agendado",
   "visita_realizada",
   "analise_credito",
+  "analise_aprovada",
+  "analise_reprovada",
   "contrato_fechado",
   "perdido",
 ];
@@ -42,7 +46,9 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   agendado: "Agendado",
   visita_realizada: "Visita realizada",
   proposta_enviada: "Proposta enviada",
-  analise_credito: "Análise de crédito",
+  analise_credito: "Em análise",
+  analise_aprovada: "Crédito aprovado",
+  analise_reprovada: "Crédito reprovado",
   contrato_fechado: "Venda",
   pos_venda: "Pós-venda",
   perdido: "Perdido",
@@ -61,6 +67,8 @@ export const LEAD_STATUS_HUE: Record<LeadStatus, Hue> = {
   visita_realizada: "emerald",
   proposta_enviada: "teal",
   analise_credito: "orange",
+  analise_aprovada: "emerald",
+  analise_reprovada: "rose",
   contrato_fechado: "green",
   pos_venda: "lime",
   perdido: "rose",
@@ -137,7 +145,9 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
   em_atendimento: { label: "Agendar visita", target: "agendado" },
   agendado: { label: "Marcar visita realizada", target: "visita_realizada" },
   visita_realizada: { label: "Enviar p/ análise", target: "analise_credito" },
-  analise_credito: { label: "Registrar venda", target: "contrato_fechado" },
+  analise_credito: { label: "Crédito aprovado", target: "analise_aprovada" },
+  analise_aprovada: { label: "Registrar venda", target: "contrato_fechado" },
+  analise_reprovada: { label: "Reabrir análise", target: "analise_credito" },
 };
 
 // ---------------------------------------------------------------------------
@@ -206,7 +216,25 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "aguardando_retorno",
     "visita_realizada",
     "proposta_enviada",
+    "analise_aprovada",
+    "analise_reprovada",
     "contrato_fechado",
+    "perdido",
+  ],
+  analise_aprovada: [
+    "contrato_fechado",
+    "analise_credito",
+    "analise_reprovada",
+    "em_atendimento",
+    "aguardando_retorno",
+    "perdido",
+  ],
+  analise_reprovada: [
+    "analise_credito",
+    "em_atendimento",
+    "aguardando_retorno",
+    "agendado",
+    "visita_realizada",
     "perdido",
   ],
   // Etapas terminais: só gestão movimenta, e apenas para os destinos abaixo.

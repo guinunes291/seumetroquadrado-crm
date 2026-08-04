@@ -6627,6 +6627,8 @@ export type Database = {
         | "perdido"
         | "aguardando_retorno"
         | "aguardando_corretor"
+        | "analise_aprovada"
+        | "analise_reprovada"
       lead_temperatura: "quente" | "morno" | "frio"
       status_conta: "pendente" | "ativa" | "bloqueada"
       status_venda:
@@ -6857,6 +6859,8 @@ export const Constants = {
         "perdido",
         "aguardando_retorno",
         "aguardando_corretor",
+        "analise_aprovada",
+        "analise_reprovada",
       ],
       lead_temperatura: ["quente", "morno", "frio"],
       status_conta: ["pendente", "ativa", "bloqueada"],

@@ -73,7 +73,9 @@ export const STATUS_LEAD_OPTIONS = [
   { value: "qualificado", label: "Qualificado" },
   { value: "agendado", label: "Agendado" },
   { value: "visita_realizada", label: "Visita realizada" },
-  { value: "analise_credito", label: "Análise de crédito" },
+  { value: "analise_credito", label: "Em análise" },
+  { value: "analise_aprovada", label: "Crédito aprovado" },
+  { value: "analise_reprovada", label: "Crédito reprovado" },
   { value: "perdido", label: "Perdido" },
 ];
 
