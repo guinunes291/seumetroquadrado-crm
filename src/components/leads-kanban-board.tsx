@@ -26,6 +26,7 @@ import { rpcWithFallback } from "@/lib/supabase-errors";
 import { usePointerDnd } from "@/features/pipeline/use-pointer-dnd";
 import { computeStageMetrics, formatVgvCompact } from "@/features/pipeline/stage-metrics";
 import {
+  ETAPAS_ENTRADA,
   FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
   LEAD_STATUS_COLUMN_TONE,
@@ -53,11 +54,24 @@ import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const COLUMNS = FUNNEL_STAGES.map((id) => ({
+type Column = { id: LeadStatus; label: string; tone: string };
+
+const asColumn = (id: LeadStatus): Column => ({
   id,
   label: LEAD_STATUS_LABEL[id],
   tone: LEAD_STATUS_COLUMN_TONE[id],
-}));
+});
+
+/** Colunas do quadro = caixa de entrada + funil.
+ *
+ *  A entrada entra à ESQUERDA do funil porque é onde o lead está antes de
+ *  alguém começar. `novo` só para gestão: não tem dono e é assunto da roleta;
+ *  `aguardando_corretor` todo mundo vê, é o lead esperando o próprio aceite.
+ *  As colunas de entrada não recebem drop — nada "move para novo". */
+function colunasDoQuadro(gestao: boolean): Column[] {
+  const entrada = ETAPAS_ENTRADA.filter((s) => gestao || s !== "novo");
+  return [...entrada, ...FUNNEL_STAGES].map(asColumn);
+}
 
 // Dias sem interação — o sinal de urgência do card. Só vale para etapas
 // "vivas" (mesma regra do badge de inatividade da listagem).
@@ -132,7 +146,8 @@ function lerColapsadas(): Set<LeadStatus> {
     return new Set(
       raw.filter(
         (s): s is LeadStatus =>
-          typeof s === "string" && (FUNNEL_STAGES as readonly string[]).includes(s),
+          typeof s === "string" &&
+          ([...ETAPAS_ENTRADA, ...FUNNEL_STAGES] as readonly string[]).includes(s),
       ),
     );
   } catch {
@@ -170,7 +185,8 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
   const gestao = isAdmin || isGestor || isSuperintendente;
   const [search, setSearch] = useState(initialSearch ?? "");
   const debouncedSearch = useDebounce(search.trim(), 300);
-  const [mobileStage, setMobileStage] = useState<LeadStatus>(COLUMNS[0].id);
+  const COLUMNS = useMemo(() => colunasDoQuadro(gestao), [gestao]);
+  const [mobileStage, setMobileStage] = useState<LeadStatus>(() => colunasDoQuadro(false)[0].id);
   const [extraPages, setExtraPages] = useState<Partial<Record<LeadStatus, StagePage>>>({});
   const [loadingMore, setLoadingMore] = useState<LeadStatus | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -258,7 +274,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
           return page ? [[column.id, page] as const] : [];
         }),
       ),
-    [stageQueries],
+    [COLUMNS, stageQueries],
   );
   const leads = useMemo(() => {
     const seen = new Set<string>();
@@ -266,7 +282,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
       ...(initialPages.get(column.id)?.items ?? []),
       ...(extraPages[column.id]?.items ?? []),
     ]).filter((lead) => (seen.has(lead.id) ? false : (seen.add(lead.id), true)));
-  }, [extraPages, initialPages]);
+  }, [COLUMNS, extraPages, initialPages]);
   const leadsLoading = stageQueries.some((query) => query.isLoading) || snapshotQuery.isLoading;
   const leadsError = stageQueries.some((query) => query.isError) || snapshotQuery.isError;
   const refetchLeads = async () => {
@@ -412,7 +428,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
       });
     }
     return map;
-  }, [leads]);
+  }, [COLUMNS, leads]);
 
   const snapshotByStage = useMemo(
     () => new Map((snapshotQuery.data ?? []).map((row) => [row.etapa, row])),

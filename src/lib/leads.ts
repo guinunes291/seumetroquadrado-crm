@@ -107,6 +107,19 @@ export type StageLead = {
  *  que é tratado por uma ação dedicada). */
 export const FUNNEL_STAGES: LeadStatus[] = LEAD_STATUS_ORDER.filter((s) => s !== "perdido");
 
+/** Caixa de entrada do funil: o lead JÁ EXISTE mas ninguém começou a atender.
+ *
+ *  Ficam fora de LEAD_STATUS_ORDER de propósito — não são destino de "Mover
+ *  para" (só a roleta e o aceite do corretor colocam lead aqui), e por isso o
+ *  quadro não os mostrava. O efeito é que o funil, que existe para dizer onde
+ *  os negócios estão, não mostrava os que acabaram de chegar: eles só apareciam
+ *  em Atendimento, Distribuição e Captação — três telas, nenhuma delas o funil.
+ *
+ *  `novo` não tem dono (a roleta ainda não distribuiu) e é assunto de gestão;
+ *  `aguardando_corretor` já foi roteado e espera o aceite — é a caixa de
+ *  entrada do próprio corretor. Quem exibe decide o recorte por papel. */
+export const ETAPAS_ENTRADA: LeadStatus[] = ["novo", "aguardando_corretor"];
+
 /** Transições que exigem um modal para capturar dados antes de mudar o status. */
 export type StageModal = "agendado" | "visita_realizada" | "analise_credito" | "contrato_fechado";
 
