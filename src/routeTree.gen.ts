@@ -52,6 +52,7 @@ import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authent
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
+import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
@@ -304,6 +305,12 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedProjetosFocoRoute =
+  AuthenticatedProjetosFocoRouteImport.update({
+    id: '/projetos-foco',
+    path: '/projetos-foco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjetosIndexRoute =
   AuthenticatedProjetosIndexRouteImport.update({
     id: '/projetos/',
@@ -532,6 +539,7 @@ export interface FileRoutesByFullPath {
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
+  '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
@@ -608,6 +616,7 @@ export interface FileRoutesByTo {
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
+  '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
@@ -686,6 +695,7 @@ export interface FileRoutesById {
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
+  '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
@@ -764,6 +774,7 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
+    | '/projetos-foco'
     | '/projetos/$projetoId'
     | '/api/public/documentos'
     | '/api/public/metricas'
@@ -840,6 +851,7 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
+    | '/projetos-foco'
     | '/projetos/$projetoId'
     | '/api/public/documentos'
     | '/api/public/metricas'
@@ -917,6 +929,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
+    | '/_authenticated/projetos-foco'
     | '/_authenticated/projetos/$projetoId'
     | '/api/public/documentos'
     | '/api/public/metricas'
@@ -1277,6 +1290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/projetos-foco': {
+      id: '/_authenticated/projetos-foco'
+      path: '/projetos-foco'
+      fullPath: '/projetos-foco'
+      preLoaderRoute: typeof AuthenticatedProjetosFocoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projetos/': {
       id: '/_authenticated/projetos/'
       path: '/projetos'
@@ -1548,6 +1568,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
   AuthenticatedOfertaAtivaOfertaIdRoute: typeof AuthenticatedOfertaAtivaOfertaIdRoute
   AuthenticatedOfertaAtivaNovaRoute: typeof AuthenticatedOfertaAtivaNovaRoute
+  AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
   AuthenticatedProjetosProjetoIdRoute: typeof AuthenticatedProjetosProjetoIdRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
   AuthenticatedOfertaAtivaIndexRoute: typeof AuthenticatedOfertaAtivaIndexRoute
@@ -1592,6 +1613,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
   AuthenticatedOfertaAtivaOfertaIdRoute: AuthenticatedOfertaAtivaOfertaIdRoute,
   AuthenticatedOfertaAtivaNovaRoute: AuthenticatedOfertaAtivaNovaRoute,
+  AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,
   AuthenticatedProjetosProjetoIdRoute: AuthenticatedProjetosProjetoIdRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
   AuthenticatedOfertaAtivaIndexRoute: AuthenticatedOfertaAtivaIndexRoute,

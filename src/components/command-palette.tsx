@@ -206,7 +206,12 @@ export function CommandPalette() {
     { label: "Agendamentos", icon: CalendarClock, go: () => navigate({ to: "/agendamentos" }) },
     { label: "Tarefas", icon: ListTodo, go: () => navigate({ to: "/tarefas" }) },
     {
-      label: "Projetos / Empreendimentos",
+      label: "Projetos em Foco (book e tabela)",
+      icon: Building2,
+      go: () => navigate({ to: "/projetos-foco" }),
+    },
+    {
+      label: "Projetos / Empreendimentos (catálogo)",
       icon: Building2,
       go: () => navigate({ to: "/projetos" }),
     },

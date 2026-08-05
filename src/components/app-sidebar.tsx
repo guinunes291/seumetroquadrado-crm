@@ -24,6 +24,7 @@ import {
   MapPinned,
   PhoneOutgoing,
   Link2,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,12 +119,17 @@ const NAV_ITEMS: Item[] = [
     icon: Trello,
   },
   {
-    // Catálogo, Oferta, Comissões e Links são abas do hub /projetos.
-    // Match IA continua acessível pelo botão no hub e pela página do lead.
-    to: "/projetos",
-    label: "Projetos",
-    icon: Building2,
-    children: [{ to: "/vitrine", label: "Vitrine (mapa)", icon: Map }],
+    // O botão de Projetos abre a BANCADA (construtoras parceiras + campanhas
+    // ativas, com book/tabela/resumo a um clique) — é o que o corretor busca em
+    // campo. O catálogo completo, que é cadastro, desce um nível junto com a
+    // Vitrine. Match IA continua acessível pelo hub e pela página do lead.
+    to: "/projetos-foco",
+    label: "Projetos em Foco",
+    icon: Star,
+    children: [
+      { to: "/projetos", label: "Catálogo completo", icon: Building2 },
+      { to: "/vitrine", label: "Vitrine (mapa)", icon: Map },
+    ],
   },
   {
     // HUB ÚNICO de gestão: Dia, Relatórios, Funil, Gargalos, Time, Metas e
