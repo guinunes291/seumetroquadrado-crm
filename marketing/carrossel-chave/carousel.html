@@ -1,0 +1,361 @@
+<meta charset="utf-8">
+<title>SMQ — carrossel da chave</title>
+<style>
+  @font-face {
+    font-family: "Sora Variable";
+    src: url(sora-latin-wght-normal.woff2) format("woff2-variations");
+    font-weight: 100 800;
+    font-display: block;
+  }
+  html, body { margin: 0; background: #222; }
+  canvas { display: block; }
+</style>
+<canvas id="c" width="1080" height="1350"></canvas>
+<script>
+// ---------------------------------------------------------------------------
+// Carrossel "A chave que cai" — Seu Metro Quadrado
+//
+// Duas artes 1080x1350 que compartilham UMA única trajetória: a chave é solta
+// no card 1, atravessa a borda inferior e entra no card 2 pelo topo, na mesma
+// posição x e na mesma velocidade. O eixo virtual vai de 0 (topo do card 1) a
+// 2700 (base do card 2); a costura entre os dois cards fica em y = 1350.
+// ---------------------------------------------------------------------------
+
+const W = 1080, H = 1350, SEAM = 1350;
+const T = 3.4;               // duração do loop, em segundos
+const FPS = 30;
+const KEY_PHASES = [0, 1.7]; // duas chaves por loop => nunca falta movimento
+
+const BG        = "oklch(0.99 0.002 250)";
+const NAVY      = "oklch(0.32 0.06 250)";
+const NAVY_SOFT = "oklch(0.40 0.055 250)";
+const GOLD      = "oklch(0.68 0.13 84)";
+const GOLD_HI   = "oklch(0.86 0.09 88)";
+
+// Os tokens da marca vêm em oklch e os gradientes precisam de rgba() com
+// alpha variável. Atenção: getComputedStyle() NÃO serve aqui — o Chromium
+// devolve a string oklch() intacta. Pintar 1px e ler o pixel é o único
+// caminho que entrega sRGB de fato.
+function toRGB(css) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const g = c.getContext("2d");
+  g.fillStyle = css;
+  g.fillRect(0, 0, 1, 1);
+  const [r, gg, b] = g.getImageData(0, 0, 1, 1).data;
+  return [r, gg, b];
+}
+const RGB_GOLD = toRGB(GOLD), RGB_GOLD_HI = toRGB(GOLD_HI);
+const rgba = ([r, g, b], a) => `rgba(${r},${g},${b},${a})`;
+
+// --- chave -----------------------------------------------------------------
+const KEY_S   = 1.45;             // escala da arte da chave
+const BOW_R   = 40 * KEY_S;       // raio do anel
+const KEY_LEN = 164 * KEY_S;      // do centro do anel até a ponta dos dentes
+
+// --- tempos do ciclo de uma chave (segundos, contados do seu nascimento) ---
+const T_REVEAL_END = 0.18;   // sai de trás da palma e assenta na pinça
+const T_RELEASE    = 0.35;   // os dedos abrem e soltam
+const T_FALL_END   = 1.80;   // a ponta encosta na palma do card 2
+const T_SETTLE_END = 2.02;   // tomba sobre a ponta e deita na mão
+const T_GLOW_A     = 1.88;
+const T_GLOW_B     = 2.80;
+// A chave se dissolve DENTRO da própria luz. Além de ficar melhor, é o que
+// impede que ela ainda esteja na palma quando a chave seguinte aterrissa.
+const T_FADE_A     = 2.45;
+const T_LIFE       = 2.80;
+
+const X_FALL   = 540;    // centro: mantém a costura perfeitamente alinhada
+const Y_BOW_0  = 612;    // centro do anel na pinça (card 1) — abaixo das pontas
+                         // dos dedos, senão a mão engole a chave
+const A_HOLD   = -12;    // ângulo pendurada
+const A_FALL   = -4;     // ângulo ao encostar
+const A_REST   = -30;    // ângulo deitada na palma (tomba para a esquerda)
+
+// Onde a PONTA da chave encosta na palma, em coordenadas virtuais.
+// Tudo o mais da aterrissagem é derivado daqui.
+const TIP_PIVOT = {
+  x: X_FALL - KEY_LEN * Math.sin(A_FALL * Math.PI / 180),
+  y: SEAM + 1160,
+};
+const BOW_LAND = TIP_PIVOT.y - KEY_LEN * Math.cos(A_FALL * Math.PI / 180);
+
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const smoother = p => p * p * p * (p * (p * 6 - 15) + 10);
+const easeOut  = p => 1 - Math.pow(1 - p, 3);
+const lerp = (a, b, p) => a + (b - a) * p;
+const rad  = d => d * Math.PI / 180;
+// rampa trapezoidal: 0 -> sobe -> patamar -> desce -> 0
+function ramp(t, a, b, c, d) {
+  if (t <= a || t >= d) return 0;
+  if (t < b) return easeOut(clamp01((t - a) / (b - a)));
+  if (t <= c) return 1;
+  return 1 - easeOut(clamp01((t - c) / (d - c)));
+}
+
+// --- trajetória ------------------------------------------------------------
+// Retorna a pose da chave (centro do anel + ângulo) para uma dada idade.
+// Na queda o anel é a âncora; ao encostar, a âncora vira a PONTA — é sobre
+// ela que a chave tomba, que é como um objeto comprido cai de verdade.
+function keyPose(age) {
+  if (age <= T_REVEAL_END) {
+    const p = easeOut(age / T_REVEAL_END);
+    return { x: lerp(642, X_FALL, p), y: lerp(468, Y_BOW_0, p), a: A_HOLD };
+  }
+  if (age <= T_RELEASE) {
+    return { x: X_FALL, y: Y_BOW_0 + Math.sin((age - T_REVEAL_END) * 9) * 3, a: A_HOLD };
+  }
+  if (age <= T_FALL_END) {
+    const p = smoother((age - T_RELEASE) / (T_FALL_END - T_RELEASE));
+    return { x: X_FALL, y: lerp(Y_BOW_0, BOW_LAND, p), a: lerp(A_HOLD, A_FALL, p) };
+  }
+  const p = age <= T_SETTLE_END ? (age - T_FALL_END) / (T_SETTLE_END - T_FALL_END) : 1;
+  const a = lerp(A_FALL, A_REST, easeOut(p));
+  const lift = Math.sin(clamp01(p) * Math.PI) * 20;   // quique curto
+  return {
+    x: TIP_PIVOT.x + KEY_LEN * Math.sin(rad(a)),
+    y: TIP_PIVOT.y - KEY_LEN * Math.cos(rad(a)) - lift,
+    a,
+  };
+}
+function keyAlpha(age) {
+  if (age < 0.06) return age / 0.06;
+  if (age >= T_FADE_A) return 1 - clamp01((age - T_FADE_A) / (T_LIFE - T_FADE_A));
+  return 1;
+}
+
+// ---------------------------------------------------------------------------
+// primitivas
+// ---------------------------------------------------------------------------
+
+// Cápsula: o traço arredondado que constrói as mãos (estilo flat). Cada uma
+// recebe antes um halo da cor do fundo — é ele que abre o vinco branco que
+// separa um dedo do outro, sem precisar desenhar contorno.
+function capsule(ctx, x1, y1, x2, y2, w, color, halo = 18) {
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  if (halo > 0) {
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.lineWidth = w + halo; ctx.strokeStyle = BG; ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+  ctx.lineWidth = w; ctx.strokeStyle = color; ctx.stroke();
+}
+
+// A chave, centro do anel na origem. Dourada com contorno navy para segurar
+// contraste tanto sobre o fundo claro quanto por cima da mão navy.
+function drawKey(ctx, x, y, angleDeg, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.rotate(rad(angleDeg));
+  ctx.scale(KEY_S, KEY_S);
+  ctx.beginPath();
+  ctx.arc(0, 0, 40, 0, Math.PI * 2);       // anel
+  ctx.roundRect(-22, 26, 44, 18, 6);       // colar
+  ctx.roundRect(-11, 34, 22, 130, 6);      // haste
+  ctx.roundRect(9, 112, 32, 17, 4);        // dente 1
+  ctx.roundRect(9, 140, 25, 17, 4);        // dente 2
+  ctx.fillStyle = GOLD; ctx.fill();
+  ctx.lineWidth = 8; ctx.strokeStyle = NAVY; ctx.lineJoin = "round"; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2);   // furo do anel
+  ctx.fillStyle = BG; ctx.fill();
+  ctx.lineWidth = 7; ctx.strokeStyle = NAVY; ctx.stroke();
+  ctx.restore();
+}
+
+// Em queda livre a chave anda ~80px por frame. Sem rastro ela pisca.
+function drawKeyTrail(ctx, pose, alpha, speed) {
+  const step = Math.min(Math.abs(speed) / FPS, 110);
+  if (step > 14) {
+    // borrado e não só transparente, senão o rastro vira carimbo repetido
+    for (const [k, o, b] of [[0.80, 0.08, 17], [0.53, 0.14, 11], [0.26, 0.26, 6]]) {
+      ctx.save();
+      ctx.filter = `blur(${b}px)`;
+      drawKey(ctx, pose.x, pose.y - step * k, pose.a, alpha * o);
+      ctx.restore();
+    }
+  }
+  drawKey(ctx, pose.x, pose.y, pose.a, alpha);
+}
+
+// Colhe as chaves vivas no instante t, já com velocidade para o rastro.
+function liveKeys(t) {
+  const out = [];
+  for (const ph of KEY_PHASES) {
+    const age = ((t - ph) % T + T) % T;
+    if (age >= T_LIFE) continue;
+    const pose = keyPose(age);
+    const prev = keyPose(Math.max(age - 1 / FPS, 0));
+    out.push({ age, pose, speed: (pose.y - prev.y) * FPS });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// CARD 1 — a mão que solta
+// ---------------------------------------------------------------------------
+function drawHandTop(ctx, open) {
+  const o = open * 20;   // abertura da pinça no instante em que solta
+  capsule(ctx, 772, -240, 648, 158, 252, NAVY, 0);        // antebraço
+  capsule(ctx, 648, 152, 544, 300, 300, NAVY, 0);         // dorso da mão
+  capsule(ctx, 470, 318, 372, 326, 76, NAVY_SOFT);        // dedos recolhidos
+  capsule(ctx, 474, 392, 392, 400, 66, NAVY_SOFT);
+  capsule(ctx, 516, 258, 462, 384, 88, NAVY_SOFT);                  // polegar (base)
+  capsule(ctx, 462, 384, 514 - o, 540 + o * 0.35, 76, NAVY_SOFT);   // polegar (ponta)
+  capsule(ctx, 640, 286, 574 + o, 548 + o * 0.35, 78, NAVY);        // indicador
+}
+
+function renderCard1(ctx, t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+
+  let open = 0;
+  const keys = [];
+  for (const k of liveKeys(t)) {
+    open = Math.max(open, ramp(k.age, T_RELEASE - 0.07, T_RELEASE + 0.05, T_RELEASE + 0.24, T_RELEASE + 0.55));
+    if (k.pose.y - BOW_R <= SEAM) keys.push(k);   // ainda aparece neste card
+  }
+  // a chave passa POR TRÁS da mão: é assim que ela parece sair de dentro dela
+  for (const k of keys) drawKeyTrail(ctx, k.pose, keyAlpha(k.age), k.speed);
+  drawHandTop(ctx, open);
+}
+
+// ---------------------------------------------------------------------------
+// CARD 2 — a mão que recebe, e o estouro dourado
+// ---------------------------------------------------------------------------
+function drawHandBottom(ctx, cup, dip) {
+  const c = cup, d = dip * 12;    // dedos fecham ao receber; a mão cede no impacto
+  ctx.save();
+  ctx.translate(0, d);
+  capsule(ctx, 540, 1500, 540, 1250, 236, NAVY, 0);       // antebraço
+  capsule(ctx, 540, 1230, 540, 1070, 320, NAVY, 0);       // palma (a concha)
+  capsule(ctx, 405, 1020, 338 + c * 34, 800 + c * 34, 76, NAVY_SOFT);   // dedos
+  capsule(ctx, 487, 1000, 447 + c * 20, 752 + c * 40, 80, NAVY_SOFT);
+  capsule(ctx, 575, 1000, 617 - c * 20, 756 + c * 40, 80, NAVY_SOFT);
+  capsule(ctx, 658, 1020, 726 - c * 34, 812 + c * 34, 74, NAVY_SOFT);
+  capsule(ctx, 425, 1100, 276 + c * 38, 985 + c * 24, 88, NAVY_SOFT);   // polegar
+  ctx.restore();
+}
+
+// A luz vai em duas camadas: o grosso ATRÁS da mão (senão os raios viram
+// riscos por cima dos dedos) e só um núcleo quente na frente, no ponto de
+// contato, para amarrar a chave à palma.
+function drawGlowBack(ctx, x, y, p) {
+  const a = Math.pow(Math.sin(Math.PI * p), 1.25);
+  if (a <= 0.002) return;
+  // Luz contida: o fundo limpo é metade da força da peça, então o estouro
+  // fica local à mão em vez de lavar o quadro inteiro.
+  const r = 170 + 500 * easeOut(p);
+
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0.00, rgba(RGB_GOLD_HI, (0.80 * a).toFixed(3)));
+  g.addColorStop(0.35, rgba(RGB_GOLD, (0.34 * a).toFixed(3)));
+  g.addColorStop(0.72, rgba(RGB_GOLD, (0.10 * a).toFixed(3)));
+  g.addColorStop(1.00, rgba(RGB_GOLD, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // raios largos: dão leitura de "momento", não de luz difusa.
+  // O blur é o que separa "luz" de "gráfico" — sem ele viram barras chapadas.
+  ctx.translate(x, y);
+  ctx.rotate(p * 0.3);
+  ctx.filter = "blur(34px)";
+  ctx.globalAlpha = a * 0.8;
+  ctx.fillStyle = GOLD_HI;
+  for (let i = 0; i < 10; i++) {
+    const inner = 60, outer = 240 + 380 * easeOut(p);
+    const half = 0.075 + 0.035 * (i % 2);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(-half) * inner, Math.sin(-half) * inner);
+    ctx.lineTo(Math.cos(half) * inner, Math.sin(half) * inner);
+    ctx.lineTo(Math.cos(half * 0.25) * outer, Math.sin(half * 0.25) * outer);
+    ctx.lineTo(Math.cos(-half * 0.25) * outer, Math.sin(-half * 0.25) * outer);
+    ctx.closePath(); ctx.fill();
+    ctx.rotate(Math.PI * 2 / 10);
+  }
+  ctx.restore();
+
+  // onda de impacto: larga e macia, some rápido
+  if (p < 0.45) {
+    const q = p / 0.45;
+    ctx.save();
+    ctx.filter = "blur(20px)";
+    ctx.globalAlpha = (1 - q) * 0.7;
+    ctx.strokeStyle = GOLD;
+    ctx.lineWidth = 30 * (1 - q) + 6;
+    ctx.beginPath(); ctx.arc(x, y, 90 + 430 * easeOut(q), 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawGlowFront(ctx, x, y, p) {
+  const a = Math.pow(Math.sin(Math.PI * p), 1.6);
+  if (a <= 0.002) return;
+  // De propósito discreto: mais do que isso e o navy da mão vira cinza.
+  const r = 90 + 170 * easeOut(p);
+  ctx.save();
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0.00, rgba(RGB_GOLD_HI, (0.22 * a).toFixed(3)));
+  g.addColorStop(1.00, rgba(RGB_GOLD_HI, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+}
+
+// Assinatura discreta, no alto à esquerda. A largura é ajustada para caber
+// em MAX_W: a coluna da queda começa em ~480 e o wordmark não pode encostar
+// nela, senão a chave passa por cima das últimas letras.
+function drawWordmark(ctx) {
+  const MAX_W = 370, X = 78, Y = 128;
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = NAVY;
+  ctx.letterSpacing = "7px";
+  let size = 30;
+  ctx.font = `600 ${size}px "Sora Variable", sans-serif`;
+  const w = ctx.measureText("SEU METRO QUADRADO").width;
+  if (w > MAX_W) {
+    size = Math.floor(size * MAX_W / w);
+    ctx.letterSpacing = Math.round(7 * MAX_W / w) + "px";
+    ctx.font = `600 ${size}px "Sora Variable", sans-serif`;
+  }
+  ctx.fillText("SEU METRO QUADRADO", X, Y);
+  ctx.restore();
+}
+
+function renderCard2(ctx, t) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+
+  let cup = 0, dip = 0, glow = -1;
+  const keys = [];
+  for (const k of liveKeys(t)) {
+    if (k.pose.y + KEY_LEN < SEAM) continue;      // ainda está no card 1
+    keys.push(k);
+    cup = Math.max(cup, ramp(k.age, T_FALL_END - 0.05, T_SETTLE_END, T_FADE_A, T_LIFE - 0.02));
+    dip = Math.max(dip, ramp(k.age, T_FALL_END - 0.02, T_FALL_END + 0.06, T_FALL_END + 0.12, T_FALL_END + 0.34));
+    if (k.age >= T_GLOW_A && k.age <= T_GLOW_B) {
+      glow = Math.max(glow, (k.age - T_GLOW_A) / (T_GLOW_B - T_GLOW_A));
+    }
+  }
+
+  const gx = TIP_PIVOT.x, gy = TIP_PIVOT.y - SEAM;
+  drawWordmark(ctx);
+  if (glow >= 0) drawGlowBack(ctx, gx, gy, glow);
+  drawHandBottom(ctx, cup, dip);
+  for (const k of keys) {
+    drawKeyTrail(ctx, { ...k.pose, y: k.pose.y - SEAM }, keyAlpha(k.age), k.speed);
+  }
+  if (glow >= 0) drawGlowFront(ctx, gx, gy, glow);
+}
+
+// ---------------------------------------------------------------------------
+window.render = function (card, t) {
+  const ctx = document.getElementById("c").getContext("2d");
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  if (card === 1) renderCard1(ctx, t); else renderCard2(ctx, t);
+};
+window.frameData = () => document.getElementById("c").toDataURL("image/png");
+window.META = { W, H, T, FPS, FRAMES: Math.round(T * FPS) };
+</script>
