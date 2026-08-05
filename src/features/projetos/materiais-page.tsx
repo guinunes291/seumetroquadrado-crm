@@ -13,11 +13,29 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BookOpen, Building2, ExternalLink, Save, Search, Star, Table2, X } from "lucide-react";
+import {
+  BookOpen,
+  Building2,
+  ClipboardPaste,
+  ExternalLink,
+  Save,
+  Search,
+  Star,
+  Table2,
+  X,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,9 +44,16 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { parceiraDoProjeto, type Parceira } from "@/lib/construtoras";
-import { diffMateriais, urlValida, type MateriaisEdicao } from "@/lib/materiais";
+import {
+  casarColagem,
+  diffMateriais,
+  parseColagem,
+  urlValida,
+  type MateriaisEdicao,
+} from "@/lib/materiais";
 import { useConstrutorasParceiras } from "./use-construtoras-parceiras";
 
 /** Só o que esta tela lê e escreve — projeção enxuta de propósito. */
@@ -53,6 +78,7 @@ export function MateriaisPage() {
   // Abre no trabalho que falta: quem já tem book e tabela não precisa de você.
   const [soFaltando, setSoFaltando] = useState(true);
   const [edicoes, setEdicoes] = useState<Record<string, Edicao>>({});
+  const [colarOpen, setColarOpen] = useState(false);
 
   const projetosQ = useQuery({
     queryKey: ["projetos-materiais"],
@@ -184,6 +210,39 @@ export function MateriaisPage() {
     });
   };
 
+  /**
+   * A colagem NÃO salva: vira edição pendente, igual a digitar. A pessoa revê
+   * o que entrou (as linhas ficam destacadas) e confirma no "Salvar".
+   */
+  const aplicarColagem = (texto: string) => {
+    const { aplicados, ignorados } = casarColagem(parseColagem(texto), projetos);
+    if (aplicados.length === 0) {
+      toast.error("Nenhuma linha casou com um empreendimento do catálogo.");
+      return;
+    }
+    setEdicoes((atual) => {
+      const copia = { ...atual };
+      for (const { projeto, valores } of aplicados) {
+        const base = copia[projeto.id] ?? {
+          book_url: projeto.book_url ?? "",
+          tabela_precos_url: projeto.tabela_precos_url ?? "",
+        };
+        const proximo = { ...base, ...valores };
+        if (Object.keys(diffMateriais(projeto, proximo)).length > 0) copia[projeto.id] = proximo;
+        else delete copia[projeto.id];
+      }
+      return copia;
+    });
+    // Sem o filtro, o que acabou de entrar sumiria da tela (já tem material).
+    setSoFaltando(false);
+    setColarOpen(false);
+    toast.success(
+      ignorados.length === 0
+        ? `${aplicados.length} preenchidos — confira e salve.`
+        : `${aplicados.length} preenchidos · ${ignorados.length} sem correspondência: ${ignorados.slice(0, 3).join(", ")}${ignorados.length > 3 ? "…" : ""}`,
+    );
+  };
+
   if (projetosQ.isError) {
     return (
       <div className="p-6">
@@ -205,14 +264,22 @@ export function MateriaisPage() {
         title="Materiais dos empreendimentos"
         description="Book e tabela de preços de cada projeto. É daqui que saem os botões da bancada do corretor."
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link to="/projetos-foco">
-              <Star className="mr-1 h-4 w-4" />
-              Ver a bancada
-            </Link>
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={() => setColarOpen(true)}>
+              <ClipboardPaste className="mr-1 h-4 w-4" />
+              Colar lista
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/projetos-foco">
+                <Star className="mr-1 h-4 w-4" />
+                Ver a bancada
+              </Link>
+            </Button>
+          </>
         }
       />
+
+      <ColarListaDialog open={colarOpen} onOpenChange={setColarOpen} onAplicar={aplicarColagem} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile
@@ -370,6 +437,58 @@ export function MateriaisPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function ColarListaDialog({
+  open,
+  onOpenChange,
+  onAplicar,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAplicar: (texto: string) => void;
+}) {
+  const [texto, setTexto] = useState("");
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v) setTexto("");
+      }}
+    >
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Colar lista de materiais</DialogTitle>
+          <DialogDescription>
+            Uma linha por empreendimento: nome, link do book e link da tabela, separados por TAB (o
+            que sai do Sheets) ou ponto-e-vírgula. O nome não precisa ser idêntico ao do catálogo —
+            quando ficar ambíguo, a linha volta para você decidir em vez de arriscar.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          rows={12}
+          className="font-mono text-xs"
+          aria-label="Lista de materiais"
+          placeholder={"MA Lapa;https://drive.google.com/…;https://drive.google.com/…"}
+        />
+        <p className="text-xs text-muted-foreground">
+          Nada é salvo agora: as linhas viram alterações pendentes para você conferir antes de
+          clicar em Salvar.
+        </p>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={() => onAplicar(texto)} disabled={!texto.trim()}>
+            Preencher
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
