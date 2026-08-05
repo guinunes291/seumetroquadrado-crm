@@ -81,9 +81,10 @@ export function BottomNav() {
               Novo lead
             </DropdownMenuItem>
             {/* Consulta de preço com o cliente na frente: sem isto, Projetos
-                custa hambúrguer > Projetos > card > tabela (4 toques). */}
+                custa hambúrguer > Projetos > card > tabela (4 toques). Aponta
+                para a bancada — lá book e tabela abrem direto da lista. */}
             <DropdownMenuItem asChild>
-              <Link to="/projetos">
+              <Link to="/projetos-foco">
                 <Building2 className="h-4 w-4" />
                 Projetos e preços
               </Link>
