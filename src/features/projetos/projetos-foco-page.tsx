@@ -1,11 +1,15 @@
 // "Projetos em Foco" — a bancada de trabalho do corretor em campo.
 //
 // O catálogo (/projetos) responde "o que existe?"; esta tela responde "o que
-// eu vendo AGORA e onde está o material?". Duas leituras, nessa ordem:
+// eu vendo AGORA e onde está o material?". Três leituras, nessa ordem:
 //   1. Em foco agora — os empreendimentos com campanha ativa (projeto_foco).
-//   2. Construtoras parceiras — o portfólio agrupado por construtora.
-// Em ambas, book, tabela e o resumo de WhatsApp ficam a UM clique. Sem entrar
+//   2. Construtoras parceiras — quem a operação prioriza, na ordem da gestão.
+//   3. Outras construtoras — o resto do portfólio, por volume.
+// Em todas, book, tabela e o resumo de WhatsApp ficam a UM clique. Sem entrar
 // na ficha, sem procurar no Drive, sem pedir no grupo.
+//
+// O corte por ZONA atravessa as três: é como o corretor separa estoque quando
+// o cliente já decidiu a região.
 
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -15,10 +19,12 @@ import {
   BookOpen,
   Building2,
   CalendarClock,
+  Compass,
   Copy,
   ExternalLink,
   MapPin,
   Search,
+  Settings2,
   Star,
   Table2,
   Wallet,
@@ -26,6 +32,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
+import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
 import { montarMensagemVenda } from "@/components/projeto-comercial";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +52,11 @@ import {
   formatVagasRange,
 } from "@/lib/projetos";
 import { cn } from "@/lib/utils";
+import { parceiraDoProjeto, type Parceira } from "@/lib/construtoras";
+import { contarPorZona, zonaDoProjeto, zonaOuSemZona, type ZonaFiltro } from "@/lib/zonas";
 import type { ProjetoRow } from "@/components/projeto-card";
+import { ConstrutorasParceirasDialog } from "./construtoras-parceiras-dialog";
+import { useConstrutorasParceiras } from "./use-construtoras-parceiras";
 
 type FocoAtivo = {
   id: string;
@@ -55,8 +66,8 @@ type FocoAtivo = {
   fim: string | null;
 };
 
-/** Projeto do catálogo + a campanha de foco vigente, quando houver. */
-type ProjetoEmFoco = ProjetoRow & { foco?: FocoAtivo };
+/** Projeto do catálogo + a campanha de foco vigente e a parceira que o vende. */
+type ProjetoEmFoco = ProjetoRow & { foco?: FocoAtivo; parceira?: Parceira | null };
 
 const SEM_CONSTRUTORA = "Sem construtora informada";
 
@@ -68,7 +79,13 @@ const SEM_CONSTRUTORA = "Sem construtora informada";
 // eslint-disable-next-line react-refresh/only-export-components -- texto comercial desta tela (testado à parte); conviver com o componente é intencional
 export function montarResumoProjeto(p: ProjetoRow): string {
   const linhas: string[] = [];
-  const local = [p.bairro, p.cidade].filter(Boolean).join(", ");
+  const zona = zonaDoProjeto(p);
+  const local = [
+    [p.bairro, p.cidade].filter(Boolean).join(", ") || null,
+    zona ? `Zona ${zona}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   if (local) linhas.push(`📍 ${local}`);
 
   const ficha = [
@@ -113,8 +130,15 @@ function focoVigente(f: { ativo: boolean; fim: string | null }, agora: number): 
 }
 
 export function ProjetosFocoPage() {
+  const { isAdmin, isGestor } = useUserRoles();
   const [busca, setBusca] = useState("");
   const [construtoraSel, setConstrutoraSel] = useState<string | null>(null);
+  const [zonaSel, setZonaSel] = useState<ZonaFiltro | null>(null);
+  const [gerirOpen, setGerirOpen] = useState(false);
+  const parceirasQ = useConstrutorasParceiras();
+  // Sem tabela no ambiente, a lista é o fallback local: não há onde gravar,
+  // então a gestão não aparece prometendo uma edição que não persiste.
+  const podeGerir = (isAdmin || isGestor) && parceirasQ.data?.origem === "banco";
 
   const projetosQ = useQuery({
     queryKey: ["projetos-foco", "catalogo"],
@@ -165,53 +189,87 @@ export function ProjetosFocoPage() {
     return map;
   }, [focosQ.data]);
 
-  const comFoco = useMemo<ProjetoEmFoco[]>(
-    () => projetos.map((p) => ({ ...p, foco: focoPorProjeto.get(p.id) })),
-    [projetos, focoPorProjeto],
+  // Parceiras ativas na ordem da gestão — é essa ordem que a tela obedece.
+  const parceiras = useMemo(
+    () => (parceirasQ.data?.parceiras ?? []).filter((p) => p.ativo),
+    [parceirasQ.data],
   );
 
+  const comFoco = useMemo<ProjetoEmFoco[]>(
+    () =>
+      projetos.map((p) => ({
+        ...p,
+        foco: focoPorProjeto.get(p.id),
+        parceira: parceiraDoProjeto(p.construtora, parceiras),
+      })),
+    [projetos, focoPorProjeto, parceiras],
+  );
+
+  const zonas = useMemo(() => contarPorZona(comFoco), [comFoco]);
+
   const construtoras = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { total: number; parceira: Parceira | null }>();
     comFoco.forEach((p) => {
       const c = p.construtora?.trim() || SEM_CONSTRUTORA;
-      map.set(c, (map.get(c) ?? 0) + 1);
+      const atual = map.get(c);
+      map.set(c, { total: (atual?.total ?? 0) + 1, parceira: p.parceira ?? null });
     });
-    // As "principais" primeiro: quem tem mais projeto na operação abre a lista.
-    return Array.from(map.entries()).sort(
-      ([a, na], [b, nb]) => nb - na || a.localeCompare(b, "pt-BR"),
-    );
-  }, [comFoco]);
+    // Parceira vem antes, na ordem da gestão; o resto por volume de projeto.
+    const indice = new Map(parceiras.map((p, i) => [p.id, i]));
+    return Array.from(map.entries()).sort(([a, ia], [b, ib]) => {
+      const pa = ia.parceira ? (indice.get(ia.parceira.id) ?? 0) : Infinity;
+      const pb = ib.parceira ? (indice.get(ib.parceira.id) ?? 0) : Infinity;
+      if (pa !== pb) return pa - pb;
+      return ib.total - ia.total || a.localeCompare(b, "pt-BR");
+    });
+  }, [comFoco, parceiras]);
 
   const filtrados = useMemo(() => {
     const termo = normalizar(busca.trim());
     return comFoco.filter((p) => {
       const construtora = p.construtora?.trim() || SEM_CONSTRUTORA;
       if (construtoraSel && construtora !== construtoraSel) return false;
+      if (zonaSel && zonaOuSemZona(p) !== zonaSel) return false;
       if (!termo) return true;
       return normalizar(
         [p.nome, construtora, p.bairro, p.cidade, p.regiao, p.zona_smq].filter(Boolean).join(" "),
       ).includes(termo);
     });
-  }, [comFoco, busca, construtoraSel]);
+  }, [comFoco, busca, construtoraSel, zonaSel]);
 
   const destaques = useMemo(() => filtrados.filter((p) => p.foco), [filtrados]);
 
-  const porConstrutora = useMemo(() => {
-    const map = new Map<string, ProjetoEmFoco[]>();
+  // Dois blocos: as parceiras (ordem da gestão) e o resto (por volume). Uma
+  // construtora sem projeto no filtro atual não vira seção vazia.
+  const { gruposParceiras, gruposOutras } = useMemo(() => {
+    const porNome = new Map<string, ProjetoEmFoco[]>();
+    const dasParceiras = new Map<string, ProjetoEmFoco[]>();
     filtrados.forEach((p) => {
+      if (p.parceira) {
+        const chave = p.parceira.id;
+        if (!dasParceiras.has(chave)) dasParceiras.set(chave, []);
+        dasParceiras.get(chave)!.push(p);
+        return;
+      }
       const c = p.construtora?.trim() || SEM_CONSTRUTORA;
-      if (!map.has(c)) map.set(c, []);
-      map.get(c)!.push(p);
+      if (!porNome.has(c)) porNome.set(c, []);
+      porNome.get(c)!.push(p);
     });
-    return Array.from(map.entries()).sort(
-      ([a, la], [b, lb]) => lb.length - la.length || a.localeCompare(b, "pt-BR"),
-    );
-  }, [filtrados]);
+    return {
+      gruposParceiras: parceiras
+        .map((parceira) => ({ parceira, itens: dasParceiras.get(parceira.id) ?? [] }))
+        .filter((g) => g.itens.length > 0),
+      gruposOutras: Array.from(porNome.entries()).sort(
+        ([a, la], [b, lb]) => lb.length - la.length || a.localeCompare(b, "pt-BR"),
+      ),
+    };
+  }, [filtrados, parceiras]);
 
-  const filtroAtivo = busca.trim().length > 0 || construtoraSel != null;
+  const filtroAtivo = busca.trim().length > 0 || construtoraSel != null || zonaSel != null;
   const limparFiltros = () => {
     setBusca("");
     setConstrutoraSel(null);
+    setZonaSel(null);
   };
 
   if (projetosQ.isError) {
@@ -234,14 +292,30 @@ export function ProjetosFocoPage() {
           title="Projetos em Foco"
           description="As construtoras parceiras e os empreendimentos que estamos vendendo agora — book, tabela e resumo do produto a um clique."
           actions={
-            <Button asChild variant="outline" size="sm">
-              <Link to="/projetos">
-                <Building2 className="mr-1 h-4 w-4" />
-                Catálogo completo
-              </Link>
-            </Button>
+            <>
+              {podeGerir && (
+                <Button variant="outline" size="sm" onClick={() => setGerirOpen(true)}>
+                  <Settings2 className="mr-1 h-4 w-4" />
+                  Parceiras
+                </Button>
+              )}
+              <Button asChild variant="outline" size="sm">
+                <Link to="/projetos">
+                  <Building2 className="mr-1 h-4 w-4" />
+                  Catálogo completo
+                </Link>
+              </Button>
+            </>
           }
         />
+
+        {podeGerir && (
+          <ConstrutorasParceirasDialog
+            open={gerirOpen}
+            onOpenChange={setGerirOpen}
+            parceiras={parceirasQ.data?.parceiras ?? []}
+          />
+        )}
 
         <div className="grid gap-3 sm:grid-cols-3">
           <StatTile
@@ -253,11 +327,11 @@ export function ProjetosFocoPage() {
             hint="Campanhas ativas"
           />
           <StatTile
-            title="Construtoras"
-            value={construtoras.length}
+            title="Parceiras"
+            value={parceiras.length}
             icon={Building2}
-            loading={projetosQ.isLoading}
-            hint="Parceiras com projeto ativo"
+            loading={parceirasQ.isLoading}
+            hint={`${construtoras.length} construtoras no catálogo`}
           />
           <StatTile
             title="Empreendimentos"
@@ -280,23 +354,60 @@ export function ProjetosFocoPage() {
             />
           </div>
 
-          {construtoras.length > 0 && (
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por construtora">
-              <FiltroChip
-                ativo={construtoraSel == null}
-                onClick={() => setConstrutoraSel(null)}
-                label="Todas"
-                contagem={comFoco.length}
-              />
-              {construtoras.map(([nome, n]) => (
+          {zonas.length > 0 && (
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+                Zona
+              </div>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por zona">
                 <FiltroChip
-                  key={nome}
-                  ativo={construtoraSel === nome}
-                  onClick={() => setConstrutoraSel((atual) => (atual === nome ? null : nome))}
-                  label={nome}
-                  contagem={n}
+                  ativo={zonaSel == null}
+                  onClick={() => setZonaSel(null)}
+                  label="Todas"
+                  contagem={comFoco.length}
                 />
-              ))}
+                {zonas.map(({ zona, total }) => (
+                  <FiltroChip
+                    key={zona}
+                    ativo={zonaSel === zona}
+                    onClick={() => setZonaSel((atual) => (atual === zona ? null : zona))}
+                    label={zona}
+                    contagem={total}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {construtoras.length > 0 && (
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Construtora
+              </div>
+              <div
+                className="flex flex-wrap gap-2"
+                role="group"
+                aria-label="Filtrar por construtora"
+              >
+                <FiltroChip
+                  ativo={construtoraSel == null}
+                  onClick={() => setConstrutoraSel(null)}
+                  label="Todas"
+                  contagem={comFoco.length}
+                />
+                {construtoras.map(([nome, { total, parceira }]) => (
+                  <FiltroChip
+                    key={nome}
+                    ativo={construtoraSel === nome}
+                    onClick={() => setConstrutoraSel((atual) => (atual === nome ? null : nome))}
+                    label={nome}
+                    contagem={total}
+                    parceira={parceira != null}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -333,7 +444,7 @@ export function ProjetosFocoPage() {
             {destaques.length > 0 && (
               <section aria-label="Projetos em foco agora">
                 <SectionHeader
-                  eyebrow="Prioridade da operação"
+                  eyebrow="Campanha ativa"
                   title="Em foco agora"
                   action={
                     <span className="text-xs text-muted-foreground">
@@ -349,38 +460,50 @@ export function ProjetosFocoPage() {
               </section>
             )}
 
-            <section aria-label="Portfólio por construtora" className="space-y-6">
-              <SectionHeader
-                eyebrow="Portfólio"
-                title="Construtoras parceiras"
-                action={
-                  filtroAtivo ? (
-                    <Button size="sm" variant="ghost" onClick={limparFiltros}>
-                      <X className="mr-1 h-4 w-4" />
-                      Limpar filtros
-                    </Button>
-                  ) : undefined
-                }
-              />
-              {porConstrutora.map(([construtora, itens]) => (
-                <div key={construtora} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
-                    <h3 className="font-display text-sm font-semibold tracking-tight">
-                      {construtora}
-                    </h3>
-                    <Badge variant="outline" className="text-[10px]">
-                      {itens.length}
-                    </Badge>
-                  </div>
-                  <div className="divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-card shadow-elev-1">
-                    {itens.map((p) => (
-                      <ProjetoLinha key={p.id} projeto={p} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </section>
+            {gruposParceiras.length > 0 && (
+              <section aria-label="Construtoras parceiras" className="space-y-6">
+                <SectionHeader
+                  eyebrow="Prioridade da operação"
+                  title="Construtoras parceiras"
+                  action={
+                    filtroAtivo ? (
+                      <Button size="sm" variant="ghost" onClick={limparFiltros}>
+                        <X className="mr-1 h-4 w-4" />
+                        Limpar filtros
+                      </Button>
+                    ) : undefined
+                  }
+                />
+                {gruposParceiras.map(({ parceira, itens }) => (
+                  <GrupoConstrutora
+                    key={parceira.id}
+                    titulo={parceira.nome}
+                    itens={itens}
+                    parceira
+                  />
+                ))}
+              </section>
+            )}
+
+            {gruposOutras.length > 0 && (
+              <section aria-label="Outras construtoras" className="space-y-6">
+                <SectionHeader
+                  eyebrow="Portfólio"
+                  title="Outras construtoras"
+                  action={
+                    filtroAtivo && gruposParceiras.length === 0 ? (
+                      <Button size="sm" variant="ghost" onClick={limparFiltros}>
+                        <X className="mr-1 h-4 w-4" />
+                        Limpar filtros
+                      </Button>
+                    ) : undefined
+                  }
+                />
+                {gruposOutras.map(([construtora, itens]) => (
+                  <GrupoConstrutora key={construtora} titulo={construtora} itens={itens} />
+                ))}
+              </section>
+            )}
           </>
         )}
       </div>
@@ -393,11 +516,14 @@ function FiltroChip({
   onClick,
   label,
   contagem,
+  parceira,
 }: {
   ativo: boolean;
   onClick: () => void;
   label: string;
   contagem: number;
+  /** Construtora parceira — ganha a estrela dourada e sobe na fila dos chips. */
+  parceira?: boolean;
 }) {
   return (
     <button
@@ -408,19 +534,69 @@ function FiltroChip({
         "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
         ativo
           ? "border-primary/40 bg-primary/10 text-primary"
-          : "border-border-subtle bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground",
+          : parceira
+            ? "border-gold-500/40 bg-gold-500/5 text-foreground hover:border-gold-500/70"
+            : "border-border-subtle bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground",
       )}
     >
+      {parceira && (
+        <Star
+          className="h-3 w-3 shrink-0 text-gold-600 dark:text-gold-300"
+          aria-label="Construtora parceira"
+        />
+      )}
       <span className="max-w-[14rem] truncate">{label}</span>
       <span className="tabular-nums opacity-70">{contagem}</span>
     </button>
   );
 }
 
+/** Bloco de uma construtora: cabeçalho + as linhas dos seus empreendimentos. */
+function GrupoConstrutora({
+  titulo,
+  itens,
+  parceira,
+}: {
+  titulo: string;
+  itens: ProjetoEmFoco[];
+  parceira?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        {parceira ? (
+          <Star
+            className="h-4 w-4 text-gold-600 dark:text-gold-300"
+            aria-label="Construtora parceira"
+          />
+        ) : (
+          <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
+        )}
+        <h3 className="font-display text-sm font-semibold tracking-tight">{titulo}</h3>
+        <Badge variant="outline" className="text-[10px]">
+          {itens.length}
+        </Badge>
+      </div>
+      <div
+        className={cn(
+          "divide-y divide-border-subtle overflow-hidden rounded-xl border bg-card shadow-elev-1",
+          parceira ? "border-gold-500/25" : "border-border-subtle",
+        )}
+      >
+        {itens.map((p) => (
+          <ProjetoLinha key={p.id} projeto={p} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Chips de contexto do produto — os mesmos números em card e linha. */
 function chipsDoProjeto(p: ProjetoRow): string[] {
+  const zona = zonaDoProjeto(p);
   return [
     [p.bairro, p.cidade].filter(Boolean).join(", ") || null,
+    zona ? `Zona ${zona}` : null,
     formatDormsRange(p.dorms_min, p.dorms_max),
     formatM2Range(p.metragem_min, p.metragem_max),
     formatVagasRange(p.vagas_min, p.vagas_max, p.vagas_observacao),
