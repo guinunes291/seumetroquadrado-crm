@@ -293,6 +293,14 @@ export function ProjetosFocoPage() {
           description="As construtoras parceiras e os empreendimentos que estamos vendendo agora — book, tabela e resumo do produto a um clique."
           actions={
             <>
+              {(isAdmin || isGestor) && (
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/projetos-materiais">
+                    <BookOpen className="mr-1 h-4 w-4" />
+                    Materiais
+                  </Link>
+                </Button>
+              )}
               {podeGerir && (
                 <Button variant="outline" size="sm" onClick={() => setGerirOpen(true)}>
                   <Settings2 className="mr-1 h-4 w-4" />
