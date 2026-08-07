@@ -23,6 +23,8 @@ import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
 import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
+import { Route as AuthenticatedProjetosMateriaisRouteImport } from './routes/_authenticated/projetos-materiais'
+import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
 import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authenticated/modo-visita'
@@ -52,8 +54,6 @@ import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authent
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authenticated/projetos.index'
-import { Route as AuthenticatedProjetosMateriaisRouteImport } from './routes/_authenticated/projetos-materiais'
-import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
@@ -156,6 +156,18 @@ const AuthenticatedRadarRoute = AuthenticatedRadarRouteImport.update({
   path: '/radar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProjetosMateriaisRoute =
+  AuthenticatedProjetosMateriaisRouteImport.update({
+    id: '/projetos-materiais',
+    path: '/projetos-materiais',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedProjetosFocoRoute =
+  AuthenticatedProjetosFocoRouteImport.update({
+    id: '/projetos-foco',
+    path: '/projetos-foco',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPipelineRoute = AuthenticatedPipelineRouteImport.update({
   id: '/pipeline',
   path: '/pipeline',
@@ -305,18 +317,6 @@ const Char91DotmcpChar93ListToolsRoute =
     id: '/.mcp/list-tools',
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedProjetosMateriaisRoute =
-  AuthenticatedProjetosMateriaisRouteImport.update({
-    id: '/projetos-materiais',
-    path: '/projetos-materiais',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedProjetosFocoRoute =
-  AuthenticatedProjetosFocoRouteImport.update({
-    id: '/projetos-foco',
-    path: '/projetos-foco',
-    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedProjetosIndexRoute =
   AuthenticatedProjetosIndexRouteImport.update({
@@ -532,6 +532,8 @@ export interface FileRoutesByFullPath {
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
+  '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
+  '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -546,8 +548,6 @@ export interface FileRoutesByFullPath {
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
-  '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
-  '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
@@ -610,6 +610,8 @@ export interface FileRoutesByTo {
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
+  '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
+  '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -624,8 +626,6 @@ export interface FileRoutesByTo {
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
-  '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
-  '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
@@ -690,6 +690,8 @@ export interface FileRoutesById {
   '/_authenticated/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
+  '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
+  '/_authenticated/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/_authenticated/radar': typeof AuthenticatedRadarRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -704,8 +706,6 @@ export interface FileRoutesById {
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
   '/_authenticated/oferta-ativa/nova': typeof AuthenticatedOfertaAtivaNovaRoute
-  '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
-  '/_authenticated/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/_authenticated/projetos/$projetoId': typeof AuthenticatedProjetosProjetoIdRoute
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
@@ -770,6 +770,8 @@ export interface FileRouteTypes {
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
+    | '/projetos-foco'
+    | '/projetos-materiais'
     | '/radar'
     | '/ranking'
     | '/relatorios'
@@ -784,8 +786,6 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
-    | '/projetos-foco'
-    | '/projetos-materiais'
     | '/projetos/$projetoId'
     | '/api/public/documentos'
     | '/api/public/metricas'
@@ -848,6 +848,8 @@ export interface FileRouteTypes {
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
+    | '/projetos-foco'
+    | '/projetos-materiais'
     | '/radar'
     | '/ranking'
     | '/relatorios'
@@ -862,8 +864,6 @@ export interface FileRouteTypes {
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
     | '/oferta-ativa/nova'
-    | '/projetos-foco'
-    | '/projetos-materiais'
     | '/projetos/$projetoId'
     | '/api/public/documentos'
     | '/api/public/metricas'
@@ -927,6 +927,8 @@ export interface FileRouteTypes {
     | '/_authenticated/modo-visita'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/pipeline'
+    | '/_authenticated/projetos-foco'
+    | '/_authenticated/projetos-materiais'
     | '/_authenticated/radar'
     | '/_authenticated/ranking'
     | '/_authenticated/relatorios'
@@ -941,8 +943,6 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/oferta-ativa/$ofertaId'
     | '/_authenticated/oferta-ativa/nova'
-    | '/_authenticated/projetos-foco'
-    | '/_authenticated/projetos-materiais'
     | '/_authenticated/projetos/$projetoId'
     | '/api/public/documentos'
     | '/api/public/metricas'
@@ -1105,6 +1105,20 @@ declare module '@tanstack/react-router' {
       path: '/radar'
       fullPath: '/radar'
       preLoaderRoute: typeof AuthenticatedRadarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/projetos-materiais': {
+      id: '/_authenticated/projetos-materiais'
+      path: '/projetos-materiais'
+      fullPath: '/projetos-materiais'
+      preLoaderRoute: typeof AuthenticatedProjetosMateriaisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/projetos-foco': {
+      id: '/_authenticated/projetos-foco'
+      path: '/projetos-foco'
+      fullPath: '/projetos-foco'
+      preLoaderRoute: typeof AuthenticatedProjetosFocoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/pipeline': {
@@ -1302,20 +1316,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/projetos-materiais': {
-      id: '/_authenticated/projetos-materiais'
-      path: '/projetos-materiais'
-      fullPath: '/projetos-materiais'
-      preLoaderRoute: typeof AuthenticatedProjetosMateriaisRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/projetos-foco': {
-      id: '/_authenticated/projetos-foco'
-      path: '/projetos-foco'
-      fullPath: '/projetos-foco'
-      preLoaderRoute: typeof AuthenticatedProjetosFocoRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projetos/': {
       id: '/_authenticated/projetos/'
@@ -1578,6 +1578,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModoVisitaRoute: typeof AuthenticatedModoVisitaRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
+  AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
+  AuthenticatedProjetosMateriaisRoute: typeof AuthenticatedProjetosMateriaisRoute
   AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
@@ -1588,8 +1590,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
   AuthenticatedOfertaAtivaOfertaIdRoute: typeof AuthenticatedOfertaAtivaOfertaIdRoute
   AuthenticatedOfertaAtivaNovaRoute: typeof AuthenticatedOfertaAtivaNovaRoute
-  AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
-  AuthenticatedProjetosMateriaisRoute: typeof AuthenticatedProjetosMateriaisRoute
   AuthenticatedProjetosProjetoIdRoute: typeof AuthenticatedProjetosProjetoIdRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
   AuthenticatedOfertaAtivaIndexRoute: typeof AuthenticatedOfertaAtivaIndexRoute
@@ -1623,6 +1623,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModoVisitaRoute: AuthenticatedModoVisitaRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
+  AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,
+  AuthenticatedProjetosMateriaisRoute: AuthenticatedProjetosMateriaisRoute,
   AuthenticatedRadarRoute: AuthenticatedRadarRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
@@ -1634,8 +1636,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
   AuthenticatedOfertaAtivaOfertaIdRoute: AuthenticatedOfertaAtivaOfertaIdRoute,
   AuthenticatedOfertaAtivaNovaRoute: AuthenticatedOfertaAtivaNovaRoute,
-  AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,
-  AuthenticatedProjetosMateriaisRoute: AuthenticatedProjetosMateriaisRoute,
   AuthenticatedProjetosProjetoIdRoute: AuthenticatedProjetosProjetoIdRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
   AuthenticatedOfertaAtivaIndexRoute: AuthenticatedOfertaAtivaIndexRoute,

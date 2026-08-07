@@ -847,39 +847,6 @@ export type Database = {
         }
         Relationships: []
       }
-      construtoras_parceiras: {
-        Row: {
-          ativo: boolean
-          created_at: string
-          criado_por: string | null
-          id: string
-          nome: string
-          observacao: string | null
-          ordem: number
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          created_at?: string
-          criado_por?: string | null
-          id?: string
-          nome: string
-          observacao?: string | null
-          ordem?: number
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          created_at?: string
-          criado_por?: string | null
-          id?: string
-          nome?: string
-          observacao?: string | null
-          ordem?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       conta_auditoria: {
         Row: {
           autor_id: string
