@@ -23,6 +23,7 @@
 // config: verify_jwt = false (supabase/config.toml).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { comCapturaDeErro } from "../_shared/error-tracking.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -119,7 +120,9 @@ async function secretsIguais(a: string, b: string): Promise<boolean> {
   return diff === 0;
 }
 
-Deno.serve(async (req: Request): Promise<Response> => {
+Deno.serve((req: Request) => comCapturaDeErro("lead-intake", () => handleRequest(req)));
+
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
@@ -366,4 +369,4 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // log efêmero; este campo é o aviso que chega a quem opera o Zap.
     ...(authDepreciada ? { deprecated_auth: "migrar para o header x-webhook-secret" } : {}),
   });
-});
+}

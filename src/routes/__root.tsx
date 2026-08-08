@@ -40,6 +40,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    // Segundo sink (0.1): rastreador próprio, no-op sem VITE_SENTRY_DSN.
+    void import("@/lib/error-tracking.client").then((m) =>
+      m.captureClientError(error, "react_error_boundary"),
+    );
   }, [error]);
 
   return (
@@ -159,6 +163,9 @@ function RootComponent() {
 
   useEffect(() => {
     registerServiceWorker();
+    // Listeners globais de erro (onerror/unhandledrejection) — import dinâmico
+    // para não pesar o chunk de entrada; no-op sem VITE_SENTRY_DSN.
+    void import("@/lib/error-tracking.client").then((m) => m.initErrorTracking());
   }, []);
 
   return (
