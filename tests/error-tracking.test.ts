@@ -77,9 +77,9 @@ describe("contratos de integração (fonte como texto)", () => {
 
   it("cliente instala listeners globais via import dinâmico (chunk de entrada intacto)", () => {
     const root = read("src/routes/__root.tsx");
-    expect(root).toContain('import("@/lib/error-tracking.client")');
+    expect(root).toContain('import("@/lib/error-tracking-browser")');
     expect(root).toContain("initErrorTracking");
-    const client = read("src/lib/error-tracking.client.ts");
+    const client = read("src/lib/error-tracking-browser.ts");
     expect(client).toContain("MAX_EVENTS_PER_SESSION");
     expect(client).toContain("unhandledrejection");
   });

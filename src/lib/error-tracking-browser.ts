@@ -1,6 +1,8 @@
 // Rastreamento de erro no NAVEGADOR. Gated: sem VITE_SENTRY_DSN (ou fora de
 // produção) tudo aqui é no-op — mesmo padrão do register-sw. Carregado por
 // import() dinâmico no __root para não pesar o chunk de entrada.
+// (Sem o sufixo .client.ts de propósito: o import-protection do server build
+// nega *.client.* importado da árvore de rotas; aqui o guard é de runtime.)
 //
 // Teto de eventos por sessão + dedupe do último erro: um erro em loop de
 // render não pode virar tempestade de rede (nem estourar a cota do projeto).
@@ -22,6 +24,7 @@ function environment(): string {
 }
 
 export function captureClientError(error: unknown, mechanism: string, handled = false) {
+  if (typeof window === "undefined") return;
   const target = dsn();
   if (!target || sent >= MAX_EVENTS_PER_SESSION) return;
   const key = `${mechanism}:${error instanceof Error ? error.message : String(error)}`;

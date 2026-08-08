@@ -6,7 +6,7 @@
 // tipo, mensagem, stack e rota.
 //
 // Módulo PURO e isomórfico: quem sabe de env é o chamador
-// (error-tracking.client.ts lê VITE_SENTRY_DSN; error-tracking.server.ts lê
+// (error-tracking-browser.ts lê VITE_SENTRY_DSN; error-tracking.server.ts lê
 // process.env.SENTRY_DSN em tempo de request — regra do Workers). Sem DSN,
 // os chamadores são no-op.
 

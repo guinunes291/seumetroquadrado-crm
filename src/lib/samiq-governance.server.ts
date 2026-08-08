@@ -1,6 +1,23 @@
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { isMissingBackendObject } from "@/lib/supabase-errors";
+import { rateLimit } from "@/lib/rate-limit";
 import type { SamiQAction } from "@/lib/samiq";
+
+/**
+ * Ações de IA fora do chat do SamiQ (item 0.6 da estrategia-2026-08), com
+ * slugs PRÓPRIOS: o índice (action, created_at) de samiq_execucoes é como a
+ * métrica C3 distingue o chat dos botões do dossiê/match. Não entram em
+ * SAMIQ_ACTIONS de propósito — aquilo é catálogo de UI do painel.
+ */
+export type GovernedAIAction = SamiQAction | "match_projetos" | "resumo_lead" | "mensagem_whatsapp";
+
+/**
+ * Modelo do comportamento legado, usado só quando a governança ainda não
+ * conhece a ação (migration não aplicada). Vive AQUI para os handlers não
+ * carregarem modelo hardcoded — os testes de contrato proíbem.
+ */
+export const FALLBACK_MODEL_ID = "google/gemini-3-flash-preview";
 
 const reservationRowSchema = z.object({
   allowed: z.boolean(),
@@ -37,17 +54,36 @@ export class SamiQQuotaError extends Error {
   }
 }
 
+/** Governança fora do ar OU sem a ação versionada — só este caso autoriza fallback. */
+export class SamiQGovernanceUnavailableError extends Error {
+  constructor(readonly original: unknown) {
+    super("Não foi possível validar a cota do SamiQ.");
+    this.name = "SamiQGovernanceUnavailableError";
+  }
+}
+
 export async function reserveSamiQExecution(args: {
   userId: string;
-  action: SamiQAction;
+  action: GovernedAIAction;
   estimatedInputTokens?: number;
+  /** Baixa o teto de saída DESTA chamada (o LEAST na RPC impede subir). */
+  requestedOutputTokens?: number;
 }): Promise<SamiQReservation> {
   const { data, error } = await supabaseAdmin.rpc("samiq_reservar_execucao", {
     _user_id: args.userId,
     _action: args.action,
     _estimated_input_tokens: args.estimatedInputTokens ?? 10_000,
+    ...(args.requestedOutputTokens ? { _requested_output_tokens: args.requestedOutputTokens } : {}),
   });
-  if (error) throw new Error("Não foi possível validar a cota do SamiQ.");
+  if (error) {
+    // RPC/versão ausente (PGRST202 etc.) ou "acao sem prompt versionado"
+    // (22023): a migration ainda não chegou — sinaliza para o chamador poder
+    // degradar. Qualquer outro erro continua opaco (não vaza detalhe interno).
+    if (isMissingBackendObject(error) || error.code === "22023") {
+      throw new SamiQGovernanceUnavailableError(error);
+    }
+    throw new Error("Não foi possível validar a cota do SamiQ.");
+  }
 
   const parsed = reservationRowSchema.safeParse(data?.[0]);
   if (!parsed.success) throw new Error("Resposta inválida da governança do SamiQ.");
@@ -74,6 +110,54 @@ export async function reserveSamiQExecution(args: {
     actionPrompt: row.action_prompt,
     maxOutputTokens: row.max_output_tokens,
   };
+}
+
+export type GovernedReservation =
+  | ({ governed: true } & SamiQReservation)
+  | {
+      governed: false;
+      executionId: null;
+      modelId: string;
+      systemPrompt: null;
+      actionPrompt: null;
+      maxOutputTokens: number;
+    };
+
+/**
+ * Reserva para as superfícies de IA unificadas (match/resumo/mensagem).
+ * Caminho principal: a mesma RPC do SamiQ (quota distribuída, prompt/modelo
+ * versionados, telemetria). Se a governança ainda não conhece a ação
+ * (migration não aplicada em produção — desacoplamento deploy×banco, lição
+ * do P0-1), degrada para o comportamento legado: rate limit em memória por
+ * usuário + modelo constante. Quota NEGADA nunca degrada — política é política.
+ */
+export async function reserveGovernedAIExecution(args: {
+  userId: string;
+  action: GovernedAIAction;
+  estimatedInputTokens?: number;
+  requestedOutputTokens?: number;
+  fallback: { rateLimitKey: string; maxPerMinute: number; maxOutputTokens?: number };
+}): Promise<GovernedReservation> {
+  try {
+    const reservation = await reserveSamiQExecution(args);
+    return { governed: true, ...reservation };
+  } catch (error) {
+    if (!(error instanceof SamiQGovernanceUnavailableError)) throw error;
+    const rl = rateLimit(
+      `${args.fallback.rateLimitKey}:${args.userId}`,
+      args.fallback.maxPerMinute,
+      60_000,
+    );
+    if (!rl.allowed) throw new SamiQQuotaError("user_rate_limit_local", rl.retryAfterS);
+    return {
+      governed: false,
+      executionId: null,
+      modelId: FALLBACK_MODEL_ID,
+      systemPrompt: null,
+      actionPrompt: null,
+      maxOutputTokens: args.fallback.maxOutputTokens ?? args.requestedOutputTokens ?? 700,
+    };
+  }
 }
 
 export async function finishSamiQExecution(args: {
