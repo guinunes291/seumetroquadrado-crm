@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { PageHeader } from "@/components/page-header";
@@ -11,8 +11,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
+import {
+  LeadStageModals,
+  type PerdidoState,
+  type StageModalState,
+} from "@/components/lead-stage/lead-stage-modals";
+import type { StageLead } from "@/lib/leads";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcAtendimentoInbox } from "@/features/atendimento/atendimento-rpc";
 import {
@@ -51,11 +58,35 @@ const QUEUE_ORDER: {
   { key: "docs", icon: FileWarning, iconClass: "text-muted-foreground" },
 ];
 
+// Forma mínima que o menu/modais de etapa precisam, a partir do lead da fila.
+// `projeto_id`/`observacoes` não vêm na inbox v3 — os diálogos degradam de leve
+// (venda sem projeto pré-selecionado), aceitável para o caso raro na fila.
+function toStageLead(l: AtendimentoLead): StageLead {
+  return {
+    id: l.id,
+    nome: l.nome,
+    status: l.status,
+    corretor_id: l.corretor_id,
+    projeto_nome: l.projeto_nome,
+  };
+}
+
 function AtendimentoPage() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const abrirWhatsApp = useWhatsAppLead();
   const [peek, setPeek] = useState<PeekLead | null>(null);
   const [contatoLead, setContatoLead] = useState<AtendimentoLead | null>(null);
+  const [modalState, setModalState] = useState<StageModalState>(null);
+  const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+
+  // Etapa in-line no card (item 1.8): transição direta via RPC; os destinos com
+  // formulário passam pelos modais obrigatórios abaixo. Sem patch otimista — o
+  // cache da inbox é {filas, counts}, não um array de leads.
+  const mudarStatus = useLeadStatusMutation({
+    optimisticKeys: [],
+    invalidateKeys: [["atendimento:inbox"], ["leads"], ["nav-badges"]],
+  });
 
   // Classificação, deduplicação e contagens acontecem no banco. A resposta traz
   // no máximo 15 cards por fila, mas as contagens consideram a carteira inteira.
@@ -181,6 +212,13 @@ function AtendimentoPage() {
                   onWhatsApp={onWhatsApp}
                   onPeek={(item) => setPeek(item.lead)}
                   onRegistrarContato={(item) => setContatoLead(item.lead)}
+                  onEtapaDirect={(item, target) =>
+                    mudarStatus.mutate({ id: item.lead.id, status: target })
+                  }
+                  onEtapaModal={(item, modal) =>
+                    setModalState({ modal, lead: toStageLead(item.lead) })
+                  }
+                  onEtapaPerdido={(item) => setPerdidoLead(toStageLead(item.lead))}
                 />
               ))}
             </div>
@@ -202,6 +240,21 @@ function AtendimentoPage() {
           onDone={() => setContatoLead(null)}
         />
       )}
+
+      {/* Modais obrigatórios de etapa (agendamento, visita, crédito, venda,
+          perdido) — uma instância para todas as filas, roteada pelo menu
+          in-line do card. onDone invalida a inbox, que os diálogos não
+          conhecem (eles invalidam leads/kanban/lead, nunca atendimento). */}
+      <LeadStageModals
+        modalState={modalState}
+        onModalOpenChange={(open) => !open && setModalState(null)}
+        perdidoLead={perdidoLead}
+        onPerdidoOpenChange={(open) => !open && setPerdidoLead(null)}
+        onDone={() => {
+          void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
+          void qc.invalidateQueries({ queryKey: ["nav-badges"] });
+        }}
+      />
 
       <LeadPeekDrawer
         lead={peek}
