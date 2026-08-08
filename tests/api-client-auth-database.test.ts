@@ -19,6 +19,8 @@ const db = vi.hoisted(() => ({
 
 vi.mock("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
+    // Rate limit distribuído (consumir_api_rate_limit): sempre permite no teste.
+    rpc: async () => ({ data: [{ allowed: true }], error: null }),
     from: (table: string) => {
       if (table === "api_clientes") {
         return {
@@ -34,14 +36,14 @@ vi.mock("@/integrations/supabase/client.server", () => ({
         };
       }
       if (table === "api_cliente_escopos") {
+        // A consulta real é .eq("cliente_id", …).in("escopo", scopes) — devolve
+        // a lista de escopos concedidos (suporte multi-escopo).
         return {
           select: () => ({
             eq: () => ({
-              eq: () => ({
-                maybeSingle: async () => ({
-                  data: db.scopeGranted ? { escopo: "leads:read" } : null,
-                  error: null,
-                }),
+              in: async () => ({
+                data: db.scopeGranted ? [{ escopo: "leads:read" }] : [],
+                error: null,
               }),
             }),
           }),
