@@ -33,8 +33,10 @@ export function useConstrutorasParceiras() {
     // A lista muda por decisão comercial, não a cada minuto.
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<ParceirasResultado> => {
+      // Escape contido: tabela ainda fora do types.ts gerado — regenerar os
+      // types derrete este cast.
       const { data, error } = await supabase
-        .from("construtoras_parceiras")
+        .from("construtoras_parceiras" as never)
         .select("id, nome, ordem, ativo")
         .order("ordem")
         .order("nome");

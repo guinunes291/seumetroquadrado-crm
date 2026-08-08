@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SlidersHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ export function GestaoConfigCard() {
     queryKey: ["gestao:config-all"],
     queryFn: async (): Promise<ConfigRow[]> => {
       const { data, error } = await supabase
-        .from("gestao_config" as never)
+        .from("gestao_config")
         .select("chave, valor, descricao")
         .order("chave");
       if (error) throw error;
@@ -35,8 +36,8 @@ export function GestaoConfigCard() {
   const salvar = useMutation({
     mutationFn: async ({ chave, valor }: { chave: string; valor: unknown }) => {
       const { error } = await supabase
-        .from("gestao_config" as never)
-        .update({ valor } as never)
+        .from("gestao_config")
+        .update({ valor: valor as Json })
         .eq("chave", chave);
       if (error) throw error;
     },
@@ -59,8 +60,8 @@ export function GestaoConfigCard() {
             <SlidersHorizontal className="h-4 w-4 text-info" /> Camada de gestão
           </CardTitle>
           <CardDescription>
-            Configuração indisponível — aplique as migrations da camada de gestão
-            (gestao_config) para editar limiares de "parado", SLA e pacing aqui.
+            Configuração indisponível — aplique as migrations da camada de gestão (gestao_config)
+            para editar limiares de "parado", SLA e pacing aqui.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -218,7 +219,9 @@ function PacingEditor({
   saving: boolean;
 }) {
   const atual = (row.valor ?? {}) as { dias_uteis?: number[]; feriados?: string[] };
-  const [dias, setDias] = useState<Set<number>>(() => new Set(atual.dias_uteis ?? [1, 2, 3, 4, 5, 6]));
+  const [dias, setDias] = useState<Set<number>>(
+    () => new Set(atual.dias_uteis ?? [1, 2, 3, 4, 5, 6]),
+  );
   const [feriados, setFeriados] = useState((atual.feriados ?? []).join("\n"));
 
   const feriadosValidos = feriados
@@ -255,9 +258,7 @@ function PacingEditor({
         })}
       </div>
       <div>
-        <Label className="text-xs text-muted-foreground">
-          Feriados (um por linha, AAAA-MM-DD)
-        </Label>
+        <Label className="text-xs text-muted-foreground">Feriados (um por linha, AAAA-MM-DD)</Label>
         <textarea
           value={feriados}
           onChange={(e) => setFeriados(e.target.value)}
