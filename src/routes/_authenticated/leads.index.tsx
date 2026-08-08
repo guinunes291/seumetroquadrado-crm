@@ -899,19 +899,21 @@ function LeadsPage() {
   // Chips dinâmicos: status VÁLIDOS do enum porém fora do funil exibido
   // (novo, aguardando_corretor, qualificado, proposta_enviada, pos_venda…).
   // Sem eles, 83% da base só aparecia no "Todos" e a soma dos chips nunca
-  // batia com o total (docs/revisao-pagina-leads.md §3.1).
+  // batia com o total (docs/revisao-pagina-leads.md §3.1). Vale para TODOS os
+  // papéis: o corretor vê os próprios leads "novo" na lista e no kanban
+  // (tests/db/kpis-consistencia.test.ts), então esconder o chip só desalinhava
+  // a soma do "Todos" para ele.
   const statusForaDoFunil = useMemo(() => {
     const funil = new Set<string>(LEAD_STATUS_ORDER);
     const ordem = ["novo", "aguardando_corretor", "qualificado", "proposta_enviada", "pos_venda"];
     return Object.keys(statusCounts)
       .filter((s) => !funil.has(s) && s !== "__total__" && (statusCounts[s] ?? 0) > 0)
-      .filter((s) => canManage || s !== "novo")
       .sort((a, b) => {
         const ia = ordem.indexOf(a);
         const ib = ordem.indexOf(b);
         return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
       });
-  }, [statusCounts, canManage]);
+  }, [statusCounts]);
 
   const activeFiltersCount =
     (statusFilter !== "all" && statusFilter !== "aguardando_atendimento" ? 1 : 0) +
@@ -1042,7 +1044,7 @@ function LeadsPage() {
                       >
                         Todos · {statusCountsData ? totalLeadsCount : "—"}
                       </button>
-                      {LEAD_STATUS_ORDER.filter((s) => canManage || s !== "novo").map((s) => {
+                      {LEAD_STATUS_ORDER.map((s) => {
                         const n = statusCountsData ? (statusCounts[s] ?? 0) : "—";
                         const active = statusFilter === s;
                         return (
