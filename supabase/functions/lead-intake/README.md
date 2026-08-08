@@ -65,12 +65,18 @@ URL de invoke: `https://<PROJECT_REF>.supabase.co/functions/v1/lead-intake`
 
 ## Respostas
 
-| Status | Significado                                             |
-| ------ | ------------------------------------------------------- |
-| 200    | `{ ok, lead_id, projeto_id, corretor_id, distribuido }` |
-| 401    | secret ausente/incorreto                                |
-| 422    | faltou `nome` e `telefone`                              |
-| 400    | JSON inválido                                           |
+| Status | Significado                                                                        |
+| ------ | ---------------------------------------------------------------------------------- |
+| 200    | `{ ok, lead_id, projeto_id, corretor_id, distribuido }`                            |
+| 200    | + `deprecated_auth` no payload quando o secret veio por `?secret=` (migrar o Zap)  |
+| 401    | secret ausente/incorreto — ou só na query com `LEAD_INTAKE_ALLOW_QUERY_SECRET=false` |
+| 422    | faltou `nome` e `telefone`                                                         |
+| 400    | JSON inválido                                                                      |
+
+O fallback `?secret=` na URL é DEPRECIADO (P-3): migre cada Zap movendo o
+segredo do campo URL para o header `x-webhook-secret` e, quando todos
+estiverem migrados, defina `LEAD_INTAKE_ALLOW_QUERY_SECRET=false` nos secrets
+da função (corta o fallback sem redeploy).
 
 ## Teste (curl)
 
