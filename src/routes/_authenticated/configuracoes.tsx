@@ -10,14 +10,35 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { INTENT_BADGE } from "@/lib/status-tones";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import { GestaoConfigCard } from "@/features/gestao/gestao-config-card";
+import { CorretoresPage } from "@/features/gestao/corretores-page";
+import { EquipesPage } from "@/features/gestao/equipes-page";
+import { TemplatesPage } from "@/features/gestao/templates-page";
+import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
+import { LixeiraPage } from "@/features/gestao/lixeira-page";
+import { EstoquePage } from "@/features/gestao/estoque-page";
+import { CampanhasPage } from "@/features/gestao/campanhas-page";
 import { Webhook, MessageCircle, Lock, User as UserIcon, BellRing } from "lucide-react";
 
-type ConfigTab = "integracoes" | "preferencias" | "gestao";
+// Configuração e cadastro do CRM (admin-only). O bloco administrativo que
+// morava em /painel-gestor (Pessoas, Estoque, Campanhas, Comunicação,
+// Qualidade) vive aqui desde a auditoria ux-ia-2026-08 (item 2.1): cadastro
+// não é gestão de operação. Deep-links antigos ?tab= do painel redirecionam.
+const CONFIG_TABS = [
+  "integracoes",
+  "gestao",
+  "pessoas",
+  "estoque",
+  "campanhas",
+  "comunicacao",
+  "qualidade",
+  "preferencias",
+] as const;
+type ConfigTab = (typeof CONFIG_TABS)[number];
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   validateSearch: (search: Record<string, unknown>): { tab?: ConfigTab } => ({
     tab:
-      search.tab === "preferencias" || search.tab === "gestao"
+      CONFIG_TABS.includes(search.tab as ConfigTab) && search.tab !== "integracoes"
         ? (search.tab as ConfigTab)
         : undefined,
   }),
@@ -32,7 +53,12 @@ function ConfiguracoesPage() {
   const activeTab: ConfigTab = tab ?? "integracoes";
   const onTabChange = (v: string) =>
     navigate({
-      search: { tab: v === "preferencias" || v === "gestao" ? (v as ConfigTab) : undefined },
+      search: {
+        tab:
+          CONFIG_TABS.includes(v as ConfigTab) && v !== "integracoes"
+            ? (v as ConfigTab)
+            : undefined,
+      },
     });
 
   // Espera os papéis carregarem para não piscar "Acesso restrito" para o admin.
@@ -66,11 +92,20 @@ function ConfiguracoesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Configurações" description="Integrações externas e preferências do CRM." />
+      <PageHeader
+        title="Configurações"
+        description="Integrações, cadastros e preferências do CRM — a estrutura que sustenta a operação."
+      />
       <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
           <TabsTrigger value="gestao">Gestão</TabsTrigger>
+          {/* Bloco de cadastro/administração — veio do hub de Operação (2.1). */}
+          <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
+          <TabsTrigger value="estoque">Estoque</TabsTrigger>
+          <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
+          <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>
+          <TabsTrigger value="qualidade">Qualidade</TabsTrigger>
           <TabsTrigger value="preferencias">Preferências</TabsTrigger>
         </TabsList>
 
@@ -108,6 +143,24 @@ function ConfiguracoesPage() {
 
         <TabsContent value="gestao" className="grid gap-4 md:grid-cols-2">
           <GestaoConfigCard />
+        </TabsContent>
+
+        <TabsContent value="pessoas" className="space-y-10">
+          <CorretoresPage />
+          <EquipesPage />
+        </TabsContent>
+        <TabsContent value="estoque">
+          <EstoquePage />
+        </TabsContent>
+        <TabsContent value="campanhas">
+          <CampanhasPage />
+        </TabsContent>
+        <TabsContent value="comunicacao">
+          <TemplatesPage />
+        </TabsContent>
+        <TabsContent value="qualidade" className="space-y-10">
+          <DuplicatasPage />
+          <LixeiraPage />
         </TabsContent>
 
         <TabsContent value="preferencias" className="grid gap-4 md:grid-cols-2">

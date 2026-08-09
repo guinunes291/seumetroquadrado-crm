@@ -132,11 +132,12 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
-    // HUB ÚNICO de gestão: Dia, Relatórios, Funil, Gargalos, Time, Metas e
-    // Leads por corretor (+ bloco administrativo para admin) são abas internas.
-    // A antiga /inteligencia redireciona para cá.
+    // HUB de operação: Dia, Relatórios, Funil, Gargalos, Time, Metas e
+    // Leads por corretor são abas internas. O bloco administrativo mudou
+    // para /configuracoes (item 2.1). A antiga /inteligencia redireciona
+    // para cá. Nome "Operação" segue a nomenclatura da auditoria ux-ia.
     to: "/painel-gestor",
-    label: "Gestão",
+    label: "Operação",
     icon: BarChart3,
     roles: ["admin", "gestor", "superintendente"],
     children: [

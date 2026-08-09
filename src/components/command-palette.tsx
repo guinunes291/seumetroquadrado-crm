@@ -233,7 +233,7 @@ export function CommandPalette() {
     ...(canManage
       ? [
           {
-            label: "Gestão (Painel do Dia)",
+            label: "Operação (Painel do Dia)",
             icon: Gauge,
             go: () => navigate({ to: "/painel-gestor" }),
           },
@@ -247,7 +247,7 @@ export function CommandPalette() {
     ...(canManage || isSuperintendente
       ? [
           {
-            label: "Relatórios (Gestão)",
+            label: "Relatórios (Operação)",
             icon: LayoutDashboard,
             go: () => navigate({ to: "/painel-gestor", search: { tab: "relatorios" } }),
           },
