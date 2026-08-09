@@ -7,7 +7,6 @@ import {
   Users,
   Trello,
   CalendarClock,
-  Zap,
   Trophy,
   Wallet,
   Sun,
@@ -76,29 +75,20 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
-    to: "/leads",
-    label: "Leads",
-    icon: Users,
-    badge: (b) => b.atendimento,
+    // PORTA ÚNICA do lead (item 2.7c): Atender reúne os 3 modos — Prioridade
+    // (filas), Volume (ex-Blitz, hoje redirect) e Consulta (a antiga lista).
+    // O botão "Leads" saiu do nível primário; a base completa (kanban, ações
+    // em massa, importação) vive como subitem até a Consulta absorver esses
+    // fluxos. O badge soma as duas pendências de atendimento: fila de
+    // entrada + follow-ups vencidos.
+    to: "/atendimento",
+    label: "Atender",
+    icon: Headset,
+    badge: (b) => b.atendimento + b.tarefasVencidas,
     children: [
-      { to: "/blitz", label: "Modo Blitz", icon: Zap },
+      { to: "/leads", label: "Base de leads", icon: Users },
       // Prospecção de base fria por listas segmentadas (ex-aba de /projetos).
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: PhoneOutgoing },
-      {
-        to: "/leads-landing",
-        label: "Captação (Landing)",
-        icon: Megaphone,
-        roles: ["admin", "gestor"],
-      },
-    ],
-  },
-  {
-    // Filas de resposta/follow-up/reaquecimento/documentação priorizadas.
-    to: "/atendimento",
-    label: "Atendimento",
-    icon: Headset,
-    badge: (b) => b.tarefasVencidas,
-    children: [
       {
         to: "/agendamentos",
         label: "Agenda & Tarefas",
@@ -138,6 +128,15 @@ const NAV_ITEMS: Item[] = [
     roles: ["admin", "gestor", "superintendente"],
     children: [
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
+      {
+        // Captação é gestão de aquisição, não rotina do corretor — mudou do
+        // antigo botão "Leads" para cá (2.7c). O item 2.9 fará dela uma aba
+        // de Distribuição; até lá o link continua o mesmo.
+        to: "/leads-landing",
+        label: "Captação (Landing)",
+        icon: Megaphone,
+        roles: ["admin", "gestor"],
+      },
       {
         // DINHEIRO (item 2.4): fechamento + comissões + aprovação num hub só.
         // O badge de aprovações vive aqui e o link cai direto na aba que

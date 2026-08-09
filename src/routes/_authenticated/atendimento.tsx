@@ -238,7 +238,7 @@ function AtendimentoPage() {
         ))}
       </div>
 
-      {modo === "volume" && <VolumeView header="modo" />}
+      {modo === "volume" && <VolumeView />}
       {modo === "consulta" && <ConsultaView />}
 
       {modo === "prioridade" && (

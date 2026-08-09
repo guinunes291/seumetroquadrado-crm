@@ -905,8 +905,8 @@ function LeadsPage() {
               </Button>
             </div>
             <Button asChild variant="outline" size="sm">
-              <Link to="/blitz">
-                <Zap className="h-4 w-4 mr-1" /> Blitz
+              <Link to="/atendimento" search={{ modo: "volume" }}>
+                <Zap className="h-4 w-4 mr-1" /> Volume
               </Link>
             </Button>
             {canManage && (

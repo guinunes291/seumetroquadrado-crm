@@ -52,7 +52,28 @@ export type DashboardKpisFlat = {
     contrato_fechado: number | null;
     perdido: number | null;
     vgv: number | null;
+    agendamentos: number | null;
+    visitas: number | null;
+    pastas: number | null;
+    analises: number | null;
   };
+  /**
+   * Valores ABSOLUTOS do período anterior (comparação lado a lado, tarefa
+   * #11): o número de referência aparece junto do atual, não no lugar dele.
+   * null = a RPC não devolveu `prev` (sem período fechado ou versão antiga).
+   */
+  anterior: {
+    total: number;
+    contrato_fechado: number;
+    perdido: number;
+    vgv: number;
+    agendamentos_periodo: number;
+    visitas_periodo: number;
+    visitas_agendadas_periodo: number;
+    no_shows_periodo: number;
+    pastas_periodo: number;
+    analises_periodo: number;
+  } | null;
 };
 
 const n = (v: Num): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
@@ -92,7 +113,17 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
     contrato_fechado: 0,
     perdido: 0,
     vgv: 0,
-    deltas: { total: null, contrato_fechado: null, perdido: null, vgv: null },
+    deltas: {
+      total: null,
+      contrato_fechado: null,
+      perdido: null,
+      vgv: null,
+      agendamentos: null,
+      visitas: null,
+      pastas: null,
+      analises: null,
+    },
+    anterior: null,
   };
   if (!raw || typeof raw !== "object") return vazio;
 
@@ -125,7 +156,25 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
         contrato_fechado: pctDelta(per.vendas, prev?.vendas),
         perdido: pctDelta(per.perdidos, prev?.perdidos),
         vgv: pctDelta(per.vgv, prev?.vgv),
+        agendamentos: pctDelta(per.agendamentos, prev?.agendamentos),
+        visitas: pctDelta(per.visitas, prev?.visitas),
+        pastas: pctDelta(per.pastas, prev?.pastas),
+        analises: pctDelta(per.analises, prev?.analises),
       },
+      anterior: prev
+        ? {
+            total: n(prev.leads_novos),
+            contrato_fechado: n(prev.vendas),
+            perdido: n(prev.perdidos),
+            vgv: n(prev.vgv),
+            agendamentos_periodo: n(prev.agendamentos),
+            visitas_periodo: n(prev.visitas),
+            visitas_agendadas_periodo: n(prev.visitas_agendadas),
+            no_shows_periodo: n(prev.no_shows),
+            pastas_periodo: n(prev.pastas),
+            analises_periodo: n(prev.analises),
+          }
+        : null,
     };
   }
 

@@ -1,7 +1,7 @@
-// Guarda do item 2.7, PR (a) (estrategia-2026-08): Atender ganha os 3 modos
-// (Prioridade/Volume/Consulta) numa porta só, SEM matar as portas antigas —
-// /blitz continua montando o mesmo componente e /leads continua inteira até
-// os PRs (b) e (c). Fonte lida como texto, padrão da casa.
+// Guarda do item 2.7 (estrategia-2026-08): Atender reúne os 3 modos
+// (Prioridade/Volume/Consulta) numa porta só. Desde o PR (c), /blitz é
+// redirect para o modo Volume; /leads continua rota viva (kanban, ações em
+// massa, importação) fora do nível primário do menu. Fonte lida como texto.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -24,20 +24,18 @@ describe("item 2.7a — três modos, uma porta", () => {
   });
 
   it("Volume e Consulta montam dentro de Atender; Prioridade segue sendo o padrão", () => {
-    expect(atendimento).toContain('{modo === "volume" && <VolumeView header="modo" />}');
+    expect(atendimento).toContain('{modo === "volume" && <VolumeView />}');
     expect(atendimento).toContain('{modo === "consulta" && <ConsultaView />}');
     expect(atendimento).toMatch(/\{modo === "prioridade" && \(\s*<AsyncBoundary/);
     // A inbox só roda no modo que a consome.
     expect(atendimento).toContain('modo === "prioridade"');
   });
 
-  it("URL nenhuma morre: /blitz segue viva montando o MESMO VolumeView (redirect é o PR c)", () => {
+  it("URL nenhuma morre: /blitz redireciona para Atender em modo Volume (PR c)", () => {
     expect(blitz).toContain('createFileRoute("/_authenticated/blitz")');
-    expect(blitz).toContain('from "@/features/atendimento/volume-view"');
-    expect(blitz).toContain('<VolumeView header="pagina" />');
-    expect(blitz).not.toContain("redirect(");
-    // O Blitz extraído preserva chaves de cache e atalhos — mudança de lugar,
-    // não de comportamento.
+    expect(blitz).toMatch(/redirect\(\{ to: "\/atendimento", search: \{ modo: "volume" \} \}\)/);
+    // O Volume preserva as chaves de cache e os atalhos do Blitz — mudança
+    // de lugar, não de comportamento.
     expect(volume).toContain('"blitz-queue"');
     expect(volume).toContain('"blitz-sla"');
     expect(volume).toContain("Atalhos: ← → navegar");
