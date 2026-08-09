@@ -29,10 +29,15 @@
 > contato, parado, período com intervalo custom, corretor e lixeira para a
 > gestão); o vocabulário de período (`rangeDoPeriodo`) e os recortes
 > transitórios v1/v2 (`recortesClientSide`) viraram módulos compartilhados —
-> /leads e Consulta leem as mesmas funções. Resta do 2.7: PR (c) /leads e
-> /blitz viram redirect (kanban, sort por coluna, ações em massa e
-> importação ainda são exclusivos de /leads). Depois: 2.10 comparação lado
-> a lado.
+> /leads e Consulta leem as mesmas funções. **PR (c) ✅**: porta única no
+> menu — o botão "Leads" saiu do nível primário (Atender absorve o badge
+> somado e "Base de leads"/Oferta Ativa como subitens; Captação foi para
+> Operação) e /blitz virou redirect para `/atendimento?modo=volume` (mesmo
+> componente, perda zero). Débito consciente registrado: /leads segue ROTA
+> VIVA (kanban, ações em massa, importação, modo foco) fora do menu
+> primário; o redirect total só quando a Consulta absorver esses fluxos —
+> ações em massa dependem de A.2 (triagem). **2.7 fechado na forma segura.**
+> Resta da Onda B: 2.10 comparação lado a lado.
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >

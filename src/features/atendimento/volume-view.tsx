@@ -1,18 +1,15 @@
-// Modo Volume de Atender (item 2.7, PR a) — o antigo Modo Blitz, movido de
+// Modo Volume de Atender (item 2.7) — o antigo Modo Blitz, movido de
 // src/routes/_authenticated/blitz.tsx sem mudança de comportamento: um lead
-// por vez, priorizado por score, com atalhos de teclado. A rota /blitz segue
-// montando este mesmo componente (URL nenhuma morre) até o PR (c) do 2.7
-// transformá-la em redirect para /atendimento?modo=volume.
-//
-// header="pagina" mantém o PageHeader clássico do /blitz; header="modo" mostra
-// só a régua compacta (badge + atalhos), porque o cabeçalho é o de Atender.
+// por vez, priorizado por score, com atalhos de teclado. Desde o PR (c),
+// /blitz é redirect para /atendimento?modo=volume e este componente só monta
+// dentro de Atender — o cabeçalho é o da página, aqui fica a régua compacta
+// (badge de posição + atalhos).
 
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +101,7 @@ const TEMP_CLS: Record<string, string> = {
 
 const ATALHOS = "Atalhos: ← → navegar · L ligar · W WhatsApp · A agendar.";
 
-export function VolumeView({ header = "pagina" }: { header?: "pagina" | "modo" }) {
+export function VolumeView() {
   const { user } = useAuth();
   const [index, setIndex] = useState(0);
   const [modalState, setModalState] = useState<StageModalState>(null);
@@ -222,26 +219,14 @@ export function VolumeView({ header = "pagina" }: { header?: "pagina" | "modo" }
 
   const sla = current ? slaMap.get(current.id) : undefined;
 
-  const badgeFila = (
-    <Badge variant="secondary" className="text-xs">
-      {fila.length === 0 ? "0 leads" : `${index + 1} de ${fila.length}`}
-    </Badge>
-  );
-
   return (
     <div className="space-y-4">
-      {header === "pagina" ? (
-        <PageHeader
-          title="Modo Blitz"
-          description={`Atenda um lead por vez, priorizado por urgência. ${ATALHOS}`}
-          actions={badgeFila}
-        />
-      ) : (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {badgeFila}
-          <span>{ATALHOS}</span>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="secondary" className="text-xs">
+          {fila.length === 0 ? "0 leads" : `${index + 1} de ${fila.length}`}
+        </Badge>
+        <span>{ATALHOS}</span>
+      </div>
 
       {fila.length > 0 && (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
