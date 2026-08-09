@@ -125,6 +125,7 @@ import { ORIGEM_OPTIONS, abrirNovoLead } from "@/features/leads/novo-lead-dialog
 import type { Lead } from "@/features/leads/types";
 import { LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
 import { rpcLeadsFiltered, rpcLeadsStatusCounts } from "@/features/leads/leads-rpc";
+import { fetchLeadsFiltered, type LeadsSource } from "@/features/leads/leads-query";
 import { useLeadMutations } from "@/features/leads/use-lead-mutations";
 import { LeadsTable, FlagChips } from "@/features/leads/leads-table";
 import { FocusMode } from "@/features/leads/focus-mode";
@@ -492,7 +493,6 @@ function LeadsPage() {
     };
   };
 
-  type LeadsSource = "v4" | "v3" | "v2" | "v1";
   const paradoDiasNum = paradoDiasFilter === "all" ? null : Number(paradoDiasFilter);
 
   const {
@@ -502,58 +502,18 @@ function LeadsPage() {
     refetch: refetchLeads,
   } = useQuery({
     queryKey: ["leads", baseQueryKey, statusFilter, sorting, page],
-    queryFn: async (): Promise<{ rows: Lead[]; source: LeadsSource }> => {
-      const paramsV1 = buildParams();
-      const paramsPaginados = {
-        ...paramsV1,
-        _contato: contatoFilter,
-        _sort: sorting[0]?.id ?? null,
-        _sort_dir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
-        _limit: LEADS_PAGE_SIZE,
-        _offset: (page - 1) * LEADS_PAGE_SIZE,
-      };
-      return rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
-        // v4: tudo da v3 + recorte paramétrico "parado há X+ dias" e validação
-        // estrita de _contato (valor desconhecido é erro, não lista inteira).
-        async () => ({
-          rows: await rpcLeadsFiltered("v4", { ...paramsPaginados, _parado_dias: paradoDiasNum }),
-          source: "v4" as const,
-        }),
-        () =>
-          rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
-            // v3: score de prioridade e proximo_followup por linha, sort por
-            // score, recorte sem_contato_30d e escopo de gestor com órfãos.
-            async () => ({
-              rows: await rpcLeadsFiltered("v3", paramsPaginados),
-              source: "v3" as const,
-            }),
-            () =>
-              rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
-                // v2 (P2-15): contato, sort e paginação 100% no servidor — sempre
-                // uma página de LEADS_PAGE_SIZE, mesmo com filtro de contato ativo.
-                async () => ({
-                  rows: await rpcLeadsFiltered("v2", paramsPaginados),
-                  source: "v2" as const,
-                }),
-                // v1 (fallback enquanto a migration não está aplicada): filtros de
-                // contato ainda dependem do conjunto completo — baixa até 1000 linhas
-                // e fatia no cliente; os demais paginam no banco.
-                async () => {
-                  const v1ServerPaginated = contatoFilter === "all";
-                  const { data, error } = await supabase.rpc("leads_filtered", {
-                    ...paramsV1,
-                    _limit: v1ServerPaginated ? LEADS_PAGE_SIZE : 1000,
-                    _offset: v1ServerPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
-                  });
-                  if (error) throw error;
-                  // O Row gerado da RPC é atribuível a Lead (campos `T` vs `T | null`)
-                  // — dispensa o antigo double-cast via unknown.
-                  return { rows: data ?? [], source: "v1" as const };
-                },
-              ),
-          ),
-      );
-    },
+    // O encadeamento v4 → v3 → v2 → v1 vive em fetchLeadsFiltered (fonte
+    // única, compartilhada com o modo Consulta de Atender — item 2.7a).
+    queryFn: async (): Promise<{ rows: Lead[]; source: LeadsSource }> =>
+      fetchLeadsFiltered({
+        params: buildParams(),
+        contato: contatoFilter,
+        paradoDias: paradoDiasNum,
+        sort: sorting[0]?.id ?? null,
+        sortDir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
+        page,
+        pageSize: LEADS_PAGE_SIZE,
+      }),
     enabled: canManage || !!user?.id,
   });
 

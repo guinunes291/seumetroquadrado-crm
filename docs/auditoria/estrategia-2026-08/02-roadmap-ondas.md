@@ -20,8 +20,14 @@
 > "Confirmar visita" via `atendimento_inbox_v4`, botão [Confirmar] in-line —
 > tarefa #5b). 2.6 ✅ (8ª exceção "documentação travada" no Painel do Dia,
 > limiar em `gestao_config.documentacao_travada_dias` — tarefa #14).
-> Restam da Onda B: 2.7 Atender 3 modos (em 3 PRs) · 2.10 comparação lado a
-> lado.
+> 2.7 **PR (a) ✅**: Atender ganhou os 3 modos (Prioridade/Volume/Consulta)
+> via `?modo=` — Volume é o Blitz extraído (`volume-view.tsx`; /blitz segue
+> viva montando o mesmo componente), Consulta lê a MESMA query de /leads
+> (cadeia v4→v3→v2→v1 extraída para `leads-query.ts`, fonte única) com busca
+>
+> - filtros essenciais e peek. Restam do 2.7: PR (b) filtros completos em
+>   drawer na Consulta · PR (c) /leads e /blitz viram redirect. Depois: 2.10
+>   comparação lado a lado.
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >

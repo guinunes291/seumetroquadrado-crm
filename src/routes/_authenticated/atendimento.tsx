@@ -31,6 +31,8 @@ import {
   type QueueKey,
 } from "@/features/atendimento/derive";
 import { QueueSection } from "@/features/atendimento/queue-section";
+import { VolumeView } from "@/features/atendimento/volume-view";
+import { ConsultaView } from "@/features/atendimento/consulta-view";
 import {
   CalendarCheck,
   CalendarClock,
@@ -44,10 +46,28 @@ import {
 
 // Atendimento: a tela de guerra do corretor — quem responder, quem cobrar,
 // quem reaquecer e que pasta destravar, tudo em filas priorizadas por score.
+//
+// Três modos, uma porta (item 2.7, PR a): Prioridade (as filas, padrão) ·
+// Volume (o antigo Modo Blitz) · Consulta (a antiga lista /leads, mesma
+// query). /blitz e /leads seguem vivas até o PR (c) transformá-las em
+// redirect, quando a Consulta tiver paridade de filtros (PR b).
+export type AtendimentoModo = "prioridade" | "volume" | "consulta";
+
 export const Route = createFileRoute("/_authenticated/atendimento")({
   head: () => ({ meta: [{ title: "Atendimento — Seu Metro Quadrado" }] }),
+  // Whitelist do modo: valor desconhecido cai no padrão (prioridade) em vez
+  // de quebrar a rota — links antigos sem ?modo continuam funcionando.
+  validateSearch: (search: Record<string, unknown>): { modo?: AtendimentoModo } => ({
+    modo: search.modo === "volume" || search.modo === "consulta" ? search.modo : undefined,
+  }),
   component: AtendimentoPage,
 });
+
+const MODOS: { key: AtendimentoModo; label: string; hint: string }[] = [
+  { key: "prioridade", label: "Prioridade", hint: "as filas do dia, por urgência e score" },
+  { key: "volume", label: "Volume", hint: "um lead por vez, a carteira inteira" },
+  { key: "consulta", label: "Consulta", hint: "buscar e filtrar como em Meus Leads" },
+];
 
 const QUEUE_ORDER: {
   key: QueueKey;
@@ -80,6 +100,11 @@ function AtendimentoPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const abrirWhatsApp = useWhatsAppLead();
+  const { modo: modoParam } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const modo: AtendimentoModo = modoParam ?? "prioridade";
+  const setModo = (m: AtendimentoModo) =>
+    navigate({ search: { modo: m === "prioridade" ? undefined : m } });
   const [peek, setPeek] = useState<PeekLead | null>(null);
   const [contatoLead, setContatoLead] = useState<AtendimentoLead | null>(null);
   const [modalState, setModalState] = useState<StageModalState>(null);
@@ -100,7 +125,9 @@ function AtendimentoPage() {
   // nunca quebra (rpcWithFallback) e o parse fail-closed continua valendo.
   const inboxQ = useQuery({
     queryKey: ["atendimento:inbox", user?.id],
-    enabled: !!user,
+    // Só o modo Prioridade consome a inbox — Volume e Consulta têm queries
+    // próprias e não precisam pagar esta RPC ao entrar direto por link.
+    enabled: !!user && modo === "prioridade",
     queryFn: async () => {
       const params = { _corretor_id: user!.id, _limit_per_queue: 15 };
       return rpcWithFallback(
@@ -176,98 +203,128 @@ function AtendimentoPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Atendimento"
-        description="Quem chamar primeiro, com o script certo — filas priorizadas por urgência e score."
+        title="Atender"
+        description="Uma porta para o lead: Prioridade (filas), Volume (um por vez) e Consulta (busca)."
         actions={
-          <div className="flex items-center gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link to="/blitz">
-                <Zap className="h-4 w-4" /> Modo Blitz
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/agendamentos" search={{ tab: "tarefas" }}>
-                ver tarefas
-              </Link>
-            </Button>
-          </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/agendamentos" search={{ tab: "tarefas" }}>
+              ver tarefas
+            </Link>
+          </Button>
         }
       />
 
-      <AsyncBoundary
-        isLoading={inboxQ.isLoading}
-        isError={inboxQ.isError}
-        error={inboxQ.error}
-        errorTitle="Não foi possível carregar as filas de atendimento."
-        onRetry={() => void inboxQ.refetch()}
-        loadingLabel="Carregando filas de atendimento"
-        loadingFallback={
-          <div className="space-y-3">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
-        }
+      {/* Seletor dos 3 modos — 1 porta (wireframe 7.2). O modo viaja na URL
+          (?modo=) para ser compartilhável e sobreviver ao voltar. */}
+      <div
+        className="flex w-fit items-center gap-1 rounded-lg border bg-muted/40 p-1"
+        role="tablist"
+        aria-label="Modo de atendimento"
       >
-        <div className="space-y-4">
-          {/* O placar só aparece depois do sucesso de todas as consultas. */}
-          <div className="flex flex-wrap items-center gap-2" aria-label="Resumo das filas">
-            {QUEUE_ORDER.map(({ key }) => (
-              <Badge key={key} variant="secondary" className={counts[key] > 0 ? "" : "opacity-50"}>
-                {QUEUE_LABEL[key]}: {counts[key]}
-              </Badge>
-            ))}
-          </div>
+        {MODOS.map((m) => (
+          <Button
+            key={m.key}
+            role="tab"
+            aria-selected={modo === m.key}
+            variant={modo === m.key ? "default" : "ghost"}
+            size="sm"
+            className="h-7"
+            title={m.hint}
+            onClick={() => setModo(m.key)}
+          >
+            {m.key === "volume" && <Zap className="h-3.5 w-3.5" />}
+            {m.label}
+          </Button>
+        ))}
+      </div>
 
-          {total === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                <CheckCircle2 className="h-10 w-10 text-success" />
-                <div className="font-display text-lg font-semibold">
-                  Caixa de atendimento zerada
-                </div>
-                <p className="max-w-md text-sm text-muted-foreground">
-                  Nenhum lead novo na mesa, ninguém esperando resposta, nenhum follow-up vencido,
-                  ninguém esfriando. Bom momento para prospectar na{" "}
-                  <Link to="/blitz" className="text-primary hover:underline">
-                    Blitz
-                  </Link>{" "}
-                  ou avançar o{" "}
-                  <Link to="/pipeline" className="text-primary hover:underline">
-                    Pipeline
-                  </Link>
-                  .
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {QUEUE_ORDER.map(({ key, icon, iconClass }) => (
-                <QueueSection
+      {modo === "volume" && <VolumeView header="modo" />}
+      {modo === "consulta" && <ConsultaView />}
+
+      {modo === "prioridade" && (
+        <AsyncBoundary
+          isLoading={inboxQ.isLoading}
+          isError={inboxQ.isError}
+          error={inboxQ.error}
+          errorTitle="Não foi possível carregar as filas de atendimento."
+          onRetry={() => void inboxQ.refetch()}
+          loadingLabel="Carregando filas de atendimento"
+          loadingFallback={
+            <div className="space-y-3">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            {/* O placar só aparece depois do sucesso de todas as consultas. */}
+            <div className="flex flex-wrap items-center gap-2" aria-label="Resumo das filas">
+              {QUEUE_ORDER.map(({ key }) => (
+                <Badge
                   key={key}
-                  queue={key}
-                  items={filas[key]}
-                  totalCount={counts[key]}
-                  icon={icon}
-                  iconClass={iconClass}
-                  onWhatsApp={onWhatsApp}
-                  onPeek={(item) => setPeek(item.lead)}
-                  onRegistrarContato={(item) => setContatoLead(item.lead)}
-                  onEtapaDirect={(item, target) =>
-                    mudarStatus.mutate({ id: item.lead.id, status: target })
-                  }
-                  onEtapaModal={(item, modal) =>
-                    setModalState({ modal, lead: toStageLead(item.lead) })
-                  }
-                  onEtapaPerdido={(item) => setPerdidoLead(toStageLead(item.lead))}
-                  onConfirmarVisita={(item) =>
-                    item.agendamentoId && confirmarVisita.mutate(item.agendamentoId)
-                  }
-                />
+                  variant="secondary"
+                  className={counts[key] > 0 ? "" : "opacity-50"}
+                >
+                  {QUEUE_LABEL[key]}: {counts[key]}
+                </Badge>
               ))}
             </div>
-          )}
-        </div>
-      </AsyncBoundary>
+
+            {total === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+                  <CheckCircle2 className="h-10 w-10 text-success" />
+                  <div className="font-display text-lg font-semibold">
+                    Caixa de atendimento zerada
+                  </div>
+                  <p className="max-w-md text-sm text-muted-foreground">
+                    Nenhum lead novo na mesa, ninguém esperando resposta, nenhum follow-up vencido,
+                    ninguém esfriando. Bom momento para prospectar no modo{" "}
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={() => setModo("volume")}
+                    >
+                      Volume
+                    </button>{" "}
+                    ou avançar o{" "}
+                    <Link to="/pipeline" className="text-primary hover:underline">
+                      Pipeline
+                    </Link>
+                    .
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {QUEUE_ORDER.map(({ key, icon, iconClass }) => (
+                  <QueueSection
+                    key={key}
+                    queue={key}
+                    items={filas[key]}
+                    totalCount={counts[key]}
+                    icon={icon}
+                    iconClass={iconClass}
+                    onWhatsApp={onWhatsApp}
+                    onPeek={(item) => setPeek(item.lead)}
+                    onRegistrarContato={(item) => setContatoLead(item.lead)}
+                    onEtapaDirect={(item, target) =>
+                      mudarStatus.mutate({ id: item.lead.id, status: target })
+                    }
+                    onEtapaModal={(item, modal) =>
+                      setModalState({ modal, lead: toStageLead(item.lead) })
+                    }
+                    onEtapaPerdido={(item) => setPerdidoLead(toStageLead(item.lead))}
+                    onConfirmarVisita={(item) =>
+                      item.agendamentoId && confirmarVisita.mutate(item.agendamentoId)
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </AsyncBoundary>
+      )}
 
       {/* Uma instância só para todas as filas — reusa o fluxo existente
           (interação + próximo follow-up num gesto). Nenhuma mutação nova. */}
