@@ -11,6 +11,13 @@
 > X dias" paramétrico e validação estrita de `_contato` (fim do `ELSE true`).
 > Restam da Onda A: A.2 campanha de triagem (aguarda D6), A.3 dedup de
 > telefone em produção (P-11) e A.6 régua única de "esfriando" (após A.2).
+>
+> **Onda B em andamento:** 2.1 ✅ (bloco admin → Configurações; hub vira
+> "Operação"), 2.2 ✅ + 2.3 ✅ (fusões Funil+Gargalos e Time+Leads por
+> Corretor) — **métrica M3 fechada: 12 → 5 abas**. 2.11 ✅ (antecipado).
+> Próximos na ordem do 06-plano: 2.4 rota `/financeiro` · 2.5 fila
+> "Confirmar visita" (`atendimento_inbox_v4`) · 2.6 exceção "documentação
+> travada" · 2.7 Atender 3 modos (em 3 PRs) · 2.10 comparação lado a lado.
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >
