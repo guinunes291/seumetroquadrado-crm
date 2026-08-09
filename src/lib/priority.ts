@@ -59,7 +59,6 @@ export function scoreLead(input: ScoreInput): ScoreResult {
   let score = 0;
   const motivos: string[] = [];
 
-
   if (input.temperatura === "quente") {
     score += 35;
     motivos.push("quente");

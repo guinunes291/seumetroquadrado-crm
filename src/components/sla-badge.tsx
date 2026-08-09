@@ -19,10 +19,7 @@ interface SlaBadgeProps {
 }
 
 function calcular(referencia: Date, slaMin: number) {
-  const decorridos = Math.max(
-    0,
-    Math.floor((Date.now() - referencia.getTime()) / 60000),
-  );
+  const decorridos = Math.max(0, Math.floor((Date.now() - referencia.getTime()) / 60000));
   const ratio = decorridos / Math.max(slaMin, 1);
   let status: SlaStatus = "ok";
   if (ratio > 1) status = "estourado";
@@ -61,9 +58,7 @@ export function SlaBadge({ slaMinutos, referencia, compact, className }: SlaBadg
 
   const Icon = status === "estourado" ? Flame : status === "atencao" ? AlertTriangle : Clock;
   const label =
-    status === "estourado"
-      ? `−${formatarTempo(restante)}`
-      : `${formatarTempo(restante)}`;
+    status === "estourado" ? `−${formatarTempo(restante)}` : `${formatarTempo(restante)}`;
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -71,11 +66,7 @@ export function SlaBadge({ slaMinutos, referencia, compact, className }: SlaBadg
         <TooltipTrigger asChild>
           <Badge
             variant="outline"
-            className={cn(
-              "gap-1 px-1.5 py-0 h-5 text-[10px] font-mono border",
-              tone,
-              className,
-            )}
+            className={cn("gap-1 px-1.5 py-0 h-5 text-[10px] font-mono border", tone, className)}
           >
             <Icon className="h-3 w-3" />
             {compact ? label : <span>SLA {label}</span>}

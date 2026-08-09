@@ -3,7 +3,6 @@
 
 import { vendaRegistrada } from "@/lib/priority";
 
-
 export type LeadFiltros = {
   status: string;
   origem: string;
