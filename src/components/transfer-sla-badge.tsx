@@ -138,6 +138,8 @@ export function TransferSlaBadge({
         const { data } = await supabase.rpc("disparar_repasse_sla_lead", { _lead_id: leadId });
         if (data === true) {
           qc.invalidateQueries({ queryKey: ["leads"] });
+          // Repasse muda o dono do lead: os chips por status também mudam.
+          qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
           qc.invalidateQueries({ queryKey: ["leads-transfer-info"] });
           qc.invalidateQueries({ queryKey: ["pipeline-stage-v2"] });
           qc.invalidateQueries({ queryKey: ["pipeline-snapshot-v2"] });

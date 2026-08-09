@@ -53,6 +53,7 @@ function rows() {
     { fila: "responder", total_count: 0, items: [] },
     { fila: "followups", total_count: 0, items: [] },
     { fila: "esfriando", total_count: 0, items: [] },
+    { fila: "confirmar_visita", total_count: 0, items: [] },
     { fila: "docs", total_count: 0, items: [] },
   ];
 }
@@ -128,7 +129,7 @@ describe("rota de Atendimento", () => {
   });
 });
 
-describe("parseAtendimentoInbox (5 filas)", () => {
+describe("parseAtendimentoInbox (6 filas)", () => {
   it("preserva contagem total separada dos cards compactos", () => {
     const inbox = parseAtendimentoInbox(rows());
     expect(inbox.counts.novos).toBe(4);
@@ -138,7 +139,7 @@ describe("parseAtendimentoInbox (5 filas)", () => {
   });
 
   it("falha fechado para resposta incompleta ou fila duplicada", () => {
-    expect(() => parseAtendimentoInbox(rows().slice(0, 4))).toThrow(/incompleta/);
+    expect(() => parseAtendimentoInbox(rows().slice(0, 5))).toThrow(/incompleta/);
     const duplicate = [...rows(), rows()[0]];
     expect(() => parseAtendimentoInbox(duplicate)).toThrow(/duplicada/);
 

@@ -1,16 +1,12 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
+import { captureServerError } from "./lib/error-tracking.server";
 import { attachSupabaseAuthFresh } from "@/lib/supabase-auth-attach";
 
 function isUnauthorizedError(error: unknown): boolean {
   if (!error) return false;
-  const msg =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
+  const msg = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   return /^Unauthorized/i.test(msg);
 }
 
@@ -25,12 +21,13 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
     // HTML fallback — return a proper 401 JSON so the client (React Query,
     // route boundaries) can handle it gracefully and retry after refresh.
     if (isUnauthorizedError(error)) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { "content-type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "content-type": "application/json" },
+      });
     }
     console.error(error);
+    await captureServerError(error, { mechanism: "request_middleware" });
     return new Response(renderErrorPage(), {
       status: 500,
       headers: { "content-type": "text/html; charset=utf-8" },

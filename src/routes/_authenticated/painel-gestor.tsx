@@ -16,13 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PainelDiaView } from "@/features/gestao/painel-dia/painel-dia-view";
 import { InsightsPanel } from "@/features/inteligencia/insights-panel";
 import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page";
-import { CorretoresPage } from "@/features/gestao/corretores-page";
-import { EquipesPage } from "@/features/gestao/equipes-page";
-import { TemplatesPage } from "@/features/gestao/templates-page";
-import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
-import { LixeiraPage } from "@/features/gestao/lixeira-page";
-import { EstoquePage } from "@/features/gestao/estoque-page";
-import { CampanhasPage } from "@/features/gestao/campanhas-page";
 import { MetasPage } from "@/routes/_authenticated/metas";
 import { ORIGEM_OPTIONS } from "@/features/leads/novo-lead-dialog";
 import type { FiltrosInteligencia } from "@/features/inteligencia/queries";
@@ -49,34 +42,14 @@ const PerformanceView = lazy(() =>
   })),
 );
 
-type GestaoTab =
-  | "dia"
-  | "relatorios"
-  | "funil"
-  | "gargalos"
-  | "time"
-  | "metas"
-  | "leads-corretor"
-  | "pessoas"
-  | "estoque"
-  | "campanhas"
-  | "comunicacao"
-  | "qualidade";
-const GESTAO_TABS: GestaoTab[] = [
-  "dia",
-  "relatorios",
-  "funil",
-  "gargalos",
-  "time",
-  "metas",
-  "leads-corretor",
-  "pessoas",
-  "estoque",
-  "campanhas",
-  "comunicacao",
-  "qualidade",
-];
-const TABS_ADMIN: GestaoTab[] = ["pessoas", "estoque", "campanhas", "comunicacao", "qualidade"];
+type GestaoTab = "dia" | "relatorios" | "funil" | "time" | "metas";
+const GESTAO_TABS: GestaoTab[] = ["dia", "relatorios", "funil", "time", "metas"];
+
+// Bloco administrativo mudou de casa (auditoria ux-ia-2026-08, item 2.1):
+// cadastro e configuração são /configuracoes, não gestão de operação. Os
+// deep-links antigos ?tab=pessoas|estoque|… redirecionam no beforeLoad.
+const TABS_ADMIN_MOVIDAS = ["pessoas", "estoque", "campanhas", "comunicacao", "qualidade"] as const;
+type TabAdminMovida = (typeof TABS_ADMIN_MOVIDAS)[number];
 
 // Deep-links antigos continuam funcionando: abas aposentadas/renomeadas e a
 // antiga /inteligencia mapeiam para as abas novas.
@@ -84,31 +57,39 @@ const TAB_LEGADO: Record<string, GestaoTab> = {
   visao: "dia",
   saude: "time",
   performance: "time",
+  // Fusões 2.2/2.3: Gargalos vive dentro do Funil; Leads por Corretor, no Time.
+  gargalos: "funil",
+  "leads-corretor": "time",
 };
 
 const isData = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
-// HUB ÚNICO DE GESTÃO: consolida o antigo trio Gestão + Inteligência +
-// Metas (Desempenho) em um só lugar. Gestor vê o operacional do time (Dia,
-// Relatórios, Funil, Gargalos, Time, Metas, Leads por corretor); admin vê
-// também o bloco de administração (Pessoas, Estoque, Campanhas, Comunicação,
-// Qualidade). /inteligencia e /metas redirecionam para cá.
+// HUB DE OPERAÇÃO: consolida o antigo trio Gestão + Inteligência + Metas
+// (Desempenho) em um só lugar — Dia, Relatórios, Funil, Gargalos, Time,
+// Metas e Leads por corretor. O bloco administrativo (Pessoas, Estoque,
+// Campanhas, Comunicação, Qualidade) mudou para /configuracoes (item 2.1);
+// /inteligencia e /metas redirecionam para cá.
 export const Route = createFileRoute("/_authenticated/painel-gestor")({
   validateSearch: (
     search: Record<string, unknown>,
   ): {
-    tab?: GestaoTab | "distribuicao";
+    tab?: GestaoTab | "distribuicao" | TabAdminMovida;
     de?: string;
     ate?: string;
     corretor?: string;
     origem?: string;
   } => ({
+    // "distribuicao" e as abas admin movidas passam CRUAS de propósito: o
+    // beforeLoad precisa lê-las para redirecionar o deep-link antigo — se o
+    // validateSearch as apagasse, o link cairia mudo na aba Dia.
     tab:
       search.tab === "distribuicao"
         ? "distribuicao"
-        : GESTAO_TABS.includes(search.tab as GestaoTab)
-          ? (search.tab as GestaoTab)
-          : TAB_LEGADO[search.tab as string],
+        : TABS_ADMIN_MOVIDAS.includes(search.tab as TabAdminMovida)
+          ? (search.tab as TabAdminMovida)
+          : GESTAO_TABS.includes(search.tab as GestaoTab)
+            ? (search.tab as GestaoTab)
+            : TAB_LEGADO[search.tab as string],
     de: isData(search.de) ? search.de : undefined,
     ate: isData(search.ate) ? search.ate : undefined,
     corretor: typeof search.corretor === "string" && search.corretor ? search.corretor : undefined,
@@ -119,8 +100,13 @@ export const Route = createFileRoute("/_authenticated/painel-gestor")({
     if (search.tab === "distribuicao") {
       throw redirect({ to: "/distribuicao", search: {} });
     }
+    // O bloco admin virou abas de /configuracoes (item 2.1) — deep-link antigo
+    // continua abrindo a MESMA tela, só que na casa nova.
+    if (TABS_ADMIN_MOVIDAS.includes(search.tab as TabAdminMovida)) {
+      throw redirect({ to: "/configuracoes", search: { tab: search.tab as TabAdminMovida } });
+    }
   },
-  head: () => ({ meta: [{ title: "Gestão — Seu Metro Quadrado" }] }),
+  head: () => ({ meta: [{ title: "Operação — Seu Metro Quadrado" }] }),
   component: PainelGestorPage,
 });
 
@@ -144,9 +130,10 @@ function PainelGestorPage() {
   const podeVer = isAdmin || isGestor || isSuperintendente;
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const tab = search.tab && search.tab !== "distribuicao" ? search.tab : "dia";
-  // Admin-only: gestor que cair num deep-link administrativo vê o Dia.
-  const activeTab: GestaoTab = !isAdmin && TABS_ADMIN.includes(tab) ? "dia" : tab;
+  // "distribuicao" e abas admin movidas nunca chegam aqui (redirect no
+  // beforeLoad) — o narrowing é só para o TypeScript.
+  const activeTab: GestaoTab =
+    search.tab && GESTAO_TABS.includes(search.tab as GestaoTab) ? (search.tab as GestaoTab) : "dia";
 
   const setSearch = (patch: Record<string, string | undefined>) =>
     navigate({
@@ -189,7 +176,7 @@ function PainelGestorPage() {
     return <Skeleton className="h-40 w-full" />;
   }
 
-  const mostraFiltros = activeTab === "funil" || activeTab === "gargalos";
+  const mostraFiltros = activeTab === "funil";
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
@@ -197,16 +184,8 @@ function PainelGestorPage() {
         <TabsTrigger value="dia">Dia</TabsTrigger>
         <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         <TabsTrigger value="funil">Funil</TabsTrigger>
-        <TabsTrigger value="gargalos">Gargalos</TabsTrigger>
         <TabsTrigger value="time">Time</TabsTrigger>
         <TabsTrigger value="metas">Metas & Ritmo</TabsTrigger>
-        <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
-        {/* Bloco de administração — estrutura, cadastros e config org-wide. */}
-        {isAdmin && <TabsTrigger value="pessoas">Pessoas</TabsTrigger>}
-        {isAdmin && <TabsTrigger value="estoque">Estoque</TabsTrigger>}
-        {isAdmin && <TabsTrigger value="campanhas">Campanhas</TabsTrigger>}
-        {isAdmin && <TabsTrigger value="comunicacao">Comunicação</TabsTrigger>}
-        {isAdmin && <TabsTrigger value="qualidade">Qualidade</TabsTrigger>}
       </TabsList>
 
       {/* Filtros persistentes na URL das abas analíticas (compartilháveis) */}
@@ -273,57 +252,28 @@ function PainelGestorPage() {
           <RelatoriosView />
         </Suspense>
       </TabsContent>
-      <TabsContent value="funil">
+      {/* Fusão 2.2: o diagnóstico de Gargalos vive logo abaixo do Funil — a
+          pergunta é a mesma ("onde o funil perde?"), os filtros valem p/ ambos. */}
+      <TabsContent value="funil" className="space-y-10">
         <Suspense fallback={<AbaSkeleton />}>
           <FunilView filtros={filtros} origem={search.origem ?? null} />
-        </Suspense>
-      </TabsContent>
-      <TabsContent value="gargalos">
-        <Suspense fallback={<AbaSkeleton />}>
           <GargalosView filtros={filtros} />
         </Suspense>
       </TabsContent>
-      <TabsContent value="time">
+      {/* Fusão 2.3: performance do time e leads por corretor são a mesma
+          pergunta ("como está cada pessoa?") — uma aba só. */}
+      <TabsContent value="time" className="space-y-10">
         <Suspense fallback={<AbaSkeleton />}>
           <PerformanceView
             corretorDrill={search.corretor ?? null}
             onDrillChange={(id) => setSearch({ corretor: id ?? undefined })}
           />
         </Suspense>
+        <LeadsPorCorretorPage />
       </TabsContent>
       <TabsContent value="metas">
         <MetasPage />
       </TabsContent>
-      <TabsContent value="leads-corretor">
-        <LeadsPorCorretorPage />
-      </TabsContent>
-      {isAdmin && (
-        <TabsContent value="pessoas" className="space-y-10">
-          <CorretoresPage />
-          <EquipesPage />
-        </TabsContent>
-      )}
-      {isAdmin && (
-        <TabsContent value="estoque">
-          <EstoquePage />
-        </TabsContent>
-      )}
-      {isAdmin && (
-        <TabsContent value="campanhas">
-          <CampanhasPage />
-        </TabsContent>
-      )}
-      {isAdmin && (
-        <TabsContent value="comunicacao">
-          <TemplatesPage />
-        </TabsContent>
-      )}
-      {isAdmin && (
-        <TabsContent value="qualidade" className="space-y-10">
-          <DuplicatasPage />
-          <LixeiraPage />
-        </TabsContent>
-      )}
     </Tabs>
   );
 }

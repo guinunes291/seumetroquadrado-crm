@@ -120,6 +120,36 @@ describe("governança distribuída SamiQ", () => {
     }
   });
 
+  it("a versão v2 (IA unificada, item 0.6) carrega as 11 ações do chat + as 3 superfícies", () => {
+    const v2 = readFileSync(
+      join(process.cwd(), "supabase/migrations/20260808122000_ia_unificada_governanca.sql"),
+      "utf8",
+    );
+    // Se uma ação do chat ficar de fora da versão ativa nova, o SamiQ quebra
+    // inteiro em produção ("acao sem prompt versionado") — este teste é o guarda.
+    for (const action of [
+      "resumo_cliente",
+      "mensagem_sugerida",
+      "responder_objecao",
+      "proximo_passo",
+      "projeto_ideal",
+      "checklist_docs",
+      "recuperar_frio",
+      "script_ligacao",
+      "analise_funil",
+      "prioridade_dia",
+      "pergunta_livre",
+      "match_projetos",
+      "resumo_lead",
+      "mensagem_whatsapp",
+    ]) {
+      expect(v2).toContain(`'${action}'`);
+    }
+    // Uma versão ativa só: desativa a vigente antes de inserir a nova.
+    expect(v2).toMatch(/UPDATE public\.samiq_prompt_versions SET active = false/);
+    expect(v2).toContain("'samiq-2026-08-v2'");
+  });
+
   it("serializa quotas de usuário/equipe e aplica budgets diários de token/custo", () => {
     expect(migration).toContain("pg_advisory_xact_lock");
     expect(migration).toContain("max_requests_user_10m");

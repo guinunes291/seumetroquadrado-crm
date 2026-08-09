@@ -4,11 +4,13 @@ import { generateText } from "ai";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { rateLimit } from "@/lib/rate-limit";
+import { estimateSamiQTokens, minimizeSamiQContext, redactSamiQFreeText } from "./samiq-governance";
 
-// Teto de custo de IA: limita buscas por usuário (cada busca = 1 chamada ao LLM).
-const IA_RATE_MAX = Number(process.env.MATCH_IA_RATE_LIMIT ?? 20); // por minuto
-const IA_RATE_WINDOW_MS = 60_000;
+// Governança (item 0.6): quota/modelo/prompt vêm do banco via
+// reserveGovernedAIExecution; o rate limit em memória sobrevive apenas como
+// FALLBACK enquanto a migration não chega em produção.
+const IA_RATE_MAX = Number(process.env.MATCH_IA_RATE_LIMIT ?? 20); // por minuto (fallback)
+const MATCH_MAX_OUTPUT_TOKENS = 2000; // JSON com até 6 projetos + motivos
 
 // Linha do catálogo de projetos usada na busca por IA.
 type ProjetoRow = {
@@ -91,12 +93,6 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
 
     const { supabase, userId } = context;
 
-    // Teto de custo: limita buscas de IA por usuário.
-    const rl = rateLimit(`match-ia:${userId}`, IA_RATE_MAX, IA_RATE_WINDOW_MS);
-    if (!rl.allowed) {
-      throw new Error(`Muitas buscas seguidas. Tente novamente em ${rl.retryAfterS}s.`);
-    }
-
     // Catálogo de projetos ativos com cache curto em memória.
     let lista: ProjetoRow[];
     if (catalogoCache && Date.now() - catalogoCache.at < CATALOGO_TTL_MS) {
@@ -140,27 +136,79 @@ export const buscarProjetosIA = createServerFn({ method: "POST" })
       obs: p.observacoes?.slice(0, 200) ?? null,
     }));
 
-    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
-    const gateway = createLovableAiGatewayProvider(apiKey);
-    const model = gateway("google/gemini-3-flash-preview");
+    // A descrição vem do cliente e pode embutir observações do lead — redigir
+    // PII no servidor (o ponto que o cliente não controla). O catálogo é dado
+    // público de negócio: minimizar preserva nomes de empreendimento.
+    const descricaoRedigida = redactSamiQFreeText(data.descricao, 2000);
+    const catalogoMin = minimizeSamiQContext(catalogo, { maxArray: 200, maxString: 200 });
 
-    const { text } = await generateText({
-      model,
-      system:
-        'Você é um especialista em imóveis MCMV em São Paulo. Analise a descrição do corretor e o catálogo. Responda APENAS com JSON válido (sem markdown, sem cercas ```), no formato exato: {"resumo": string, "filtrosUsados": {"regiao"?: string, "dorms"?: string, "vagas"?: string, "precoMax"?: string, "programa"?: string, "entrega"?: string}, "projetos": [{"id": string, "pontuacao": number 0-10, "motivo": string, "tipologiaRecomendada"?: string}]}. Use apenas ids existentes no catálogo. Máximo 6 projetos, ordenados por aderência. Motivo em 1 frase PT-BR.',
-      prompt: `Descrição do corretor:\n${data.descricao}\n\nCatálogo (JSON):\n${JSON.stringify(catalogo)}`,
+    const promptCorpo = `Descrição do corretor:\n${descricaoRedigida}\n\nCatálogo (JSON):\n${JSON.stringify(catalogoMin)}`;
+
+    // Reserva de quota DEPOIS do early-return (catálogo vazio não gasta cota)
+    // e ANTES do modelo. Fallback = comportamento legado até a migration subir.
+    const { reserveGovernedAIExecution, finishSamiQExecution } =
+      await import("./samiq-governance.server");
+    const reservation = await reserveGovernedAIExecution({
+      userId,
+      action: "match_projetos",
+      estimatedInputTokens: Math.min(50_000, estimateSamiQTokens(promptCorpo) + 500),
+      requestedOutputTokens: MATCH_MAX_OUTPUT_TOKENS,
+      fallback: {
+        rateLimitKey: "match-ia",
+        maxPerMinute: IA_RATE_MAX,
+        maxOutputTokens: MATCH_MAX_OUTPUT_TOKENS,
+      },
     });
 
-    // Tolerar cercas markdown caso o modelo as inclua
-    const cleaned = text
-      .trim()
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```$/i, "");
+    const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
+    const gateway = createLovableAiGatewayProvider(apiKey);
+    const model = gateway(reservation.modelId);
+
+    const LEGACY_SYSTEM =
+      'Você é um especialista em imóveis MCMV em São Paulo. Analise a descrição do corretor e o catálogo. Responda APENAS com JSON válido (sem markdown, sem cercas ```), no formato exato: {"resumo": string, "filtrosUsados": {"regiao"?: string, "dorms"?: string, "vagas"?: string, "precoMax"?: string, "programa"?: string, "entrega"?: string}, "projetos": [{"id": string, "pontuacao": number 0-10, "motivo": string, "tipologiaRecomendada"?: string}]}. Use apenas ids existentes no catálogo. Máximo 6 projetos, ordenados por aderência. Motivo em 1 frase PT-BR.';
+
+    const startedAt = Date.now();
     let parsed: z.infer<typeof AiSchema>;
     try {
-      parsed = AiSchema.parse(JSON.parse(cleaned));
-    } catch (e) {
-      throw new Error(`Resposta da IA em formato inválido: ${(e as Error).message}`);
+      const { text, usage } = await generateText({
+        model,
+        system: reservation.systemPrompt ?? LEGACY_SYSTEM,
+        prompt: [reservation.actionPrompt, promptCorpo].filter(Boolean).join("\n\n"),
+        maxOutputTokens: reservation.maxOutputTokens,
+      });
+
+      // Tolerar cercas markdown caso o modelo as inclua
+      const cleaned = text
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "");
+      try {
+        parsed = AiSchema.parse(JSON.parse(cleaned));
+      } catch (e) {
+        throw new Error(`Resposta da IA em formato inválido: ${(e as Error).message}`);
+      }
+
+      if (reservation.governed) {
+        await finishSamiQExecution({
+          userId,
+          executionId: reservation.executionId,
+          status: "completed",
+          inputTokens: usage.inputTokens ?? estimateSamiQTokens(promptCorpo),
+          outputTokens: usage.outputTokens ?? estimateSamiQTokens(text),
+          latencyMs: Date.now() - startedAt,
+        });
+      }
+    } catch (error) {
+      if (reservation.governed) {
+        await finishSamiQExecution({
+          userId,
+          executionId: reservation.executionId,
+          status: "failed",
+          latencyMs: Date.now() - startedAt,
+          errorCode: "gateway_error",
+        });
+      }
+      throw error;
     }
 
     const byId = new Map(lista.map((p) => [p.id, p]));

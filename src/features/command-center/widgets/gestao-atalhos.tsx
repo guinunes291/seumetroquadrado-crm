@@ -45,7 +45,7 @@ const ATALHOS: Atalho[] = [
     descricao: "Problemas por impacto R$",
     icon: Compass,
     to: "/painel-gestor",
-    search: { tab: "gargalos" },
+    search: { tab: "funil" },
   },
   {
     titulo: "Time",

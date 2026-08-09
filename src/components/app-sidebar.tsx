@@ -67,15 +67,11 @@ const NAV_ITEMS: Item[] = [
     icon: Sun,
     children: [
       {
-        // O contador de aprovações vive AQUI porque é aqui que se aprova:
-        // PendingSalesApproval é montado na aba Comissões (comissoes-page.tsx),
-        // não no hub de Gestão. O badge leva direto à aba que tem a ação.
+        // Comissões migrou para o hub Dinheiro (item 2.4) — Desempenho volta a
+        // ser só ranking/competição/conquistas, sem badge.
         to: "/ranking",
-        search: { tab: "comissoes" },
         label: "Desempenho",
         icon: Trophy,
-        badge: (b) => b.aprovacoes,
-        badgeRoles: ["admin", "gestor", "superintendente"],
       },
     ],
   },
@@ -132,20 +128,28 @@ const NAV_ITEMS: Item[] = [
     ],
   },
   {
-    // HUB ÚNICO de gestão: Dia, Relatórios, Funil, Gargalos, Time, Metas e
-    // Leads por corretor (+ bloco administrativo para admin) são abas internas.
-    // A antiga /inteligencia redireciona para cá.
+    // HUB de operação: Dia, Relatórios, Funil, Gargalos, Time, Metas e
+    // Leads por corretor são abas internas. O bloco administrativo mudou
+    // para /configuracoes (item 2.1). A antiga /inteligencia redireciona
+    // para cá. Nome "Operação" segue a nomenclatura da auditoria ux-ia.
     to: "/painel-gestor",
-    label: "Gestão",
+    label: "Operação",
     icon: BarChart3,
     roles: ["admin", "gestor", "superintendente"],
     children: [
       { to: "/distribuicao", label: "Distribuição", icon: Shuffle, roles: ["admin", "gestor"] },
       {
-        to: "/financeiro/fechamento",
-        label: "Financeiro · Fechamento",
+        // DINHEIRO (item 2.4): fechamento + comissões + aprovação num hub só.
+        // O badge de aprovações vive aqui e o link cai direto na aba que
+        // aprova (tarefa #15: o badge nunca mais mente). Superintendente
+        // entra: ele aprova venda e enxerga comissões da operação.
+        to: "/financeiro",
+        search: { tab: "comissoes" },
+        label: "Dinheiro",
         icon: Wallet,
-        roles: ["admin", "gestor"],
+        roles: ["admin", "gestor", "superintendente"],
+        badge: (b) => b.aprovacoes,
+        badgeRoles: ["admin", "gestor", "superintendente"],
       },
     ],
   },

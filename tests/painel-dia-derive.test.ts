@@ -28,6 +28,8 @@ describe("normalizarPainelDia", () => {
     const p = normalizarPainelDia({
       excecoes: [
         excecaoBase,
+        // O 8º tipo (item 2.6) passa pelo gate de TIPO_META como os demais.
+        { ...excecaoBase, tipo: "documentacao_travada", lead_id: "l2" },
         { tipo: "tipo_desconhecido", lead_id: "x" },
         { tipo: "parado" }, // sem lead_id
         null,
@@ -40,7 +42,8 @@ describe("normalizarPainelDia", () => {
       },
       atualizado_em: "2026-07-26T12:00:00Z",
     });
-    expect(p.excecoes).toHaveLength(1);
+    expect(p.excecoes).toHaveLength(2);
+    expect(p.excecoes[1].tipo).toBe("documentacao_travada");
     expect(p.resumo.total).toBe(1);
     expect(p.resumo.vgv_em_risco).toBe(240000);
     expect(p.resumo.corretores_sem_interacao[0].nome).toBe("Bia");
@@ -115,19 +118,31 @@ describe("montarPainelDegradado", () => {
 describe("apresentação e drill", () => {
   it("detalheLegivel cobre os formatos conhecidos", () => {
     expect(detalheLegivel(excecaoBase)).toBe("3d parado (limiar 2d)");
-    expect(
-      detalheLegivel({ ...excecaoBase, detalhe: { minutos: 45, sla_minutos: 30 } }),
-    ).toBe("45 min (SLA 30)");
+    expect(detalheLegivel({ ...excecaoBase, detalhe: { minutos: 45, sla_minutos: 30 } })).toBe(
+      "45 min (SLA 30)",
+    );
     expect(detalheLegivel({ ...excecaoBase, detalhe: { vencido_ha_horas: 6 } })).toBe(
       "vencido há 6h",
     );
     expect(detalheLegivel({ ...excecaoBase, detalhe: {} })).toBe("");
   });
 
+  it("documentacao_travada mostra a contagem de docs, não o 'parado' genérico", () => {
+    // O payload carrega dias_parado TAMBÉM — o ramo específico tem que vencer.
+    expect(
+      detalheLegivel({
+        ...excecaoBase,
+        tipo: "documentacao_travada",
+        detalhe: { docs_pendentes: 2, dias_parado: 5, limiar_dias: 3 },
+      }),
+    ).toBe("2 doc(s) sem movimento há 5d (limiar 3d)");
+  });
+
   it("drillSearchDoTipo aponta para filtros que a /leads entende", () => {
     expect(drillSearchDoTipo("sla_estourado")).toEqual({ status: "aguardando_atendimento" });
     expect(drillSearchDoTipo("parado")).toEqual({ contato: "sem_contato_5d" });
     expect(drillSearchDoTipo("analise_parada")).toEqual({ status: "analise_credito" });
+    expect(drillSearchDoTipo("documentacao_travada")).toEqual({ status: "analise_credito" });
     expect(drillSearchDoTipo("sem_corretor")).toEqual({});
   });
 
@@ -143,7 +158,15 @@ describe("resumoSemanalParaSheets", () => {
   it("converte o jsonb do resumo em abas de XLSX", () => {
     const sheets = resumoSemanalParaSheets({
       semana: { de: "2026-07-19", ate: "2026-07-25" },
-      kpis: { leads_novos: 40, leads_novos_prev: 35, visitas: 12, vendas: 3, vendas_prev: 2, vgv: 600000, perdidos: 5 },
+      kpis: {
+        leads_novos: 40,
+        leads_novos_prev: 35,
+        visitas: 12,
+        vendas: 3,
+        vendas_prev: 2,
+        vgv: 600000,
+        perdidos: 5,
+      },
       por_corretor: [
         { nome: "Ana", leads_novos: 20, interacoes: 80, visitas: 7, vendas: 2, vgv: 400000 },
       ],

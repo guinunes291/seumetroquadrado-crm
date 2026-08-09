@@ -23,6 +23,7 @@
 // config: verify_jwt = false (supabase/config.toml).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { comCapturaDeErro } from "../_shared/error-tracking.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -119,24 +120,31 @@ async function secretsIguais(a: string, b: string): Promise<boolean> {
   return diff === 0;
 }
 
-Deno.serve(async (req: Request): Promise<Response> => {
+Deno.serve((req: Request) => comCapturaDeErro("lead-intake", () => handleRequest(req)));
+
+async function handleRequest(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   // 1) Autenticação por secret (comparação em tempo constante).
   // O canal correto é o header x-webhook-secret. O fallback por query string
   // (?secret=) segue aceito por compatibilidade com Zaps antigos, mas está
-  // DEPRECIADO — secrets em URL vazam em logs de proxy/CDN. Migrar o Zapier
-  // para o header e então remover o fallback (pendência registrada na
-  // auditoria de 2026-07-19).
+  // DEPRECIADO — secrets em URL vazam em logs de proxy/CDN (P-3).
+  // Kill-switch sem redeploy: definir LEAD_INTAKE_ALLOW_QUERY_SECRET=false
+  // nos secrets da função corta o fallback assim que os Zaps migrarem para o
+  // header (o env é lido por invocação). Default: aceita, para não derrubar
+  // o intake de produção antes da migração dos Zaps.
   const secret = Deno.env.get("LEAD_INTAKE_SECRET");
+  const allowQuerySecret =
+    (Deno.env.get("LEAD_INTAKE_ALLOW_QUERY_SECRET") ?? "true").toLowerCase() !== "false";
   const viaHeader = req.headers.get("x-webhook-secret");
-  const viaQuery = new URL(req.url).searchParams.get("secret");
+  const viaQuery = allowQuerySecret ? new URL(req.url).searchParams.get("secret") : null;
   const provided = viaHeader ?? viaQuery;
   if (!secret || !provided || !(await secretsIguais(provided, secret))) {
     return json({ error: "unauthorized" }, 401);
   }
-  if (!viaHeader && viaQuery) {
+  const authDepreciada = !viaHeader && viaQuery !== null;
+  if (authDepreciada) {
     console.warn(
       "lead-intake: secret recebido via query string (depreciado) — migrar o Zap para o header x-webhook-secret",
     );
@@ -357,5 +365,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     distribuido: corretor_id !== null,
     corretor_tem_telefone,
     notificacao,
+    // Visível no histórico de tasks do Zapier — o console.warn acima morre no
+    // log efêmero; este campo é o aviso que chega a quem opera o Zap.
+    ...(authDepreciada ? { deprecated_auth: "migrar para o header x-webhook-secret" } : {}),
   });
-});
+}

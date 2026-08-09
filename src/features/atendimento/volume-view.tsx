@@ -1,0 +1,524 @@
+// Modo Volume de Atender (item 2.7, PR a) — o antigo Modo Blitz, movido de
+// src/routes/_authenticated/blitz.tsx sem mudança de comportamento: um lead
+// por vez, priorizado por score, com atalhos de teclado. A rota /blitz segue
+// montando este mesmo componente (URL nenhuma morre) até o PR (c) do 2.7
+// transformá-la em redirect para /atendimento?modo=volume.
+//
+// header="pagina" mantém o PageHeader clássico do /blitz; header="modo" mostra
+// só a régua compacta (badge + atalhos), porque o cabeçalho é o de Atender.
+
+import { Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { buildWhatsAppUrl } from "@/lib/templates";
+import {
+  LEAD_STATUS_LABEL,
+  LEAD_STATUS_BADGE_TONE,
+  PROXIMA_ACAO,
+  resolveStageAction,
+  type LeadStatus,
+  type StageLead,
+} from "@/lib/leads";
+import { origemLabel } from "@/lib/origem";
+import { useLeadStatusMutation } from "@/hooks/use-lead-status";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
+import { LeadStageMenu } from "@/components/lead-stage-menu";
+import {
+  LeadStageModals,
+  type StageModalState,
+  type PerdidoState,
+} from "@/components/lead-stage/lead-stage-modals";
+import {
+  Phone,
+  MessageCircle,
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Mail,
+  Flame,
+  Inbox,
+  Wallet,
+  PiggyBank,
+  Landmark,
+  IdCard,
+  ExternalLink,
+  CalendarClock,
+  PhoneCall,
+} from "lucide-react";
+import { ResumoIA } from "@/components/resumo-ia";
+import { scoreLead } from "@/lib/priority";
+import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
+
+type Lead = {
+  id: string;
+  nome: string;
+  email: string | null;
+  telefone: string;
+  cpf: string | null;
+  status: string;
+  origem: string;
+  corretor_id: string | null;
+  projeto_id: string | null;
+  projeto_nome: string | null;
+  observacoes: string | null;
+  temperatura: string | null;
+  proximo_followup: string | null;
+  ultima_interacao: string | null;
+  ultimo_contato: string | null;
+  renda_informada: string | null;
+  entrada_disponivel: string | null;
+  usa_fgts: boolean | null;
+  campanha: string | null;
+  created_at: string;
+};
+
+type SlaRow = {
+  lead_id: string;
+  sla_status: string;
+  minutos_decorridos: number;
+  sla_minutos: number;
+};
+
+const SLA_META: Record<string, { label: string; cls: string }> = {
+  estourado: { label: "SLA estourado", cls: "bg-destructive/15 text-destructive" },
+  atencao: { label: "Atenção", cls: "bg-warning/15 text-warning" },
+  ok: { label: "No prazo", cls: "bg-success/15 text-success" },
+};
+const TEMP_CLS: Record<string, string> = {
+  quente: "bg-destructive/15 text-destructive",
+  morno: "bg-warning/15 text-warning",
+  frio: "bg-info/15 text-info",
+};
+
+const ATALHOS = "Atalhos: ← → navegar · L ligar · W WhatsApp · A agendar.";
+
+export function VolumeView({ header = "pagina" }: { header?: "pagina" | "modo" }) {
+  const { user } = useAuth();
+  const [index, setIndex] = useState(0);
+  const [modalState, setModalState] = useState<StageModalState>(null);
+  const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+  const [contatoOpen, setContatoOpen] = useState(false);
+
+  const leadsQ = useQuery({
+    queryKey: ["blitz-queue", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select(
+          "id, nome, email, telefone, cpf, status, origem, corretor_id, projeto_id, projeto_nome, observacoes, temperatura, proximo_followup, ultima_interacao, ultimo_contato, renda_informada, entrada_disponivel, usa_fgts, campanha, created_at",
+        )
+
+        .eq("corretor_id", user!.id)
+        .eq("na_lixeira", false)
+        .is("deleted_at", null)
+        .not("status", "in", "(contrato_fechado,pos_venda,perdido)")
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as Lead[];
+    },
+  });
+
+  const slaQ = useQuery({
+    queryKey: ["blitz-sla", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args?: Record<string, unknown>,
+        ) => Promise<{ data: SlaRow[] | null; error: unknown }>
+      )("leads_com_sla");
+      if (error) throw error;
+      return (data ?? []) as SlaRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  const slaMap = useMemo(() => {
+    const m = new Map<string, SlaRow>();
+    (slaQ.data ?? []).forEach((r) => m.set(r.lead_id, r));
+    return m;
+  }, [slaQ.data]);
+
+  const fila = useMemo(() => {
+    const arr = [...(leadsQ.data ?? [])];
+    // Ordena pelo Score de prioridade (temperatura + etapa + SLA + tempo parado).
+    // Mais recentes primeiro desempata. Mesmo critério usado no Meu Dia.
+    const scoreOf = (l: Lead) =>
+      scoreLead({
+        temperatura: l.temperatura,
+        status: l.status,
+        slaStatus: slaMap.get(l.id)?.sla_status,
+        ultimaInteracao: l.ultima_interacao,
+      }).score;
+    arr.sort((a, b) => {
+      const diff = scoreOf(b) - scoreOf(a);
+      if (diff !== 0) return diff;
+      return Date.parse(b.created_at) - Date.parse(a.created_at);
+    });
+    return arr;
+  }, [leadsQ.data, slaMap]);
+
+  useRealtimeInvalidate("leads", [["blitz-queue"], ["blitz-sla"]]);
+
+  // Mantém o índice dentro dos limites quando a fila muda.
+  useEffect(() => {
+    setIndex((i) => (fila.length === 0 ? 0 : Math.min(i, fila.length - 1)));
+  }, [fila.length]);
+
+  const updateStatus = useLeadStatusMutation({
+    optimisticKeys: [["blitz-queue"]],
+    invalidateKeys: [["blitz-queue"], ["blitz-sla"], ["leads-kanban"], ["leads"]],
+  });
+
+  const current = fila[index];
+
+  const next = useCallback(() => setIndex((i) => Math.min(i + 1, fila.length - 1)), [fila.length]);
+  const prev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), []);
+
+  const ligar = useCallback(() => {
+    if (current?.telefone) window.location.href = `tel:${current.telefone}`;
+  }, [current]);
+
+  const whatsapp = useCallback(() => {
+    if (current?.telefone) {
+      const url = buildWhatsAppUrl(current.telefone, `Olá ${current.nome}, tudo bem?`);
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }, [current]);
+
+  const agendar = useCallback(() => {
+    if (current) setModalState({ modal: "agendado", lead: current as StageLead });
+  }, [current]);
+
+  // Atalhos de teclado.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (modalState || perdidoLead || contatoOpen) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowRight" || e.key === "n") next();
+      else if (e.key === "ArrowLeft" || e.key === "p") prev();
+      else if (e.key.toLowerCase() === "w") whatsapp();
+      else if (e.key.toLowerCase() === "l") ligar();
+      else if (e.key.toLowerCase() === "a") agendar();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [next, prev, whatsapp, ligar, agendar, modalState, perdidoLead, contatoOpen]);
+
+  const sla = current ? slaMap.get(current.id) : undefined;
+
+  const badgeFila = (
+    <Badge variant="secondary" className="text-xs">
+      {fila.length === 0 ? "0 leads" : `${index + 1} de ${fila.length}`}
+    </Badge>
+  );
+
+  return (
+    <div className="space-y-4">
+      {header === "pagina" ? (
+        <PageHeader
+          title="Modo Blitz"
+          description={`Atenda um lead por vez, priorizado por urgência. ${ATALHOS}`}
+          actions={badgeFila}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {badgeFila}
+          <span>{ATALHOS}</span>
+        </div>
+      )}
+
+      {fila.length > 0 && (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{ width: `${((index + 1) / fila.length) * 100}%` }}
+          />
+        </div>
+      )}
+
+      {leadsQ.isError ? (
+        <QueryErrorState
+          title="Não foi possível carregar sua fila do Blitz."
+          error={leadsQ.error}
+          onRetry={() => leadsQ.refetch()}
+          className="mx-auto max-w-4xl"
+        />
+      ) : leadsQ.isLoading ? (
+        <Card className="mx-auto max-w-4xl">
+          <CardContent className="space-y-6 p-6 md:p-8" aria-busy="true">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-2/3" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-full" />
+            </div>
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-9 w-full" />
+          </CardContent>
+        </Card>
+      ) : !current ? (
+        <EmptyState
+          icon={Inbox}
+          title="Sua fila está vazia"
+          description="Nenhum lead ativo atribuído a você no momento. Novos leads entram aqui automaticamente."
+          action={
+            <Button asChild variant="outline">
+              <Link to="/leads">Ir para Meus Leads</Link>
+            </Button>
+          }
+          className="py-16"
+        />
+      ) : (
+        <Card className="mx-auto max-w-4xl">
+          <CardContent className="space-y-6 p-6 md:p-8">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-2xl font-bold md:text-3xl">{current.nome}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  {current.projeto_nome && <span>{current.projeto_nome}</span>}
+                  {current.campanha && <span>· {current.campanha}</span>}
+                  <span>· {origemLabel(current.origem)}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/leads/$leadId" params={{ leadId: current.id }}>
+                    <ExternalLink className="mr-1 h-4 w-4" /> Abrir
+                  </Link>
+                </Button>
+                <LeadStageMenu
+                  lead={current}
+                  onPickDirect={(target: LeadStatus) => {
+                    updateStatus.mutate({ id: current.id, status: target });
+                    next();
+                  }}
+                  onPickModal={(modal) => setModalState({ modal, lead: current as StageLead })}
+                  onPickPerdido={() => setPerdidoLead(current as StageLead)}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="secondary"
+                className={cn(LEAD_STATUS_BADGE_TONE[current.status as LeadStatus])}
+              >
+                {LEAD_STATUS_LABEL[current.status as LeadStatus] ?? current.status}
+              </Badge>
+              {current.temperatura && (
+                <Badge
+                  variant="secondary"
+                  className={cn("uppercase", TEMP_CLS[current.temperatura])}
+                >
+                  <Flame className="mr-1 h-3 w-3" />
+                  {current.temperatura}
+                </Badge>
+              )}
+              {sla && SLA_META[sla.sla_status] && (
+                <Badge variant="secondary" className={cn("gap-1", SLA_META[sla.sla_status].cls)}>
+                  <Clock className="h-3 w-3" />
+                  {SLA_META[sla.sla_status].label} · {sla.minutos_decorridos}/{sla.sla_minutos} min
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <InfoLine icon={Phone} label="Telefone" value={current.telefone} />
+              <InfoLine icon={Mail} label="E-mail" value={current.email ?? "—"} />
+              <InfoLine icon={IdCard} label="CPF" value={current.cpf ?? "—"} />
+              <InfoLine
+                icon={CalendarClock}
+                label="Último contato"
+                value={fmtDate(current.ultimo_contato ?? current.ultima_interacao)}
+              />
+            </div>
+
+            <Separator />
+
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Perfil financeiro
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <InfoTile
+                  icon={Wallet}
+                  label="Renda"
+                  value={current.renda_informada ?? "Não informada"}
+                />
+                <InfoTile
+                  icon={PiggyBank}
+                  label="Entrada"
+                  value={current.entrada_disponivel ?? "Não informada"}
+                />
+                <InfoTile
+                  icon={Landmark}
+                  label="FGTS"
+                  value={
+                    current.usa_fgts === true
+                      ? "Sim, usa"
+                      : current.usa_fgts === false
+                        ? "Não usa"
+                        : "Não informado"
+                  }
+                />
+              </div>
+            </div>
+
+            {current.observacoes && (
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Observações
+                </div>
+                <p className="rounded-md bg-muted/40 p-3 text-sm text-foreground/90 whitespace-pre-wrap">
+                  {current.observacoes}
+                </p>
+              </div>
+            )}
+
+            <ResumoIA leadId={current.id} />
+
+            <Button className="w-full" onClick={() => setContatoOpen(true)}>
+              <PhoneCall className="mr-1 h-4 w-4" /> Registrar contato
+            </Button>
+            {(() => {
+              const proxima = PROXIMA_ACAO[current.status as LeadStatus];
+              if (!proxima) return null;
+              return (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  disabled={updateStatus.isPending}
+                  onClick={() => {
+                    const action = resolveStageAction(proxima.target);
+                    if (action.kind === "modal")
+                      setModalState({ modal: action.modal, lead: current as StageLead });
+                    else if (action.kind === "perdido") setPerdidoLead(current as StageLead);
+                    else updateStatus.mutate({ id: current.id, status: proxima.target });
+                  }}
+                >
+                  {proxima.label}
+                </Button>
+              );
+            })()}
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={ligar}>
+                <Phone className="mr-1 h-4 w-4" /> Ligar
+              </Button>
+              <Button
+                variant="outline"
+                className="border-success/40 text-success hover:bg-success/10"
+                onClick={whatsapp}
+              >
+                <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
+              </Button>
+              <Button variant="outline" onClick={agendar}>
+                <CalendarCheck className="mr-1 h-4 w-4" /> Agendar
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between border-t pt-4">
+              <Button variant="ghost" onClick={prev} disabled={index === 0}>
+                <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+              </Button>
+              <Button onClick={next} disabled={index >= fila.length - 1}>
+                Próximo <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <LeadStageModals
+        modalState={modalState}
+        onModalOpenChange={(o) => !o && setModalState(null)}
+        perdidoLead={perdidoLead}
+        onPerdidoOpenChange={(o) => !o && setPerdidoLead(null)}
+      />
+
+      {current && (
+        <RegistrarContatoDialog
+          open={contatoOpen}
+          onOpenChange={setContatoOpen}
+          lead={{ id: current.id, nome: current.nome, corretor_id: current.corretor_id }}
+          onDone={next}
+        />
+      )}
+    </div>
+  );
+}
+
+function InfoLine({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-muted-foreground">{label}:</span>
+      <span className="truncate font-medium">{value}</span>
+    </div>
+  );
+}
+
+function InfoTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </div>
+      <div className="text-sm font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function fmtDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}

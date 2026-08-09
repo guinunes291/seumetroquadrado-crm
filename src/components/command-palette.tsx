@@ -227,13 +227,13 @@ export function CommandPalette() {
     {
       label: "Comissões",
       icon: ListTodo,
-      go: () => navigate({ to: "/ranking", search: { tab: "comissoes" } }),
+      go: () => navigate({ to: "/financeiro", search: { tab: "comissoes" } }),
     },
     { label: "Links Úteis", icon: Building2, go: () => navigate({ to: "/links-uteis" }) },
     ...(canManage
       ? [
           {
-            label: "Gestão (Painel do Dia)",
+            label: "Operação (Painel do Dia)",
             icon: Gauge,
             go: () => navigate({ to: "/painel-gestor" }),
           },
@@ -247,7 +247,7 @@ export function CommandPalette() {
     ...(canManage || isSuperintendente
       ? [
           {
-            label: "Relatórios (Gestão)",
+            label: "Relatórios (Operação)",
             icon: LayoutDashboard,
             go: () => navigate({ to: "/painel-gestor", search: { tab: "relatorios" } }),
           },

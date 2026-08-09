@@ -7,17 +7,18 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 describe("consumidores comerciais", () => {
   it("APIs públicas expõem somente vendas e comissões aprovadas", () => {
     const vendas = read("src/routes/api/public/vendas/index.ts");
+    const vendasAgregado = read("src/lib/vendas-agregado.server.ts");
     const comissoes = read("src/routes/api/public/comissoes/index.ts");
     const metricas = read("src/routes/api/public/metricas.ts");
 
-    expect(vendas).toContain('.eq("status_venda", "aprovada")');
+    // Vendas e métricas delegam a leitura ao agregado — o filtro "aprovada"
+    // vive lá, e o distrato sai do VGV (modelo novo: distrato booleano na
+    // venda, não status_venda='cancelada').
+    expect(vendas).toContain("lerVendasAgregado");
+    expect(metricas).toContain("lerVendasAgregado");
+    expect(vendasAgregado).toContain('.eq("status_venda", "aprovada")');
+    expect(vendasAgregado).toContain("vgv_liquido_de_distrato");
     expect(comissoes).toContain('.eq("vendas.status_venda", "aprovada")');
-    expect(metricas).toMatch(
-      /\.eq\("status_venda", "aprovada"\)[\s\S]*\.gte\("aprovado_em", desde\)/,
-    );
-    expect(metricas).toMatch(
-      /\.eq\("status_venda", "cancelada"\)[\s\S]*\.gte\("status_venda_updated_at", desde\)/,
-    );
   });
 
   it("metas não inferem venda pelo status ou timeline do lead", () => {

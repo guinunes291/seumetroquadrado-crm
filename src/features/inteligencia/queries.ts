@@ -113,7 +113,11 @@ export type PerformanceDrillRow = {
   atualizado_em: string | null;
 };
 
-export type FiltrosInteligencia = { de: string | null; ate: string | null; corretor: string | null };
+export type FiltrosInteligencia = {
+  de: string | null;
+  ate: string | null;
+  corretor: string | null;
+};
 
 export function useFunilCoorte(f: FiltrosInteligencia, origem: string | null, enabled = true) {
   return useQuery({
@@ -159,9 +163,9 @@ export function useFunilSnapshot(corretor: string | null, enabled = true) {
             _campo_data: "criacao",
           });
           if (error) throw error;
-          const rows = ((data ?? []) as Array<{ etapa: string; ordem: number; quantidade: number }>).map(
-            (r) => ({ ...r, vgv: null, parados: null, followups_vencidos: null }),
-          );
+          const rows = (
+            (data ?? []) as Array<{ etapa: string; ordem: number; quantidade: number }>
+          ).map((r) => ({ ...r, vgv: null, parados: null, followups_vencidos: null }));
           return { rows, degradado: true };
         },
       ),
@@ -192,26 +196,27 @@ export function useTempoEtapa(f: FiltrosInteligencia, enabled = true) {
             _corretor: f.corretor,
           });
           if (error) throw error;
-          return ((data ?? []) as Array<{ etapa: string; media_horas: number; p50_horas: number; n: number }>).map(
-            (r, i) => ({
-              etapa: r.etapa,
-              ordem: i,
-              horas_media: r.media_horas,
-              horas_p50: r.p50_horas,
-              n: r.n,
-              atualizado_em: null,
-            }),
-          );
+          return (
+            (data ?? []) as Array<{
+              etapa: string;
+              media_horas: number;
+              p50_horas: number;
+              n: number;
+            }>
+          ).map((r, i) => ({
+            etapa: r.etapa,
+            ordem: i,
+            horas_media: r.media_horas,
+            horas_p50: r.p50_horas,
+            n: r.n,
+            atualizado_em: null,
+          }));
         },
       ),
   });
 }
 
-export function useHeatmap(
-  metrica: string,
-  f: FiltrosInteligencia,
-  enabled = true,
-) {
+export function useHeatmap(metrica: string, f: FiltrosInteligencia, enabled = true) {
   return useQuery({
     queryKey: ["intel:heatmap", metrica, f.de, f.ate],
     enabled,
@@ -395,7 +400,7 @@ export function useCoberturaMinima() {
     staleTime: 10 * 60_000,
     queryFn: async (): Promise<number> => {
       const { data, error } = await supabase
-        .from("gestao_config" as never)
+        .from("gestao_config")
         .select("valor")
         .eq("chave", "cobertura_transicoes_minima_pct")
         .maybeSingle();

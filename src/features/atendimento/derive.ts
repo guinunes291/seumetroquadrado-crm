@@ -35,7 +35,13 @@ export type UltimaInteracaoRow = {
   ocorreu_em: string;
 };
 
-export type QueueKey = "novos" | "responder" | "followups" | "esfriando" | "docs";
+export type QueueKey =
+  | "novos"
+  | "responder"
+  | "followups"
+  | "esfriando"
+  | "confirmar_visita"
+  | "docs";
 
 export type QueueItem = {
   lead: AtendimentoLead;
@@ -43,6 +49,9 @@ export type QueueItem = {
   tier: ScoreTier;
   motivo: string;
   docsPendentes: number;
+  /** Só na fila confirmar_visita (v4): alvo do botão [Confirmar]. */
+  agendamentoId?: string | null;
+  visitaEm?: string | null;
 };
 
 export type AtendimentoQueues = Record<QueueKey, QueueItem[]>;
@@ -52,7 +61,9 @@ export const QUEUE_LABEL: Record<QueueKey, string> = {
   responder: "Responder agora",
   followups: "Follow-ups vencidos",
   esfriando: "Esfriando",
-  docs: "Documentação travada",
+  confirmar_visita: "Confirmar visita",
+  // "Pasta travada" — nomenclatura da auditoria ux-ia (05-nova-ia.md).
+  docs: "Pasta travada",
 };
 
 export const QUEUE_HINT: Record<QueueKey, string> = {
@@ -60,6 +71,7 @@ export const QUEUE_HINT: Record<QueueKey, string> = {
   responder: "o cliente falou por último — cada minuto conta",
   followups: "você combinou de voltar — o prazo passou",
   esfriando: "quentes e mornos sem contato há 3+ dias",
+  confirmar_visita: "visita marcada nas próximas 48h ainda sem confirmação",
   docs: "pasta parada por documento pendente ou reprovado",
 };
 
@@ -90,6 +102,7 @@ export function buildAtendimentoQueues(input: {
     responder: [],
     followups: [],
     esfriando: [],
+    confirmar_visita: [],
     docs: [],
   };
 
@@ -175,6 +188,8 @@ export function scriptParaFila(fila: QueueKey, nome: string, projetoNome?: strin
       return `Oi, ${primeiro}! Combinamos de retomar nossa conversa${projeto} — conseguiu pensar no que falamos? Posso te passar as novidades?`;
     case "esfriando":
       return `Oi, ${primeiro}, tudo bem? Apareceram condições novas${projeto} que têm tudo a ver com o que você procura. Posso te contar rapidinho?`;
+    case "confirmar_visita":
+      return `Oi, ${primeiro}! Passando para confirmar nossa visita${projeto} — posso contar com você no horário combinado? Qualquer imprevisto, me avisa que a gente reagenda.`;
     case "docs":
       return `Oi, ${primeiro}! Sua pasta${projeto} está quase completa — falta só um documento para avançarmos. Consegue me enviar hoje?`;
   }

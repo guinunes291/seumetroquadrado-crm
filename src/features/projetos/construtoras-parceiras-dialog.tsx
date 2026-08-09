@@ -39,6 +39,11 @@ export function ConstrutorasParceirasDialog({
 
   const invalidar = () => qc.invalidateQueries({ queryKey: CONSTRUTORAS_PARCEIRAS_KEY });
 
+  // Escape contido: `construtoras_parceiras` ainda não existe no types.ts
+  // gerado — regenerar os types derrete este cast (padrão de conquistas-page).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tabela = () => (supabase as any).from("construtoras_parceiras");
+
   const adicionar = useMutation({
     mutationFn: async (nome: string) => {
       const limpo = nome.trim();
@@ -49,9 +54,11 @@ export function ConstrutorasParceirasDialog({
       const { data: u } = await supabase.auth.getUser();
       // Entra no fim da fila; a gestão sobe com as setas se for prioridade.
       const ordem = (parceiras.at(-1)?.ordem ?? 0) + 10;
-      const { error } = await supabase
-        .from("construtoras_parceiras")
-        .insert({ nome: limpo, ordem, criado_por: u.user?.id ?? null });
+      const { error } = await tabela().insert({
+        nome: limpo,
+        ordem,
+        criado_por: u.user?.id ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -65,7 +72,7 @@ export function ConstrutorasParceirasDialog({
   const atualizar = useMutation({
     mutationFn: async (payload: { id: string; ativo?: boolean; ordem?: number }) => {
       const { id, ...rest } = payload;
-      const { error } = await supabase.from("construtoras_parceiras").update(rest).eq("id", id);
+      const { error } = await tabela().update(rest).eq("id", id);
       if (error) throw error;
     },
     onSuccess: invalidar,
@@ -74,7 +81,7 @@ export function ConstrutorasParceirasDialog({
 
   const remover = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("construtoras_parceiras").delete().eq("id", id);
+      const { error } = await tabela().delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

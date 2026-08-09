@@ -27,7 +27,7 @@ import {
 // (?tab=…) redirecionam abaixo.
 const TAB_DESTINO: Record<string, { to: string; search?: Record<string, string> }> = {
   oferta: { to: "/oferta-ativa" },
-  comissoes: { to: "/ranking", search: { tab: "comissoes" } },
+  comissoes: { to: "/financeiro", search: { tab: "comissoes" } },
   links: { to: "/links-uteis" },
 };
 

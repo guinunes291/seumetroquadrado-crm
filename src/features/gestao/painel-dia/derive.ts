@@ -12,6 +12,7 @@ export type ExcecaoTipo =
   | "visita_sem_confirmacao"
   | "visita_sem_registro"
   | "analise_parada"
+  | "documentacao_travada"
   | "sem_corretor";
 
 export type Excecao = {
@@ -45,46 +46,49 @@ export type PainelDia = {
   degradado: boolean;
 };
 
-export const TIPO_META: Record<
-  ExcecaoTipo,
-  { label: string; intent: Intent; descricao: string }
-> = {
-  sla_estourado: {
-    label: "SLA estourado",
-    intent: "danger",
-    descricao: "Lead novo sem 1º contato dentro do SLA da origem.",
-  },
-  sem_corretor: {
-    label: "Sem corretor",
-    intent: "danger",
-    descricao: "Lead ativo sem responsável (fila/roleta travada).",
-  },
-  visita_sem_confirmacao: {
-    label: "Visita sem confirmação",
-    intent: "warning",
-    descricao: "Visita nas próximas 48h ainda não confirmada.",
-  },
-  visita_sem_registro: {
-    label: "Visita sem registro",
-    intent: "warning",
-    descricao: "Visita passada há mais de 24h sem desfecho registrado.",
-  },
-  analise_parada: {
-    label: "Análise parada",
-    intent: "warning",
-    descricao: "Pasta em análise de crédito sem movimento — a venda morre aqui.",
-  },
-  parado: {
-    label: "Parados",
-    intent: "info",
-    descricao: "Sem atividade além do limiar da temperatura (config).",
-  },
-  followup_vencido: {
-    label: "Follow-up vencido",
-    intent: "info",
-    descricao: "Próximo follow-up combinado já passou.",
-  },
-};
+export const TIPO_META: Record<ExcecaoTipo, { label: string; intent: Intent; descricao: string }> =
+  {
+    sla_estourado: {
+      label: "SLA estourado",
+      intent: "danger",
+      descricao: "Lead novo sem 1º contato dentro do SLA da origem.",
+    },
+    sem_corretor: {
+      label: "Sem corretor",
+      intent: "danger",
+      descricao: "Lead ativo sem responsável (fila/roleta travada).",
+    },
+    visita_sem_confirmacao: {
+      label: "Visita sem confirmação",
+      intent: "warning",
+      descricao: "Visita nas próximas 48h ainda não confirmada.",
+    },
+    visita_sem_registro: {
+      label: "Visita sem registro",
+      intent: "warning",
+      descricao: "Visita passada há mais de 24h sem desfecho registrado.",
+    },
+    analise_parada: {
+      label: "Análise parada",
+      intent: "warning",
+      descricao: "Pasta em análise de crédito sem movimento — a venda morre aqui.",
+    },
+    documentacao_travada: {
+      label: "Pasta travada",
+      intent: "warning",
+      descricao: "Documento pendente/reprovado sem movimento há dias (tarefa #14).",
+    },
+    parado: {
+      label: "Parados",
+      intent: "info",
+      descricao: "Sem atividade além do limiar da temperatura (config).",
+    },
+    followup_vencido: {
+      label: "Follow-up vencido",
+      intent: "info",
+      descricao: "Próximo follow-up combinado já passou.",
+    },
+  };
 
 export const TIPOS_ORDENADOS = Object.keys(TIPO_META) as ExcecaoTipo[];
 
@@ -242,6 +246,10 @@ export function drillSearchDoTipo(tipo: ExcecaoTipo): LeadSearchFiltros {
       return { contato: "com_followup" };
     case "analise_parada":
       return { status: "analise_credito" };
+    case "documentacao_travada":
+      // /leads não filtra por documentação — a etapa de crédito é onde a
+      // pasta vive; aproximação honesta, como as demais.
+      return { status: "analise_credito" };
     case "visita_sem_confirmacao":
     case "visita_sem_registro":
       return { status: "agendado" };
@@ -257,6 +265,12 @@ export function detalheLegivel(e: Excecao): string {
     return `${d.minutos} min (SLA ${d.sla_minutos})`;
   }
   if (typeof d.minutos === "number") return `${d.minutos} min parado`;
+  // documentacao_travada carrega dias_parado TAMBÉM — o ramo específico vem
+  // antes do genérico (first-match) para não perder a contagem de docs.
+  if (typeof d.docs_pendentes === "number" && typeof d.dias_parado === "number") {
+    const limiar = typeof d.limiar_dias === "number" ? ` (limiar ${d.limiar_dias}d)` : "";
+    return `${d.docs_pendentes} doc(s) sem movimento há ${d.dias_parado}d${limiar}`;
+  }
   if (typeof d.dias_parado === "number") {
     const limiar = typeof d.limiar_dias === "number" ? ` (limiar ${d.limiar_dias}d)` : "";
     return `${d.dias_parado}d parado${limiar}`;
@@ -285,9 +299,17 @@ export function resumoSemanalParaSheets(
   const semana = (r.semana ?? {}) as Record<string, unknown>;
   const kpiRows = [
     { Indicador: "Período", Valor: `${semana.de ?? "?"} a ${semana.ate ?? "?"}` },
-    { Indicador: "Leads novos", Valor: num(kpis.leads_novos), "Semana anterior": num(kpis.leads_novos_prev) },
+    {
+      Indicador: "Leads novos",
+      Valor: num(kpis.leads_novos),
+      "Semana anterior": num(kpis.leads_novos_prev),
+    },
     { Indicador: "Visitas realizadas", Valor: num(kpis.visitas) },
-    { Indicador: "Vendas aprovadas", Valor: num(kpis.vendas), "Semana anterior": num(kpis.vendas_prev) },
+    {
+      Indicador: "Vendas aprovadas",
+      Valor: num(kpis.vendas),
+      "Semana anterior": num(kpis.vendas_prev),
+    },
     { Indicador: "VGV (R$)", Valor: num(kpis.vgv) },
     { Indicador: "Perdidos", Valor: num(kpis.perdidos) },
   ];

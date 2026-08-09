@@ -1,0 +1,60 @@
+// Guarda do item 2.4 (auditoria ux-ia-2026-08): o hub Dinheiro (/financeiro)
+// absorve fechamento + comissões + aprovação, e o badge de aprovações aponta
+// para a tela que aprova (tarefa #15). Fonte lida como texto, padrão da casa.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+
+const hub = read("src/routes/_authenticated/financeiro/index.tsx");
+const sidebar = read("src/components/app-sidebar.tsx");
+const ranking = read("src/routes/_authenticated/ranking.tsx");
+const aprovacao = read("src/components/pending-sales-approval.tsx");
+
+describe("item 2.4 — hub Dinheiro (/financeiro)", () => {
+  it("a rota monta fechamento e comissões (aprovação vem dentro da ComissoesPage)", () => {
+    expect(hub).toContain('createFileRoute("/_authenticated/financeiro/")');
+    expect(hub).toContain("<FechamentoPage />");
+    expect(hub).toContain("<ComissoesPage />");
+  });
+
+  it("guard por ABA, não por rota — corretor mantém acesso às próprias comissões", () => {
+    // Fechamento é admin/gestor; sem o papel, degrada para Comissões (RLS
+    // recorta os dados) em vez de redirecionar ou mostrar tela vazia.
+    expect(hub).toContain("podeFechamento");
+    expect(hub).toMatch(/tab === "fechamento" && !podeFechamento/);
+    expect(hub).not.toMatch(/throw redirect\(\{ to: "\/" \}\)/);
+  });
+
+  it("o badge de aprovações vive no item Dinheiro e cai na aba que aprova (#15)", () => {
+    expect(sidebar).toMatch(
+      /to: "\/financeiro",\s*search: \{ tab: "comissoes" \},\s*label: "Dinheiro"[\s\S]{0,200}badge: \(b\) => b\.aprovacoes/,
+    );
+    // O antigo destino (Desempenho com badge) morreu — o badge nunca mais mente.
+    expect(sidebar).not.toMatch(/to: "\/ranking"[\s\S]{0,120}badge: \(b\) => b\.aprovacoes/);
+  });
+
+  it("Desempenho não tem mais aba Comissões; o deep-link antigo redireciona", () => {
+    expect(ranking).not.toContain('<TabsTrigger value="comissoes"');
+    expect(ranking).not.toContain("<ComissoesPage");
+    expect(ranking).toMatch(/redirect\(\{ to: "\/financeiro", search: \{ tab: "comissoes" \} \}\)/);
+    // "comissoes" continua na whitelist do validateSearch — o beforeLoad
+    // precisa lê-lo cru para redirecionar (lição da aba distribuicao).
+    expect(ranking).toMatch(/DESEMPENHO_TABS[\s\S]{0,120}"comissoes"/);
+  });
+
+  it("rotas legadas apontam para o hub (URL nenhuma morre)", () => {
+    const fechamento = read("src/routes/_authenticated/financeiro/fechamento.tsx");
+    expect(fechamento).toContain('to: "/financeiro"');
+    expect(fechamento).toContain('tab: "fechamento"');
+    const comissoes = read("src/routes/_authenticated/comissoes.tsx");
+    expect(comissoes).toContain('to: "/financeiro"');
+    expect(comissoes).toContain('tab: "comissoes"');
+  });
+
+  it("aprovar venda atualiza o fechamento e o badge na mesma tela", () => {
+    expect(aprovacao).toContain('["financeiro-fechamento"]');
+    expect(aprovacao).toContain('["nav-badges"]');
+  });
+});

@@ -100,9 +100,18 @@ export function PendingSalesApproval() {
       setDecision(null);
       setReason("");
       await Promise.all(
-        [["vendas"], ["comissoes"], ["leads"], ["leads-kanban"], ["ranking"], ["metricas"]].map(
-          (queryKey) => queryClient.invalidateQueries({ queryKey }),
-        ),
+        [
+          ["vendas"],
+          ["comissoes"],
+          ["leads"],
+          ["leads-kanban"],
+          ["ranking"],
+          ["metricas"],
+          // No hub Dinheiro (2.4) o fechamento e o badge da sidebar dividem a
+          // tela com a aprovação — sem estas duas chaves ficavam defasados.
+          ["financeiro-fechamento"],
+          ["nav-badges"],
+        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
       );
     },
     onError: (error: Error) => toast.error(error.message),
