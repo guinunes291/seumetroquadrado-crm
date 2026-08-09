@@ -29,6 +29,8 @@ export type LeadFlagInput = {
   tem_followup?: boolean;
   /** Só na RPC v3: data do próximo follow-up aberto (espelho de tarefas). */
   proximo_followup?: string | null;
+  /** Data da venda registrada — encerra o processo (nenhuma flag ativa). */
+  data_venda?: string | null;
 };
 
 /** Limiares da régua única de esfriamento (em dias, salvo indicação). */
@@ -106,6 +108,9 @@ export function leadFlagsDetalhadas(
   const criadoHa = now - new Date(lead.created_at).getTime();
   const ui = lead.ultima_interacao ? new Date(lead.ultima_interacao).getTime() : null;
   const semInteracaoHa = ui == null ? Infinity : now - ui;
+  // Venda registrada = processo encerrado (pós-venda): nenhum sinal de
+  // atendimento (quente, follow-up, parado…) faz sentido a partir daqui.
+  if (lead.data_venda) return out;
   const ativo = !FINALIZADOS.has(lead.status);
   const aguardando = lead.status === "aguardando_atendimento";
   const quente = lead.temperatura === "quente";

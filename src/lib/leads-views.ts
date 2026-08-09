@@ -1,6 +1,9 @@
 // Filtros rápidos + visões salvas da lista de leads. Persistência em localStorage
 // por usuário (sem backend). Helpers puros para serem testáveis.
 
+import { vendaRegistrada } from "@/lib/priority";
+
+
 export type LeadFiltros = {
   status: string;
   origem: string;
@@ -135,12 +138,20 @@ export const VISOES_PADRAO: SavedView[] = [
 
 const STATUS_FINALIZADOS = ["contrato_fechado", "pos_venda", "perdido"];
 
-/** Aplica o filtro rápido de contato a um lead (lado cliente). */
+/** Aplica o filtro rápido de contato a um lead (lado cliente).
+ *  Lead com venda registrada encerrou o processo: fica fora de TODO recorte
+ *  de atendimento (espelho de leads_filtered_v3). */
 export function passaContato(
   contato: string,
-  args: { ultimaInteracao: string | null; status: string; temFollowup: boolean },
+  args: {
+    ultimaInteracao: string | null;
+    status: string;
+    temFollowup: boolean;
+    dataVenda?: string | null;
+  },
 ): boolean {
   if (!contato || contato === "all") return true;
+  if (vendaRegistrada(args)) return false;
   const ui = args.ultimaInteracao ? new Date(args.ultimaInteracao).getTime() : null;
   const now = Date.now();
   const DIA = 86_400_000;
@@ -170,9 +181,10 @@ export function passaContato(
 /** Aplica o recorte "parado há X+ dias" a um lead (fallback client-side da v4). */
 export function passaParado(
   paradoDias: string,
-  args: { ultimaInteracao: string | null; status: string },
+  args: { ultimaInteracao: string | null; status: string; dataVenda?: string | null },
 ): boolean {
   if (!paradoDias || paradoDias === "all") return true;
+  if (vendaRegistrada(args)) return false;
   const dias = Number(paradoDias);
   if (!Number.isFinite(dias) || dias < 1) return false;
   const ui = args.ultimaInteracao ? new Date(args.ultimaInteracao).getTime() : null;

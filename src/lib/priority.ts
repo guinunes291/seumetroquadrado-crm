@@ -7,6 +7,8 @@ import { INTENT_DOT } from "@/lib/status-tones";
 export type ScoreInput = {
   temperatura?: string | null;
   status?: string | null;
+  /** Data da venda (quando existe venda registrada não distratada). */
+  dataVenda?: string | null;
   /** Status de SLA (estourado|atencao|ok), quando disponível. */
   slaStatus?: string | null;
   /** Última interação (ISO) — quanto mais parado, mais urgente. */
@@ -37,10 +39,26 @@ export function diasDesde(iso: string | null | undefined, agora: Date): number |
   return Math.max(0, Math.floor((agora.getTime() - t) / 86_400_000));
 }
 
+/** Status/venda que encerram o processo comercial (entram em pós-venda). */
+export function vendaRegistrada(input: {
+  status?: string | null;
+  dataVenda?: string | null;
+}): boolean {
+  return (
+    input.status === "contrato_fechado" || input.status === "pos_venda" || Boolean(input.dataVenda)
+  );
+}
+
 export function scoreLead(input: ScoreInput): ScoreResult {
+  // Lead com venda registrada terminou o processo: pontuação cheia e fora de
+  // qualquer fila de atendimento (espelho de leads_filtered_v3).
+  if (vendaRegistrada(input)) {
+    return { score: 100, tier: "baixa", motivo: "Venda registrada — pós-venda" };
+  }
   const agora = input.agora ?? new Date();
   let score = 0;
   const motivos: string[] = [];
+
 
   if (input.temperatura === "quente") {
     score += 35;

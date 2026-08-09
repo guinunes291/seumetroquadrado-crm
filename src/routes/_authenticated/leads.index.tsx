@@ -711,6 +711,7 @@ function LeadsPage() {
                 passaParado(paradoDiasFilter, {
                   ultimaInteracao: l.ultima_interacao,
                   status: l.status,
+                  dataVenda: l.data_venda,
                 }),
               );
         ids.push(...visiveis.map((l) => l.id));
@@ -804,6 +805,7 @@ function LeadsPage() {
               passaParado(paradoDiasFilter, {
                 ultimaInteracao: l.ultima_interacao,
                 status: l.status,
+                dataVenda: l.data_venda,
               }),
             );
       return visiveis.map((l) => l.id);

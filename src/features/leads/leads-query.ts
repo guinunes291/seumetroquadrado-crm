@@ -59,7 +59,11 @@ export function recortesClientSide(
     let out = rows;
     if (source !== "v4" && paradoDias !== "all") {
       out = out.filter((l) =>
-        passaParado(paradoDias, { ultimaInteracao: l.ultima_interacao, status: l.status }),
+        passaParado(paradoDias, {
+          ultimaInteracao: l.ultima_interacao,
+          status: l.status,
+          dataVenda: l.data_venda,
+        }),
       );
     }
     if (source === "v2" && contato === "sem_contato_30d") {
@@ -68,6 +72,7 @@ export function recortesClientSide(
           ultimaInteracao: l.ultima_interacao,
           status: l.status,
           temFollowup: l.tem_followup ?? false,
+          dataVenda: l.data_venda,
         }),
       );
     }
@@ -76,7 +81,11 @@ export function recortesClientSide(
   let base = rows;
   if (paradoDias !== "all") {
     base = base.filter((l) =>
-      passaParado(paradoDias, { ultimaInteracao: l.ultima_interacao, status: l.status }),
+      passaParado(paradoDias, {
+          ultimaInteracao: l.ultima_interacao,
+          status: l.status,
+          dataVenda: l.data_venda,
+        }),
     );
   }
   if (contato !== "all") {
@@ -85,6 +94,7 @@ export function recortesClientSide(
         ultimaInteracao: l.ultima_interacao,
         status: l.status,
         temFollowup: followupIds?.has(l.id) ?? false,
+        dataVenda: l.data_venda,
       }),
     );
   }
