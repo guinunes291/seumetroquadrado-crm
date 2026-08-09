@@ -37,6 +37,64 @@ export const CONTATO_OPCOES = [
   { value: "sem_contato_30d", label: "Sem contato 30+ dias" },
 ] as const;
 
+/** Faixas do filtro de período (por created_at; em Venda o servidor usa
+ *  data_assinatura). Vivia em leads.index.tsx; movido para cá no item 2.7b
+ *  para /leads e o modo Consulta de Atender lerem o MESMO vocabulário. */
+export const PERIODO_OPTIONS = [
+  { value: "all", label: "Qualquer período" },
+  { value: "hoje", label: "Hoje" },
+  { value: "7d", label: "Últimos 7 dias" },
+  { value: "30d", label: "Últimos 30 dias" },
+  { value: "90d", label: "Últimos 90 dias" },
+  { value: "custom", label: "Intervalo personalizado" },
+] as const;
+
+export type Periodo = (typeof PERIODO_OPTIONS)[number]["value"];
+
+function periodoStart(p: Periodo): Date | null {
+  const now = new Date();
+  if (p === "hoje") {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (p === "7d") return new Date(now.getTime() - 7 * 86400000);
+  if (p === "30d") return new Date(now.getTime() - 30 * 86400000);
+  if (p === "90d") return new Date(now.getTime() - 90 * 86400000);
+  return null;
+}
+
+function periodoEnd(p: Periodo): Date | null {
+  if (p !== "hoje") return null;
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function customDateStart(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function customDateEnd(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T23:59:59.999`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Intervalo [start, end] de um período selecionado (custom usa as datas). */
+export function rangeDoPeriodo(
+  periodo: Periodo,
+  dataInicio: string,
+  dataFim: string,
+): { start: Date | null; end: Date | null } {
+  if (periodo === "custom") {
+    return { start: customDateStart(dataInicio), end: customDateEnd(dataFim) };
+  }
+  return { start: periodoStart(periodo), end: periodoEnd(periodo) };
+}
+
 /** Réguas oferecidas no filtro "parado há X+ dias" (a RPC v4 aceita 1..365). */
 export const PARADO_OPCOES = [
   { value: "3", label: "3+ dias" },

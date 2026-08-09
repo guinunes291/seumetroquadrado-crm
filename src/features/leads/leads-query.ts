@@ -6,6 +6,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { passaContato, passaParado } from "@/lib/leads-views";
 import { rpcLeadsFiltered } from "./leads-rpc";
 import type { Lead } from "./types";
 
@@ -36,6 +37,76 @@ export type FetchLeadsArgs = {
   page: number;
   pageSize: number;
 };
+
+/**
+ * Recortes transitórios no CLIENTE enquanto as migrations não chegam — o
+ * espelho exato do memo `filtered` que vivia em leads.index.tsx, agora
+ * compartilhado com o modo Consulta de Atender (item 2.7b):
+ * - v2/v3: sem_contato_30d só existe a partir da v3 e _parado_dias só na v4 —
+ *   nos degraus abaixo, filtra a página localmente (total fica aproximado);
+ * - v1: contato e parado inteiros no cliente + a ordenação de prioridade
+ *   antiga (Aguardando+ADS > Aguardando+projeto > Aguardando > demais).
+ * Com a v4 aplicada em produção, devolve as linhas intactas.
+ */
+export function recortesClientSide(
+  rows: Lead[],
+  source: LeadsSource,
+  contato: string,
+  paradoDias: string,
+  followupIds?: Set<string>,
+): Lead[] {
+  if (source !== "v1") {
+    let out = rows;
+    if (source !== "v4" && paradoDias !== "all") {
+      out = out.filter((l) =>
+        passaParado(paradoDias, { ultimaInteracao: l.ultima_interacao, status: l.status }),
+      );
+    }
+    if (source === "v2" && contato === "sem_contato_30d") {
+      out = out.filter((l) =>
+        passaContato("sem_contato_30d", {
+          ultimaInteracao: l.ultima_interacao,
+          status: l.status,
+          temFollowup: l.tem_followup ?? false,
+        }),
+      );
+    }
+    return out;
+  }
+  let base = rows;
+  if (paradoDias !== "all") {
+    base = base.filter((l) =>
+      passaParado(paradoDias, { ultimaInteracao: l.ultima_interacao, status: l.status }),
+    );
+  }
+  if (contato !== "all") {
+    base = base.filter((l) =>
+      passaContato(contato, {
+        ultimaInteracao: l.ultima_interacao,
+        status: l.status,
+        temFollowup: followupIds?.has(l.id) ?? false,
+      }),
+    );
+  }
+  const priority = (l: Lead) => {
+    const aguardando = l.status === "aguardando_atendimento";
+    if (aguardando && l.origem === "facebook") return 0;
+    if (aguardando && (l.projeto_id || l.projeto_nome)) return 1;
+    if (aguardando) return 2;
+    return 3;
+  };
+  return [...base].sort((a, b) => {
+    const pa = priority(a);
+    const pb = priority(b);
+    if (pa !== pb) return pa - pb;
+    if (a.status === "contrato_fechado" || b.status === "contrato_fechado") {
+      const av = a.data_venda ? new Date(a.data_venda).getTime() : 0;
+      const bv = b.data_venda ? new Date(b.data_venda).getTime() : 0;
+      if (av !== bv) return bv - av;
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+}
 
 export async function fetchLeadsFiltered(
   args: FetchLeadsArgs,

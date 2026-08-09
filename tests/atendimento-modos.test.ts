@@ -56,12 +56,12 @@ describe("item 2.7a — três modos, uma porta", () => {
     expect(leadsIndex).not.toContain('rows: await rpcLeadsFiltered("v4"');
   });
 
-  it("a Consulta preserva o caminho para os filtros completos até o PR (b)", () => {
-    // Ponte honesta: o que a Consulta ainda não filtra continua em /leads,
-    // com o recorte atual preservado via drill-through padrão.
+  it("a Consulta preserva o caminho para /leads até o PR (c)", () => {
+    // Ponte honesta: kanban, sort por coluna, ações em massa e importação
+    // continuam em /leads — o link preserva o recorte inteiro (2.7b).
     expect(consulta).toContain('to="/leads"');
-    expect(consulta).toContain("Filtros completos");
-    expect(consulta).toMatch(/status: status !== "all" \? status : undefined/);
+    expect(consulta).toContain("Abrir em Meus Leads");
+    expect(consulta).toMatch(/status: filtros\.status !== "all" \? filtros\.status : undefined/);
   });
 
   it("a Consulta age em 1 clique como a lista: peek, WhatsApp e ligar", () => {

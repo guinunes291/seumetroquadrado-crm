@@ -29,10 +29,11 @@ import {
 import {
   CONTATO_OPCOES,
   PARADO_OPCOES,
+  PERIODO_OPTIONS,
   VISOES_PADRAO,
   FILTRO_PADRAO,
-  passaContato,
   passaParado,
+  rangeDoPeriodo,
   loadViews,
   saveViews,
   loadUltimoFiltro,
@@ -43,6 +44,7 @@ import {
   temFiltrosNaUrl,
   type LeadFiltros,
   type LeadSearchFiltros,
+  type Periodo,
   type SavedView,
 } from "@/lib/leads-views";
 import {
@@ -125,7 +127,11 @@ import { ORIGEM_OPTIONS, abrirNovoLead } from "@/features/leads/novo-lead-dialog
 import type { Lead } from "@/features/leads/types";
 import { LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
 import { rpcLeadsFiltered, rpcLeadsStatusCounts } from "@/features/leads/leads-rpc";
-import { fetchLeadsFiltered, type LeadsSource } from "@/features/leads/leads-query";
+import {
+  fetchLeadsFiltered,
+  recortesClientSide,
+  type LeadsSource,
+} from "@/features/leads/leads-query";
 import { useLeadMutations } from "@/features/leads/use-lead-mutations";
 import { LeadsTable, FlagChips } from "@/features/leads/leads-table";
 import { FocusMode } from "@/features/leads/focus-mode";
@@ -157,50 +163,9 @@ export const Route = createFileRoute("/_authenticated/leads/")({
   component: LeadsPage,
 });
 
-const PERIODO_OPTIONS = [
-  { value: "all", label: "Qualquer período" },
-  { value: "hoje", label: "Hoje" },
-  { value: "7d", label: "Últimos 7 dias" },
-  { value: "30d", label: "Últimos 30 dias" },
-  { value: "90d", label: "Últimos 90 dias" },
-  { value: "custom", label: "Intervalo personalizado" },
-] as const;
-
-type Periodo = (typeof PERIODO_OPTIONS)[number]["value"];
-
+// PERIODO_OPTIONS/Periodo/rangeDoPeriodo agora vivem em lib/leads-views
+// (item 2.7b) — o modo Consulta de Atender lê o mesmo vocabulário.
 const LEADS_PAGE_SIZE = 50;
-
-function periodoStart(p: Periodo): Date | null {
-  const now = new Date();
-  if (p === "hoje") {
-    const d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-  if (p === "7d") return new Date(now.getTime() - 7 * 86400000);
-  if (p === "30d") return new Date(now.getTime() - 30 * 86400000);
-  if (p === "90d") return new Date(now.getTime() - 90 * 86400000);
-  return null;
-}
-
-function periodoEnd(p: Periodo): Date | null {
-  if (p !== "hoje") return null;
-  const d = new Date();
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
-function customDateStart(value: string): Date | null {
-  if (!value) return null;
-  const d = new Date(`${value}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function customDateEnd(value: string): Date | null {
-  if (!value) return null;
-  const d = new Date(`${value}T23:59:59.999`);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
 
 function LeadsPage() {
   const { isAdmin, isGestor } = useUserRoles();
@@ -465,15 +430,10 @@ function LeadsPage() {
     paradoDiasFilter,
   };
 
-  const periodoRange = useMemo(() => {
-    if (periodoFilter === "custom") {
-      return {
-        start: customDateStart(dataInicioFilter),
-        end: customDateEnd(dataFimFilter),
-      };
-    }
-    return { start: periodoStart(periodoFilter), end: periodoEnd(periodoFilter) };
-  }, [periodoFilter, dataInicioFilter, dataFimFilter]);
+  const periodoRange = useMemo(
+    () => rangeDoPeriodo(periodoFilter, dataInicioFilter, dataFimFilter),
+    [periodoFilter, dataInicioFilter, dataFimFilter],
+  );
 
   // Parâmetros compartilhados entre a query principal, os counts e a fila do
   // modo foco — uma única montagem para os três consumidores.
@@ -607,67 +567,15 @@ function LeadsPage() {
   const listError = leadsError || statusCountsError || followupFilterFailed;
   const listLoading = isLoading || (contatoFilter === "com_followup" && followupLoading);
 
-  const filtered = useMemo(() => {
-    if (!leadsAll) return [];
-    // v2/v3/v4: o servidor já aplicou os recortes e a ordenação (sort de
-    // coluna ou prioridade operacional) — a página recebe a lista pronta.
-    // Exceções transitórias enquanto as migrations não chegam: sem_contato_30d
-    // só existe a partir da v3; _parado_dias só existe na v4 — nos degraus
-    // abaixo, filtra a página localmente (total fica aproximado).
-    if (source !== "v1") {
-      let rows = leadsAll;
-      if (source !== "v4" && paradoDiasFilter !== "all") {
-        rows = rows.filter((l) =>
-          passaParado(paradoDiasFilter, { ultimaInteracao: l.ultima_interacao, status: l.status }),
-        );
-      }
-      if (source === "v2" && contatoFilter === "sem_contato_30d") {
-        rows = rows.filter((l) =>
-          passaContato("sem_contato_30d", {
-            ultimaInteracao: l.ultima_interacao,
-            status: l.status,
-            temFollowup: l.tem_followup ?? false,
-          }),
-        );
-      }
-      return rows;
-    }
-    let base = leadsAll;
-    if (paradoDiasFilter !== "all") {
-      base = base.filter((l) =>
-        passaParado(paradoDiasFilter, { ultimaInteracao: l.ultima_interacao, status: l.status }),
-      );
-    }
-    if (contatoFilter !== "all") {
-      base = base.filter((l) =>
-        passaContato(contatoFilter, {
-          ultimaInteracao: l.ultima_interacao,
-          status: l.status,
-          temFollowup: followupIds?.has(l.id) ?? false,
-        }),
-      );
-    }
-    // Prioriza: 1) Aguardando + Facebook (ADS), 2) Aguardando + projeto registrado,
-    // 3) demais. Dentro de cada grupo, mais recentes primeiro.
-    const priority = (l: Lead) => {
-      const aguardando = l.status === "aguardando_atendimento";
-      if (aguardando && l.origem === "facebook") return 0;
-      if (aguardando && (l.projeto_id || l.projeto_nome)) return 1;
-      if (aguardando) return 2;
-      return 3;
-    };
-    return [...base].sort((a, b) => {
-      const pa = priority(a);
-      const pb = priority(b);
-      if (pa !== pb) return pa - pb;
-      if (a.status === "contrato_fechado" || b.status === "contrato_fechado") {
-        const av = a.data_venda ? new Date(a.data_venda).getTime() : 0;
-        const bv = b.data_venda ? new Date(b.data_venda).getTime() : 0;
-        if (av !== bv) return bv - av;
-      }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  }, [leadsAll, source, contatoFilter, paradoDiasFilter, followupIds]);
+  // Recortes transitórios (v1/v2 sem as migrations) — a lógica vive em
+  // recortesClientSide (leads-query), compartilhada com o modo Consulta.
+  const filtered = useMemo(
+    () =>
+      leadsAll
+        ? recortesClientSide(leadsAll, source, contatoFilter, paradoDiasFilter, followupIds)
+        : [],
+    [leadsAll, source, contatoFilter, paradoDiasFilter, followupIds],
+  );
 
   const currentStatusTotal = statusCountsData
     ? statusFilter === "all"
