@@ -26,7 +26,8 @@ export type LeadUrgente = {
 
 export type TempoResposta = {
   corretor_id: string;
-  tempo_medio_min: number;
+  /** Minutos inteiros; null = nenhum lead respondido no período (pendente). */
+  tempo_medio_min: number | null;
   leads_respondidos: number;
 };
 
@@ -106,7 +107,12 @@ export function quemPrecisaDeAjuda(input: {
     }
 
     const tempo = tempoPor.get(c.corretor_id);
-    if (tempo && tempo.leads_respondidos >= 3 && tempo.tempo_medio_min > 60) {
+    if (
+      tempo &&
+      tempo.leads_respondidos >= 3 &&
+      tempo.tempo_medio_min !== null &&
+      tempo.tempo_medio_min > 60
+    ) {
       risco += 15;
       motivos.push(`1ª resposta em ${Math.round(tempo.tempo_medio_min)}min`);
     }

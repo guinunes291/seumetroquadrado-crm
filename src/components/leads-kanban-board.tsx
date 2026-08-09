@@ -66,7 +66,8 @@ function diasParado(lead: { status: string; ultima_interacao: string | null; cre
   if (ETAPAS_SEM_INATIVIDADE.includes(lead.status)) return 0;
   const ref = lead.ultima_interacao ?? lead.created_at;
   if (!ref) return 0;
-  return Math.floor((Date.now() - new Date(ref).getTime()) / 86400000);
+  // Timestamp futuro (dado sujo/importação) não pode virar "-1d" no card.
+  return Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86400000));
 }
 
 type Lead = {

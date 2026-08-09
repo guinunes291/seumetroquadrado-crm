@@ -26,6 +26,7 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDashboardSerie } from "@/features/dashboard/queries";
+import { dateKey } from "@/lib/periodo";
 import { leadStatusLabel } from "@/lib/leads";
 import { AtualizadoEm } from "./atualizado-em";
 import {
@@ -76,7 +77,8 @@ export function FunilView({
   const snapshotQ = useFunilSnapshot(filtros.corretor, leitura === "snapshot");
   const tempoQ = useTempoEtapa(filtros);
   const serieQ = useDashboardSerie(
-    { di: filtros.de, df: filtros.ate ?? new Date().toISOString().slice(0, 10) },
+    // "Hoje" no calendário LOCAL — a data UTC vira amanhã às 21h de Brasília.
+    { di: filtros.de, df: filtros.ate ?? dateKey(new Date()) },
     filtros.corretor,
     !!filtros.de,
   );

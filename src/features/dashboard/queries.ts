@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { dateKey } from "@/lib/periodo";
 import { flattenDashboardKpis, type DashboardKpisFlat } from "@/features/dashboard/derive";
 
 /**
@@ -209,21 +210,28 @@ export type TempoPrimeiraResposta = {
   corretor_id: string;
   leads_no_periodo: number;
   leads_respondidos: number;
-  tempo_medio_min: number;
-  tempo_mediana_min: number;
+  /** Minutos inteiros; null = nenhum lead respondido no período (pendente). */
+  tempo_medio_min: number | null;
+  tempo_mediana_min: number | null;
+  /** Leads com saída registrada ANTES da criação (timestamp invertido). */
+  leads_dado_sujo?: number;
 };
 
-/** Tempo de 1ª resposta por corretor (KPI histórico). Degrada para [] se a
- *  função ainda não foi aplicada no banco, para não quebrar o Painel do Gestor. */
+/** Tempo de 1º contato humano por corretor (KPI histórico). Degrada para [] se
+ *  a função ainda não foi aplicada no banco, para não quebrar o Painel do Gestor. */
 export function useTempoPrimeiraResposta(range: Range, enabled = true) {
   return useQuery({
     queryKey: ["dash:tempoResposta", range],
     enabled: enabled && !!range.di && !!range.df,
     staleTime: 60_000,
     queryFn: async (): Promise<TempoPrimeiraResposta[]> => {
+      // A RPC recebe DATAS (dias no calendário de America/Sao_Paulo), não
+      // instantes: converter o instante ISO do range para o DIA LOCAL evita o
+      // deslocamento de janela que existia quando o texto ISO era truncado
+      // para data em UTC pelo banco.
       const { data, error } = await rpc("tempo_primeira_resposta", {
-        _di: range.di,
-        _df: range.df,
+        _di: dateKey(new Date(range.di as string)),
+        _df: dateKey(new Date(range.df as string)),
         _corretor: null,
       });
       if (error) {

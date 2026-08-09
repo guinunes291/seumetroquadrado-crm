@@ -24,8 +24,6 @@ const TIPO_ICON: Record<Insight["tipo"], LucideIcon> = {
   conversao: Lightbulb,
 };
 
-const toDate = (d: Date) => d.toISOString().slice(0, 10);
-
 /**
  * Painel de insights do mês corrente — frases de negócio derivadas dos mesmos
  * RPCs dos relatórios (React Query deduplica as chamadas). Corretor vê o
@@ -36,11 +34,15 @@ export function InsightsPanel() {
   const { isAdmin, isGestor } = useUserRoles();
   const corretor = isAdmin || isGestor ? null : (user?.id ?? null);
 
+  // Instantes COMPLETOS do mês local até agora (as RPCs recebem timestamptz).
+  // A versão anterior truncava para a data UTC ("YYYY-MM-DD"), que o banco lia
+  // como meia-noite UTC = 21h da VÉSPERA em Brasília — o dia corrente inteiro
+  // ficava fora dos insights.
   const range = useMemo(() => {
     const now = new Date();
     return {
-      di: toDate(new Date(now.getFullYear(), now.getMonth(), 1)),
-      df: toDate(now),
+      di: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+      df: now.toISOString(),
     };
   }, []);
 
