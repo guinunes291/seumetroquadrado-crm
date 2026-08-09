@@ -162,6 +162,7 @@ describe("scriptParaFila", () => {
       "Residencial Sol",
     );
     expect(scriptParaFila("esfriando", "Carla")).toMatch(/condições novas/);
+    expect(scriptParaFila("confirmar_visita", "Vera Cruz")).toMatch(/confirmar nossa visita/);
     expect(scriptParaFila("docs", "Duda")).toMatch(/documento/);
   });
 });

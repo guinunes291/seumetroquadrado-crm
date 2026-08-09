@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +32,7 @@ import {
 } from "@/features/atendimento/derive";
 import { QueueSection } from "@/features/atendimento/queue-section";
 import {
+  CalendarCheck,
   CalendarClock,
   CheckCircle2,
   FileWarning,
@@ -55,6 +58,8 @@ const QUEUE_ORDER: {
   { key: "responder", icon: MessageCircleReply, iconClass: "text-destructive" },
   { key: "followups", icon: CalendarClock, iconClass: "text-warning" },
   { key: "esfriando", icon: ThermometerSnowflake, iconClass: "text-info" },
+  // 6ª fila (item 2.5): a visita das próximas 48h que ninguém confirmou.
+  { key: "confirmar_visita", icon: CalendarCheck, iconClass: "text-success" },
   { key: "docs", icon: FileWarning, iconClass: "text-muted-foreground" },
 ];
 
@@ -90,21 +95,54 @@ function AtendimentoPage() {
 
   // Classificação, deduplicação e contagens acontecem no banco. A resposta traz
   // no máximo 15 cards por fila, mas as contagens consideram a carteira inteira.
-  // v3 traz a fila "novos" (primeiro contato); sem a migration aplicada, cai na
-  // v2 com a fila de novos zerada — a tela nunca quebra (rpcWithFallback).
+  // v4 traz a fila "confirmar_visita" (item 2.5); v3 traz "novos"; cada degrau
+  // do fallback preenche as filas que a versão anterior não conhece — a tela
+  // nunca quebra (rpcWithFallback) e o parse fail-closed continua valendo.
   const inboxQ = useQuery({
     queryKey: ["atendimento:inbox", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const params = { _corretor_id: user!.id, _limit_per_queue: 15 };
       return rpcWithFallback(
-        async () => parseAtendimentoInbox(await rpcAtendimentoInbox("v3", params)),
-        async () => {
-          const rows = await rpcAtendimentoInbox("v2", params);
-          return parseAtendimentoInbox([{ fila: "novos", total_count: 0, items: [] }, ...rows]);
-        },
+        async () => parseAtendimentoInbox(await rpcAtendimentoInbox("v4", params)),
+        () =>
+          rpcWithFallback(
+            async () =>
+              parseAtendimentoInbox([
+                ...(await rpcAtendimentoInbox("v3", params)),
+                { fila: "confirmar_visita", total_count: 0, items: [] },
+              ]),
+            async () => {
+              const rows = await rpcAtendimentoInbox("v2", params);
+              return parseAtendimentoInbox([
+                { fila: "novos", total_count: 0, items: [] },
+                ...rows,
+                { fila: "confirmar_visita", total_count: 0, items: [] },
+              ]);
+            },
+          ),
       );
     },
+  });
+
+  // Confirmar visita in-line (a ação que fecha o ciclo da fila nova): muda o
+  // agendamento para "confirmado" — o mesmo efeito do Select do formulário de
+  // agenda, sem sair da fila. RLS do agendamento aplica (dono/gestão).
+  const confirmarVisita = useMutation({
+    mutationFn: async (agendamentoId: string) => {
+      const { error } = await supabase
+        .from("agendamentos")
+        .update({ status: "confirmado" })
+        .eq("id", agendamentoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Visita confirmada.");
+      void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
+      void qc.invalidateQueries({ queryKey: ["agendamentos"] });
+      void qc.invalidateQueries({ queryKey: ["nav-badges"] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Não foi possível confirmar a visita."),
   });
 
   // Um único canal para as 3 tabelas (o hook aceita array) — P3-10.
@@ -115,6 +153,7 @@ function AtendimentoPage() {
     responder: [],
     followups: [],
     esfriando: [],
+    confirmar_visita: [],
     docs: [],
   };
   const counts = inboxQ.data?.counts ?? {
@@ -122,6 +161,7 @@ function AtendimentoPage() {
     responder: 0,
     followups: 0,
     esfriando: 0,
+    confirmar_visita: 0,
     docs: 0,
   };
   const total = QUEUE_ORDER.reduce((acc, q) => acc + counts[q.key], 0);
@@ -219,6 +259,9 @@ function AtendimentoPage() {
                     setModalState({ modal, lead: toStageLead(item.lead) })
                   }
                   onEtapaPerdido={(item) => setPerdidoLead(toStageLead(item.lead))}
+                  onConfirmarVisita={(item) =>
+                    item.agendamentoId && confirmarVisita.mutate(item.agendamentoId)
+                  }
                 />
               ))}
             </div>

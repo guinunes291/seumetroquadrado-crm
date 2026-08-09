@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { leadStatusLabel, type LeadStatus, type StageModal } from "@/lib/leads";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
 import { TIER_DOT } from "@/lib/priority";
-import { Copy, MessageCircle, Phone, PhoneCall } from "lucide-react";
+import { CalendarCheck, Copy, MessageCircle, Phone, PhoneCall } from "lucide-react";
 import { toast } from "sonner";
 import {
   QUEUE_HINT,
@@ -22,6 +22,7 @@ const QUEUE_ACCENT: Record<QueueKey, string> = {
   responder: "border-destructive/30",
   followups: "border-warning/30",
   esfriando: "border-info/30",
+  confirmar_visita: "border-success/30",
   docs: "border-border",
 };
 
@@ -43,6 +44,7 @@ export function QueueSection({
   onEtapaDirect,
   onEtapaModal,
   onEtapaPerdido,
+  onConfirmarVisita,
 }: {
   queue: QueueKey;
   items: QueueItem[];
@@ -55,6 +57,7 @@ export function QueueSection({
   onEtapaDirect: (item: QueueItem, target: LeadStatus) => void;
   onEtapaModal: (item: QueueItem, modal: StageModal, target: LeadStatus) => void;
   onEtapaPerdido: (item: QueueItem) => void;
+  onConfirmarVisita: (item: QueueItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -109,6 +112,19 @@ export function QueueSection({
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
+                {/* Ação da fila nova (item 2.5): confirmar a visita sem abrir
+                    o formulário de agenda — é o clique que a tarefa #5b pedia. */}
+                {item.agendamentoId && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-success hover:bg-success/10"
+                    title="Confirmar a visita agendada"
+                    onClick={() => onConfirmarVisita(item)}
+                  >
+                    <CalendarCheck className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"

@@ -6,6 +6,7 @@ export const ATENDIMENTO_QUEUE_KEYS = [
   "responder",
   "followups",
   "esfriando",
+  "confirmar_visita",
   "docs",
 ] as const;
 
@@ -33,6 +34,9 @@ const queueItemSchema = z.object({
   tier: z.enum(["alta", "media", "baixa"]),
   motivo: z.string(),
   docsPendentes: z.number().int().nonnegative(),
+  // Só a v4 envia (fila confirmar_visita) — opcionais para os degraus v3/v2.
+  agendamentoId: z.string().uuid().nullable().optional(),
+  visitaEm: z.string().nullable().optional(),
 });
 
 const inboxRowSchema = z
@@ -62,6 +66,7 @@ export function parseAtendimentoInbox(input: unknown): AtendimentoInbox {
     responder: [],
     followups: [],
     esfriando: [],
+    confirmar_visita: [],
     docs: [],
   };
   const counts: Record<QueueKey, number> = {
@@ -69,6 +74,7 @@ export function parseAtendimentoInbox(input: unknown): AtendimentoInbox {
     responder: 0,
     followups: 0,
     esfriando: 0,
+    confirmar_visita: 0,
     docs: 0,
   };
   const seen = new Set<QueueKey>();

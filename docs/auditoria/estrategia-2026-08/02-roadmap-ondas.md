@@ -15,9 +15,13 @@
 > **Onda B em andamento:** 2.1 ✅ (bloco admin → Configurações; hub vira
 > "Operação"), 2.2 ✅ + 2.3 ✅ (fusões Funil+Gargalos e Time+Leads por
 > Corretor) — **métrica M3 fechada: 12 → 5 abas**. 2.11 ✅ (antecipado).
-> Próximos na ordem do 06-plano: 2.4 rota `/financeiro` · 2.5 fila
-> "Confirmar visita" (`atendimento_inbox_v4`) · 2.6 exceção "documentação
-> travada" · 2.7 Atender 3 modos (em 3 PRs) · 2.10 comparação lado a lado.
+> 2.4 ✅ (hub Dinheiro em `/financeiro`: fechamento + comissões + aprovação,
+> badge aponta para a tela que aprova — tarefa #15). 2.5 ✅ (6ª fila
+> "Confirmar visita" via `atendimento_inbox_v4`, botão [Confirmar] in-line —
+> tarefa #5b). 2.6 ✅ (8ª exceção "documentação travada" no Painel do Dia,
+> limiar em `gestao_config.documentacao_travada_dias` — tarefa #14).
+> Restam da Onda B: 2.7 Atender 3 modos (em 3 PRs) · 2.10 comparação lado a
+> lado.
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >
