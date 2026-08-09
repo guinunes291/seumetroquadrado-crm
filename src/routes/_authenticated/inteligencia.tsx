@@ -4,9 +4,9 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // Relatórios, Funil, Gargalos e Time agora são abas de lá. Esta rota fica
 // como redirect de compatibilidade — deep-links salvos (inclusive com
 // filtros na URL) continuam abrindo a leitura certa.
-const TAB_DESTINO: Record<string, "funil" | "gargalos" | "time"> = {
+const TAB_DESTINO: Record<string, "funil" | "time"> = {
   funil: "funil",
-  gargalos: "gargalos",
+  gargalos: "funil",
   performance: "time",
 };
 

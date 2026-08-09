@@ -4,6 +4,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // (features/gestao/leads-por-corretor-page.tsx).
 export const Route = createFileRoute("/_authenticated/leads-por-corretor")({
   beforeLoad: () => {
-    throw redirect({ to: "/painel-gestor", search: { tab: "leads-corretor" } });
+    throw redirect({ to: "/painel-gestor", search: { tab: "time" } });
   },
 });

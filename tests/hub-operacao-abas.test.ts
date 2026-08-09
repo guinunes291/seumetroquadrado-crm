@@ -13,23 +13,27 @@ const config = read("src/routes/_authenticated/configuracoes.tsx");
 
 const ABAS_ADMIN = ["pessoas", "estoque", "campanhas", "comunicacao", "qualidade"] as const;
 
-describe("item 2.1 — bloco admin em Configurações, Operação com 7 abas (M3)", () => {
-  it("GESTAO_TABS tem exatamente 7 abas (a métrica M3 manda contar aqui)", () => {
+describe("itens 2.1–2.3 — admin em Configurações e hub de Operação com 5 abas (M3)", () => {
+  it("GESTAO_TABS tem exatamente 5 abas (a métrica M3 manda contar aqui)", () => {
     const match = painel.match(/const GESTAO_TABS: GestaoTab\[\] = \[([^\]]+)\]/);
     expect(match, "GESTAO_TABS presente").toBeTruthy();
     const abas = match![1]
       .split(",")
       .map((s) => s.trim().replace(/"/g, ""))
       .filter(Boolean);
-    expect(abas).toEqual([
-      "dia",
-      "relatorios",
-      "funil",
-      "gargalos",
-      "time",
-      "metas",
-      "leads-corretor",
-    ]);
+    expect(abas).toEqual(["dia", "relatorios", "funil", "time", "metas"]);
+  });
+
+  it("fusões 2.2/2.3: Gargalos vive no Funil e Leads por Corretor no Time", () => {
+    // Sem abas próprias…
+    expect(painel).not.toContain('<TabsTrigger value="gargalos"');
+    expect(painel).not.toContain('<TabsTrigger value="leads-corretor"');
+    // …mas o conteúdo continua montado dentro das abas fundidas.
+    expect(painel).toMatch(/value="funil"[\s\S]{0,400}<GargalosView/);
+    expect(painel).toMatch(/value="time"[\s\S]{0,600}<LeadsPorCorretorPage/);
+    // Deep-links antigos caem na aba fundida via mapa de legado.
+    expect(painel).toMatch(/gargalos: "funil"/);
+    expect(painel).toMatch(/"leads-corretor": "time"/);
   });
 
   it("nenhuma aba admin renderiza no hub de Operação", () => {

@@ -42,16 +42,8 @@ const PerformanceView = lazy(() =>
   })),
 );
 
-type GestaoTab = "dia" | "relatorios" | "funil" | "gargalos" | "time" | "metas" | "leads-corretor";
-const GESTAO_TABS: GestaoTab[] = [
-  "dia",
-  "relatorios",
-  "funil",
-  "gargalos",
-  "time",
-  "metas",
-  "leads-corretor",
-];
+type GestaoTab = "dia" | "relatorios" | "funil" | "time" | "metas";
+const GESTAO_TABS: GestaoTab[] = ["dia", "relatorios", "funil", "time", "metas"];
 
 // Bloco administrativo mudou de casa (auditoria ux-ia-2026-08, item 2.1):
 // cadastro e configuração são /configuracoes, não gestão de operação. Os
@@ -65,6 +57,9 @@ const TAB_LEGADO: Record<string, GestaoTab> = {
   visao: "dia",
   saude: "time",
   performance: "time",
+  // Fusões 2.2/2.3: Gargalos vive dentro do Funil; Leads por Corretor, no Time.
+  gargalos: "funil",
+  "leads-corretor": "time",
 };
 
 const isData = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
@@ -181,7 +176,7 @@ function PainelGestorPage() {
     return <Skeleton className="h-40 w-full" />;
   }
 
-  const mostraFiltros = activeTab === "funil" || activeTab === "gargalos";
+  const mostraFiltros = activeTab === "funil";
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
@@ -189,10 +184,8 @@ function PainelGestorPage() {
         <TabsTrigger value="dia">Dia</TabsTrigger>
         <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
         <TabsTrigger value="funil">Funil</TabsTrigger>
-        <TabsTrigger value="gargalos">Gargalos</TabsTrigger>
         <TabsTrigger value="time">Time</TabsTrigger>
         <TabsTrigger value="metas">Metas & Ritmo</TabsTrigger>
-        <TabsTrigger value="leads-corretor">Leads por Corretor</TabsTrigger>
       </TabsList>
 
       {/* Filtros persistentes na URL das abas analíticas (compartilháveis) */}
@@ -259,29 +252,27 @@ function PainelGestorPage() {
           <RelatoriosView />
         </Suspense>
       </TabsContent>
-      <TabsContent value="funil">
+      {/* Fusão 2.2: o diagnóstico de Gargalos vive logo abaixo do Funil — a
+          pergunta é a mesma ("onde o funil perde?"), os filtros valem p/ ambos. */}
+      <TabsContent value="funil" className="space-y-10">
         <Suspense fallback={<AbaSkeleton />}>
           <FunilView filtros={filtros} origem={search.origem ?? null} />
-        </Suspense>
-      </TabsContent>
-      <TabsContent value="gargalos">
-        <Suspense fallback={<AbaSkeleton />}>
           <GargalosView filtros={filtros} />
         </Suspense>
       </TabsContent>
-      <TabsContent value="time">
+      {/* Fusão 2.3: performance do time e leads por corretor são a mesma
+          pergunta ("como está cada pessoa?") — uma aba só. */}
+      <TabsContent value="time" className="space-y-10">
         <Suspense fallback={<AbaSkeleton />}>
           <PerformanceView
             corretorDrill={search.corretor ?? null}
             onDrillChange={(id) => setSearch({ corretor: id ?? undefined })}
           />
         </Suspense>
+        <LeadsPorCorretorPage />
       </TabsContent>
       <TabsContent value="metas">
         <MetasPage />
-      </TabsContent>
-      <TabsContent value="leads-corretor">
-        <LeadsPorCorretorPage />
       </TabsContent>
     </Tabs>
   );

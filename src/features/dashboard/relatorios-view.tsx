@@ -75,7 +75,7 @@ import { formatDuracaoParado } from "@/lib/utils";
 import { origemLabel } from "@/lib/origem";
 
 /** Link discreto para a aba de análise completa do hub de Gestão. */
-function AbaLink({ tab, label }: { tab: "funil" | "gargalos" | "time"; label: string }) {
+function AbaLink({ tab, label }: { tab: "funil" | "time"; label: string }) {
   return (
     <Link
       to="/painel-gestor"
@@ -313,7 +313,7 @@ export function RelatoriosView() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <XCircle className="h-4 w-4" /> Motivos de perda
-              {canSeeAll && <AbaLink tab="gargalos" label="diagnóstico com R$" />}
+              {canSeeAll && <AbaLink tab="funil" label="diagnóstico com R$" />}
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
