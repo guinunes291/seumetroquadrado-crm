@@ -37,7 +37,14 @@
 > VIVA (kanban, ações em massa, importação, modo foco) fora do menu
 > primário; o redirect total só quando a Consulta absorver esses fluxos —
 > ações em massa dependem de A.2 (triagem). **2.7 fechado na forma segura.**
-> Resta da Onda B: 2.10 comparação lado a lado.
+> **2.10 ✅** — comparação lado a lado: no Funil, corretor filtrado mostra o
+> TIME como referência ao lado (coorte compara taxas de passagem com marca
+> "⚠ abaixo"; snapshot compara com a média por corretor — time ÷ perfis
+> ativos, aproximação declarada) — tarefa #10; em Relatórios, todo tile de
+> resultado e produção carrega o valor ABSOLUTO do período anterior junto
+> do delta (o `prev` da RPC dashboard_kpis já trazia tudo; era só expor) —
+> tarefa #11. **Onda B completa** (exceto o débito consciente do 2.7c).
+> Próxima fronteira: Onda C (mensageria 7a/7b, sem depender da decisão D1).
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >

@@ -425,6 +425,10 @@ const fmtBRLCompacto = (n: number) =>
  */
 function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; loading?: boolean }) {
   const ticket = data ? ticketMedio(data.vgv, data.contrato_fechado) : null;
+  // Lado a lado (tarefa #11): o número do período anterior aparece JUNTO do
+  // atual — "melhorei ou piorei?" sem anotar nada de cabeça.
+  const ant = data?.anterior ?? null;
+  const ticketAnterior = ant ? ticketMedio(ant.vgv, ant.contrato_fechado) : null;
   return (
     <StatGrid>
       <StatTile
@@ -434,6 +438,7 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
         loading={loading}
         delta={data?.deltas.total ?? undefined}
         deltaLabel="vs. período anterior"
+        hint={ant ? `anterior: ${ant.total.toLocaleString("pt-BR")}` : undefined}
       />
       <StatTile
         title="Vendas"
@@ -443,6 +448,7 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
         loading={loading}
         delta={data?.deltas.contrato_fechado ?? undefined}
         deltaLabel="vs. período anterior"
+        hint={ant ? `anterior: ${ant.contrato_fechado.toLocaleString("pt-BR")}` : undefined}
       />
       <StatTile
         title="VGV"
@@ -453,13 +459,20 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
         loading={loading}
         delta={data?.deltas.vgv ?? undefined}
         deltaLabel="vs. período anterior"
+        hint={ant ? `anterior: ${fmtBRLCompacto(ant.vgv)}` : undefined}
       />
       <StatTile
         title="Ticket médio"
         value={ticket === null ? "—" : fmtBRLCompacto(ticket)}
         icon={FileCheck}
         loading={loading}
-        hint={ticket === null ? "sem vendas no período" : "VGV ÷ vendas do período"}
+        hint={
+          ticket === null
+            ? "sem vendas no período"
+            : ticketAnterior !== null
+              ? `VGV ÷ vendas · anterior: ${fmtBRLCompacto(ticketAnterior)}`
+              : "VGV ÷ vendas do período"
+        }
       />
     </StatGrid>
   );
@@ -482,6 +495,13 @@ function ProducaoPeriodo({
     data && data.visitas_agendadas_periodo > 0
       ? Math.round((data.visitas_periodo / data.visitas_agendadas_periodo) * 100)
       : null;
+  // Lado a lado (tarefa #11) também na produção — todo tile carrega o número
+  // anterior junto do atual.
+  const ant = data?.anterior ?? null;
+  const comparecimentoAnterior =
+    ant && ant.visitas_agendadas_periodo > 0
+      ? Math.round((ant.visitas_periodo / ant.visitas_agendadas_periodo) * 100)
+      : null;
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
@@ -493,14 +513,26 @@ function ProducaoPeriodo({
           value={data?.agendamentos_periodo ?? 0}
           icon={Calendar}
           loading={loading}
-          hint="pela data em que o agendamento foi criado"
+          delta={data?.deltas.agendamentos ?? undefined}
+          deltaLabel="vs. período anterior"
+          hint={
+            ant
+              ? `pela data de criação · anterior: ${ant.agendamentos_periodo}`
+              : "pela data em que o agendamento foi criado"
+          }
         />
         <StatTile
           title="Visitas realizadas"
           value={data?.visitas_periodo ?? 0}
           icon={Eye}
           loading={loading}
-          hint="pelo dia da visita, validada pelo corretor"
+          delta={data?.deltas.visitas ?? undefined}
+          deltaLabel="vs. período anterior"
+          hint={
+            ant
+              ? `pelo dia da visita · anterior: ${ant.visitas_periodo}`
+              : "pelo dia da visita, validada pelo corretor"
+          }
         />
         <StatTile
           title="Comparecimento"
@@ -510,7 +542,9 @@ function ProducaoPeriodo({
           loading={loading}
           hint={
             data && data.visitas_agendadas_periodo > 0
-              ? `${data.visitas_periodo} de ${data.visitas_agendadas_periodo} visitas marcadas · ${data.no_shows_periodo} não compareceu`
+              ? `${data.visitas_periodo} de ${data.visitas_agendadas_periodo} visitas marcadas · ${data.no_shows_periodo} não compareceu${
+                  comparecimentoAnterior !== null ? ` · anterior: ${comparecimentoAnterior}%` : ""
+                }`
               : "sem visitas marcadas no período"
           }
         />
@@ -519,14 +553,26 @@ function ProducaoPeriodo({
           value={data?.pastas_periodo ?? 0}
           icon={FileCheck}
           loading={loading}
-          hint="3+ documentos recebidos"
+          delta={data?.deltas.pastas ?? undefined}
+          deltaLabel="vs. período anterior"
+          hint={
+            ant
+              ? `3+ documentos recebidos · anterior: ${ant.pastas_periodo}`
+              : "3+ documentos recebidos"
+          }
         />
         <StatTile
           title="Análises de crédito"
           value={data?.analises_periodo ?? 0}
           icon={FileCheck}
           loading={loading}
-          hint="pela data da mudança de status"
+          delta={data?.deltas.analises ?? undefined}
+          deltaLabel="vs. período anterior"
+          hint={
+            ant
+              ? `pela mudança de status · anterior: ${ant.analises_periodo}`
+              : "pela data da mudança de status"
+          }
         />
         <StatTile
           title="Perdidos"
@@ -535,7 +581,7 @@ function ProducaoPeriodo({
           loading={loading}
           delta={data?.deltas.perdido ?? undefined}
           deltaLabel="vs. período anterior"
-          hint="pela data da perda"
+          hint={ant ? `pela data da perda · anterior: ${ant.perdido}` : "pela data da perda"}
         />
       </StatGrid>
     </div>
@@ -543,7 +589,7 @@ function ProducaoPeriodo({
 }
 
 const PIPELINE_CARDS: Array<{
-  key: keyof Omit<DashboardKpisFlat, "deltas">;
+  key: keyof Omit<DashboardKpisFlat, "deltas" | "anterior">;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   status?: string;

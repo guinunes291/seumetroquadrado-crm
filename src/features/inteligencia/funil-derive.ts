@@ -4,7 +4,13 @@
 import type { FunilCoorteRow } from "./queries";
 
 export type EtapaFunil = {
-  chave: "leads" | "atingiu_atendimento" | "atingiu_agendado" | "atingiu_visita" | "atingiu_analise" | "vendas";
+  chave:
+    | "leads"
+    | "atingiu_atendimento"
+    | "atingiu_agendado"
+    | "atingiu_visita"
+    | "atingiu_analise"
+    | "vendas";
   label: string;
 };
 
@@ -77,12 +83,63 @@ export function taxasDePassagem(c: CoorteAgregada): PassagemEtapa[] {
       etapa,
       volume,
       taxa_passagem_pct:
-        anterior === null ? null : anterior > 0 ? Math.round((volume / anterior) * 1000) / 10 : null,
+        anterior === null
+          ? null
+          : anterior > 0
+            ? Math.round((volume / anterior) * 1000) / 10
+            : null,
       conversao_acumulada_pct: c.leads > 0 ? Math.round((volume / c.leads) * 1000) / 10 : null,
     });
     anterior = volume;
   }
   return out;
+}
+
+export type PassagemComparada = PassagemEtapa & {
+  /** Taxa de passagem do TIME na mesma etapa (referência da comparação). */
+  taxa_time_pct: number | null;
+  /** Corretor converte abaixo do time nesta passagem (ambas as taxas medidas). */
+  abaixo: boolean;
+};
+
+/**
+ * Tarefa #10 (item 2.10): o funil do corretor CONTRA o do time, nunca no
+ * lugar dele. Compara TAXAS de passagem (percentuais são comparáveis entre
+ * carteiras de tamanhos diferentes; volumes não). "Abaixo" só quando as duas
+ * taxas existem — sem denominador não há veredito.
+ */
+export function compararTaxasComTime(
+  corretor: CoorteAgregada,
+  time: CoorteAgregada,
+): PassagemComparada[] {
+  const doTime = new Map(taxasDePassagem(time).map((p) => [p.etapa.chave, p.taxa_passagem_pct]));
+  return taxasDePassagem(corretor).map((p) => {
+    const taxaTime = doTime.get(p.etapa.chave) ?? null;
+    return {
+      ...p,
+      taxa_time_pct: taxaTime,
+      abaixo: p.taxa_passagem_pct !== null && taxaTime !== null && p.taxa_passagem_pct < taxaTime,
+    };
+  });
+}
+
+/**
+ * Snapshot comparado (tarefa #10, wireframe 7.5): média de estoque POR
+ * corretor a partir do snapshot do time inteiro. Aproximação honesta e
+ * declarada: divide pelo nº de perfis ativos (inclui gestores que também
+ * atendem); com n inválido devolve mapa vazio — a UI simplesmente não
+ * compara, nunca inventa média.
+ */
+export function mediaPorCorretorSnapshot(
+  timeRows: Array<{ etapa: string; quantidade: number }>,
+  nCorretores: number,
+): Map<string, number> {
+  const media = new Map<string, number>();
+  if (!Number.isFinite(nCorretores) || nCorretores <= 0) return media;
+  for (const r of timeRows) {
+    media.set(r.etapa, Math.round((r.quantidade / nCorretores) * 10) / 10);
+  }
+  return media;
 }
 
 /**
