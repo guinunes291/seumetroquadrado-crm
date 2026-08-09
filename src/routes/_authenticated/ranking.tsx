@@ -5,7 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ComissoesPage } from "@/features/comissoes/comissoes-page";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,19 +72,22 @@ export const Route = createFileRoute("/_authenticated/ranking")({
     if (search.tab === "metas") {
       throw redirect({ to: "/painel-gestor", search: { tab: "metas" } });
     }
+    // Comissões migrou para o hub Dinheiro (item 2.4) — idem.
+    if (search.tab === "comissoes") {
+      throw redirect({ to: "/financeiro", search: { tab: "comissoes" } });
+    }
   },
   head: () => ({ meta: [{ title: "Desempenho — Seu Metro Quadrado" }] }),
   component: DesempenhoPage,
 });
 
-// Hub de Desempenho do TIME: ranking ao vivo, competição (Copa), conquistas e
-// as COMISSÕES do corretor (resultado financeiro pessoal — o pagamento é
-// gerido no Financeiro · Fechamento). A aba gerencial de Metas vive no hub de
-// Gestão.
+// Hub de Desempenho do TIME: ranking ao vivo, competição (Copa) e conquistas.
+// Comissões (resultado financeiro) vive no hub Dinheiro (/financeiro) e a aba
+// gerencial de Metas no hub de Operação — deep-links antigos redirecionam.
 function DesempenhoPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const activeTab: DesempenhoTab = tab && tab !== "metas" ? tab : "ranking";
+  const activeTab: DesempenhoTab = tab && tab !== "metas" && tab !== "comissoes" ? tab : "ranking";
   const onTabChange = (v: string) =>
     navigate({ search: { tab: v === "ranking" ? undefined : (v as DesempenhoTab) } });
 
@@ -95,7 +97,6 @@ function DesempenhoPage() {
         <TabsTrigger value="ranking">Ranking</TabsTrigger>
         <TabsTrigger value="competicao">Competição</TabsTrigger>
         <TabsTrigger value="conquistas">Conquistas</TabsTrigger>
-        <TabsTrigger value="comissoes">Comissões</TabsTrigger>
       </TabsList>
       <TabsContent value="ranking">
         <RankingPanel />
@@ -105,9 +106,6 @@ function DesempenhoPage() {
       </TabsContent>
       <TabsContent value="conquistas">
         <ConquistasPage />
-      </TabsContent>
-      <TabsContent value="comissoes">
-        <ComissoesPage />
       </TabsContent>
     </Tabs>
   );
@@ -448,7 +446,8 @@ function podiumEntries(ranking: RankRow[], type: "vendas" | "pontos" | "vgv") {
     foto: r.foto,
     valor: type === "vgv" ? r.vgv : type === "vendas" ? r.vendas : r.pontos,
     valorTexto: type === "vgv" ? fmtBRL(r.vgv) : undefined,
-    unidade: type === "vgv" ? "VGV" : type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
+    unidade:
+      type === "vgv" ? "VGV" : type === "vendas" ? (r.vendas === 1 ? "venda" : "vendas") : "pts",
     detalhe:
       type === "vgv" ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}` : null,
   }));
@@ -1497,8 +1496,7 @@ function RankingPanel() {
                 }
                 // Ticket médio do mês — converte meta (em nº de vendas) para VGV
                 // equivalente, já que a barra passou a medir VGV.
-                const ticketMedio =
-                  totaisMes.vendas > 0 ? totaisMes.vgv / totaisMes.vendas : 0;
+                const ticketMedio = totaisMes.vendas > 0 ? totaisMes.vgv / totaisMes.vendas : 0;
                 const rows = rankingMes
                   .filter((r) => r.vgv > 0 || r.vendas > 0 || metasMap.has(r.corretorId))
                   .map((r) => {
@@ -1654,9 +1652,7 @@ function RankingPanel() {
                 </span>
               </h3>
               {(() => {
-                const rows = rankingProd
-                  .filter((r) => r.vgv > 0)
-                  .sort((a, b) => b.vgv - a.vgv);
+                const rows = rankingProd.filter((r) => r.vgv > 0).sort((a, b) => b.vgv - a.vgv);
                 if (rows.length === 0) {
                   return (
                     <div className="text-navy-400 text-sm py-6 text-center">

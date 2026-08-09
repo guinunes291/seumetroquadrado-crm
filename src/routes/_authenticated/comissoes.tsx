@@ -1,10 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-// Comissões é resultado financeiro do corretor — vive como aba do hub de
-// Desempenho (o corretor vê as suas junto do ranking; a gestão de pagamento
-// segue no Financeiro · Fechamento).
+// Rota legada mantida para deep-links: Comissões vive como aba do hub
+// Dinheiro (/financeiro) desde o item 2.4 da auditoria ux-ia-2026-08.
 export const Route = createFileRoute("/_authenticated/comissoes")({
   beforeLoad: () => {
-    throw redirect({ to: "/ranking", search: { tab: "comissoes" } });
+    throw redirect({ to: "/financeiro", search: { tab: "comissoes" } });
   },
 });
