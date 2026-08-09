@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { formatDuration } from "@/lib/duracao";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { Clock, AlertTriangle, Flame } from "lucide-react";
 
@@ -30,19 +31,9 @@ function calcular(referencia: Date, slaMin: number) {
   return { decorridos, restante, status };
 }
 
-function formatarTempo(min: number) {
-  const abs = Math.abs(min);
-  if (abs < 60) return `${abs}m`;
-  if (abs < 1440) {
-    const h = Math.floor(abs / 60);
-    const m = abs % 60;
-    return m > 0 ? `${h}h${m}m` : `${h}h`;
-  }
-  // Acima de 1 dia, mostra dd/hh para SLAs que acumulam muito (leads antigos).
-  const d = Math.floor(abs / 1440);
-  const h = Math.floor((abs % 1440) / 60);
-  return h > 0 ? `${d}d${h}h` : `${d}d`;
-}
+// Formato único hh:mm do app (formatDuration); o sinal de "estourado" fica no
+// prefixo do label, então aqui sempre formatamos o valor absoluto.
+const formatarTempo = (min: number) => formatDuration(Math.abs(min));
 
 /**
  * Badge com countdown ao vivo do SLA do lead.
@@ -91,7 +82,7 @@ export function SlaBadge({ slaMinutos, referencia, compact, className }: SlaBadg
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
-          <div>SLA: {slaMinutos} min</div>
+          <div>SLA: {formatDuration(slaMinutos)}</div>
           <div>Decorrido: {formatarTempo(decorridos)}</div>
           <div>
             {status === "estourado"

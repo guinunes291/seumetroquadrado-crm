@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { Timer, AlertTriangle, Flame, ShieldOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDuration } from "@/lib/duracao";
 import { origemLabel } from "@/lib/origem";
 
 /**
@@ -232,7 +233,7 @@ export function TransferSlaBadge({
       <Tooltip>
         <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="text-xs space-y-0.5">
-          <div className="font-medium">Repasse automático em {timeoutMin} min</div>
+          <div className="font-medium">Repasse automático em {formatDuration(timeoutMin)}</div>
           <div>Origem: {origemLabel(origem)}</div>
           <div>Restante: {label}</div>
           <div>

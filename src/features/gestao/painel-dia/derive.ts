@@ -2,6 +2,7 @@
 // Normaliza o jsonb da RPC gestao_painel_dia, monta o feed degradado a partir
 // das RPCs antigas (fallback) e resolve o drill-through de cada exceção.
 
+import { formatDuration, formatDurationHoras } from "@/lib/duracao";
 import type { LeadSearchFiltros } from "@/lib/leads-views";
 import type { Intent } from "@/lib/status-tones";
 
@@ -262,9 +263,9 @@ export function drillSearchDoTipo(tipo: ExcecaoTipo): LeadSearchFiltros {
 export function detalheLegivel(e: Excecao): string {
   const d = e.detalhe;
   if (typeof d.minutos === "number" && typeof d.sla_minutos === "number") {
-    return `${d.minutos} min (SLA ${d.sla_minutos})`;
+    return `${formatDuration(d.minutos)} (SLA ${formatDuration(d.sla_minutos)})`;
   }
-  if (typeof d.minutos === "number") return `${d.minutos} min parado`;
+  if (typeof d.minutos === "number") return `${formatDuration(d.minutos)} parado`;
   // documentacao_travada carrega dias_parado TAMBÉM — o ramo específico vem
   // antes do genérico (first-match) para não perder a contagem de docs.
   if (typeof d.docs_pendentes === "number" && typeof d.dias_parado === "number") {
@@ -275,7 +276,9 @@ export function detalheLegivel(e: Excecao): string {
     const limiar = typeof d.limiar_dias === "number" ? ` (limiar ${d.limiar_dias}d)` : "";
     return `${d.dias_parado}d parado${limiar}`;
   }
-  if (typeof d.vencido_ha_horas === "number") return `vencido há ${d.vencido_ha_horas}h`;
+  if (typeof d.vencido_ha_horas === "number") {
+    return `vencido há ${formatDurationHoras(d.vencido_ha_horas)}`;
+  }
   if (typeof d.data_visita === "string") {
     const dt = new Date(d.data_visita);
     return Number.isNaN(dt.getTime())
@@ -339,6 +342,9 @@ export function excecoesParaExport(excecoes: Excecao[]): Array<Record<string, un
     Etapa: e.etapa,
     Temperatura: e.temperatura ?? "",
     Detalhe: detalheLegivel(e),
+    // Coluna NUMÉRICA ao lado do detalhe legível: análises externas ordenam
+    // e somam pelo número, nunca pela string formatada.
+    "Minutos (nº)": typeof e.detalhe.minutos === "number" ? e.detalhe.minutos : "",
     "Valor potencial (R$)": e.valor_potencial ?? "",
   }));
 }

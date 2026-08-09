@@ -3,6 +3,7 @@
 // (esforço alto, conversão baixa) e quem está subaproveitado (esforço
 // baixo, conversão alta).
 
+import { formatDuration } from "@/lib/duracao";
 import type { PerformanceRow } from "./queries";
 
 export type SinalCorretor = "mentoria" | "dar_mais_lead" | null;
@@ -66,7 +67,10 @@ export function performanceParaExport(rows: PerformanceRow[]): Array<Record<stri
     "Tarefas concluídas": r.tarefas_concluidas,
     Vendas: r.vendas,
     "VGV (R$)": r.vgv,
+    // O número em minutos permanece (análises externas somam/ordenam por ele);
+    // a coluna hh:mm ao lado é só leitura humana.
     "1ª resposta p50 (min)": r.primeira_resposta_p50_min ?? "",
+    "1ª resposta p50 (hh:mm)": formatDuration(r.primeira_resposta_p50_min),
     "Carga ativa": r.carga_ativa,
     "Capacidade (%)": r.capacidade_pct ?? "",
   }));

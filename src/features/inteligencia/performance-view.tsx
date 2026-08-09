@@ -7,6 +7,7 @@ import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { exportRowsXlsx } from "@/lib/spreadsheets";
+import { formatDuration } from "@/lib/duracao";
 import { cn } from "@/lib/utils";
 import { AtualizadoEm } from "./atualizado-em";
 import { RaioXCorretor } from "./raio-x-corretor";
@@ -109,9 +110,7 @@ export function PerformanceView({
             className="text-muted-foreground"
             title="Proxy: 1ª interação de contato do corretor no lead (não existe data_primeiro_contato)"
           >
-            {row.original.primeira_resposta_p50_min != null
-              ? `${row.original.primeira_resposta_p50_min} min`
-              : "—"}
+            {formatDuration(row.original.primeira_resposta_p50_min)}
           </span>
         ),
       },

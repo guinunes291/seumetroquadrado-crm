@@ -65,6 +65,7 @@ import { usePacing } from "@/features/metas/pacing-panel";
 import { projecaoLinear, semaforo } from "@/features/metas/pacing";
 import { useAuth } from "@/hooks/use-auth";
 import { exportSheetsXlsx } from "@/lib/spreadsheets";
+import { formatDuration } from "@/lib/duracao";
 import { dateKey } from "@/lib/periodo";
 import { leadStatusLabel, MOTIVO_PERDA_LABEL } from "@/lib/leads";
 import { cn } from "@/lib/utils";
@@ -494,7 +495,9 @@ export function RaioXCorretor({
                       ? c.valor === null
                         ? "—"
                         : fmtBRL(c.valor)
-                      : (c.valor ?? "—")
+                      : c.chave === "primeira_resposta"
+                        ? formatDuration(c.valor)
+                        : (c.valor ?? "—")
                   }
                   intent={c.deltaPct === null ? "neutral" : acima ? "success" : "warning"}
                   hint={
@@ -505,7 +508,9 @@ export function RaioXCorretor({
                         time:{" "}
                         {c.chave === "vgv"
                           ? fmtBRL(c.mediaTime)
-                          : Math.round(c.mediaTime * 10) / 10}
+                          : c.chave === "primeira_resposta"
+                            ? formatDuration(c.mediaTime)
+                            : Math.round(c.mediaTime * 10) / 10}
                         {c.deltaPct !== null && (
                           <span
                             className={cn(
@@ -668,9 +673,7 @@ export function RaioXCorretor({
                           {Number(m.vgv) > 0 ? fmtBRL(Number(m.vgv)) : "—"}
                         </td>
                         <td className="py-2 text-right tabular-nums text-muted-foreground">
-                          {m.primeira_resposta_p50_min != null
-                            ? `${m.primeira_resposta_p50_min}m`
-                            : "—"}
+                          {formatDuration(m.primeira_resposta_p50_min)}
                         </td>
                       </tr>
                     ))}

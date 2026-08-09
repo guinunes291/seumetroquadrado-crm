@@ -40,6 +40,7 @@ import {
   type RoletaRow,
 } from "./queries";
 import { origemLabel } from "@/lib/origem";
+import { formatDuration } from "@/lib/duracao";
 
 const SEM_ROLETA = "__nenhuma__";
 
@@ -81,7 +82,16 @@ function SettingNumero({
             value={exibido}
             onChange={(e) => setValor(e.target.value)}
           />
-          {sufixo && <span className="text-sm text-muted-foreground">{sufixo}</span>}
+          {sufixo && (
+            <span className="text-sm text-muted-foreground">
+              {sufixo}
+              {sufixo === "min" && Number(exibido) > 0 && (
+                <span className="ml-1 text-xs tabular-nums">
+                  (= {formatDuration(Number(exibido))})
+                </span>
+              )}
+            </span>
+          )}
           {mudou && (
             <Button
               size="sm"

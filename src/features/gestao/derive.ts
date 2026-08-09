@@ -5,6 +5,8 @@
 // Dados vêm dos RPCs já existentes (dashboard_metricas_por_corretor,
 // dashboard_leads_urgentes, tempo_primeira_resposta) — zero migration.
 
+import { formatDuration } from "@/lib/duracao";
+
 export type MetricaCorretor = {
   corretor_id: string;
   nome: string;
@@ -114,7 +116,7 @@ export function quemPrecisaDeAjuda(input: {
       tempo.tempo_medio_min > 60
     ) {
       risco += 15;
-      motivos.push(`1ª resposta em ${Math.round(tempo.tempo_medio_min)}min`);
+      motivos.push(`1ª resposta em ${formatDuration(tempo.tempo_medio_min)}`);
     }
 
     if (risco > 0) {

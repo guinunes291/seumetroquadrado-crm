@@ -118,11 +118,12 @@ describe("montarPainelDegradado", () => {
 describe("apresentação e drill", () => {
   it("detalheLegivel cobre os formatos conhecidos", () => {
     expect(detalheLegivel(excecaoBase)).toBe("3d parado (limiar 2d)");
+    // Durações em minutos/horas saem no formato único hh:mm (formatDuration).
     expect(detalheLegivel({ ...excecaoBase, detalhe: { minutos: 45, sla_minutos: 30 } })).toBe(
-      "45 min (SLA 30)",
+      "00:45 (SLA 00:30)",
     );
     expect(detalheLegivel({ ...excecaoBase, detalhe: { vencido_ha_horas: 6 } })).toBe(
-      "vencido há 6h",
+      "vencido há 06:00",
     );
     expect(detalheLegivel({ ...excecaoBase, detalhe: {} })).toBe("");
   });

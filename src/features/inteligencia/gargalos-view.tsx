@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { leadStatusLabel, MOTIVO_PERDA_LABEL } from "@/lib/leads";
+import { formatDurationHoras } from "@/lib/duracao";
 import { AtualizadoEm } from "./atualizado-em";
 import { HeatmapMatriz } from "./heatmap-matriz";
 import {
@@ -55,7 +56,7 @@ function tituloDoProblema(p: GargaloProblema): string {
   if (p.tipo === "motivo_perda") {
     return `Perdas por "${MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ?? p.categoria}"`;
   }
-  return `Etapa lenta: ${leadStatusLabel(p.etapa ?? "")} (${p.horas_media ?? "?"}h médias)`;
+  return `Etapa lenta: ${leadStatusLabel(p.etapa ?? "")} (média ${formatDurationHoras(p.horas_media)})`;
 }
 
 const ICONE_PROBLEMA = {

@@ -71,7 +71,7 @@ import {
   type VendasMes,
 } from "@/features/dashboard/relatorios-derive";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
-import { formatDuracaoParado } from "@/lib/utils";
+import { formatDuration } from "@/lib/duracao";
 import { origemLabel } from "@/lib/origem";
 
 /** Link discreto para a aba de análise completa do hub de Gestão. */
@@ -663,7 +663,8 @@ function SituacaoAgora({
             <AlertTriangle className="h-6 w-6 text-orange-500" />
             <div className="flex-1">
               <div className="text-sm font-semibold">
-                {parados30} {parados30 === 1 ? "lead parado" : "leads parados"} há mais de 30 min
+                {parados30} {parados30 === 1 ? "lead parado" : "leads parados"} há mais de{" "}
+                {formatDuration(30)}
               </div>
               <p className="text-xs text-muted-foreground">Sem contato após distribuição</p>
             </div>
@@ -853,13 +854,13 @@ function UrgentesList({
   if (rows.length === 0)
     return (
       <p className="text-sm text-muted-foreground">
-        Tudo em dia — nenhum lead parado há mais de 30 min.
+        Tudo em dia — nenhum lead parado há mais de {formatDuration(30)}.
       </p>
     );
   return (
     <ul className="divide-y">
       {rows.slice(0, 10).map((r) => {
-        const tempo = formatDuracaoParado(r.minutos_parado);
+        const tempo = formatDuration(r.minutos_parado);
         return (
           <li key={r.lead_id} className="py-2 flex items-center gap-3">
             <div className="flex-1 min-w-0">

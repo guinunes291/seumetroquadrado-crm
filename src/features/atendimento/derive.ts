@@ -9,6 +9,7 @@
 //   5. docs       — documentação pendente/reprovada travando a pasta
 // Dentro de cada fila, ordena pelo Score de prioridade (lib/priority.ts).
 
+import { formatRelativeTime } from "@/lib/interacoes";
 import { diasDesde, scoreLead, type ScoreTier } from "@/lib/priority";
 
 export type AtendimentoLead = {
@@ -163,13 +164,9 @@ export function buildAtendimentoQueues(input: {
   return filas;
 }
 
-function formatDesde(iso: string, agora: Date): string {
-  const min = Math.max(0, Math.floor((agora.getTime() - Date.parse(iso)) / 60_000));
-  if (min < 60) return `há ${min}min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `há ${h}h`;
-  return `há ${Math.floor(h / 24)}d`;
-}
+// Grafia única de tempo relativo do app (era uma segunda implementação com
+// "há 45min" sem espaço; agora delega ao formatador canônico da timeline).
+const formatDesde = (iso: string, agora: Date): string => formatRelativeTime(iso, agora);
 
 // ---------------------------------------------------------------------------
 // Scripts sugeridos por fila — o corretor abre o WhatsApp com a mensagem certa

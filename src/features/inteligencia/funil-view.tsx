@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDashboardSerie } from "@/features/dashboard/queries";
 import { dateKey } from "@/lib/periodo";
+import { formatDurationHoras } from "@/lib/duracao";
 import { leadStatusLabel } from "@/lib/leads";
 import { AtualizadoEm } from "./atualizado-em";
 import {
@@ -430,8 +431,8 @@ export function FunilView({
               <TableHeader>
                 <TableRow>
                   <TableHead>Etapa</TableHead>
-                  <TableHead className="text-right">Média (h)</TableHead>
-                  <TableHead className="text-right">Mediana (h)</TableHead>
+                  <TableHead className="text-right">Média</TableHead>
+                  <TableHead className="text-right">Mediana</TableHead>
                   <TableHead className="text-right">Amostra</TableHead>
                 </TableRow>
               </TableHeader>
@@ -440,9 +441,11 @@ export function FunilView({
                   <TableRow key={r.etapa}>
                     <TableCell className="font-medium">{leadStatusLabel(r.etapa)}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {r.horas_media ?? "—"}
+                      {formatDurationHoras(r.horas_media)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{r.horas_p50 ?? "—"}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatDurationHoras(r.horas_p50)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {r.n}
                     </TableCell>
