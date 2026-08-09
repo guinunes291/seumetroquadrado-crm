@@ -10,6 +10,9 @@ export type LeadFiltros = {
   dataInicio?: string;
   dataFim?: string;
   contato: string; // filtro rápido por última interação / follow-up
+  // "parado há X+ dias" paramétrico (item 2.11): "all" ou um valor de
+  // PARADO_OPCOES. String para viajar em URL/localStorage como os demais.
+  paradoDias: string;
 };
 
 export const FILTRO_PADRAO: LeadFiltros = {
@@ -19,6 +22,7 @@ export const FILTRO_PADRAO: LeadFiltros = {
   temperatura: "all",
   periodo: "all",
   contato: "all",
+  paradoDias: "all",
 };
 
 /** Botões de filtro rápido (por última interação e follow-up). */
@@ -31,6 +35,17 @@ export const CONTATO_OPCOES = [
   // Rotina de higiene: candidatos a descarte com motivo (RPC v3; nos
   // fallbacks v1/v2 a página filtra no cliente).
   { value: "sem_contato_30d", label: "Sem contato 30+ dias" },
+] as const;
+
+/** Réguas oferecidas no filtro "parado há X+ dias" (a RPC v4 aceita 1..365). */
+export const PARADO_OPCOES = [
+  { value: "3", label: "3+ dias" },
+  { value: "7", label: "7+ dias" },
+  { value: "15", label: "15+ dias" },
+  { value: "30", label: "30+ dias" },
+  { value: "60", label: "60+ dias" },
+  { value: "90", label: "90+ dias" },
+  { value: "180", label: "180+ dias" },
 ] as const;
 
 export type SavedView = { id: string; nome: string; filtros: LeadFiltros };
@@ -88,8 +103,23 @@ export function passaContato(
     case "sem_contato_30d":
       return (ui == null || ui < now - 30 * DIA) && !STATUS_FINALIZADOS.includes(args.status);
     default:
-      return true;
+      // Valor desconhecido NÃO passa — o espelho do fim do ELSE true na v4:
+      // recorte que o código não conhece jamais devolve tudo em silêncio.
+      return false;
   }
+}
+
+/** Aplica o recorte "parado há X+ dias" a um lead (fallback client-side da v4). */
+export function passaParado(
+  paradoDias: string,
+  args: { ultimaInteracao: string | null; status: string },
+): boolean {
+  if (!paradoDias || paradoDias === "all") return true;
+  const dias = Number(paradoDias);
+  if (!Number.isFinite(dias) || dias < 1) return false;
+  const ui = args.ultimaInteracao ? new Date(args.ultimaInteracao).getTime() : null;
+  const DIA = 86_400_000;
+  return (ui == null || ui < Date.now() - dias * DIA) && !STATUS_FINALIZADOS.includes(args.status);
 }
 
 // ---------------------------------------------------------------------------
@@ -106,6 +136,7 @@ export const FILTRO_URL_KEYS = [
   "dataInicio",
   "dataFim",
   "contato",
+  "paradoDias",
 ] as const;
 
 export type LeadSearchFiltros = Partial<Pick<LeadFiltros, (typeof FILTRO_URL_KEYS)[number]>>;
@@ -153,6 +184,9 @@ export function mesclarFiltrosDaUrl(url: LeadSearchFiltros, canManage: boolean):
   }
   if (f.contato !== "all" && !CONTATO_OPCOES.some((o) => o.value === f.contato)) {
     f.contato = "all";
+  }
+  if (f.paradoDias !== "all" && !PARADO_OPCOES.some((o) => o.value === f.paradoDias)) {
+    f.paradoDias = "all";
   }
   if (!canManage) f.corretor = "all";
   return f;

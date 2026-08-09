@@ -1,5 +1,17 @@
 # 02 · Roadmap — 5 ondas + trilha contínua
 
+> **Status (2026-08-09):** Onda 0 entregue integralmente (0.1–0.7) + A.1.
+> Da Onda A, na execução descobriu-se que boa parte já havia sido entregue
+> pela revisão de julho: A.4 (os 5 bugs do §3.4 já estavam corrigidos; sobrou
+> e foi fechado o resíduo de invalidação de chips no TransferSlaBadge), A.2
+> (o descarte em lote com motivo já existia — `bulkDescartar` + dialog) e A.5
+> (a `leads_filtered_v3` já ordena por prioridade+score por padrão; o
+> `created_at DESC` sobrevive só como último desempate). O item 2.11 da Onda B
+> foi antecipado e entregue junto: `leads_filtered_v4` com filtro "parado há
+> X dias" paramétrico e validação estrita de `_contato` (fim do `ELSE true`).
+> Restam da Onda A: A.2 campanha de triagem (aguarda D6), A.3 dedup de
+> telefone em produção (P-11) e A.6 régua única de "esfriando" (após A.2).
+
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >
 > Esforço: **P** = horas–1 dia · **M** = 2–5 dias · **G** = 1–3 semanas. Eixo entre colchetes: [G]estão · [D]esenvolvimento · [C]ontrole · [O]peração. KPIs em `03-metricas.md`.

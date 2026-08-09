@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { passaContato, FILTRO_PADRAO, VISOES_PADRAO } from "../src/lib/leads-views";
+import {
+  passaContato,
+  passaParado,
+  mesclarFiltrosDaUrl,
+  FILTRO_PADRAO,
+  VISOES_PADRAO,
+} from "../src/lib/leads-views";
 
 const hAtras = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 const dAtras = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
@@ -122,5 +128,50 @@ describe("visões prontas", () => {
     }
     const quentes = VISOES_PADRAO.find((v) => v.id === "preset-quentes");
     expect(quentes?.filtros.temperatura).toBe("quente");
+  });
+});
+
+describe("passaParado (item 2.11 — fallback client-side da v4)", () => {
+  const DIA = 86_400_000;
+  const iso = (diasAtras: number) => new Date(Date.now() - diasAtras * DIA).toISOString();
+
+  it('"all" não filtra', () => {
+    expect(passaParado("all", { ultimaInteracao: null, status: "em_atendimento" })).toBe(true);
+  });
+
+  it("parado 15+ dias: passa sem interação ou com interação antiga; barra recente", () => {
+    expect(passaParado("15", { ultimaInteracao: null, status: "em_atendimento" })).toBe(true);
+    expect(passaParado("15", { ultimaInteracao: iso(20), status: "em_atendimento" })).toBe(true);
+    expect(passaParado("15", { ultimaInteracao: iso(3), status: "em_atendimento" })).toBe(false);
+  });
+
+  it("status terminais nunca contam como parados", () => {
+    for (const status of ["contrato_fechado", "pos_venda", "perdido"]) {
+      expect(passaParado("15", { ultimaInteracao: null, status })).toBe(false);
+    }
+  });
+
+  it("valor inválido não passa ninguém (espelho da validação estrita da v4)", () => {
+    expect(passaParado("abc", { ultimaInteracao: null, status: "em_atendimento" })).toBe(false);
+    expect(passaParado("0", { ultimaInteracao: null, status: "em_atendimento" })).toBe(false);
+  });
+});
+
+describe("passaContato estrito (fim do default true no cliente)", () => {
+  it("recorte desconhecido NÃO devolve tudo", () => {
+    expect(
+      passaContato("recorte_que_nao_existe", {
+        ultimaInteracao: null,
+        status: "em_atendimento",
+        temFollowup: false,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("mesclarFiltrosDaUrl saneia paradoDias", () => {
+  it("valor fora de PARADO_OPCOES vira all; valor válido passa", () => {
+    expect(mesclarFiltrosDaUrl({ paradoDias: "999" }, true).paradoDias).toBe("all");
+    expect(mesclarFiltrosDaUrl({ paradoDias: "30" }, true).paradoDias).toBe("30");
   });
 });

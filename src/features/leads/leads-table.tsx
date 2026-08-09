@@ -92,12 +92,12 @@ export type LeadsTableProps = {
   leads: Lead[];
   loading: boolean;
   /**
-   * Origem dos dados da lista. Com v2/v3 o servidor aplica o sort da coluna
+   * Origem dos dados da lista. Com v2/v3/v4 o servidor aplica o sort da coluna
    * (whitelist) OU a prioridade operacional; no fallback v1 a RPC antiga não
    * conhece `_sort`, então o sort é DESABILITADO nos cabeçalhos (antes o
-   * indicador alternava sem reordenar). O sort por score exige a v3.
+   * indicador alternava sem reordenar). O sort por score exige v3+.
    */
-  source: "v1" | "v2" | "v3";
+  source: "v1" | "v2" | "v3" | "v4";
   canManage: boolean;
   userId: string | undefined;
   corretoresMap: Map<string, string>;
@@ -166,8 +166,8 @@ export function LeadsTable({
   // No fallback v1 a RPC não conhece `_sort`: clicar no cabeçalho mudaria só o
   // indicador, sem reordenar — melhor não oferecer o affordance do que mentir.
   const sortable = source !== "v1";
-  // O sort por score só existe na v3; na v2 o clique cairia na ordem padrão.
-  const sortableScore = source === "v3";
+  // O sort por score só existe a partir da v3; na v2 o clique cairia na ordem padrão.
+  const sortableScore = source === "v3" || source === "v4";
   // Sem useMemo de propósito: os handlers chegam da página como arrows novas
   // a cada render, então a memoização nunca acertaria o cache. Os ids das
   // colunas sortáveis casam com a whitelist da RPC (v3).

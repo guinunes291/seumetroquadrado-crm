@@ -28,9 +28,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   CONTATO_OPCOES,
+  PARADO_OPCOES,
   VISOES_PADRAO,
   FILTRO_PADRAO,
   passaContato,
+  passaParado,
   loadViews,
   saveViews,
   loadUltimoFiltro,
@@ -249,6 +251,8 @@ function LeadsPage() {
   const [dataInicioFilter, setDataInicioFilter] = useState("");
   const [dataFimFilter, setDataFimFilter] = useState("");
   const [contatoFilter, setContatoFilter] = useState<string>("all");
+  // "Parado há X+ dias" paramétrico (item 2.11) — "all" ou valor de PARADO_OPCOES.
+  const [paradoDiasFilter, setParadoDiasFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   // Página inicial pode vir da URL (?pagina=N) — voltar do detalhe não reseta.
   const [page, setPage] = useState(searchParams.pagina ?? 1);
@@ -331,6 +335,7 @@ function LeadsPage() {
     dataInicio: dataInicioFilter,
     dataFim: dataFimFilter,
     contato: contatoFilter,
+    paradoDias: paradoDiasFilter,
   };
 
   const aplicarFiltros = (f: LeadFiltros) => {
@@ -342,6 +347,8 @@ function LeadsPage() {
     setDataInicioFilter(f.dataInicio ?? "");
     setDataFimFilter(f.dataFim ?? "");
     setContatoFilter(f.contato);
+    // Visões/filtros antigos (localStorage/URL) não trazem a chave — default.
+    setParadoDiasFilter(f.paradoDias ?? "all");
   };
 
   // Carrega visões salvas e restaura o último filtro (1x, ao montar).
@@ -371,6 +378,7 @@ function LeadsPage() {
     dataInicioFilter,
     dataFimFilter,
     contatoFilter,
+    paradoDiasFilter,
   ]);
 
   // Filtros/página → URL (replace, sem sujar o histórico): a visão corrente
@@ -453,6 +461,7 @@ function LeadsPage() {
     canManage,
     uid: user?.id,
     contatoFilter,
+    paradoDiasFilter,
   };
 
   const periodoRange = useMemo(() => {
@@ -483,7 +492,8 @@ function LeadsPage() {
     };
   };
 
-  type LeadsSource = "v3" | "v2" | "v1";
+  type LeadsSource = "v4" | "v3" | "v2" | "v1";
+  const paradoDiasNum = paradoDiasFilter === "all" ? null : Number(paradoDiasFilter);
 
   const {
     data: leadsResult,
@@ -503,35 +513,44 @@ function LeadsPage() {
         _offset: (page - 1) * LEADS_PAGE_SIZE,
       };
       return rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
-        // v3: tudo da v2 + score de prioridade e proximo_followup por linha,
-        // sort por score, recorte sem_contato_30d e escopo de gestor com órfãos.
+        // v4: tudo da v3 + recorte paramétrico "parado há X+ dias" e validação
+        // estrita de _contato (valor desconhecido é erro, não lista inteira).
         async () => ({
-          rows: await rpcLeadsFiltered("v3", paramsPaginados),
-          source: "v3" as const,
+          rows: await rpcLeadsFiltered("v4", { ...paramsPaginados, _parado_dias: paradoDiasNum }),
+          source: "v4" as const,
         }),
         () =>
           rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
-            // v2 (P2-15): contato, sort e paginação 100% no servidor — sempre
-            // uma página de LEADS_PAGE_SIZE, mesmo com filtro de contato ativo.
+            // v3: score de prioridade e proximo_followup por linha, sort por
+            // score, recorte sem_contato_30d e escopo de gestor com órfãos.
             async () => ({
-              rows: await rpcLeadsFiltered("v2", paramsPaginados),
-              source: "v2" as const,
+              rows: await rpcLeadsFiltered("v3", paramsPaginados),
+              source: "v3" as const,
             }),
-            // v1 (fallback enquanto a migration não está aplicada): filtros de
-            // contato ainda dependem do conjunto completo — baixa até 1000 linhas
-            // e fatia no cliente; os demais paginam no banco.
-            async () => {
-              const v1ServerPaginated = contatoFilter === "all";
-              const { data, error } = await supabase.rpc("leads_filtered", {
-                ...paramsV1,
-                _limit: v1ServerPaginated ? LEADS_PAGE_SIZE : 1000,
-                _offset: v1ServerPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
-              });
-              if (error) throw error;
-              // O Row gerado da RPC é atribuível a Lead (campos `T` vs `T | null`)
-              // — dispensa o antigo double-cast via unknown.
-              return { rows: data ?? [], source: "v1" as const };
-            },
+            () =>
+              rpcWithFallback<{ rows: Lead[]; source: LeadsSource }>(
+                // v2 (P2-15): contato, sort e paginação 100% no servidor — sempre
+                // uma página de LEADS_PAGE_SIZE, mesmo com filtro de contato ativo.
+                async () => ({
+                  rows: await rpcLeadsFiltered("v2", paramsPaginados),
+                  source: "v2" as const,
+                }),
+                // v1 (fallback enquanto a migration não está aplicada): filtros de
+                // contato ainda dependem do conjunto completo — baixa até 1000 linhas
+                // e fatia no cliente; os demais paginam no banco.
+                async () => {
+                  const v1ServerPaginated = contatoFilter === "all";
+                  const { data, error } = await supabase.rpc("leads_filtered", {
+                    ...paramsV1,
+                    _limit: v1ServerPaginated ? LEADS_PAGE_SIZE : 1000,
+                    _offset: v1ServerPaginated ? (page - 1) * LEADS_PAGE_SIZE : 0,
+                  });
+                  if (error) throw error;
+                  // O Row gerado da RPC é atribuível a Lead (campos `T` vs `T | null`)
+                  // — dispensa o antigo double-cast via unknown.
+                  return { rows: data ?? [], source: "v1" as const };
+                },
+              ),
           ),
       );
     },
@@ -539,9 +558,9 @@ function LeadsPage() {
   });
 
   const leadsAll = leadsResult?.rows;
-  const source: LeadsSource = leadsResult?.source ?? "v3";
-  // Com v2/v3 a paginação é sempre no servidor; no fallback v1 só quando não
-  // há filtro de contato (que ainda fatia no cliente).
+  const source: LeadsSource = leadsResult?.source ?? "v4";
+  // Com v2/v3/v4 a paginação é sempre no servidor; no fallback v1 só quando
+  // não há filtro de contato (que ainda fatia no cliente).
   const serverPaginated = source !== "v1" ? true : contatoFilter === "all";
 
   // IDs de leads com follow-up pendente — só no fallback v1 (a v2 resolve o
@@ -585,17 +604,28 @@ function LeadsPage() {
       const { _status: _ignorado, ...countParams } = buildParams();
       void _ignorado;
       const rows = await rpcWithFallback<unknown[]>(
-        // v3: mesmo escopo da lista (gestor vê órfãos) + recorte sem_contato_30d.
-        () => rpcLeadsStatusCounts("v3", { ...countParams, _contato: contatoFilter }),
+        // v4: mesmos recortes da lista v4 (inclui _parado_dias) — chips e
+        // lista nunca divergem.
+        () =>
+          rpcLeadsStatusCounts("v4", {
+            ...countParams,
+            _contato: contatoFilter,
+            _parado_dias: paradoDiasNum,
+          }),
         () =>
           rpcWithFallback<unknown[]>(
-            // v2: as abas de status contam respeitando também o recorte de contato.
-            () => rpcLeadsStatusCounts("v2", { ...countParams, _contato: contatoFilter }),
-            async () => {
-              const { data, error } = await supabase.rpc("leads_status_counts", countParams);
-              if (error) throw error;
-              return data ?? [];
-            },
+            // v3: mesmo escopo da lista (gestor vê órfãos) + recorte sem_contato_30d.
+            () => rpcLeadsStatusCounts("v3", { ...countParams, _contato: contatoFilter }),
+            () =>
+              rpcWithFallback<unknown[]>(
+                // v2: as abas de status contam respeitando também o recorte de contato.
+                () => rpcLeadsStatusCounts("v2", { ...countParams, _contato: contatoFilter }),
+                async () => {
+                  const { data, error } = await supabase.rpc("leads_status_counts", countParams);
+                  if (error) throw error;
+                  return data ?? [];
+                },
+              ),
           ),
       );
       const counts: Record<string, number> = {};
@@ -619,14 +649,20 @@ function LeadsPage() {
 
   const filtered = useMemo(() => {
     if (!leadsAll) return [];
-    // v2/v3: o servidor já aplicou o recorte de contato e a ordenação (sort de
+    // v2/v3/v4: o servidor já aplicou os recortes e a ordenação (sort de
     // coluna ou prioridade operacional) — a página recebe a lista pronta.
-    // Exceção transitória: sem_contato_30d só existe na v3; se o backend ainda
-    // está na v2, filtra a página localmente (total fica aproximado até a
-    // migration v3 ser aplicada).
+    // Exceções transitórias enquanto as migrations não chegam: sem_contato_30d
+    // só existe a partir da v3; _parado_dias só existe na v4 — nos degraus
+    // abaixo, filtra a página localmente (total fica aproximado).
     if (source !== "v1") {
+      let rows = leadsAll;
+      if (source !== "v4" && paradoDiasFilter !== "all") {
+        rows = rows.filter((l) =>
+          passaParado(paradoDiasFilter, { ultimaInteracao: l.ultima_interacao, status: l.status }),
+        );
+      }
       if (source === "v2" && contatoFilter === "sem_contato_30d") {
-        return leadsAll.filter((l) =>
+        rows = rows.filter((l) =>
           passaContato("sem_contato_30d", {
             ultimaInteracao: l.ultima_interacao,
             status: l.status,
@@ -634,9 +670,14 @@ function LeadsPage() {
           }),
         );
       }
-      return leadsAll;
+      return rows;
     }
     let base = leadsAll;
+    if (paradoDiasFilter !== "all") {
+      base = base.filter((l) =>
+        passaParado(paradoDiasFilter, { ultimaInteracao: l.ultima_interacao, status: l.status }),
+      );
+    }
     if (contatoFilter !== "all") {
       base = base.filter((l) =>
         passaContato(contatoFilter, {
@@ -666,7 +707,7 @@ function LeadsPage() {
       }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-  }, [leadsAll, source, contatoFilter, followupIds]);
+  }, [leadsAll, source, contatoFilter, paradoDiasFilter, followupIds]);
 
   const currentStatusTotal = statusCountsData
     ? statusFilter === "all"
@@ -785,10 +826,26 @@ function LeadsPage() {
           _offset: offset,
         };
         const rows = await rpcWithFallback<Lead[]>(
-          () => rpcLeadsFiltered("v3", paramsPagina),
-          () => rpcLeadsFiltered("v2", paramsPagina),
+          () => rpcLeadsFiltered("v4", { ...paramsPagina, _parado_dias: paradoDiasNum }),
+          () =>
+            rpcWithFallback<Lead[]>(
+              () => rpcLeadsFiltered("v3", paramsPagina),
+              () => rpcLeadsFiltered("v2", paramsPagina),
+            ),
         );
-        ids.push(...rows.map((l) => l.id));
+        // Nos degraus v3/v2 o servidor ignora _parado_dias — re-filtra aqui
+        // para a seleção em massa NUNCA incluir quem o usuário não está vendo
+        // (descarte em lote depende disso).
+        const visiveis =
+          paradoDiasFilter === "all"
+            ? rows
+            : rows.filter((l) =>
+                passaParado(paradoDiasFilter, {
+                  ultimaInteracao: l.ultima_interacao,
+                  status: l.status,
+                }),
+              );
+        ids.push(...visiveis.map((l) => l.id));
         if (rows.length < 200) break;
       }
       setSelectedIds(new Set(ids));
@@ -865,10 +922,23 @@ function LeadsPage() {
         _offset: 0,
       };
       const rows = await rpcWithFallback<Lead[]>(
-        () => rpcLeadsFiltered("v3", paramsFila),
-        () => rpcLeadsFiltered("v2", paramsFila),
+        () => rpcLeadsFiltered("v4", { ...paramsFila, _parado_dias: paradoDiasNum }),
+        () =>
+          rpcWithFallback<Lead[]>(
+            () => rpcLeadsFiltered("v3", paramsFila),
+            () => rpcLeadsFiltered("v2", paramsFila),
+          ),
       );
-      return rows.map((l) => l.id);
+      const visiveis =
+        paradoDiasFilter === "all"
+          ? rows
+          : rows.filter((l) =>
+              passaParado(paradoDiasFilter, {
+                ultimaInteracao: l.ultima_interacao,
+                status: l.status,
+              }),
+            );
+      return visiveis.map((l) => l.id);
     },
   });
   const focusQueue = useMemo(() => {
@@ -922,6 +992,7 @@ function LeadsPage() {
     (temperaturaFilter !== "all" ? 1 : 0) +
     (periodoFilter !== "all" ? 1 : 0) +
     (contatoFilter !== "all" ? 1 : 0) +
+    (paradoDiasFilter !== "all" ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
 
   function limparFiltros() {
@@ -934,6 +1005,7 @@ function LeadsPage() {
     setDataInicioFilter("");
     setDataFimFilter("");
     setContatoFilter("all");
+    setParadoDiasFilter("all");
   }
 
   return (
@@ -1107,6 +1179,40 @@ function LeadsPage() {
                           </button>
                         );
                       })}
+                      {/* Régua paramétrica "parado há X+ dias" (item 2.11) —
+                          substitui a limitação das réguas fixas de 5/30 dias. */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-pressed={paradoDiasFilter !== "all"}
+                            className={`min-h-11 px-3 py-2 rounded-full text-xs font-medium border transition ${
+                              paradoDiasFilter !== "all"
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-muted"
+                            }`}
+                          >
+                            {paradoDiasFilter === "all"
+                              ? "Parado há…"
+                              : `Parado ${PARADO_OPCOES.find((o) => o.value === paradoDiasFilter)?.label ?? `${paradoDiasFilter}+ dias`}`}
+                            <ChevronDown className="ml-1 inline h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-44">
+                          <DropdownMenuLabel>Parado há</DropdownMenuLabel>
+                          <DropdownMenuItem onSelect={() => setParadoDiasFilter("all")}>
+                            Qualquer tempo
+                          </DropdownMenuItem>
+                          {PARADO_OPCOES.map((o) => (
+                            <DropdownMenuItem
+                              key={o.value}
+                              onSelect={() => setParadoDiasFilter(o.value)}
+                            >
+                              {o.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <div className="ml-auto">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
