@@ -23,11 +23,10 @@
 > 2.7 **PR (a) ✅**: Atender ganhou os 3 modos (Prioridade/Volume/Consulta)
 > via `?modo=` — Volume é o Blitz extraído (`volume-view.tsx`; /blitz segue
 > viva montando o mesmo componente), Consulta lê a MESMA query de /leads
-> (cadeia v4→v3→v2→v1 extraída para `leads-query.ts`, fonte única) com busca
->
-> - filtros essenciais e peek. Restam do 2.7: PR (b) filtros completos em
->   drawer na Consulta · PR (c) /leads e /blitz viram redirect. Depois: 2.10
->   comparação lado a lado.
+> (cadeia v4→v3→v2→v1 extraída para `leads-query.ts`, fonte única) com
+> busca, filtros essenciais e peek. Restam do 2.7: PR (b) filtros completos
+> em drawer na Consulta · PR (c) /leads e /blitz viram redirect. Depois:
+> 2.10 comparação lado a lado.
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >
