@@ -72,6 +72,7 @@ import { Route as ApiPublicProjetosIndexRouteImport } from './routes/api/public/
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
 import { Route as ApiPublicComissoesIndexRouteImport } from './routes/api/public/comissoes/index'
+import { Route as ApiPublicWebhooksWhatsappRouteImport } from './routes/api/public/webhooks/whatsapp'
 import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
 import { Route as ApiPublicVendasIdRouteImport } from './routes/api/public/vendas/$id'
 import { Route as ApiPublicLeadsIdRouteImport } from './routes/api/public/leads/$id'
@@ -424,6 +425,12 @@ const ApiPublicComissoesIndexRoute = ApiPublicComissoesIndexRouteImport.update({
   path: '/api/public/comissoes/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksWhatsappRoute =
+  ApiPublicWebhooksWhatsappRouteImport.update({
+    id: '/api/public/webhooks/whatsapp',
+    path: '/api/public/webhooks/whatsapp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksLandingRoute =
   ApiPublicWebhooksLandingRouteImport.update({
     id: '/api/public/webhooks/landing',
@@ -574,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/vendas/$id': typeof ApiPublicVendasIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
   '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
@@ -653,6 +661,7 @@ export interface FileRoutesByTo {
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/vendas/$id': typeof ApiPublicVendasIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
   '/api/public/comissoes': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
@@ -734,6 +743,7 @@ export interface FileRoutesById {
   '/api/public/leads/$id': typeof ApiPublicLeadsIdRouteWithChildren
   '/api/public/vendas/$id': typeof ApiPublicVendasIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
+  '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
   '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
@@ -815,6 +825,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/$id'
     | '/api/public/vendas/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/webhooks/whatsapp'
     | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
@@ -894,6 +905,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/$id'
     | '/api/public/vendas/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/webhooks/whatsapp'
     | '/api/public/comissoes'
     | '/api/public/corretores'
     | '/api/public/leads'
@@ -974,6 +986,7 @@ export interface FileRouteTypes {
     | '/api/public/leads/$id'
     | '/api/public/vendas/$id'
     | '/api/public/webhooks/landing'
+    | '/api/public/webhooks/whatsapp'
     | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
@@ -1012,6 +1025,7 @@ export interface RootRouteChildren {
   ApiPublicLeadsIdRoute: typeof ApiPublicLeadsIdRouteWithChildren
   ApiPublicVendasIdRoute: typeof ApiPublicVendasIdRoute
   ApiPublicWebhooksLandingRoute: typeof ApiPublicWebhooksLandingRoute
+  ApiPublicWebhooksWhatsappRoute: typeof ApiPublicWebhooksWhatsappRoute
   ApiPublicComissoesIndexRoute: typeof ApiPublicComissoesIndexRoute
   ApiPublicCorretoresIndexRoute: typeof ApiPublicCorretoresIndexRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
@@ -1463,6 +1477,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicComissoesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/whatsapp': {
+      id: '/api/public/webhooks/whatsapp'
+      path: '/api/public/webhooks/whatsapp'
+      fullPath: '/api/public/webhooks/whatsapp'
+      preLoaderRoute: typeof ApiPublicWebhooksWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/landing': {
       id: '/api/public/webhooks/landing'
       path: '/api/public/webhooks/landing'
@@ -1710,6 +1731,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLeadsIdRoute: ApiPublicLeadsIdRouteWithChildren,
   ApiPublicVendasIdRoute: ApiPublicVendasIdRoute,
   ApiPublicWebhooksLandingRoute: ApiPublicWebhooksLandingRoute,
+  ApiPublicWebhooksWhatsappRoute: ApiPublicWebhooksWhatsappRoute,
   ApiPublicComissoesIndexRoute: ApiPublicComissoesIndexRoute,
   ApiPublicCorretoresIndexRoute: ApiPublicCorretoresIndexRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,

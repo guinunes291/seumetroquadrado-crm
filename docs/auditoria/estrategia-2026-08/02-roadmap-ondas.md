@@ -44,7 +44,16 @@
 > resultado e produção carrega o valor ABSOLUTO do período anterior junto
 > do delta (o `prev` da RPC dashboard_kpis já trazia tudo; era só expor) —
 > tarefa #11. **Onda B completa** (exceto o débito consciente do 2.7c).
-> Próxima fronteira: Onda C (mensageria 7a/7b, sem depender da decisão D1).
+>
+> **Onda C iniciada — 7a ✅** (2026-08-09): tabela `mensagens` (migration
+> `20260809150000`: idempotência por provider_message_id, RLS espelhando o
+> acesso ao lead, realtime) + `POST /api/public/webhooks/whatsapp` com
+> `x-webhook-secret` e contrato normalizado provider-agnóstico (eventos
+> mensagem/status); a entrada é ecoada como interacao e acende a fila
+> Responder de Atender sem mudar RPC. Contrato n8n documentado em
+> `docs/fase7-mensageria.md`. Ativação: migration via Lovable + env
+> `WHATSAPP_WEBHOOK_SECRET` + montar o fluxo n8n. Próximo: 7b Central
+> `/mensagens` em modo simulado; 7c aguarda a decisão D1 (provedor).
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >

@@ -16,11 +16,11 @@
 
 ## A) Provedor de WhatsApp (decisão que destrava tudo)
 
-| Opção | Quando faz sentido |
-|---|---|
-| **Meta WhatsApp Cloud API** (oficial) | Operação séria/escala. Exige número dedicado, verificação do Business, **aprovação de templates** e respeito à **janela de 24h** (fora dela, só template aprovado). |
-| **BSP** (360dialog / Gupshup / Twilio) | Mesmo Cloud API oficial, com onboarding mais fácil; custo por conversa. |
-| **Evolution API / Z-API** (não-oficial) | MVP rápido, sem aprovação de template; **risco de ban** e fora dos ToS da Meta. |
+| Opção                                   | Quando faz sentido                                                                                                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Meta WhatsApp Cloud API** (oficial)   | Operação séria/escala. Exige número dedicado, verificação do Business, **aprovação de templates** e respeito à **janela de 24h** (fora dela, só template aprovado). |
+| **BSP** (360dialog / Gupshup / Twilio)  | Mesmo Cloud API oficial, com onboarding mais fácil; custo por conversa.                                                                                             |
+| **Evolution API / Z-API** (não-oficial) | MVP rápido, sem aprovação de template; **risco de ban** e fora dos ToS da Meta.                                                                                     |
 
 > Recomendação: **Cloud API oficial** (direto ou via BSP) para sustentabilidade;
 > Evolution/Z-API só como MVP temporário consciente do risco.
@@ -56,6 +56,7 @@ calcular na query. A `ultima_interacao` continua alimentando temperatura/score.
 ## C) Fluxos n8n
 
 **Saída (CRM → cliente):**
+
 1. CRM grava `mensagens` (status `fila`) e chama webhook n8n (igual ao
    `copiloto-handoff`, com `N8N_WHATSAPP_OUT_URL`).
 2. n8n chama a API do provedor; on success grava `provider_message_id` e
@@ -64,6 +65,7 @@ calcular na query. A `ultima_interacao` continua alimentando temperatura/score.
    `template_nome` aprovado).
 
 **Entrada (cliente → CRM):**
+
 1. Provedor → webhook n8n → `POST /api/public/webhooks/whatsapp/$token` (novo,
    no padrão dos webhooks já existentes em `routes/api/public/webhooks/*`).
 2. Handler valida o token, faz **upsert por `provider_message_id`** (idempotência),
@@ -83,12 +85,53 @@ calcular na query. A `ultima_interacao` continua alimentando temperatura/score.
 
 ## Faseamento sugerido
 
-- **7a** — migration `mensagens` + endpoint de webhook de entrada + fluxos n8n
-  (provedor plugável). _Sem provedor ainda._
+- **7a** — ✅ **entregue (2026-08-09)** — migration `mensagens`
+  (`20260809150000`) + `POST /api/public/webhooks/whatsapp`. Detalhes abaixo.
 - **7b** — Central de mensagens lendo/escrevendo `mensagens` (modo simulado).
 - **7c** — Ligar o provedor escolhido + aprovar templates + automações por etapa
   (casa com o motor anti-perda da Fase 1).
 - **7d** — ✅ Radar de fechamento (já em produção).
+
+## 7a entregue — contrato do webhook de entrada
+
+**Endpoint:** `POST /api/public/webhooks/whatsapp` · auth por header
+`x-webhook-secret` (env `WHATSAPP_WEBHOOK_SECRET`, mínimo 16 chars; sem env,
+o endpoint responde 503 e nada entra). Nunca segredo em query (lição P-3).
+
+**Payload normalizado** (o n8n traduz o formato do provedor para este —
+o CRM nunca conhece payload de provedor):
+
+```jsonc
+// mensagem recebida do cliente
+{ "tipo": "mensagem", "provider": "zapi",
+  "provider_message_id": "ABCD1234", "telefone": "5511999998888",
+  "conteudo": "Oi, ainda tem a unidade?", "midia_url": null,
+  "ocorrido_em": "2026-08-09T14:03:00-03:00" }
+
+// atualização de entrega de mensagem ENVIADA
+{ "tipo": "status", "provider_message_id": "ABCD1234",
+  "status": "lida" }            // enviada | entregue | lida | falha (+ erro)
+```
+
+**Comportamento:** resolve o lead por telefone
+(`buscar_lead_ativo_por_telefone_global`, o mesmo dedup do webhook de leads);
+grava em `mensagens` (idempotente por `provider_message_id` — replay responde
+`{ok:true, duplicada:true}`); **ecoa** a entrada como `interacao`
+(tipo whatsapp, direção entrada) — é o que classifica o lead na fila
+**Responder** de Atender sem mudar nenhuma RPC. Lead não encontrado responde
+`200 {ok:true, lead:"nao_encontrado"}` para o n8n rotear (ex.: lead-intake e
+reenvio) — o CRM nunca cria lead aqui.
+
+**Fluxo n8n de entrada (a montar no n8n cloud):**
+
+1. Webhook do provedor (Z-API: `message-received` + `message-status`) → nó
+   de normalização (Function) para o payload acima;
+2. `POST` ao endpoint com o header `x-webhook-secret`;
+3. Se `lead:"nao_encontrado"` → `POST` ao lead-intake (origem `whatsapp`) e
+   repetir o passo 2.
+
+**Env a criar no deploy:** `WHATSAPP_WEBHOOK_SECRET` (Cloudflare) e o mesmo
+valor no nó HTTP do n8n.
 
 ## Dependências / riscos
 
