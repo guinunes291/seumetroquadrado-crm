@@ -2,6 +2,7 @@
 // Comparações com a média do time, funil lado a lado, evolução trimestral,
 // resumo de comissões e o export multi-abas — tudo testável sem banco.
 
+import { formatDuration } from "@/lib/duracao";
 import type { CoorteAgregada } from "./funil-derive";
 import { taxasDePassagem } from "./funil-derive";
 import type { PerformanceDrillRow, PerformanceRow } from "./queries";
@@ -54,8 +55,10 @@ export function compararComTime(
     { chave: "contatos", label: "Contatos reais", get: (r) => r.contatos },
     { chave: "visitas_realizadas", label: "Visitas realizadas", get: (r) => r.visitas_realizadas },
     {
+      // O valor agora sai formatado em hh:mm (formatDuration) — a unidade
+      // deixa de morar no label.
       chave: "primeira_resposta",
-      label: "1ª resposta (min)",
+      label: "1ª resposta",
       get: (r) => r.primeira_resposta_p50_min,
       menorMelhor: true,
     },
@@ -220,7 +223,9 @@ export function raioXParaSheets(args: {
         Análises: m.analises,
         Vendas: m.vendas,
         "VGV (R$)": Number(m.vgv) || 0,
+        // Número em minutos preservado para análises externas; hh:mm ao lado.
         "1ª resposta p50 (min)": m.primeira_resposta_p50_min ?? "",
+        "1ª resposta p50 (hh:mm)": formatDuration(m.primeira_resposta_p50_min),
       })),
     },
     {

@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { leadStatusLabel, MOTIVO_PERDA_LABEL } from "@/lib/leads";
+import { formatDurationHoras } from "@/lib/duracao";
 import { AtualizadoEm } from "./atualizado-em";
 import { HeatmapMatriz } from "./heatmap-matriz";
 import {
@@ -41,11 +42,31 @@ const fmtBRL = (n: number) =>
   });
 
 const METRICAS_HEATMAP = [
-  { value: "conversao", label: "Conversão de passagem (%)", maiorMelhor: true, formato: (v: number) => `${v}%` },
-  { value: "quantidade", label: "Estoque atual", maiorMelhor: true, formato: (v: number) => String(v) },
-  { value: "parados", label: "Parados agora", maiorMelhor: false, formato: (v: number) => String(v) },
+  {
+    value: "conversao",
+    label: "Conversão de passagem (%)",
+    maiorMelhor: true,
+    formato: (v: number) => `${v}%`,
+  },
+  {
+    value: "quantidade",
+    label: "Estoque atual",
+    maiorMelhor: true,
+    formato: (v: number) => String(v),
+  },
+  {
+    value: "parados",
+    label: "Parados agora",
+    maiorMelhor: false,
+    formato: (v: number) => String(v),
+  },
   { value: "vgv", label: "VGV potencial", maiorMelhor: true, formato: fmtBRL },
-  { value: "dias_medio", label: "Dias médios na etapa", maiorMelhor: false, formato: (v: number) => `${v}d` },
+  {
+    value: "dias_medio",
+    label: "Dias médios na etapa",
+    maiorMelhor: false,
+    formato: (v: number) => `${v}d`,
+  },
 ] as const;
 
 function tituloDoProblema(p: GargaloProblema): string {
@@ -55,7 +76,7 @@ function tituloDoProblema(p: GargaloProblema): string {
   if (p.tipo === "motivo_perda") {
     return `Perdas por "${MOTIVO_PERDA_LABEL[p.categoria as keyof typeof MOTIVO_PERDA_LABEL] ?? p.categoria}"`;
   }
-  return `Etapa lenta: ${leadStatusLabel(p.etapa ?? "")} (${p.horas_media ?? "?"}h médias)`;
+  return `Etapa lenta: ${leadStatusLabel(p.etapa ?? "")} (média ${formatDurationHoras(p.horas_media)})`;
 }
 
 const ICONE_PROBLEMA = {
@@ -100,8 +121,8 @@ export function GargalosView({ filtros }: { filtros: FiltrosInteligencia }) {
           ) : gargalos === null ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="h-4 w-4 shrink-0" />
-              Sem dado suficiente: o ranking depende da camada metrics (migrations da Fase A)
-              ainda não aplicada neste ambiente.
+              Sem dado suficiente: o ranking depende da camada metrics (migrations da Fase A) ainda
+              não aplicada neste ambiente.
             </p>
           ) : gargalos.problemas.length === 0 ? (
             <p className="text-sm text-muted-foreground">

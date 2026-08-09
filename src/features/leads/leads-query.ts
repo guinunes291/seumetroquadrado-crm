@@ -82,10 +82,10 @@ export function recortesClientSide(
   if (paradoDias !== "all") {
     base = base.filter((l) =>
       passaParado(paradoDias, {
-          ultimaInteracao: l.ultima_interacao,
-          status: l.status,
-          dataVenda: l.data_venda,
-        }),
+        ultimaInteracao: l.ultima_interacao,
+        status: l.status,
+        dataVenda: l.data_venda,
+      }),
     );
   }
   if (contato !== "all") {

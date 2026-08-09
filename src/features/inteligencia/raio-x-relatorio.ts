@@ -5,6 +5,7 @@
 // principal, quanto vale fechar esse gap, tendência, e o plano de ação que o
 // gestor leva para a conversa. Sem browser, sem SQL — testável direto.
 
+import { formatDuration } from "@/lib/duracao";
 import type { CoorteAgregada } from "./funil-derive";
 import type { SinalCorretor } from "./performance-derive";
 import type { MotivoPerdaRow, PerformanceDrillRow } from "./queries";
@@ -56,8 +57,8 @@ export const mesCurto = (iso: string): string => {
   return `${MESES_CURTOS[d.getUTCMonth()]}/${String(d.getUTCFullYear()).slice(2)}`;
 };
 
-export const minutos = (n: number | null): string =>
-  n === null ? "—" : n >= 60 ? `${Math.round((n / 60) * 10) / 10}h` : `${Math.round(n)}min`;
+/** Duração em minutos no formato único do app (hh:mm via formatDuration). */
+export const minutos = (n: number | null): string => formatDuration(n);
 
 // ---------------------------------------------------------------------------
 // Tipos do relatório

@@ -4,7 +4,7 @@
 // é a "Próxima Melhor Ação" do hero.
 
 import { scoreLead, type ScoreTier } from "@/lib/priority";
-import { formatDuracaoParado } from "@/lib/utils";
+import { formatDuration } from "@/lib/duracao";
 
 export type MissionSource = "sla" | "quente" | "sem_acao";
 
@@ -81,7 +81,7 @@ export function buildMissionQueue(input: MissionQueueInput): Mission[] {
       status: l.status,
       score: r.score,
       tier: r.tier,
-      motivo: `SLA estourado — ${formatDuracaoParado(l.minutos_decorridos)} sem atendimento`,
+      motivo: `SLA estourado — ${formatDuration(l.minutos_decorridos)} sem atendimento`,
       fontes: ["sla"],
       semProximaAcao: false,
     });

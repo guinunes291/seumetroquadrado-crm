@@ -7,6 +7,8 @@ import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { exportRowsXlsx } from "@/lib/spreadsheets";
+import { dateKey } from "@/lib/periodo";
+import { formatDuration } from "@/lib/duracao";
 import { cn } from "@/lib/utils";
 import { AtualizadoEm } from "./atualizado-em";
 import { RaioXCorretor } from "./raio-x-corretor";
@@ -59,7 +61,12 @@ export function PerformanceView({
   corretorDrill: string | null;
   onDrillChange: (corretorId: string | null) => void;
 }) {
-  const [mes] = useState(() => new Date().toISOString().slice(0, 8) + "01");
+  // Mês no calendário LOCAL — a data UTC virava o mês às 21h de Brasília no
+  // último dia do mês e a tabela consultava um mês ainda vazio.
+  const [mes] = useState(() => {
+    const hoje = new Date();
+    return dateKey(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  });
   const perfQ = usePerformanceCorretores(mes);
   const rows = perfQ.data?.rows ?? [];
   const medias = useMemo(() => mediasDoTime(rows), [rows]);
@@ -97,39 +104,62 @@ export function PerformanceView({
       {
         accessorKey: "contatos",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Contatos" />,
-        meta: { label: "Contatos reais", align: "right", hideBelow: "sm", cellClassName: "tabular-nums" },
+        meta: {
+          label: "Contatos reais",
+          align: "right",
+          hideBelow: "sm",
+          cellClassName: "tabular-nums",
+        },
       },
       {
         id: "primeira_resposta",
         accessorFn: (r) => r.primeira_resposta_p50_min ?? Number.MAX_SAFE_INTEGER,
         header: ({ column }) => <DataTableColumnHeader column={column} title="1ª resp." />,
-        meta: { label: "1ª resposta (p50)", align: "right", hideBelow: "lg", cellClassName: "tabular-nums" },
+        meta: {
+          label: "1ª resposta (p50)",
+          align: "right",
+          hideBelow: "lg",
+          cellClassName: "tabular-nums",
+        },
         cell: ({ row }) => (
           <span
             className="text-muted-foreground"
             title="Proxy: 1ª interação de contato do corretor no lead (não existe data_primeiro_contato)"
           >
-            {row.original.primeira_resposta_p50_min != null
-              ? `${row.original.primeira_resposta_p50_min} min`
-              : "—"}
+            {formatDuration(row.original.primeira_resposta_p50_min)}
           </span>
         ),
       },
       {
         accessorKey: "tarefas_concluidas",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Tarefas" />,
-        meta: { label: "Tarefas concluídas", align: "right", hideBelow: "lg", cellClassName: "tabular-nums" },
+        meta: {
+          label: "Tarefas concluídas",
+          align: "right",
+          hideBelow: "lg",
+          cellClassName: "tabular-nums",
+        },
       },
       // Bloco Conversão (eficiência)
       {
         accessorKey: "agendamentos_criados",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Agend." />,
-        meta: { label: "Agendamentos", align: "right", hideBelow: "sm", cellClassName: "tabular-nums" },
+        meta: {
+          label: "Agendamentos",
+          align: "right",
+          hideBelow: "sm",
+          cellClassName: "tabular-nums",
+        },
       },
       {
         accessorKey: "visitas_realizadas",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Visitas" />,
-        meta: { label: "Visitas realizadas", align: "right", hideBelow: "md", cellClassName: "tabular-nums" },
+        meta: {
+          label: "Visitas realizadas",
+          align: "right",
+          hideBelow: "md",
+          cellClassName: "tabular-nums",
+        },
         cell: ({ row }) => (
           <span>
             {row.original.visitas_realizadas}
@@ -158,7 +188,10 @@ export function PerformanceView({
               —
             </span>
           ) : (
-            <Badge variant="outline" title={`${row.original.vendas} de ${row.original.leads_recebidos} leads`}>
+            <Badge
+              variant="outline"
+              title={`${row.original.vendas} de ${row.original.leads_recebidos} leads`}
+            >
               {conv}%
             </Badge>
           );
@@ -183,7 +216,12 @@ export function PerformanceView({
       {
         accessorKey: "carga_ativa",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Carga" />,
-        meta: { label: "Carga ativa", align: "right", hideBelow: "sm", cellClassName: "tabular-nums" },
+        meta: {
+          label: "Carga ativa",
+          align: "right",
+          hideBelow: "sm",
+          cellClassName: "tabular-nums",
+        },
         cell: ({ row }) => {
           const cap = row.original.capacidade_pct;
           return (

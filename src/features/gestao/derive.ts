@@ -5,6 +5,8 @@
 // Dados vêm dos RPCs já existentes (dashboard_metricas_por_corretor,
 // dashboard_leads_urgentes, tempo_primeira_resposta) — zero migration.
 
+import { formatDuration } from "@/lib/duracao";
+
 export type MetricaCorretor = {
   corretor_id: string;
   nome: string;
@@ -26,7 +28,8 @@ export type LeadUrgente = {
 
 export type TempoResposta = {
   corretor_id: string;
-  tempo_medio_min: number;
+  /** Minutos inteiros; null = nenhum lead respondido no período (pendente). */
+  tempo_medio_min: number | null;
   leads_respondidos: number;
 };
 
@@ -106,9 +109,14 @@ export function quemPrecisaDeAjuda(input: {
     }
 
     const tempo = tempoPor.get(c.corretor_id);
-    if (tempo && tempo.leads_respondidos >= 3 && tempo.tempo_medio_min > 60) {
+    if (
+      tempo &&
+      tempo.leads_respondidos >= 3 &&
+      tempo.tempo_medio_min !== null &&
+      tempo.tempo_medio_min > 60
+    ) {
       risco += 15;
-      motivos.push(`1ª resposta em ${Math.round(tempo.tempo_medio_min)}min`);
+      motivos.push(`1ª resposta em ${formatDuration(tempo.tempo_medio_min)}`);
     }
 
     if (risco > 0) {

@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarCheck, FileText, MapPin, MessageCircle, Phone, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { dateKey } from "@/lib/periodo";
 import { useAuth } from "@/hooks/use-auth";
 import { useLeadsSlaPendentes } from "@/features/dashboard/queries";
 import { scoreLead } from "@/lib/priority";
@@ -42,7 +43,9 @@ export type MetaDiaria = {
   meta_vendas: number;
 };
 
-const toDate = (d: Date) => d.toISOString().slice(0, 10);
+// Dia LOCAL (America/Sao_Paulo na operação) — toISOString viraria o dia em
+// UTC às 21h de Brasília e zerava os cards de "hoje" à noite.
+const toDate = dateKey;
 
 export function intervalo(p: Periodo): { di: string; df: string } {
   const now = new Date();

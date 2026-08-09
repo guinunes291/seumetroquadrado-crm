@@ -65,6 +65,8 @@ import { usePacing } from "@/features/metas/pacing-panel";
 import { projecaoLinear, semaforo } from "@/features/metas/pacing";
 import { useAuth } from "@/hooks/use-auth";
 import { exportSheetsXlsx } from "@/lib/spreadsheets";
+import { formatDuration } from "@/lib/duracao";
+import { dateKey } from "@/lib/periodo";
 import { leadStatusLabel, MOTIVO_PERDA_LABEL } from "@/lib/leads";
 import { cn } from "@/lib/utils";
 import { AtualizadoEm } from "./atualizado-em";
@@ -108,11 +110,11 @@ const fmtMes = (iso: string) => {
     : d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" });
 };
 
-/** Janela do Raio-X: últimos N meses fechando em hoje. */
+/** Janela do Raio-X: últimos N meses fechando em hoje (mês-calendário LOCAL). */
 function janela(meses: number): FiltrosInteligencia {
   const d = new Date();
   return {
-    de: new Date(d.getFullYear(), d.getMonth() - (meses - 1), 1).toISOString().slice(0, 10),
+    de: dateKey(new Date(d.getFullYear(), d.getMonth() - (meses - 1), 1)),
     ate: null,
     corretor: null,
   };
@@ -129,8 +131,11 @@ export function RaioXCorretor({
   onVoltar: () => void;
 }) {
   const hoje = new Date();
-  const mesAtual = `${hoje.toISOString().slice(0, 8)}01`;
-  const hojeIso = hoje.toISOString().slice(0, 10);
+  // Mês/dia no calendário LOCAL: toISOString virava o mês em UTC às 21h de
+  // Brasília no último dia do mês — o painel de performance consultava um
+  // mês ainda inexistente e aparecia vazio.
+  const mesAtual = dateKey(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  const hojeIso = dateKey(hoje);
   // Um único filtro de período rege TODAS as janelas de análise — inclusive
   // os KPIs do topo: presets 3/6/12 meses ou intervalo personalizado. O grão
   // da camada metrics é mensal, então datas valem pelos meses que as contêm.
@@ -490,7 +495,9 @@ export function RaioXCorretor({
                       ? c.valor === null
                         ? "—"
                         : fmtBRL(c.valor)
-                      : (c.valor ?? "—")
+                      : c.chave === "primeira_resposta"
+                        ? formatDuration(c.valor)
+                        : (c.valor ?? "—")
                   }
                   intent={c.deltaPct === null ? "neutral" : acima ? "success" : "warning"}
                   hint={
@@ -501,7 +508,9 @@ export function RaioXCorretor({
                         time:{" "}
                         {c.chave === "vgv"
                           ? fmtBRL(c.mediaTime)
-                          : Math.round(c.mediaTime * 10) / 10}
+                          : c.chave === "primeira_resposta"
+                            ? formatDuration(c.mediaTime)
+                            : Math.round(c.mediaTime * 10) / 10}
                         {c.deltaPct !== null && (
                           <span
                             className={cn(
@@ -664,9 +673,7 @@ export function RaioXCorretor({
                           {Number(m.vgv) > 0 ? fmtBRL(Number(m.vgv)) : "—"}
                         </td>
                         <td className="py-2 text-right tabular-nums text-muted-foreground">
-                          {m.primeira_resposta_p50_min != null
-                            ? `${m.primeira_resposta_p50_min}m`
-                            : "—"}
+                          {formatDuration(m.primeira_resposta_p50_min)}
                         </td>
                       </tr>
                     ))}

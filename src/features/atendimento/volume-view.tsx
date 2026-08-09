@@ -55,6 +55,7 @@ import {
   PhoneCall,
 } from "lucide-react";
 import { ResumoIA } from "@/components/resumo-ia";
+import { formatDuration } from "@/lib/duracao";
 import { scoreLead } from "@/lib/priority";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 
@@ -326,7 +327,8 @@ export function VolumeView() {
               {sla && SLA_META[sla.sla_status] && (
                 <Badge variant="secondary" className={cn("gap-1", SLA_META[sla.sla_status].cls)}>
                   <Clock className="h-3 w-3" />
-                  {SLA_META[sla.sla_status].label} · {sla.minutos_decorridos}/{sla.sla_minutos} min
+                  {SLA_META[sla.sla_status].label} · {formatDuration(sla.minutos_decorridos)}/
+                  {formatDuration(sla.sla_minutos)}
                 </Badge>
               )}
             </div>

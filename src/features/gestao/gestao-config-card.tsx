@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDuration } from "@/lib/duracao";
 
 type ConfigRow = { chave: string; valor: unknown; descricao: string };
 
@@ -105,6 +106,7 @@ export function GestaoConfigCard() {
                 row={byChave.get(chave)!}
                 onSave={(valor) => salvar.mutate({ chave, valor })}
                 saving={salvar.isPending}
+                emMinutos={chave === "sla_fallback_minutos"}
               />
             ),
         )}
@@ -168,18 +170,21 @@ function NumeroEditor({
   row,
   onSave,
   saving,
+  emMinutos,
 }: {
   label: string;
   row: ConfigRow;
   onSave: (valor: unknown) => void;
   saving: boolean;
+  /** Valor é duração em minutos: mostra o equivalente hh:mm ao lado (o valor salvo segue numérico). */
+  emMinutos?: boolean;
 }) {
   const [valor, setValor] = useState(String(Number(row.valor) || ""));
   return (
     <div className="space-y-2">
       <Label className="font-medium">{label}</Label>
       <p className="text-xs text-muted-foreground">{row.descricao}</p>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <Input
           type="number"
           min={1}
@@ -187,6 +192,11 @@ function NumeroEditor({
           onChange={(e) => setValor(e.target.value)}
           className="w-32"
         />
+        {emMinutos && Number(valor) > 0 && (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            = {formatDuration(Number(valor))}
+          </span>
+        )}
         <Button
           size="sm"
           disabled={saving || !(Number(valor) > 0)}
