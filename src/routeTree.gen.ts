@@ -31,6 +31,7 @@ import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
+import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authenticated/links-uteis'
@@ -199,6 +200,11 @@ const AuthenticatedMeuPainelRoute = AuthenticatedMeuPainelRouteImport.update({
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
   id: '/metas',
   path: '/metas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMensagensRoute = AuthenticatedMensagensRouteImport.update({
+  id: '/mensagens',
+  path: '/mensagens',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMatchRoute = AuthenticatedMatchRouteImport.update({
@@ -540,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
   '/match': typeof AuthenticatedMatchRoute
+  '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
@@ -620,6 +627,7 @@ export interface FileRoutesByTo {
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
   '/match': typeof AuthenticatedMatchRoute
+  '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
@@ -702,6 +710,7 @@ export interface FileRoutesById {
   '/_authenticated/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
   '/_authenticated/match': typeof AuthenticatedMatchRoute
+  '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
@@ -784,6 +793,7 @@ export interface FileRouteTypes {
     | '/links-uteis'
     | '/lixeira'
     | '/match'
+    | '/mensagens'
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
@@ -864,6 +874,7 @@ export interface FileRouteTypes {
     | '/links-uteis'
     | '/lixeira'
     | '/match'
+    | '/mensagens'
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
@@ -945,6 +956,7 @@ export interface FileRouteTypes {
     | '/_authenticated/links-uteis'
     | '/_authenticated/lixeira'
     | '/_authenticated/match'
+    | '/_authenticated/mensagens'
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
@@ -1188,6 +1200,13 @@ declare module '@tanstack/react-router' {
       path: '/metas'
       fullPath: '/metas'
       preLoaderRoute: typeof AuthenticatedMetasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mensagens': {
+      id: '/_authenticated/mensagens'
+      path: '/mensagens'
+      fullPath: '/mensagens'
+      preLoaderRoute: typeof AuthenticatedMensagensRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/match': {
@@ -1613,6 +1632,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLinksUteisRoute: typeof AuthenticatedLinksUteisRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
   AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
+  AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
@@ -1659,6 +1679,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLinksUteisRoute: AuthenticatedLinksUteisRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
   AuthenticatedMatchRoute: AuthenticatedMatchRoute,
+  AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
