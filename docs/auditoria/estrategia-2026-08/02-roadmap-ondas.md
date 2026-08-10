@@ -53,10 +53,10 @@
 > Responder de Atender sem mudar RPC. Contrato n8n documentado em
 > `docs/fase7-mensageria.md`. Ativação: migration via Lovable + env
 > `WHATSAPP_WEBHOOK_SECRET` + montar o fluxo n8n. **7b ✅** (2026-08-10):
-> Central `/mensagens` (menu "Mensagens" sob Atender) — conversas + thread
->
-> - realtime; envio simulado registra a saída e abre o wa.me (o CRM passa
->   a enxergar a conversa antes de qualquer provedor — métrica O1).
+> Central `/mensagens` (menu "Mensagens" sob Atender) — lista de conversas,
+> thread por lead e realtime; o envio simulado registra a saída e abre o
+> wa.me (o CRM passa a enxergar a conversa antes de qualquer provedor —
+> métrica O1).
 >
 > **Fim do trecho executável sem o dono.** O que resta aguarda decisão ou
 > acesso: 7c provedor (D1) · A.2 triagem (D6) → A.6 régua única · A.3
