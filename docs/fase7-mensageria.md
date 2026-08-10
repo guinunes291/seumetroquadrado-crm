@@ -87,7 +87,15 @@ calcular na query. A `ultima_interacao` continua alimentando temperatura/score.
 
 - **7a** — ✅ **entregue (2026-08-09)** — migration `mensagens`
   (`20260809150000`) + `POST /api/public/webhooks/whatsapp`. Detalhes abaixo.
-- **7b** — Central de mensagens lendo/escrevendo `mensagens` (modo simulado).
+- **7b** — ✅ **entregue (2026-08-10)** — Central `/mensagens` (item
+  "Mensagens" sob Atender): inbox de conversas + thread por lead +
+  realtime. Modo simulado: cada envio registra a saída na conversa
+  (`provider='simulado'`) e abre o wa.me com o texto — o CRM passa a
+  ENXERGAR a conversa (O1) antes de qualquer provedor. "Aguardando
+  resposta" é derivado (entradas após a última saída) — sem estado de
+  "lida" no banco, a RLS da 7a permanece fechada. Sem a migration, a tela
+  explica a pendência em vez de quebrar. Pendências para a 7c: inserir
+  template, atribuir conversa, busca.
 - **7c** — Ligar o provedor escolhido + aprovar templates + automações por etapa
   (casa com o motor anti-perda da Fase 1).
 - **7d** — ✅ Radar de fechamento (já em produção).

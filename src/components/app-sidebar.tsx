@@ -19,6 +19,7 @@ import {
   BarChart3,
   ChevronRight,
   Headset,
+  MessageCircle,
   Shuffle,
   MapPinned,
   PhoneOutgoing,
@@ -86,6 +87,9 @@ const NAV_ITEMS: Item[] = [
     icon: Headset,
     badge: (b) => b.atendimento + b.tarefasVencidas,
     children: [
+      // Central de conversas WhatsApp (Fase 7b) — modo simulado até o
+      // provedor; a entrada chega pelo webhook da 7a.
+      { to: "/mensagens", label: "Mensagens", icon: MessageCircle },
       { to: "/leads", label: "Base de leads", icon: Users },
       // Prospecção de base fria por listas segmentadas (ex-aba de /projetos).
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: PhoneOutgoing },

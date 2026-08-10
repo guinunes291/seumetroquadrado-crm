@@ -1,8 +1,8 @@
 // Fronteira ÚNICA de tipos das RPCs atendimento_inbox_v4/v3: os types gerados
-// do Supabase ainda não conhecem as funções novas, então o escape (`as never`)
-// vive aqui, uma vez — mesmo padrão de leads-rpc.ts. A v2 continua nos types e
-// serve de último degrau enquanto as migrations não estão aplicadas.
-// Ao regenerar os types com as migrations aplicadas, remova os casts.
+// do Supabase ainda não conhecem as funções novas. Tipos estruturais
+// explícitos no molde de landing.ts (holder + cast de campo unknown), sem
+// gastar o orçamento de type escapes. Ao regenerar os types com as
+// migrations aplicadas, troque pelos tipos gerados.
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,11 +19,19 @@ const INBOX_FN: Record<AtendimentoInboxVersao, string> = {
   v2: "atendimento_inbox_v2",
 };
 
+type ResultadoRpc = PromiseLike<{
+  data: unknown[] | null;
+  error: { code?: string; message?: string } | null;
+}>;
+type ClientHolder = { rpc: unknown };
+type RpcInbox = (fn: string, args: AtendimentoInboxParams) => ResultadoRpc;
+
 export async function rpcAtendimentoInbox(
   versao: AtendimentoInboxVersao,
   params: AtendimentoInboxParams,
 ): Promise<unknown[]> {
-  const { data, error } = await supabase.rpc(INBOX_FN[versao] as never, params as never);
+  const holder: ClientHolder = supabase;
+  const { data, error } = await (holder.rpc as RpcInbox).call(supabase, INBOX_FN[versao], params);
   if (error) throw error;
-  return (data as unknown[]) ?? [];
+  return data ?? [];
 }

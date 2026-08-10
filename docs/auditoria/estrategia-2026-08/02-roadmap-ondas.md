@@ -52,8 +52,18 @@
 > mensagem/status); a entrada é ecoada como interacao e acende a fila
 > Responder de Atender sem mudar RPC. Contrato n8n documentado em
 > `docs/fase7-mensageria.md`. Ativação: migration via Lovable + env
-> `WHATSAPP_WEBHOOK_SECRET` + montar o fluxo n8n. Próximo: 7b Central
-> `/mensagens` em modo simulado; 7c aguarda a decisão D1 (provedor).
+> `WHATSAPP_WEBHOOK_SECRET` + montar o fluxo n8n. **7b ✅** (2026-08-10):
+> Central `/mensagens` (menu "Mensagens" sob Atender) — conversas + thread
+>
+> - realtime; envio simulado registra a saída e abre o wa.me (o CRM passa
+>   a enxergar a conversa antes de qualquer provedor — métrica O1).
+>
+> **Fim do trecho executável sem o dono.** O que resta aguarda decisão ou
+> acesso: 7c provedor (D1) · A.2 triagem (D6) → A.6 régua única · A.3
+> dedup em produção (P-11) · Onda D (staging D7, crédito 3 estados D4,
+> 3.2/3.3/3.5/3.6, limpeza medida das RPCs órfãs após os 7 dias de
+> pg_stat_statements) · Onda E (IA, após A/C) · 2.8/2.9 (menores, do plano
+> ux-ia original) e o redirect total de /leads (débito do 2.7c).
 
 > Sequenciado por **dependência e valor**, não por eixo — os 4 eixos sobem juntos dentro de cada onda. Este roadmap **absorve** as Ondas 2 e 3 da auditoria `ux-ia-2026-08/06-plano.md` (elas são a Onda B e parte da D daqui), não as substitui.
 >
