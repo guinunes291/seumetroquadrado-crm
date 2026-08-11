@@ -2102,6 +2102,7 @@ export type Database = {
           visita_data: string | null
           visita_empreendimento: string | null
           visita_hora: string | null
+          zona: string | null
         }
         Insert: {
           campanha?: string | null
@@ -2172,6 +2173,7 @@ export type Database = {
           visita_data?: string | null
           visita_empreendimento?: string | null
           visita_hora?: string | null
+          zona?: string | null
         }
         Update: {
           campanha?: string | null
@@ -2242,6 +2244,7 @@ export type Database = {
           visita_data?: string | null
           visita_empreendimento?: string | null
           visita_hora?: string | null
+          zona?: string | null
         }
         Relationships: [
           {
@@ -2842,6 +2845,7 @@ export type Database = {
           status_conta: Database["public"]["Enums"]["status_conta"]
           telefone: string | null
           updated_at: string
+          zonas: string[]
         }
         Insert: {
           acessa_links_uteis?: boolean
@@ -2881,6 +2885,7 @@ export type Database = {
           status_conta?: Database["public"]["Enums"]["status_conta"]
           telefone?: string | null
           updated_at?: string
+          zonas?: string[]
         }
         Update: {
           acessa_links_uteis?: boolean
@@ -2920,6 +2925,7 @@ export type Database = {
           status_conta?: Database["public"]["Enums"]["status_conta"]
           telefone?: string | null
           updated_at?: string
+          zonas?: string[]
         }
         Relationships: [
           {
@@ -4932,6 +4938,7 @@ export type Database = {
           visita_data: string | null
           visita_empreendimento: string | null
           visita_hora: string | null
+          zona: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -5104,6 +5111,7 @@ export type Database = {
           status_conta: Database["public"]["Enums"]["status_conta"]
           telefone: string | null
           updated_at: string
+          zonas: string[]
         }
         SetofOptions: {
           from: "*"
@@ -6403,6 +6411,7 @@ export type Database = {
           visita_data: string | null
           visita_empreendimento: string | null
           visita_hora: string | null
+          zona: string | null
         }
         SetofOptions: {
           from: "*"
@@ -6487,6 +6496,7 @@ export type Database = {
           visita_data: string | null
           visita_empreendimento: string | null
           visita_hora: string | null
+          zona: string | null
         }
         SetofOptions: {
           from: "*"
@@ -6549,6 +6559,8 @@ export type Database = {
         Args: { _urls: string[] }
         Returns: boolean
       }
+      zona_do_lead: { Args: { _lead_id: string }; Returns: string }
+      zona_normalizar: { Args: { _txt: string }; Returns: string }
     }
     Enums: {
       agendamento_status:
