@@ -37,6 +37,9 @@ export const ANALISE_FILTRO_OPCOES = [
   { value: "aprovada", label: "Análise aprovada" },
   { value: "aprovada_condicionada", label: "Aprovada com condição" },
   { value: "reprovada", label: "Análise reprovada" },
+  // Agregado: tem análise e a última NÃO é aprovação (nem condicionada) —
+  // enviada/pendente/reprovada num recorte só (retrabalho + espera).
+  { value: "nao_aprovada", label: "Com análise, não aprovada" },
 ] as const;
 
 /** Botões de filtro rápido (por última interação e follow-up). */

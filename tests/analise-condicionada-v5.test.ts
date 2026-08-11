@@ -107,6 +107,7 @@ describe("fiação do filtro nas telas", () => {
       "aprovada",
       "aprovada_condicionada",
       "reprovada",
+      "nao_aprovada",
     ]);
     expect(FILTRO_PADRAO.analise).toBe("all");
     expect(FILTRO_URL_KEYS).toContain("analise");
