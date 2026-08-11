@@ -25,6 +25,7 @@ export type DashboardKpisFlat = {
   aguardando: number;
   aguardando_retorno: number;
   em_atendimento: number;
+  qualificacao_corretor: number;
   agendado: number;
   visita_realizada: number;
   analise_credito: number;
@@ -104,6 +105,7 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
     aguardando: 0,
     aguardando_retorno: 0,
     em_atendimento: 0,
+    qualificacao_corretor: 0,
     agendado: 0,
     visita_realizada: 0,
     analise_credito: 0,
@@ -145,6 +147,7 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
       aguardando: n(p.aguardando_atendimento),
       aguardando_retorno: n(p.aguardando_retorno),
       em_atendimento: n(p.em_atendimento),
+      qualificacao_corretor: n(p.qualificacao_corretor),
       agendado: n(p.agendado),
       visita_realizada: n(p.visita_realizada),
       analise_credito: n(p.analise_credito),
@@ -198,6 +201,7 @@ export function flattenDashboardKpis(raw: DashboardKpisRaw): DashboardKpisFlat {
     aguardando: n(flat.aguardando),
     aguardando_retorno: n(flat.aguardando_retorno),
     em_atendimento: n(flat.em_atendimento),
+    qualificacao_corretor: n(flat.qualificacao_corretor),
     agendado: n(flat.agendado),
     visita_realizada: n(flat.visita_realizada),
     analise_credito: n(flat.analise_credito),

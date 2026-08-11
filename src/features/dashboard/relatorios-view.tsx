@@ -37,6 +37,7 @@ import {
   FileCheck,
   CheckCircle2,
   XCircle,
+  UserCheck,
   UserX,
   Trophy,
   AlertTriangle,
@@ -596,6 +597,12 @@ const PIPELINE_CARDS: Array<{
 }> = [
   { key: "aguardando", label: "Aguardando", icon: Hourglass, status: "aguardando_atendimento" },
   { key: "aguardando_retorno", label: "Ag. retorno", icon: Clock, status: "aguardando_retorno" },
+  {
+    key: "qualificacao_corretor",
+    label: "Qualificação",
+    icon: UserCheck,
+    status: "qualificacao_corretor",
+  },
   { key: "em_atendimento", label: "Em atendimento", icon: Clock, status: "em_atendimento" },
   { key: "agendado", label: "Agendado", icon: Calendar, status: "agendado" },
   { key: "visita_realizada", label: "Visita", icon: Eye, status: "visita_realizada" },
@@ -611,7 +618,7 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
       <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
         Pipeline agora (estoque por etapa — foto de hoje, não segue o filtro de período)
       </p>
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-9">
         {PIPELINE_CARDS.map(({ key, label, icon: Icon, status }) => {
           const value = data?.[key] ?? 0;
           // Item 3.1: o card de Análise responde "quantos negócios estão

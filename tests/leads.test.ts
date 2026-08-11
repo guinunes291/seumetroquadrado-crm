@@ -15,9 +15,9 @@ describe("funil — avanço a partir dos cards", () => {
       expect(FUNNEL_STAGES).not.toContain("perdido");
     });
 
-    it("tem 7 etapas, preservando a ordem do funil do corretor", () => {
+    it("tem 8 etapas, preservando a ordem do funil do corretor", () => {
       expect(FUNNEL_STAGES).toEqual(LEAD_STATUS_ORDER.filter((s) => s !== "perdido"));
-      expect(FUNNEL_STAGES).toHaveLength(7);
+      expect(FUNNEL_STAGES).toHaveLength(8);
       expect(FUNNEL_STAGES[0]).toBe("aguardando_atendimento");
       expect(FUNNEL_STAGES[FUNNEL_STAGES.length - 1]).toBe("contrato_fechado");
     });
