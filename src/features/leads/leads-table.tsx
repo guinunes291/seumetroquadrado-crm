@@ -97,7 +97,7 @@ export type LeadsTableProps = {
    * conhece `_sort`, então o sort é DESABILITADO nos cabeçalhos (antes o
    * indicador alternava sem reordenar). O sort por score exige v3+.
    */
-  source: "v1" | "v2" | "v3" | "v4";
+  source: "v1" | "v2" | "v3" | "v4" | "v5";
   canManage: boolean;
   userId: string | undefined;
   corretoresMap: Map<string, string>;

@@ -70,6 +70,21 @@
 > etapas próprias do funil (o 3.1 integral, risco alto) fica opcional para
 > depois, com estes dados já populados.
 >
+> **3.1b ✅** (2026-08-11, pedido do dono): terceiro desfecho **"Aprovada
+> com condição"** (`aprovada_condicionada` — banco aprova abaixo do
+> potencial máximo; a condição fica registrada e o próximo passo é vender
+> ajustado OU nova análise) + **filtros por resultado da análise** em
+> /leads e na Consulta (Em andamento / Aprovada / Aprovada com condição /
+> Reprovada). Migrations `20260811140000` (CHECK de 5 valores NOT VALID;
+> `dashboard_kpis` ganha `analise_condicionada`, aditivo) e
+> `20260811141000` (`leads_filtered_v5`/`leads_status_counts_v5`, nome
+> novo: `_analise` validado com erro 22023, recorte pela ÚLTIMA análise nas
+> DUAS funções — chips nunca divergem). Fallback v5→v4→… tirando o
+> parâmetro por degrau; contagens, seleção em massa e fila de foco também
+> vão de v5; sem a v5 aplicada, o recorte ignorado é AVISADO em banner
+> (nunca resultado sem filtro em silêncio). O filtro entra na URL de
+> drill-through da Consulta para /leads.
+>
 > **O que resta aguarda decisão ou acesso:** 7c provedor (D1) · A.2
 > triagem (D6) → A.6 régua única · A.3 dedup em produção (P-11) · Onda D
 > restante (staging D7, promoção do crédito a etapas do funil,

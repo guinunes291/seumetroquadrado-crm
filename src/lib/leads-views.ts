@@ -15,6 +15,9 @@ export type LeadFiltros = {
   // "parado há X+ dias" paramétrico (item 2.11): "all" ou um valor de
   // PARADO_OPCOES. String para viajar em URL/localStorage como os demais.
   paradoDias: string;
+  // Resultado da ÚLTIMA análise de crédito (item 3.1b): "all" ou um valor de
+  // ANALISE_FILTRO_OPCOES. Servido pela leads_filtered_v5.
+  analise: string;
 };
 
 export const FILTRO_PADRAO: LeadFiltros = {
@@ -25,7 +28,16 @@ export const FILTRO_PADRAO: LeadFiltros = {
   periodo: "all",
   contato: "all",
   paradoDias: "all",
+  analise: "all",
 };
+
+/** Recortes pelo resultado da última análise de crédito (RPC v5). */
+export const ANALISE_FILTRO_OPCOES = [
+  { value: "em_andamento", label: "Análise em andamento" },
+  { value: "aprovada", label: "Análise aprovada" },
+  { value: "aprovada_condicionada", label: "Aprovada com condição" },
+  { value: "reprovada", label: "Análise reprovada" },
+] as const;
 
 /** Botões de filtro rápido (por última interação e follow-up). */
 export const CONTATO_OPCOES = [
@@ -206,6 +218,7 @@ export const FILTRO_URL_KEYS = [
   "dataFim",
   "contato",
   "paradoDias",
+  "analise",
 ] as const;
 
 export type LeadSearchFiltros = Partial<Pick<LeadFiltros, (typeof FILTRO_URL_KEYS)[number]>>;

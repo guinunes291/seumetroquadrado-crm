@@ -1,9 +1,10 @@
 // Card de decisão da análise de crédito (item 3.1): no lead em
-// analise_credito, o corretor/gestor APROVA ou REPROVA (com motivo) sem
+// analise_credito, o corretor/gestor APROVA, aprova COM CONDIÇÃO (crédito
+// menor que o pretendido, exigência do banco) ou REPROVA (com motivo) sem
 // sair da tela — e cada desfecho já oferece o próximo passo do fluxo:
-// aprovada → registrar a venda; reprovada → nova análise (outro banco /
-// docs novos) ou perda. É a resposta operacional ao "quantos negócios
-// estão liberados?" da auditoria.
+// aprovada → registrar a venda; condicionada → registrar a venda (ajustada)
+// ou nova análise; reprovada → nova análise (outro banco / docs novos) ou
+// perda. É a resposta operacional ao "quantos negócios estão liberados?".
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  ANALISE_DECIDIDA,
   ANALISE_STATUS_LABEL,
   decidirAnalise,
   fetchAnaliseAtual,
@@ -50,7 +52,8 @@ export function AnaliseCreditoCard({
   onPerdido?: () => void;
 }) {
   const qc = useQueryClient();
-  const [reprovarOpen, setReprovarOpen] = useState(false);
+  // Dialog compartilhado: reprovar pede o motivo; condicionar pede a condição.
+  const [dialogo, setDialogo] = useState<null | "reprovada" | "aprovada_condicionada">(null);
   const [motivo, setMotivo] = useState("");
 
   const analiseQ = useQuery({
@@ -66,9 +69,11 @@ export function AnaliseCreditoCard({
       toast.success(
         args.resultado === "aprovada"
           ? "Análise aprovada — negócio liberado para fechamento."
-          : "Análise reprovada registrada.",
+          : args.resultado === "aprovada_condicionada"
+            ? "Aprovação com condição registrada — ajuste o produto/valor e feche."
+            : "Análise reprovada registrada.",
       );
-      setReprovarOpen(false);
+      setDialogo(null);
       setMotivo("");
       void qc.invalidateQueries({ queryKey: ["analise-credito", lead.id] });
       void qc.invalidateQueries({ queryKey: ["lead-detail:interacoes", lead.id] });
@@ -81,13 +86,14 @@ export function AnaliseCreditoCard({
 
   const analise = analiseQ.data;
   const status = (analise?.status ?? "enviada") as AnaliseStatus;
-  const decidida = status === "aprovada" || status === "reprovada";
+  const decidida = ANALISE_DECIDIDA.some((s) => s === status);
   const label = ANALISE_STATUS_LABEL[status] ?? analise?.status ?? "Em análise";
 
   return (
     <Card
       className={cn(
         status === "aprovada" && "border-success/50",
+        status === "aprovada_condicionada" && "border-warning/50",
         status === "reprovada" && "border-destructive/50",
         !decidida && "border-info/40",
       )}
@@ -103,6 +109,7 @@ export function AnaliseCreditoCard({
               variant="secondary"
               className={cn(
                 status === "aprovada" && "bg-success/15 text-success",
+                status === "aprovada_condicionada" && "bg-warning/15 text-warning",
                 status === "reprovada" && "bg-destructive/15 text-destructive",
               )}
             >
@@ -139,19 +146,36 @@ export function AnaliseCreditoCard({
             <Button
               size="sm"
               variant="outline"
+              className="border-warning/50 text-warning hover:bg-warning/10"
+              disabled={decidir.isPending}
+              onClick={() => setDialogo("aprovada_condicionada")}
+            >
+              <BadgeCheck className="h-4 w-4" /> Aprovar c/ condição
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               className="border-destructive/40 text-destructive hover:bg-destructive/10"
               disabled={decidir.isPending}
-              onClick={() => setReprovarOpen(true)}
+              onClick={() => setDialogo("reprovada")}
             >
               <BadgeX className="h-4 w-4" /> Reprovar
             </Button>
           </div>
-        ) : status === "aprovada" ? (
-          onRegistrarVenda && (
-            <Button size="sm" onClick={onRegistrarVenda}>
-              Registrar venda
-            </Button>
-          )
+        ) : status === "aprovada" || status === "aprovada_condicionada" ? (
+          <div className="flex flex-wrap gap-2">
+            {onRegistrarVenda && (
+              <Button size="sm" onClick={onRegistrarVenda}>
+                Registrar venda
+              </Button>
+            )}
+            {/* Condicionada: se a condição não fechar, cabe nova rodada. */}
+            {status === "aprovada_condicionada" && onNovaAnalise && (
+              <Button size="sm" variant="outline" onClick={onNovaAnalise}>
+                <RotateCcw className="h-4 w-4" /> Nova análise
+              </Button>
+            )}
+          </div>
         ) : (
           <div className="flex flex-wrap gap-2">
             {onNovaAnalise && (
@@ -173,36 +197,71 @@ export function AnaliseCreditoCard({
         )}
       </CardContent>
 
-      <Dialog open={reprovarOpen} onOpenChange={setReprovarOpen}>
+      <Dialog open={dialogo !== null} onOpenChange={(open) => !open && setDialogo(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reprovar análise — {lead.nome}</DialogTitle>
-            <DialogDescription>
-              O motivo fica na análise e na timeline — é o que orienta a próxima tentativa (outro
-              banco, renda composta, docs novos).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            <Label>Motivo da reprovação</Label>
-            <Textarea
-              rows={3}
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ex.: restrição no CPF do cônjuge; renda insuficiente para a faixa…"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setReprovarOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={decidir.isPending}
-              onClick={() => decidir.mutate({ resultado: "reprovada", motivo })}
-            >
-              {decidir.isPending ? "Salvando…" : "Reprovar análise"}
-            </Button>
-          </DialogFooter>
+          {dialogo === "aprovada_condicionada" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Aprovar com condição — {lead.nome}</DialogTitle>
+                <DialogDescription>
+                  O banco aprovou, mas não no potencial máximo. Registre a condição — ela fica na
+                  análise e na timeline e orienta o ajuste de produto/valor antes do fechamento.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-1.5">
+                <Label>Condição imposta pelo banco</Label>
+                <Textarea
+                  rows={3}
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Ex.: crédito aprovado em R$ 180 mil (pretendia 220); exige entrada maior…"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setDialogo(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-warning text-warning-foreground hover:bg-warning/90"
+                  disabled={decidir.isPending}
+                  onClick={() => decidir.mutate({ resultado: "aprovada_condicionada", motivo })}
+                >
+                  {decidir.isPending ? "Salvando…" : "Aprovar com condição"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Reprovar análise — {lead.nome}</DialogTitle>
+                <DialogDescription>
+                  O motivo fica na análise e na timeline — é o que orienta a próxima tentativa
+                  (outro banco, renda composta, docs novos).
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-1.5">
+                <Label>Motivo da reprovação</Label>
+                <Textarea
+                  rows={3}
+                  value={motivo}
+                  onChange={(e) => setMotivo(e.target.value)}
+                  placeholder="Ex.: restrição no CPF do cônjuge; renda insuficiente para a faixa…"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setDialogo(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={decidir.isPending}
+                  onClick={() => decidir.mutate({ resultado: "reprovada", motivo })}
+                >
+                  {decidir.isPending ? "Salvando…" : "Reprovar análise"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </Card>

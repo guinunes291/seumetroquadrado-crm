@@ -25,10 +25,17 @@ import { criarFollowUpAutomatico } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
 import { registrarAnalise } from "@/features/leads/analise-credito";
 
-const STATUS_OPTIONS = ["enviada", "aprovada", "reprovada", "pendente"] as const;
+const STATUS_OPTIONS = [
+  "enviada",
+  "aprovada",
+  "aprovada_condicionada",
+  "reprovada",
+  "pendente",
+] as const;
 const STATUS_LABEL: Record<(typeof STATUS_OPTIONS)[number], string> = {
   enviada: "Enviada",
   aprovada: "Aprovada",
+  aprovada_condicionada: "Aprovada com condição",
   reprovada: "Reprovada",
   pendente: "Pendente",
 };

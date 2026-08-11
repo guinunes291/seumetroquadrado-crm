@@ -619,8 +619,18 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
           const analiseDetalhe =
             key === "analise_credito" &&
             data &&
-            (data.analise_aprovada > 0 || data.analise_reprovada > 0)
-              ? `✓ ${data.analise_aprovada} aprovada(s) · ✗ ${data.analise_reprovada} reprovada(s)`
+            (data.analise_aprovada > 0 ||
+              data.analise_condicionada > 0 ||
+              data.analise_reprovada > 0)
+              ? [
+                  `✓ ${data.analise_aprovada} aprovada(s)`,
+                  data.analise_condicionada > 0
+                    ? `⚠ ${data.analise_condicionada} condicionada(s)`
+                    : null,
+                  `✗ ${data.analise_reprovada} reprovada(s)`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
               : null;
           const inner = (
             <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
