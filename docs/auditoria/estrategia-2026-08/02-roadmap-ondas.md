@@ -85,6 +85,21 @@
 > (nunca resultado sem filtro em silêncio). O filtro entra na URL de
 > drill-through da Consulta para /leads.
 >
+> **Etapa nova no funil ✅** (2026-08-11, pedido do dono): **"Qualificação
+> Corretor"** (`qualificacao_corretor`), entre "Aguardando retorno" e "Em
+> atendimento". Primeira mudança no enum de lead_status desde jun/2026,
+> feita no padrão da 20260619122000: migration `20260811150000` só com o
+> ADD VALUE (transação própria) e `20260811151000` com TODA a fiação —
+> máquina de estados (entra onde em_atendimento entra; sai para os destinos
+> de aguardando_retorno; exige próxima ação/follow-up), funil_ordem
+> (posição 3, renumerado), dashboard_kpis (contador aditivo),
+> dashboard_funil (degrau "Em atendimento"), score peso 11 em
+> leads_filtered_v5 e atendimento_inbox_v4, radar de fechamento (índice
+> 15). Espelhos do front atualizados juntos (leads.ts, priority.ts,
+> fechamento.ts, follow-up com tarefa "Qualificar {nome}", derive, card no
+> Pipeline, types). Kanban, chips e menus derivam da fonte única — a coluna
+> aparece sozinha após o deploy.
+>
 > **O que resta aguarda decisão ou acesso:** 7c provedor (D1) · A.2
 > triagem (D6) → A.6 régua única · A.3 dedup em produção (P-11) · Onda D
 > restante (staging D7, promoção do crédito a etapas do funil,

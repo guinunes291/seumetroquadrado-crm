@@ -82,6 +82,13 @@ export function followUpParaStatus(
         prioridade: "media",
         vencimento: emDias(1),
       };
+    case "qualificacao_corretor":
+      return {
+        titulo: `Qualificar ${nome} (perfil, renda e urgência)`,
+        tipo: "follow_up",
+        prioridade: "alta",
+        vencimento: emDias(1),
+      };
     case "qualificado":
       return {
         titulo: `Apresentar opções aderentes para ${nome}`,

@@ -8,6 +8,7 @@ export type LeadStatus =
   | "aguardando_corretor"
   | "aguardando_atendimento"
   | "aguardando_retorno"
+  | "qualificacao_corretor"
   | "em_atendimento"
   | "qualificado"
   | "agendado"
@@ -24,6 +25,7 @@ export type LeadStatus =
 export const LEAD_STATUS_ORDER: LeadStatus[] = [
   "aguardando_atendimento",
   "aguardando_retorno",
+  "qualificacao_corretor",
   "em_atendimento",
   "agendado",
   "visita_realizada",
@@ -37,6 +39,7 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   aguardando_corretor: "Aguardando corretor",
   aguardando_atendimento: "Aguardando atendimento",
   aguardando_retorno: "Aguardando retorno",
+  qualificacao_corretor: "Qualificação Corretor",
   em_atendimento: "Em atendimento",
   qualificado: "Qualificado",
   agendado: "Agendado",
@@ -55,6 +58,8 @@ export const LEAD_STATUS_HUE: Record<LeadStatus, Hue> = {
   aguardando_corretor: "slate",
   aguardando_atendimento: "amber",
   aguardando_retorno: "yellow",
+  // Herda o hue do `qualificado` legado — é a nova cara da qualificação.
+  qualificacao_corretor: "cyan",
   em_atendimento: "violet",
   qualificado: "cyan",
   agendado: "indigo",
@@ -134,6 +139,7 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
   novo: { label: "Iniciar atendimento", target: "em_atendimento" },
   aguardando_atendimento: { label: "Iniciar atendimento", target: "em_atendimento" },
   aguardando_retorno: { label: "Retomar atendimento", target: "em_atendimento" },
+  qualificacao_corretor: { label: "Iniciar atendimento", target: "em_atendimento" },
   em_atendimento: { label: "Agendar visita", target: "agendado" },
   agendado: { label: "Marcar visita realizada", target: "visita_realizada" },
   visita_realizada: { label: "Enviar p/ análise", target: "analise_credito" },
@@ -142,18 +148,31 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
 
 // ---------------------------------------------------------------------------
 // Máquina de estados do funil — espelho fiel de public.transicao_lead_permitida
-// (migration 20260715191457). O banco é a autoridade: a RPC transicionar_lead
+// (migration 20260811151000). O banco é a autoridade: a RPC transicionar_lead
 // rejeita qualquer transição fora deste mapa. O espelho existe para a UI só
 // OFERECER destinos válidos (menu, stepper, drag do Kanban) em vez de deixar o
 // corretor tentar e receber erro. Ao alterar a função SQL, atualize aqui junto.
 // ---------------------------------------------------------------------------
 
 const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
-  aguardando_corretor: ["novo", "aguardando_atendimento", "em_atendimento", "perdido"],
-  novo: ["aguardando_atendimento", "em_atendimento", "qualificado", "perdido"],
-  aguardando_atendimento: ["em_atendimento", "qualificado", "perdido"],
+  aguardando_corretor: [
+    "novo",
+    "aguardando_atendimento",
+    "em_atendimento",
+    "qualificacao_corretor",
+    "perdido",
+  ],
+  novo: [
+    "aguardando_atendimento",
+    "em_atendimento",
+    "qualificacao_corretor",
+    "qualificado",
+    "perdido",
+  ],
+  aguardando_atendimento: ["em_atendimento", "qualificacao_corretor", "qualificado", "perdido"],
   em_atendimento: [
     "aguardando_retorno",
+    "qualificacao_corretor",
     "qualificado",
     "agendado",
     "visita_realizada",
@@ -162,6 +181,16 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   ],
   aguardando_retorno: [
     "em_atendimento",
+    "qualificacao_corretor",
+    "qualificado",
+    "agendado",
+    "visita_realizada",
+    "analise_credito",
+    "perdido",
+  ],
+  qualificacao_corretor: [
+    "em_atendimento",
+    "aguardando_retorno",
     "qualificado",
     "agendado",
     "visita_realizada",
@@ -171,6 +200,7 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   qualificado: [
     "em_atendimento",
     "aguardando_retorno",
+    "qualificacao_corretor",
     "agendado",
     "visita_realizada",
     "proposta_enviada",
@@ -180,6 +210,7 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   agendado: [
     "em_atendimento",
     "aguardando_retorno",
+    "qualificacao_corretor",
     "visita_realizada",
     "analise_credito",
     "contrato_fechado",
@@ -188,6 +219,7 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   visita_realizada: [
     "em_atendimento",
     "aguardando_retorno",
+    "qualificacao_corretor",
     "agendado",
     "proposta_enviada",
     "analise_credito",
@@ -197,6 +229,7 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   proposta_enviada: [
     "em_atendimento",
     "aguardando_retorno",
+    "qualificacao_corretor",
     "analise_credito",
     "contrato_fechado",
     "perdido",
@@ -204,6 +237,7 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   analise_credito: [
     "em_atendimento",
     "aguardando_retorno",
+    "qualificacao_corretor",
     "visita_realizada",
     "proposta_enviada",
     "contrato_fechado",
@@ -211,8 +245,8 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   ],
   // Etapas terminais: só gestão movimenta, e apenas para os destinos abaixo.
   contrato_fechado: ["pos_venda", "analise_credito"],
-  perdido: ["em_atendimento", "aguardando_retorno"],
-  pos_venda: ["em_atendimento", "aguardando_retorno"],
+  perdido: ["em_atendimento", "aguardando_retorno", "qualificacao_corretor"],
+  pos_venda: ["em_atendimento", "aguardando_retorno", "qualificacao_corretor"],
 };
 
 /** Etapas cuja SAÍDA exige papel de gestão (admin/gestor/superintendente). */

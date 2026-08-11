@@ -9,6 +9,7 @@ export const ETAPAS_RADAR = [
   "agendado",
   "qualificado",
   "aguardando_retorno",
+  "qualificacao_corretor",
   "em_atendimento",
 ] as const;
 
@@ -36,6 +37,7 @@ const BASE_ETAPA: Record<string, number> = {
   agendado: 35,
   qualificado: 24,
   aguardando_retorno: 16,
+  qualificacao_corretor: 15,
   em_atendimento: 14,
 };
 
@@ -108,6 +110,8 @@ function etapaCurta(status?: string | null): string {
       return "Qualificado";
     case "aguardando_retorno":
       return "Aguardando retorno";
+    case "qualificacao_corretor":
+      return "Qualificação Corretor";
     case "em_atendimento":
       return "Em atendimento";
     default:

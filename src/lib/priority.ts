@@ -26,6 +26,7 @@ const PESO_ETAPA: Record<string, number> = {
   visita_realizada: 22,
   agendado: 16,
   em_atendimento: 12,
+  qualificacao_corretor: 11,
   aguardando_retorno: 10,
   qualificado: 10,
   aguardando_atendimento: 6,
