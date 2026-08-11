@@ -30,6 +30,7 @@ import {
   CONTATO_OPCOES,
   PARADO_OPCOES,
   PERIODO_OPTIONS,
+  ANALISE_FILTRO_OPCOES,
   VISOES_PADRAO,
   FILTRO_PADRAO,
   passaParado,
@@ -219,6 +220,9 @@ function LeadsPage() {
   const [contatoFilter, setContatoFilter] = useState<string>("all");
   // "Parado há X+ dias" paramétrico (item 2.11) — "all" ou valor de PARADO_OPCOES.
   const [paradoDiasFilter, setParadoDiasFilter] = useState<string>("all");
+  // Resultado da última análise de crédito (item 3.1b) — "all" ou valor de
+  // ANALISE_FILTRO_OPCOES; servido pela RPC v5.
+  const [analiseFilter, setAnaliseFilter] = useState<string>("all");
   const [showLixeira, setShowLixeira] = useState(false);
   // Página inicial pode vir da URL (?pagina=N) — voltar do detalhe não reseta.
   const [page, setPage] = useState(searchParams.pagina ?? 1);
@@ -302,6 +306,7 @@ function LeadsPage() {
     dataFim: dataFimFilter,
     contato: contatoFilter,
     paradoDias: paradoDiasFilter,
+    analise: analiseFilter,
   };
 
   const aplicarFiltros = (f: LeadFiltros) => {
@@ -315,6 +320,7 @@ function LeadsPage() {
     setContatoFilter(f.contato);
     // Visões/filtros antigos (localStorage/URL) não trazem a chave — default.
     setParadoDiasFilter(f.paradoDias ?? "all");
+    setAnaliseFilter(f.analise ?? "all");
   };
 
   // Carrega visões salvas e restaura o último filtro (1x, ao montar).
@@ -345,6 +351,7 @@ function LeadsPage() {
     dataFimFilter,
     contatoFilter,
     paradoDiasFilter,
+    analiseFilter,
   ]);
 
   // Filtros/página → URL (replace, sem sujar o histórico): a visão corrente
@@ -428,6 +435,7 @@ function LeadsPage() {
     uid: user?.id,
     contatoFilter,
     paradoDiasFilter,
+    analiseFilter,
   };
 
   const periodoRange = useMemo(
@@ -469,6 +477,7 @@ function LeadsPage() {
         params: buildParams(),
         contato: contatoFilter,
         paradoDias: paradoDiasNum,
+        analise: analiseFilter,
         sort: sorting[0]?.id ?? null,
         sortDir: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : null,
         page,
@@ -524,27 +533,41 @@ function LeadsPage() {
       const { _status: _ignorado, ...countParams } = buildParams();
       void _ignorado;
       const rows = await rpcWithFallback<unknown[]>(
-        // v4: mesmos recortes da lista v4 (inclui _parado_dias) — chips e
-        // lista nunca divergem.
+        // v5: mesmos recortes da lista v5 (inclui _analise) — chips e lista
+        // nunca divergem.
         () =>
-          rpcLeadsStatusCounts("v4", {
+          rpcLeadsStatusCounts("v5", {
             ...countParams,
             _contato: contatoFilter,
             _parado_dias: paradoDiasNum,
+            _analise: analiseFilter,
           }),
         () =>
           rpcWithFallback<unknown[]>(
-            // v3: mesmo escopo da lista (gestor vê órfãos) + recorte sem_contato_30d.
-            () => rpcLeadsStatusCounts("v3", { ...countParams, _contato: contatoFilter }),
+            // v4: inclui _parado_dias, ainda sem o recorte de análise.
+            () =>
+              rpcLeadsStatusCounts("v4", {
+                ...countParams,
+                _contato: contatoFilter,
+                _parado_dias: paradoDiasNum,
+              }),
             () =>
               rpcWithFallback<unknown[]>(
-                // v2: as abas de status contam respeitando também o recorte de contato.
-                () => rpcLeadsStatusCounts("v2", { ...countParams, _contato: contatoFilter }),
-                async () => {
-                  const { data, error } = await supabase.rpc("leads_status_counts", countParams);
-                  if (error) throw error;
-                  return data ?? [];
-                },
+                // v3: mesmo escopo da lista (gestor vê órfãos) + recorte sem_contato_30d.
+                () => rpcLeadsStatusCounts("v3", { ...countParams, _contato: contatoFilter }),
+                () =>
+                  rpcWithFallback<unknown[]>(
+                    // v2: as abas de status contam respeitando também o recorte de contato.
+                    () => rpcLeadsStatusCounts("v2", { ...countParams, _contato: contatoFilter }),
+                    async () => {
+                      const { data, error } = await supabase.rpc(
+                        "leads_status_counts",
+                        countParams,
+                      );
+                      if (error) throw error;
+                      return data ?? [];
+                    },
+                  ),
               ),
           ),
       );
@@ -694,11 +717,20 @@ function LeadsPage() {
           _offset: offset,
         };
         const rows = await rpcWithFallback<Lead[]>(
-          () => rpcLeadsFiltered("v4", { ...paramsPagina, _parado_dias: paradoDiasNum }),
+          () =>
+            rpcLeadsFiltered("v5", {
+              ...paramsPagina,
+              _parado_dias: paradoDiasNum,
+              _analise: analiseFilter,
+            }),
           () =>
             rpcWithFallback<Lead[]>(
-              () => rpcLeadsFiltered("v3", paramsPagina),
-              () => rpcLeadsFiltered("v2", paramsPagina),
+              () => rpcLeadsFiltered("v4", { ...paramsPagina, _parado_dias: paradoDiasNum }),
+              () =>
+                rpcWithFallback<Lead[]>(
+                  () => rpcLeadsFiltered("v3", paramsPagina),
+                  () => rpcLeadsFiltered("v2", paramsPagina),
+                ),
             ),
         );
         // Nos degraus v3/v2 o servidor ignora _parado_dias — re-filtra aqui
@@ -791,11 +823,20 @@ function LeadsPage() {
         _offset: 0,
       };
       const rows = await rpcWithFallback<Lead[]>(
-        () => rpcLeadsFiltered("v4", { ...paramsFila, _parado_dias: paradoDiasNum }),
+        () =>
+          rpcLeadsFiltered("v5", {
+            ...paramsFila,
+            _parado_dias: paradoDiasNum,
+            _analise: analiseFilter,
+          }),
         () =>
           rpcWithFallback<Lead[]>(
-            () => rpcLeadsFiltered("v3", paramsFila),
-            () => rpcLeadsFiltered("v2", paramsFila),
+            () => rpcLeadsFiltered("v4", { ...paramsFila, _parado_dias: paradoDiasNum }),
+            () =>
+              rpcWithFallback<Lead[]>(
+                () => rpcLeadsFiltered("v3", paramsFila),
+                () => rpcLeadsFiltered("v2", paramsFila),
+              ),
           ),
       );
       const visiveis =
@@ -863,6 +904,7 @@ function LeadsPage() {
     (periodoFilter !== "all" ? 1 : 0) +
     (contatoFilter !== "all" ? 1 : 0) +
     (paradoDiasFilter !== "all" ? 1 : 0) +
+    (analiseFilter !== "all" ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
 
   function limparFiltros() {
@@ -876,6 +918,7 @@ function LeadsPage() {
     setDataFimFilter("");
     setContatoFilter("all");
     setParadoDiasFilter("all");
+    setAnaliseFilter("all");
   }
 
   return (
@@ -1261,6 +1304,22 @@ function LeadsPage() {
                         <SelectItem value="frio">❄️ Frio</SelectItem>
                       </SelectContent>
                     </Select>
+                    {/* Resultado da última análise de crédito (item 3.1b) —
+                        servido pela RPC v5; num degrau antigo o aviso abaixo
+                        da lista deixa explícito que o recorte foi ignorado. */}
+                    <Select value={analiseFilter} onValueChange={setAnaliseFilter}>
+                      <SelectTrigger aria-label="Filtrar por análise de crédito">
+                        <SelectValue placeholder="Análise de crédito" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Análise (todas)</SelectItem>
+                        {ANALISE_FILTRO_OPCOES.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Select
                       value={periodoFilter}
                       onValueChange={(v) => setPeriodoFilter(v as Periodo)}
@@ -1468,6 +1527,17 @@ function LeadsPage() {
                     )}
                   </div>
                 )}
+
+              {/* Honestidade do recorte de análise (item 3.1b): num degrau
+                  anterior à v5 o servidor IGNORA o filtro — avisa alto em vez
+                  de mostrar lista sem recorte como se estivesse filtrada. */}
+              {analiseFilter !== "all" && source !== "v5" && (
+                <div className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">
+                  O filtro de análise de crédito exige o deploy do banco (RPC v5) — este resultado
+                  veio de uma versão anterior e o recorte foi IGNORADO. Aplique as migrations para
+                  ativá-lo.
+                </div>
+              )}
 
               {listError ? (
                 <Card>

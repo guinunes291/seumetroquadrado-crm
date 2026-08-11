@@ -58,10 +58,10 @@ describe("fluxo no app (3.1)", () => {
   });
 
   it("decidirAnalise cobre o legado (sem registro aberto → cria já decidida) e ecoa na timeline", () => {
-    expect(modulo).toMatch(
-      /atual && atual\.status !== "aprovada" && atual\.status !== "reprovada"/,
-    );
-    expect(modulo).toContain('titulo: aprovada ? "Análise de crédito APROVADA"');
+    // A régua de "já decidida" vive em ANALISE_DECIDIDA (inclui a condicionada).
+    expect(modulo).toContain("ANALISE_DECIDIDA.some((s) => s === atual?.status)");
+    expect(modulo).toMatch(/if \(atual && !atualDecidida\)/);
+    expect(modulo).toContain('"Análise de crédito APROVADA"');
     expect(modulo).toContain('fonte: "fluxo_analise"');
   });
 

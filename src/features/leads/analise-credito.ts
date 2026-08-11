@@ -6,8 +6,23 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type AnaliseStatus = "enviada" | "pendente" | "aprovada" | "reprovada";
-export type AnaliseResultado = Extract<AnaliseStatus, "aprovada" | "reprovada">;
+export type AnaliseStatus =
+  | "enviada"
+  | "pendente"
+  | "aprovada"
+  | "aprovada_condicionada"
+  | "reprovada";
+export type AnaliseResultado = Extract<
+  AnaliseStatus,
+  "aprovada" | "aprovada_condicionada" | "reprovada"
+>;
+
+/** Desfechos que encerram a análise (a condicionada TAMBÉM libera o negócio). */
+export const ANALISE_DECIDIDA: readonly AnaliseResultado[] = [
+  "aprovada",
+  "aprovada_condicionada",
+  "reprovada",
+] as const;
 
 export type AnaliseCredito = {
   id: string;
@@ -23,6 +38,7 @@ export const ANALISE_STATUS_LABEL: Record<AnaliseStatus, string> = {
   enviada: "Enviada ao banco",
   pendente: "Pendente (aguardando docs)",
   aprovada: "Aprovada",
+  aprovada_condicionada: "Aprovada com condição",
   reprovada: "Reprovada",
 };
 
@@ -56,7 +72,8 @@ export async function registrarAnalise(args: {
 }
 
 /**
- * Decide a análise atual do lead: aprova ou reprova (com motivo). Sem
+ * Decide a análise atual do lead: aprova, aprova com condição (crédito menor
+ * que o pretendido, exigência do banco…) ou reprova (com motivo). Sem
  * registro aberto (lead que entrou em análise antes deste fluxo), cria a
  * linha já decidida — o legado não bloqueia a decisão. Eco na timeline
  * incluído: é a trilha de autor/momento que o resto do CRM já usa.
@@ -65,16 +82,19 @@ export async function decidirAnalise(args: {
   leadId: string;
   leadNome: string;
   resultado: AnaliseResultado;
+  /** Reprovada: motivo. Condicionada: a condição imposta pelo banco. */
   motivo?: string | null;
 }): Promise<void> {
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id ?? null;
   const motivo = args.motivo?.trim() || null;
+  const rotuloMotivo = args.resultado === "aprovada_condicionada" ? "Condição" : "Reprovação";
 
   const atual = await fetchAnaliseAtual(args.leadId);
-  if (atual && atual.status !== "aprovada" && atual.status !== "reprovada") {
+  const atualDecidida = ANALISE_DECIDIDA.some((s) => s === atual?.status);
+  if (atual && !atualDecidida) {
     const observacoes = motivo
-      ? `${atual.observacoes ? `${atual.observacoes}\n` : ""}Reprovação: ${motivo}`
+      ? `${atual.observacoes ? `${atual.observacoes}\n` : ""}${rotuloMotivo}: ${motivo}`
       : atual.observacoes;
     const { error } = await supabase
       .from("analises_credito")
@@ -88,21 +108,32 @@ export async function decidirAnalise(args: {
       lead_id: args.leadId,
       corretor_id: uid,
       status: args.resultado,
-      observacoes: motivo ? `Reprovação: ${motivo}` : null,
+      observacoes: motivo ? `${rotuloMotivo}: ${motivo}` : null,
     });
     if (error) throw error;
   }
 
-  const aprovada = args.resultado === "aprovada";
+  const titulo =
+    args.resultado === "aprovada"
+      ? "Análise de crédito APROVADA"
+      : args.resultado === "aprovada_condicionada"
+        ? "Análise de crédito APROVADA COM CONDIÇÃO"
+        : "Análise de crédito REPROVADA";
+  const conteudo =
+    args.resultado === "aprovada"
+      ? "Crédito aprovado — negócio liberado para fechamento."
+      : args.resultado === "aprovada_condicionada"
+        ? motivo
+          ? `Crédito aprovado com condição: ${motivo}`
+          : "Crédito aprovado com condição — ajustar produto/valor antes de fechar."
+        : motivo || "Crédito reprovado.";
   const { error: ecoErr } = await supabase.from("interacoes").insert({
     lead_id: args.leadId,
     autor_id: uid,
     tipo: "nota",
     direcao: "interna",
-    titulo: aprovada ? "Análise de crédito APROVADA" : "Análise de crédito REPROVADA",
-    conteudo: aprovada
-      ? "Crédito aprovado — negócio liberado para fechamento."
-      : motivo || "Crédito reprovado.",
+    titulo,
+    conteudo,
     metadata: { status_analise: args.resultado, fonte: "fluxo_analise" },
   });
   if (ecoErr) throw ecoErr;

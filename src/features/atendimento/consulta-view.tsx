@@ -57,6 +57,7 @@ import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { LEAD_STATUS_LABEL, leadStatusLabel } from "@/lib/leads";
 import {
+  ANALISE_FILTRO_OPCOES,
   CONTATO_OPCOES,
   PARADO_OPCOES,
   PERIODO_OPTIONS,
@@ -75,6 +76,7 @@ const FILTROS_PADRAO = {
   corretor: "all",
   contato: "all",
   paradoDias: "all",
+  analise: "all",
   periodo: "all" as Periodo,
   dataInicio: "",
   dataFim: "",
@@ -116,9 +118,9 @@ export function ConsultaView() {
 
   // Quantos filtros fogem do padrão — vira o contador do botão [Filtros].
   const ativos =
-    (["status", "temperatura", "origem", "corretor", "contato", "paradoDias"] as const).filter(
-      (k) => filtros[k] !== "all",
-    ).length +
+    (
+      ["status", "temperatura", "origem", "corretor", "contato", "paradoDias", "analise"] as const
+    ).filter((k) => filtros[k] !== "all").length +
     (filtros.periodo !== "all" ? 1 : 0) +
     (filtros.lixeira ? 1 : 0);
 
@@ -157,6 +159,7 @@ export function ConsultaView() {
         },
         contato: filtros.contato,
         paradoDias: paradoDiasNum,
+        analise: filtros.analise,
         sort: null,
         sortDir: null,
         page,
@@ -215,6 +218,7 @@ export function ConsultaView() {
     corretor: filtros.corretor !== "all" ? filtros.corretor : undefined,
     contato: filtros.contato !== "all" ? filtros.contato : undefined,
     paradoDias: filtros.paradoDias !== "all" ? filtros.paradoDias : undefined,
+    analise: filtros.analise !== "all" ? filtros.analise : undefined,
     periodo: filtros.periodo !== "all" ? filtros.periodo : undefined,
     dataInicio: filtros.dataInicio || undefined,
     dataFim: filtros.dataFim || undefined,
@@ -338,6 +342,22 @@ export function ConsultaView() {
                 <SelectContent>
                   <SelectItem value="all">Qualquer tempo</SelectItem>
                   {PARADO_OPCOES.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Análise de crédito</Label>
+              <Select value={filtros.analise} onValueChange={(v) => setFiltro("analise", v)}>
+                <SelectTrigger aria-label="Filtrar por análise de crédito">
+                  <SelectValue placeholder="Análise" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Análise (todas)</SelectItem>
+                  {ANALISE_FILTRO_OPCOES.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {o.label}
                     </SelectItem>
