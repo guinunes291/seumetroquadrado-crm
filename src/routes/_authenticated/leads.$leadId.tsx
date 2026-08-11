@@ -55,6 +55,7 @@ import { QualificacaoTab } from "@/features/leads/dossie/qualificacao-tab";
 import { TarefasTab, useTarefasLead } from "@/features/leads/dossie/tarefas-tab";
 import { AgendamentosTab, useAgendamentosLead } from "@/features/leads/dossie/agendamentos-tab";
 import { LeadStatusCards } from "@/features/leads/dossie/lead-status-cards";
+import { AnaliseCreditoCard } from "@/components/lead-stage/analise-resultado";
 import { WhatsappLeadDialog } from "@/features/leads/dossie/whatsapp-dialog";
 import { EditarLeadDialog } from "@/features/leads/dossie/editar-lead-dialog";
 
@@ -382,6 +383,15 @@ function LeadDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Decisão da análise de crédito (item 3.1): aprovar/reprovar com o
+          próximo passo do fluxo embutido — só aparece na etapa de análise. */}
+      <AnaliseCreditoCard
+        lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
+        onRegistrarVenda={() => setModalState({ modal: "contrato_fechado", lead: stageLead })}
+        onNovaAnalise={() => setModalState({ modal: "analise_credito", lead: stageLead })}
+        onPerdido={() => setPerdidoLead(stageLead)}
+      />
 
       <LeadStatusCards leadId={leadId} lead={lead} />
 
