@@ -614,6 +614,14 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-8">
         {PIPELINE_CARDS.map(({ key, label, icon: Icon, status }) => {
           const value = data?.[key] ?? 0;
+          // Item 3.1: o card de Análise responde "quantos negócios estão
+          // liberados" — desdobra a última análise de cada lead da etapa.
+          const analiseDetalhe =
+            key === "analise_credito" &&
+            data &&
+            (data.analise_aprovada > 0 || data.analise_reprovada > 0)
+              ? `✓ ${data.analise_aprovada} aprovada(s) · ✗ ${data.analise_reprovada} reprovada(s)`
+              : null;
           const inner = (
             <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
               <CardContent className="p-3">
@@ -627,6 +635,9 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
                   <Skeleton className="h-7 w-12" />
                 ) : (
                   <div className="text-2xl font-semibold tabular-nums">{value}</div>
+                )}
+                {!loading && analiseDetalhe && (
+                  <div className="mt-0.5 text-[10px] text-muted-foreground">{analiseDetalhe}</div>
                 )}
               </CardContent>
             </Card>

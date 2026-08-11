@@ -23,6 +23,7 @@ import {
 import type { StageLead } from "@/lib/leads";
 import { criarFollowUpAutomatico } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
+import { registrarAnalise } from "@/features/leads/analise-credito";
 
 const STATUS_OPTIONS = ["enviada", "aprovada", "reprovada", "pendente"] as const;
 const STATUS_LABEL: Record<(typeof STATUS_OPTIONS)[number], string> = {
@@ -49,6 +50,16 @@ export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
     mutationFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
+
+      // Registro de verdade da análise (item 3.1): a tabela analises_credito
+      // deixa de ser órfã — é dela que saem o card Aprovar/Reprovar e a
+      // contagem de "negócios liberados" do pipeline.
+      await registrarAnalise({
+        leadId: lead.id,
+        corretorId: uid,
+        status: statusAnalise,
+        observacoes,
+      });
 
       const { error: insErr } = await supabase.from("interacoes").insert({
         lead_id: lead.id,
@@ -89,6 +100,8 @@ export function CreditAnalysisDialog({ lead, onOpenChange, onDone }: Props) {
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
       qc.invalidateQueries({ queryKey: ["tarefas"] });
       qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["analise-credito", lead.id] });
+      qc.invalidateQueries({ queryKey: ["dash:kpis"] });
       onDone?.();
       onOpenChange(false);
     },

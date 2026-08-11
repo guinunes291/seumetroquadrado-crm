@@ -58,9 +58,21 @@
 > wa.me (o CRM passa a enxergar a conversa antes de qualquer provedor —
 > métrica O1).
 >
-> **Fim do trecho executável sem o dono.** O que resta aguarda decisão ou
-> acesso: 7c provedor (D1) · A.2 triagem (D6) → A.6 régua única · A.3
-> dedup em produção (P-11) · Onda D (staging D7, crédito 3 estados D4,
+> **3.1 ✅ na forma segura** (2026-08-11, pedido do dono — D4 decidida):
+> aprovação/reprovação da análise de crédito no fluxo SEM mexer no enum de
+> lead_status. A tabela órfã `analises_credito` virou o registro de cada
+> análise (migration `20260810120000`: CHECK NOT VALID, RLS pela régua do
+> lead, trigger, índice); o modal de análise grava nela; card
+> Aprovar/Reprovar (com motivo) no peek e na página do lead, com o próximo
+> passo embutido (aprovada → venda; reprovada → nova análise ou perda);
+> `dashboard_kpis.pipeline` ganhou `analise_aprovada/reprovada` (aditivo) e
+> o card de Análise do Pipeline responde "quantos liberados". A promoção a
+> etapas próprias do funil (o 3.1 integral, risco alto) fica opcional para
+> depois, com estes dados já populados.
+>
+> **O que resta aguarda decisão ou acesso:** 7c provedor (D1) · A.2
+> triagem (D6) → A.6 régua única · A.3 dedup em produção (P-11) · Onda D
+> restante (staging D7, promoção do crédito a etapas do funil,
 > 3.2/3.3/3.5/3.6, limpeza medida das RPCs órfãs após os 7 dias de
 > pg_stat_statements) · Onda E (IA, após A/C) · 2.8/2.9 (menores, do plano
 > ux-ia original) e o redirect total de /leads (débito do 2.7c).

@@ -23,6 +23,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { LeadStageMenuItems } from "@/components/lead-stage-menu";
+import { AnaliseCreditoCard } from "@/components/lead-stage/analise-resultado";
 import {
   LeadStageModals,
   type PerdidoState,
@@ -199,6 +200,17 @@ function PeekBody({
       {/* Flags operacionais — os mesmos chips da listagem */}
       <FlagChips lead={flagsLead} max={4} />
 
+      {/* Decisão da análise de crédito (item 3.1) — aprovar/reprovar sem
+          sair do peek; cada desfecho oferece o próximo passo do fluxo. */}
+      {lead.status === "analise_credito" && (
+        <AnaliseCreditoCard
+          lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
+          onRegistrarVenda={() => setModalState({ modal: "contrato_fechado", lead: stageLead })}
+          onNovaAnalise={() => setModalState({ modal: "analise_credito", lead: stageLead })}
+          onPerdido={() => setPerdidoLead(stageLead)}
+        />
+      )}
+
       {/* Ações principais — o motivo de o peek existir */}
       <div className="flex flex-wrap gap-2">
         <Button
@@ -257,10 +269,7 @@ function PeekBody({
       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
         <InfoCell label="Telefone" value={lead.telefone} />
         <InfoCell label="E-mail" value={lead.email} />
-        <InfoCell
-          label="Origem"
-          value={<span>{origemLabel(lead.origem)}</span>}
-        />
+        <InfoCell label="Origem" value={<span>{origemLabel(lead.origem)}</span>} />
         <InfoCell label="Empreendimento" value={lead.projeto_nome} />
         <InfoCell label="Renda" value={lead.renda_informada} />
         <InfoCell label="Entrada" value={lead.entrada_disponivel} />
