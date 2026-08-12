@@ -847,6 +847,39 @@ export type Database = {
         }
         Relationships: []
       }
+      construtoras_parceiras: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          criado_por: string | null
+          id: string
+          nome: string
+          observacao: string | null
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          observacao?: string | null
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          observacao?: string | null
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       conta_auditoria: {
         Row: {
           autor_id: string
@@ -2564,6 +2597,72 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      mensagens: {
+        Row: {
+          atualizado_em: string
+          canal: string
+          conteudo: string | null
+          corretor_id: string | null
+          criado_em: string
+          direcao: string
+          erro: string | null
+          id: string
+          lead_id: string
+          midia_url: string | null
+          provider: string | null
+          provider_message_id: string | null
+          status: string
+          template_nome: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          canal?: string
+          conteudo?: string | null
+          corretor_id?: string | null
+          criado_em?: string
+          direcao: string
+          erro?: string | null
+          id?: string
+          lead_id: string
+          midia_url?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          status?: string
+          template_nome?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          canal?: string
+          conteudo?: string | null
+          corretor_id?: string | null
+          criado_em?: string
+          direcao?: string
+          erro?: string | null
+          id?: string
+          lead_id?: string
+          midia_url?: string | null
+          provider?: string | null
+          provider_message_id?: string | null
+          status?: string
+          template_nome?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensagens_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       metas: {
         Row: {
@@ -5035,6 +5134,14 @@ export type Database = {
           total_count: number
         }[]
       }
+      atendimento_inbox_v4: {
+        Args: { _corretor_id?: string; _limit_per_queue?: number }
+        Returns: {
+          fila: string
+          items: Json
+          total_count: number
+        }[]
+      }
       ativar_convite_por_email: {
         Args: { _convite_id: string }
         Returns: string
@@ -5877,6 +5984,93 @@ export type Database = {
           usa_fgts: boolean
         }[]
       }
+      leads_filtered_v4: {
+        Args: {
+          _contato?: string
+          _corretor?: string
+          _limit?: number
+          _na_lixeira?: boolean
+          _offset?: number
+          _origem?: string
+          _parado_dias?: number
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _sort?: string
+          _sort_dir?: string
+          _status?: string
+          _temperatura?: string
+        }
+        Returns: {
+          corretor_id: string
+          created_at: string
+          data_venda: string
+          email: string
+          entrada_disponivel: string
+          id: string
+          na_lixeira: boolean
+          nome: string
+          observacoes: string
+          origem: string
+          projeto_id: string
+          projeto_nome: string
+          proximo_followup: string
+          renda_informada: string
+          score: number
+          status: string
+          telefone: string
+          tem_followup: boolean
+          temperatura: string
+          total_count: number
+          ultima_interacao: string
+          usa_fgts: boolean
+        }[]
+      }
+      leads_filtered_v5: {
+        Args: {
+          _analise?: string
+          _contato?: string
+          _corretor?: string
+          _limit?: number
+          _na_lixeira?: boolean
+          _offset?: number
+          _origem?: string
+          _parado_dias?: number
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _sort?: string
+          _sort_dir?: string
+          _status?: string
+          _temperatura?: string
+        }
+        Returns: {
+          corretor_id: string
+          created_at: string
+          data_venda: string
+          email: string
+          entrada_disponivel: string
+          id: string
+          na_lixeira: boolean
+          nome: string
+          observacoes: string
+          origem: string
+          projeto_id: string
+          projeto_nome: string
+          proximo_followup: string
+          renda_informada: string
+          score: number
+          status: string
+          telefone: string
+          tem_followup: boolean
+          temperatura: string
+          total_count: number
+          ultima_interacao: string
+          usa_fgts: boolean
+        }[]
+      }
       leads_search_v2: {
         Args: {
           _corretor_id?: string
@@ -5971,6 +6165,43 @@ export type Database = {
           _corretor?: string
           _na_lixeira?: boolean
           _origem?: string
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _temperatura?: string
+        }
+        Returns: {
+          quantidade: number
+          status: string
+        }[]
+      }
+      leads_status_counts_v4: {
+        Args: {
+          _contato?: string
+          _corretor?: string
+          _na_lixeira?: boolean
+          _origem?: string
+          _parado_dias?: number
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _temperatura?: string
+        }
+        Returns: {
+          quantidade: number
+          status: string
+        }[]
+      }
+      leads_status_counts_v5: {
+        Args: {
+          _analise?: string
+          _contato?: string
+          _corretor?: string
+          _na_lixeira?: boolean
+          _origem?: string
+          _parado_dias?: number
           _periodo_end?: string
           _periodo_start?: string
           _search?: string
@@ -6315,6 +6546,7 @@ export type Database = {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
           corretor_id: string
+          leads_dado_sujo: number
           leads_no_periodo: number
           leads_respondidos: number
           tempo_mediana_min: number
