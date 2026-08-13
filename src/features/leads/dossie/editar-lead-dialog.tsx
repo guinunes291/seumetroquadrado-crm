@@ -19,7 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { maskPhoneBR, maskCPF } from "@/lib/masks";
+import { ZONAS_ORDEM } from "@/lib/zonas";
 import type { DossieLead } from "@/features/leads/dossie/types";
 
 export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: DossieLead }) {
@@ -34,6 +42,8 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
     entrada_disponivel: "",
     usa_fgts: false,
     projeto_nome: "",
+    bairro: "",
+    zona: "",
     observacoes: "",
   });
 
@@ -47,6 +57,8 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
       entrada_disponivel: lead.entrada_disponivel ?? "",
       usa_fgts: !!lead.usa_fgts,
       projeto_nome: lead.projeto_nome ?? "",
+      bairro: lead.bairro ?? "",
+      zona: lead.zona ?? "",
       observacoes: lead.observacoes ?? "",
     });
     setEditOpen(true);
@@ -71,6 +83,10 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
         entrada_disponivel: editForm.entrada_disponivel.trim() || null,
         usa_fgts: editForm.usa_fgts,
         projeto_nome: editForm.projeto_nome.trim() || null,
+        // Filas por zona: zona explícita manda; limpando os dois campos o
+        // trigger do banco volta a resolver pelo bairro/projeto.
+        bairro: editForm.bairro.trim() || null,
+        zona: editForm.zona || null,
         observacoes: editForm.observacoes.trim() || null,
       };
       const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
@@ -143,6 +159,34 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
                 onChange={(e) => setEditForm({ ...editForm, projeto_nome: e.target.value })}
                 maxLength={160}
               />
+            </div>
+            <div>
+              <Label>Bairro de interesse</Label>
+              <Input
+                placeholder="Ex.: Tucuruvi"
+                value={editForm.bairro}
+                onChange={(e) => setEditForm({ ...editForm, bairro: e.target.value })}
+                maxLength={80}
+              />
+            </div>
+            <div>
+              <Label>Zona</Label>
+              <Select
+                value={editForm.zona || "auto"}
+                onValueChange={(v) => setEditForm({ ...editForm, zona: v === "auto" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Automática (bairro/projeto)</SelectItem>
+                  {ZONAS_ORDEM.map((z) => (
+                    <SelectItem key={z} value={z}>
+                      {z}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Renda informada</Label>

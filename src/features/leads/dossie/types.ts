@@ -34,4 +34,7 @@ export type DossieLead = {
   faixa_mcmv: string | null;
   // Opcional: a coluna `objecoes` chega depois da migration 20260629120000.
   objecoes?: string[] | null;
+  // Opcionais: filas por zona (migrations 20260811172447 e 20260813100000).
+  zona?: string | null;
+  bairro?: string | null;
 };

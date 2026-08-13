@@ -2034,6 +2034,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          bairro: string | null
           campanha: string | null
           canal_entrada: string | null
           consentimento_lgpd: boolean | null
@@ -2105,6 +2106,7 @@ export type Database = {
           zona: string | null
         }
         Insert: {
+          bairro?: string | null
           campanha?: string | null
           canal_entrada?: string | null
           consentimento_lgpd?: boolean | null
@@ -2176,6 +2178,7 @@ export type Database = {
           zona?: string | null
         }
         Update: {
+          bairro?: string | null
           campanha?: string | null
           canal_entrada?: string | null
           consentimento_lgpd?: boolean | null

@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
 import { maskPhoneBR } from "@/lib/masks";
 import { origemLabel } from "@/lib/origem";
+import { ZONAS_ORDEM } from "@/lib/zonas";
 
 export const ORIGEM_OPTIONS = [
   "facebook",
@@ -105,6 +106,8 @@ function NovoLeadForm({
     email: "",
     origem: canManage ? "outro" : "captacao_corretor",
     projeto_nome: "",
+    bairro: "",
+    zona: "",
     observacoes: "",
   });
   const [distribuirAuto, setDistribuirAuto] = useState(true);
@@ -167,6 +170,10 @@ function NovoLeadForm({
         email: emailNorm || null,
         origem: form.origem,
         projeto_nome: form.projeto_nome.trim() || null,
+        // Filas por zona: zona explícita manda; sem ela, o trigger do banco
+        // resolve pelo bairro (tabela zonas_bairros) ou pelo projeto.
+        bairro: form.bairro.trim() || null,
+        zona: form.zona || null,
         observacoes: form.observacoes.trim() || null,
       };
       // Corretor: atribui automaticamente a si mesmo e já entra como "aguardando atendimento"
@@ -301,6 +308,35 @@ function NovoLeadForm({
               value={form.projeto_nome}
               onChange={(e) => setForm({ ...form, projeto_nome: e.target.value })}
             />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Bairro de interesse</Label>
+            <Input
+              placeholder="Ex.: Tucuruvi"
+              value={form.bairro}
+              onChange={(e) => setForm({ ...form, bairro: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Zona</Label>
+            <Select
+              value={form.zona || "auto"}
+              onValueChange={(v) => setForm({ ...form, zona: v === "auto" ? "" : v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Automática (bairro/projeto)</SelectItem>
+                {ZONAS_ORDEM.map((z) => (
+                  <SelectItem key={z} value={z}>
+                    {z}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div>

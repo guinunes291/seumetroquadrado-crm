@@ -186,6 +186,11 @@ async function handleRequest(req: Request): Promise<Response> {
   const prefereContato = pick("prefereContatoPor", "prefere_contato", "contato_preferido");
   const projetoRef = pick("projeto", "projeto_slug", "project", "empreendimento");
   const projetoToken = pick("projeto_token", "webhook_token");
+  // Filas por zona: texto livre — o trigger do banco normaliza ("zona leste"
+  // → 'Leste') ou resolve pelo bairro (tabela zonas_bairros); o que não
+  // normalizar fica NULL e o lead segue sem corte geográfico.
+  const zona = pick("zona", "regiao", "região", "regiao_interesse", "zona_interesse");
+  const bairro = pick("bairro", "neighborhood", "distrito");
 
   if (!nome && !telefone) return json({ error: "missing_nome_or_telefone" }, 422);
 
@@ -272,6 +277,8 @@ async function handleRequest(req: Request): Promise<Response> {
       projeto_id,
       projeto_nome,
       renda_informada: renda,
+      zona,
+      bairro,
       campanha: pick("campanha", "campaign_name", "campaign"),
       utm_source: pick("utm_source") ?? "facebook",
       utm_medium: pick("utm_medium") ?? "paid_social",
