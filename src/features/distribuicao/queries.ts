@@ -592,12 +592,16 @@ export function useDistribuirManual() {
         corretor_id?: string;
         corretor_nome?: string;
         motivo?: string;
+        aviso_zona?: string | null;
       } | null;
     },
     onSuccess: (res, args) => {
       invalidate();
       if (res?.ok) {
         toast.success(`Lead distribuído para ${res.corretor_nome ?? "corretor"}.`);
+        // Fora da zona: a atribuição manual vale, mas o gestor precisa saber
+        // que está passando por cima do corte geográfico (fica no log também).
+        if (res.aviso_zona) toast.warning(res.aviso_zona);
         if (res.corretor_id) void notificarCorretorTransferencia(args.leadId, res.corretor_id);
       } else {
         toast.warning(`Sem corretor apto (${res?.motivo ?? "?"}) — lead na fila de exceções.`);

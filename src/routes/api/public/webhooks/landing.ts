@@ -604,6 +604,10 @@ export const Route = createFileRoute("/api/public/webhooks/landing")({
                   canal_entrada: "webhook_landing",
                   via_webhook: true,
                   renda_informada: row.renda ?? null,
+                  // Filas por zona: a "região de interesse" do formulário é a
+                  // zona do lead — o trigger do banco normaliza o texto livre
+                  // (o que não normalizar fica NULL, sem corte geográfico).
+                  zona: row.regiao ?? null,
                   observacoes: simResumo
                     ? `📥 Lead da Landing Page (simulador)\n${simResumo}`
                     : "📥 Lead da Landing Page",
