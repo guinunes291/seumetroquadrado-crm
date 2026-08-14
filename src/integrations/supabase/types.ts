@@ -4962,6 +4962,7 @@ export type Database = {
         Args: { _lead_id: string; _tentativas: number }
         Returns: undefined
       }
+      _excecao_em_backoff: { Args: { _lead_id: string }; Returns: boolean }
       _gestao_escopo: { Args: never; Returns: Record<string, unknown> }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
@@ -6468,6 +6469,7 @@ export type Database = {
         Args: { _ator_id: string; _link_id: string }
         Returns: boolean
       }
+      roletas_resumo_publico: { Args: never; Returns: Json }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string

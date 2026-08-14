@@ -69,6 +69,7 @@ import { Route as AuthenticatedFinanceiroFechamentoRouteImport } from './routes/
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicVendasIndexRouteImport } from './routes/api/public/vendas/index'
+import { Route as ApiPublicRoletasIndexRouteImport } from './routes/api/public/roletas/index'
 import { Route as ApiPublicProjetosIndexRouteImport } from './routes/api/public/projetos/index'
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
@@ -410,6 +411,11 @@ const ApiPublicVendasIndexRoute = ApiPublicVendasIndexRouteImport.update({
   path: '/api/public/vendas/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRoletasIndexRoute = ApiPublicRoletasIndexRouteImport.update({
+  id: '/api/public/roletas/',
+  path: '/api/public/roletas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProjetosIndexRoute = ApiPublicProjetosIndexRouteImport.update({
   id: '/api/public/projetos/',
   path: '/api/public/projetos/',
@@ -593,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
+  '/api/public/roletas/': typeof ApiPublicRoletasIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
@@ -674,6 +681,7 @@ export interface FileRoutesByTo {
   '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos': typeof ApiPublicProjetosIndexRoute
+  '/api/public/roletas': typeof ApiPublicRoletasIndexRoute
   '/api/public/vendas': typeof ApiPublicVendasIndexRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
@@ -757,6 +765,7 @@ export interface FileRoutesById {
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
+  '/api/public/roletas/': typeof ApiPublicRoletasIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
@@ -840,6 +849,7 @@ export interface FileRouteTypes {
     | '/api/public/corretores/'
     | '/api/public/leads/'
     | '/api/public/projetos/'
+    | '/api/public/roletas/'
     | '/api/public/vendas/'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
@@ -921,6 +931,7 @@ export interface FileRouteTypes {
     | '/api/public/corretores'
     | '/api/public/leads'
     | '/api/public/projetos'
+    | '/api/public/roletas'
     | '/api/public/vendas'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
@@ -1003,6 +1014,7 @@ export interface FileRouteTypes {
     | '/api/public/corretores/'
     | '/api/public/leads/'
     | '/api/public/projetos/'
+    | '/api/public/roletas/'
     | '/api/public/vendas/'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
@@ -1042,6 +1054,7 @@ export interface RootRouteChildren {
   ApiPublicCorretoresIndexRoute: typeof ApiPublicCorretoresIndexRoute
   ApiPublicLeadsIndexRoute: typeof ApiPublicLeadsIndexRoute
   ApiPublicProjetosIndexRoute: typeof ApiPublicProjetosIndexRoute
+  ApiPublicRoletasIndexRoute: typeof ApiPublicRoletasIndexRoute
   ApiPublicVendasIndexRoute: typeof ApiPublicVendasIndexRoute
   ApiPublicWebhooksLeadTokenRoute: typeof ApiPublicWebhooksLeadTokenRoute
 }
@@ -1468,6 +1481,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicVendasIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/roletas/': {
+      id: '/api/public/roletas/'
+      path: '/api/public/roletas'
+      fullPath: '/api/public/roletas/'
+      preLoaderRoute: typeof ApiPublicRoletasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/projetos/': {
       id: '/api/public/projetos/'
       path: '/api/public/projetos'
@@ -1757,6 +1777,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCorretoresIndexRoute: ApiPublicCorretoresIndexRoute,
   ApiPublicLeadsIndexRoute: ApiPublicLeadsIndexRoute,
   ApiPublicProjetosIndexRoute: ApiPublicProjetosIndexRoute,
+  ApiPublicRoletasIndexRoute: ApiPublicRoletasIndexRoute,
   ApiPublicVendasIndexRoute: ApiPublicVendasIndexRoute,
   ApiPublicWebhooksLeadTokenRoute: ApiPublicWebhooksLeadTokenRoute,
 }
