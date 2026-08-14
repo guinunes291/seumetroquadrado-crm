@@ -3,6 +3,14 @@ DECLARE _ed uuid; _final uuid; _terceiro uuid;
   _andrew uuid := '6e09dcdf-0913-4482-b753-b98652be920e';
   _jeff uuid := '277f3912-db60-46b0-92ee-07f641ab10df';
 BEGIN
+  -- Guarda de idempotência (P1-5, ver scripts/db-harness/README.md): patch de
+  -- dados com UUIDs fixos de produção — em ambiente limpo (sem os perfis
+  -- alvo) vira no-op, como as demais migrations de dados da Copa.
+  IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = _jeff)
+     OR NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = _andrew) THEN
+    RETURN;
+  END IF;
+
   SELECT id INTO _ed FROM public.copa_edicao WHERE ativo ORDER BY created_at DESC LIMIT 1;
   SELECT id INTO _final FROM public.copa_fases WHERE edicao_id=_ed AND tipo='final' LIMIT 1;
   SELECT id INTO _terceiro FROM public.copa_fases WHERE edicao_id=_ed AND tipo='terceiro' LIMIT 1;
