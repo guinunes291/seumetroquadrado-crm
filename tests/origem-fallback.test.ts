@@ -15,7 +15,7 @@ const migSemComentario = mig.replace(/--[^\n]*/g, "");
 
 describe("ordem e escopo da migration", () => {
   it("ordena DEPOIS da migration das roletas por zona — replay termina nesta", () => {
-    expect(MIG > "supabase/migrations/20260816120000_roletas_por_zona.sql").toBe(true);
+    expect(MIG > "supabase/migrations/20260816140000_roletas_por_zona.sql").toBe(true);
   });
 
   it("não regride o fix P0: o INSERT vencedor segue gravando 'sucesso'", () => {

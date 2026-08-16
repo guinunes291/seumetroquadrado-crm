@@ -1,4 +1,4 @@
-// Roletas por ZONA — contratos da migration 20260816120000 e da fiação.
+// Roletas por ZONA — contratos da migration 20260816140000 e da fiação.
 // Decisão de produto (2026-08-16): a roleta É a zona. 4 roletas (Norte, Sul,
 // Leste, Oeste) com time definido manualmente pela gestão; o motor roteia
 // zona-primeiro (roleta_da_zona) e as campanhas delegam para a zona quando a
@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
-const MIG = "supabase/migrations/20260816120000_roletas_por_zona.sql";
+const MIG = "supabase/migrations/20260816140000_roletas_por_zona.sql";
 const mig = read(MIG);
 const migSemComentario = mig.replace(/--[^\n]*/g, "");
 

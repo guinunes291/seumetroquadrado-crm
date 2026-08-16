@@ -6,7 +6,7 @@ com os corretores de cada uma definidos manualmente pela gestão. A participaç�
 na roleta É o corte geográfico: quem está na roleta da zona recebe os leads
 daquela zona, em rodízio simples (há mais tempo sem receber).
 
-Implementado na migration `20260816120000_roletas_por_zona.sql`.
+Implementado na migration `20260816140000_roletas_por_zona.sql`.
 
 ## Como um lead ganha zona (nada disso mudou de lugar)
 
@@ -128,7 +128,9 @@ origem desfaz a mesclagem).
   virar a zona do lead no CRM. As rotas por empreendimento (`rotas_intake` /
   Data Table de roletas) continuam funcionando — a zona vence quando resolve.
 - **Roletas de origem** (Plantão, Marquinhos, Landing): viram o fallback de
-  quem não tem zona. Não desativar — são a rede de segurança.
+  quem não tem zona. O Plantão é a rede de segurança — manter sempre;
+  Marquinhos e Landing podem ser mescladas nele quando a gestão quiser (ver a
+  tabela de consolidação acima).
 - **Roletas de campanha**: seguem aceitando leads pelos tokens; a delegação por
   zona acontece no motor. Se quiser aposentá-las depois, é `ativo = false` no
   painel de Campanhas (sem pressa e sem apagar nada).
