@@ -74,3 +74,16 @@ RETURNS text LANGUAGE sql STABLE AS $$
     NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email'
   );
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Usuários de PRODUÇÃO referenciados por migrations operacionais.
+-- A migration 20260729185850 (chaveamento da final da Copa) insere confrontos
+-- com os uuids reais de dois corretores; sem estas linhas, o replay do
+-- harness quebra na FK copa_confrontos → auth.users. Os inserts rodam ANTES
+-- das migrations (o trigger invite-only de handle_new_user ainda não existe),
+-- e só existem aqui — produção já tem os usuários de verdade.
+-- ---------------------------------------------------------------------------
+INSERT INTO auth.users (id, email) VALUES
+  ('6e09dcdf-0913-4482-b753-b98652be920e', 'andrew.copa@harness.local'),
+  ('277f3912-db60-46b0-92ee-07f641ab10df', 'jefferson.copa@harness.local')
+ON CONFLICT (id) DO NOTHING;

@@ -1,9 +1,10 @@
-// Aba Visão Geral — saúde das 3 roletas + últimas decisões do motor.
+// Aba Visão Geral — saúde das roletas por zona e de origem + últimas
+// decisões do motor.
 
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Bot, Globe, Users } from "lucide-react";
+import { ArrowRight, Bot, Compass, Globe, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -13,7 +14,15 @@ import { proximoDaVez, roletaLabel, RESULTADO_LABEL } from "@/lib/distribuicao";
 import type { RoletaSlug } from "@/lib/distribuicao";
 import { useElegibilidadeRoleta, useHistoricoDistribuicao, useNomesPerfis } from "./queries";
 
-const ROLETA_ICON = { plantao: Users, marquinhos: Bot, landing: Globe } as const;
+const ROLETA_ICON = {
+  plantao: Users,
+  marquinhos: Bot,
+  landing: Globe,
+  "zona-norte": Compass,
+  "zona-sul": Compass,
+  "zona-leste": Compass,
+  "zona-oeste": Compass,
+} as const;
 
 function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
   const q = useElegibilidadeRoleta(slug);
@@ -68,6 +77,14 @@ export function TabVisaoGeral({ onVerExcecoes }: { onVerExcecoes: () => void }) 
 
   return (
     <div className="space-y-4">
+      {/* Roletas por zona primeiro — é para onde o motor roteia leads com
+          zona resolvida (roleta_da_zona); as de origem são o fallback. */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <RoletaSaudeCard slug="zona-norte" />
+        <RoletaSaudeCard slug="zona-sul" />
+        <RoletaSaudeCard slug="zona-leste" />
+        <RoletaSaudeCard slug="zona-oeste" />
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         <RoletaSaudeCard slug="plantao" />
         <RoletaSaudeCard slug="marquinhos" />
