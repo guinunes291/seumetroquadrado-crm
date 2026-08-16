@@ -23,18 +23,24 @@ em 16/08/2026.
 3. **Ramal por corretor** — coluna `profiles.ramal_sonax`, editável pelo admin
    em **Gestão → Corretores** (coluna "Ramal"). É o ramal que o click-to-call
    disca e a chave que casa eventos do webhook (`<RAMAL>`) com o corretor.
+4. **Aba Discador** (`/discador`, menu Atender) — central de telefonia: KPIs do
+   dia (chamadas/atendidas/perdidas + meu ramal), histórico com filtros
+   (direção, status, busca por lead/número) e rediscagem em um clique. Corretor
+   vê as chamadas da própria carteira/ramal; gestão vê a operação inteira
+   (RLS). Atualiza ao vivo via realtime.
 
 ## Peças no repositório
 
-| Peça                                           | Arquivo                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------------- |
-| Migration (`chamadas`, `ramal_sonax`, trigger) | `supabase/migrations/20260816120000_telefonia_sonax.sql`            |
-| Click-to-call (JWT + RLS do corretor)          | `supabase/functions/sonax-discar/index.ts`                          |
-| Webhook de eventos (secret + service_role)     | `supabase/functions/sonax-webhook/index.ts`                         |
-| Hook do botão Ligar (com fallback `tel:`)      | `src/hooks/use-ligar-lead.ts`                                       |
-| Botões no dossiê do lead                       | `src/routes/_authenticated/leads.$leadId.tsx`                       |
-| Coluna Ramal na gestão                         | `src/features/gestao/corretores-page.tsx` + `ramal-sonax-client.ts` |
-| Testes de guarda                               | `tests/telefonia-sonax.test.ts`                                     |
+| Peça                                            | Arquivo                                                              |
+| ----------------------------------------------- | -------------------------------------------------------------------- |
+| Migration (`chamadas`, `ramal_sonax`, trigger)  | `supabase/migrations/20260816120000_telefonia_sonax.sql`             |
+| Click-to-call (JWT + RLS do corretor)           | `supabase/functions/sonax-discar/index.ts`                           |
+| Webhook de eventos (secret + service_role)      | `supabase/functions/sonax-webhook/index.ts`                          |
+| Hook do botão Ligar (com fallback `tel:`)       | `src/hooks/use-ligar-lead.ts`                                        |
+| Botões no dossiê do lead                        | `src/routes/_authenticated/leads.$leadId.tsx`                        |
+| Coluna Ramal na gestão                          | `src/features/gestao/corretores-page.tsx` + `ramal-sonax-client.ts`  |
+| Aba Discador (rota, página, fronteira de dados) | `src/routes/_authenticated/discador.tsx` + `src/features/telefonia/` |
+| Testes de guarda                                | `tests/telefonia-sonax.test.ts`                                      |
 
 ## Setup (checklist de ativação)
 

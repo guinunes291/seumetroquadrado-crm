@@ -31,6 +31,7 @@ import {
   UserRound,
   DollarSign,
   History,
+  Phone,
   Zap,
 } from "lucide-react";
 
@@ -216,6 +217,7 @@ export function CommandPalette() {
       go: () => navigate({ to: "/projetos" }),
     },
     { label: "Oferta Ativa", icon: Users, go: () => navigate({ to: "/oferta-ativa" }) },
+    { label: "Discador (telefonia)", icon: Phone, go: () => navigate({ to: "/discador" }) },
     {
       // /match não tem entrada no menu (é ferramenta de contexto, chamada da
       // ficha do lead e do hub de projetos). Sem estar aqui, era a única página

@@ -1,0 +1,458 @@
+// /discador — a central de telefonia do CRM (Sonax PABX): o que tocou e o que
+// foi discado, num lugar só. As linhas nascem da edge function sonax-discar
+// (click-to-call) e do webhook sonax-webhook (receptivo/campanha); a RLS
+// recorta — corretor vê as chamadas da própria carteira/ramal, gestão vê tudo.
+
+import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Info,
+  Phone,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneMissed,
+  PhoneOutgoing,
+  Search,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { AsyncBoundary } from "@/components/ui/async-boundary";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { useLigarLead } from "@/hooks/use-ligar-lead";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
+import { supabase } from "@/integrations/supabase/client";
+import { formatRelativeTime } from "@/lib/interacoes";
+import { listarRamaisSonax } from "@/features/gestao/ramal-sonax-client";
+import { listarChamadasRecentes, type Chamada } from "./chamadas-client";
+
+const STATUS_LABEL: Record<string, string> = {
+  iniciada: "Iniciada",
+  chamando: "Chamando",
+  falando: "Falando",
+  atendida: "Atendida",
+  concluida: "Concluída",
+  nao_atendida: "Não atendida",
+  falha: "Falha",
+};
+
+const ORIGEM_LABEL: Record<Chamada["origem"], string> = {
+  click2call: "Click-to-call",
+  campanha: "Campanha",
+  receptivo: "Receptivo",
+  agendada: "Agendada",
+};
+
+function statusVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "nao_atendida" || status === "falha") return "destructive";
+  if (status === "concluida") return "secondary";
+  if (status === "atendida" || status === "falando") return "default";
+  return "outline";
+}
+
+function formatDuracao(s: number | null): string {
+  if (s === null || Number.isNaN(s)) return "—";
+  const min = Math.floor(s / 60);
+  const seg = s % 60;
+  return `${min}:${String(seg).padStart(2, "0")}`;
+}
+
+function formatNumero(numero: string): string {
+  const d = numero.replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return numero;
+}
+
+type LeadResumo = { id: string; nome: string; telefone: string };
+
+type LinhaChamada = Chamada & {
+  leadNome: string | null;
+  leadTelefone: string | null;
+  corretorNome: string | null;
+};
+
+export function DiscadorCentral() {
+  const { user } = useAuth();
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const gestao = isAdmin || isGestor || isSuperintendente;
+  const { ligar, discando } = useLigarLead();
+
+  const [busca, setBusca] = useState("");
+  const [direcao, setDirecao] = useState<"todas" | "entrada" | "saida">("todas");
+  const [status, setStatus] = useState<string>("todos");
+
+  const chamadasQ = useQuery({
+    queryKey: ["chamadas:discador", user?.id],
+    enabled: !!user,
+    queryFn: () => listarChamadasRecentes(500),
+  });
+  useRealtimeInvalidate("chamadas", [["chamadas:discador"]]);
+
+  const rows = useMemo(() => chamadasQ.data?.rows ?? [], [chamadasQ.data]);
+
+  // Enriquecimento: nome/telefone do lead (para o link e o rediscar) e nome
+  // do corretor (visão da gestão). RLS recorta o que cada papel enxerga.
+  const leadIds = useMemo(
+    () => Array.from(new Set(rows.map((c) => c.lead_id).filter((v): v is string => !!v))),
+    [rows],
+  );
+  const leadsQ = useQuery({
+    queryKey: ["chamadas:leads", leadIds],
+    enabled: leadIds.length > 0,
+    queryFn: async (): Promise<Map<string, LeadResumo>> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, nome, telefone")
+        .in("id", leadIds);
+      if (error) throw error;
+      return new Map((data ?? []).map((l) => [l.id, l as LeadResumo]));
+    },
+  });
+
+  const corretorIds = useMemo(
+    () => Array.from(new Set(rows.map((c) => c.corretor_id).filter((v): v is string => !!v))),
+    [rows],
+  );
+  const corretoresQ = useQuery({
+    queryKey: ["chamadas:corretores", corretorIds],
+    enabled: gestao && corretorIds.length > 0,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("id", corretorIds);
+      if (error) throw error;
+      return new Map((data ?? []).map((p) => [p.id, p.nome as string]));
+    },
+  });
+
+  // Meu ramal no PABX — sem ele o click-to-call não funciona para mim.
+  const ramalQ = useQuery({
+    queryKey: ["meu-ramal-sonax", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const ramais = await listarRamaisSonax([user!.id]);
+      return ramais[user!.id] ?? null;
+    },
+  });
+
+  const linhas = useMemo((): LinhaChamada[] => {
+    const leads = leadsQ.data ?? new Map<string, LeadResumo>();
+    const corretores = corretoresQ.data ?? new Map<string, string>();
+    const q = busca.trim().toLowerCase();
+    const qDigits = q.replace(/\D/g, "");
+    return rows
+      .map((c) => {
+        const lead = c.lead_id ? leads.get(c.lead_id) : undefined;
+        return {
+          ...c,
+          leadNome: lead?.nome ?? null,
+          leadTelefone: lead?.telefone ?? null,
+          corretorNome: c.corretor_id ? (corretores.get(c.corretor_id) ?? null) : null,
+        };
+      })
+      .filter((c) => {
+        if (direcao !== "todas" && c.direcao !== direcao) return false;
+        if (status !== "todos" && c.status !== status) return false;
+        if (!q) return true;
+        return (
+          (qDigits.length > 0 && c.numero.includes(qDigits)) ||
+          (c.leadNome ?? "").toLowerCase().includes(q)
+        );
+      });
+  }, [rows, leadsQ.data, corretoresQ.data, busca, direcao, status]);
+
+  // KPIs do dia — direto das linhas visíveis ao papel (sem query extra).
+  const kpis = useMemo(() => {
+    const inicioHoje = new Date();
+    inicioHoje.setHours(0, 0, 0, 0);
+    const hoje = rows.filter((c) => new Date(c.criado_em) >= inicioHoje);
+    const atendidas = hoje.filter((c) =>
+      ["atendida", "falando", "concluida"].includes(c.status),
+    ).length;
+    const perdidas = hoje.filter((c) => ["nao_atendida", "falha"].includes(c.status)).length;
+    const comDuracao = hoje.filter((c) => (c.duracao_segundos ?? 0) > 0);
+    const mediaSeg = comDuracao.length
+      ? Math.round(
+          comDuracao.reduce((acc, c) => acc + (c.duracao_segundos ?? 0), 0) / comDuracao.length,
+        )
+      : null;
+    return { total: hoje.length, atendidas, perdidas, mediaSeg };
+  }, [rows]);
+
+  const columns = useMemo<ColumnDef<LinhaChamada, unknown>[]>(
+    () => [
+      {
+        accessorKey: "criado_em",
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Quando" />,
+        meta: { label: "Quando" },
+        cell: ({ row }) => (
+          <span
+            className="whitespace-nowrap text-muted-foreground"
+            title={new Date(row.original.criado_em).toLocaleString("pt-BR")}
+          >
+            {formatRelativeTime(row.original.criado_em)}
+          </span>
+        ),
+      },
+      {
+        id: "direcao",
+        header: "Direção",
+        enableSorting: false,
+        meta: { label: "Direção", hideBelow: "sm" },
+        cell: ({ row }) =>
+          row.original.direcao === "entrada" ? (
+            <span className="inline-flex items-center gap-1.5 text-sm">
+              <PhoneIncoming className="h-3.5 w-3.5 text-success" /> Recebida
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-sm">
+              <PhoneOutgoing className="h-3.5 w-3.5 text-primary" /> Realizada
+            </span>
+          ),
+      },
+      {
+        id: "lead",
+        header: "Lead / Número",
+        enableSorting: false,
+        meta: { label: "Lead / Número" },
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            {row.original.lead_id ? (
+              <Link
+                to="/leads/$leadId"
+                params={{ leadId: row.original.lead_id }}
+                className="block truncate font-medium text-primary hover:underline"
+              >
+                {row.original.leadNome ?? "Lead"}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">Sem lead</span>
+            )}
+            <div className="text-xs tabular-nums text-muted-foreground">
+              {formatNumero(row.original.numero)}
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        enableSorting: false,
+        meta: { label: "Status" },
+        cell: ({ row }) => (
+          <Badge variant={statusVariant(row.original.status)}>
+            {STATUS_LABEL[row.original.status] ?? row.original.status}
+          </Badge>
+        ),
+      },
+      {
+        id: "duracao",
+        header: "Duração",
+        enableSorting: false,
+        meta: { label: "Duração", hideBelow: "md" },
+        cell: ({ row }) => (
+          <span className="tabular-nums text-muted-foreground">
+            {formatDuracao(row.original.duracao_segundos)}
+          </span>
+        ),
+      },
+      {
+        id: "origem",
+        header: "Origem",
+        enableSorting: false,
+        meta: { label: "Origem", hideBelow: "lg" },
+        cell: ({ row }) => <Badge variant="secondary">{ORIGEM_LABEL[row.original.origem]}</Badge>,
+      },
+      ...(gestao
+        ? ([
+            {
+              id: "corretor",
+              header: "Corretor",
+              enableSorting: false,
+              meta: { label: "Corretor", hideBelow: "lg" },
+              cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                  {row.original.corretorNome ?? row.original.ramal ?? "—"}
+                </span>
+              ),
+            },
+          ] satisfies ColumnDef<LinhaChamada, unknown>[])
+        : []),
+      {
+        id: "acao",
+        header: "",
+        enableSorting: false,
+        meta: { label: "Ação" },
+        cell: ({ row }) =>
+          row.original.lead_id && row.original.leadNome ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={discando}
+              onClick={() =>
+                ligar({
+                  id: row.original.lead_id!,
+                  nome: row.original.leadNome!,
+                  telefone: row.original.leadTelefone ?? row.original.numero,
+                })
+              }
+            >
+              <Phone className="h-3.5 w-3.5 mr-1.5" /> Ligar
+            </Button>
+          ) : null,
+      },
+    ],
+    [gestao, discando, ligar],
+  );
+
+  if (chamadasQ.data?.tabelaAusente) {
+    return (
+      <Card className="border-warning/40 bg-warning/5">
+        <CardContent className="flex items-start gap-3 p-4 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <span>
+            O Discador depende da migration de telefonia (<code>chamadas</code>), ainda não aplicada
+            neste ambiente. Aplique o deploy do banco e volte aqui — o setup completo está em{" "}
+            <code>docs/integracoes/sonax-discador.md</code>.
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* KPIs do dia + meu ramal */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KpiCard icon={PhoneCall} label="Chamadas hoje" valor={String(kpis.total)} />
+        <KpiCard icon={PhoneIncoming} label="Atendidas hoje" valor={String(kpis.atendidas)} />
+        <KpiCard icon={PhoneMissed} label="Perdidas hoje" valor={String(kpis.perdidas)} />
+        <KpiCard
+          icon={Phone}
+          label="Meu ramal"
+          valor={ramalQ.data ?? "—"}
+          hint={
+            ramalQ.data
+              ? "O click-to-call toca aqui antes de discar o lead."
+              : "Sem ramal cadastrado — peça ao admin em Gestão → Corretores."
+          }
+        />
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por lead ou número…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={direcao} onValueChange={(v) => setDirecao(v as typeof direcao)}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Todas</SelectItem>
+            <SelectItem value="entrada">Recebidas</SelectItem>
+            <SelectItem value="saida">Realizadas</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os status</SelectItem>
+            {Object.entries(STATUS_LABEL).map(([valor, label]) => (
+              <SelectItem key={valor} value={valor}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <AsyncBoundary
+        isLoading={chamadasQ.isLoading}
+        isError={chamadasQ.isError}
+        error={chamadasQ.error}
+        errorTitle="Não foi possível carregar as chamadas."
+        onRetry={() => void chamadasQ.refetch()}
+        loadingLabel="Carregando chamadas"
+        loadingFallback={
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        }
+      >
+        <DataTable
+          tableId="discador-chamadas"
+          aria-label="Histórico de chamadas do discador"
+          columns={columns}
+          data={linhas}
+          loading={chamadasQ.isLoading}
+          empty={
+            <EmptyState
+              icon={PhoneCall}
+              title={
+                busca || direcao !== "todas" || status !== "todos"
+                  ? "Nenhuma chamada para esses filtros."
+                  : "Nenhuma chamada registrada ainda."
+              }
+              description={
+                busca || direcao !== "todas" || status !== "todos"
+                  ? "Ajuste os filtros ou limpe a busca."
+                  : 'As ligações entram aqui pelo botão "Ligar" do lead (click-to-call) e pelos eventos do PABX Sonax (receptivo e campanhas do discador).'
+              }
+            />
+          }
+        />
+      </AsyncBoundary>
+    </div>
+  );
+}
+
+function KpiCard({
+  icon: Icon,
+  label,
+  valor,
+  hint,
+}: {
+  icon: typeof Phone;
+  label: string;
+  valor: string;
+  hint?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <Icon className="h-3.5 w-3.5" /> {label}
+        </div>
+        <div className="mt-1 font-display text-2xl font-semibold tabular-nums" title={hint}>
+          {valor}
+        </div>
+        {hint && <div className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</div>}
+      </CardContent>
+    </Card>
+  );
+}
