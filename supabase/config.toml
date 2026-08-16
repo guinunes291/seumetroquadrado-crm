@@ -26,3 +26,14 @@ verify_jwt = false
 
 [functions.crm-convites]
 verify_jwt = true
+
+# Telefonia Sonax — click-to-call chamado do app com o JWT do corretor (RLS
+# decide o que ele pode discar/registrar).
+[functions.sonax-discar]
+verify_jwt = true
+
+# Telefonia Sonax — URL de integração do PABX (template estático, sem headers).
+# Autenticação via SONAX_WEBHOOK_SECRET (?secret= ou x-webhook-secret), não por
+# JWT do Supabase.
+[functions.sonax-webhook]
+verify_jwt = false
