@@ -59,9 +59,15 @@ describe("resolverRoletaPorOrigem — triagem origem/canal → roleta", () => {
     }
   });
 
-  it("canal webhook_landing tem precedência sobre a origem", () => {
+  it("canal webhook_landing tem precedência sobre a origem, via linha 'site' do mapa", () => {
     expect(resolverRoletaPorOrigem("outro", "webhook_landing", MAPA_PADRAO)).toBe("landing");
     expect(resolverRoletaPorOrigem("chatbot", "webhook_landing", MAPA_PADRAO)).toBe("landing");
+  });
+
+  it("reapontar 'site' no mapa move também o canal landing (mesclagem por dados)", () => {
+    const mapa = { ...MAPA_PADRAO, site: "plantao" };
+    expect(resolverRoletaPorOrigem("outro", "webhook_landing", mapa)).toBe("plantao");
+    expect(resolverRoletaPorOrigem("site", null, mapa)).toBe("plantao");
   });
 
   it("origem não mapeada → null (vira exceção no motor)", () => {

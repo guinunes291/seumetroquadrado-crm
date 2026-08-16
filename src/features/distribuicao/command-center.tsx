@@ -1,7 +1,7 @@
 // Central de Distribuição — página /distribuicao (distribuição v3).
 // Dashboard de saúde + abas: visão geral, roletas por zona (Norte · Sul ·
-// Leste · Oeste), 3 roletas de origem, exceções, histórico, configurações
-// (admin) e auditoria.
+// Leste · Oeste), roletas de origem (fallback, numa aba só), exceções,
+// histórico, configurações (admin) e auditoria.
 
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -31,7 +31,7 @@ import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
 import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "./queries";
 import { TabVisaoGeral } from "./tab-visao-geral";
 import { TabZonas } from "./tab-zonas";
-import { RoletaTab } from "./roleta-tab";
+import { TabOrigem } from "./tab-origem";
 import { TabExcecoes } from "./tab-excecoes";
 import { TabHistorico } from "./tab-historico";
 import { TabConfiguracoes } from "./tab-configuracoes";
@@ -40,9 +40,7 @@ import { TabAuditoria } from "./tab-auditoria";
 export type DistribuicaoTab =
   | "visao"
   | "zonas"
-  | "plantao"
-  | "marquinhos"
-  | "landing"
+  | "origem"
   | "excecoes"
   | "historico"
   | "config"
@@ -51,9 +49,7 @@ export type DistribuicaoTab =
 export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
   "visao",
   "zonas",
-  "plantao",
-  "marquinhos",
-  "landing",
+  "origem",
   "excecoes",
   "historico",
   "config",
@@ -170,7 +166,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
           icon={Users}
           intent={(r?.aptos_plantao ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("plantao")}
+          onClick={() => setTab("origem")}
         />
         <StatTile
           title="Aptos · Marquinhos"
@@ -178,7 +174,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
           icon={Bot}
           intent={(r?.aptos_marquinhos ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("marquinhos")}
+          onClick={() => setTab("origem")}
         />
         <StatTile
           title="Aptos · Landing"
@@ -186,7 +182,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
           icon={Globe}
           intent={(r?.aptos_landing ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("landing")}
+          onClick={() => setTab("origem")}
         />
         <StatTile
           title="Parados (régua de horas)"
@@ -210,9 +206,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
           <TabsTrigger value="zonas">Roletas por Zona</TabsTrigger>
-          <TabsTrigger value="plantao">Roleta Plantão</TabsTrigger>
-          <TabsTrigger value="marquinhos">Roleta Marquinhos</TabsTrigger>
-          <TabsTrigger value="landing">Roleta Landing</TabsTrigger>
+          <TabsTrigger value="origem">Roletas de Origem</TabsTrigger>
           <TabsTrigger value="excecoes">
             Exceções
             {(r?.excecoes_pendentes ?? 0) > 0 && (
@@ -232,14 +226,8 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
         <TabsContent value="zonas">
           <TabZonas somenteLeitura={somenteLeitura} />
         </TabsContent>
-        <TabsContent value="plantao">
-          <RoletaTab slug="plantao" somenteLeitura={somenteLeitura} />
-        </TabsContent>
-        <TabsContent value="marquinhos">
-          <RoletaTab slug="marquinhos" somenteLeitura={somenteLeitura} />
-        </TabsContent>
-        <TabsContent value="landing">
-          <RoletaTab slug="landing" somenteLeitura={somenteLeitura} />
+        <TabsContent value="origem">
+          <TabOrigem somenteLeitura={somenteLeitura} />
         </TabsContent>
         <TabsContent value="excecoes">
           <TabExcecoes somenteLeitura={somenteLeitura} />

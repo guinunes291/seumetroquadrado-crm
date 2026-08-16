@@ -90,6 +90,37 @@ FROM public.distribution_log WHERE created_at > now() - interval '24 hours'
 GROUP BY 1, 2 ORDER BY 1;
 ```
 
+## Consolidação das roletas (migration 20260816150000)
+
+A Central caiu de 9 para 7 abas: **Visão Geral · Roletas por Zona · Roletas de
+Origem · Exceções · Histórico · Configurações · Auditoria**. Plantão,
+Marquinhos e Landing viraram uma aba só ("Roletas de Origem"), com seletor —
+com o modelo por zona elas são o fallback de quem não tem zona, não merecem
+três abas de primeira classe.
+
+Mesclar/desativar roleta virou operação de dados, segura e reversível:
+
+- O destino fixo da landing saiu do código: o canal da landing page resolve
+  pela linha **site** do mapeamento origem → roleta (Configurações). Reapontar
+  `site` move também os leads de LP.
+- Roleta de origem **desativada ou sem time** não represa lead: a triagem
+  desvia para o Plantão (quando pronto), com o desvio auditável no contexto
+  (`origem_fallback`). Antes, desativar a Marquinhos mandava todo lead de
+  chatbot sem zona para a fila de exceções.
+
+Recomendação de estado-alvo, quando a operação por zona estiver rodando bem:
+
+| Roleta | Veredito | Como |
+| --- | --- | --- |
+| 4 zonas | **Principal** | Times definidos pela gestão |
+| Plantão | **Manter** — é o catch-all | Nada a fazer |
+| Marquinhos | Mesclar no Plantão | Configurações: `chatbot` → Plantão; desativar a roleta |
+| Landing | Mesclar no Plantão | Configurações: `site` → Plantão; desativar a roleta |
+| Campanhas (7) | Desativar conforme encerram | Painel Campanhas: switch Ativa; token desativado cai na triagem normal |
+
+Tudo pela UI, sem migration, e reversível (reativar a roleta e reapontar a
+origem desfaz a mesclagem).
+
 ## O que fica como está (de propósito)
 
 - **n8n/Marquinhos**: nenhuma mudança necessária. O handoff continua batendo no

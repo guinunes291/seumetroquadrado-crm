@@ -161,16 +161,17 @@ export function calcPctTrabalhado(carteiraTotal: number, aguardando: number): nu
 
 // ---------------------------------------------------------------------------
 // Resolução origem/canal → roleta (mesma regra de _resolver_roleta_lead):
-// canal 'webhook_landing' tem precedência; senão vale o mapa configurável.
+// canal 'webhook_landing' resolve pela linha EDITÁVEL da origem 'site' no
+// mapa (2026-08-16 — o destino fixo saiu do código para a gestão poder
+// mesclar/reapontar a roleta da landing); as demais origens seguem o mapa.
 // ---------------------------------------------------------------------------
 export function resolverRoletaPorOrigem(
   origem: string,
   canalEntrada: string | null,
   mapa: Partial<Record<string, string | null>>,
 ): RoletaSlug | null {
-  if (canalEntrada === "webhook_landing") return "landing";
-  const slug = mapa[origem];
-  return (slug as RoletaSlug | null | undefined) ?? null;
+  const chave = canalEntrada === "webhook_landing" ? "site" : origem;
+  return (mapa[chave] as RoletaSlug | null | undefined) ?? null;
 }
 
 // ---------------------------------------------------------------------------
