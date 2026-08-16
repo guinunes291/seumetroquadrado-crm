@@ -390,7 +390,8 @@ describe("fila de exceções (lead nunca se perde)", () => {
     expect(exc.rows[0].status).toBe("resolvida");
     expect(exc.rows[0].resolvida_por).toBe(admin.id);
     expect(exc.rows[0].resolvida_em).not.toBeNull();
-    expect(exc.rows[0].resolucao).toContain("distribuído");
+    // Texto vigente desde 20260813: "Distribuído para {nome} (roleta {slug})".
+    expect(exc.rows[0].resolucao).toMatch(/[Dd]istribuído para/);
 
     const fila = await c.query(
       `SELECT count(*)::int AS n FROM public.distribuicao_excecoes

@@ -41,6 +41,11 @@ const payloadSchema = z.object({
   utm_campaign: optStr(255),
   utm_content: optStr(255),
   distribuir: z.boolean().optional().default(true),
+  // Zona/bairro do lead (texto livre — o trigger do banco normaliza "zona
+  // leste" → 'Leste' ou resolve pelo bairro via zonas_bairros; o que não
+  // normalizar fica NULL e o lead segue o fluxo por origem, sem corte).
+  zona: optStr(120),
+  bairro: optStr(255),
   // Qualificação IA (handoff)
   faixaRenda: optStr(120),
   finalidadeImovel: optStr(120),
@@ -113,8 +118,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // 1) Tenta resolver como TOKEN DE CAMPANHA (roleta.webhook_token).
-        //    Uma campanha pode ter projeto vinculado (opcional). Se vinculado,
+        // 1) Tenta resolver como TOKEN DE ROLETA (roleta.webhook_token):
+        //    campanha OU roleta de zona (zona-norte/sul/leste/oeste). Uma
+        //    campanha pode ter projeto vinculado (opcional). Se vinculado,
         //    o lead sai amarrado a esse projeto; se não, sai só com o
         //    empreendimento informado no payload (ou o nome da campanha).
         const { data: campanha } = await supabaseAdmin
@@ -132,7 +138,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               .eq("webhook_token", token)
               .maybeSingle();
 
-        if (campanha && (!campanha.ativo || campanha.tipo !== "campanha")) {
+        if (campanha && (!campanha.ativo || !["campanha", "zona"].includes(campanha.tipo))) {
           return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         }
 
@@ -265,6 +271,10 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             usa_fgts: usaFgts,
             entrada_disponivel: data.fgts ?? null,
             temperatura: temperatura,
+            // Zona do lead: campo explícito manda; sem ele, a "região de
+            // interesse" da qualificação IA É a zona (trigger normaliza).
+            zona: data.zona ?? data.regiao ?? null,
+            bairro: data.bairro ?? null,
             utm_source: data.utm_source ?? null,
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
@@ -303,11 +313,39 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         let excecaoMotivo: string | null = null;
 
         if (data.distribuir) {
-          if (campanha) {
-            // Distribuição da CAMPANHA: só a equipe da roleta, ponderada por
-            // tier (A=3/B=2/C=1). Se não houver ninguém apto, mantém o
-            // contrato antigo (motivo: sem_corretor_disponivel) e o lead vai
-            // para o cron de redistribuição, agora amarrado à mesma campanha.
+          if (campanha && campanha.tipo === "zona") {
+            // Token de ROLETA DE ZONA: rodízio simples (menos recente) do
+            // motor v3, direto no time da zona — sem tier/SWRR de campanha.
+            const { data: dist, error: distErr } = await supabaseAdmin.rpc("distribuir_lead_v3", {
+              _lead_id: lead.id,
+              _tipo: "automatica",
+              _roleta_slug: campanha.slug,
+              _gatilho: "webhook",
+            });
+            if (distErr) {
+              console.error("[webhooks/lead] distribuicao por zona falhou:", distErr);
+              motivo = "sem_corretor_disponivel";
+              excecaoMotivo = "falha_distribuicao_zona";
+            } else {
+              const res = dist as {
+                ok?: boolean;
+                corretor_id?: string;
+                motivo?: string;
+              } | null;
+              if (res?.ok && res.corretor_id) {
+                corretorId = res.corretor_id;
+              } else {
+                motivo = "sem_corretor_disponivel";
+                excecaoMotivo = res?.motivo ?? "sem_apto_na_zona";
+              }
+            }
+          } else if (campanha) {
+            // Distribuição da CAMPANHA: zona primeiro (o motor delega para a
+            // roleta da zona do lead quando ela existe e está pronta); senão,
+            // só a equipe da roleta, ponderada por tier (A=3/B=2/C=1). Se não
+            // houver ninguém apto, mantém o contrato antigo (motivo:
+            // sem_corretor_disponivel) e o lead vai para o cron de
+            // redistribuição, amarrado à mesma campanha.
             const { data: dist, error: distErr } = await supabaseAdmin.rpc(
               "distribuir_lead_ponderado",
               { _lead_id: lead.id, _roleta_slug: campanha.slug },

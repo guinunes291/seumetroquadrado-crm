@@ -1,6 +1,7 @@
 // Central de Distribuição — página /distribuicao (distribuição v3).
-// Dashboard de saúde + 8 abas: visão geral, 3 roletas, exceções, histórico,
-// configurações (admin) e auditoria.
+// Dashboard de saúde + abas: visão geral, roletas por zona (Norte · Sul ·
+// Leste · Oeste), 3 roletas de origem, exceções, histórico, configurações
+// (admin) e auditoria.
 
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -29,6 +30,7 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
 import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "./queries";
 import { TabVisaoGeral } from "./tab-visao-geral";
+import { TabZonas } from "./tab-zonas";
 import { RoletaTab } from "./roleta-tab";
 import { TabExcecoes } from "./tab-excecoes";
 import { TabHistorico } from "./tab-historico";
@@ -37,6 +39,7 @@ import { TabAuditoria } from "./tab-auditoria";
 
 export type DistribuicaoTab =
   | "visao"
+  | "zonas"
   | "plantao"
   | "marquinhos"
   | "landing"
@@ -47,6 +50,7 @@ export type DistribuicaoTab =
 
 export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
   "visao",
+  "zonas",
   "plantao",
   "marquinhos",
   "landing",
@@ -96,7 +100,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
     <div>
       <PageHeader
         title="Central de Distribuição"
-        description="As 3 roletas (Plantão · Marquinhos · Landing Page), fila de exceções, histórico e regras — tudo auditável."
+        description="Roletas por zona (Norte · Sul · Leste · Oeste), roletas de origem (Plantão · Marquinhos · Landing), fila de exceções, histórico e regras — tudo auditável."
         actions={
           somenteLeitura ? undefined : (
             <>
@@ -205,6 +209,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
       <Tabs value={activeTab} onValueChange={setTab} className="space-y-4">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
+          <TabsTrigger value="zonas">Roletas por Zona</TabsTrigger>
           <TabsTrigger value="plantao">Roleta Plantão</TabsTrigger>
           <TabsTrigger value="marquinhos">Roleta Marquinhos</TabsTrigger>
           <TabsTrigger value="landing">Roleta Landing</TabsTrigger>
@@ -223,6 +228,9 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
 
         <TabsContent value="visao">
           <TabVisaoGeral onVerExcecoes={() => setTab("excecoes")} />
+        </TabsContent>
+        <TabsContent value="zonas">
+          <TabZonas somenteLeitura={somenteLeitura} />
         </TabsContent>
         <TabsContent value="plantao">
           <RoletaTab slug="plantao" somenteLeitura={somenteLeitura} />

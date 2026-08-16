@@ -11,12 +11,27 @@ import type { Database } from "@/integrations/supabase/types";
 
 export type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
-export type RoletaSlug = "plantao" | "marquinhos" | "landing";
+// Roletas de ZONA (decisão 2026-08-16): a roleta É a zona — o gestor define
+// os corretores de cada uma, e o motor roteia zona-primeiro (roleta_da_zona).
+export type ZonaRoletaSlug = "zona-norte" | "zona-sul" | "zona-leste" | "zona-oeste";
+
+export const ZONA_ROLETAS: readonly ZonaRoletaSlug[] = [
+  "zona-norte",
+  "zona-sul",
+  "zona-leste",
+  "zona-oeste",
+] as const;
+
+export type RoletaSlug = "plantao" | "marquinhos" | "landing" | ZonaRoletaSlug;
 
 export const ROLETA_LABEL: Record<RoletaSlug, string> = {
   plantao: "Roleta Plantão",
   marquinhos: "Roleta Marquinhos",
   landing: "Roleta Landing Page",
+  "zona-norte": "Roleta Zona Norte",
+  "zona-sul": "Roleta Zona Sul",
+  "zona-leste": "Roleta Zona Leste",
+  "zona-oeste": "Roleta Zona Oeste",
 };
 
 export function roletaLabel(slug: string | null | undefined): string {
@@ -110,6 +125,7 @@ export const RESULTADO_LABEL: Record<string, string> = {
 
 export const GATILHO_LABEL: Record<string, string> = {
   webhook: "Webhook (chatbot)",
+  campanha_zona: "Campanha → roleta da zona",
   webhook_landing: "Webhook (landing page)",
   edge_facebook: "Facebook Ads",
   cron: "Rotina automática",
