@@ -115,3 +115,29 @@ describe("sonax-webhook (URL de integração do PABX)", () => {
     expect(fnWebhook).toMatch(/\^<\.\*>\$/);
   });
 });
+
+describe("aba Discador (fiação)", () => {
+  const rota = readFileSync(join(root, "src/routes/_authenticated/discador.tsx"), "utf8");
+  const pagina = readFileSync(join(root, "src/features/telefonia/discador-page.tsx"), "utf8");
+  const clienteChamadas = readFileSync(
+    join(root, "src/features/telefonia/chamadas-client.ts"),
+    "utf8",
+  );
+  const sidebar = readFileSync(join(root, "src/components/app-sidebar.tsx"), "utf8");
+  const routeTree = readFileSync(join(root, "src/routeTree.gen.ts"), "utf8");
+
+  it("rota /discador existe, está na árvore gerada e no menu Atender", () => {
+    expect(rota).toContain('createFileRoute("/_authenticated/discador")');
+    expect(routeTree).toContain("discador");
+    expect(sidebar).toMatch(/to: "\/discador"[\s\S]{0,40}label: "Discador"/);
+  });
+
+  it("página vive de `chamadas` com realtime e rediscagem pelo hook único", () => {
+    expect(pagina).toContain('useRealtimeInvalidate("chamadas"');
+    expect(pagina).toContain("useLigarLead");
+    expect(pagina).toContain("listarChamadasRecentes");
+    // Migration pendente mostra estado explicativo em vez de quebrar.
+    expect(pagina).toContain("tabelaAusente");
+    expect(clienteChamadas).toContain("tabelaAusente");
+  });
+});

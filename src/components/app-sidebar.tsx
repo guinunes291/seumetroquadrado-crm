@@ -22,6 +22,7 @@ import {
   MessageCircle,
   Shuffle,
   MapPinned,
+  Phone,
   PhoneOutgoing,
   Link2,
   Star,
@@ -90,6 +91,8 @@ const NAV_ITEMS: Item[] = [
       // Central de conversas WhatsApp (Fase 7b) — modo simulado até o
       // provedor; a entrada chega pelo webhook da 7a.
       { to: "/mensagens", label: "Mensagens", icon: MessageCircle },
+      // Telefonia Sonax: histórico de chamadas + rediscagem (click-to-call).
+      { to: "/discador", label: "Discador", icon: Phone },
       { to: "/leads", label: "Base de leads", icon: Users },
       // Prospecção de base fria por listas segmentadas (ex-aba de /projetos).
       { to: "/oferta-ativa", label: "Oferta Ativa", icon: PhoneOutgoing },
