@@ -20,27 +20,35 @@
 -- fallback — decisão deliberada continua mandando, e zona já tem a própria
 -- guarda de prontidão (roleta_da_zona).
 --
+-- Revisão adversarial de 2026-08-16 acrescentou três consertos:
+--  3) "Pronta" = alguém APTO AGORA (elegibilidade real: presença, cota,
+--     pausa), não só participante cadastrado. Sem isso, na manhã da virada
+--     (times montados, ninguém marcou "Cheguei") todo lead com zona iria
+--     para a fila de exceções enquanto o Plantão presente ficava ocioso.
+--  4) O pino de zona em leads.roleta_slug passa a ser honrado TAMBÉM pelos
+--     repasses automáticos (redistribuir_sla_webhook e
+--     redistribuir_leads_parados) — antes só o repasse imediato honrava, e
+--     lead de token de zona sem zona resolvível vazava do time no cron.
+--
 -- Idempotente.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1) _roleta_pronta — a MESMA régua de prontidão da roleta_da_zona, agora
---    nomeada e reutilizável: ativa e com pelo menos um participante ativo
---    não pausado.
+-- 1) _roleta_pronta — régua de prontidão nomeada: roleta ativa E alguém APTO
+--    AGORA pela fonte única de elegibilidade (presença, cota diária, pausa,
+--    telefone, % trabalhado quando se aplica). Participante cadastrado mas
+--    ausente/estourado NÃO conta — roleta "pronta" é a que consegue receber
+--    neste instante; o resto do sistema decide o desvio (zona → origem;
+--    origem → plantão).
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public._roleta_pronta(_slug text)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public'
 AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.roletas r
-    JOIN public.roleta_participantes rp ON rp.roleta_id = r.id
-    WHERE r.slug = _slug
-      AND r.ativo
-      AND rp.ativo
-      AND (rp.pausado_ate IS NULL OR rp.pausado_ate < now())
-  )
+  SELECT COALESCE((SELECT r.ativo FROM public.roletas r WHERE r.slug = _slug), false)
+     AND EXISTS (
+       SELECT 1 FROM public._elegibilidade_roleta(_slug) e WHERE e.apto
+     )
 $$;
 
 REVOKE ALL ON FUNCTION public._roleta_pronta(text) FROM PUBLIC, anon, authenticated;
@@ -84,7 +92,7 @@ GRANT EXECUTE ON FUNCTION public._resolver_roleta_lead(text, public.lead_origem)
 
 -- ---------------------------------------------------------------------------
 -- 3) Motor v3 — fallback de prontidão na triagem por origem. Corpo idêntico
---    ao de 20260816120000 fora o bloco de resolução do slug e o contexto.
+--    ao de 20260816140000 fora o bloco de resolução do slug e o contexto.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public._distribuir_lead_v3(_lead_id uuid, _tipo distribuicao_tipo DEFAULT 'automatica'::distribuicao_tipo, _roleta_slug text DEFAULT NULL::text, _corretor_id uuid DEFAULT NULL::uuid, _distribuido_por uuid DEFAULT NULL::uuid, _gatilho text DEFAULT 'manual'::text, _contexto_extra jsonb DEFAULT '{}'::jsonb, _registrar_excecao boolean DEFAULT true)
  RETURNS jsonb
@@ -399,12 +407,213 @@ REVOKE ALL ON FUNCTION public._distribuir_lead_v3(uuid, public.distribuicao_tipo
 GRANT EXECUTE ON FUNCTION public._distribuir_lead_v3(uuid, public.distribuicao_tipo, text, uuid, uuid, text, jsonb, boolean) TO service_role;
 
 -- ---------------------------------------------------------------------------
--- 4) Sanidade
+-- 4) Repasses automáticos honram o pino de ZONA em leads.roleta_slug — mesma
+--    regra que o repasse imediato (disparar_repasse_sla_lead) já aplicava
+--    à campanha: o lead redistribui DENTRO do time onde foi distribuído.
+--    Sem isto, lead que entrou por token de zona mas não tem zona resolvível
+--    (payload sem zona/bairro e roleta de zona sem projeto) vazava do time
+--    no cron. Corpos idênticos aos vigentes (20260711201106 e
+--    20260718000305) fora o slug passado ao motor.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.redistribuir_sla_webhook()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _lead record; _res jsonb; _qtd int := 0; _anterior uuid; _novo uuid; _zslug text;
+  _max_tent int := (public.get_dist_setting('reprocesso_max_tentativas') #>> '{}')::int;
+BEGIN
+  IF NOT public._dentro_horario_comercial_brt() THEN
+    RETURN 0;
+  END IF;
+
+  FOR _lead IN
+    SELECT l.id, l.corretor_id, l.tentativas_redistribuicao, l.roleta_slug, dc.timeout_minutos
+    FROM public.leads l
+    JOIN public.distribuicao_config dc
+      ON dc.origem = l.origem AND dc.timeout_minutos IS NOT NULL
+    WHERE l.via_webhook = true
+      AND l.status = 'aguardando_atendimento'
+      AND l.deleted_at IS NULL
+      AND l.na_lixeira = false
+      AND l.corretor_id IS NOT NULL
+      AND l.data_distribuicao IS NOT NULL
+      AND l.data_distribuicao < now() - (dc.timeout_minutos || ' minutes')::interval
+      AND NOT EXISTS (
+        SELECT 1 FROM public.distribuicao_excecoes e
+        WHERE e.lead_id = l.id
+          AND e.status IN ('pendente','em_analise')
+          AND e.tentativas >= _max_tent
+          AND e.updated_at > now() - interval '30 minutes'
+      )
+    ORDER BY l.data_distribuicao ASC
+    LIMIT 50
+    FOR UPDATE OF l SKIP LOCKED
+  LOOP
+    IF COALESCE(_lead.tentativas_redistribuicao, 0) >= 2 THEN
+      PERFORM public._escalar_lead_gestor(_lead.id, _lead.tentativas_redistribuicao);
+      CONTINUE;
+    END IF;
+
+    _anterior := _lead.corretor_id;
+
+    UPDATE public.leads
+       SET corretores_que_tentaram = array_append(
+             COALESCE(corretores_que_tentaram, ARRAY[]::uuid[]), corretor_id)
+     WHERE id = _lead.id
+       AND NOT (corretor_id = ANY(COALESCE(corretores_que_tentaram, ARRAY[]::uuid[])));
+
+    -- Pino de zona: lead distribuído por roleta de zona repassa NO time dela.
+    _zslug := CASE
+      WHEN _lead.roleta_slug IS NOT NULL AND EXISTS (
+        SELECT 1 FROM public.roletas r
+        WHERE r.slug = _lead.roleta_slug AND r.tipo = 'zona')
+      THEN _lead.roleta_slug ELSE NULL END;
+
+    _res := public._distribuir_lead_v3(
+      _lead.id, 'redistribuicao', _zslug, NULL, NULL, 'sla_webhook',
+      jsonb_build_object('sla_minutos', _lead.timeout_minutos,
+                         'corretor_anterior_sla', _anterior));
+
+    IF (_res->>'ok')::boolean THEN
+      UPDATE public.leads
+         SET status = 'aguardando_atendimento',
+             tentativas_redistribuicao = COALESCE(tentativas_redistribuicao, 0) + 1
+       WHERE id = _lead.id
+       RETURNING corretor_id INTO _novo;
+
+      IF _novo IS NOT NULL AND _novo <> _anterior THEN
+        PERFORM public._auditar_redistribuicao(
+          _lead.id, _anterior, _novo,
+          'Lead redistribuído por SLA (' || _lead.timeout_minutos || 'min sem contato)');
+        PERFORM public._notificar_handoff_novo_dono(
+          _lead.id, _novo,
+          'redistribuido por SLA (' || _lead.timeout_minutos || 'min): ' ||
+          COALESCE((SELECT nome FROM public.profiles WHERE id = _anterior), '(anterior)') ||
+          ' -> ' || COALESCE((SELECT nome FROM public.profiles WHERE id = _novo), '(novo)'));
+      END IF;
+      _qtd := _qtd + 1;
+    END IF;
+  END LOOP;
+
+  RETURN _qtd;
+END; $function$;
+
+REVOKE ALL ON FUNCTION public.redistribuir_sla_webhook() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.redistribuir_sla_webhook() TO service_role;
+
+CREATE OR REPLACE FUNCTION public.redistribuir_leads_parados()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _lead record; _res jsonb; _qtd int := 0; _anterior uuid; _novo uuid;
+  _max_tent int := (public.get_dist_setting('reprocesso_max_tentativas') #>> '{}')::int;
+BEGIN
+  FOR _lead IN
+    WITH candidatos AS (
+      SELECT l.id, l.corretor_id, l.data_distribuicao, l.roleta_slug,
+             COALESCE(dc.timeout_horas, 24) AS timeout_horas,
+             COALESCE(l.tentativas_redistribuicao, 0) AS tentativas,
+             row_number() OVER (PARTITION BY l.corretor_id ORDER BY l.data_distribuicao ASC) AS rn
+      FROM public.leads l
+      LEFT JOIN public.distribuicao_config dc ON dc.origem = l.origem
+      WHERE l.status = 'aguardando_atendimento'
+        AND l.deleted_at IS NULL AND l.na_lixeira = false
+        AND l.corretor_id IS NOT NULL AND l.data_distribuicao IS NOT NULL
+        AND l.data_distribuicao < now() - (COALESCE(dc.timeout_horas, 24) || ' hours')::interval
+        AND NOT EXISTS (
+          SELECT 1 FROM public.distribuicao_excecoes e
+          WHERE e.lead_id = l.id AND e.status IN ('pendente','em_analise')
+            AND e.tentativas >= _max_tent AND e.updated_at > now() - interval '30 minutes'
+        )
+    )
+    SELECT id, corretor_id, data_distribuicao, roleta_slug, timeout_horas, tentativas
+    FROM candidatos
+    WHERE rn <= 10
+    ORDER BY data_distribuicao ASC
+    LIMIT 50
+  LOOP
+    IF _lead.tentativas >= 2 THEN
+      PERFORM public._escalar_lead_gestor(_lead.id, _lead.tentativas);
+      CONTINUE;
+    END IF;
+
+    _anterior := _lead.corretor_id;
+
+    UPDATE public.leads
+       SET corretores_que_tentaram = array_append(
+             COALESCE(corretores_que_tentaram, ARRAY[]::uuid[]), corretor_id)
+     WHERE id = _lead.id
+       AND NOT (corretor_id = ANY(COALESCE(corretores_que_tentaram, ARRAY[]::uuid[])));
+
+    -- Campanha do lead → SLA dentro da mesma equipe
+    IF _lead.roleta_slug IS NOT NULL
+       AND EXISTS (SELECT 1 FROM public.roletas r WHERE r.slug = _lead.roleta_slug AND r.tipo='campanha')
+    THEN
+      _res := public.distribuir_lead_ponderado(_lead.id, _lead.roleta_slug);
+    ELSE
+      -- Pino de zona (mesma regra do repasse imediato): lead de roleta de
+      -- zona redistribui NO time da zona; os demais re-triam do zero.
+      _res := public._distribuir_lead_v3(
+        _lead.id, 'redistribuicao',
+        CASE
+          WHEN _lead.roleta_slug IS NOT NULL AND EXISTS (
+            SELECT 1 FROM public.roletas r
+            WHERE r.slug = _lead.roleta_slug AND r.tipo = 'zona')
+          THEN _lead.roleta_slug ELSE NULL END,
+        NULL, NULL, 'lead_parado',
+        jsonb_build_object('timeout_horas', _lead.timeout_horas,
+                           'corretor_anterior_parado', _anterior));
+    END IF;
+
+    IF (_res->>'ok')::boolean THEN
+      UPDATE public.leads
+         SET status = 'aguardando_atendimento',
+             tentativas_redistribuicao = COALESCE(tentativas_redistribuicao, 0) + 1
+       WHERE id = _lead.id
+       RETURNING corretor_id INTO _novo;
+
+      IF _novo IS NOT NULL AND _novo <> _anterior THEN
+        PERFORM public._auditar_redistribuicao(
+          _lead.id, _anterior, _novo,
+          'SLA/redistribuição ('||COALESCE(_lead.roleta_slug,'geral')||')');
+      END IF;
+
+      _qtd := _qtd + 1;
+    END IF;
+  END LOOP;
+
+  RETURN _qtd;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.redistribuir_leads_parados() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.redistribuir_leads_parados() TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 5) Sanidade
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
   IF to_regprocedure('public._roleta_pronta(text)') IS NULL THEN
     RAISE EXCEPTION '_roleta_pronta ausente';
+  END IF;
+  IF position('_elegibilidade_roleta' IN pg_get_functiondef(
+       'public._roleta_pronta(text)'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION '_roleta_pronta sem a fonte única de aptidão';
+  END IF;
+  IF position('tipo = ''zona''' IN pg_get_functiondef(
+       'public.redistribuir_sla_webhook()'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'redistribuir_sla_webhook sem o pino de zona';
+  END IF;
+  IF position('tipo = ''zona''' IN pg_get_functiondef(
+       'public.redistribuir_leads_parados()'::regprocedure)) = 0 THEN
+    RAISE EXCEPTION 'redistribuir_leads_parados sem o pino de zona';
   END IF;
   IF position('_roleta_pronta' IN pg_get_functiondef(
        'public.roleta_da_zona(text)'::regprocedure)) = 0 THEN

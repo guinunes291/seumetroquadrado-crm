@@ -37,11 +37,20 @@ slug explícito (manual/exceção/repasse)
     → mapeamento por canal/origem (landing → landing; chatbot → marquinhos; resto → plantão)
 ```
 
-`roleta_da_zona` só devolve a roleta da zona se ela está **ativa e tem pelo
-menos um participante ativo não pausado**. Roleta ainda não montada nunca
-engole lead. As campanhas (tokens por empreendimento) também respeitam a zona:
-`distribuir_lead_ponderado` delega para a roleta da zona quando ela existe; a
-campanha fica registrada no contexto da decisão (`campanha_zona`).
+`roleta_da_zona` só devolve a roleta da zona se ela está **pronta**: ativa e
+com pelo menos um corretor **apto agora** (presente, dentro da cota, não
+pausado — a mesma régua de elegibilidade do motor). Roleta ainda não montada,
+ou com o time todo ausente/estourado, nunca engole lead — a triagem segue o
+fluxo por origem. As campanhas (tokens por empreendimento) também respeitam a
+zona: `distribuir_lead_ponderado` delega para a roleta da zona quando ela está
+pronta; a campanha fica registrada no contexto da decisão (`campanha_zona`).
+
+> **Atenção na virada:** a cascata de zona inclui a zona do PROJETO — então
+> praticamente todo lead de campanha com empreendimento vinculado tem zona. No
+> instante em que a primeira roleta de zona ficar pronta, os leads de campanha
+> daquela zona passam a ir para o time da zona, não mais para a equipe da
+> campanha (tiers). É o modelo pedido — mas avise as equipes de campanha, que
+> verão o fluxo migrar.
 
 Dentro da roleta de zona **não** existe segundo filtro por `profiles.zonas` —
 a participação já é o corte. Esse filtro por corretor continua valendo apenas
@@ -53,25 +62,40 @@ Fallbacks, na ordem em que podem acontecer:
 - **Centro** → sem roleta por decisão; segue o fluxo por origem. Para criar a
   quinta roleta depois: inserir roleta `zona-centro` + linha
   `('Centro','zona-centro')` em `zonas_roletas`.
-- **Roleta da zona vazia/desativada** → fluxo por origem.
-- **Roleta da zona com time, mas ninguém apto agora** (ausência, cota, pausa)
-  → fila de exceções + alerta ao gestor + cron re-tenta a cada minuto — o
-  comportamento padrão do motor, nada muda.
+- **Roleta da zona vazia, desativada ou sem ninguém apto agora** (ausência,
+  cota, pausa) → fluxo por origem. Atender rápido vale mais que o corte; na
+  manhã da virada, enquanto o time da zona não marcou "Cheguei", os leads
+  continuam sendo atendidos pelo Plantão.
+- **Roleta de origem desativada ou sem ninguém apto** → a triagem desvia para
+  o Plantão pronto (contexto `origem_fallback`). Plantão também parado →
+  fila de exceções + alerta + cron, como sempre.
 - **Repasse por SLA** → o lead distribuído por roleta de zona ganha
-  `roleta_slug` da zona, então o repasse fica dentro do mesmo time da zona.
+  `roleta_slug` da zona e repassa DENTRO do time da zona (tanto o repasse
+  imediato quanto os crons honram o pino). Se o time inteiro ficar inapto, o
+  repasse abre exceção com alerta — decisão da gestão, não desvio silencioso.
 
 ## Runbook da virada (amanhã)
 
+> Operar a Central exige papel **admin** (gestor e superintendente enxergam em
+> modo leitura — decisão de produto antiga da página). Quem for montar os
+> times amanhã precisa ser admin.
+
 1. **Deploy**: merge desta branch → a migration cria as 4 roletas (vazias) e o
-   mapeamento. Nada muda até existir corretor nas roletas.
+   mapeamento. Nada muda até existir corretor apto nas roletas.
 2. **Montar os times**: Central de Distribuição → aba **Roletas por Zona** →
-   selecionar a zona → **Incluir corretor** (repetir para as 4). A partir do
-   primeiro corretor incluído, a zona passa a rotear na hora.
+   selecionar a zona → **Incluir corretor** (repetir para as 4). A zona começa
+   a rotear quando tiver o primeiro corretor **apto** (presente e dentro da
+   cota) — inclusive os leads de campanha daquela zona (ver aviso acima).
 3. **Presença**: as roletas de zona nascem com `exigir_presenca = true` (mesma
    regra das demais) — corretor precisa marcar "Cheguei" no dia para receber.
-   Para desligar por zona: Configurações → Roletas — funcionamento.
-4. **Cotas**: limite diário padrão (`limite_diario_default`, hoje 10) vale por
-   roleta; ajustar por corretor na própria aba (ação "Ajustar limite diário").
+   Sem ninguém presente na zona, os leads seguem no fluxo por origem (não
+   travam). Para desligar a exigência por zona: Configurações → Roletas —
+   funcionamento.
+4. **Cotas**: o limite diário (`limite_diario_default`, hoje 10) é **por
+   roleta** — corretor que está na zona E nas roletas de origem/campanha soma
+   as cotas e pode receber bem mais que 10/dia. Ao montar as zonas, considere
+   remover o corretor das roletas de origem (a sub-linha "Também em:" da
+   tabela mostra a sobreposição) ou ajustar o limite individual.
 5. **Acompanhar**: aba Visão Geral (cards das 4 zonas com aptos e próximo da
    vez), aba Histórico (botão "Por quê?" mostra zona, roleta e aptos/inaptos de
    cada decisão), fila de Exceções.
@@ -116,7 +140,7 @@ Recomendação de estado-alvo, quando a operação por zona estiver rodando bem:
 | Plantão | **Manter** — é o catch-all | Nada a fazer |
 | Marquinhos | Mesclar no Plantão | Configurações: `chatbot` → Plantão; desativar a roleta |
 | Landing | Mesclar no Plantão | Configurações: `site` → Plantão; desativar a roleta |
-| Campanhas (7) | Desativar conforme encerram | Painel Campanhas: switch Ativa; token desativado cai na triagem normal |
+| Campanhas (7) | Desativar conforme encerram | Painel Campanhas: switch Ativa; o token desativado continua aceitando lead — ele só deixa de usar a equipe da campanha e cai na triagem normal (zona primeiro) |
 
 Tudo pela UI, sem migration, e reversível (reativar a roleta e reapontar a
 origem desfaz a mesclagem).

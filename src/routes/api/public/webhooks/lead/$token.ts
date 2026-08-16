@@ -138,9 +138,14 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               .eq("webhook_token", token)
               .maybeSingle();
 
-        if (campanha && (!campanha.ativo || !["campanha", "zona"].includes(campanha.tipo))) {
+        if (campanha && !["campanha", "zona"].includes(campanha.tipo)) {
           return new Response("Unauthorized", { status: 401, headers: corsHeaders });
         }
+        // Roleta DESATIVADA não recusa lead: anúncio pausado entrega leads
+        // residuais por dias, e um 401 aqui os perderia sem rastro. O token
+        // continua válido; o lead entra e segue a triagem normal (zona
+        // primeiro, origem depois) em vez da distribuição da roleta.
+        const roletaAtiva = Boolean(campanha?.ativo);
 
         let projeto: { id: string | null; nome: string; ativo: boolean } | null = null;
         if (campanha) {
@@ -273,15 +278,19 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             temperatura: temperatura,
             // Zona do lead: campo explícito manda; sem ele, a "região de
             // interesse" da qualificação IA É a zona (trigger normaliza).
-            zona: data.zona ?? data.regiao ?? null,
-            bairro: data.bairro ?? null,
+            // `?.trim() || null` de propósito: o n8n manda campo não
+            // preenchido como "" — e "" ?? x devolve "" (não é nullish),
+            // o que descartaria a regiao válida em silêncio.
+            zona: (data.zona?.trim() || null) ?? (data.regiao?.trim() || null),
+            bairro: data.bairro?.trim() || null,
             utm_source: data.utm_source ?? null,
             utm_medium: data.utm_medium ?? null,
             utm_campaign: data.utm_campaign ?? null,
             utm_content: data.utm_content ?? null,
-            // Amarra o lead à campanha para que o SLA redistribua na MESMA
-            // equipe se o corretor não atender a tempo.
-            roleta_slug: campanha ? campanha.slug : null,
+            // Amarra o lead à roleta (campanha OU zona) para que o SLA
+            // redistribua na MESMA equipe se o corretor não atender a tempo.
+            // Roleta desativada não pina: o lead é triado como lead normal.
+            roleta_slug: campanha && roletaAtiva ? campanha.slug : null,
             // Canal de chegada: só leads via_webhook entram no SLA de minutos.
             via_webhook: true,
             canal_entrada: "webhook_chatbot",
@@ -313,7 +322,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         let excecaoMotivo: string | null = null;
 
         if (data.distribuir) {
-          if (campanha && campanha.tipo === "zona") {
+          if (campanha && roletaAtiva && campanha.tipo === "zona") {
             // Token de ROLETA DE ZONA: rodízio simples (menos recente) do
             // motor v3, direto no time da zona — sem tier/SWRR de campanha.
             const { data: dist, error: distErr } = await supabaseAdmin.rpc("distribuir_lead_v3", {
@@ -339,7 +348,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
                 excecaoMotivo = res?.motivo ?? "sem_apto_na_zona";
               }
             }
-          } else if (campanha) {
+          } else if (campanha && roletaAtiva) {
             // Distribuição da CAMPANHA: zona primeiro (o motor delega para a
             // roleta da zona do lead quando ela existe e está pronta); senão,
             // só a equipe da roleta, ponderada por tier (A=3/B=2/C=1). Se não

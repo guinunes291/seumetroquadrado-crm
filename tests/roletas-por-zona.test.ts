@@ -152,12 +152,14 @@ describe("fiação de entrada (webhook por token)", () => {
   it("payload ganha zona/bairro e o insert materializa (regiao da IA vira zona)", () => {
     expect(rota).toMatch(/zona: optStr\(120\)/);
     expect(rota).toMatch(/bairro: optStr\(255\)/);
-    expect(rota).toContain("zona: data.zona ?? data.regiao ?? null");
-    expect(rota).toContain("bairro: data.bairro ?? null");
+    // trim || null de propósito: o n8n manda campo vazio como "" e
+    // "" ?? x devolve "" — engoliria a regiao válida em silêncio.
+    expect(rota).toContain("zona: (data.zona?.trim() || null) ?? (data.regiao?.trim() || null)");
+    expect(rota).toContain("bairro: data.bairro?.trim() || null");
   });
 
   it("rota de zona distribui pelo motor v3 (rodízio simples), não pelo SWRR de campanha", () => {
-    expect(rota).toContain('campanha && campanha.tipo === "zona"');
+    expect(rota).toContain('campanha && roletaAtiva && campanha.tipo === "zona"');
     expect(rota).toContain('"distribuir_lead_v3"');
   });
 });

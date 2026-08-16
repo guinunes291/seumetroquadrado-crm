@@ -25,13 +25,33 @@ describe("ordem e escopo da migration", () => {
 });
 
 describe("_roleta_pronta — régua única de prontidão", () => {
-  it("ativa + participante ativo não pausado, reutilizada pela roleta_da_zona", () => {
+  it("pronta = ativa E alguém APTO agora (fonte única), reutilizada pela roleta_da_zona", () => {
     expect(mig).toContain("CREATE OR REPLACE FUNCTION public._roleta_pronta(_slug text)");
+    const fn = mig.slice(
+      mig.indexOf("CREATE OR REPLACE FUNCTION public._roleta_pronta"),
+      mig.indexOf("REVOKE ALL ON FUNCTION public._roleta_pronta"),
+    );
+    // Aptidão real (presença, cota, pausa) — não basta participante
+    // cadastrado; senão, na manhã da virada (ninguém marcou "Cheguei"),
+    // todo lead com zona iria para exceções com o Plantão ocioso.
+    expect(fn).toContain("public._elegibilidade_roleta(_slug)");
+    expect(fn).toContain("e.apto");
     const zona = mig.slice(
       mig.indexOf("CREATE OR REPLACE FUNCTION public.roleta_da_zona"),
       mig.indexOf("GRANT EXECUTE ON FUNCTION public.roleta_da_zona"),
     );
     expect(zona).toContain("public._roleta_pronta(zr.roleta_slug)");
+  });
+});
+
+describe("repasses automáticos honram o pino de zona", () => {
+  it("redistribuir_sla_webhook e redistribuir_leads_parados passam o slug quando a roleta pinada é de zona", () => {
+    for (const fn of ["redistribuir_sla_webhook", "redistribuir_leads_parados"]) {
+      const corpo = mig.slice(mig.indexOf(`CREATE OR REPLACE FUNCTION public.${fn}(`));
+      expect(corpo.replace(/\s+/g, " ")).toContain(
+        "WHERE r.slug = _lead.roleta_slug AND r.tipo = 'zona'",
+      );
+    }
   });
 });
 
@@ -76,6 +96,18 @@ describe("motor v3 — roleta de origem despreparada não represa lead", () => {
   it("o desvio fica auditável: contexto e motivo do log nomeiam a roleta de origem", () => {
     expect(v3).toContain("'origem_fallback', _origem_fallback");
     expect(v3).toContain("inativa/sem time; caiu no Plantão");
+  });
+});
+
+describe("webhook por token — roleta desativada não perde lead", () => {
+  it("401 só para tipo desconhecido; roleta inativa aceita o lead e cai na triagem normal", () => {
+    const rota = read("src/routes/api/public/webhooks/lead/$token.ts");
+    // O gate de 401 valida apenas o TIPO; ativo vira flag de fluxo.
+    expect(rota).toContain('campanha && !["campanha", "zona"].includes(campanha.tipo)');
+    expect(rota).toContain("const roletaAtiva = Boolean(campanha?.ativo)");
+    // Sem pino de equipe e sem distribuição da roleta quando inativa.
+    expect(rota).toContain("campanha && roletaAtiva ? campanha.slug : null");
+    expect(rota).toContain('campanha && roletaAtiva && campanha.tipo === "zona"');
   });
 });
 
