@@ -43,6 +43,7 @@ import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/h
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
+import { Route as AuthenticatedDiscadorRouteImport } from './routes/_authenticated/discador'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
 import { Route as AuthenticatedCopaRouteImport } from './routes/_authenticated/copa'
@@ -266,6 +267,11 @@ const AuthenticatedDistribuicaoRoute =
     path: '/distribuicao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDiscadorRoute = AuthenticatedDiscadorRouteImport.update({
+  id: '/discador',
+  path: '/discador',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -535,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/discador': typeof AuthenticatedDiscadorRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
@@ -616,6 +623,7 @@ export interface FileRoutesByTo {
   '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/discador': typeof AuthenticatedDiscadorRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
@@ -699,6 +707,7 @@ export interface FileRoutesById {
   '/_authenticated/copa': typeof AuthenticatedCopaRoute
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/discador': typeof AuthenticatedDiscadorRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
@@ -782,6 +791,7 @@ export interface FileRouteTypes {
     | '/copa'
     | '/corretores'
     | '/dashboard'
+    | '/discador'
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
@@ -863,6 +873,7 @@ export interface FileRouteTypes {
     | '/copa'
     | '/corretores'
     | '/dashboard'
+    | '/discador'
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
@@ -945,6 +956,7 @@ export interface FileRouteTypes {
     | '/_authenticated/copa'
     | '/_authenticated/corretores'
     | '/_authenticated/dashboard'
+    | '/_authenticated/discador'
     | '/_authenticated/distribuicao'
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
@@ -1286,6 +1298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDistribuicaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/discador': {
+      id: '/_authenticated/discador'
+      path: '/discador'
+      fullPath: '/discador'
+      preLoaderRoute: typeof AuthenticatedDiscadorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -1621,6 +1640,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCopaRoute: typeof AuthenticatedCopaRoute
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDiscadorRoute: typeof AuthenticatedDiscadorRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
@@ -1668,6 +1688,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCopaRoute: AuthenticatedCopaRoute,
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDiscadorRoute: AuthenticatedDiscadorRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
