@@ -19,12 +19,12 @@ Cascata `zona_do_lead` (migration 20260813):
 
 Quem grava o quê:
 
-| Canal | Campo que vira zona |
-| --- | --- |
-| Facebook/Zapier (`lead-intake`) | `zona`/`regiao` e `bairro` do payload |
-| Landing page | `regiao` (região de interesse do formulário) |
+| Canal                                  | Campo que vira zona                                                   |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| Facebook/Zapier (`lead-intake`)        | `zona`/`regiao` e `bairro` do payload                                 |
+| Landing page                           | `regiao` (região de interesse do formulário)                          |
 | Chatbot/Marquinhos (webhook por token) | **novo:** `zona` explícita ou `regiao` da qualificação IA, e `bairro` |
-| Criação manual / ficha do lead | campos zona e bairro |
+| Criação manual / ficha do lead         | campos zona e bairro                                                  |
 
 O que não normaliza (ex.: "ABC Paulista", "Guarulhos") fica sem zona — o lead
 segue o fluxo por origem, sem travar.
@@ -134,12 +134,12 @@ Mesclar/desativar roleta virou operação de dados, segura e reversível:
 
 Recomendação de estado-alvo, quando a operação por zona estiver rodando bem:
 
-| Roleta | Veredito | Como |
-| --- | --- | --- |
-| 4 zonas | **Principal** | Times definidos pela gestão |
-| Plantão | **Manter** — é o catch-all | Nada a fazer |
-| Marquinhos | Mesclar no Plantão | Configurações: `chatbot` → Plantão; desativar a roleta |
-| Landing | Mesclar no Plantão | Configurações: `site` → Plantão; desativar a roleta |
+| Roleta        | Veredito                    | Como                                                                                                                                                           |
+| ------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4 zonas       | **Principal**               | Times definidos pela gestão                                                                                                                                    |
+| Plantão       | **Manter** — é o catch-all  | Nada a fazer                                                                                                                                                   |
+| Marquinhos    | Mesclar no Plantão          | Configurações: `chatbot` → Plantão; desativar a roleta                                                                                                         |
+| Landing       | Mesclar no Plantão          | Configurações: `site` → Plantão; desativar a roleta                                                                                                            |
 | Campanhas (7) | Desativar conforme encerram | Painel Campanhas: switch Ativa; o token desativado continua aceitando lead — ele só deixa de usar a equipe da campanha e cai na triagem normal (zona primeiro) |
 
 Tudo pela UI, sem migration, e reversível (reativar a roleta e reapontar a
