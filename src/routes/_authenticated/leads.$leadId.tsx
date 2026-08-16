@@ -35,6 +35,7 @@ import {
   type LeadStatus,
 } from "@/lib/leads";
 import { useUserRoles } from "@/hooks/use-auth";
+import { useLigarLead } from "@/hooks/use-ligar-lead";
 import {
   LeadStageModals,
   type StageModalState,
@@ -136,6 +137,7 @@ function LeadDetailPage() {
 
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
+  const { ligar, discando } = useLigarLead();
 
   if (isLoading) {
     return (
@@ -209,8 +211,6 @@ function LeadDetailPage() {
   // Ação comercial sugerida para a etapa atual (botão inteligente).
   const acaoSugerida = PROXIMA_ACAO[lead.status as LeadStatus] ?? null;
 
-  const telHref = `tel:${(lead.telefone ?? "").replace(/[^\d+]/g, "")}`;
-
   // Instrumentos do resumo executivo: score de prioridade + sinais de risco.
   const scoreInfo = scoreLead({
     temperatura: lead.temperatura,
@@ -237,10 +237,15 @@ function LeadDetailPage() {
           // dados não têm outro caminho, então aparecem em qualquer tamanho de
           // tela (antes o bloco inteiro era `hidden md:flex` e sumiam).
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" className="hidden md:inline-flex">
-              <a href={telHref}>
-                <Phone className="h-4 w-4 mr-2" /> Ligar
-              </a>
+            {/* Click-to-call Sonax: o PABX toca no ramal do corretor e disca o
+                lead; sem telefonia configurada o hook degrada para o tel:. */}
+            <Button
+              variant="outline"
+              className="hidden md:inline-flex"
+              disabled={discando}
+              onClick={() => ligar({ id: lead.id, nome: lead.nome, telefone: lead.telefone })}
+            >
+              <Phone className="h-4 w-4 mr-2" /> Ligar
             </Button>
             <Button variant="outline" onClick={() => setContatoOpen(true)}>
               <PhoneCall className="h-4 w-4 mr-2" /> Registrar contato
@@ -454,11 +459,16 @@ function LeadDetailPage() {
           acaoSugerida ? `Próxima etapa: ${acaoSugerida.label}.` : "Sem próxima etapa sugerida."
         }`}
       >
-        <Button asChild variant="outline" className="flex-1 px-2">
-          <a href={telHref} aria-label={`Ligar para ${lead.nome}`}>
-            <Phone aria-hidden="true" />
-            <span>Ligar</span>
-          </a>
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1 px-2"
+          disabled={discando}
+          aria-label={`Ligar para ${lead.nome}`}
+          onClick={() => ligar({ id: lead.id, nome: lead.nome, telefone: lead.telefone })}
+        >
+          <Phone aria-hidden="true" />
+          <span>Ligar</span>
         </Button>
         <Button
           type="button"

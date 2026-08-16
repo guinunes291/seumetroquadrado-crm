@@ -31,6 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ZONAS_ORDEM, type Zona } from "@/lib/zonas";
 import { CrmInviteDialog } from "@/components/crm-invite-dialog";
+import { listarRamaisSonax, salvarRamalSonax } from "./ramal-sonax-client";
 import { toast } from "sonner";
 import { Search, AlertTriangle, Check, X, Pencil, Users } from "lucide-react";
 
@@ -41,6 +42,7 @@ type CorretorRow = {
   nome: string;
   email: string;
   telefone: string | null;
+  ramal_sonax: string | null;
   cargo: string | null;
   ativo: boolean;
   status_conta: "pendente" | "ativa" | "bloqueada";
@@ -123,10 +125,14 @@ export function CorretoresPage() {
           return acc;
         }, {});
       }
+      // Coluna nova (telefonia Sonax) vive fora dos types gerados — vem pela
+      // fronteira tipada de ramal-sonax-client, que tolera migration pendente.
+      const ramais = await listarRamaisSonax(ids);
 
       return (profiles ?? []).map((p) => ({
         ...p,
         equipe: Array.isArray(p.equipe) ? (p.equipe[0] ?? null) : p.equipe,
+        ramal_sonax: ramais[p.id] ?? null,
         roles: rolesByUser[p.id] ?? [],
       })) as CorretorRow[];
     },
@@ -206,6 +212,21 @@ export function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
+  const updateRamal = useMutation({
+    mutationFn: async ({ id, ramal }: { id: string; ramal: string }) => {
+      const limpo = ramal.trim();
+      if (limpo && !/^\d{2,8}$/.test(limpo)) {
+        throw new Error("Ramal inválido. Use apenas números (ex.: 122).");
+      }
+      await salvarRamalSonax(id, limpo || null);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["corretores"] });
+      toast.success("Ramal atualizado");
+    },
+    onError: (e: Error) => toast.error("Erro", { description: e.message }),
+  });
+
   const setRole = useMutation({
     mutationFn: async ({ user_id, role }: { user_id: string; role: AppRole }) => {
       // remove papéis existentes (1 role por user, simplificação)
@@ -242,6 +263,7 @@ export function CorretoresPage() {
   const mutateRole = setRole.mutate;
   const mutateZonas = updateZonas.mutate;
   const mutateTelefone = updateTelefone.mutateAsync;
+  const mutateRamal = updateRamal.mutateAsync;
 
   const columns = useMemo<ColumnDef<CorretorRow, unknown>[]>(
     () => [
@@ -274,6 +296,21 @@ export function CorretoresPage() {
             <Badge variant="destructive" className="gap-1">
               <AlertTriangle className="h-3 w-3" /> Sem telefone
             </Badge>
+          ),
+      },
+      {
+        id: "ramal",
+        header: () => <span title="Ramal do corretor no PABX Sonax (click-to-call)">Ramal</span>,
+        enableSorting: false,
+        meta: { label: "Ramal", hideBelow: "lg" },
+        cell: ({ row }) =>
+          isAdmin ? (
+            <RamalCell
+              valor={row.original.ramal_sonax}
+              onSave={(v) => mutateRamal({ id: row.original.id, ramal: v })}
+            />
+          ) : (
+            <span className="text-muted-foreground">{row.original.ramal_sonax ?? "—"}</span>
           ),
       },
       {
@@ -414,6 +451,7 @@ export function CorretoresPage() {
       mutateEquipe,
       mutateRole,
       mutateTelefone,
+      mutateRamal,
       mutateZonas,
     ],
   );
@@ -573,6 +611,84 @@ function TelefoneCell({
         onChange={(e) => setVal(e.target.value)}
         placeholder="(11) 90000-0000"
         className="h-8 w-[160px]"
+      />
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onSave(val.trim());
+            setEditing(false);
+          } catch {
+            // toast já é exibido pela mutation
+          } finally {
+            setSaving(false);
+          }
+        }}
+        aria-label="Salvar"
+      >
+        <Check className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        className="h-7 w-7"
+        onClick={() => setEditing(false)}
+        aria-label="Cancelar"
+      >
+        <X className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+/** Ramal do corretor no PABX Sonax; vazio limpa (corretor fica sem click-to-call). */
+function RamalCell({
+  valor,
+  onSave,
+}: {
+  valor: string | null;
+  onSave: (v: string) => Promise<unknown>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(valor ?? "");
+  const [saving, setSaving] = useState(false);
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2">
+        {valor ? (
+          <span className="text-muted-foreground">{valor}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-7 w-7"
+          onClick={() => {
+            setVal(valor ?? "");
+            setEditing(true);
+          }}
+          aria-label="Editar ramal"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="122"
+        className="h-8 w-[90px]"
       />
       <Button
         size="icon"
