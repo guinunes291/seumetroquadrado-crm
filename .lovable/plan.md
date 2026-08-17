@@ -1,45 +1,84 @@
-# Match com Busca por IA (linguagem natural)
+# Zona em toda a base de clientes
 
-Hoje `/match` tem um wizard de 3 etapas (Cliente → Orçamento → Match). Vamos adicionar um **segundo modo** na mesma página, inspirado no `BuscadorProjetos.tsx` enviado, em que o corretor descreve em texto livre o que procura e a IA retorna projetos rankeados — sem precisar preencher renda/FGTS/entrada.
+Hoje **nenhum** dos 61.428 clientes tem zona preenchida, e o motivo é simples: a
+cascata que resolve zona (zona → bairro → empreendimento) não tem de onde puxar.
+Ninguém tem bairro preenchido e os 29 empreendimentos que concentram os clientes
+estão sem "Zona SMQ".
 
-## UX
+Diagnóstico atual:
 
-Topo da página `/match` ganha um toggle (Tabs) com dois modos:
+| Situação                                                     | Clientes |
+| ------------------------------------------------------------ | -------- |
+| Vinculados a empreendimento **sem zona cadastrada**           | 25.796   |
+| Vinculados a empreendimento **com zona** (já resolvem sozinho) | 1.403    |
+| Sem vínculo, mas com nome de campanha/empreendimento no texto | 9.974    |
+| Sem nenhuma pista geográfica                                  | 24.255   |
 
-- **Match financeiro** — fluxo atual (wizard APROVE 2026), intocado.
-- **Buscador IA** — novo. Caixa de texto grande + chips de exemplos + botão "Buscar Projetos". Resultado: resumo da IA, filtros detectados (badges) e cards rankeados (1, 2, 3…) com nota 0-10, motivo, preço a partir e link para `/projetos/$projetoId`.
+## Passo 1 — zona nos 29 empreendimentos (destrava 25.796 de uma vez)
 
-Exemplos de prompt (chips clicáveis):
-- "Zona Oeste próximo à estação, 2 dormitórios, até R$350 mil"
-- "MCMV HIS2 Zona Norte, 1 ou 2 dorms, entrada com FGTS"
-- "Lançamento Zona Sul, 2 ou 3 dorms com vaga, até R$600 mil, entrega 2026"
+Preencher "Zona SMQ" nos empreendimentos abaixo. É o passo de maior alavancagem:
+resolve 42% da base e faz todo lead novo daquele empreendimento nascer com zona.
+Proposta de mapeamento (confirme ou corrija os marcados com "?"):
 
-Atalho Ctrl/Cmd+Enter dispara a busca. Loading: "Analisando catálogo…". Estado vazio quando nada bate. Se a URL tiver `?leadId=…`, mostramos badge "Buscando para o lead #…" (sem persistência por ora).
+| Empreendimento | Clientes | Zona |
+| --- | --- | --- |
+| Longitude Tietê | 2.674 | Norte |
+| Zen Residence | 2.539 | ? |
+| Longitude Rio Branco | 2.212 | Centro |
+| Longitude Perus | 2.075 | Norte |
+| Longitude Estação Dom Bosco | 1.915 | Leste |
+| Longitude Città | 1.691 | ? |
+| Conquista Clube Itaim Paulista | 1.547 | Leste |
+| Vibe Residencial | 1.507 | ? |
+| Pátio Central Galeria (Cambuci) | 1.375 | Centro |
+| Signature Barra Funda | 1.211 | Oeste |
+| 011 Brooklin | 954 | Sul |
+| Longitude Estação Guaianases | 887 | Leste |
+| Longitude Estação Freguesia | 879 | Norte |
+| Holistic Residence | 762 | ? |
+| Concept Barra Funda Residence | 568 | Oeste |
+| Raiz Home Clube (Limão) | 519 | Norte |
+| Conquista Sacomã | 449 | Sul |
+| Brooklin Sky Home Tower | 446 | Sul |
+| Abytá Santo Amaro | 419 | Sul |
+| Conquista Clube Butantã | 332 | Oeste |
+| Mirante Jardim das Esmeraldas | 213 | Leste |
+| Alto Liviero (Ipiranga) | 167 | Sul |
+| Volume | 155 | ? |
+| Conquista São Miguel | 96 | Leste |
+| Casa Prado Residence | 88 | ? |
+| Reserva Direcional Limão | 83 | Norte |
+| Well Perdizes | 21 | Oeste |
+| MA Vila Prudente | 10 | Leste |
+| Longitude Tucuruvi | 2 | Norte |
 
-## Backend
+## Passo 2 — propagar a zona para a base
 
-Nova server function `buscarProjetosIA` em `src/lib/match-ia.functions.ts`:
+Rodar um backfill único: para todo cliente sem zona, gravar a zona do
+empreendimento vinculado. Só escreve onde está vazio — nada que a gestão já
+tenha ajustado à mão é sobrescrito.
 
-- Input: `{ descricao: string (>=10 chars), leadId?: string }`.
-- Carrega projetos ativos (`projetos` onde `ativo=true` e `deleted_at is null`) com colunas leves: id, nome, construtora, bairro, cidade, preco_a_partir, tipologias/dorms/vagas/entrega quando existirem.
-- Chama Lovable AI Gateway (`google/gemini-2.5-flash`, sem chave do usuário) com prompt estruturado em PT-BR pedindo JSON:
-  ```
-  { resumo: string,
-    filtrosUsados: { regiao?, dorms?, vagas?, precoMax?, programa?, entrega? },
-    projetos: [{ id, pontuacao (0-10), motivo, tipologiaRecomendada? }],
-    totalFiltrados: number }
-  ```
-  Usa `generateObject` com schema Zod para garantir formato.
-- Devolve até os 6 melhores, ordenados por pontuação. Faz join com os dados originais para devolver `nome`, `construtora`, `preco_a_partir` ao cliente.
-- Sem persistência nesta etapa.
+## Passo 3 — os 9.974 sem vínculo, com nome de campanha
 
-## Frontend
+Casar o texto (`projeto_nome`, ex.: "Riva SP - Signature 05.25", "SPC - Zona
+Leste 04.2024", "LIMÃO - RAIZ") com o empreendimento correspondente e herdar a
+zona dele. Nomes genéricos ("BR - Orgânico", "Motoboy", "minha casa minha
+vida") continuam sem zona — chutar zona é pior que não ter.
 
-- `src/routes/_authenticated/match.tsx`: envolver conteúdo atual num `<Tabs>` com value `financeiro` (default) e `ia`.
-- Novo componente `src/components/match/buscador-ia.tsx` baseado no arquivo enviado, **adaptado para o nosso stack**: shadcn tokens (sem `bg-purple-*` cru — usar `primary`/`accent`), `@tanstack/react-router` `Link` para `/projetos/$projetoId`, `useServerFn` + `useMutation` do TanStack Query no lugar de tRPC, `useSearch` da rota para ler `leadId`.
+## Passo 4 — o que sobra (~24 mil) e o futuro
 
-## Fora de escopo
+- Esses seguem sem zona e caem no fluxo por origem (Plantão), como o modelo já
+  prevê. Ganham zona naturalmente quando o corretor preencher bairro/zona na
+  ficha, ou quando forem vinculados a um empreendimento.
+- Para acelerar: incluir **bairro** na ficha do cliente e na tela de edição em
+  massa, já que a tabela `zonas_bairros` (169 bairros) converte bairro em zona
+  automaticamente.
 
-- Salvar histórico de buscas / vincular ao lead no banco.
-- Chat multi-turno (é one-shot: descrição → resultado). Pode virar próximo passo se quiser.
-- Mexer no wizard financeiro existente.
+## Detalhes técnicos
+
+- Passo 1 e 2 saem como uma migração de dados (UPDATE em `projetos.zona_smq` e
+  `leads.zona`), com o trigger existente `zona_normalizar` cuidando do formato.
+- Passo 3 usa correspondência por texto normalizado (sem acento/caixa) contra os
+  nomes de `projetos`, com revisão da lista de correspondências antes de gravar.
+- Conferência ao final: contagem de clientes por zona e por roleta resolvida
+  (`zona_do_lead`), para a gestão validar antes de montar os times.
