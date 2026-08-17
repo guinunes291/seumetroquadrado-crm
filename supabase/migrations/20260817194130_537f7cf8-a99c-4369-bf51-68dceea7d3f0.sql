@@ -1,0 +1,2 @@
+UPDATE public.profiles SET ativo = false, status_conta = 'bloqueada' WHERE id IN ('033a6545-2a74-4760-96d2-ff118b337a2a','8f0a1cda-03a3-4a59-806e-3c1ba6191be0');
+DELETE FROM public.user_roles WHERE user_id IN ('033a6545-2a74-4760-96d2-ff118b337a2a','8f0a1cda-03a3-4a59-806e-3c1ba6191be0');
