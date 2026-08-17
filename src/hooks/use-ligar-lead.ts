@@ -10,8 +10,9 @@ function telHref(telefone: string | null): string | null {
 }
 
 // A edge function responde erros como { error: "snake_case" }; o invoke embala
-// o Response em error.context.
-async function codigoDoErro(error: unknown): Promise<string | null> {
+// o Response em error.context. Exportado: a Sessão de Discagem usa o mesmo
+// contrato ao falar com sonax-campanha.
+export async function codigoDoErro(error: unknown): Promise<string | null> {
   const ctx = (error as { context?: unknown })?.context;
   if (ctx instanceof Response) {
     try {

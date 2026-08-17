@@ -31,7 +31,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ZONAS_ORDEM, type Zona } from "@/lib/zonas";
 import { CrmInviteDialog } from "@/components/crm-invite-dialog";
-import { listarRamaisSonax, salvarRamalSonax } from "./ramal-sonax-client";
+import {
+  listarTelefoniaSonax,
+  salvarTelefoniaSonax,
+  type TelefoniaSonax,
+} from "./ramal-sonax-client";
 import { toast } from "sonner";
 import { Search, AlertTriangle, Check, X, Pencil, Users } from "lucide-react";
 
@@ -42,7 +46,7 @@ type CorretorRow = {
   nome: string;
   email: string;
   telefone: string | null;
-  ramal_sonax: string | null;
+  telefonia: TelefoniaSonax;
   cargo: string | null;
   ativo: boolean;
   status_conta: "pendente" | "ativa" | "bloqueada";
@@ -125,14 +129,19 @@ export function CorretoresPage() {
           return acc;
         }, {});
       }
-      // Coluna nova (telefonia Sonax) vive fora dos types gerados — vem pela
-      // fronteira tipada de ramal-sonax-client, que tolera migration pendente.
-      const ramais = await listarRamaisSonax(ids);
+      // Colunas novas (telefonia Sonax) vivem fora dos types gerados — vêm
+      // pela fronteira tipada de ramal-sonax-client, que tolera migration
+      // pendente.
+      const telefonia = await listarTelefoniaSonax(ids);
 
       return (profiles ?? []).map((p) => ({
         ...p,
         equipe: Array.isArray(p.equipe) ? (p.equipe[0] ?? null) : p.equipe,
-        ramal_sonax: ramais[p.id] ?? null,
+        telefonia: telefonia[p.id] ?? {
+          ramal_sonax: null,
+          sonax_id_atendente: null,
+          sonax_id_campanha: null,
+        },
         roles: rolesByUser[p.id] ?? [],
       })) as CorretorRow[];
     },
@@ -212,17 +221,31 @@ export function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
-  const updateRamal = useMutation({
-    mutationFn: async ({ id, ramal }: { id: string; ramal: string }) => {
-      const limpo = ramal.trim();
-      if (limpo && !/^\d{2,8}$/.test(limpo)) {
+  const updateTelefonia = useMutation({
+    mutationFn: async ({ id, campos }: { id: string; campos: TelefoniaSonax }) => {
+      const limpar = (v: string | null) => (v ?? "").trim() || null;
+      const ramal = limpar(campos.ramal_sonax);
+      const atendente = limpar(campos.sonax_id_atendente);
+      const campanha = limpar(campos.sonax_id_campanha);
+      const soDigitos = /^\d{1,12}$/;
+      if (ramal && !soDigitos.test(ramal)) {
         throw new Error("Ramal inválido. Use apenas números (ex.: 122).");
       }
-      await salvarRamalSonax(id, limpo || null);
+      if (atendente && !soDigitos.test(atendente)) {
+        throw new Error("ID do atendente inválido. Use apenas números (ex.: 10260).");
+      }
+      if (campanha && !soDigitos.test(campanha)) {
+        throw new Error("ID da campanha inválido. Use apenas números (ex.: 612413).");
+      }
+      await salvarTelefoniaSonax(id, {
+        ramal_sonax: ramal,
+        sonax_id_atendente: atendente,
+        sonax_id_campanha: campanha,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["corretores"] });
-      toast.success("Ramal atualizado");
+      toast.success("Telefonia atualizada");
     },
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
@@ -263,7 +286,7 @@ export function CorretoresPage() {
   const mutateRole = setRole.mutate;
   const mutateZonas = updateZonas.mutate;
   const mutateTelefone = updateTelefone.mutateAsync;
-  const mutateRamal = updateRamal.mutateAsync;
+  const mutateTelefonia = updateTelefonia.mutateAsync;
 
   const columns = useMemo<ColumnDef<CorretorRow, unknown>[]>(
     () => [
@@ -299,18 +322,22 @@ export function CorretoresPage() {
           ),
       },
       {
-        id: "ramal",
-        header: () => <span title="Ramal do corretor no PABX Sonax (click-to-call)">Ramal</span>,
+        id: "pabx",
+        header: () => (
+          <span title="Telefonia Sonax: ramal, ID do atendente e campanha do discador">PABX</span>
+        ),
         enableSorting: false,
-        meta: { label: "Ramal", hideBelow: "lg" },
+        meta: { label: "PABX", hideBelow: "lg" },
         cell: ({ row }) =>
           isAdmin ? (
-            <RamalCell
-              valor={row.original.ramal_sonax}
-              onSave={(v) => mutateRamal({ id: row.original.id, ramal: v })}
+            <TelefoniaSonaxCell
+              telefonia={row.original.telefonia}
+              onSave={(campos) => mutateTelefonia({ id: row.original.id, campos })}
             />
           ) : (
-            <span className="text-muted-foreground">{row.original.ramal_sonax ?? "—"}</span>
+            <span className="text-muted-foreground">
+              {row.original.telefonia.ramal_sonax ?? "—"}
+            </span>
           ),
       },
       {
@@ -451,7 +478,7 @@ export function CorretoresPage() {
       mutateEquipe,
       mutateRole,
       mutateTelefone,
-      mutateRamal,
+      mutateTelefonia,
       mutateZonas,
     ],
   );
@@ -645,81 +672,107 @@ function TelefoneCell({
   );
 }
 
-/** Ramal do corretor no PABX Sonax; vazio limpa (corretor fica sem click-to-call). */
-function RamalCell({
-  valor,
+/** Telefonia Sonax do corretor: ramal (click-to-call), ID do atendente e
+ *  campanha do discador automático — os três num popover só. Vazio limpa. */
+function TelefoniaSonaxCell({
+  telefonia,
   onSave,
 }: {
-  valor: string | null;
-  onSave: (v: string) => Promise<unknown>;
+  telefonia: TelefoniaSonax;
+  onSave: (campos: TelefoniaSonax) => Promise<unknown>;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(valor ?? "");
+  const [open, setOpen] = useState(false);
+  const [ramal, setRamal] = useState(telefonia.ramal_sonax ?? "");
+  const [atendente, setAtendente] = useState(telefonia.sonax_id_atendente ?? "");
+  const [campanha, setCampanha] = useState(telefonia.sonax_id_campanha ?? "");
   const [saving, setSaving] = useState(false);
 
-  if (!editing) {
-    return (
-      <div className="flex items-center gap-2">
-        {valor ? (
-          <span className="text-muted-foreground">{valor}</span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-        <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
-          onClick={() => {
-            setVal(valor ?? "");
-            setEditing(true);
-          }}
-          aria-label="Editar ramal"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-      </div>
-    );
-  }
+  const resumo = telefonia.ramal_sonax
+    ? `Ramal ${telefonia.ramal_sonax}${telefonia.sonax_id_campanha ? " · discador" : ""}`
+    : null;
 
   return (
-    <div className="flex items-center gap-1">
-      <Input
-        autoFocus
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        placeholder="122"
-        className="h-8 w-[90px]"
-      />
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-7 w-7"
-        disabled={saving}
-        onClick={async () => {
-          setSaving(true);
-          try {
-            await onSave(val.trim());
-            setEditing(false);
-          } catch {
-            // toast já é exibido pela mutation
-          } finally {
-            setSaving(false);
-          }
-        }}
-        aria-label="Salvar"
-      >
-        <Check className="h-3.5 w-3.5" />
-      </Button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-7 w-7"
-        onClick={() => setEditing(false)}
-        aria-label="Cancelar"
-      >
-        <X className="h-3.5 w-3.5" />
-      </Button>
-    </div>
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setRamal(telefonia.ramal_sonax ?? "");
+          setAtendente(telefonia.sonax_id_atendente ?? "");
+          setCampanha(telefonia.sonax_id_campanha ?? "");
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 min-w-[120px] justify-start gap-1">
+          {resumo ? (
+            <span className="truncate">{resumo}</span>
+          ) : (
+            <span className="text-muted-foreground">Configurar</span>
+          )}
+          <Pencil className="ml-auto h-3 w-3 shrink-0 opacity-60" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 space-y-3 p-3">
+        <p className="text-xs text-muted-foreground">
+          Dados do corretor no PABX Sonax. Sem ramal não há click-to-call; sem atendente e campanha
+          não há discador automático.
+        </p>
+        <div className="space-y-1">
+          <Label className="text-xs">Ramal</Label>
+          <Input
+            value={ramal}
+            onChange={(e) => setRamal(e.target.value)}
+            placeholder="122"
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">ID do atendente</Label>
+          <Input
+            value={atendente}
+            onChange={(e) => setAtendente(e.target.value)}
+            placeholder="10260"
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">ID da campanha do discador</Label>
+          <Input
+            value={campanha}
+            onChange={(e) => setCampanha(e.target.value)}
+            placeholder="612413"
+            className="h-8"
+          />
+        </div>
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+            <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await onSave({
+                  ramal_sonax: ramal,
+                  sonax_id_atendente: atendente,
+                  sonax_id_campanha: campanha,
+                });
+                setOpen(false);
+              } catch {
+                // toast já é exibido pela mutation
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            <Check className="h-3.5 w-3.5 mr-1" /> Salvar
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

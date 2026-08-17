@@ -170,6 +170,16 @@ async function handleRequest(req: Request): Promise<Response> {
       .limit(1);
     corretorId = profs?.[0]?.id ?? null;
   }
+  // Fallback: eventos de campanha nem sempre trazem o ramal — o vínculo pelo
+  // ID do atendente (profiles.sonax_id_atendente) cobre esse caso.
+  if (!corretorId && idAtendente) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("sonax_id_atendente", idAtendente)
+      .limit(1);
+    corretorId = profs?.[0]?.id ?? null;
+  }
 
   const payloadEvento = {
     evento,

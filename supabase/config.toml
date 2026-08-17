@@ -32,6 +32,11 @@ verify_jwt = true
 [functions.sonax-discar]
 verify_jwt = true
 
+# Telefonia Sonax — discador automático por campanha (enfileirar leads,
+# play/stop), chamado do app com o JWT do corretor.
+[functions.sonax-campanha]
+verify_jwt = true
+
 # Telefonia Sonax — URL de integração do PABX (template estático, sem headers).
 # Autenticação via SONAX_WEBHOOK_SECRET (?secret= ou x-webhook-secret), não por
 # JWT do Supabase.
