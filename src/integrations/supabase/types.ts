@@ -615,6 +615,78 @@ export type Database = {
         }
         Relationships: []
       }
+      chamadas: {
+        Row: {
+          atualizado_em: string
+          corretor_id: string | null
+          criado_em: string
+          direcao: string
+          duracao_segundos: number | null
+          gravacao_url: string | null
+          id: string
+          lead_id: string | null
+          numero: string
+          origem: string
+          payload: Json
+          provider: string
+          provider_call_id: string | null
+          ramal: string | null
+          status: string
+          tabulacao: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          corretor_id?: string | null
+          criado_em?: string
+          direcao: string
+          duracao_segundos?: number | null
+          gravacao_url?: string | null
+          id?: string
+          lead_id?: string | null
+          numero: string
+          origem?: string
+          payload?: Json
+          provider?: string
+          provider_call_id?: string | null
+          ramal?: string | null
+          status?: string
+          tabulacao?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          corretor_id?: string | null
+          criado_em?: string
+          direcao?: string
+          duracao_segundos?: number | null
+          gravacao_url?: string | null
+          id?: string
+          lead_id?: string | null
+          numero?: string
+          origem?: string
+          payload?: Json
+          provider?: string
+          provider_call_id?: string | null
+          ramal?: string | null
+          status?: string
+          tabulacao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chamadas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chamadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comissao_ledger: {
         Row: {
           beneficiario_id: string | null
@@ -2943,6 +3015,7 @@ export type Database = {
           perfil_completo: boolean
           presente: boolean
           presente_em: string | null
+          ramal_sonax: string | null
           situacao: string | null
           status_conta: Database["public"]["Enums"]["status_conta"]
           telefone: string | null
@@ -2983,6 +3056,7 @@ export type Database = {
           perfil_completo?: boolean
           presente?: boolean
           presente_em?: string | null
+          ramal_sonax?: string | null
           situacao?: string | null
           status_conta?: Database["public"]["Enums"]["status_conta"]
           telefone?: string | null
@@ -3023,6 +3097,7 @@ export type Database = {
           perfil_completo?: boolean
           presente?: boolean
           presente_em?: string | null
+          ramal_sonax?: string | null
           situacao?: string | null
           status_conta?: Database["public"]["Enums"]["status_conta"]
           telefone?: string | null
@@ -4787,6 +4862,50 @@ export type Database = {
           },
         ]
       }
+      zonas_bairros: {
+        Row: {
+          bairro: string
+          criado_em: string
+          zona: string
+        }
+        Insert: {
+          bairro: string
+          criado_em?: string
+          zona: string
+        }
+        Update: {
+          bairro?: string
+          criado_em?: string
+          zona?: string
+        }
+        Relationships: []
+      }
+      zonas_roletas: {
+        Row: {
+          criado_em: string
+          roleta_slug: string
+          zona: string
+        }
+        Insert: {
+          criado_em?: string
+          roleta_slug: string
+          zona: string
+        }
+        Update: {
+          criado_em?: string
+          roleta_slug?: string
+          zona?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zonas_roletas_roleta_slug_fkey"
+            columns: ["roleta_slug"]
+            isOneToOne: false
+            referencedRelation: "roletas"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
     }
     Views: {
       copa_pontuacao_semanal: {
@@ -4972,6 +5091,7 @@ export type Database = {
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
+          bairro: string | null
           campanha: string | null
           canal_entrada: string | null
           consentimento_lgpd: boolean | null
@@ -5066,6 +5186,7 @@ export type Database = {
         }
         Returns: string
       }
+      _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
       alertar_roletas_sem_apto: { Args: never; Returns: undefined }
@@ -5217,6 +5338,7 @@ export type Database = {
           perfil_completo: boolean
           presente: boolean
           presente_em: string | null
+          ramal_sonax: string | null
           situacao: string | null
           status_conta: Database["public"]["Enums"]["status_conta"]
           telefone: string | null
@@ -6468,6 +6590,7 @@ export type Database = {
         Args: { _ator_id: string; _link_id: string }
         Returns: boolean
       }
+      roleta_da_zona: { Args: { _zona: string }; Returns: string }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string
@@ -6578,6 +6701,7 @@ export type Database = {
           p_proximo_followup?: string
         }
         Returns: {
+          bairro: string | null
           campanha: string | null
           canal_entrada: string | null
           consentimento_lgpd: boolean | null
@@ -6663,6 +6787,7 @@ export type Database = {
           p_motivo?: string
         }
         Returns: {
+          bairro: string | null
           campanha: string | null
           canal_entrada: string | null
           consentimento_lgpd: boolean | null
@@ -6794,6 +6919,7 @@ export type Database = {
         Args: { _urls: string[] }
         Returns: boolean
       }
+      zona_do_bairro: { Args: { _txt: string }; Returns: string }
       zona_do_lead: { Args: { _lead_id: string }; Returns: string }
       zona_normalizar: { Args: { _txt: string }; Returns: string }
     }
