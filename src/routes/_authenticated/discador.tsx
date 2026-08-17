@@ -4,6 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { DiscadorCentral } from "@/features/telefonia/discador-page";
+import { SessaoDiscagem } from "@/features/telefonia/sessao-discagem";
 
 export const Route = createFileRoute("/_authenticated/discador")({
   head: () => ({ meta: [{ title: "Discador — Seu Metro Quadrado" }] }),
@@ -17,6 +18,9 @@ function DiscadorPage() {
         title="Discador"
         description="Suas ligações do PABX num lugar só: o que você discou, o que tocou e o que ficou sem atender — com rediscagem em um clique."
       />
+      {/* A sessão funciona mesmo antes da migration de telefonia (cada disco
+          degrada para tel:), por isso vive fora do gate da DiscadorCentral. */}
+      <SessaoDiscagem />
       <DiscadorCentral />
     </div>
   );

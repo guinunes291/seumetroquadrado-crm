@@ -11,8 +11,13 @@ const sql = readFileSync(
   "utf8",
 );
 const codigo = sql.replace(/--[^\n]*/g, "");
+const sqlCampanha = readFileSync(
+  join(root, "supabase/migrations/20260817120000_telefonia_sonax_campanha.sql"),
+  "utf8",
+).replace(/--[^\n]*/g, "");
 const configToml = readFileSync(join(root, "supabase/config.toml"), "utf8");
 const fnDiscar = readFileSync(join(root, "supabase/functions/sonax-discar/index.ts"), "utf8");
+const fnCampanha = readFileSync(join(root, "supabase/functions/sonax-campanha/index.ts"), "utf8");
 const fnWebhook = readFileSync(join(root, "supabase/functions/sonax-webhook/index.ts"), "utf8");
 
 describe("migration telefonia (chamadas + ramal_sonax)", () => {
@@ -70,9 +75,44 @@ describe("migration telefonia (chamadas + ramal_sonax)", () => {
 });
 
 describe("fiação das edge functions (config.toml)", () => {
-  it("sonax-webhook é público (secret próprio); sonax-discar exige JWT", () => {
+  it("sonax-webhook é público (secret próprio); sonax-discar e sonax-campanha exigem JWT", () => {
     expect(configToml).toMatch(/\[functions\.sonax-webhook\]\s*\nverify_jwt = false/);
     expect(configToml).toMatch(/\[functions\.sonax-discar\]\s*\nverify_jwt = true/);
+    expect(configToml).toMatch(/\[functions\.sonax-campanha\]\s*\nverify_jwt = true/);
+  });
+});
+
+describe("sonax-campanha (discador automático)", () => {
+  it("vínculos do corretor no PABX entram em profiles (migration parte 2)", () => {
+    expect(sqlCampanha).toContain(
+      "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS sonax_id_atendente text",
+    );
+    expect(sqlCampanha).toContain(
+      "ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS sonax_id_campanha text",
+    );
+  });
+
+  it("sem service_role: fila lida com a RLS do corretor, com as exclusões de compliance", () => {
+    expect(fnCampanha).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(fnCampanha).toContain("SUPABASE_ANON_KEY");
+    expect(fnCampanha).toContain("conta_atual_ativa");
+    expect(fnCampanha).toContain('.eq("opt_out", false)');
+    expect(fnCampanha).toContain('.eq("na_lixeira", false)');
+    expect(fnCampanha).toContain('.is("deleted_at", null)');
+  });
+
+  it("credenciais só por env; enfileira (acao=chamada), dá play e sabe parar/limpar", () => {
+    expect(fnCampanha).toContain('Deno.env.get("SONAX_TOKEN")');
+    expect(fnCampanha).toContain('Deno.env.get("SONAX_ID_CLIENTE")');
+    expect(fnCampanha).toMatch(/acaoSonax\("chamada"/);
+    expect(fnCampanha).toMatch(/acaoSonax\("play_campanha"/);
+    expect(fnCampanha).toMatch(/acaoSonax\("stop_campanha"/);
+    expect(fnCampanha).toMatch(/acaoSonax\("limpa_contatos_campanha"/);
+    expect(fnCampanha).toContain("MAX_LEADS_POR_LOTE");
+  });
+
+  it("webhook casa o corretor também pelo ID do atendente (eventos de campanha sem ramal)", () => {
+    expect(fnWebhook).toContain('eq("sonax_id_atendente", idAtendente)');
   });
 });
 
@@ -139,5 +179,22 @@ describe("aba Discador (fiação)", () => {
     // Migration pendente mostra estado explicativo em vez de quebrar.
     expect(pagina).toContain("tabelaAusente");
     expect(clienteChamadas).toContain("tabelaAusente");
+  });
+
+  it("sessão de discagem: fila só da carteira, sem opt-out/lixeira, uma chamada por vez", () => {
+    const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
+    expect(rota).toContain("SessaoDiscagem");
+    expect(sessao).toContain("Iniciar agora");
+    // A fila respeita a carteira e as exclusões de compliance.
+    expect(sessao).toContain('.eq("corretor_id", user.id)');
+    expect(sessao).toContain('.eq("opt_out", false)');
+    expect(sessao).toContain('.eq("na_lixeira", false)');
+    expect(sessao).toContain('.is("deleted_at", null)');
+    // Prioridade: quem está há mais tempo sem contato entra primeiro.
+    expect(sessao).toMatch(/order\("ultima_interacao", \{ ascending: true, nullsFirst: true \}\)/);
+    // Disca pelo fluxo único (click-to-call com fallback) e registra resultado
+    // pelo diálogo padrão — nada de caminho paralelo sem histórico.
+    expect(sessao).toContain("useLigarLead");
+    expect(sessao).toContain("RegistrarContatoDialog");
   });
 });

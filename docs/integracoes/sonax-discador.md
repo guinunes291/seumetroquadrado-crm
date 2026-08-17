@@ -28,19 +28,36 @@ em 16/08/2026.
    (direção, status, busca por lead/número) e rediscagem em um clique. Corretor
    vê as chamadas da própria carteira/ramal; gestão vê a operação inteira
    (RLS). Atualiza ao vivo via realtime.
+5. **Sessão de discagem ("Iniciar agora") — discador automático** — a aba monta
+   a fila com os leads da carteira do corretor (sem contato há mais tempo
+   primeiro; nunca opt-out, lixeira ou sem telefone; filtro por etapa e tamanho
+   10/25/50) e entrega à **campanha do discador Sonax** (edge function
+   `sonax-campanha`: `acao=chamada` por lead + `play_campanha`): o PABX disca a
+   fila sozinho, **descarta caixa postal e só conecta ao ramal quem atende**,
+   continuando até a fila acabar ou o corretor clicar "Parar discador" (stop +
+   limpeza da fila restante). As chamadas conectadas chegam pelo webhook
+   (origem `campanha`) e aparecem no histórico e na timeline em tempo real.
+   Requisitos por corretor: campanha dedicada no painel Sonax (fila do ramal
+   dele + descarte de caixa postal) e os vínculos em Gestão → Corretores →
+   PABX.
+6. **Modo um a um (fallback)** — para quem ainda não tem campanha configurada:
+   a mesma fila é discada sequencialmente pelo click-to-call no ramal, com
+   avanço humano ("Próximo" ou registrar o resultado já disca o seguinte).
 
 ## Peças no repositório
 
-| Peça                                            | Arquivo                                                              |
-| ----------------------------------------------- | -------------------------------------------------------------------- |
-| Migration (`chamadas`, `ramal_sonax`, trigger)  | `supabase/migrations/20260816120000_telefonia_sonax.sql`             |
-| Click-to-call (JWT + RLS do corretor)           | `supabase/functions/sonax-discar/index.ts`                           |
-| Webhook de eventos (secret + service_role)      | `supabase/functions/sonax-webhook/index.ts`                          |
-| Hook do botão Ligar (com fallback `tel:`)       | `src/hooks/use-ligar-lead.ts`                                        |
-| Botões no dossiê do lead                        | `src/routes/_authenticated/leads.$leadId.tsx`                        |
-| Coluna Ramal na gestão                          | `src/features/gestao/corretores-page.tsx` + `ramal-sonax-client.ts`  |
-| Aba Discador (rota, página, fronteira de dados) | `src/routes/_authenticated/discador.tsx` + `src/features/telefonia/` |
-| Testes de guarda                                | `tests/telefonia-sonax.test.ts`                                      |
+| Peça                                             | Arquivo                                                              |
+| ------------------------------------------------ | -------------------------------------------------------------------- |
+| Migration (`chamadas`, `ramal_sonax`, trigger)   | `supabase/migrations/20260816120000_telefonia_sonax.sql`             |
+| Migration (vínculos do discador por corretor)    | `supabase/migrations/20260817120000_telefonia_sonax_campanha.sql`    |
+| Click-to-call (JWT + RLS do corretor)            | `supabase/functions/sonax-discar/index.ts`                           |
+| Discador automático (fila → campanha, play/stop) | `supabase/functions/sonax-campanha/index.ts`                         |
+| Webhook de eventos (secret + service_role)       | `supabase/functions/sonax-webhook/index.ts`                          |
+| Hook do botão Ligar (com fallback `tel:`)        | `src/hooks/use-ligar-lead.ts`                                        |
+| Botões no dossiê do lead                         | `src/routes/_authenticated/leads.$leadId.tsx`                        |
+| Coluna Ramal na gestão                           | `src/features/gestao/corretores-page.tsx` + `ramal-sonax-client.ts`  |
+| Aba Discador (rota, página, fronteira de dados)  | `src/routes/_authenticated/discador.tsx` + `src/features/telefonia/` |
+| Testes de guarda                                 | `tests/telefonia-sonax.test.ts`                                      |
 
 ## Setup (checklist de ativação)
 
@@ -48,14 +65,20 @@ em 16/08/2026.
 2. **Secrets** em _Supabase → Edge Functions → Secrets_:
    - `SONAX_TOKEN` — token de ativação fornecido pelo Sonax (o mesmo dos
      exemplos da API v1).
+   - `SONAX_ID_CLIENTE` — id do cliente Sonax (vem junto com o token nos dados
+     de ativação; obrigatório para o discador automático).
    - `SONAX_WEBHOOK_SECRET` — segredo longo e aleatório, exclusivo do webhook
      (ex.: `openssl rand -hex 32`).
-   - `SONAX_CLICK2CALL_URL` (opcional) — só se o Sonax fornecer um host
-     diferente de `https://click2call.sonax.net.br/sonax-click2call.php`.
-3. **Deploy das functions** `sonax-discar` e `sonax-webhook`
-   (`supabase functions deploy sonax-discar sonax-webhook`). O `config.toml` já
-   define `verify_jwt` correto para cada uma.
-4. **Cadastrar a URL de integração no PABX Sonax** (painel do PABX; as
+   - `SONAX_CLICK2CALL_URL` / `SONAX_API_URL` (opcionais) — só se o Sonax
+     fornecer hosts diferentes dos padrões.
+3. **Deploy das functions** `sonax-discar`, `sonax-campanha` e `sonax-webhook`
+   (`supabase functions deploy sonax-discar sonax-campanha sonax-webhook`). O
+   `config.toml` já define `verify_jwt` correto para cada uma.
+4. **Criar a campanha do discador no painel Sonax** (uma por corretor que vai
+   usar o "Iniciar agora"): campanha apontando para a **fila que entrega no
+   ramal do corretor**, com **descarte de caixa postal = S** e a
+   simultaneidade desejada. Anote o ID da campanha e o ID do atendente.
+5. **Cadastrar a URL de integração no PABX Sonax** (painel do PABX; as
    variáveis entre `<>` são do Sonax e ficam literais na URL cadastrada):
 
    ```
@@ -67,9 +90,12 @@ em 16/08/2026.
    `nao_atendida` (o webhook atualiza a mesma linha de `chamadas` pelo
    `id_chamada`; a duração pode vir em `&duracao=` se o PABX expuser).
 
-5. **Cadastrar os ramais** dos corretores em **Gestão → Corretores → Ramal**.
-6. Testar: abrir um lead → "Ligar". O ramal do corretor deve tocar; a ligação
-   aparece na timeline e em `chamadas`.
+6. **Cadastrar a telefonia dos corretores** em **Gestão → Corretores → PABX**:
+   ramal (click-to-call), ID do atendente e ID da campanha (discador
+   automático).
+7. Testar: abrir um lead → "Ligar" (ramal toca; ligação na timeline e em
+   `chamadas`). Depois, na aba Discador → "Iniciar agora": o PABX passa a
+   discar a fila e só conecta quem atende.
 
 ### Nota de segurança — secret na query string
 
