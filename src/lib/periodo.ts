@@ -7,13 +7,36 @@
 // (14 semanas a partir de 03/06/2026, semanas de quarta a terça) e vive em
 // src/lib/copa.ts — implementações divergentes não foram unificadas.
 
-export type PeriodoOption = "today" | "this_week" | "this_month" | "this_year" | "all";
+export type PeriodoOption =
+  | "today"
+  | "yesterday"
+  | "this_week"
+  | "last_week"
+  | "last_7"
+  | "this_month"
+  | "last_month"
+  | "last_30"
+  | "last_90"
+  | "this_quarter"
+  | "last_quarter"
+  | "this_year"
+  | "last_year"
+  | "all";
 
 export const PERIODO_LABELS: Record<PeriodoOption, string> = {
   today: "Hoje",
+  yesterday: "Ontem",
   this_week: "Esta semana",
+  last_week: "Semana passada",
+  last_7: "Últimos 7 dias",
   this_month: "Este mês",
+  last_month: "Mês passado",
+  last_30: "Últimos 30 dias",
+  last_90: "Últimos 90 dias",
+  this_quarter: "Este trimestre",
+  last_quarter: "Trimestre passado",
   this_year: "Este ano",
+  last_year: "Ano passado",
   all: "Últimos 2 anos",
 };
 
@@ -76,6 +99,55 @@ export function getDateRange(p: PeriodoOption, now: Date = new Date()): { from: 
   switch (p) {
     case "today":
       return { from: startOfDay(now), to: endOfDay(now) };
+    case "yesterday": {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      return { from: startOfDay(y), to: endOfDay(y) };
+    }
+    case "last_week": {
+      const lw = new Date(now);
+      lw.setDate(lw.getDate() - 7);
+      return { from: startOfWeek(lw), to: endOfWeek(lw) };
+    }
+    case "last_7": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 6);
+      return { from: startOfDay(d), to: endOfDay(now) };
+    }
+    case "last_month": {
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return { from: startOfMonth(lm), to: endOfMonth(lm) };
+    }
+    case "last_30": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 29);
+      return { from: startOfDay(d), to: endOfDay(now) };
+    }
+    case "last_90": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 89);
+      return { from: startOfDay(d), to: endOfDay(now) };
+    }
+    case "this_quarter": {
+      const q = Math.floor(now.getMonth() / 3);
+      return {
+        from: new Date(now.getFullYear(), q * 3, 1),
+        to: endOfDay(new Date(now.getFullYear(), q * 3 + 3, 0)),
+      };
+    }
+    case "last_quarter": {
+      const q = Math.floor(now.getMonth() / 3) - 1;
+      const ano = q < 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const qq = ((q % 4) + 4) % 4;
+      return {
+        from: new Date(ano, qq * 3, 1),
+        to: endOfDay(new Date(ano, qq * 3 + 3, 0)),
+      };
+    }
+    case "last_year": {
+      const ly = new Date(now.getFullYear() - 1, 0, 1);
+      return { from: startOfYear(ly), to: endOfYear(ly) };
+    }
     case "this_week":
       return { from: startOfWeek(now), to: endOfWeek(now) };
     case "this_month":
