@@ -115,6 +115,15 @@ describe("sonax-campanha (discador automático)", () => {
     expect(fnWebhook).toContain('eq("sonax_id_atendente", idAtendente)');
   });
 
+  it("ramal do evento é normalizado (tira o sufixo da conta) antes de casar o corretor", () => {
+    // <RAMAL> vem como "10300013004" (103 + conta 00013004); sem normalizar,
+    // o corretor nunca resolve e a coluna mostra o número cru.
+    expect(fnWebhook).toContain("normalizarRamal");
+    expect(fnWebhook).toMatch(/idClienteSonax\.padStart\(8, "0"\)/);
+    // O que sobra precisa ter cara de ramal — nunca truncar às cegas.
+    expect(fnWebhook).toMatch(/\\d\{1,6\}/);
+  });
+
   it("iniciar limpa a sobra da campanha antes de enfileirar (sem rediscagem fantasma no login)", () => {
     expect(fnCampanha).toContain("Higiene do lote");
     const daHigieneEmDiante = fnCampanha.slice(fnCampanha.indexOf("Higiene do lote"));
