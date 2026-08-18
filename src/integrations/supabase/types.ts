@@ -3017,6 +3017,8 @@ export type Database = {
           presente_em: string | null
           ramal_sonax: string | null
           situacao: string | null
+          sonax_id_atendente: string | null
+          sonax_id_campanha: string | null
           status_conta: Database["public"]["Enums"]["status_conta"]
           telefone: string | null
           updated_at: string
@@ -3058,6 +3060,8 @@ export type Database = {
           presente_em?: string | null
           ramal_sonax?: string | null
           situacao?: string | null
+          sonax_id_atendente?: string | null
+          sonax_id_campanha?: string | null
           status_conta?: Database["public"]["Enums"]["status_conta"]
           telefone?: string | null
           updated_at?: string
@@ -3099,6 +3103,8 @@ export type Database = {
           presente_em?: string | null
           ramal_sonax?: string | null
           situacao?: string | null
+          sonax_id_atendente?: string | null
+          sonax_id_campanha?: string | null
           status_conta?: Database["public"]["Enums"]["status_conta"]
           telefone?: string | null
           updated_at?: string
@@ -5340,6 +5346,8 @@ export type Database = {
           presente_em: string | null
           ramal_sonax: string | null
           situacao: string | null
+          sonax_id_atendente: string | null
+          sonax_id_campanha: string | null
           status_conta: Database["public"]["Enums"]["status_conta"]
           telefone: string | null
           updated_at: string
