@@ -99,6 +99,55 @@ export function getDateRange(p: PeriodoOption, now: Date = new Date()): { from: 
   switch (p) {
     case "today":
       return { from: startOfDay(now), to: endOfDay(now) };
+    case "yesterday": {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      return { from: startOfDay(y), to: endOfDay(y) };
+    }
+    case "last_week": {
+      const lw = new Date(now);
+      lw.setDate(lw.getDate() - 7);
+      return { from: startOfWeek(lw), to: endOfWeek(lw) };
+    }
+    case "last_7": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 6);
+      return { from: startOfDay(d), to: endOfDay(now) };
+    }
+    case "last_month": {
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return { from: startOfMonth(lm), to: endOfMonth(lm) };
+    }
+    case "last_30": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 29);
+      return { from: startOfDay(d), to: endOfDay(now) };
+    }
+    case "last_90": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 89);
+      return { from: startOfDay(d), to: endOfDay(now) };
+    }
+    case "this_quarter": {
+      const q = Math.floor(now.getMonth() / 3);
+      return {
+        from: new Date(now.getFullYear(), q * 3, 1),
+        to: endOfDay(new Date(now.getFullYear(), q * 3 + 3, 0)),
+      };
+    }
+    case "last_quarter": {
+      const q = Math.floor(now.getMonth() / 3) - 1;
+      const ano = q < 0 ? now.getFullYear() - 1 : now.getFullYear();
+      const qq = ((q % 4) + 4) % 4;
+      return {
+        from: new Date(ano, qq * 3, 1),
+        to: endOfDay(new Date(ano, qq * 3 + 3, 0)),
+      };
+    }
+    case "last_year": {
+      const ly = new Date(now.getFullYear() - 1, 0, 1);
+      return { from: startOfYear(ly), to: endOfYear(ly) };
+    }
     case "this_week":
       return { from: startOfWeek(now), to: endOfWeek(now) };
     case "this_month":
