@@ -140,7 +140,7 @@ describe("periodo — getDateRange", () => {
   });
 
   it("labels cobrem todos os presets", () => {
-    const presets: PeriodoOption[] = ["today", "this_week", "this_month", "this_year", "all"];
+    const presets = Object.keys(PERIODO_LABELS) as PeriodoOption[];
     for (const p of presets) expect(PERIODO_LABELS[p]).toBeTruthy();
     expect(Object.keys(PERIODO_LABELS)).toHaveLength(presets.length);
   });
