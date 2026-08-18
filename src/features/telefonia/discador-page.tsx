@@ -5,7 +5,8 @@
 
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Info,
   Phone,
@@ -13,6 +14,7 @@ import {
   PhoneIncoming,
   PhoneMissed,
   PhoneOutgoing,
+  RefreshCw,
   Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -31,11 +33,11 @@ import {
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
-import { useLigarLead } from "@/hooks/use-ligar-lead";
+import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
-import { listarRamaisSonax } from "@/features/gestao/ramal-sonax-client";
+import { listarTelefoniaSonax } from "@/features/gestao/ramal-sonax-client";
 import { listarChamadasRecentes, type Chamada } from "./chamadas-client";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -139,13 +141,42 @@ export function DiscadorCentral() {
     },
   });
 
-  // Meu ramal no PABX — sem ele o click-to-call não funciona para mim.
-  const ramalQ = useQuery({
-    queryKey: ["meu-ramal-sonax", user?.id],
+  // Minha telefonia no PABX — ramal (click-to-call) e campanha (discador).
+  const telefoniaQ = useQuery({
+    queryKey: ["minha-telefonia-sonax", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const ramais = await listarRamaisSonax([user!.id]);
-      return ramais[user!.id] ?? null;
+      const tel = await listarTelefoniaSonax([user!.id]);
+      return tel[user!.id] ?? null;
+    },
+  });
+  const meuRamal = telefoniaQ.data?.ramal_sonax ?? null;
+  const temCampanha = Boolean(telefoniaQ.data?.sonax_id_campanha);
+
+  // Tabulação -> etapa do funil: sincroniza automaticamente enquanto a aba
+  // está aberta (e no botão). Idempotente — a function só processa tabulação
+  // nova; quando aplica alguma, avisa e atualiza as listas.
+  const qc = useQueryClient();
+  const syncTabulacoes = useQuery({
+    queryKey: ["sonax-tabulacoes-sync", user?.id],
+    enabled: !!user && temCampanha,
+    refetchInterval: 120_000,
+    refetchIntervalInBackground: false,
+    retry: false,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("sonax-tabulacoes", { body: {} });
+      if (error) throw new Error((await codigoDoErro(error)) ?? error.message);
+      const r = data as { aplicadas?: number; novas?: number };
+      if ((r.aplicadas ?? 0) > 0) {
+        toast.success(
+          `Tabulação do discador: ${r.aplicadas} lead${(r.aplicadas ?? 0) > 1 ? "s" : ""} mudou de etapa.`,
+        );
+        qc.invalidateQueries({ queryKey: ["leads"] });
+        qc.invalidateQueries({ queryKey: ["chamadas:discador"] });
+      } else if ((r.novas ?? 0) > 0) {
+        qc.invalidateQueries({ queryKey: ["chamadas:discador"] });
+      }
+      return r;
     },
   });
 
@@ -254,9 +285,19 @@ export function DiscadorCentral() {
         enableSorting: false,
         meta: { label: "Status" },
         cell: ({ row }) => (
-          <Badge variant={statusVariant(row.original.status)}>
-            {STATUS_LABEL[row.original.status] ?? row.original.status}
-          </Badge>
+          <div className="min-w-0">
+            <Badge variant={statusVariant(row.original.status)}>
+              {STATUS_LABEL[row.original.status] ?? row.original.status}
+            </Badge>
+            {row.original.tabulacao && (
+              <div
+                className="mt-0.5 truncate text-xs text-muted-foreground"
+                title={`Tabulação do discador: ${row.original.tabulacao}`}
+              >
+                {row.original.tabulacao}
+              </div>
+            )}
+          </div>
         ),
       },
       {
@@ -344,9 +385,9 @@ export function DiscadorCentral() {
         <KpiCard
           icon={Phone}
           label="Meu ramal"
-          valor={ramalQ.data ?? "—"}
+          valor={meuRamal ?? "—"}
           hint={
-            ramalQ.data
+            meuRamal
               ? "O click-to-call toca aqui antes de discar o lead."
               : "Sem ramal cadastrado — peça ao admin em Gestão → Corretores."
           }
@@ -387,6 +428,19 @@ export function DiscadorCentral() {
             ))}
           </SelectContent>
         </Select>
+        {temCampanha && (
+          <Button
+            variant="outline"
+            disabled={syncTabulacoes.isFetching}
+            onClick={() => void syncTabulacoes.refetch()}
+            title="Puxa as tabulações aplicadas no painel do Sonax e move os leads de etapa conforme o mapeamento. Roda sozinho a cada 2 minutos com a aba aberta."
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${syncTabulacoes.isFetching ? "animate-spin" : ""}`}
+            />
+            Sincronizar tabulações
+          </Button>
+        )}
       </div>
 
       <AsyncBoundary

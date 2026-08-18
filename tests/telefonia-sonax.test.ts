@@ -116,6 +116,41 @@ describe("sonax-campanha (discador automático)", () => {
   });
 });
 
+describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
+  const fnTab = readFileSync(join(root, "supabase/functions/sonax-tabulacoes/index.ts"), "utf8");
+  const sqlTab = readFileSync(
+    join(root, "supabase/migrations/20260818120000_telefonia_tabulacao_status.sql"),
+    "utf8",
+  ).replace(/--[^\n]*/g, "");
+  const paginaDiscador = readFileSync(
+    join(root, "src/features/telefonia/discador-page.tsx"),
+    "utf8",
+  );
+
+  it("mapeamento é configuração (gestao_config), semeado sem sobrescrever ajustes do admin", () => {
+    expect(sqlTab).toContain("'telefonia_tabulacao_status'");
+    expect(sqlTab).toContain("ON CONFLICT (chave) DO NOTHING");
+  });
+
+  it("fonte é o arquivo da campanha; transição pela RPC oficial com o JWT do corretor", () => {
+    expect(fnTab).toContain("download_arquivo_contato");
+    expect(fnTab).toContain('rpc("transicionar_lead"');
+    expect(fnTab).toContain("telefonia_tabulacao_status");
+    // Idempotência: só tabulação DIFERENTE da gravada na chamada processa —
+    // o sync nunca briga com uma etapa ajustada manualmente depois.
+    expect(fnTab).toMatch(/normalizar\(chamada\.tabulacao\) === normalizar\(tabulacao\)/);
+    // Alvo restrito ao enum do funil — mapeamento inválido não passa.
+    expect(fnTab).toContain("STATUS_VALIDOS");
+  });
+
+  it("exige JWT e a aba dispara o sync (automático + botão)", () => {
+    expect(configToml).toMatch(/\[functions\.sonax-tabulacoes\]\s*\nverify_jwt = true/);
+    expect(paginaDiscador).toContain('invoke("sonax-tabulacoes"');
+    expect(paginaDiscador).toContain("Sincronizar tabulações");
+    expect(paginaDiscador).toContain("refetchInterval");
+  });
+});
+
 describe("sonax-discar (click-to-call)", () => {
   it("sem service_role: leitura do lead e inserts passam pela RLS do corretor", () => {
     expect(fnDiscar).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
