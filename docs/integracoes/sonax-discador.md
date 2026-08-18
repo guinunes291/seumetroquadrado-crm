@@ -43,21 +43,39 @@ em 16/08/2026.
 6. **Modo um a um (fallback)** — para quem ainda não tem campanha configurada:
    a mesma fila é discada sequencialmente pelo click-to-call no ramal, com
    avanço humano ("Próximo" ou registrar o resultado já disca o seguinte).
+7. **Tabulação → etapa do funil (automático)** — a tabulação aplicada pelo
+   corretor no painel de agente do Sonax move o lead de etapa no CRM. A edge
+   function `sonax-tabulacoes` baixa o arquivo de contatos da campanha
+   (`acao=download_arquivo_contato` — cada contato carrega o UUID do lead),
+   grava a tabulação na chamada e transiciona o lead pela RPC oficial
+   `transicionar_lead` (máquina de estados + timeline + follow-up). Roda
+   sozinha a cada 2 min enquanto a aba Discador está aberta, e no botão
+   "Sincronizar tabulações". Idempotente: só tabulação **nova** processa — se
+   o corretor mudar a etapa manualmente depois, o sync não briga.
+
+   O mapeamento tabulação → etapa é **configuração**, na `gestao_config`
+   (chave `telefonia_tabulacao_status`), comparado sem acento/maiúsculas.
+   Defaults: interessado → Em atendimento; agendou visita → Agendado; pediu
+   retorno → Aguardando retorno; sem interesse / não perturbar / número
+   errado → Perdido. **Alinhe os nomes das tabulações criadas no painel do
+   Sonax com as chaves do mapeamento** (ou edite o mapeamento); tabulação sem
+   entrada só fica registrada na chamada, sem mudar etapa.
 
 ## Peças no repositório
 
-| Peça                                             | Arquivo                                                              |
-| ------------------------------------------------ | -------------------------------------------------------------------- |
-| Migration (`chamadas`, `ramal_sonax`, trigger)   | `supabase/migrations/20260816120000_telefonia_sonax.sql`             |
-| Migration (vínculos do discador por corretor)    | `supabase/migrations/20260817120000_telefonia_sonax_campanha.sql`    |
-| Click-to-call (JWT + RLS do corretor)            | `supabase/functions/sonax-discar/index.ts`                           |
-| Discador automático (fila → campanha, play/stop) | `supabase/functions/sonax-campanha/index.ts`                         |
-| Webhook de eventos (secret + service_role)       | `supabase/functions/sonax-webhook/index.ts`                          |
-| Hook do botão Ligar (com fallback `tel:`)        | `src/hooks/use-ligar-lead.ts`                                        |
-| Botões no dossiê do lead                         | `src/routes/_authenticated/leads.$leadId.tsx`                        |
-| Coluna Ramal na gestão                           | `src/features/gestao/corretores-page.tsx` + `ramal-sonax-client.ts`  |
-| Aba Discador (rota, página, fronteira de dados)  | `src/routes/_authenticated/discador.tsx` + `src/features/telefonia/` |
-| Testes de guarda                                 | `tests/telefonia-sonax.test.ts`                                      |
+| Peça                                             | Arquivo                                                                     |
+| ------------------------------------------------ | --------------------------------------------------------------------------- |
+| Migration (`chamadas`, `ramal_sonax`, trigger)   | `supabase/migrations/20260816120000_telefonia_sonax.sql`                    |
+| Migration (vínculos do discador por corretor)    | `supabase/migrations/20260817120000_telefonia_sonax_campanha.sql`           |
+| Click-to-call (JWT + RLS do corretor)            | `supabase/functions/sonax-discar/index.ts`                                  |
+| Discador automático (fila → campanha, play/stop) | `supabase/functions/sonax-campanha/index.ts`                                |
+| Tabulação → etapa (sync + mapeamento)            | `supabase/functions/sonax-tabulacoes/index.ts` + migration `20260818120000` |
+| Webhook de eventos (secret + service_role)       | `supabase/functions/sonax-webhook/index.ts`                                 |
+| Hook do botão Ligar (com fallback `tel:`)        | `src/hooks/use-ligar-lead.ts`                                               |
+| Botões no dossiê do lead                         | `src/routes/_authenticated/leads.$leadId.tsx`                               |
+| Coluna Ramal na gestão                           | `src/features/gestao/corretores-page.tsx` + `ramal-sonax-client.ts`         |
+| Aba Discador (rota, página, fronteira de dados)  | `src/routes/_authenticated/discador.tsx` + `src/features/telefonia/`        |
+| Testes de guarda                                 | `tests/telefonia-sonax.test.ts`                                             |
 
 ## Setup (checklist de ativação)
 
@@ -71,9 +89,10 @@ em 16/08/2026.
      (ex.: `openssl rand -hex 32`).
    - `SONAX_CLICK2CALL_URL` / `SONAX_API_URL` (opcionais) — só se o Sonax
      fornecer hosts diferentes dos padrões.
-3. **Deploy das functions** `sonax-discar`, `sonax-campanha` e `sonax-webhook`
-   (`supabase functions deploy sonax-discar sonax-campanha sonax-webhook`). O
-   `config.toml` já define `verify_jwt` correto para cada uma.
+3. **Deploy das functions** `sonax-discar`, `sonax-campanha`,
+   `sonax-tabulacoes` e `sonax-webhook`
+   (`supabase functions deploy sonax-discar sonax-campanha sonax-tabulacoes sonax-webhook`).
+   O `config.toml` já define `verify_jwt` correto para cada uma.
 4. **Criar a campanha do discador no painel Sonax** (uma por corretor que vai
    usar o "Iniciar agora"): campanha apontando para a **fila que entrega no
    ramal do corretor**, com **descarte de caixa postal = S** e a
