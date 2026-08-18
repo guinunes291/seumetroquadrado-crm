@@ -122,6 +122,13 @@ describe("sonax-campanha (discador automático)", () => {
     expect(fnWebhook).toMatch(/idClienteSonax\.padStart\(8, "0"\)/);
     // O que sobra precisa ter cara de ramal — nunca truncar às cegas.
     expect(fnWebhook).toMatch(/\\d\{1,6\}/);
+    // Fallback por prefixo mais longo: casa contra o cadastro dos corretores
+    // sem depender do formato exato do secret (zeros, conta diferente).
+    expect(fnWebhook).toMatch(/ramalBruto\.startsWith\(r\)/);
+    expect(fnWebhook).toMatch(/r\.length > melhor\.ramal\.length/);
+    // A linha grava sempre o ramal limpo (e eventos seguintes corrigem a linha).
+    expect(fnWebhook).toContain("ramal: ramalFinal");
+    expect(fnWebhook).toMatch(/ramalFinal \? \{ ramal: ramalFinal \}/);
   });
 
   it("iniciar limpa a sobra da campanha antes de enfileirar (sem rediscagem fantasma no login)", () => {

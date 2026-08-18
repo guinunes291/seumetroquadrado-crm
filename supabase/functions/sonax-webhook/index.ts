@@ -200,14 +200,42 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
   let corretorId: string | null = null;
+  let ramalCasado: string | null = null;
   for (const candidato of new Set([ramal, ramalBruto])) {
     if (!candidato || corretorId) continue;
     const { data: profs } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, ramal_sonax")
       .eq("ramal_sonax", candidato)
       .limit(1);
-    corretorId = profs?.[0]?.id ?? null;
+    if (profs?.[0]) {
+      corretorId = profs[0].id as string;
+      ramalCasado = (profs[0].ramal_sonax as string | null) ?? candidato;
+    }
+  }
+  // Fallback por PREFIXO: casa o ramal bruto contra o cadastro dos corretores
+  // sem depender do formato exato do sufixo da conta (SONAX_ID_CLIENTE com ou
+  // sem zeros, contas diferentes). "10300013004" casa com o perfil "103"
+  // porque é o prefixo mais longo cujo resto (>=4 dígitos) é sufixo de conta.
+  if (!corretorId && ramalBruto && ramalBruto.length > 6) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, ramal_sonax")
+      .not("ramal_sonax", "is", null);
+    let melhor: { id: string; ramal: string } | null = null;
+    for (const perfil of profs ?? []) {
+      const r = ((perfil.ramal_sonax as string) ?? "").trim();
+      if (!r) continue;
+      if (ramalBruto.startsWith(r) && ramalBruto.length - r.length >= 4) {
+        if (!melhor || r.length > melhor.ramal.length) {
+          melhor = { id: perfil.id as string, ramal: r };
+        }
+      }
+    }
+    if (melhor) {
+      corretorId = melhor.id;
+      ramalCasado = melhor.ramal;
+    }
   }
   // Fallback: eventos de campanha nem sempre trazem o ramal — o vínculo pelo
   // ID do atendente (profiles.sonax_id_atendente) cobre esse caso.
@@ -219,6 +247,9 @@ async function handleRequest(req: Request): Promise<Response> {
       .limit(1);
     corretorId = profs?.[0]?.id ?? null;
   }
+  // O que vai para a linha: o ramal do cadastro quando casou, senão o
+  // normalizado — nunca o bruto com sufixo de conta.
+  const ramalFinal = ramalCasado ?? ramal;
 
   const payloadEvento = {
     evento,
@@ -298,6 +329,7 @@ async function handleRequest(req: Request): Promise<Response> {
         status: statusFinal(jaAtendidaAntes || eventoDeAtendimento),
         ...(leadId ? { lead_id: leadId } : {}),
         ...(corretorId ? { corretor_id: corretorId } : {}),
+        ...(ramalFinal ? { ramal: ramalFinal } : {}),
         ...(duracao ? { duracao_segundos: Number(duracao) } : {}),
         ...(tabulacao ? { tabulacao } : {}),
         payload: { ...payloadAnterior, [`evento_${evento}`]: payloadEvento },
@@ -322,7 +354,7 @@ async function handleRequest(req: Request): Promise<Response> {
       direcao,
       origem,
       numero: numero ?? numeroRec ?? "-",
-      ramal,
+      ramal: ramalFinal,
       provider_call_id: idChamada,
       status: statusFinal(eventoDeAtendimento),
       ...(duracao ? { duracao_segundos: Number(duracao) } : {}),
