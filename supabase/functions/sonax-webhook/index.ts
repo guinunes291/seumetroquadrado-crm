@@ -129,7 +129,26 @@ async function handleRequest(req: Request): Promise<Response> {
   const idChamada = p("id_chamada");
   const numero = onlyDigits(p("numero"));
   const numeroRec = onlyDigits(p("numero_rec"));
-  const ramal = p("ramal") ?? p("aliasramal");
+
+  // <RAMAL> chega com o id da conta Sonax colado no fim (ex.: "10300013004"
+  // = ramal 103 + conta 00013004) — sem normalizar, o casamento com
+  // profiles.ramal_sonax falha e a coluna Corretor mostra o número cru.
+  // Tira o sufixo da conta (com e sem zeros à esquerda), validando que o que
+  // sobra tem cara de ramal (1–6 dígitos).
+  const idClienteSonax = (Deno.env.get("SONAX_ID_CLIENTE") ?? "").trim();
+  function normalizarRamal(bruto: string | null): string | null {
+    if (!bruto) return null;
+    const sufixos = idClienteSonax ? [idClienteSonax.padStart(8, "0"), idClienteSonax] : [];
+    for (const sufixo of sufixos) {
+      if (sufixo && bruto.length > sufixo.length && bruto.endsWith(sufixo)) {
+        const base = bruto.slice(0, bruto.length - sufixo.length);
+        if (/^\d{1,6}$/.test(base)) return base;
+      }
+    }
+    return bruto;
+  }
+  const ramalBruto = p("ramal") ?? p("aliasramal");
+  const ramal = normalizarRamal(ramalBruto);
   const idAtendente = p("id_atendente");
   const atLogin = p("at_login");
   const idFila = p("id_fila");
@@ -181,11 +200,12 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
   let corretorId: string | null = null;
-  if (ramal) {
+  for (const candidato of new Set([ramal, ramalBruto])) {
+    if (!candidato || corretorId) continue;
     const { data: profs } = await supabase
       .from("profiles")
       .select("id")
-      .eq("ramal_sonax", ramal)
+      .eq("ramal_sonax", candidato)
       .limit(1);
     corretorId = profs?.[0]?.id ?? null;
   }
