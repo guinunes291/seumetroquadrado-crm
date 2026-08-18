@@ -40,6 +40,18 @@ em 16/08/2026.
    Requisitos por corretor: campanha dedicada no painel Sonax (fila do ramal
    dele + descarte de caixa postal) e os vínculos em Gestão → Corretores →
    PABX.
+
+   **Higiene do lote**: cada "Iniciar agora" primeiro dá stop e limpa a sobra
+   de contatos da campanha antes de enfileirar o lote novo — sem isso,
+   contatos restantes de uma sessão anterior fariam o PABX voltar a discar
+   sozinho no próximo login do agente. "Parar discador" também limpa.
+
+   **Semântica de status**: uma chamada só vira "Atendida"/"Concluída" quando
+   o webhook de **atendimento** da fila disparou (o agente falou de verdade);
+   desligamento sem atendimento prévio registra "Não atendida". A timeline do
+   lead só recebe a ligação quando houve atendimento real — chamada perdida
+   fica apenas no histórico do Discador.
+
 6. **Modo um a um (fallback)** — para quem ainda não tem campanha configurada:
    a mesma fila é discada sequencialmente pelo click-to-call no ramal, com
    avanço humano ("Próximo" ou registrar o resultado já disca o seguinte).

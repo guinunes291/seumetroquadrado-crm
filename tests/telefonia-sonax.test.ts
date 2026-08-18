@@ -114,6 +114,14 @@ describe("sonax-campanha (discador automático)", () => {
   it("webhook casa o corretor também pelo ID do atendente (eventos de campanha sem ramal)", () => {
     expect(fnWebhook).toContain('eq("sonax_id_atendente", idAtendente)');
   });
+
+  it("iniciar limpa a sobra da campanha antes de enfileirar (sem rediscagem fantasma no login)", () => {
+    expect(fnCampanha).toContain("Higiene do lote");
+    const daHigieneEmDiante = fnCampanha.slice(fnCampanha.indexOf("Higiene do lote"));
+    expect(daHigieneEmDiante).toMatch(
+      /stop_campanha[\s\S]*limpa_contatos_campanha[\s\S]*play_campanha/,
+    );
+  });
 });
 
 describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
@@ -184,8 +192,16 @@ describe("sonax-webhook (URL de integração do PABX)", () => {
     expect(fnWebhook).toContain("23505");
   });
 
-  it("eco na timeline só na primeira gravação e só com lead casado", () => {
-    expect(fnWebhook).toMatch(/if \(leadId\) \{[\s\S]*from\("interacoes"\)/);
+  it("timeline e status só refletem atendimento REAL do agente", () => {
+    // Desligamento dispara para toda chamada: sem atendimento prévio é
+    // "não atendida", nunca "concluída" — senão tudo conta como conversa.
+    expect(fnWebhook).toMatch(/foiAtendida \? "concluida" : "nao_atendida"/);
+    // Eco na timeline só no primeiro evento de atendimento com lead casado —
+    // chamada perdida fica no histórico do Discador, sem virar "contato".
+    expect(fnWebhook).toMatch(/eventoDeAtendimento && !jaAtendidaAntes/);
+    expect(fnWebhook).toContain("ecoarInteracao");
+    // Casamento do lead tenta variantes do número (com/sem DDI 55).
+    expect(fnWebhook).toContain('"55" + semZeros');
     // Variável de template não substituída ("<NUMERO>") nunca vira dado.
     expect(fnWebhook).toMatch(/\^<\.\*>\$/);
   });

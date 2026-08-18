@@ -147,6 +147,14 @@ async function handleRequest(req: Request): Promise<Response> {
     .filter((l): l is typeof l & { numeroSonax: string } => l.numeroSonax !== null);
   if (discaveis.length === 0) return json({ error: "nenhum_lead_discavel" }, 422);
 
+  // Higiene do lote: para a discagem e limpa QUALQUER sobra de sessões
+  // anteriores ANTES de enfileirar. Sem isso, contatos restantes ficam na
+  // campanha em play e o PABX volta a discá-los sozinho no próximo login do
+  // agente — sem ninguém ter clicado "Iniciar agora". Best-effort: stop de
+  // campanha já parada devolve 404 e segue.
+  await acaoSonax("stop_campanha", { id_campanha: idCampanha });
+  await acaoSonax("limpa_contatos_campanha", { id_campanha: idCampanha });
+
   // Login do atendente na fila (best-effort: se já está logado, o Sonax só
   // devolve o status — não derruba o fluxo).
   let loginAtendente: string | null = null;
