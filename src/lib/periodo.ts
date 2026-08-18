@@ -7,13 +7,36 @@
 // (14 semanas a partir de 03/06/2026, semanas de quarta a terça) e vive em
 // src/lib/copa.ts — implementações divergentes não foram unificadas.
 
-export type PeriodoOption = "today" | "this_week" | "this_month" | "this_year" | "all";
+export type PeriodoOption =
+  | "today"
+  | "yesterday"
+  | "this_week"
+  | "last_week"
+  | "last_7"
+  | "this_month"
+  | "last_month"
+  | "last_30"
+  | "last_90"
+  | "this_quarter"
+  | "last_quarter"
+  | "this_year"
+  | "last_year"
+  | "all";
 
 export const PERIODO_LABELS: Record<PeriodoOption, string> = {
   today: "Hoje",
+  yesterday: "Ontem",
   this_week: "Esta semana",
+  last_week: "Semana passada",
+  last_7: "Últimos 7 dias",
   this_month: "Este mês",
+  last_month: "Mês passado",
+  last_30: "Últimos 30 dias",
+  last_90: "Últimos 90 dias",
+  this_quarter: "Este trimestre",
+  last_quarter: "Trimestre passado",
   this_year: "Este ano",
+  last_year: "Ano passado",
   all: "Últimos 2 anos",
 };
 
