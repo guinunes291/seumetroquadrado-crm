@@ -1610,7 +1610,7 @@ function RankingPanel() {
                 </h3>
                 <Podium
                   entries={podiumEntries(
-                    rankingMes.filter((r) => r.vgv > 0).sort((a, b) => b.vgv - a.vgv),
+                    rankingProd.filter((r) => r.vgv > 0).sort((a, b) => b.vgv - a.vgv),
                     "vgv",
                   )}
                 />
