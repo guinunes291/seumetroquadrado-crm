@@ -151,15 +151,34 @@ async function handleRequest(req: Request): Promise<Response> {
   // (entrada). A presença de ID_CAMPANHA distingue os dois.
   const direcao = idCampanha ? "saida" : "entrada";
   const origem = idCampanha ? "campanha" : "receptivo";
-  const status = STATUS_POR_EVENTO[evento] ?? "atendida";
 
-  // Resolve lead pelo número do cliente e corretor pelo ramal.
+  // Status honesto: o desligamento dispara para TODA chamada, atendida ou
+  // não — "concluida" só quando o atendimento pelo agente aconteceu antes
+  // (evento_atendida/falando no payload). Sem isso, todo fim de chamada
+  // contaria como conversa, inflando "Atendidas".
+  const statusFinal = (foiAtendida: boolean): string => {
+    if (evento === "finalizada") return foiAtendida ? "concluida" : "nao_atendida";
+    return STATUS_POR_EVENTO[evento] ?? "atendida";
+  };
+  const eventoDeAtendimento = evento === "atendida" || evento === "falando";
+
+  // Resolve lead pelo número do cliente — tentando variantes (com/sem DDI 55,
+  // sem zeros de tronco): a base guarda formatos mistos e o PABX manda outro.
   let leadId: string | null = null;
   if (numero) {
-    const { data } = await supabase.rpc("buscar_lead_ativo_por_telefone_global", {
-      _telefone: numero,
-    });
-    leadId = (data as string | null) ?? null;
+    const semZeros = numero.replace(/^0+/, "");
+    const candidatos = new Set<string>([semZeros]);
+    if (semZeros.startsWith("55") && semZeros.length >= 12) candidatos.add(semZeros.slice(2));
+    else if (semZeros.length >= 10 && semZeros.length <= 11) candidatos.add("55" + semZeros);
+    for (const candidato of candidatos) {
+      const { data } = await supabase.rpc("buscar_lead_ativo_por_telefone_global", {
+        _telefone: candidato,
+      });
+      if (data) {
+        leadId = data as string;
+        break;
+      }
+    }
   }
   let corretorId: string | null = null;
   if (ramal) {
@@ -196,27 +215,67 @@ async function handleRequest(req: Request): Promise<Response> {
   };
 
   // Idempotência/atualização: eventos seguintes da mesma chamada (mesmo
-  // id_chamada) atualizam a linha em vez de duplicar — e não ecoam de novo
-  // na timeline.
+  // id_chamada) atualizam a linha em vez de duplicar.
   let chamadaExistenteId: string | null = null;
   let payloadAnterior: Record<string, unknown> = {};
+  let leadExistente: string | null = null;
   if (idChamada) {
     const { data: existente } = await supabase
       .from("chamadas")
-      .select("id, payload")
+      .select("id, payload, lead_id")
       .eq("provider_call_id", idChamada)
       .maybeSingle();
     if (existente) {
       chamadaExistenteId = existente.id as string;
       payloadAnterior = (existente.payload as Record<string, unknown>) ?? {};
+      leadExistente = (existente.lead_id as string | null) ?? null;
     }
+  }
+
+  // A timeline só ganha a ligação quando o agente ATENDEU de fato — no
+  // primeiro evento de atendimento da chamada. Chamada que ninguém atendeu
+  // fica só no histórico do Discador (`chamadas`), sem virar "contato" do
+  // lead nem atualizar ultimo_contato.
+  const jaAtendidaAntes = Boolean(
+    payloadAnterior["evento_atendida"] || payloadAnterior["evento_falando"],
+  );
+  const ecoarNaTimeline = eventoDeAtendimento && !jaAtendidaAntes;
+  const leadDoEco = leadId ?? leadExistente;
+
+  async function ecoarInteracao(chamadaId: string | null): Promise<string> {
+    if (!ecoarNaTimeline || !leadDoEco) return "nao_aplicavel";
+    const titulo =
+      direcao === "entrada" ? "Ligação recebida (PABX Sonax)" : "Ligação de campanha (discador)";
+    const partes = [
+      numero ? `Número: ${numero}.` : null,
+      ramal ? `Ramal: ${ramal}.` : null,
+      (atLogin ?? idAtendente) ? `Atendente: ${atLogin ?? idAtendente}.` : null,
+      idFila ? `Fila: ${idFila}.` : null,
+      idCampanha ? `Campanha: ${idCampanha}.` : null,
+    ].filter(Boolean);
+    const { error: ecoErr } = await supabase.from("interacoes").insert({
+      lead_id: leadDoEco,
+      autor_id: corretorId,
+      tipo: "ligacao",
+      direcao,
+      titulo,
+      conteudo: partes.join(" ") || "Chamada atendida no PABX.",
+      metadata: {
+        fonte: "sonax_webhook",
+        ...(idChamada ? { id_chamada: idChamada } : {}),
+        ...(chamadaId ? { chamada_id: chamadaId } : {}),
+        evento,
+      },
+    });
+    if (ecoErr) console.error("sonax-webhook interacao_failed:", ecoErr);
+    return ecoErr ? "falhou" : "ok";
   }
 
   if (chamadaExistenteId) {
     const { error: updErr } = await supabase
       .from("chamadas")
       .update({
-        status,
+        status: statusFinal(jaAtendidaAntes || eventoDeAtendimento),
         ...(leadId ? { lead_id: leadId } : {}),
         ...(corretorId ? { corretor_id: corretorId } : {}),
         ...(duracao ? { duracao_segundos: Number(duracao) } : {}),
@@ -225,11 +284,13 @@ async function handleRequest(req: Request): Promise<Response> {
       })
       .eq("id", chamadaExistenteId);
     if (updErr) console.error("sonax-webhook update_failed:", updErr);
+    const timeline = await ecoarInteracao(chamadaExistenteId);
     return json({
       ok: true,
       chamada_id: chamadaExistenteId,
       atualizada: true,
-      lead: leadId ?? "nao_encontrado",
+      lead: leadDoEco ?? "nao_encontrado",
+      timeline,
     });
   }
 
@@ -243,7 +304,7 @@ async function handleRequest(req: Request): Promise<Response> {
       numero: numero ?? numeroRec ?? "-",
       ramal,
       provider_call_id: idChamada,
-      status,
+      status: statusFinal(eventoDeAtendimento),
       ...(duracao ? { duracao_segundos: Number(duracao) } : {}),
       ...(tabulacao ? { tabulacao } : {}),
       payload: { [`evento_${evento}`]: payloadEvento },
@@ -271,35 +332,7 @@ async function handleRequest(req: Request): Promise<Response> {
     return json({ error: "insert_failed", detail: insErr.message }, 500);
   }
 
-  // Eco na timeline — só na primeira gravação da chamada e só com lead casado.
-  let timeline = "sem_lead";
-  if (leadId) {
-    const titulo =
-      direcao === "entrada" ? "Ligação recebida (PABX Sonax)" : "Ligação de campanha (discador)";
-    const partes = [
-      numero ? `Número: ${numero}.` : null,
-      ramal ? `Ramal: ${ramal}.` : null,
-      (atLogin ?? idAtendente) ? `Atendente: ${atLogin ?? idAtendente}.` : null,
-      idFila ? `Fila: ${idFila}.` : null,
-      idCampanha ? `Campanha: ${idCampanha}.` : null,
-    ].filter(Boolean);
-    const { error: ecoErr } = await supabase.from("interacoes").insert({
-      lead_id: leadId,
-      autor_id: corretorId,
-      tipo: "ligacao",
-      direcao,
-      titulo,
-      conteudo: partes.join(" ") || "Evento de chamada do PABX.",
-      metadata: {
-        fonte: "sonax_webhook",
-        ...(idChamada ? { id_chamada: idChamada } : {}),
-        ...(nova?.id ? { chamada_id: nova.id } : {}),
-        evento,
-      },
-    });
-    timeline = ecoErr ? "falhou" : "ok";
-    if (ecoErr) console.error("sonax-webhook interacao_failed:", ecoErr);
-  }
+  const timeline = await ecoarInteracao(nova?.id ?? null);
 
   return json({
     ok: true,
