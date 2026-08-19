@@ -26,6 +26,8 @@ import {
   User,
   Layers,
   MapPinned,
+  Map as MapIcon,
+  Maximize2,
 } from "lucide-react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { formatBRL, formatDormsRange } from "@/lib/projetos";
@@ -61,13 +63,17 @@ export const Route = createFileRoute("/_authenticated/vitrine")({
 const SITUACAO_CHIPS: (Situacao | "Todas")[] = ["Todas", "Pronto", "Em obras", "Lançamento"];
 const DORM_CHIPS: DormFiltro[] = ["Todos", "1 dorm", "2+ dorms"];
 
+// Mapa de mercado standalone (Leaflet + planilha online), servido de public/.
+const MAPA_MERCADO_URL = "/mapa-mercado.html";
+type VitrineMapView = MapMode | "mercado";
+
 function VitrinePage() {
   const { leadId } = Route.useSearch();
   const abrirWhatsApp = useWhatsAppLead();
 
   const [filters, setFilters] = useState<VitrineFilters>(emptyVitrineFilters);
   const [view, setView] = useState<"list" | "tabela">("list");
-  const [mapMode, setMapMode] = useState<MapMode>("schematic");
+  const [mapMode, setMapMode] = useState<VitrineMapView>("schematic");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pickerProjeto, setPickerProjeto] = useState<ProjetoRow | null>(null);
@@ -283,21 +289,44 @@ function VitrinePage() {
                 >
                   <MapPinned className="h-4 w-4" /> Geográfico
                 </ViewButton>
+                <ViewButton active={mapMode === "mercado"} onClick={() => setMapMode("mercado")}>
+                  <MapIcon className="h-4 w-4" /> Mercado
+                </ViewButton>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {comCoord}/{all.length} com localização
-              </span>
+              {mapMode === "mercado" ? (
+                <a
+                  href={MAPA_MERCADO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" /> Abrir em tela cheia
+                </a>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  {comCoord}/{all.length} com localização
+                </span>
+              )}
             </div>
             <div className="h-[340px] lg:h-[560px]">
-              <VitrineMap
-                projetos={all}
-                visibleIds={visibleIds}
-                hoveredId={hoveredId}
-                selectedId={selectedId}
-                onHover={setHoveredId}
-                onSelect={setSelectedId}
-                mode={mapMode}
-              />
+              {mapMode === "mercado" ? (
+                <iframe
+                  src={MAPA_MERCADO_URL}
+                  title="Mapa de Mercado — Empreendimentos MCMV"
+                  loading="lazy"
+                  className="h-full w-full rounded-lg border bg-card"
+                />
+              ) : (
+                <VitrineMap
+                  projetos={all}
+                  visibleIds={visibleIds}
+                  hoveredId={hoveredId}
+                  selectedId={selectedId}
+                  onHover={setHoveredId}
+                  onSelect={setSelectedId}
+                  mode={mapMode}
+                />
+              )}
             </div>
           </div>
 
