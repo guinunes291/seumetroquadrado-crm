@@ -6994,6 +6994,7 @@ export type Database = {
         | "outro"
         | "importacao"
         | "investimento_corretor"
+        | "impulso_smq"
       lead_status:
         | "novo"
         | "aguardando_atendimento"
@@ -7224,6 +7225,7 @@ export const Constants = {
         "outro",
         "importacao",
         "investimento_corretor",
+        "impulso_smq",
       ],
       lead_status: [
         "novo",
