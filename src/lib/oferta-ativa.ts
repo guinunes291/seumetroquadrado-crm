@@ -93,6 +93,7 @@ export const ORIGEM_OPTIONS_OA = [
   { value: "whatsapp", label: "WhatsApp" },
   { value: "telefone", label: "Telefone" },
   { value: "plantao", label: "Plantão" },
+  { value: "impulso_smq", label: "Impulso SMQ" },
   { value: "outro", label: "Outro" },
 ];
 

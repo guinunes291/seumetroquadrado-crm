@@ -44,6 +44,7 @@ export const ORIGEM_OPTIONS = [
   "plantao",
   "agendamento_self_service",
   "chatbot",
+  "impulso_smq",
   "outro",
 ] as const;
 
