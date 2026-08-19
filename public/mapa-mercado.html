@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seu Metro Quadrado — Mapa de Empreendimentos MCMV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy:#0D3B66;
+    --navy-dark:#092A4D;
+    --gold:#E0A646;
+    --gold-dark:#C8973C;
+    --gold-text:#23170A;
+    --cream:#FAF5E9;
+    --paper:#FFFFFF;
+    --ink:#22282F;
+    --muted:#51606F;
+    --line:#E9E1CE;
+    --ok:#2E7D46;
+    --warn:#B4690E;
+    --launch:#2E5FA3;
+    --ready:#2E7D46;
+    --sold:#8A8F98;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;padding:0;}
+  body{
+    font-family:'Inter', system-ui, sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  h1, .mark, .nome, .popup-title{font-family:'Plus Jakarta Sans', 'Inter', sans-serif;}
+
+  header{
+    background:var(--navy);
+    color:#fff;
+    padding:12px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    border-bottom:3px solid var(--gold);
+    z-index:20;
+  }
+  header .brand{display:flex; align-items:center; gap:11px;}
+  header .brand .mark{
+    width:38px;height:38px;border-radius:9px;
+    background:transparent;
+    border:2px solid var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:var(--gold);font-size:13px;
+    font-family:'Plus Jakarta Sans', sans-serif;
+    position:relative;
+  }
+  header .brand .mark::before{
+    content:'';
+    position:absolute; top:-7px; left:50%; transform:translateX(-50%);
+    width:0; height:0;
+    border-left:9px solid transparent;
+    border-right:9px solid transparent;
+    border-bottom:8px solid var(--gold);
+  }
+  header h1{font-size:16px;margin:0;font-weight:800;letter-spacing:.2px;}
+  header .sub{font-size:11px;color:#BFD1E8;margin-top:1px;}
+  header .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .btn{
+    background:linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color:var(--gold-text);
+    border:none;
+    padding:9px 14px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:12.5px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover{transform:translateY(-1px); box-shadow:0 3px 10px rgba(0,0,0,.25);}
+  .btn.ghost{
+    background:transparent;
+    color:#fff;
+    border:1px solid rgba(255,255,255,.4);
+    font-weight:600;
+  }
+  .btn.small{padding:6px 10px; font-size:11px;}
+  .status-pill{
+    font-size:11px;
+    padding:4px 9px;
+    border-radius:999px;
+    background:rgba(255,255,255,.12);
+    color:#EAF0FF;
+  }
+  .icon-btn{
+    background:transparent;
+    border:1px solid rgba(255,255,255,.35);
+    color:#fff;
+    width:30px;height:30px;
+    border-radius:7px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;
+  }
+
+  main{
+    flex:1;
+    display:flex;
+    min-height:0;
+  }
+  #sidebar{
+    width:380px;
+    min-width:380px;
+    background:var(--paper);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    overflow-y:auto;
+  }
+  #map{flex:1; min-width:0;}
+
+  .panel{
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel h2{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    color:var(--muted);
+    margin:0 0 10px 0;
+    font-weight:700;
+  }
+  .renda-row{display:flex; gap:8px;}
+  #rendaInput{
+    flex:1;
+    padding:11px 12px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    font-size:16px;
+    font-weight:600;
+    color:var(--navy-dark);
+  }
+  #rendaInput:focus{outline:none; border-color:var(--gold);}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:7px; line-height:1.4;}
+
+  #rendaSummary{
+    margin-top:12px;
+    background:var(--cream);
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:11px 12px;
+    font-size:12.5px;
+    display:none;
+    line-height:1.6;
+  }
+  #rendaSummary b{color:var(--navy-dark);}
+  #rendaSummary .teto{font-size:17px; font-weight:800; color:var(--ok);}
+  #rendaSummary.fora-faixa .teto{color:var(--warn);}
+
+  .filters{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  .chip{
+    font-size:11px;
+    padding:5px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    color:var(--muted);
+    font-weight:600;
+    user-select:none;
+  }
+  .chip.active{background:var(--navy); color:#fff; border-color:var(--navy);}
+
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:7px 0; font-size:12.5px;}
+  .toggle-row label{display:flex; align-items:center; gap:8px; cursor:pointer;}
+  .mini-select{
+    margin-left:6px; padding:5px 7px; border:1px solid var(--line); border-radius:6px;
+    font-size:12px; color:var(--navy); background:#fff; font-weight:600;
+  }
+  .mini-label{font-size:10.5px; color:var(--muted); display:block; margin-bottom:3px; font-weight:600;}
+  .mini-input{
+    width:100%; padding:8px 9px; border:1px solid var(--line); border-radius:7px;
+    font-size:13px; color:var(--navy-dark); font-weight:600;
+  }
+  .mini-input:focus{outline:none; border-color:var(--gold);}
+  select.mini-input{cursor:pointer;}
+
+  #results{padding:10px 14px 20px 14px; overflow-y:auto; flex:1; min-height:0;}
+  .result-group-label{
+    font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+    color:var(--muted); font-weight:700; margin:14px 4px 8px 4px;
+  }
+  .card{
+    background:#fff; border:1px solid var(--line); border-radius:10px;
+    padding:12px 13px; margin-bottom:9px; cursor:pointer;
+    transition:box-shadow .12s ease, border-color .12s ease;
+  }
+  .card:hover{box-shadow:0 3px 12px rgba(0,0,0,.08); border-color:#C9C2A4;}
+  .card.match{border-left:4px solid var(--ok);}
+  .card.no-match{opacity:.8;}
+  .card .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .card .nome{font-weight:700; font-size:13.5px; color:var(--navy-dark);}
+  .card .construtora{font-size:11px; color:var(--muted); margin-top:1px;}
+  .badge{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:999px;
+    white-space:nowrap; color:#fff;
+  }
+  .badge.lancamento{background:var(--launch);}
+  .badge.obras{background:var(--warn);}
+  .badge.pronto{background:var(--ready);}
+  .badge.esgotado{background:var(--sold);}
+  .card .meta{font-size:12px; color:var(--ink); margin-top:8px; display:flex; flex-wrap:wrap; gap:10px;}
+  .card .links{margin-top:9px; display:flex; gap:8px; flex-wrap:wrap;}
+  .card .links a{
+    font-size:11px; color:var(--navy); text-decoration:none; font-weight:700;
+    background:var(--cream); padding:4px 9px; border-radius:6px; border:1px solid var(--line);
+  }
+  .card .links a:hover{text-decoration:underline;}
+  .empty-state{text-align:center; color:var(--muted); font-size:12.5px; padding:20px 10px; line-height:1.6;}
+  .empty-state b{color:var(--navy-dark);}
+
+  .cobertura-bar{
+    margin-top:8px; height:6px; border-radius:4px; background:#EDEAE0; overflow:hidden;
+  }
+  .cobertura-bar-fill{height:100%; border-radius:4px;}
+  .cobertura-label{font-size:11px; font-weight:700; margin-top:4px; display:flex; justify-content:space-between;}
+
+  .legend-box{
+    position:absolute; bottom:16px; left:16px;
+    background:rgba(255,255,255,.96); border:1px solid var(--line); border-radius:9px;
+    padding:10px 13px; font-size:11px; z-index:500;
+    box-shadow:0 3px 12px rgba(0,0,0,.12); line-height:1.9; max-width:210px;
+  }
+  .legend-box .lg-title{font-weight:700; color:var(--navy-dark); margin-bottom:4px;}
+  .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px;}
+
+  .leaflet-popup-content{font-family:'Segoe UI', Arial, sans-serif; font-size:12.5px; line-height:1.5;}
+  .popup-title{font-weight:800; color:var(--navy-dark); font-size:13.5px; margin-bottom:2px;}
+  .popup-construtora{color:var(--muted); font-size:11px; margin-bottom:6px;}
+  .popup-links a{color:var(--navy); font-weight:700; text-decoration:none; margin-right:10px;}
+
+  #loadStatus{
+    padding:9px 18px; background:#EAF3EA; border-bottom:1px solid var(--line);
+    font-size:11.5px; color:#245A32; display:none;
+  }
+  #loadStatus.error{background:#FBEAEA; color:#8A2E2E;}
+
+  .modal-overlay{
+    display:none;
+    position:fixed; inset:0; background:rgba(20,25,35,.55);
+    z-index:2000; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{
+    background:#fff; border-radius:14px; width:100%; max-width:480px;
+    max-height:85vh; display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  .modal-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line);
+    font-weight:800; font-family:'Plus Jakarta Sans', sans-serif; color:var(--navy-dark);
+    flex-shrink:0;
+  }
+
+  @media (max-width: 760px){
+    main{flex-direction:column;}
+    #sidebar{width:100%; min-width:0; height:46vh; order:2; border-right:none; border-top:1px solid var(--line);}
+    #map{height:54vh; order:1;}
+    header h1{font-size:14px;}
+    .modal-overlay{padding:0; align-items:flex-end;}
+    .modal-box{max-width:100%; max-height:88vh; border-radius:16px 16px 0 0;}
+  }
+  .leaflet-control-attribution{
+    font-size:8px !important;
+    opacity:.35;
+    padding:0 4px !important;
+    background:rgba(255,255,255,.5) !important;
+  }
+  .leaflet-control-attribution:hover{opacity:.9;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mark">m²</div>
+    <div>
+      <h1>SEU METRO QUADRADO</h1>
+      <div class="sub">Mapa de empreendimentos MCMV · atualização mensal</div>
+    </div>
+  </div>
+  <div class="actions">
+    <span class="status-pill" id="fileStatus">Carregando planilha online...</span>
+    <button class="btn ghost small" id="downloadBtn" style="display:none;">⬇ Coordenadas</button>
+    <button class="btn small" id="reloadBtn">🔄 Atualizar</button>
+  </div>
+</header>
+
+<div id="loadStatus"></div>
+
+<main>
+  <div id="sidebar">
+    <div class="panel">
+      <h2>Renda do cliente</h2>
+      <div class="renda-row">
+        <input type="text" id="rendaInput" placeholder="Ex: 3.500" inputmode="numeric" />
+      </div>
+      <div class="toggle-row" style="justify-content:flex-start; gap:18px;">
+        <label style="font-size:12px;">Tem dependente?
+          <select id="temDependente" class="mini-select"><option value="nao">Não</option><option value="sim">Sim</option></select>
+        </label>
+      </div>
+      <div class="toggle-row" style="justify-content:flex-start; gap:18px;">
+        <label style="font-size:12px;">Carteira assinada há +3 anos?
+          <select id="carteira3anos" class="mini-select"><option value="nao">Não</option><option value="sim">Sim</option></select>
+        </label>
+      </div>
+      <div class="renda-row" style="margin-top:8px; gap:8px;">
+        <div style="flex:1;">
+          <label class="mini-label">FGTS disponível</label>
+          <input type="text" id="fgtsInput" placeholder="R$ 0" inputmode="numeric" class="mini-input" />
+        </div>
+        <div style="flex:1;">
+          <label class="mini-label">Entrada / recursos próprios</label>
+          <input type="text" id="entradaInput" placeholder="R$ 0" inputmode="numeric" class="mini-input" />
+        </div>
+      </div>
+      <div class="renda-row" style="margin-top:8px; gap:8px;">
+        <div style="flex:1;">
+          <label class="mini-label">Reforço anual disponível (13º, restituição IR etc. — opcional)</label>
+          <input type="text" id="anualInput" placeholder="R$ 0" inputmode="numeric" class="mini-input" />
+        </div>
+      </div>
+      <div class="hint">Regra: o cliente fecha o empreendimento se financiamento + subsídio + FGTS + entrada + reforço anual cobrirem pelo menos <b>75% do valor do imóvel</b> (os 25% restantes ficam por conta do parcelamento direto com a construtora durante a obra).</div>
+      <div id="rendaSummary"></div>
+    </div>
+
+    <div class="panel" style="padding-bottom:10px;">
+      <h2>Filtrar por status</h2>
+      <div class="filters" id="statusFilters">
+        <span class="chip active" data-status="all">Todos</span>
+        <span class="chip" data-status="Lançamento">Lançamento</span>
+        <span class="chip" data-status="Em obras">Em obras</span>
+        <span class="chip" data-status="Pronto para morar">Pronto</span>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="mini-label">Valor até</label>
+        <select id="valorAteFilter" class="mini-input">
+          <option value="0">Sem limite</option>
+          <option value="200000">Até R$ 200 mil</option>
+          <option value="250000">Até R$ 250 mil</option>
+          <option value="300000">Até R$ 300 mil</option>
+          <option value="350000">Até R$ 350 mil</option>
+          <option value="400000">Até R$ 400 mil</option>
+          <option value="500000">Até R$ 500 mil</option>
+          <option value="600000">Até R$ 600 mil</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel" style="padding-bottom:10px;">
+      <h2>Camadas do mapa</h2>
+      <div class="toggle-row">
+        <label><input type="checkbox" id="toggleZonas" checked> <span>Zonas de São Paulo</span></label>
+      </div>
+      <div class="toggle-row">
+        <label><input type="checkbox" id="toggleMetro" checked> <span>Linhas de Metrô / CPTM</span></label>
+      </div>
+    </div>
+
+    <div class="panel" id="resultsSummaryPanel" style="flex:0 0 auto; display:flex; flex-direction:column; justify-content:center;">
+      <div id="resultsSummary" class="empty-state">Carregando empreendimentos da planilha online...</div>
+      <button class="btn" id="openResultsBtn" style="display:none; margin-top:6px; justify-content:center;">📋 Ver lista de empreendimentos</button>
+    </div>
+  </div>
+
+  <div id="map"></div>
+</main>
+
+<div id="resultsModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="modalTitle">Empreendimentos</span>
+      <button class="icon-btn" id="closeResultsBtn" style="border-color:var(--line); color:var(--navy);">✕</button>
+    </div>
+    <div class="filters" id="regiaoFilters" style="padding:10px 16px; border-bottom:1px solid var(--line); flex-shrink:0;">
+      <span class="chip active" data-regiao="all">Todas as regiões</span>
+      <span class="chip" data-regiao="Zona Norte">Zona Norte</span>
+      <span class="chip" data-regiao="Zona Leste">Zona Leste</span>
+      <span class="chip" data-regiao="Zona Sul">Zona Sul</span>
+      <span class="chip" data-regiao="Zona Oeste">Zona Oeste</span>
+      <span class="chip" data-regiao="Centro">Centro</span>
+    </div>
+    <div id="results"></div>
+  </div>
+</div>
+
+<script>
+/* ===================== Config ===================== */
+const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1KL0xWcBXaravUAVW_1OBYf8QuXzcbSGIq39If5Mhz9I/edit?gid=1832124720#gid=1832124720";
+let currentSheetUrl = DEFAULT_SHEET_URL;
+
+function extractSheetIds(url){
+  const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  const gidMatch = url.match(/[?&#]gid=([0-9]+)/);
+  if (!idMatch) return null;
+  return { id: idMatch[1], gid: gidMatch ? gidMatch[1] : '0' };
+}
+
+/* JSONP: contorna bloqueio de CORS ao abrir/hospedar o arquivo, técnica clássica
+   usada por libs como Tabletop.js para ler Google Sheets do navegador. */
+function loadSheetJSONP(id, gid){
+  return new Promise((resolve, reject) => {
+    const callbackName = 'gsCallback_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    const script = document.createElement('script');
+    let settled = false;
+    window[callbackName] = function(json){
+      settled = true;
+      resolve(json);
+      delete window[callbackName];
+      script.remove();
+    };
+    script.onerror = () => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('Não consegui acessar a planilha (link inválido ou sem permissão pública).'));
+      delete window[callbackName];
+      script.remove();
+    };
+    script.src = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?gid=${gid}&headers=0&tqx=out:json;responseHandler:${callbackName}`;
+    document.body.appendChild(script);
+    setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error('Tempo esgotado ao carregar a planilha.'));
+      delete window[callbackName];
+      script.remove();
+    }, 12000);
+  });
+}
+
+function dataTableToRows(json){
+  if (!json || !json.table || !json.table.rows) return [];
+  return json.table.rows.map(row =>
+    (row.c || []).map(cell => {
+      if (!cell || cell.v === null || cell.v === undefined) return '';
+      if (typeof cell.v === 'string' && cell.v.startsWith('Date(')){
+        const parts = cell.v.match(/Date\((\d+),(\d+),(\d+)\)/);
+        if (parts){
+          const [, y, m, d] = parts;
+          return `${String(d).padStart(2,'0')}/${String(Number(m)+1).padStart(2,'0')}/${y}`;
+        }
+      }
+      return cell.v;
+    })
+  );
+}
+
+/* ===================== Tabela de financiamento (Caixa, ref. maio/2026) ===================== */
+const TABELA_FINANCIAMENTO = [{"renda": 1000.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 56132.57, "finComRedutor": 59840.81, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1100.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 62136.7, "finComRedutor": 66241.58, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1200.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 68140.82, "finComRedutor": 72642.35, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1300.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 74144.95, "finComRedutor": 79043.12, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1400.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 80149.07, "finComRedutor": 85443.89, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1500.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 86311.31, "finComRedutor": 92526.49, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1600.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 92526.49, "finComRedutor": 98245.44, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1700.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 98962.97, "finComRedutor": 104646.21, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1800.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 105399.45, "finComRedutor": 111046.98, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 1900.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 110169.7, "finComRedutor": 117447.75, "subsidioComDependente": 55000.0, "subsidioSemDependente": 16500.0}, {"renda": 2000.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 116173.83, "finComRedutor": 123848.52, "subsidioComDependente": 50777.0, "subsidioSemDependente": 15233.0}, {"renda": 2100.0, "jurosSemRedutor": 4.75, "jurosComRedutor": 4.25, "valorImovel": 275000.0, "finSemRedutor": 122177.96, "finComRedutor": 130249.29, "subsidioComDependente": 44812.0, "subsidioSemDependente": 13443.0}, {"renda": 2200.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 124245.59, "finComRedutor": 132313.01, "subsidioComDependente": 39562.0, "subsidioSemDependente": 11868.0}, {"renda": 2300.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 130065.33, "finComRedutor": 138510.63, "subsidioComDependente": 34440.0, "subsidioSemDependente": 10332.0}, {"renda": 2400.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 135885.06, "finComRedutor": 144708.25, "subsidioComDependente": 29735.0, "subsidioSemDependente": 8920.0}, {"renda": 2500.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 141704.8, "finComRedutor": 141704.8, "subsidioComDependente": 25438.0, "subsidioSemDependente": 7631.0}, {"renda": 2600.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 147524.54, "finComRedutor": 157103.49, "subsidioComDependente": 21538.0, "subsidioSemDependente": 6461.0}, {"renda": 2700.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 153344.28, "finComRedutor": 163301.11, "subsidioComDependente": 18026.0, "subsidioSemDependente": 5407.0}, {"renda": 2800.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.5, "valorImovel": 275000.0, "finSemRedutor": 159164.02, "finComRedutor": 169498.73, "subsidioComDependente": 14893.0, "subsidioSemDependente": 4467.0}, {"renda": 2900.0, "jurosSemRedutor": 5.0, "jurosComRedutor": 4.75, "valorImovel": 275000.0, "finSemRedutor": 155296.93, "finComRedutor": 165207.53, "subsidioComDependente": 12242.0, "subsidioSemDependente": 3672.0}, {"renda": 3000.0, "jurosSemRedutor": 5.25, "jurosComRedutor": 4.75, "valorImovel": 275000.0, "finSemRedutor": 160940.88, "finComRedutor": 171211.65, "subsidioComDependente": 9818.0, "subsidioSemDependente": 2945.0}, {"renda": 3100.0, "jurosSemRedutor": 5.25, "jurosComRedutor": 4.75, "valorImovel": 275000.0, "finSemRedutor": 166584.82, "finComRedutor": 177215.78, "subsidioComDependente": 7744.0, "subsidioSemDependente": 2323.0}, {"renda": 3200.0, "jurosSemRedutor": 5.25, "jurosComRedutor": 4.75, "valorImovel": 275000.0, "finSemRedutor": 172228.77, "finComRedutor": 183219.9, "subsidioComDependente": 6011.0, "subsidioSemDependente": 1803.0}, {"renda": 3300.0, "jurosSemRedutor": 5.5, "jurosComRedutor": 5.0, "valorImovel": 275000.0, "finSemRedutor": 172588.97, "finComRedutor": 183412.93, "subsidioComDependente": 4659.0, "subsidioSemDependente": null}, {"renda": 3400.0, "jurosSemRedutor": 5.5, "jurosComRedutor": 5.0, "valorImovel": 275000.0, "finSemRedutor": 178065.26, "finComRedutor": 189232.66, "subsidioComDependente": 3571.0, "subsidioSemDependente": null}, {"renda": 3500.0, "jurosSemRedutor": 5.5, "jurosComRedutor": 5.0, "valorImovel": 275000.0, "finSemRedutor": 183541.55, "finComRedutor": 195052.4, "subsidioComDependente": 2799.0, "subsidioSemDependente": null}, {"renda": 3600.0, "jurosSemRedutor": 6.0, "jurosComRedutor": 5.5, "valorImovel": 275000.0, "finSemRedutor": 178225.19, "finComRedutor": 189017.84, "subsidioComDependente": 2384.0, "subsidioSemDependente": null}, {"renda": 3700.0, "jurosSemRedutor": 6.0, "jurosComRedutor": 5.5, "valorImovel": 275000.0, "finSemRedutor": 183388.79, "finComRedutor": 194494.13, "subsidioComDependente": 2214.0, "subsidioSemDependente": null}, {"renda": 3800.0, "jurosSemRedutor": 6.0, "jurosComRedutor": 5.5, "valorImovel": 275000.0, "finSemRedutor": 188552.39, "finComRedutor": 199970.42, "subsidioComDependente": 2192.0, "subsidioSemDependente": null}, {"renda": 3900.0, "jurosSemRedutor": 6.0, "jurosComRedutor": 5.5, "valorImovel": 275000.0, "finSemRedutor": 193715.99, "finComRedutor": 205446.71, "subsidioComDependente": 2171.0, "subsidioSemDependente": null}, {"renda": 4000.0, "jurosSemRedutor": 6.0, "jurosComRedutor": 5.5, "valorImovel": 275000.0, "finSemRedutor": 198879.6, "finComRedutor": 210923.01, "subsidioComDependente": 2149.0, "subsidioSemDependente": null}, {"renda": 4100.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 182476.57, "finComRedutor": 192773.86, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4200.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 187094.4, "finComRedutor": 197652.27, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4300.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 191712.22, "finComRedutor": 202530.69, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4400.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 196330.05, "finComRedutor": 207409.11, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4500.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 200947.88, "finComRedutor": 212287.52, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4600.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 205565.71, "finComRedutor": 217165.94, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4700.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 275000.0, "finSemRedutor": 210183.54, "finComRedutor": 220000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4800.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 350000.0, "finSemRedutor": 214801.37, "finComRedutor": 220000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 4900.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 350000.0, "finSemRedutor": 219419.2, "finComRedutor": 220000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5000.0, "jurosSemRedutor": 7.0, "jurosComRedutor": 6.5, "valorImovel": 350000.0, "finSemRedutor": 220000.0, "finComRedutor": 220000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5100.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 198034.42, "finComRedutor": 208329.62, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5200.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 202128.8, "finComRedutor": 212636.86, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5300.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 206223.19, "finComRedutor": 216944.1, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5400.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 210317.57, "finComRedutor": 221251.33, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5500.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 214411.95, "finComRedutor": 225558.57, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5600.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 218506.34, "finComRedutor": 229865.81, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5700.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 222600.72, "finComRedutor": 234173.05, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5800.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 226695.1, "finComRedutor": 238480.29, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 5900.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 230789.49, "finComRedutor": 242787.52, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6000.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 234883.87, "finComRedutor": 247094.76, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6100.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 238978.26, "finComRedutor": 251402.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6200.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 243072.64, "finComRedutor": 255709.24, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6300.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 247167.02, "finComRedutor": 260016.48, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6400.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 251261.41, "finComRedutor": 264323.72, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6500.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 255355.79, "finComRedutor": 268630.95, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6600.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 259450.17, "finComRedutor": 272938.19, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6700.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 263544.56, "finComRedutor": 277245.43, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6800.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 267638.94, "finComRedutor": 281552.67, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 6900.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 271733.33, "finComRedutor": 285859.91, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7000.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 275827.71, "finComRedutor": 290167.14, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7100.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 279922.09, "finComRedutor": 294474.38, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7200.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 284016.48, "finComRedutor": 298781.62, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7300.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 288110.86, "finComRedutor": 303088.86, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7400.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 292205.24, "finComRedutor": 307396.1, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7500.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 296299.63, "finComRedutor": 311703.34, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7600.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 300394.01, "finComRedutor": 316010.57, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7700.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 304488.39, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7800.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 308582.78, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 7900.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 312677.16, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8000.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 316771.55, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8100.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8200.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8300.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8400.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8500.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8600.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8700.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8800.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 8900.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9000.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9100.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9200.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9300.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9400.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9500.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9600.0, "jurosSemRedutor": 8.16, "jurosComRedutor": 7.66, "valorImovel": 400000.0, "finSemRedutor": 320000.0, "finComRedutor": 320000.0, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9700.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 322126.38, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9800.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 325572.79, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 9900.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 329019.19, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10000.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 332465.6, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10100.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 335912.01, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10200.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 339358.41, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10300.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 342804.82, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10400.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 346251.22, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10500.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 349697.63, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10600.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 353144.04, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10700.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 356590.44, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10800.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 360036.85, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 10900.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 363483.25, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11000.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 366929.66, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11100.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 370376.07, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11200.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 373822.47, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11300.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 377268.88, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11400.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 380715.29, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11500.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 384161.69, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11600.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 387608.1, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11700.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 391054.5, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11800.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 394500.91, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 11900.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 397947.32, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12000.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 401393.72, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12100.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 404840.13, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12200.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 408286.53, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12300.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 411732.94, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12400.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 415179.35, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12500.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 419734.79, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12600.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 423190.33, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12700.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 426645.87, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12800.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 430101.4, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 12900.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 433556.94, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}, {"renda": 13000.0, "jurosSemRedutor": 10.0, "jurosComRedutor": null, "valorImovel": 600000.0, "finSemRedutor": 437012.48, "finComRedutor": null, "subsidioComDependente": null, "subsidioSemDependente": null}];
+
+function getFaixaInfo(renda){
+  const tabela = TABELA_FINANCIAMENTO;
+  if (renda < tabela[0].renda) return { abaixo:true, linha: tabela[0] };
+  if (renda > tabela[tabela.length-1].renda) return { acima:true, linha: tabela[tabela.length-1] };
+  let linha = tabela[0];
+  for (const row of tabela){ if (row.renda <= renda) linha = row; else break; }
+  return { linha };
+}
+
+function faixaLabel(renda){
+  if (renda <= 3200) return "Faixa 1 (HIS 1)";
+  if (renda <= 4000) return "Faixa 2 (HIS 2)";
+  if (renda <= 9600) return "Faixa 3 (HIS 2)";
+  return "Faixa 4 (HMP)";
+}
+
+function fmtMoney(v){
+  if (v === null || v === undefined || v === '') return "—";
+  return Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+}
+
+/* ===================== Zonas e Metrô (extraídos do mapa Longitude / My Maps) ===================== */
+const ZONAS = [{"name": "Zona Leste", "color": "#FF5252", "coords": [[-23.4821531, -46.4661985], [-23.4781995, -46.4747391], [-23.4769281, -46.4806989], [-23.4776245, -46.4866588], [-23.4762617, -46.4930852], [-23.477157, -46.499415], [-23.4720248, -46.5085686], [-23.4771681, -46.5172302], [-23.4859596, -46.52979], [-23.4841166, -46.5311563], [-23.4844778, -46.5317502], [-23.4879693, -46.5318083], [-23.4892845, -46.5334697], [-23.4871129, -46.5355907], [-23.487444, -46.5364151], [-23.4885623, -46.536896], [-23.4905627, -46.5366563], [-23.4925237, -46.5400646], [-23.4936975, -46.5410697], [-23.4963078, -46.5438772], [-23.4985244, -46.547028], [-23.500439, -46.5474072], [-23.5011728, -46.5453835], [-23.5032713, -46.5452298], [-23.5052714, -46.5452906], [-23.5059658, -46.5465769], [-23.5065421, -46.5482064], [-23.507065, -46.5517444], [-23.5075027, -46.5528762], [-23.5078421, -46.5535789], [-23.5084225, -46.5544477], [-23.5097098, -46.5556525], [-23.5117275, -46.556206], [-23.5141276, -46.5564842], [-23.5162917, -46.5560758], [-23.5186821, -46.5557859], [-23.5198773, -46.5559415], [-23.5210725, -46.5563544], [-23.522676, -46.5576525], [-23.5234723, -46.5599915], [-23.5235388, -46.5638779], [-23.5242348, -46.5663911], [-23.5251275, -46.5678313], [-23.5259809, -46.5695291], [-23.526271, -46.5709077], [-23.5264825, -46.572458], [-23.5262914, -46.5766851], [-23.5296324, -46.5899468], [-23.5297578, -46.5929884], [-23.5286634, -46.5958153], [-23.5254319, -46.5997098], [-23.5243245, -46.6011796], [-23.523257, -46.6030354], [-23.5228977, -46.6043009], [-23.5228729, -46.6056954], [-23.5231067, -46.6070422], [-23.5232821, -46.6088822], [-23.5279942, -46.6067325], [-23.5300209, -46.6048277], [-23.5344227, -46.6044907], [-23.5345371, -46.6042043], [-23.5346712, -46.602384], [-23.5385788, -46.6019509], [-23.53851, -46.6013397], [-23.5404869, -46.600514], [-23.5415683, -46.599206], [-23.5446711, -46.6046626], [-23.5458461, -46.6039181], [-23.5459044, -46.6043494], [-23.547044, -46.603576], [-23.5485657, -46.606208], [-23.5495626, -46.6053634], [-23.5526779, -46.611383], [-23.5495256, -46.6134768], [-23.5521927, -46.6179671], [-23.5514626, -46.6247066], [-23.5512946, -46.6250863], [-23.5521244, -46.6255271], [-23.5533906, -46.6253572], [-23.5549002, -46.6241377], [-23.5559845, -46.6226674], [-23.5583215, -46.6158802], [-23.5599182, -46.6133784], [-23.564228, -46.6108082], [-23.5677381, -46.6087447], [-23.5691293, -46.6067152], [-23.5702845, -46.6045997], [-23.571129, -46.6039057], [-23.5725033, -46.6036762], [-23.573482, -46.603389], [-23.5762774, -46.6008968], [-23.5795644, -46.5992413], [-23.5822445, -46.5991489], [-23.5814037, -46.5968957], [-23.5862314, -46.5940633], [-23.5881132, -46.5899021], [-23.6001083, -46.5783792], [-23.6009736, -46.5749028], [-23.6067353, -46.5666317], [-23.6126537, -46.5568144], [-23.6102746, -46.5534776], [-23.6056932, -46.5501409], [-23.6059286, -46.5479517], [-23.6140296, -46.5345199], [-23.6142651, -46.5218593], [-23.6176666, -46.5174609], [-23.6187087, -46.5137488], [-23.6232895, -46.5100366], [-23.6266907, -46.5037492], [-23.6241739, -46.4996291], [-23.6254082, -46.4928271], [-23.6231821, -46.4855102], [-23.6261997, -46.4773993], [-23.6309766, -46.4774852], [-23.6343964, -46.4714767], [-23.6292065, -46.450534], [-23.6215415, -46.4301046], [-23.6228393, -46.4144829], [-23.6112767, -46.3925123], [-23.5866583, -46.3871056], [-23.5704922, -46.3848745], [-23.5630576, -46.3791248], [-23.5627031, -46.3843591], [-23.558415, -46.3875334], [-23.5542847, -46.3921685], [-23.5503117, -46.3933702], [-23.545473, -46.3924047], [-23.542129, -46.3889933], [-23.5379389, -46.3924259], [-23.530916, -46.3943134], [-23.519839, -46.388949], [-23.5150574, -46.3818682], [-23.5150093, -46.3764508], [-23.5113406, -46.3696601], [-23.5121866, -46.3653464], [-23.5101792, -46.3649596], [-23.4981359, -46.3660763], [-23.4929401, -46.3702611], [-23.4866422, -46.3744457], [-23.4787697, -46.3778574], [-23.4771165, -46.3795631], [-23.4757781, -46.3802387], [-23.4764091, -46.3822982], [-23.475186, -46.3841622], [-23.4745926, -46.3856827], [-23.4771696, -46.3858422], [-23.4797466, -46.3852291], [-23.4813001, -46.3864186], [-23.4821451, -46.3882089], [-23.4806391, -46.3906866], [-23.4820459, -46.3933789], [-23.4829067, -46.3944676], [-23.4842399, -46.3953847], [-23.4824668, -46.398258], [-23.4864783, -46.4002286], [-23.4844246, -46.4024532], [-23.4859852, -46.4029542], [-23.4860408, -46.4045815], [-23.4849942, -46.4055222], [-23.4821139, -46.4050002], [-23.4810766, -46.4030978], [-23.4791592, -46.4044429], [-23.4783439, -46.4037281], [-23.4757123, -46.4046452], [-23.4777648, -46.4055193], [-23.4746215, -46.408625], [-23.4725183, -46.4070575], [-23.4702011, -46.4104454], [-23.471916, -46.4132982], [-23.4742608, -46.4137477], [-23.4724945, -46.4165351], [-23.4744043, -46.4179002], [-23.4717672, -46.4252652], [-23.4729485, -46.4286656], [-23.4779858, -46.4297447], [-23.4762525, -46.4350296], [-23.478613, -46.4342206], [-23.4800288, -46.4371881], [-23.480164, -46.4390033], [-23.4793546, -46.440132], [-23.4811405, -46.4399432], [-23.4822967, -46.4404409], [-23.4847665, -46.4439687], [-23.4888108, -46.4434624], [-23.4876687, -46.4503643], [-23.49121, -46.4524953], [-23.4831786, -46.4572873], [-23.4821531, -46.4661985]]}, {"name": "Zona Sul", "color": "#1A237E", "coords": [[-23.5753432, -46.6199222], [-23.5771127, -46.6275705], [-23.5787982, -46.6278119], [-23.5817011, -46.6287829], [-23.5804179, -46.6290083], [-23.5799161, -46.6323236], [-23.5773845, -46.6346102], [-23.5760004, -46.6337423], [-23.5758135, -46.6335321], [-23.5754939, -46.6340365], [-23.5744216, -46.631235], [-23.573771, -46.6309937], [-23.5752004, -46.635157], [-23.5728542, -46.6424054], [-23.581039, -46.6630286], [-23.5852175, -46.6679751], [-23.5862817, -46.6708855], [-23.5960793, -46.6730532], [-23.5981549, -46.6736505], [-23.6024925, -46.6739951], [-23.6083682, -46.6763419], [-23.6081659, -46.6774454], [-23.6050685, -46.6794684], [-23.6044658, -46.6797142], [-23.6041429, -46.6802741], [-23.6034078, -46.6810141], [-23.6018723, -46.68247], [-23.60055, -46.6842353], [-23.5995057, -46.6860521], [-23.5981777, -46.6889053], [-23.597663, -46.6900115], [-23.5977281, -46.6905344], [-23.5979787, -46.6907487], [-23.5983348, -46.6907985], [-23.6096758, -46.6941998], [-23.6116212, -46.6936488], [-23.612726, -46.6919129], [-23.6139177, -46.6955342], [-23.6139179, -46.6981616], [-23.6185741, -46.6994824], [-23.6165348, -46.712404], [-23.6161745, -46.7347679], [-23.6161801, -46.7389281], [-23.6150774, -46.7448858], [-23.615172, -46.7484802], [-23.6131162, -46.7502492], [-23.6132241, -46.7513153], [-23.611808, -46.7554218], [-23.6474716, -46.7927858], [-23.699982, -46.7984511], [-23.7212001, -46.7855767], [-23.7640982, -46.7711562], [-23.7959871, -46.7871203], [-23.8268519, -46.7623963], [-23.8429833, -46.7556651], [-23.8772743, -46.7598779], [-23.8936089, -46.7823581], [-23.9518621, -46.7890079], [-23.9567006, -46.7210274], [-23.9440538, -46.6513355], [-23.8784716, -46.6104834], [-23.7914716, -46.6317932], [-23.7610446, -46.6537998], [-23.7453169, -46.6539302], [-23.7272259, -46.648063], [-23.7275541, -46.6472369], [-23.7264426, -46.6442972], [-23.723591, -46.6441257], [-23.7224718, -46.643054], [-23.7237874, -46.6430746], [-23.7260033, -46.6415651], [-23.7239449, -46.6399903], [-23.7247084, -46.6384119], [-23.7234797, -46.6363468], [-23.7225486, -46.6362255], [-23.7206556, -46.6355838], [-23.7201946, -46.633146], [-23.7185099, -46.6307839], [-23.7186224, -46.629813], [-23.7178937, -46.6282898], [-23.7163882, -46.625617], [-23.7146687, -46.6215138], [-23.7121905, -46.6181361], [-23.7111133, -46.6152092], [-23.7080024, -46.6163081], [-23.7067574, -46.6186436], [-23.7061027, -46.6203885], [-23.7052482, -46.623577], [-23.7034153, -46.6238616], [-23.7018895, -46.6251104], [-23.7012368, -46.6265638], [-23.7007995, -46.6277143], [-23.6991438, -46.6281955], [-23.6970626, -46.6281387], [-23.6967151, -46.6317095], [-23.6929155, -46.6316332], [-23.6920661, -46.6324661], [-23.6913967, -46.6332631], [-23.6906841, -46.6346487], [-23.6878337, -46.633453], [-23.6841481, -46.6329839], [-23.6819507, -46.632614], [-23.6778381, -46.6295146], [-23.6771791, -46.6286403], [-23.6756638, -46.6274338], [-23.6752007, -46.6260846], [-23.6686882, -46.6269371], [-23.6618294, -46.6224309], [-23.6579283, -46.6168312], [-23.656277, -46.6144278], [-23.6543609, -46.6103937], [-23.6545869, -46.6018963], [-23.6450714, -46.5843454], [-23.6414122, -46.5832969], [-23.6343738, -46.5848486], [-23.6319751, -46.5822263], [-23.626706, -46.5830214], [-23.5881467, -46.5898255], [-23.5814373, -46.5968192], [-23.579598, -46.5991647], [-23.5735156, -46.6033125], [-23.5711626, -46.6038292], [-23.5677717, -46.6086682], [-23.5638636, -46.6115585], [-23.5649159, -46.6117037], [-23.5673352, -46.6159137], [-23.5677193, -46.6170003], [-23.5697613, -46.6169499], [-23.5720884, -46.6170807], [-23.5736673, -46.6178831], [-23.5748947, -46.6195626], [-23.5753432, -46.6199222]]}, {"name": "Zona Central", "color": "#000000", "coords": [[-23.568235, -46.6115148], [-23.5648619, -46.6118004], [-23.5628951, -46.612308], [-23.5638096, -46.6116552], [-23.5635884, -46.6112296], [-23.5598978, -46.6133985], [-23.5595658, -46.6139367], [-23.5593054, -46.6143069], [-23.5588967, -46.6149964], [-23.5583011, -46.6159004], [-23.5579754, -46.6170004], [-23.5570792, -46.6195595], [-23.5564485, -46.6214104], [-23.5559641, -46.6226875], [-23.5548798, -46.6241578], [-23.5533702, -46.6253773], [-23.552104, -46.6255472], [-23.5512742, -46.6251064], [-23.5514422, -46.6247267], [-23.5516496, -46.6224374], [-23.5521723, -46.6179873], [-23.5495052, -46.6134969], [-23.5526575, -46.6114032], [-23.5495422, -46.6053836], [-23.5485453, -46.6062282], [-23.5470236, -46.6035962], [-23.545884, -46.6043696], [-23.5458257, -46.6039383], [-23.5446507, -46.6046828], [-23.5415479, -46.5992261], [-23.5404665, -46.6005342], [-23.5384896, -46.6013598], [-23.5385584, -46.601971], [-23.5346508, -46.6024041], [-23.5345167, -46.6042246], [-23.5344023, -46.604511], [-23.5333068, -46.6045576], [-23.5321916, -46.6046472], [-23.5300005, -46.6048479], [-23.5289576, -46.6057789], [-23.5279738, -46.6067527], [-23.5246192, -46.6082499], [-23.5237929, -46.6086557], [-23.5232617, -46.6089025], [-23.523138, -46.6110254], [-23.5217413, -46.6137611], [-23.5200886, -46.6159389], [-23.519518, -46.6170063], [-23.5192525, -46.6177439], [-23.5190852, -46.6188248], [-23.5191147, -46.6195704], [-23.5192426, -46.6206163], [-23.5196754, -46.6225366], [-23.5196951, -46.6235451], [-23.519444, -46.6262377], [-23.5193564, -46.6279482], [-23.5190414, -46.630845], [-23.5186478, -46.6353297], [-23.516978, -46.6538205], [-23.5225828, -46.6592549], [-23.527538, -46.6607167], [-23.5321438, -46.6609286], [-23.5378686, -46.6636537], [-23.5404914, -46.6643016], [-23.5433699, -46.6651641], [-23.5446024, -46.6647005], [-23.5460052, -46.6641593], [-23.5492239, -46.6640427], [-23.5496175, -46.6641419], [-23.5496671, -46.6637181], [-23.5501882, -46.6635464], [-23.5505471, -46.6640345], [-23.5505791, -46.6643108], [-23.5509061, -46.6645441], [-23.5514173, -46.6655096], [-23.5553316, -46.6674836], [-23.5560059, -46.6663586], [-23.5566015, -46.6643806], [-23.5565363, -46.664154], [-23.5565105, -46.6640669], [-23.5560389, -46.6628733], [-23.5562725, -46.6625809], [-23.5621529, -46.6558919], [-23.56525, -46.6526788], [-23.5680631, -46.648848], [-23.5715641, -46.6442351], [-23.5723161, -46.6431083], [-23.5728002, -46.642502], [-23.5731467, -46.6417776], [-23.5737188, -46.6400016], [-23.5751464, -46.6352536], [-23.5739706, -46.6334079], [-23.573717, -46.6310903], [-23.5742098, -46.6311868], [-23.5743676, -46.6313316], [-23.5747809, -46.6328416], [-23.5754399, -46.6341331], [-23.5756858, -46.6339849], [-23.5757595, -46.6336287], [-23.575853, -46.6335192], [-23.5759464, -46.6338389], [-23.5760564, -46.6339647], [-23.5762549, -46.6340798], [-23.5773305, -46.6347068], [-23.5801305, -46.632914], [-23.5798621, -46.6324202], [-23.5802589, -46.6305962], [-23.5803639, -46.6291049], [-23.5817537, -46.6291048], [-23.5816471, -46.6288795], [-23.5816627, -46.6285576], [-23.5801464, -46.628225], [-23.5787442, -46.6279085], [-23.5786399, -46.6279407], [-23.5782864, -46.6278656], [-23.5778641, -46.6277851], [-23.5770587, -46.6276671], [-23.5770347, -46.6257064], [-23.5770056, -46.623456], [-23.5769545, -46.6203527], [-23.5752892, -46.6200189], [-23.5748407, -46.6196593], [-23.5737629, -46.6185273], [-23.5736133, -46.6179798], [-23.5725443, -46.6171266], [-23.5720344, -46.6171774], [-23.571929, -46.6172572], [-23.5718532, -46.6174121], [-23.5707999, -46.6171971], [-23.5697073, -46.6170466], [-23.5681132, -46.6169443], [-23.5678696, -46.6169992], [-23.5676653, -46.617097], [-23.5673599, -46.6170566], [-23.5672812, -46.6160104], [-23.5677385, -46.6139209], [-23.568235, -46.6115148]]}, {"name": "Zona Norte", "color": "#097138", "coords": [[-23.4959222, -46.7550133], [-23.5031006, -46.7541287], [-23.5065569, -46.7509233], [-23.5084437, -46.7380781], [-23.5086371, -46.7323021], [-23.5103673, -46.7284897], [-23.513987, -46.7255535], [-23.5110929, -46.7221641], [-23.5094596, -46.7205933], [-23.5081018, -46.7182929], [-23.5086928, -46.7087229], [-23.5081627, -46.6977669], [-23.5080248, -46.69554], [-23.5082607, -46.6933131], [-23.5091741, -46.6886383], [-23.5098384, -46.6853715], [-23.5102295, -46.6838776], [-23.5108371, -46.682448], [-23.5136709, -46.6782854], [-23.516978, -46.6538205], [-23.5193605, -46.626699], [-23.5196951, -46.6235451], [-23.5196754, -46.6225366], [-23.5192426, -46.6206163], [-23.5191147, -46.6195704], [-23.5190852, -46.6188248], [-23.5192525, -46.6177439], [-23.519518, -46.6170063], [-23.5200886, -46.6159389], [-23.5209346, -46.6147857], [-23.5217413, -46.6137611], [-23.523138, -46.6110254], [-23.5232617, -46.6089025], [-23.5230869, -46.6070621], [-23.5228531, -46.6057153], [-23.5228779, -46.6043209], [-23.523028, -46.6036344], [-23.5232372, -46.6030552], [-23.5237119, -46.6021274], [-23.5243047, -46.6011995], [-23.5254115, -46.5997299], [-23.5286436, -46.5958352], [-23.529738, -46.5930083], [-23.5296125, -46.5899667], [-23.5274378, -46.5815976], [-23.5262715, -46.5767051], [-23.5264626, -46.5724778], [-23.5262511, -46.5709276], [-23.525961, -46.569549], [-23.5251076, -46.5678512], [-23.5242149, -46.566411], [-23.5237686, -46.56509], [-23.5235189, -46.5638978], [-23.5234524, -46.5600114], [-23.5226561, -46.5576724], [-23.5210526, -46.5563743], [-23.5198574, -46.5559614], [-23.5186622, -46.5558059], [-23.5162718, -46.5560958], [-23.5141077, -46.5565042], [-23.5117076, -46.556226], [-23.5096899, -46.5556724], [-23.5092669, -46.5563537], [-23.5070435, -46.5591325], [-23.5043282, -46.5594543], [-23.4990157, -46.5621149], [-23.4950602, -46.5603339], [-23.4877988, -46.5609562], [-23.4730784, -46.5612994], [-23.464615, -46.5677796], [-23.4611904, -46.568423], [-23.4537105, -46.5703112], [-23.4457583, -46.5669641], [-23.4360401, -46.5649858], [-23.4352204, -46.5666123], [-23.4324784, -46.5679771], [-23.4295144, -46.5674452], [-23.4215123, -46.5623156], [-23.41414, -46.563366], [-23.4053808, -46.5512201], [-23.3944792, -46.551305], [-23.3837043, -46.5476996], [-23.3766497, -46.5387744], [-23.3647479, -46.5356888], [-23.3567043, -46.5432496], [-23.3563824, -46.5490925], [-23.3598427, -46.5525321], [-23.3689541, -46.5642276], [-23.3783494, -46.571824], [-23.3738201, -46.5756865], [-23.3739005, -46.5789476], [-23.3787871, -46.5864985], [-23.3928881, -46.5992011], [-23.3974472, -46.603986], [-23.4042116, -46.6032779], [-23.4059247, -46.6076981], [-23.4098041, -46.6090712], [-23.4152587, -46.6067536], [-23.4151399, -46.6162274], [-23.4163805, -46.6177026], [-23.4141556, -46.6186629], [-23.4128954, -46.6236303], [-23.4189602, -46.6218171], [-23.4189602, -46.632073], [-23.4285685, -46.6328448], [-23.4308523, -46.6526287], [-23.4306752, -46.6545275], [-23.429868, -46.6564262], [-23.428667, -46.6581533], [-23.4263634, -46.659022], [-23.4251462, -46.661396], [-23.4242439, -46.6647998], [-23.421924, -46.6653712], [-23.419604, -46.6657709], [-23.4189026, -46.6695314], [-23.4193038, -46.6724336], [-23.4153959, -46.6764889], [-23.4158194, -46.6774972], [-23.4182907, -46.6774756], [-23.4235479, -46.6806507], [-23.4259698, -46.683826], [-23.4223475, -46.6909497], [-23.4234501, -46.6970007], [-23.4207723, -46.7007341], [-23.4167189, -46.7008586], [-23.416131, -46.7076777], [-23.4102242, -46.7137713], [-23.4089835, -46.7175051], [-23.4072701, -46.7203806], [-23.4027999, -46.7216252], [-23.3983296, -46.7213248], [-23.3886404, -46.7355719], [-23.3896254, -46.744305], [-23.389507, -46.7533814], [-23.3865919, -46.7581444], [-23.3870249, -46.7600753], [-23.3871136, -46.7617168], [-23.3857841, -46.7647316], [-23.3887972, -46.7697313], [-23.397751, -46.77111], [-23.3976196, -46.7764342], [-23.3990635, -46.7767803], [-23.3984594, -46.780946], [-23.3992731, -46.7835666], [-23.4038938, -46.7826283], [-23.4053633, -46.7864074], [-23.4038394, -46.7896716], [-23.4026306, -46.7888158], [-23.4026821, -46.7922516], [-23.4000282, -46.7927717], [-23.4002099, -46.7939783], [-23.401755, -46.7973359], [-23.4033, -46.796402], [-23.4030208, -46.799361], [-23.401517, -46.8011589], [-23.3996196, -46.7993091], [-23.3958317, -46.8024373], [-23.3997426, -46.8075691], [-23.3994403, -46.8121243], [-23.4003982, -46.8144479], [-23.4020776, -46.8208977], [-23.4011827, -46.8233258], [-23.4057267, -46.8256511], [-23.4086559, -46.8213244], [-23.4092369, -46.8217261], [-23.408981, -46.8236025], [-23.4099658, -46.8256814], [-23.4108326, -46.8253119], [-23.4147716, -46.8227489], [-23.4158366, -46.8217429], [-23.4173757, -46.8218766], [-23.417973, -46.8212428], [-23.4206247, -46.8214773], [-23.4212565, -46.8221793], [-23.4223411, -46.8228598], [-23.4228564, -46.8235342], [-23.4432815, -46.8103915], [-23.4523954, -46.809083], [-23.4581814, -46.7938496], [-23.4610152, -46.7814891], [-23.4647235, -46.7783395], [-23.4665422, -46.7781938], [-23.4698648, -46.7794472], [-23.4719436, -46.7776625], [-23.473357, -46.7735514], [-23.4749278, -46.7711568], [-23.4759438, -46.7706593], [-23.479063, -46.7709006], [-23.4815915, -46.7707131], [-23.4838051, -46.770354], [-23.4873663, -46.7682624], [-23.4913998, -46.7668573], [-23.4937756, -46.7650282], [-23.4944197, -46.7619973], [-23.4942908, -46.7575665], [-23.49489, -46.7562255], [-23.4959222, -46.7550133]]}, {"name": "Zona Oeste", "color": "#AFB42B", "coords": [[-23.508, -46.703], [-23.505, -46.68], [-23.515, -46.665], [-23.527, -46.65], [-23.545, -46.655], [-23.567, -46.667], [-23.59, -46.68], [-23.605, -46.7], [-23.615, -46.72], [-23.608, -46.745], [-23.59, -46.765], [-23.565, -46.78], [-23.535, -46.785], [-23.512, -46.775], [-23.508, -46.74], [-23.508, -46.703]]}];
+const METRO = [{"name": "Linha 1 - Azul", "color": "#0C4C9C", "coords": [[-23.6461602, -46.6410671], [-23.6395654, -46.6412924], [-23.6351546, -46.6414344], [-23.6317219, -46.6416646], [-23.6256207, -46.6407557], [-23.6133247, -46.6380632], [-23.6104834, -46.6380764], [-23.6070298, -46.637643], [-23.6043655, -46.6367632], [-23.5994376, -46.6367137], [-23.5922465, -46.6365287], [-23.5896508, -46.6348336], [-23.5875836, -46.6346328], [-23.5812617, -46.6384234], [-23.5773481, -46.6408482], [-23.575115, -46.6407403], [-23.5713136, -46.6397554], [-23.5687715, -46.6400188], [-23.5617374, -46.6389324], [-23.5549221, -46.6358521], [-23.5499475, -46.6332433], [-23.5443149, -46.6338371], [-23.5364692, -46.6341242], [-23.5309081, -46.631967], [-23.5276333, -46.6309572], [-23.5269497, -46.6305924], [-23.5264812, -46.6303147], [-23.5260717, -46.6299889], [-23.5258178, -46.6297508], [-23.5255786, -46.6294806], [-23.5254009, -46.6292559], [-23.5252429, -46.6290179], [-23.525116, -46.6288117], [-23.5250308, -46.6286592], [-23.5249579, -46.6285094], [-23.524858, -46.6283193], [-23.5247467, -46.6280491], [-23.5246354, -46.6277521], [-23.5243636, -46.6270615], [-23.5242809, -46.6268822], [-23.5241933, -46.6267297], [-23.524086, -46.626553], [-23.523975, -46.6264032], [-23.5238262, -46.6262248], [-23.52367, -46.6260706], [-23.5234874, -46.625911], [-23.5233986, -46.6258386], [-23.5233023, -46.6257742], [-23.5230933, -46.6256498], [-23.5229875, -46.625595], [-23.5228781, -46.6255469], [-23.5226577, -46.6254604], [-23.5224694, -46.6254095], [-23.5222811, -46.6253679], [-23.5219434, -46.6253325], [-23.5215564, -46.6253187], [-23.5207531, -46.6252801], [-23.5191661, -46.625246], [-23.5175495, -46.6251958], [-23.5161002, -46.6251403], [-23.5125486, -46.6250462], [-23.5107605, -46.6249857], [-23.5098516, -46.6249555], [-23.50923, -46.6249404], [-23.508628, -46.6249467], [-23.5078274, -46.6249038], [-23.5070268, -46.6248716], [-23.5054354, -46.6248287], [-23.5036817, -46.6247911], [-23.5021751, -46.6247187], [-23.5010228, -46.6246892], [-23.5000719, -46.6246652], [-23.4990473, -46.6246788], [-23.4987877, -46.6245502], [-23.4977114, -46.6238422], [-23.4946831, -46.6206293], [-23.4934542, -46.6185401], [-23.4921467, -46.6165957], [-23.4912613, -46.6151333], [-23.4902037, -46.6135367], [-23.489493, -46.6110309], [-23.4893485, -46.610607], [-23.4890761, -46.6101938], [-23.4884427, -46.609539], [-23.4876403, -46.6091151], [-23.4867494, -46.6087074], [-23.4863201, -46.6085348], [-23.4859596, -46.6083515], [-23.4851895, -46.6079312], [-23.4844439, -46.6074734], [-23.4836147, -46.6069405], [-23.4826908, -46.6062252], [-23.4819933, -46.6055529], [-23.4815544, -46.6050202], [-23.4810663, -46.6044768], [-23.4800999, -46.6035081]]}, {"name": "Linha 2 - Verde", "color": "#00A650", "coords": [[-23.5844697, -46.5817596], [-23.5882629, -46.5843217], [-23.5893227, -46.5853604], [-23.5904393, -46.5865151], [-23.5912118, -46.5875518], [-23.592063, -46.588567], [-23.5936782, -46.5903322], [-23.5947969, -46.5913282], [-23.5959844, -46.5924905], [-23.5969929, -46.5939246], [-23.5984437, -46.5957986], [-23.5999831, -46.5974688], [-23.6007029, -46.5981867], [-23.6010875, -46.5986904], [-23.6012557, -46.5991942], [-23.6015746, -46.6003616], [-23.6017012, -46.603029], [-23.6023832, -46.6124782], [-23.6022819, -46.6130628], [-23.6020233, -46.6137332], [-23.6012308, -46.614559], [-23.5995671, -46.6162965], [-23.5966723, -46.6191704], [-23.5959558, -46.6205839], [-23.595451, -46.6218201], [-23.595303, -46.6223953], [-23.595219, -46.6230081], [-23.5952212, -46.6234285], [-23.5952923, -46.6238166], [-23.5954199, -46.624119], [-23.5954934, -46.6246037], [-23.5954538, -46.6248685], [-23.5954044, -46.6251012], [-23.5952368, -46.6259365], [-23.5949704, -46.6271299], [-23.5947881, -46.6278955], [-23.594473, -46.6285538], [-23.5932519, -46.6296422], [-23.592733, -46.630273], [-23.5876076, -46.634868], [-23.5815561, -46.6388847], [-23.5773652, -46.6411283], [-23.575017, -46.6411093], [-23.571905, -46.6432385], [-23.5687939, -46.6473025], [-23.5635538, -46.6537206], [-23.5576739, -46.6605103], [-23.5559614, -46.6626966], [-23.5555037, -46.6637152], [-23.5554716, -46.6643962], [-23.5558328, -46.6652059], [-23.5559545, -46.6654927], [-23.5559581, -46.6658654], [-23.5552571, -46.6678553], [-23.5538946, -46.6709767], [-23.5518125, -46.6758945], [-23.5504946, -46.6779222], [-23.5495016, -46.6842973], [-23.5464625, -46.6906292]]}, {"name": "Linha 3 - Vermelha", "color": "#EE1D23", "coords": [[-23.5424398, -46.4710494], [-23.5426937, -46.4730685], [-23.542923, -46.4745537], [-23.5430097, -46.4751512], [-23.5430177, -46.4758345], [-23.5430023, -46.476685], [-23.5428762, -46.4774202], [-23.542501, -46.4791642], [-23.5421418, -46.4808774], [-23.5419659, -46.4817085], [-23.5417703, -46.4825342], [-23.5415418, -46.4830368], [-23.5412544, -46.4834859], [-23.5409152, -46.4839134], [-23.540527, -46.4843141], [-23.5398655, -46.485108], [-23.5390269, -46.4857893], [-23.538771, -46.4859446], [-23.5384757, -46.4860785], [-23.5378753, -46.4863141], [-23.5373192, -46.4865739], [-23.5369451, -46.4867853], [-23.536725, -46.4869556], [-23.5365345, -46.4871581], [-23.536173, -46.4875658], [-23.5359492, -46.4879654], [-23.5358041, -46.488408], [-23.5357362, -46.4886901], [-23.5356781, -46.4890526], [-23.5356765, -46.4893696], [-23.5357143, -46.4896758], [-23.5357383, -46.4903365], [-23.5357279, -46.4909705], [-23.5356086, -46.4922383], [-23.5355089, -46.4935061], [-23.5353797, -46.4946584], [-23.535248, -46.4951188], [-23.5348961, -46.4960127], [-23.5345582, -46.4965472], [-23.5341613, -46.4970495], [-23.5335077, -46.4978155], [-23.5327316, -46.4990416], [-23.5310318, -46.5015957], [-23.5301697, -46.502953], [-23.5292658, -46.5043075], [-23.5287524, -46.5051102], [-23.5282881, -46.5058404], [-23.5279517, -46.5064714], [-23.527694, -46.5071507], [-23.5275668, -46.5077544], [-23.5274937, -46.508358], [-23.5274649, -46.5089751], [-23.5275148, -46.5095761], [-23.5278161, -46.5118412], [-23.5280429, -46.5131964], [-23.528117, -46.5136139], [-23.5282058, -46.5140313], [-23.5284554, -46.5147126], [-23.5287395, -46.5153509], [-23.5293285, -46.5165432], [-23.5296543, -46.5172312], [-23.5304056, -46.5188378], [-23.5311372, -46.5204552], [-23.5312745, -46.5209588], [-23.5313626, -46.5214732], [-23.5315388, -46.5224966], [-23.5316723, -46.5247687], [-23.5321015, -46.5289857], [-23.5317781, -46.53158], [-23.5318253, -46.5333966], [-23.5319473, -46.5342512], [-23.5320987, -46.5351059], [-23.5326946, -46.5381867], [-23.5335716, -46.5425672], [-23.5340087, -46.5450854], [-23.5344604, -46.5476036], [-23.5349613, -46.5501192], [-23.5352192, -46.5513474], [-23.5354966, -46.552624], [-23.53793, -46.5642583], [-23.5380951, -46.5654615], [-23.5385651, -46.5680647], [-23.5392296, -46.5714528], [-23.5395053, -46.5726935], [-23.5399679, -46.5740308], [-23.5405684, -46.576684], [-23.5429135, -46.5897104], [-23.5432927, -46.5917243], [-23.5436865, -46.5939152], [-23.5439107, -46.5951003], [-23.5441841, -46.5961996], [-23.5444119, -46.5966913], [-23.5448365, -46.5971885], [-23.5451923, -46.5977286], [-23.546084, -46.6007257], [-23.5461266, -46.6019994], [-23.5460248, -46.6031948], [-23.5458162, -46.6043251], [-23.5464316, -46.6072348], [-23.546994, -46.6101772], [-23.5476105, -46.6128568], [-23.5478672, -46.6152226], [-23.5480319, -46.6175251], [-23.5482825, -46.6187548], [-23.5488331, -46.6211713], [-23.5493245, -46.6234563], [-23.5496979, -46.6257306], [-23.5498602, -46.6270381], [-23.549961, -46.6275712], [-23.5501011, -46.6280507], [-23.5508781, -46.6300972], [-23.5500358, -46.6335431], [-23.5479493, -46.6390181], [-23.5441402, -46.6429076], [-23.5392625, -46.6494385], [-23.5336854, -46.6554681], [-23.5264006, -46.6647957], [-23.5259973, -46.6675745]]}, {"name": "Linha 4 - Amarela", "color": "#F6B60B", "coords": [[-23.5916276, -46.735502], [-23.5924171, -46.7350063], [-23.5926727, -46.7345021], [-23.5926629, -46.7340836], [-23.5918075, -46.7319325], [-23.5886728, -46.7287979], [-23.585984, -46.7235286], [-23.5719754, -46.7077696], [-23.5674601, -46.7018781], [-23.5673773, -46.6932903], [-23.5658372, -46.6843313], [-23.5610974, -46.6715845], [-23.5551993, -46.6621317], [-23.5492596, -46.6519648], [-23.5471575, -46.6455651], [-23.5443839, -46.6423679], [-23.5364168, -46.6347719]]}, {"name": "Linha 5 - Lilás", "color": "#9C4FA2", "coords": [[-23.6590824, -46.768093], [-23.6561456, -46.7660069], [-23.6545151, -46.7647279], [-23.6530025, -46.7632343], [-23.651765, -46.761891], [-23.6502917, -46.7599254], [-23.6497913, -46.7594619], [-23.6491926, -46.7592129], [-23.6480821, -46.7585262], [-23.6473941, -46.7582312], [-23.6468045, -46.7575499], [-23.6464384, -46.7571235], [-23.6461509, -46.7566326], [-23.6459875, -46.7562853], [-23.6458241, -46.7559165], [-23.6457, -46.7554404], [-23.6456742, -46.7550072], [-23.6456988, -46.7533013], [-23.6455465, -46.7515955], [-23.6446718, -46.7496857], [-23.6434825, -46.7477974], [-23.6425685, -46.7470786], [-23.6414972, -46.7465958], [-23.6407306, -46.7460701], [-23.6403964, -46.7455336], [-23.6398067, -46.7451367], [-23.6390793, -46.7438921], [-23.6378999, -46.7407164], [-23.6379786, -46.7395899], [-23.638352, -46.7386135], [-23.6389221, -46.7379699], [-23.6395118, -46.7375836], [-23.6401015, -46.737251], [-23.6406912, -46.7370472], [-23.642421, -46.7365214], [-23.642937, -46.7361325], [-23.643394, -46.7356363], [-23.6436545, -46.7350114], [-23.6441115, -46.7340645], [-23.6440476, -46.7333135], [-23.644141, -46.7318759], [-23.644539, -46.729816], [-23.6447872, -46.7287967], [-23.6452122, -46.7280993], [-23.6457233, -46.7275361], [-23.646313, -46.7271231], [-23.647168, -46.7269192], [-23.6479444, -46.726887], [-23.6519935, -46.7269621], [-23.6534676, -46.7268118], [-23.6542342, -46.7262539], [-23.6549417, -46.7256531], [-23.6554626, -46.7248699], [-23.655664, -46.724135], [-23.6558655, -46.7234001], [-23.6558311, -46.7225686], [-23.6559146, -46.721662], [-23.6556739, -46.7209002], [-23.6555903, -46.7195592], [-23.6549145, -46.7152597], [-23.6544881, -46.7130135], [-23.6541108, -46.7094369], [-23.6538062, -46.7068512], [-23.6500816, -46.7041154], [-23.6414977, -46.6988624], [-23.6372362, -46.6962658], [-23.6365896, -46.6958687], [-23.6349737, -46.6944257], [-23.6341118, -46.693613], [-23.6333628, -46.6928942], [-23.6310949, -46.6906949], [-23.6263106, -46.68738], [-23.6184861, -46.6820006], [-23.6099131, -46.6680625], [-23.6038572, -46.6618398], [-23.5975651, -46.652098], [-23.5981178, -46.6456979], [-23.5994144, -46.637007], [-23.5929844, -46.6304097]]}, {"name": "Linha 7 - Rubi", "color": "#A0616D", "coords": [[-23.1950308, -46.8721206], [-23.1993749, -46.8685654], [-23.2040688, -46.8616774], [-23.2045618, -46.8595531], [-23.202846, -46.8468073], [-23.2029271, -46.8453141], [-23.203521, -46.8439068], [-23.2058131, -46.841607], [-23.2076399, -46.840142], [-23.2091449, -46.8376929], [-23.2101174, -46.8353725], [-23.2103097, -46.8340045], [-23.2101667, -46.8328941], [-23.2096221, -46.8309787], [-23.2091564, -46.8291492], [-23.2074699, -46.8255795], [-23.2052705, -46.8225248], [-23.2017796, -46.8191988], [-23.2012175, -46.8181367], [-23.2010499, -46.8169458], [-23.2011485, -46.8158944], [-23.2014838, -46.8150575], [-23.2021938, -46.814049], [-23.2029827, -46.8133838], [-23.2056649, -46.8125684], [-23.207992, -46.8109376], [-23.2090964, -46.8085344], [-23.2084769, -46.8059981], [-23.2072657, -46.8037193], [-23.2039919, -46.7999856], [-23.203203, -46.7971317], [-23.2024339, -46.7959408], [-23.2016647, -46.7951362], [-23.2005602, -46.7932479], [-23.2004024, -46.7919175], [-23.2004813, -46.7905013], [-23.2023352, -46.7885058], [-23.2045441, -46.7871004], [-23.2063979, -46.7855232], [-23.2084816, -46.7834701], [-23.2109598, -46.7815456], [-23.2157976, -46.7778682], [-23.2184105, -46.7770636], [-23.2204711, -46.775744], [-23.2229657, -46.7744243], [-23.2251841, -46.7730617], [-23.2270968, -46.7700791], [-23.2290883, -46.7678689], [-23.2302517, -46.7672681], [-23.2313756, -46.7670535], [-23.2337418, -46.7679976], [-23.2350431, -46.7678045], [-23.236029, -46.7670964], [-23.2372909, -46.7657232], [-23.2384344, -46.7649507], [-23.2414314, -46.7646932], [-23.2435761, -46.7640068], [-23.2460362, -46.7635349], [-23.2480232, -46.7632883], [-23.2497735, -46.7633422], [-23.2520703, -46.7624463], [-23.254367, -46.7618938], [-23.2596011, -46.7618992], [-23.2604439, -46.7617731], [-23.2612867, -46.7613895], [-23.2617992, -46.7607243], [-23.2621541, -46.7599733], [-23.2623315, -46.759115], [-23.2623906, -46.7582138], [-23.2617401, -46.7562397], [-23.2615429, -46.7542227], [-23.2622822, -46.7527421], [-23.2633368, -46.7516048], [-23.2648153, -46.7511542], [-23.2673976, -46.7513902], [-23.2704925, -46.7510469], [-23.271695, -46.7507465], [-23.2732916, -46.7498668], [-23.2740013, -46.7493518], [-23.2744743, -46.748751], [-23.274839, -46.747603], [-23.2750065, -46.7457684], [-23.2752917, -46.7447073], [-23.276109, -46.7435174], [-23.2773607, -46.7428522], [-23.2826891, -46.7424555], [-23.285235, -46.7419962], [-23.288428, -46.7403654], [-23.2926638, -46.7381317], [-23.2972543, -46.7361554], [-23.2985945, -46.734825], [-23.2998952, -46.732808], [-23.3041914, -46.7300185], [-23.3054921, -46.7281088], [-23.3079554, -46.7261776], [-23.3090885, -46.7247721], [-23.3099457, -46.7234096], [-23.3123105, -46.7203626], [-23.3143204, -46.7196545], [-23.3159363, -46.7200836], [-23.3178083, -46.7218217], [-23.3191372, -46.7227034], [-23.3254033, -46.7243341], [-23.3298393, -46.7262186], [-23.3316125, -46.7274095], [-23.3327144, -46.7289849], [-23.3335405, -46.7305173], [-23.3344059, -46.7323073], [-23.3353896, -46.7340115], [-23.3367658, -46.7351359], [-23.3384178, -46.7360887], [-23.3414854, -46.7378227], [-23.3479866, -46.7397324], [-23.354212, -46.7418568], [-23.35827, -46.7436163], [-23.3592461, -46.7445748], [-23.3607629, -46.7467635], [-23.3622403, -46.7479544], [-23.3635489, -46.7486872], [-23.3642666, -46.749377], [-23.3660985, -46.7517159], [-23.3699327, -46.7553175], [-23.3733008, -46.7560685], [-23.3761569, -46.7554891], [-23.3834838, -46.7554891], [-23.3863198, -46.7548025], [-23.3877969, -46.755296], [-23.3897861, -46.7566049], [-23.3918146, -46.7575705], [-23.392888, -46.7579031], [-23.3939613, -46.7580641], [-23.3963442, -46.7580211], [-23.3975356, -46.7579782], [-23.3988058, -46.7575276], [-23.4009721, -46.7554033], [-23.4042016, -46.75403], [-23.4051011, -46.7532431], [-23.4083897, -46.7512261], [-23.4107133, -46.7480074], [-23.4137654, -46.7454111], [-23.4150256, -46.7448961], [-23.4189464, -46.7448812], [-23.4222149, -46.7435937], [-23.424302, -46.7438083], [-23.4266253, -46.7453962], [-23.4298543, -46.7461257], [-23.4337919, -46.7476707], [-23.4348944, -46.7478423], [-23.4376507, -46.7469411], [-23.4397375, -46.7468124], [-23.4407612, -46.7460828], [-23.4427692, -46.7431646], [-23.4460398, -46.7419593], [-23.448097, -46.7420451], [-23.4498539, -46.7423778], [-23.4507127, -46.7425119], [-23.4514374, -46.7424287], [-23.4520833, -46.7422812], [-23.4531659, -46.741616], [-23.454347, -46.7400174], [-23.4552132, -46.7385905], [-23.4566009, -46.737936], [-23.4580871, -46.7379842], [-23.4586727, -46.7382002], [-23.4592583, -46.7384483], [-23.4598242, -46.7389083], [-23.460331, -46.7394971], [-23.4608621, -46.740305], [-23.4613933, -46.7409842], [-23.4625342, -46.7424285], [-23.4637293, -46.743952], [-23.4643145, -46.7446574], [-23.4645727, -46.7449296], [-23.4648555, -46.745175], [-23.4657215, -46.7456538], [-23.4667056, -46.7458536], [-23.4675422, -46.7458429], [-23.4683787, -46.7456176], [-23.4693825, -46.7449739], [-23.4700714, -46.7440726], [-23.471031, -46.7418363], [-23.471961, -46.7403477], [-23.4729894, -46.7389235], [-23.4741162, -46.7374026], [-23.475302, -46.7361607], [-23.4810883, -46.7330923], [-23.4831566, -46.7321083], [-23.4881274, -46.7263969], [-23.4899981, -46.7242136], [-23.4923194, -46.7223309], [-23.4942676, -46.7198847], [-23.4975819, -46.7169387], [-23.5009923, -46.7150706], [-23.5040817, -46.71462], [-23.5065611, -46.7147273], [-23.5111484, -46.7131637], [-23.513608, -46.7107283], [-23.5156149, -46.7082714], [-23.5175299, -46.7035184], [-23.5211993, -46.6952143], [-23.5213924, -46.6944445], [-23.521428, -46.6936103], [-23.521401, -46.6918991], [-23.5213271, -46.6884766], [-23.5214047, -46.6862226], [-23.5215714, -46.685042], [-23.5219348, -46.6838613], [-23.5242761, -46.6786686], [-23.5251418, -46.669549], [-23.5251861, -46.6673443], [-23.5253385, -46.6654828], [-23.5256582, -46.6634122], [-23.526131, -46.6594917], [-23.5277443, -46.6539986], [-23.5280197, -46.6526145], [-23.5280099, -46.6505224], [-23.5278067, -46.6482333], [-23.5277493, -46.6470297], [-23.5278493, -46.6458262], [-23.5281149, -46.6449773], [-23.5284396, -46.6441713], [-23.5289166, -46.6433733], [-23.5294921, -46.6426183], [-23.5307069, -46.6417573], [-23.5316931, -46.6411578], [-23.5322242, -46.6408373], [-23.5331378, -46.6401158], [-23.5336831, -46.6394707], [-23.5341304, -46.6387593], [-23.53437, -46.6381984], [-23.5345899, -46.6376214], [-23.5351998, -46.6353683]]}, {"name": "Linha 8 - Diamante", "color": "#8A8F98", "coords": [[-23.530366, -46.9838839], [-23.5301004, -46.9825267], [-23.5289298, -46.9805848], [-23.5276215, -46.9794743], [-23.5275133, -46.9777684], [-23.5287331, -46.9741528], [-23.52989, -46.972966], [-23.5314306, -46.9718436], [-23.5319716, -46.9692258], [-23.5325815, -46.9662002], [-23.5335061, -46.9649664], [-23.5348636, -46.9645373], [-23.5365726, -46.9649918], [-23.5385865, -46.9651567], [-23.5401013, -46.9638478], [-23.5408832, -46.9627052], [-23.5412914, -46.9619005], [-23.5416357, -46.9586979], [-23.5423635, -46.9570242], [-23.5435291, -46.955726], [-23.5439846, -46.9549241], [-23.5441463, -46.9531514], [-23.5449062, -46.9476049], [-23.5471684, -46.9415432], [-23.5484076, -46.9394296], [-23.5483388, -46.9378846], [-23.5473946, -46.936683], [-23.5435279, -46.9335125], [-23.5369443, -46.9335249], [-23.5355782, -46.9330635], [-23.5346831, -46.9314006], [-23.5350962, -46.928536], [-23.5356372, -46.9266691], [-23.5352733, -46.9245985], [-23.5338076, -46.9231715], [-23.5296109, -46.9209216], [-23.5290846, -46.9197092], [-23.5293603, -46.9159441], [-23.5294265, -46.9147121], [-23.5304642, -46.9123302], [-23.5305068, -46.9106347], [-23.5295231, -46.9083172], [-23.528569, -46.9041759], [-23.5270581, -46.9014275], [-23.5261572, -46.8991618], [-23.526531, -46.8969302], [-23.5253702, -46.8942909], [-23.5238159, -46.8936365], [-23.5230117, -46.8932905], [-23.5212681, -46.8925207], [-23.5191899, -46.890688], [-23.5175273, -46.889977], [-23.514362, -46.8894835], [-23.5105842, -46.8880244], [-23.510171, -46.8866725], [-23.5121681, -46.8808467], [-23.5126931, -46.875596], [-23.5116422, -46.8717574], [-23.5096647, -46.8691396], [-23.5097632, -46.867659], [-23.5105797, -46.8665218], [-23.5129408, -46.8652665], [-23.5167186, -46.8590008], [-23.5170236, -46.858003], [-23.517909, -46.8564259], [-23.5168366, -46.8521773], [-23.5164232, -46.8454043], [-23.5165413, -46.8398897], [-23.5184497, -46.8352548], [-23.5204664, -46.831658], [-23.5208599, -46.8290455], [-23.5218634, -46.8263392], [-23.5222667, -46.8251697], [-23.5224634, -46.8226377], [-23.5232504, -46.8207494], [-23.5235505, -46.8135933], [-23.5231226, -46.809629], [-23.5227536, -46.8062181], [-23.5236045, -46.804057], [-23.5247358, -46.8020078], [-23.5254736, -46.7986497], [-23.5255424, -46.79571], [-23.5259851, -46.7933389], [-23.5258572, -46.7919763], [-23.5249325, -46.7904314], [-23.5232601, -46.7887148], [-23.5231225, -46.7869982], [-23.5247948, -46.781269], [-23.5276393, -46.7758194], [-23.5305327, -46.7720899], [-23.5315574, -46.7704956], [-23.5333132, -46.7650883], [-23.5330698, -46.7640931], [-23.5313553, -46.7620084], [-23.530595, -46.7611453], [-23.5298361, -46.760357], [-23.5289598, -46.7587468], [-23.5286505, -46.7576621], [-23.5286308, -46.7569915], [-23.5288078, -46.7562888], [-23.5307278, -46.7509167], [-23.5307383, -46.7476545], [-23.5302022, -46.7459325], [-23.5285956, -46.7437704], [-23.5238939, -46.7374562], [-23.5196734, -46.7324507], [-23.5194241, -46.7286168], [-23.5188814, -46.7215834], [-23.5201345, -46.714588], [-23.5194064, -46.7100068], [-23.5172619, -46.7068203], [-23.5172866, -46.7052064], [-23.5202336, -46.6988987], [-23.5219842, -46.6940319], [-23.5225259, -46.6839403], [-23.5244441, -46.6795844], [-23.5248966, -46.678018], [-23.5253262, -46.6700428], [-23.5257022, -46.6656628], [-23.5263906, -46.6594076], [-23.5286878, -46.6512477], [-23.5286622, -46.6475016], [-23.5286376, -46.6448029], [-23.5298279, -46.6427001], [-23.5339711, -46.6399878]]}, {"name": "Linha 9 - Esmeralda", "color": "#00A99D", "coords": [[-23.7703395, -46.7118789], [-23.7628104, -46.7119939], [-23.7592151, -46.7114303], [-23.7547536, -46.7093454], [-23.7494432, -46.707141], [-23.7461632, -46.7050382], [-23.7399565, -46.6999313], [-23.7365554, -46.6968825], [-23.7350661, -46.6958678], [-23.7312283, -46.6927438], [-23.7301528, -46.6921537], [-23.7295242, -46.6919123], [-23.7283975, -46.6916296], [-23.7275282, -46.6915223], [-23.727047, -46.6915276], [-23.7226416, -46.6917116], [-23.7190075, -46.6920528], [-23.7173033, -46.6918543], [-23.7136527, -46.690788], [-23.7092147, -46.6893879], [-23.7062998, -46.6881986], [-23.6972154, -46.6856475], [-23.6959776, -46.6856046], [-23.6948183, -46.6857333], [-23.6936001, -46.6862912], [-23.6924604, -46.6871281], [-23.690967, -46.6892095], [-23.6902848, -46.6912396], [-23.6894006, -46.6929884], [-23.6878508, -46.6949551], [-23.6870746, -46.6954809], [-23.6850605, -46.6962963], [-23.683233, -46.6973691], [-23.6817523, -46.6984045], [-23.6802911, -46.6995902], [-23.6773885, -46.7023154], [-23.6665806, -46.7088498], [-23.6646448, -46.7103625], [-23.6634656, -46.7106951], [-23.6620695, -46.7115869], [-23.6594988, -46.7143703], [-23.6569339, -46.718297], [-23.6560855, -46.7191829], [-23.6540933, -46.7210228], [-23.6499009, -46.7245658], [-23.6484984, -46.7252931], [-23.646383, -46.7258349], [-23.6450911, -46.7260238], [-23.6438528, -46.72582], [-23.6411717, -46.7245229], [-23.6400629, -46.7237286], [-23.634264, -46.718279], [-23.631034, -46.7152586], [-23.6278039, -46.7121525], [-23.6275532, -46.7118628], [-23.6262175, -46.7105735], [-23.6254065, -46.7092994], [-23.6249917, -46.708382], [-23.6246556, -46.7074216], [-23.6242649, -46.7060524], [-23.623766, -46.7046295], [-23.6234128, -46.7038252], [-23.6229318, -46.7030638], [-23.6221209, -46.7020124], [-23.6215655, -46.7015028], [-23.6209633, -46.70113], [-23.6204103, -46.7008539], [-23.6194244, -46.7005424], [-23.6181929, -46.7003811], [-23.6174567, -46.7000858], [-23.6167598, -46.6997584], [-23.6137735, -46.69905], [-23.6081136, -46.6978833], [-23.6063401, -46.6973454], [-23.6046478, -46.6967566], [-23.6000359, -46.6950343], [-23.5997852, -46.6948975], [-23.599564, -46.6947446], [-23.5985427, -46.694026], [-23.5980235, -46.6936708], [-23.5974453, -46.6933504], [-23.5970582, -46.6931385], [-23.5966784, -46.6930016], [-23.5959576, -46.6928568], [-23.595227, -46.692771], [-23.5943341, -46.6927602], [-23.5934781, -46.6927039], [-23.5929152, -46.6926047], [-23.5924187, -46.692476], [-23.5902445, -46.6917119], [-23.5891525, -46.69135], [-23.5880703, -46.6910257], [-23.5872738, -46.6909519], [-23.5862291, -46.6909768], [-23.5853344, -46.691082], [-23.5843339, -46.6914563], [-23.5838447, -46.6917233], [-23.5817848, -46.6929009], [-23.5791939, -46.6943682], [-23.5766423, -46.6958783], [-23.575305, -46.696801], [-23.5745159, -46.6976817], [-23.5737293, -46.6986848], [-23.5723456, -46.7005633], [-23.5716056, -46.7010433], [-23.5698003, -46.7018172], [-23.5664609, -46.7030363], [-23.5639827, -46.7040072], [-23.5629996, -46.7044462], [-23.5622491, -46.7049311], [-23.5615675, -46.7054374], [-23.5608619, -46.7061294], [-23.5602251, -46.706875], [-23.5596843, -46.7077117], [-23.5592222, -46.7085699], [-23.558283, -46.7106835], [-23.5576535, -46.7118529], [-23.5563338, -46.71434], [-23.5551271, -46.7168645], [-23.5538614, -46.7194856], [-23.5532236, -46.7207746], [-23.5525858, -46.7220851], [-23.5506585, -46.7259995], [-23.5496998, -46.7279567], [-23.5486918, -46.7299406], [-23.5483746, -46.7303195], [-23.5480476, -46.7306555], [-23.5473247, -46.731381], [-23.5466756, -46.7321066], [-23.5461051, -46.7328643], [-23.5433054, -46.7359173], [-23.5405056, -46.7390989], [-23.5372498, -46.7425536], [-23.5361699, -46.7438112], [-23.5322943, -46.7455492], [-23.5315074, -46.7463432], [-23.5313107, -46.7469654], [-23.5308336, -46.7508117], [-23.5307205, -46.7519332], [-23.530455, -46.7528937], [-23.5301722, -46.7535538], [-23.5296976, -46.7545465], [-23.5289057, -46.7562899], [-23.5287852, -46.7568854], [-23.5287434, -46.7573735], [-23.5287926, -46.7577973], [-23.5289082, -46.7581997], [-23.5290435, -46.7585913], [-23.5293238, -46.7592833], [-23.5295089, -46.7596937], [-23.5297334, -46.7600665], [-23.5306152, -46.7609623], [-23.5313606, -46.761724], [-23.531818, -46.762239], [-23.5328705, -46.7633656], [-23.5330459, -46.7636468], [-23.5332263, -46.7639281], [-23.5332872, -46.7640971], [-23.5333431, -46.7643143], [-23.5333745, -46.7645369], [-23.5334206, -46.7651028], [-23.533423, -46.7654234], [-23.5333763, -46.7658351], [-23.5332154, -46.7663282], [-23.5330783, -46.7667009], [-23.532843, -46.7673256], [-23.5325113, -46.7682797], [-23.531661, -46.7706277], [-23.530931, -46.7718128], [-23.5300387, -46.772912], [-23.5282, -46.7753357], [-23.5278086, -46.7758609]]}, {"name": "Linha 10 - Turquesa", "color": "#1A9AA0", "coords": [[-23.7430706, -46.3915672], [-23.7421081, -46.3937559], [-23.740085, -46.3995924], [-23.7391701, -46.4011262], [-23.7377362, -46.4023439], [-23.7364496, -46.4029554], [-23.7332273, -46.4034758], [-23.7306737, -46.4041625], [-23.7276495, -46.4036789], [-23.723151, -46.4039364], [-23.7215008, -46.404902], [-23.7192024, -46.4084211], [-23.7180924, -46.4101914], [-23.7168646, -46.4117256], [-23.715233, -46.4132007], [-23.7136603, -46.4145042], [-23.71312, -46.415223], [-23.7070925, -46.4211621], [-23.7066209, -46.4220097], [-23.7062476, -46.4228787], [-23.7051858, -46.4275833], [-23.7040845, -46.4322019], [-23.7034852, -46.4333338], [-23.7028074, -46.4342082], [-23.7015008, -46.4350665], [-23.6992162, -46.4362449], [-23.6968878, -46.4384872], [-23.6962172, -46.4394048], [-23.6958217, -46.440258], [-23.6956105, -46.4412022], [-23.6955761, -46.4419961], [-23.6956841, -46.4442384], [-23.6954678, -46.4453958], [-23.6950196, -46.4462823], [-23.6945517, -46.4468898], [-23.6934743, -46.4477373], [-23.6923085, -46.4485634], [-23.6904673, -46.4496533], [-23.6879325, -46.4508335], [-23.686767, -46.4514274], [-23.6856407, -46.4518068], [-23.6828602, -46.4525257], [-23.6806102, -46.4532659], [-23.6781046, -46.45362], [-23.6760314, -46.454017], [-23.6750075, -46.4544239], [-23.6737302, -46.4553036], [-23.6714309, -46.4576747], [-23.6702911, -46.4588173], [-23.6693379, -46.4598741], [-23.668168, -46.4615551], [-23.6629599, -46.4694515], [-23.6612322, -46.4725939], [-23.6591293, -46.4775614], [-23.6579795, -46.4801631], [-23.6575225, -46.4813889], [-23.6572424, -46.4825288], [-23.6570771, -46.4836168], [-23.6570298, -46.4847048], [-23.6573246, -46.486679], [-23.6584351, -46.4901337], [-23.6596354, -46.4949765], [-23.6605007, -46.4977413], [-23.6607811, -46.4989198], [-23.6609435, -46.5000984], [-23.6607862, -46.5022227], [-23.658708, -46.5111385], [-23.6576392, -46.5154998], [-23.656649, -46.5197429], [-23.655236, -46.5233113], [-23.654559, -46.5250525], [-23.6538033, -46.5265362], [-23.6521719, -46.5281026], [-23.6489674, -46.5302928], [-23.643758, -46.5334113], [-23.6384502, -46.5367012], [-23.6321877, -46.5404275], [-23.6290662, -46.5423228], [-23.6260627, -46.5440248], [-23.6221412, -46.5464535], [-23.6201411, -46.5476678], [-23.6191411, -46.5482964], [-23.618259, -46.5489464], [-23.6173448, -46.5500407], [-23.6166542, -46.5511592], [-23.6161406, -46.5523421], [-23.6150936, -46.5552656], [-23.6100026, -46.570184], [-23.6089606, -46.5732847], [-23.6078202, -46.5763209], [-23.6069891, -46.5773733], [-23.6060597, -46.5781897], [-23.6041025, -46.5798009], [-23.6000897, -46.5830877], [-23.592359, -46.5897249], [-23.5868307, -46.5943471], [-23.5821897, -46.5965358], [-23.5580197, -46.6082785], [-23.5554237, -46.6096957], [-23.5497194, -46.6135795], [-23.5448522, -46.6168604], [-23.5437789, -46.6176273], [-23.5426614, -46.6184263], [-23.5418579, -46.6190648], [-23.5414537, -46.6193894], [-23.5410691, -46.6197516], [-23.5404819, -46.6203009], [-23.5399538, -46.620936], [-23.5394529, -46.6216348], [-23.5391734, -46.6220841], [-23.5387708, -46.6228013], [-23.5383902, -46.6235587], [-23.5380969, -46.6243242], [-23.53787, -46.6250978], [-23.5371247, -46.6279761], [-23.5366231, -46.6299771], [-23.5358281, -46.6330012], [-23.5351998, -46.6353683]]}, {"name": "Linha 11 - Coral", "color": "#F4511E", "coords": [[-23.5154887, -46.1841854], [-23.5191951, -46.1926369], [-23.5218708, -46.1985807], [-23.5231694, -46.2016224], [-23.526023, -46.2062794], [-23.5333269, -46.2169548], [-23.5343399, -46.2189611], [-23.5374495, -46.2290297], [-23.5409215, -46.2404533], [-23.5420036, -46.2440501], [-23.543238, -46.2481432], [-23.5436068, -46.2502702], [-23.5435177, -46.2532005], [-23.5427461, -46.2580593], [-23.5417334, -46.2648119], [-23.5405435, -46.2719427], [-23.5350844, -46.2789888], [-23.5343368, -46.2805606], [-23.5342188, -46.2816925], [-23.5359271, -46.2975587], [-23.5363106, -46.3009593], [-23.5356732, -46.3035929], [-23.5340707, -46.3078808], [-23.5327797, -46.311703], [-23.5253458, -46.3332264], [-23.5244967, -46.3357622], [-23.5235024, -46.3387619], [-23.5234188, -46.339572], [-23.5236112, -46.3404484], [-23.5243632, -46.3418358], [-23.5259694, -46.3445996], [-23.5279723, -46.3481298], [-23.5346944, -46.3598806], [-23.5353646, -46.3609626], [-23.5376996, -46.3641872], [-23.5407048, -46.3683116], [-23.5438545, -46.3729528], [-23.5446284, -46.3752894], [-23.5452382, -46.3763274], [-23.5460255, -46.3770686], [-23.5471431, -46.3776481], [-23.5488595, -46.3790662], [-23.5505842, -46.3802766], [-23.5528634, -46.3807433], [-23.5536822, -46.38132], [-23.5542649, -46.3827362], [-23.5546606, -46.3850106], [-23.5553828, -46.3890416], [-23.5553827, -46.3898803], [-23.5551218, -46.3907745], [-23.5546078, -46.3915917], [-23.5538037, -46.3921926], [-23.5529456, -46.3928001], [-23.5524318, -46.393472], [-23.5509823, -46.395784], [-23.5485862, -46.3979003], [-23.5470175, -46.4000514], [-23.5462405, -46.4014529], [-23.5458544, -46.4027663], [-23.5451681, -46.4054766], [-23.5436356, -46.4106745], [-23.5422456, -46.4156309], [-23.5414996, -46.4192528], [-23.540516, -46.4214737], [-23.5397586, -46.4227665], [-23.5392766, -46.4239387], [-23.538598, -46.426409], [-23.5386655, -46.4300422], [-23.5415701, -46.4460986], [-23.5417657, -46.4493118], [-23.5411079, -46.4566952], [-23.5401332, -46.4617952], [-23.5401652, -46.4628467], [-23.5420543, -46.4711652], [-23.5428091, -46.4766986], [-23.5424217, -46.4788211], [-23.541523, -46.4826261], [-23.5409526, -46.4835818], [-23.5394968, -46.4851724], [-23.5383538, -46.485989], [-23.536941, -46.4865131], [-23.5358989, -46.4876423], [-23.5355153, -46.4893106], [-23.5355842, -46.4908288], [-23.5351147, -46.4948991], [-23.5347549, -46.4958851], [-23.5339188, -46.4969446], [-23.5323351, -46.4992003], [-23.5278387, -46.5061637], [-23.5273173, -46.5078804], [-23.5272681, -46.5089237], [-23.527455, -46.5105947], [-23.5279665, -46.5138294], [-23.5288207, -46.5161152], [-23.5309406, -46.5204568], [-23.5311939, -46.5217443], [-23.5317571, -46.5267761], [-23.5315714, -46.5315668], [-23.5316475, -46.5340923], [-23.5329066, -46.5406155], [-23.5332806, -46.5426355], [-23.5341117, -46.5463692], [-23.5363213, -46.5573268], [-23.5376752, -46.564358], [-23.5392426, -46.5720886], [-23.5396533, -46.5734834], [-23.5398752, -46.5743451], [-23.5403331, -46.5765586], [-23.5406829, -46.5795985], [-23.5413253, -46.5827575], [-23.5419362, -46.5858779], [-23.542283, -46.5876795], [-23.542647, -46.5895723], [-23.5444056, -46.5980018], [-23.5455908, -46.6040797], [-23.5463174, -46.6079062], [-23.5473771, -46.6126456], [-23.5472715, -46.6140216], [-23.5444191, -46.6169828], [-23.5426127, -46.6183686], [-23.5418087, -46.6189908], [-23.5404242, -46.6202381], [-23.5396234, -46.6212234], [-23.5388422, -46.6224742], [-23.5379988, -46.6242659], [-23.536078, -46.6316498], [-23.5350425, -46.635318], [-23.5348444, -46.6361218]]}, {"name": "Linha 12 - Safira", "color": "#003DA5", "coords": [[-23.5252438, -46.3331985], [-23.5243043, -46.3348454], [-23.5214958, -46.336354], [-23.5175454, -46.3382427], [-23.5150818, -46.3386149], [-23.510614, -46.3378406], [-23.5079556, -46.3376902], [-23.5024063, -46.3390851], [-23.4997939, -46.3390416], [-23.4971396, -46.3387589], [-23.4954669, -46.3384907], [-23.494296, -46.3381367], [-23.4920132, -46.3368921], [-23.4902708, -46.336076], [-23.4882734, -46.3366231], [-23.4871713, -46.3386509], [-23.4881202, -46.3425045], [-23.4882724, -46.3442903], [-23.4875479, -46.3459411], [-23.4856302, -46.348573], [-23.4836336, -46.35068], [-23.4816607, -46.3513881], [-23.4804981, -46.352335], [-23.4796963, -46.3555684], [-23.4789404, -46.3599401], [-23.4784779, -46.3626437], [-23.4789938, -46.3662817], [-23.4795654, -46.3690883], [-23.4804708, -46.3739913], [-23.4817422, -46.3786146], [-23.4826993, -46.381191], [-23.48389, -46.3836694], [-23.4856838, -46.3869371], [-23.4866265, -46.3889137], [-23.4885305, -46.3913437], [-23.4924764, -46.3950898], [-23.4935981, -46.3971551], [-23.493994, -46.4012731], [-23.4941578, -46.4038948], [-23.4940355, -46.4076387], [-23.4936912, -46.4113401], [-23.4934087, -46.4144934], [-23.4930018, -46.4185727], [-23.4925197, -46.4234919], [-23.4917672, -46.4308507], [-23.4909909, -46.4381911], [-23.490341, -46.4434044], [-23.4910888, -46.4500992], [-23.4920731, -46.4549731], [-23.491796, -46.4593053], [-23.4907248, -46.462113], [-23.4890324, -46.4634327], [-23.4865967, -46.4643615], [-23.4844378, -46.4659221], [-23.4835051, -46.4672276], [-23.4826687, -46.4700868], [-23.4824946, -46.4714096], [-23.482704, -46.4722884], [-23.4833518, -46.4738356], [-23.4841228, -46.4761717], [-23.4848116, -46.4804525], [-23.4854413, -46.484272], [-23.4850674, -46.4868147], [-23.4835729, -46.4901536], [-23.4826301, -46.492316], [-23.4830286, -46.4945691], [-23.4847669, -46.4968054], [-23.4855049, -46.5005712], [-23.4855738, -46.5030388], [-23.4867423, -46.5046884], [-23.4888062, -46.5055601], [-23.4911483, -46.5064572], [-23.4926538, -46.5071814], [-23.4945159, -46.509008], [-23.4954115, -46.5101239], [-23.495861, -46.5111545], [-23.4960781, -46.5126003], [-23.4963057, -46.5147454], [-23.4972986, -46.5175905], [-23.4985027, -46.5208252], [-23.4993771, -46.5232231], [-23.4997756, -46.5249398], [-23.4997166, -46.52693], [-23.4997269, -46.5305644], [-23.5020882, -46.5347058], [-23.5050792, -46.5397135], [-23.5063566, -46.5416755], [-23.5081915, -46.5433116], [-23.5092442, -46.5454788], [-23.5090179, -46.5483434], [-23.5098172, -46.5512134], [-23.511047, -46.5523614], [-23.5123653, -46.552592], [-23.5149513, -46.5513576], [-23.5169385, -46.5506924], [-23.5206621, -46.550952], [-23.5231116, -46.5523521], [-23.5249118, -46.5532353], [-23.5269923, -46.553348], [-23.5298746, -46.5533732], [-23.5324235, -46.5534594], [-23.5345285, -46.554425], [-23.5355882, -46.5553557], [-23.5362077, -46.5572945], [-23.5371323, -46.5619508], [-23.5381004, -46.5669754], [-23.5387092, -46.5700503], [-23.5392206, -46.572636], [-23.5399513, -46.5757406], [-23.5404903, -46.5785498], [-23.5409821, -46.581527], [-23.5415953, -46.5846366], [-23.5419629, -46.5864726], [-23.5425621, -46.5894892], [-23.5428031, -46.5907016], [-23.5431006, -46.5922304], [-23.5434621, -46.5940382], [-23.5439385, -46.5963682], [-23.5442911, -46.5981688], [-23.5446243, -46.5998382], [-23.5452735, -46.6030461], [-23.5457636, -46.6055921], [-23.5460709, -46.6071371], [-23.5464804, -46.6089958], [-23.5467963, -46.6104523], [-23.5471022, -46.611932], [-23.5473491, -46.6134095], [-23.5467835, -46.6146004], [-23.5460821, -46.6155488], [-23.5439377, -46.6170534]]}, {"name": "Linha 13 - Jade", "color": "#00A19A", "coords": [[-23.4979284, -46.5197751], [-23.4972569, -46.5177554], [-23.4967034, -46.5162547], [-23.4962483, -46.5149277], [-23.4961032, -46.5142434], [-23.4960097, -46.5134974], [-23.4959544, -46.5124721], [-23.4958351, -46.5114495], [-23.4956709, -46.5109158], [-23.4954821, -46.5104571], [-23.4952991, -46.5101191], [-23.4950904, -46.5098147], [-23.4949068, -46.5095753], [-23.4945461, -46.5091697], [-23.4940769, -46.5087009], [-23.4936618, -46.5082644], [-23.4930007, -46.5076026], [-23.4928293, -46.5074525], [-23.4926579, -46.5073186], [-23.4922683, -46.507048], [-23.4919298, -46.5068747], [-23.4915666, -46.5067228], [-23.4907665, -46.506521], [-23.4898582, -46.506295], [-23.4894041, -46.5061713], [-23.4888712, -46.5060369], [-23.4873263, -46.505648], [-23.4865588, -46.5054481], [-23.4858109, -46.5051839], [-23.4854414, -46.5050404], [-23.4850521, -46.5048754], [-23.4842934, -46.5045024], [-23.4839078, -46.5042905], [-23.4835371, -46.5040625], [-23.4827783, -46.5035635], [-23.4809172, -46.5021701], [-23.4800039, -46.5014962], [-23.4791202, -46.5008277], [-23.4772677, -46.4994597], [-23.4767307, -46.4990239], [-23.4762332, -46.4985666], [-23.4757331, -46.4980395], [-23.4752872, -46.4975232], [-23.474836, -46.4969167], [-23.4744081, -46.496282], [-23.4741411, -46.4958045], [-23.4739136, -46.4953593], [-23.4734683, -46.494501], [-23.4732321, -46.4940852], [-23.472927, -46.4936373], [-23.4722234, -46.4927951], [-23.4718765, -46.4924625], [-23.4715185, -46.4921782], [-23.4711624, -46.4919046], [-23.4709683, -46.4917678], [-23.4707792, -46.4916686], [-23.4704836, -46.4915016], [-23.4701739, -46.4913461], [-23.4700209, -46.4912797], [-23.4698851, -46.4912294], [-23.4695675, -46.4911107], [-23.4692676, -46.4910215], [-23.4689677, -46.4909431], [-23.4686199, -46.4908619], [-23.4681343, -46.490758], [-23.4661925, -46.4903409], [-23.4652222, -46.4901317], [-23.464737, -46.4900284], [-23.46446, -46.4899701], [-23.4631348, -46.4896784], [-23.4625148, -46.4895483], [-23.4619243, -46.4894182], [-23.4613602, -46.4892995], [-23.4614356, -46.4893173], [-23.4609824, -46.4892242], [-23.4607718, -46.4891854], [-23.460571, -46.489152], [-23.4602838, -46.4891199], [-23.4600838, -46.4891031], [-23.4598642, -46.4890985], [-23.4596945, -46.4890911], [-23.4595665, -46.4890905], [-23.4594324, -46.4891], [-23.4589818, -46.4891355], [-23.4584181, -46.489214], [-23.4578066, -46.4893738], [-23.4575132, -46.4894751], [-23.4570254, -46.4896744], [-23.4559372, -46.4901344], [-23.4554104, -46.4903617], [-23.4549081, -46.490573], [-23.4537805, -46.491043], [-23.452717, -46.4914889], [-23.4521282, -46.4917364], [-23.4515088, -46.4919999], [-23.4503916, -46.4924733], [-23.4486908, -46.493174], [-23.4479635, -46.4934519], [-23.4474281, -46.4936172], [-23.4460033, -46.4943146], [-23.4453402, -46.4946258], [-23.4447065, -46.4948403], [-23.4442397, -46.494975], [-23.4438171, -46.4950721], [-23.4435468, -46.4951072], [-23.4432765, -46.4951262], [-23.4429723, -46.4951506], [-23.4426669, -46.4951643], [-23.4423704, -46.4951549], [-23.4420738, -46.4951294], [-23.4417563, -46.4950905], [-23.4415899, -46.4950701], [-23.4414512, -46.4950516], [-23.4405456, -46.4949175], [-23.4401076, -46.4948545], [-23.4397335, -46.4947995], [-23.4388156, -46.4946667], [-23.4379174, -46.4945367], [-23.4373096, -46.4944455], [-23.4370099, -46.4944005], [-23.4366974, -46.4943543], [-23.4356583, -46.4942044], [-23.435369, -46.4941636], [-23.4351031, -46.4941228], [-23.4345738, -46.4940466], [-23.4337684, -46.4939178], [-23.4330969, -46.4937864], [-23.4324623, -46.493726]]}, {"name": "Linha 15 - Prata (Monotrilho)", "color": "#A6A6A6", "coords": [[-23.5992452, -46.4689643], [-23.5996582, -46.4696187], [-23.6002775, -46.4700747], [-23.601241, -46.4704287], [-23.6020177, -46.4705629], [-23.6028515, -46.4707099], [-23.6036232, -46.4708387], [-23.6043802, -46.470962], [-23.6055202, -46.4711795], [-23.6060609, -46.4714155], [-23.6064984, -46.4717374], [-23.6070489, -46.4721719], [-23.6073782, -46.4723221], [-23.6080271, -46.4725045], [-23.6085973, -46.472644], [-23.6091296, -46.4729248], [-23.6095278, -46.4734237], [-23.6099308, -46.4741586], [-23.6104666, -46.4747916], [-23.61114, -46.4752637], [-23.611661, -46.4757196], [-23.61201, -46.4761488], [-23.6122827, -46.4770715], [-23.6125137, -46.4783161], [-23.6126803, -46.4793022], [-23.6126668, -46.4800734], [-23.6125221, -46.4810904], [-23.6124877, -46.4820882], [-23.612435, -46.4826359], [-23.6122261, -46.4829845], [-23.6120099, -46.4832286], [-23.6117592, -46.4833279], [-23.6114105, -46.4834566], [-23.6111328, -46.4835693], [-23.6108722, -46.483757], [-23.6106044, -46.4840869], [-23.6103782, -46.4845375], [-23.6102898, -46.4850525], [-23.6103143, -46.4854441], [-23.610393, -46.4857231], [-23.6106289, -46.4862005], [-23.6111254, -46.486753], [-23.6116267, -46.487268], [-23.6123528, -46.4880363], [-23.6127534, -46.4885647], [-23.6129451, -46.4890368], [-23.6129648, -46.4896215], [-23.612896, -46.490056], [-23.6128517, -46.4905844], [-23.6128616, -46.4910672], [-23.6129771, -46.4918182], [-23.6130754, -46.492411], [-23.6130729, -46.4927838], [-23.6129352, -46.493316], [-23.6127828, -46.4937988], [-23.6127361, -46.4942333], [-23.6128467, -46.4946678], [-23.6130704, -46.4950379], [-23.6133702, -46.4952954], [-23.613643, -46.4955046], [-23.6138608, -46.4957265], [-23.614082, -46.4960671], [-23.6141877, -46.4964453], [-23.6141975, -46.4967404], [-23.6141606, -46.4972473], [-23.6141459, -46.4978562], [-23.6142098, -46.4984248], [-23.6143563, -46.4992011], [-23.6145529, -46.5002364], [-23.6147053, -46.5011376], [-23.6148527, -46.5020657], [-23.6146858, -46.5026441], [-23.6143018, -46.5031143], [-23.6139135, -46.503463], [-23.613685, -46.5035971], [-23.6127524, -46.5041237], [-23.6123641, -46.5043114], [-23.6120102, -46.5043892], [-23.6115557, -46.5043344], [-23.6111723, -46.5042083], [-23.6107698, -46.504115], [-23.6104441, -46.5041418], [-23.6101099, -46.504292], [-23.6099194, -46.5044502], [-23.6095574, -46.5048644], [-23.6092551, -46.5053016], [-23.6089405, -46.5057335], [-23.6084225, -46.5064026], [-23.6081853, -46.5066145], [-23.6073612, -46.5071007], [-23.6068729, -46.5073755], [-23.6063716, -46.5077457], [-23.6059242, -46.5080635], [-23.6046684, -46.5090283], [-23.604422, -46.5094032], [-23.6044269, -46.5098217], [-23.6045055, -46.5104547], [-23.6043974, -46.5108302], [-23.6036748, -46.5118977], [-23.6034143, -46.5128204], [-23.6030899, -46.5143618], [-23.6028953, -46.5156417], [-23.602547, -46.5178632], [-23.6025249, -46.5186866], [-23.6025657, -46.5203978], [-23.6021268, -46.5233119], [-23.6019004, -46.5250498], [-23.6015858, -46.5260368], [-23.6012269, -46.5266859], [-23.6007845, -46.5273404], [-23.5998456, -46.5286976], [-23.5993382, -46.5300891], [-23.5990212, -46.5311379], [-23.5983388, -46.5332492], [-23.5978816, -46.5346064], [-23.5975523, -46.5353574], [-23.5971913, -46.5358885], [-23.5956723, -46.5374441], [-23.59493, -46.5381952], [-23.5937558, -46.5393403], [-23.5931142, -46.5400136], [-23.5923654, -46.5410828], [-23.5916796, -46.5422307], [-23.5911774, -46.5429188], [-23.5904596, -46.5434794], [-23.5890522, -46.5445306], [-23.5878445, -46.5454909], [-23.5855231, -46.5481741], [-23.5846677, -46.5491665], [-23.5841564, -46.5499498], [-23.5837287, -46.550969], [-23.5831928, -46.5522725], [-23.5828598, -46.5531858], [-23.5825747, -46.5546476], [-23.5823166, -46.5559672], [-23.5821273, -46.5568765], [-23.5818233, -46.5584726], [-23.581725, -46.5595991], [-23.5818921, -46.5606613], [-23.5821563, -46.5618862], [-23.5824316, -46.563356], [-23.5826233, -46.565593], [-23.5827856, -46.5670682], [-23.5829442, -46.5688824], [-23.5829245, -46.569807], [-23.5828933, -46.571608], [-23.5828838, -46.5727888], [-23.5829159, -46.5733014], [-23.5829972, -46.5738301], [-23.5832117, -46.5744604], [-23.5833288, -46.5747649], [-23.5834557, -46.5750639], [-23.5835866, -46.5753888], [-23.5837163, -46.5757084], [-23.5839707, -46.5763112], [-23.5840911, -46.5766223], [-23.5842116, -46.576971], [-23.5843296, -46.5774378], [-23.5844525, -46.5782431], [-23.584568, -46.5789626], [-23.5847745, -46.5804016], [-23.58489, -46.5812049], [-23.5850154, -46.5819868], [-23.5850388, -46.5822242], [-23.5850179, -46.5824186], [-23.5848802, -46.5828451], [-23.5843566, -46.5841272]]}];
+
+/* ===================== Coordenadas conhecidas (fallback) ===================== */
+const COORDS_CONHECIDAS = [
+  { match: 'citt', lat: -23.5866678, lng: -46.4055515 },
+  { match: 'dom bosco', lat: -23.5328607, lng: -46.4473147 },
+  { match: 'vibe', lat: -23.4943342, lng: -46.3916814 },
+  { match: 'zen', lat: -23.5523876, lng: -46.418117 },
+  { match: 'rio branco', lat: -23.5385035, lng: -46.641275 },
+  { match: 'perus', lat: -23.4060531, lng: -46.7557699 },
+  { match: 'tiet', lat: -23.5068418, lng: -46.7104139 },
+  { match: 'freguesia', lat: -23.4983107, lng: -46.700767 },
+];
+
+function normalize(str){
+  return (str || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function lookupKnownCoords(emp){
+  if (normalize(emp.construtora) !== 'longitude') return null;
+  const nome = normalize(emp.nome);
+  const found = COORDS_CONHECIDAS.find(c => nome.includes(c.match));
+  return found ? { lat: found.lat, lng: found.lng } : null;
+}
+
+/* ===================== Geocodificação automática (Nominatim/OpenStreetMap) ===================== */
+async function geocodeAddress(emp){
+  const query = [emp.endereco, emp.regiao, emp.cidade, 'Brasil'].filter(Boolean).join(', ');
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=${encodeURIComponent(query)}`;
+  try{
+    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const json = await res.json();
+    if (json && json[0]) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) };
+  } catch(err){ console.warn('Falha ao geocodificar:', query, err); }
+  return null;
+}
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function resolveCoordinates(list){
+  list.forEach(emp => {
+    if (emp.lat && emp.lng) return;
+    const known = lookupKnownCoords(emp);
+    if (known){ emp.lat = known.lat; emp.lng = known.lng; }
+  });
+  const pendentes = list.filter(e => !e.lat || !e.lng);
+  if (pendentes.length === 0) return;
+
+  setLoadStatus(`Resolvendo ${pendentes.length} coordenada(s) por endereço...`, false);
+  let done = 0;
+  for (const emp of pendentes){
+    const result = await geocodeAddress(emp);
+    if (result){ emp.lat = result.lat; emp.lng = result.lng; }
+    done++;
+    renderAll();
+    await sleep(1100);
+  }
+}
+
+/* ===================== Exportar coordenadas ===================== */
+function exportarPlanilha(){
+  const headers = ["Construtora","Empreendimento","Status","Cidade","Região/Bairro","Endereço",
+    "Latitude","Longitude","Preço mín (R$)","Preço máx (R$)","Metragem mín (m²)","Metragem máx (m²)",
+    "Link Book","Link Tabela de Preços","Data Últ. Atualização","Mês Referência"];
+  const rows = empreendimentos.map(e => [
+    e.construtora, e.nome, e.status, e.cidade, e.regiao, e.endereco,
+    e.lat || '', e.lng || '', e.precoMin || '', e.precoMax || '', e.m2min || '', e.m2max || '',
+    e.linkBook || '', e.linkTabela || '', e.dataAtualizacao || '', e.mesReferencia || ''
+  ]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Empreendimentos');
+  XLSX.writeFile(wb, 'Empreendimentos_com_coordenadas.xlsx');
+}
+document.getElementById('downloadBtn').addEventListener('click', exportarPlanilha);
+
+/* ===================== Estado ===================== */
+let empreendimentos = [];
+let markers = [];
+let zoneLayers = [];
+let metroLayers = [];
+let currentRecursos = null;
+let currentTetoProduto = null;
+let statusFilter = 'all';
+let valorAteFilter = 0;
+let regiaoFilter = 'all';
+
+/* ===================== Mapa ===================== */
+const map = L.map('map', { zoomControl:true, attributionControl:true }).setView([-23.5505, -46.6333], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '© OpenStreetMap'
+}).addTo(map);
+map.attributionControl.setPrefix(false);
+
+const legend = L.control({position:'bottomleft'});
+legend.onAdd = function(){
+  const div = L.DomUtil.create('div', 'legend-box');
+  div.id = 'mapLegend';
+  updateLegendContent(div);
+  return div;
+};
+legend.addTo(map);
+
+function updateLegendContent(div){
+  div = div || document.getElementById('mapLegend');
+  if (!div) return;
+  if (currentRecursos !== null){
+    div.innerHTML = `
+      <div class="lg-title">Legenda</div>
+      <span class="dot" style="background:#E0A646; width:12px; height:12px;"></span><b>Fecha com esse cliente</b><br/>
+      <span class="dot" style="background:#B7BEC7;"></span>Ainda não fecha<br/>
+      <div style="margin-top:6px; padding-top:6px; border-top:1px solid var(--line); font-size:10.5px; color:var(--muted);">Pin maior e dourado = cliente cobre 75%+ do valor</div>
+    `;
+  } else {
+    div.innerHTML = `
+      <div class="lg-title">Legenda</div>
+      <span class="dot" style="background:#2E5FA3"></span>Lançamento<br/>
+      <span class="dot" style="background:#B4690E"></span>Em obras<br/>
+      <span class="dot" style="background:#2E7D46"></span>Pronto para morar<br/>
+      <div style="margin-top:6px; padding-top:6px; border-top:1px solid var(--line); font-size:10.5px; color:var(--muted);">Digite a renda do cliente pra ver quem fecha</div>
+    `;
+  }
+}
+
+/* ===================== Zonas ===================== */
+function renderZonas(){
+  zoneLayers.forEach(l => map.removeLayer(l));
+  zoneLayers = [];
+  if (!document.getElementById('toggleZonas').checked) return;
+  ZONAS.forEach(z => {
+    const poly = L.polygon(z.coords, {
+      color: z.color, weight: 2, fillColor: z.color, fillOpacity: 0.28, opacity: 0.9
+    });
+    poly.bindTooltip(z.name, {sticky:true});
+    poly.addTo(map);
+    zoneLayers.push(poly);
+  });
+}
+
+/* ===================== Metrô/CPTM ===================== */
+function renderMetro(){
+  metroLayers.forEach(l => map.removeLayer(l));
+  metroLayers = [];
+  if (!document.getElementById('toggleMetro').checked) return;
+  METRO.forEach(m => {
+    const line = L.polyline(m.coords, { color: m.color, weight: 3, opacity: 0.85 });
+    line.bindTooltip(m.name, {sticky:true});
+    line.addTo(map);
+    metroLayers.push(line);
+  });
+}
+
+document.getElementById('toggleZonas').addEventListener('change', renderZonas);
+document.getElementById('toggleMetro').addEventListener('change', renderMetro);
+
+/* ===================== Ícones ===================== */
+function statusColor(status){
+  if (status === 'Lançamento') return '#2E5FA3';
+  if (status === 'Em obras') return '#B4690E';
+  if (status === 'Pronto para morar') return '#2E7D46';
+  return '#8A8F98';
+}
+
+function buildIcon(emp, isMatch){
+  const statusHidden = statusFilter !== 'all' && emp.status !== statusFilter;
+  const simulacaoAtiva = currentRecursos !== null;
+
+  let color, size, ring, opacity, zIndexBoost;
+  if (simulacaoAtiva && isMatch){
+    // fecha com o cliente: pin dourado, maior, em destaque
+    color = '#E0A646';
+    size = 30;
+    ring = 'box-shadow:0 0 0 5px rgba(224,166,70,.35), 0 3px 8px rgba(0,0,0,.35);';
+    opacity = statusHidden ? 'opacity:.25;' : 'opacity:1;';
+    zIndexBoost = 1000;
+  } else if (simulacaoAtiva && !isMatch){
+    // ainda não fecha: pin cinza apagado, menor
+    color = '#B7BEC7';
+    size = 18;
+    ring = 'border:2px solid #fff;';
+    opacity = statusHidden ? 'opacity:.15;' : 'opacity:.55;';
+    zIndexBoost = 0;
+  } else {
+    // sem simulação: cor por status, como antes
+    color = statusColor(emp.status);
+    size = 22;
+    ring = 'border:2px solid #fff;';
+    opacity = statusHidden ? 'opacity:.25;' : 'opacity:1;';
+    zIndexBoost = 0;
+  }
+
+  const shapeHtml = `<div style="width:${size}px;height:${size}px;border-radius:50% 50% 50% 0;background:${color};transform:rotate(-45deg);${ring}"></div>`;
+  return L.divIcon({
+    className: 'custom-marker', html: `<div style="${opacity}">${shapeHtml}</div>`,
+    iconSize: [size,size], iconAnchor: [size/2,size-2], popupAnchor: [0,-size+2],
+    zIndexOffset: zIndexBoost
+  });
+}
+
+/* ===================== Render ===================== */
+function statusBadgeClass(status){
+  if (status === 'Lançamento') return 'lancamento';
+  if (status === 'Em obras') return 'obras';
+  if (status === 'Pronto para morar') return 'pronto';
+  return 'esgotado';
+}
+function passesFilters(emp){
+  if (statusFilter !== 'all' && emp.status !== statusFilter) return false;
+  if (valorAteFilter > 0 && (!emp.precoMin || emp.precoMin > valorAteFilter)) return false;
+  if (regiaoFilter !== 'all' && normalize(emp.regiao).indexOf(normalize(regiaoFilter)) === -1) return false;
+  return true;
+}
+function isMatch(emp){
+  if (currentRecursos === null) return false;
+  if (!emp.precoMin) return false;
+  if (currentTetoProduto !== null && emp.precoMin > currentTetoProduto) return false;
+  return currentRecursos >= 0.75 * emp.precoMin;
+}
+function coberturaPercent(emp){
+  if (currentRecursos === null || !emp.precoMin) return null;
+  return Math.round((currentRecursos / emp.precoMin) * 100);
+}
+
+function renderAll(){
+  updateLegendContent();
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+  const results = document.getElementById('results');
+  const summary = document.getElementById('resultsSummary');
+  const openBtn = document.getElementById('openResultsBtn');
+  results.innerHTML = '';
+
+  if (empreendimentos.length === 0){
+    summary.className = 'empty-state';
+    summary.innerHTML = '<b>Nenhum empreendimento carregado.</b>';
+    openBtn.style.display = 'none';
+    return;
+  }
+
+  let visible = empreendimentos.filter(passesFilters);
+  const totalAposFiltros = visible.length;
+
+  // Quando a simulação está ativa, mostra só quem realmente fecha (75%+) — não mistura com quem não fecha
+  if (currentRecursos !== null){
+    visible = visible.filter(isMatch).sort((a,b) => (coberturaPercent(b)||0) - (coberturaPercent(a)||0));
+  }
+  const bounds = [];
+
+  openBtn.style.display = 'inline-flex';
+  if (currentRecursos !== null){
+    summary.className = '';
+    summary.innerHTML = `<div style="text-align:center;"><div style="font-size:26px; font-weight:800; color:var(--ok);">${visible.length}</div><div style="font-size:12px; color:var(--muted);">empreendimento(s) fecham com esse cliente</div><div style="font-size:11px; color:var(--muted); margin-top:4px;">de ${totalAposFiltros} no filtro atual</div></div>`;
+  } else {
+    summary.className = '';
+    summary.innerHTML = `<div style="text-align:center;"><div style="font-size:26px; font-weight:800; color:var(--navy-dark);">${visible.length}</div><div style="font-size:12px; color:var(--muted);">empreendimento(s) no filtro atual</div></div>`;
+  }
+  document.getElementById('modalTitle').textContent = `Empreendimentos (${visible.length})`;
+  openBtn.textContent = `📋 Ver lista (${visible.length})`;
+
+  function addCard(emp){
+    const matchFlag = isMatch(emp);
+    const pct = coberturaPercent(emp);
+    const card = document.createElement('div');
+    card.className = 'card ' + (currentRecursos !== null ? 'match' : '');
+    let coberturaHtml = '';
+    if (pct !== null){
+      const pctClamped = Math.min(pct, 100);
+      coberturaHtml = `
+        <div class="cobertura-bar"><div class="cobertura-bar-fill" style="width:${pctClamped}%; background:var(--ok);"></div></div>
+        <div class="cobertura-label">
+          <span style="color:var(--ok);">✓ Fecha — potencial de compra cobre ${pct}% do valor</span>
+        </div>
+      `;
+    }
+    card.innerHTML = `
+      <div class="row1">
+        <div>
+          <div class="nome">${emp.nome || '(sem nome)'}</div>
+          <div class="construtora">${emp.construtora || ''}${emp.regiao ? ' · ' + emp.regiao : ''}</div>
+        </div>
+        <span class="badge ${statusBadgeClass(emp.status)}">${emp.status || '—'}</span>
+      </div>
+      <div class="meta">
+        <span>💰 ${fmtMoney(emp.precoMin)} — ${fmtMoney(emp.precoMax)}</span>
+        <span>📐 ${emp.m2min || '—'}–${emp.m2max || '—'} m²</span>
+        ${(!emp.lat || !emp.lng) ? '<span style="color:#B4690E;">📍 sem localização</span>' : ''}
+      </div>
+      ${coberturaHtml}
+      <div class="links">
+        ${emp.linkBook ? `<a href="${emp.linkBook}" target="_blank" rel="noopener">Book</a>` : ''}
+        ${emp.linkTabela ? `<a href="${emp.linkTabela}" target="_blank" rel="noopener">Tabela de preços</a>` : ''}
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      if (emp.lat && emp.lng){
+        map.setView([emp.lat, emp.lng], 14, {animate:true});
+        const mk = markers.find(m => m._empRef === emp);
+        if (mk) mk.openPopup();
+      }
+      document.getElementById('resultsModal').classList.remove('open');
+    });
+    results.appendChild(card);
+  }
+
+  if (visible.length === 0){
+    results.innerHTML = `<div class="empty-state">${currentRecursos !== null ? '<b>Nenhum empreendimento fecha com esse cliente ainda.</b><br/>Tente aumentar FGTS, entrada ou reforço anual.' : '<b>Nenhum empreendimento no filtro atual.</b>'}</div>`;
+  } else if (currentRecursos !== null){
+    const lbl = document.createElement('div');
+    lbl.className = 'result-group-label';
+    lbl.textContent = `✓ Fecham com esse cliente (${visible.length})`;
+    results.appendChild(lbl);
+    visible.forEach(addCard);
+  } else {
+    visible.forEach(addCard);
+  }
+
+  visible.forEach(emp => {
+    if (!emp.lat || !emp.lng) return;
+    const marker = L.marker([emp.lat, emp.lng], { icon: buildIcon(emp, isMatch(emp)) });
+    marker._empRef = emp;
+    const pct = coberturaPercent(emp);
+    marker.bindPopup(`
+      <div class="popup-title">${emp.nome || '(sem nome)'}</div>
+      <div class="popup-construtora">${emp.construtora || ''} · ${emp.status || ''}</div>
+      <div>💰 ${fmtMoney(emp.precoMin)} — ${fmtMoney(emp.precoMax)}</div>
+      <div>📐 ${emp.m2min || '—'}–${emp.m2max || '—'} m²</div>
+      ${pct !== null ? `<div style="margin-top:4px; font-weight:700; color:${isMatch(emp) ? '#2E7D46' : '#B4690E'};">${isMatch(emp) ? '✓ Fecha' : 'Não fecha ainda'} — cobre ${pct}%</div>` : ''}
+      <div class="popup-links" style="margin-top:6px;">
+        ${emp.linkBook ? `<a href="${emp.linkBook}" target="_blank" rel="noopener">Book</a>` : ''}
+        ${emp.linkTabela ? `<a href="${emp.linkTabela}" target="_blank" rel="noopener">Tabela</a>` : ''}
+      </div>
+    `);
+    marker.addTo(map);
+    markers.push(marker);
+    bounds.push([emp.lat, emp.lng]);
+  });
+
+  if (bounds.length){ map.fitBounds(bounds, { padding:[40,40], maxZoom:13 }); }
+}
+
+/* ===================== Renda input (+ dependente, carteira, FGTS, entrada, reforço anual) ===================== */
+const rendaInput = document.getElementById('rendaInput');
+const rendaSummary = document.getElementById('rendaSummary');
+const temDependenteSel = document.getElementById('temDependente');
+const carteira3anosSel = document.getElementById('carteira3anos');
+const fgtsInput = document.getElementById('fgtsInput');
+const entradaInput = document.getElementById('entradaInput');
+const anualInput = document.getElementById('anualInput');
+
+function parseMoneyInput(el){
+  const raw = (el.value || '').replace(/[^\d]/g, '');
+  return raw ? parseInt(raw, 10) : 0;
+}
+
+function recalcularTeto(){
+  const raw = rendaInput.value.replace(/[^\d]/g, '');
+  if (!raw){
+    currentRecursos = null; currentTetoProduto = null;
+    rendaSummary.style.display = 'none'; renderAll(); return;
+  }
+  const renda = parseInt(raw, 10);
+  const info = getFaixaInfo(renda);
+  rendaSummary.style.display = 'block';
+
+  const temDependente = temDependenteSel.value === 'sim';
+  const carteira3anos = carteira3anosSel.value === 'sim';
+  const fgts = parseMoneyInput(fgtsInput);
+  const entrada = parseMoneyInput(entradaInput);
+  const anual = parseMoneyInput(anualInput);
+  const linha = info.linha;
+
+  const financiamento = (carteira3anos ? linha.finComRedutor : linha.finSemRedutor) ?? linha.finSemRedutor ?? 0;
+  const subsidio = (temDependente ? linha.subsidioComDependente : linha.subsidioSemDependente) ?? 0;
+  const jurosUsado = (carteira3anos ? linha.jurosComRedutor : linha.jurosSemRedutor) ?? linha.jurosSemRedutor;
+
+  // Regra: financiamento + subsídio + FGTS (se houver) + entrada (se houver) + reforço anual (se houver)
+  currentRecursos = financiamento + subsidio + fgts + entrada + anual;
+  currentTetoProduto = linha.valorImovel;
+
+  if (info.abaixo || info.acima){
+    rendaSummary.classList.toggle('fora-faixa', !!info.acima);
+    const aviso = info.abaixo
+      ? 'Renda abaixo do menor patamar mapeado (R$ 1.000) — usando faixa mínima como referência.'
+      : 'Renda acima do teto MCMV mapeado (R$ 13.000) — considerar financiamento de mercado.';
+    rendaSummary.innerHTML = `${aviso}<br/><span class="teto">${fmtMoney(currentRecursos)}</span> em recursos disponíveis`;
+    renderAll();
+    return;
+  }
+
+  rendaSummary.classList.remove('fora-faixa');
+  rendaSummary.innerHTML = `
+    <b>${faixaLabel(renda)}</b> · Juros: ${jurosUsado}% a.a.<br/>
+    Financiamento: ${fmtMoney(financiamento)} + Subsídio: ${fmtMoney(subsidio)}${fgts ? ' + FGTS: ' + fmtMoney(fgts) : ''}${entrada ? ' + Entrada: ' + fmtMoney(entrada) : ''}${anual ? ' + Reforço anual: ' + fmtMoney(anual) : ''}<br/>
+    <span class="teto">${fmtMoney(currentRecursos)}</span> em recursos disponíveis
+    <br/><span style="font-size:11px; color:var(--muted);">Fecha empreendimentos com preço de entrada até ${fmtMoney(currentRecursos / 0.75)} (regra: recursos cobrem 75% do valor do imóvel), respeitando o teto do produto na faixa: ${fmtMoney(currentTetoProduto)}</span>
+  `;
+  renderAll();
+}
+
+[rendaInput, fgtsInput, entradaInput, anualInput].forEach(el => el.addEventListener('input', recalcularTeto));
+[temDependenteSel, carteira3anosSel].forEach(el => el.addEventListener('change', recalcularTeto));
+
+/* ===================== Filtros de status, valor e região ===================== */
+document.querySelectorAll('#statusFilters .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#statusFilters .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    statusFilter = chip.dataset.status;
+    renderAll();
+  });
+});
+document.getElementById('valorAteFilter').addEventListener('change', (e) => {
+  valorAteFilter = parseInt(e.target.value, 10) || 0;
+  renderAll();
+});
+document.querySelectorAll('#regiaoFilters .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('#regiaoFilters .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    regiaoFilter = chip.dataset.regiao;
+    renderAll();
+  });
+});
+
+/* ===================== Parsing comum (linhas -> objetos empreendimento) ===================== */
+function normalizarPreco(v){
+  if (v === null || v === undefined || isNaN(v) || v === 0) return null;
+  // Trava de segurança: nenhum imóvel MCMV custa menos de R$10 mil.
+  // Se vier um valor menor, é sinal de erro de formatação na planilha
+  // (ex: "285.000" digitado e o Sheets leu o ponto como decimal, virando 285).
+  // Nesses casos, assume que o valor real é 1000x maior.
+  if (v > 0 && v < 10000) return v * 1000;
+  return v;
+}
+
+function rowsToEmpreendimentos(rows){
+  let headerRowIdx = rows.findIndex(r => (r[0]+'').trim() === 'Construtora');
+  if (headerRowIdx === -1) return null;
+  const dataRows = rows.slice(headerRowIdx + 1).filter(r => (r[1]+'').trim() !== '');
+  return dataRows.map(r => ({
+    construtora: r[0],
+    nome: r[1],
+    status: r[2],
+    cidade: r[3],
+    regiao: r[4],
+    endereco: r[5],
+    lat: parseFloat((r[6]+'').replace(',','.')) || null,
+    lng: parseFloat((r[7]+'').replace(',','.')) || null,
+    precoMin: normalizarPreco(parseFloat((r[8]+'').replace(/[^\d.,-]/g,'').replace(',','.'))),
+    precoMax: normalizarPreco(parseFloat((r[9]+'').replace(/[^\d.,-]/g,'').replace(',','.'))),
+    m2min: r[10],
+    m2max: r[11],
+    linkBook: r[12],
+    linkTabela: r[13],
+    // Contato Comercial (r[14]) e WhatsApp (r[15]) propositalmente NÃO são carregados no mapa
+    dataAtualizacao: r[16],
+    mesReferencia: r[17],
+  })).filter(e => e.nome && (e.nome+'').indexOf('apagar antes de usar') === -1);
+}
+
+function setLoadStatus(msg, isError){
+  const el = document.getElementById('loadStatus');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+  el.classList.toggle('error', !!isError);
+}
+
+async function afterLoad(){
+  const semCoordInicial = empreendimentos.filter(e => !e.lat || !e.lng).length;
+  document.getElementById('fileStatus').textContent = `${empreendimentos.length} empreendimentos` + (semCoordInicial ? ` — resolvendo ${semCoordInicial} coordenadas...` : '');
+  renderAll();
+  await resolveCoordinates(empreendimentos);
+  const semCoordFinal = empreendimentos.filter(e => !e.lat || !e.lng).length;
+  document.getElementById('fileStatus').textContent = `${empreendimentos.length} empreendimentos` + (semCoordFinal ? ` (${semCoordFinal} sem localização)` : '');
+  document.getElementById('downloadBtn').style.display = 'inline-flex';
+  renderAll();
+}
+
+/* ===================== Carregar da planilha online (Google Sheets, via JSONP) ===================== */
+async function loadFromWeb(url, tentativa){
+  tentativa = tentativa || 1;
+  const maxTentativas = 3;
+  const ids = extractSheetIds(url);
+  if (!ids){
+    setLoadStatus('Link da planilha configurado é inválido. Fale com o administrador do mapa.', true);
+    return false;
+  }
+  document.getElementById('fileStatus').textContent = tentativa === 1
+    ? 'Carregando planilha online...'
+    : `Carregando planilha online... (tentativa ${tentativa}/${maxTentativas})`;
+  setLoadStatus('Buscando dados da planilha online...', false);
+  try{
+    const json = await loadSheetJSONP(ids.id, ids.gid);
+    const rows = dataTableToRows(json);
+    const empList = rowsToEmpreendimentos(rows);
+    if (!empList){
+      setLoadStatus('Não encontrei o cabeçalho "Construtora" na planilha. Fale com o administrador do mapa.', true);
+      return false;
+    }
+    empreendimentos = empList;
+    setLoadStatus('');
+    await afterLoad();
+    return true;
+  } catch(err){
+    console.error(err);
+    if (tentativa < maxTentativas){
+      setLoadStatus(`Falha ao carregar (tentativa ${tentativa}/${maxTentativas}) — tentando de novo...`, true);
+      await sleep(1800);
+      return loadFromWeb(url, tentativa + 1);
+    }
+    setLoadStatus('Não consegui carregar a planilha online após ' + maxTentativas + ' tentativas: ' + err.message + '. Toque em "Atualizar" pra tentar de novo.', true);
+    document.getElementById('fileStatus').textContent = 'Falha ao carregar planilha online';
+    return false;
+  }
+}
+
+/* ===================== Atualizar da planilha (fonte fixa, sem edição) ===================== */
+document.getElementById('reloadBtn').addEventListener('click', () => loadFromWeb(currentSheetUrl));
+
+/* ===================== Modal de resultados ===================== */
+const resultsModal = document.getElementById('resultsModal');
+document.getElementById('openResultsBtn').addEventListener('click', () => resultsModal.classList.add('open'));
+document.getElementById('closeResultsBtn').addEventListener('click', () => resultsModal.classList.remove('open'));
+resultsModal.addEventListener('click', (e) => { if (e.target === resultsModal) resultsModal.classList.remove('open'); });
+
+/* ===================== Init ===================== */
+renderZonas();
+renderMetro();
+renderAll();
+loadFromWeb(currentSheetUrl);
+</script>
+</body>
+</html>
