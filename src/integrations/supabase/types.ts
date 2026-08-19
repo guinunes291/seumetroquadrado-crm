@@ -3745,6 +3745,7 @@ export type Database = {
           created_at: string
           criterio_participacao: string
           descricao: string | null
+          equipe_fixa: boolean
           exigir_presenca: boolean
           horario_fim: string | null
           horario_inicio: string | null
@@ -3773,6 +3774,7 @@ export type Database = {
           created_at?: string
           criterio_participacao?: string
           descricao?: string | null
+          equipe_fixa?: boolean
           exigir_presenca?: boolean
           horario_fim?: string | null
           horario_inicio?: string | null
@@ -3801,6 +3803,7 @@ export type Database = {
           created_at?: string
           criterio_participacao?: string
           descricao?: string | null
+          equipe_fixa?: boolean
           exigir_presenca?: boolean
           horario_fim?: string | null
           horario_inicio?: string | null

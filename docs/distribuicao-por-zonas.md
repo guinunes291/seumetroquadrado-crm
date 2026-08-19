@@ -145,6 +145,16 @@ Recomendação de estado-alvo, quando a operação por zona estiver rodando bem:
 Tudo pela UI, sem migration, e reversível (reativar a roleta e reapontar a
 origem desfaz a mesclagem).
 
+### Campanhas de equipe fixa (migration 20260819100000)
+
+Exceção deliberada ao zona-primeiro: campanha marcada como **equipe fixa** no
+painel de Campanhas não delega para as roletas de zona nem filtra por
+`profiles.zonas` — o lead cai SEMPRE no time da campanha (rodízio ponderado
+por tier), seja qual for a zona. Uso: contas de anúncio próprias por equipe
+(`equipe-guilherme` e `equipe-bruno`, semeadas com token próprio). O painel
+ganhou o botão "Nova campanha" e o switch "Equipe fixa" por campanha; o
+repasse por SLA já ficava dentro da equipe da campanha e segue igual.
+
 ## O que fica como está (de propósito)
 
 - **n8n/Marquinhos**: nenhuma mudança necessária. O handoff continua batendo no
