@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Switch } from "@/components/ui/switch";
 import {
   Radio,
   ShieldAlert,
@@ -55,6 +56,7 @@ type Roleta = {
   nome: string;
   ativo: boolean;
   tipo: string;
+  equipe_fixa: boolean;
   webhook_token: string | null;
   projeto_id: string | null;
   tiers_recalculados_em: string | null;
@@ -97,6 +99,7 @@ export function CampanhasPage() {
   const podeVer = isAdmin;
   const [equipeDe, setEquipeDe] = useState<Roleta | null>(null);
   const [criarProjetoPara, setCriarProjetoPara] = useState<Roleta | null>(null);
+  const [novaCampanhaAberta, setNovaCampanhaAberta] = useState(false);
   const [tokenVisivel, setTokenVisivel] = useState<Record<string, boolean>>({});
   const qc = useQueryClient();
 
@@ -107,7 +110,7 @@ export function CampanhasPage() {
       const { data, error } = await supabase
         .from("roletas")
         .select(
-          "id, slug, nome, ativo, tipo, webhook_token, projeto_id, tiers_recalculados_em, peso_tier_a, peso_tier_b, peso_tier_c",
+          "id, slug, nome, ativo, tipo, equipe_fixa, webhook_token, projeto_id, tiers_recalculados_em, peso_tier_a, peso_tier_b, peso_tier_c",
         )
         .eq("tipo", "campanha")
         .order("nome");
@@ -180,6 +183,65 @@ export function CampanhasPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Equipe fixa: campanha que NÃO delega para as roletas de zona — o lead
+  // fica sempre no time da campanha (contas de anúncio próprias por equipe).
+  const toggleEquipeFixa = useMutation({
+    mutationFn: async ({ roletaId, valor }: { roletaId: string; valor: boolean }) => {
+      const { error } = await supabase
+        .from("roletas")
+        .update({ equipe_fixa: valor })
+        .eq("id", roletaId);
+      if (error) throw error;
+      return valor;
+    },
+    onSuccess: (valor) => {
+      toast.success(
+        valor
+          ? "Equipe fixa: os leads desta campanha não vão mais para as roletas de zona."
+          : "Campanha volta a respeitar as roletas de zona.",
+      );
+      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const criarCampanha = useMutation({
+    mutationFn: async ({ nome, equipeFixa }: { nome: string; equipeFixa: boolean }) => {
+      const slug =
+        nome
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 60) || `campanha-${Date.now()}`;
+      // Mesmo formato dos tokens gerados no banco: 48 hex (24 bytes).
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      const { error } = await supabase.from("roletas").insert({
+        slug,
+        nome,
+        tipo: "campanha",
+        criterio_participacao: "manual",
+        exigir_presenca: true,
+        ativo: true,
+        equipe_fixa: equipeFixa,
+        webhook_token: token,
+        descricao: equipeFixa
+          ? "Campanha de equipe fixa — leads caem sempre neste time, sem corte por zona."
+          : "Campanha criada pelo painel.",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Campanha criada — monte a equipe e copie o token.");
+      setNovaCampanhaAberta(false);
+      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const recalcular = useMutation({
     mutationFn: async (slug: string) => {
       const { data, error } = await supabase.rpc("recalcular_tiers_roleta", {
@@ -220,14 +282,19 @@ export function CampanhasPage() {
 
   return (
     <div className="space-y-6">
-      <SectionHeader
-        eyebrow="Campanhas"
-        title={
-          <span className="flex items-center gap-1.5">
-            <Radio className="h-4 w-4 text-primary" /> Roletas por projeto (webhook)
-          </span>
-        }
-      />
+      <div className="flex items-start justify-between gap-3">
+        <SectionHeader
+          eyebrow="Campanhas"
+          title={
+            <span className="flex items-center gap-1.5">
+              <Radio className="h-4 w-4 text-primary" /> Roletas por projeto (webhook)
+            </span>
+          }
+        />
+        <Button size="sm" onClick={() => setNovaCampanhaAberta(true)}>
+          <Plus className="mr-1 h-3.5 w-3.5" /> Nova campanha
+        </Button>
+      </div>
       <p className="-mt-4 text-sm text-muted-foreground">
         Cada campanha tem seu próprio token de webhook, sua equipe e sua distribuição ponderada por
         tier (A={campanhasQ.data?.[0]?.peso_tier_a ?? 3}, B=
@@ -242,6 +309,7 @@ export function CampanhasPage() {
               <TableRow>
                 <TableHead>Campanha</TableHead>
                 <TableHead>Projeto vinculado</TableHead>
+                <TableHead>Equipe fixa</TableHead>
                 <TableHead>Token do webhook</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -299,6 +367,20 @@ export function CampanhasPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={r.equipe_fixa}
+                          disabled={toggleEquipeFixa.isPending}
+                          onCheckedChange={(v) =>
+                            toggleEquipeFixa.mutate({ roletaId: r.id, valor: v })
+                          }
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {r.equipe_fixa ? "Sempre neste time" : "Respeita zonas"}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="flex items-center gap-1">
@@ -366,7 +448,7 @@ export function CampanhasPage() {
               })}
               {campanhasQ.isSuccess && (campanhasQ.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4}>
+                  <TableCell colSpan={5}>
                     <EmptyState
                       icon={Radio}
                       title="Nenhuma campanha ainda."
@@ -392,7 +474,74 @@ export function CampanhasPage() {
           pending={criarEVincular.isPending}
         />
       )}
+
+      {novaCampanhaAberta && (
+        <NovaCampanhaDialog
+          onClose={() => setNovaCampanhaAberta(false)}
+          onConfirm={(nome, equipeFixa) => criarCampanha.mutate({ nome, equipeFixa })}
+          pending={criarCampanha.isPending}
+        />
+      )}
     </div>
+  );
+}
+
+function NovaCampanhaDialog({
+  onClose,
+  onConfirm,
+  pending,
+}: {
+  onClose: () => void;
+  onConfirm: (nome: string, equipeFixa: boolean) => void;
+  pending: boolean;
+}) {
+  const [nome, setNome] = useState("");
+  const [equipeFixa, setEquipeFixa] = useState(false);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nova campanha</DialogTitle>
+          <DialogDescription>
+            Cria a roleta da campanha com token de webhook próprio. Depois, monte a equipe no botão
+            "Equipe" e aponte a fonte (Zap/n8n) para a URL do token.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="nova-campanha-nome">Nome da campanha</Label>
+            <Input
+              id="nova-campanha-nome"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex.: Equipe Bruno"
+              autoFocus
+            />
+          </div>
+          <div className="flex items-start gap-3 rounded-md border p-3">
+            <Switch checked={equipeFixa} onCheckedChange={setEquipeFixa} id="nova-campanha-fixa" />
+            <div className="space-y-0.5">
+              <Label htmlFor="nova-campanha-fixa">Equipe fixa</Label>
+              <p className="text-xs text-muted-foreground">
+                Os leads desta campanha caem sempre neste time — não vão para as roletas de zona,
+                seja qual for a zona do lead.
+              </p>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => onConfirm(nome.trim(), equipeFixa)}
+            disabled={!nome.trim() || pending}
+          >
+            {pending ? "Criando…" : "Criar campanha"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
