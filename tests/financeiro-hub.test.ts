@@ -13,17 +13,18 @@ const ranking = read("src/routes/_authenticated/ranking.tsx");
 const aprovacao = read("src/components/pending-sales-approval.tsx");
 
 describe("item 2.4 — hub Dinheiro (/financeiro)", () => {
-  it("a rota monta fechamento e comissões (aprovação vem dentro da ComissoesPage)", () => {
+  it("a rota monta fechamento, comissões e DRE (aprovação vem dentro da ComissoesPage)", () => {
     expect(hub).toContain('createFileRoute("/_authenticated/financeiro/")');
     expect(hub).toContain("<FechamentoPage />");
     expect(hub).toContain("<ComissoesPage />");
+    expect(hub).toContain("<DrePage />");
   });
 
   it("guard por ABA, não por rota — corretor mantém acesso às próprias comissões", () => {
-    // Fechamento é admin/gestor; sem o papel, degrada para Comissões (RLS
-    // recorta os dados) em vez de redirecionar ou mostrar tela vazia.
+    // Fechamento e DRE são admin/gestor; sem o papel, degradam para Comissões
+    // (RLS recorta os dados) em vez de redirecionar ou mostrar tela vazia.
     expect(hub).toContain("podeFechamento");
-    expect(hub).toMatch(/tab === "fechamento" && !podeFechamento/);
+    expect(hub).toMatch(/\(tab === "fechamento" \|\| tab === "dre"\) && !podeFechamento/);
     expect(hub).not.toMatch(/throw redirect\(\{ to: "\/" \}\)/);
   });
 

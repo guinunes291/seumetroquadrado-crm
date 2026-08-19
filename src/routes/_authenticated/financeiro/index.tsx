@@ -4,6 +4,7 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FechamentoPage } from "@/features/financeiro/fechamento-page";
 import { ComissoesPage } from "@/features/comissoes/comissoes-page";
+import { DrePage } from "@/features/financeiro/dre-page";
 
 // DINHEIRO — hub financeiro (auditoria ux-ia-2026-08, item 2.4 [DECIDIDO]):
 // fechamento, comissões e aprovação de venda no mesmo lugar. Responde "o que
@@ -14,7 +15,10 @@ import { ComissoesPage } from "@/features/comissoes/comissoes-page";
 // Guard POR ABA, não por rota: Fechamento é ferramenta de admin/gestor, mas
 // Comissões é também o resultado financeiro PESSOAL do corretor (recortado
 // pela RLS) — um guard de rota admin/gestor quebraria o corretor.
-const FINANCEIRO_TABS = ["fechamento", "comissoes"] as const;
+//
+// DRE: resultado por unidade + consolidado da rede (módulo dre_*, 100%
+// aditivo). Mesma regra do Fechamento — ferramenta de gestão, guard por aba.
+const FINANCEIRO_TABS = ["fechamento", "comissoes", "dre"] as const;
 type FinanceiroTab = (typeof FINANCEIRO_TABS)[number];
 
 export const Route = createFileRoute("/_authenticated/financeiro/")({
@@ -53,10 +57,10 @@ function FinanceiroPage() {
   }
 
   // Default por papel: gestão cai no Fechamento (ferramenta diária); corretor
-  // e superintendente caem nas Comissões. Deep-link de fechamento sem papel
-  // degrada para Comissões em vez de tela vazia.
+  // e superintendente caem nas Comissões. Deep-link de fechamento/DRE sem
+  // papel degrada para Comissões em vez de tela vazia.
   const activeTab: FinanceiroTab =
-    tab === "fechamento" && !podeFechamento
+    (tab === "fechamento" || tab === "dre") && !podeFechamento
       ? "comissoes"
       : (tab ?? (podeFechamento ? "fechamento" : "comissoes"));
   const onTabChange = (v: string) =>
@@ -81,6 +85,7 @@ function FinanceiroPage() {
       items={[
         { value: "fechamento", label: "Fechamento" },
         { value: "comissoes", label: "Comissões & Aprovação" },
+        { value: "dre", label: "DRE" },
       ]}
     >
       <ResponsiveTabsContent value="fechamento">
@@ -88,6 +93,9 @@ function FinanceiroPage() {
       </ResponsiveTabsContent>
       <ResponsiveTabsContent value="comissoes">
         <ComissoesPage />
+      </ResponsiveTabsContent>
+      <ResponsiveTabsContent value="dre">
+        <DrePage />
       </ResponsiveTabsContent>
     </ResponsiveTabs>
   );

@@ -1701,6 +1701,318 @@ export type Database = {
           },
         ]
       }
+      dre_categorias_despesa: {
+        Row: {
+          ativa: boolean
+          grupo: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativa?: boolean
+          grupo: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativa?: boolean
+          grupo?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      dre_despesas: {
+        Row: {
+          categoria_id: string
+          competencia: string
+          created_at: string
+          created_by: string | null
+          data_pagamento: string | null
+          descricao: string
+          fornecedor: string | null
+          id: string
+          observacoes: string | null
+          recorrente: boolean
+          unidade_id: string
+          valor: number
+        }
+        Insert: {
+          categoria_id: string
+          competencia: string
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string | null
+          descricao: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          recorrente?: boolean
+          unidade_id: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string
+          competencia?: string
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string | null
+          descricao?: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          recorrente?: boolean
+          unidade_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_despesas_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "dre_categorias_despesa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_despesas_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_orcamento: {
+        Row: {
+          ano: number
+          id: string
+          linha: string
+          mes: number
+          unidade_id: string
+          valor: number
+        }
+        Insert: {
+          ano: number
+          id?: string
+          linha: string
+          mes: number
+          unidade_id: string
+          valor: number
+        }
+        Update: {
+          ano?: number
+          id?: string
+          linha?: string
+          mes?: number
+          unidade_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_orcamento_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_parametros: {
+        Row: {
+          caixa_minimo_meses_custo_fixo: number
+          comissao_total_pct: number
+          consultor_pct: number
+          created_at: string
+          gerente_pct: number
+          id: string
+          imposto_sobre_faturamento_pct: number
+          reinvestimento_pct_ebitda: number
+          reserva_expansao_pct_ebitda: number
+          socio_operador_pct: number
+          unidade_id: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          caixa_minimo_meses_custo_fixo?: number
+          comissao_total_pct: number
+          consultor_pct: number
+          created_at?: string
+          gerente_pct: number
+          id?: string
+          imposto_sobre_faturamento_pct: number
+          reinvestimento_pct_ebitda: number
+          reserva_expansao_pct_ebitda: number
+          socio_operador_pct: number
+          unidade_id?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          caixa_minimo_meses_custo_fixo?: number
+          comissao_total_pct?: number
+          consultor_pct?: number
+          created_at?: string
+          gerente_pct?: number
+          id?: string
+          imposto_sobre_faturamento_pct?: number
+          reinvestimento_pct_ebitda?: number
+          reserva_expansao_pct_ebitda?: number
+          socio_operador_pct?: number
+          unidade_id?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_parametros_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_socios_participacao: {
+        Row: {
+          id: string
+          percentual: number
+          socio_nome: string
+          unidade_id: string
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          id?: string
+          percentual: number
+          socio_nome: string
+          unidade_id: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Update: {
+          id?: string
+          percentual?: number
+          socio_nome?: string
+          unidade_id?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_socios_participacao_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_unidade_membros: {
+        Row: {
+          id: string
+          papel: string
+          profile_id: string
+          unidade_id: string
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          id?: string
+          papel?: string
+          profile_id: string
+          unidade_id: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Update: {
+          id?: string
+          papel?: string
+          profile_id?: string
+          unidade_id?: string
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_unidade_membros_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_unidade_membros_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dre_unidades: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          id: string
+          nome: string
+          operador_nome: string | null
+          ordem: number
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          operador_nome?: string | null
+          ordem?: number
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          operador_nome?: string | null
+          ordem?: number
+        }
+        Relationships: []
+      }
+      dre_venda_unidade: {
+        Row: {
+          definido_em: string
+          definido_por: string | null
+          unidade_id: string
+          venda_id: string
+        }
+        Insert: {
+          definido_em?: string
+          definido_por?: string | null
+          unidade_id: string
+          venda_id: string
+        }
+        Update: {
+          definido_em?: string
+          definido_por?: string | null
+          unidade_id?: string
+          venda_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_venda_unidade_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_venda_unidade_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: true
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           ativo: boolean
@@ -4942,6 +5254,32 @@ export type Database = {
           },
         ]
       }
+      dre_vw_vendas_unidade: {
+        Row: {
+          cliente: string | null
+          corretor_id: string | null
+          corretor_nome: string | null
+          data_assinatura: string | null
+          data_recebimento: string | null
+          distrato: boolean | null
+          empreendimento: string | null
+          lead_id: string | null
+          origem_atribuicao: string | null
+          status_venda: Database["public"]["Enums"]["status_venda"] | null
+          unidade_id: string | null
+          valor_venda: number | null
+          venda_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dre_venda_unidade_unidade_id_fkey"
+            columns: ["unidade_id"]
+            isOneToOne: false
+            referencedRelation: "dre_unidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mcp_colunas_sem_grant: {
         Row: {
           coluna: string | null
@@ -5726,6 +6064,66 @@ export type Database = {
       documentacao_upload_valido: {
         Args: { _metadata: Json }
         Returns: boolean
+      }
+      dre_avisos: {
+        Args: { p_ano: number; p_unidade_id: string | null }
+        Returns: {
+          pendentes_qtd: number
+          pendentes_vgv: number
+          sem_recebimento_qtd: number
+          sem_recebimento_vgv: number
+          sem_unidade_qtd: number
+          sem_unidade_vgv: number
+        }[]
+      }
+      dre_calcular: {
+        Args: {
+          p_ano: number
+          p_modo_pct?: string
+          p_regime?: string
+          p_unidade_id: string | null
+        }
+        Returns: {
+          linha: string
+          mes: number
+          ordem: number
+          rotulo: string
+          valor: number
+        }[]
+      }
+      dre_drill_vendas: {
+        Args: {
+          p_ano: number
+          p_mes: number
+          p_modo_pct?: string
+          p_regime?: string
+          p_unidade_id: string | null
+        }
+        Returns: {
+          cliente: string | null
+          consultor: number
+          corretor_nome: string | null
+          data_assinatura: string
+          data_recebimento: string | null
+          empreendimento: string | null
+          faturamento: number
+          gerente: number
+          impostos: number
+          lead_id: string | null
+          socio_operador: number
+          unidade_nome: string
+          venda_id: string
+          vgv: number
+        }[]
+      }
+      dre_renda_pessoas: {
+        Args: { p_ano: number }
+        Returns: {
+          nome: string
+          profile_id: string | null
+          tipo: string
+          total: number
+        }[]
       }
       elegibilidade_roleta: {
         Args: { _slug: string }
