@@ -6156,7 +6156,7 @@ export type Database = {
         Returns: boolean
       }
       dre_avisos: {
-        Args: { p_ano: number; p_unidade_id: string }
+        Args: { p_ano: number; p_unidade_id: string | null }
         Returns: {
           pendentes_qtd: number
           pendentes_vgv: number
@@ -6171,7 +6171,7 @@ export type Database = {
           p_ano: number
           p_modo_pct?: string
           p_regime?: string
-          p_unidade_id: string
+          p_unidade_id: string | null
         }
         Returns: {
           linha: string
@@ -6187,7 +6187,7 @@ export type Database = {
           p_mes: number
           p_modo_pct?: string
           p_regime?: string
-          p_unidade_id: string
+          p_unidade_id: string | null
         }
         Returns: {
           cliente: string
