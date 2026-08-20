@@ -739,6 +739,13 @@ export type Database = {
             foreignKeyName: "comissao_ledger_venda_id_fkey"
             columns: ["venda_id"]
             isOneToOne: false
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
+          },
+          {
+            foreignKeyName: "comissao_ledger_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
@@ -817,6 +824,13 @@ export type Database = {
             foreignKeyName: "comissoes_venda_id_fkey"
             columns: ["venda_id"]
             isOneToOne: false
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
+          },
+          {
+            foreignKeyName: "comissoes_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
@@ -885,6 +899,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "extrato_transacoes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conciliacoes_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
           },
           {
             foreignKeyName: "conciliacoes_venda_id_fkey"
@@ -2003,6 +2024,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "dre_unidades"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_venda_unidade_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: true
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
           },
           {
             foreignKeyName: "dre_venda_unidade_venda_id_fkey"
@@ -4668,8 +4696,22 @@ export type Database = {
             foreignKeyName: "venda_integridade_conflitos_venda_conflitante_id_fkey"
             columns: ["venda_conflitante_id"]
             isOneToOne: true
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
+          },
+          {
+            foreignKeyName: "venda_integridade_conflitos_venda_conflitante_id_fkey"
+            columns: ["venda_conflitante_id"]
+            isOneToOne: true
             referencedRelation: "vendas"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_integridade_conflitos_venda_preservada_id_fkey"
+            columns: ["venda_preservada_id"]
+            isOneToOne: false
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
           },
           {
             foreignKeyName: "venda_integridade_conflitos_venda_preservada_id_fkey"
@@ -4721,6 +4763,13 @@ export type Database = {
           vgv_delta?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "venda_metricas_ledger_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "dre_vw_vendas_unidade"
+            referencedColumns: ["venda_id"]
+          },
           {
             foreignKeyName: "venda_metricas_ledger_venda_id_fkey"
             columns: ["venda_id"]
@@ -5272,10 +5321,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "dre_venda_unidade_unidade_id_fkey"
-            columns: ["unidade_id"]
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
             isOneToOne: false
-            referencedRelation: "dre_unidades"
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -5401,6 +5450,47 @@ export type Database = {
           _tipo?: Database["public"]["Enums"]["distribuicao_tipo"]
         }
         Returns: Json
+      }
+      _dre_calcular_unidade: {
+        Args: {
+          p_ano: number
+          p_modo_pct: string
+          p_regime: string
+          p_unidade_id: string
+        }
+        Returns: {
+          linha: string
+          mes: number
+          valor: number
+        }[]
+      }
+      _dre_pct: {
+        Args: { p_modo: string; p_pct_param: number; p_pct_venda: number }
+        Returns: number
+      }
+      _dre_vendas_calc: {
+        Args: {
+          p_ano: number
+          p_modo_pct: string
+          p_regime: string
+          p_unidade_id: string
+        }
+        Returns: {
+          cliente: string
+          consultor: number
+          corretor_nome: string
+          data_assinatura: string
+          data_recebimento: string
+          empreendimento: string
+          faturamento: number
+          gerente: number
+          impostos: number
+          lead_id: string
+          mes: number
+          socio_operador: number
+          venda_id: string
+          vgv: number
+        }[]
       }
       _elegibilidade_roleta: {
         Args: { _corretor_id?: string; _slug: string }
@@ -6066,7 +6156,7 @@ export type Database = {
         Returns: boolean
       }
       dre_avisos: {
-        Args: { p_ano: number; p_unidade_id: string | null }
+        Args: { p_ano: number; p_unidade_id: string }
         Returns: {
           pendentes_qtd: number
           pendentes_vgv: number
@@ -6081,7 +6171,7 @@ export type Database = {
           p_ano: number
           p_modo_pct?: string
           p_regime?: string
-          p_unidade_id: string | null
+          p_unidade_id: string
         }
         Returns: {
           linha: string
@@ -6097,30 +6187,54 @@ export type Database = {
           p_mes: number
           p_modo_pct?: string
           p_regime?: string
-          p_unidade_id: string | null
+          p_unidade_id: string
         }
         Returns: {
-          cliente: string | null
+          cliente: string
           consultor: number
-          corretor_nome: string | null
+          corretor_nome: string
           data_assinatura: string
-          data_recebimento: string | null
-          empreendimento: string | null
+          data_recebimento: string
+          empreendimento: string
           faturamento: number
           gerente: number
           impostos: number
-          lead_id: string | null
+          lead_id: string
           socio_operador: number
           unidade_nome: string
           venda_id: string
           vgv: number
         }[]
       }
+      dre_param_vigente: {
+        Args: { p_data: string; p_unidade_id: string }
+        Returns: {
+          caixa_minimo_meses_custo_fixo: number
+          comissao_total_pct: number
+          consultor_pct: number
+          created_at: string
+          gerente_pct: number
+          id: string
+          imposto_sobre_faturamento_pct: number
+          reinvestimento_pct_ebitda: number
+          reserva_expansao_pct_ebitda: number
+          socio_operador_pct: number
+          unidade_id: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "dre_parametros"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       dre_renda_pessoas: {
         Args: { p_ano: number }
         Returns: {
           nome: string
-          profile_id: string | null
+          profile_id: string
           tipo: string
           total: number
         }[]
