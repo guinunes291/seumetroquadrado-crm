@@ -82,3 +82,33 @@ describe("UI — painel de Campanhas", () => {
     expect(page).toMatch(/equipe_fixa, webhook_token/);
   });
 });
+
+describe("notificação ao corretor no webhook por token", () => {
+  const rota = read("src/routes/api/public/webhooks/lead/$token.ts");
+  const zapi = read("src/lib/zapi.server.ts");
+
+  it("corretor recebe WhatsApp com o EMPREENDIMENTO em destaque", () => {
+    expect(rota).toContain("enviarWhatsAppZapi");
+    expect(rota).toContain("🏢 Empreendimento: ${projetoNomeFinal}");
+    expect(rota).toContain("🔔 *Novo lead recebido!*");
+  });
+
+  it("chatbot fica de fora (o dossiê do Marquinhos já avisa) e falha vira alerta in-app", () => {
+    expect(rota).toContain('data.origem !== "chatbot"');
+    expect(rota).toContain('"Novo lead atribuído (notificação WhatsApp falhou)"');
+  });
+
+  it("a mensagem nunca inclui o telefone do lead", () => {
+    const bloco = rota.slice(
+      rota.indexOf("Novo lead recebido!"),
+      rota.indexOf("Sincroniza com Banco Operacional externo"),
+    );
+    expect(bloco).not.toContain("data.telefone");
+  });
+
+  it("helper server-only nunca lança e degrada sem envs (zapi_nao_configurada)", () => {
+    expect(zapi).toContain('return "zapi_nao_configurada"');
+    expect(zapi).toContain("process.env.ZAPI_INSTANCE_ID");
+    expect(zapi).not.toContain("throw");
+  });
+});

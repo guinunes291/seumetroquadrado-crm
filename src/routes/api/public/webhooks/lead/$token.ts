@@ -460,6 +460,37 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           }
         }
 
+        // Notificação ao corretor no WhatsApp — com o EMPREENDIMENTO em
+        // destaque. Leads de chatbot ficam de fora: o fluxo do Marquinhos
+        // (n8n) já envia o dossiê completo, e avisar duas vezes confunde.
+        // Nunca inclui o telefone do lead. Falha de envio não derruba o
+        // intake: vira alerta in-app para o corretor.
+        let notificacao = "nao_aplicavel";
+        if (distributed && corretorId && data.origem !== "chatbot") {
+          const { enviarWhatsAppZapi } = await import("@/lib/zapi.server");
+          const appBase = new URL(request.url).origin;
+          const linhas = [
+            "🔔 *Novo lead recebido!*",
+            "",
+            `👤 Nome: ${data.nome}`,
+            `🏢 Empreendimento: ${projetoNomeFinal}`,
+            ...(data.faixaRenda ? [`💰 Faixa de renda: ${data.faixaRenda}`] : []),
+            "",
+            `Acesse: ${appBase}/leads/${lead.id}`,
+          ];
+          notificacao = await enviarWhatsAppZapi(corretorTelefone, linhas.join("\n"));
+          if (notificacao !== "enviada") {
+            await supabaseAdmin.from("alertas").insert({
+              user_id: corretorId,
+              tipo: "lead_novo",
+              titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
+              mensagem: `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.`,
+              link: `/leads/${lead.id}`,
+              ref_id: lead.id,
+            });
+          }
+        }
+
         // Sincroniza com Banco Operacional externo (idempotente por telefone_e164).
         // Falha aqui NÃO bloqueia a resposta — intake e roleta seguem intactos.
         try {
@@ -497,6 +528,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             corretor_telefone: corretorTelefone,
             corretor_email: corretorEmail,
             distributed,
+            notificacao,
             motivo,
             excecao_motivo: excecaoMotivo,
           },
