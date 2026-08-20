@@ -12,6 +12,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/interacoes";
+import { useAuth } from "@/hooks/use-auth";
+
 
 type Alerta = {
   id: string;
