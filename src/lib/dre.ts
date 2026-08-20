@@ -163,7 +163,7 @@ export async function fetchDreGrade(
   modoPct: DreModoPct,
 ): Promise<DreGrade> {
   const { data, error } = await supabase.rpc("dre_calcular", {
-    p_unidade_id: unidadeId,
+    p_unidade_id: unidadeId as string,
     p_ano: ano,
     p_regime: regime,
     p_modo_pct: modoPct,
@@ -181,7 +181,7 @@ export async function fetchDreGrade(
 
 export async function fetchDreAvisos(unidadeId: string | null, ano: number): Promise<DreAvisos> {
   const { data, error } = await supabase.rpc("dre_avisos", {
-    p_unidade_id: unidadeId,
+    p_unidade_id: unidadeId as string,
     p_ano: ano,
   });
   if (error) throw error;
@@ -204,7 +204,7 @@ export async function fetchDreDrillVendas(
   modoPct: DreModoPct,
 ): Promise<DreDrillVenda[]> {
   const { data, error } = await supabase.rpc("dre_drill_vendas", {
-    p_unidade_id: unidadeId,
+    p_unidade_id: unidadeId as string,
     p_ano: ano,
     p_mes: mes,
     p_regime: regime,
