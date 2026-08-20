@@ -25,20 +25,28 @@ type Alerta = {
 
 export function NotificationBell() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
 
+  // Filtro explícito por user_id: sem ele o Postgres varre a tabela inteira
+  // ordenada por created_at e aplica RLS linha a linha (consulta mais cara do CRM).
   const { data: alertas = [] } = useQuery({
-    queryKey: ["alertas"],
+    queryKey: ["alertas", userId],
+    enabled: !!userId,
     queryFn: async (): Promise<Alerta[]> => {
       const { data, error } = await supabase
         .from("alertas")
         .select("id, titulo, mensagem, link, lida, tipo, created_at")
+        .eq("user_id", userId!)
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
       return (data ?? []) as Alerta[];
     },
-    refetchInterval: 60_000,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
   });
+
 
   useEffect(() => {
     const channel = supabase
