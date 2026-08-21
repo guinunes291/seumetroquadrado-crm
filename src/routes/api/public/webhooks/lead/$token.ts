@@ -1,70 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
-
-const optStr = (max = 2000) => z.string().trim().max(max).optional().nullable();
-
-const payloadSchema = z.object({
-  nome: z.string().trim().min(1).max(255),
-  telefone: z
-    .string()
-    .trim()
-    .min(5)
-    .max(30)
-    .refine((v) => {
-      const d = v.replace(/\D/g, "");
-      return d.length >= 10 && d.length <= 13;
-    }, "telefone inválido"),
-  email: z.string().trim().email().max(320).optional().nullable(),
-  origem: z
-    .enum([
-      "facebook",
-      "google_sheets",
-      "site",
-      "indicacao",
-      "captacao_corretor",
-      "whatsapp",
-      "telefone",
-      "plantao",
-      "agendamento_self_service",
-      "chatbot",
-      "impulso_smq",
-      "outro",
-    ])
-    .optional()
-    .default("outro"),
-  campanha: optStr(255),
-  empreendimento: optStr(255),
-  observacoes: optStr(),
-  observacao: optStr(),
-  resumo: optStr(4000),
-  utm_source: optStr(255),
-  utm_medium: optStr(255),
-  utm_campaign: optStr(255),
-  utm_content: optStr(255),
-  distribuir: z.boolean().optional().default(true),
-  // Zona/bairro do lead (texto livre — o trigger do banco normaliza "zona
-  // leste" → 'Leste' ou resolve pelo bairro via zonas_bairros; o que não
-  // normalizar fica NULL e o lead segue o fluxo por origem, sem corte).
-  zona: optStr(120),
-  bairro: optStr(255),
-  // Qualificação IA (handoff)
-  faixaRenda: optStr(120),
-  finalidadeImovel: optStr(120),
-  empreendimentoInteresse: optStr(255),
-  regiao: optStr(255),
-  fgts: optStr(255),
-  decisor: optStr(255),
-  temperatura: z
-    .union([
-      z.enum(["FRIO", "MORNO", "QUENTE", "PRONTO", "frio", "morno", "quente", "pronto"]),
-      z.literal(""),
-    ])
-    .optional()
-    .nullable(),
-  motivoHandoff: z.enum(["analise", "visita", "humano"]).optional().nullable(),
-  aceitouAnalise: z.boolean().optional().nullable(),
-  aceitouVisita: z.boolean().optional().nullable(),
-});
+import { validarPayloadLead } from "@/lib/webhook-lead-payload";
 
 function mapTemperatura(t: string | null | undefined): "quente" | "morno" | "frio" | null {
   if (!t) return null;
@@ -174,7 +109,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           return new Response("Invalid JSON", { status: 400, headers: corsHeaders });
         }
 
-        const parsed = payloadSchema.safeParse(body);
+        const parsed = validarPayloadLead(body);
         if (!parsed.success) {
           return Response.json(
             { error: "Validation failed", details: parsed.error.flatten() },

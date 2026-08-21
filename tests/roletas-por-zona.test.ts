@@ -150,8 +150,10 @@ describe("fiação de entrada (webhook por token)", () => {
   });
 
   it("payload ganha zona/bairro e o insert materializa (regiao da IA vira zona)", () => {
-    expect(rota).toMatch(/zona: optStr\(120\)/);
-    expect(rota).toMatch(/bairro: optStr\(255\)/);
+    // schema mora em src/lib/webhook-lead-payload.ts desde o fix do Zapier (21/08)
+    const schema = read("src/lib/webhook-lead-payload.ts");
+    expect(schema).toMatch(/zona: optStr\(120\)/);
+    expect(schema).toMatch(/bairro: optStr\(255\)/);
     // trim || null de propósito: o n8n manda campo vazio como "" e
     // "" ?? x devolve "" — engoliria a regiao válida em silêncio.
     expect(rota).toContain("zona: (data.zona?.trim() || null) ?? (data.regiao?.trim() || null)");
