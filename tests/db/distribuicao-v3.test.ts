@@ -513,13 +513,13 @@ describe("distribuir_lead_ponderado (motor por tier / SWRR)", () => {
       );
       expect(r.rows[0].res.ok).toBe(true);
       atribuicoes.push(r.rows[0].res.corretor_id as string);
-      // NOTA: este motor grava o lead direto em 'em_atendimento' (pula a etapa
-      // aguardando_atendimento do v3) e regra 'roleta:<slug>:tier<X>'.
+      // Desde a migration 20260821170000 o ponderado entrega igual ao v3:
+      // 1ª etapa do funil (aguardando_atendimento), visível ao repasse por SLA.
       const lead = await c.query(
         `SELECT status::text AS status, roleta_slug FROM public.leads WHERE id = $1`,
         [leadId],
       );
-      expect(lead.rows[0]).toEqual({ status: "em_atendimento", roleta_slug: "marquinhos" });
+      expect(lead.rows[0]).toEqual({ status: "aguardando_atendimento", roleta_slug: "marquinhos" });
     }
     expect(atribuicoes.filter((x) => x === corretorA.id)).toHaveLength(3);
     expect(atribuicoes.filter((x) => x === corretorB.id)).toHaveLength(1);
