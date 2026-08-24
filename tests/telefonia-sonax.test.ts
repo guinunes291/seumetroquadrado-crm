@@ -121,6 +121,17 @@ describe("sonax-campanha (discador automático)", () => {
     expect(fnCampanha).toMatch(/ok: true,\s*parada: true/);
   });
 
+  it("base completa em lotes: acao=adicionar enfileira SEM repetir a higiene", () => {
+    expect(fnCampanha).toContain('"adicionar"');
+    // A higiene (stop+limpa) roda só no iniciar — repetida em cada lote,
+    // apagaria os lotes anteriores da mesma sessão.
+    expect(fnCampanha).toMatch(/if \(!adicionar\) \{\s*await acaoSonax\("stop_campanha"/);
+    // O front fatia a base inteira: 1º lote inicia, os demais adicionam.
+    const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
+    expect(sessao).toContain('"adicionar"');
+    expect(sessao).toContain("LOTE_CAMPANHA");
+  });
+
   it("normalização de número é ÚNICA (_shared/sonax.ts) — discar e campanha importam a mesma", () => {
     const shared = readFileSync(join(root, "supabase/functions/_shared/sonax.ts"), "utf8");
     expect(shared).toContain("export function toSonaxNumero");
@@ -346,6 +357,8 @@ describe("aba Discador (fiação)", () => {
     // (em etapa ativa) — nunca uma fila arbitrária.
     expect(sessao).toContain("status.eq.aguardando_atendimento");
     expect(sessao).toContain("proximo_followup.lt.");
+    // Base COMPLETA, sem teto de quantidade: pagina o banco até o fim.
+    expect(sessao).toContain(".range(de, de + PAGINA - 1)");
     // Prioridade: quem está há mais tempo sem contato entra primeiro.
     expect(sessao).toMatch(/order\("ultima_interacao", \{ ascending: true, nullsFirst: true \}\)/);
     // Disca pelo fluxo único (click-to-call com fallback) e registra resultado

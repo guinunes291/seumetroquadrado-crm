@@ -4,9 +4,15 @@
 // com descarte de caixa postal). Docs: docs/integracoes/sonax-discador.md.
 //
 // Body:
-//   { acao: "iniciar", lead_ids: string[] }  -> insere cada lead na campanha
-//     (acao=chamada), garante o login do atendente e dá play_campanha.
-//   { acao: "parar", limpar?: boolean }      -> stop_campanha (+ limpa
+//   { acao: "iniciar", lead_ids: string[] }   -> higiene do lote, insere cada
+//     lead na campanha (acao=chamada), garante o login do atendente e dá
+//     play_campanha. Aceita até MAX_LEADS_POR_LOTE por chamada.
+//   { acao: "adicionar", lead_ids: string[] } -> SÓ enfileira mais um lote na
+//     campanha já em curso (o front fatia a base completa em lotes de 100 e
+//     manda o primeiro como "iniciar" e o resto como "adicionar" — repetir a
+//     higiene aqui apagaria os lotes anteriores). Dá play de novo no fim
+//     (best-effort) para o caso de a fila ter esgotado entre lotes.
+//   { acao: "parar", limpar?: boolean }       -> stop_campanha (+ limpa
 //     contatos restantes da fila se limpar=true).
 //
 // Requer JWT (verify_jwt = true). Os leads são lidos com o client do próprio
@@ -57,7 +63,7 @@ async function handleRequest(req: Request): Promise<Response> {
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
-  if (body.acao !== "iniciar" && body.acao !== "parar") {
+  if (body.acao !== "iniciar" && body.acao !== "adicionar" && body.acao !== "parar") {
     return json({ error: "acao_invalida" }, 400);
   }
 
@@ -124,7 +130,8 @@ async function handleRequest(req: Request): Promise<Response> {
     });
   }
 
-  // ---- iniciar --------------------------------------------------------------
+  // ---- iniciar / adicionar --------------------------------------------------
+  const adicionar = body.acao === "adicionar";
   if (!ramal) return json({ error: "ramal_nao_configurado" }, 422);
 
   // Guarda de campanha COMPARTILHADA: dois corretores na mesma campanha se
@@ -169,14 +176,17 @@ async function handleRequest(req: Request): Promise<Response> {
   // anteriores ANTES de enfileirar. Sem isso, contatos restantes ficam na
   // campanha em play e o PABX volta a discá-los sozinho no próximo login do
   // agente — sem ninguém ter clicado "Iniciar agora". Best-effort: stop de
-  // campanha já parada devolve 404 e segue.
-  await acaoSonax("stop_campanha", { id_campanha: idCampanha });
-  await acaoSonax("limpa_contatos_campanha", { id_campanha: idCampanha });
+  // campanha já parada devolve 404 e segue. Em "adicionar" a higiene é
+  // PULADA — ela apagaria os lotes anteriores da mesma sessão.
+  if (!adicionar) {
+    await acaoSonax("stop_campanha", { id_campanha: idCampanha });
+    await acaoSonax("limpa_contatos_campanha", { id_campanha: idCampanha });
+  }
 
   // Login do atendente na fila (best-effort: se já está logado, o Sonax só
-  // devolve o status — não derruba o fluxo).
+  // devolve o status — não derruba o fluxo). Só no primeiro lote.
   let loginAtendente: string | null = null;
-  if (idAtendente) {
+  if (!adicionar && idAtendente) {
     const login = await acaoSonax("login", { id_atendente: idAtendente, ramal });
     loginAtendente = login.resposta;
   }
@@ -211,6 +221,9 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   // Play: o discador começa a ligar. Quem atender cai na fila -> ramal.
+  // Também roda no "adicionar" (best-effort): se a fila esgotou entre lotes e
+  // a campanha parou sozinha, o play religa; se já está tocando, o Sonax só
+  // recusa e segue.
   const play = await acaoSonax("play_campanha", { id_campanha: idCampanha });
 
   return json({

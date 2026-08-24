@@ -39,7 +39,10 @@ em 16/08/2026.
    a fila SEMPRE da base do próprio corretor com a régua fixa da operação:
    **leads em Aguardando atendimento OU com follow-up vencido**
    (`proximo_followup` no passado, em etapa ativa) — sem contato há mais tempo
-   primeiro; nunca opt-out, lixeira ou sem telefone; tamanho 10/25/50 — e
+   primeiro; nunca opt-out, lixeira ou sem telefone; **a base completa, sem
+   teto de quantidade** (o front pagina o banco até o fim e envia ao PABX em
+   lotes de 100: o primeiro com `acao=iniciar`, os demais com `acao=adicionar`,
+   que enfileira sem repetir a higiene) — e
    entrega à **campanha do discador Sonax** (edge function
    `sonax-campanha`: `acao=chamada` por lead + `play_campanha`): o PABX disca a
    fila sozinho, **descarta caixa postal e só conecta ao ramal quem atende**,
