@@ -29,14 +29,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
@@ -76,61 +68,90 @@ export function SessaoDiscagem() {
   const { user } = useAuth();
   const { ligar, discando } = useLigarLead();
 
-  const [quantidade, setQuantidade] = useState("25");
   // Modo automático (campanha do discador) em andamento.
   const [campanhaAtiva, setCampanhaAtiva] = useState<{ enviados: number; falhas: number } | null>(
     null,
   );
+  // Progresso do enfileiramento em lotes (base grande = vários lotes de 100).
+  const [progresso, setProgresso] = useState<{ feito: number; total: number } | null>(null);
   // Modo um a um (click-to-call sequencial).
   const [autoDiscar, setAutoDiscar] = useState(true);
   const [fila, setFila] = useState<LeadFila[] | null>(null);
   const [indice, setIndice] = useState(0);
   const [registrarAberto, setRegistrarAberto] = useState(false);
 
-  // Fila única para os dois modos, com a régua fixa da operação: a base do
-  // PRÓPRIO corretor que precisa de ligação agora — status "Aguardando
-  // atendimento" (fila de entrada) OU follow-up vencido (proximo_followup no
-  // passado, em etapa ativa). Sem opt-out, sem lixeira, telefone válido; quem
-  // está há mais tempo sem contato primeiro.
+  // Fila única para os dois modos, com a régua fixa da operação: a BASE
+  // COMPLETA do PRÓPRIO corretor que precisa de ligação agora — status
+  // "Aguardando atendimento" (fila de entrada) OU follow-up vencido
+  // (proximo_followup no passado, em etapa ativa). Sem teto de quantidade:
+  // pagina o banco até o fim (PostgREST devolve no máx. 1000 por request).
+  // Sem opt-out, sem lixeira, telefone válido; quem está há mais tempo sem
+  // contato primeiro.
+  const PAGINA = 1000;
   async function montarFila(): Promise<LeadFila[]> {
     if (!user) throw new Error("Sessão expirada — entre de novo.");
-    const alvo = Number(quantidade);
     const agora = new Date().toISOString();
-    // Margem de 2x: leads com telefone inválido caem no filtro do cliente.
-    const { data, error } = await supabase
-      .from("leads")
-      .select(
-        "id, nome, telefone, status, corretor_id, projeto_nome, ultima_interacao, proximo_followup",
-      )
-      .eq("corretor_id", user.id)
-      .eq("na_lixeira", false)
-      .is("deleted_at", null)
-      .eq("opt_out", false)
-      .or(
-        `status.eq.aguardando_atendimento,and(proximo_followup.lt.${agora},status.not.in.${ETAPAS_FORA_DA_FILA})`,
-      )
-      .order("ultima_interacao", { ascending: true, nullsFirst: true })
-      .limit(alvo * 2);
-    if (error) throw error;
-    return ((data ?? []) as LeadFila[])
-      .filter((l) => (l.telefone ?? "").replace(/\D/g, "").length >= 10)
-      .slice(0, alvo);
+    const todos: LeadFila[] = [];
+    for (let de = 0; ; de += PAGINA) {
+      const { data, error } = await supabase
+        .from("leads")
+        .select(
+          "id, nome, telefone, status, corretor_id, projeto_nome, ultima_interacao, proximo_followup",
+        )
+        .eq("corretor_id", user.id)
+        .eq("na_lixeira", false)
+        .is("deleted_at", null)
+        .eq("opt_out", false)
+        .or(
+          `status.eq.aguardando_atendimento,and(proximo_followup.lt.${agora},status.not.in.${ETAPAS_FORA_DA_FILA})`,
+        )
+        .order("ultima_interacao", { ascending: true, nullsFirst: true })
+        .range(de, de + PAGINA - 1);
+      if (error) throw error;
+      todos.push(...((data ?? []) as LeadFila[]));
+      if ((data ?? []).length < PAGINA) break;
+    }
+    return todos.filter((l) => (l.telefone ?? "").replace(/\D/g, "").length >= 10);
   }
 
   // ---- Modo automático: campanha do discador --------------------------------
+  // A base completa vai ao PABX em LOTES de 100: o primeiro com acao=iniciar
+  // (higiene + login + play), os seguintes com acao=adicionar (só enfileiram —
+  // repetir a higiene apagaria o lote anterior da campanha).
+  const LOTE_CAMPANHA = 100;
   const iniciarDiscador = useMutation({
     mutationFn: async () => {
       const leads = await montarFila();
       if (leads.length === 0)
         throw Object.assign(new Error("fila_vazia"), { codigo: "fila_vazia" });
-      const { data, error } = await supabase.functions.invoke("sonax-campanha", {
-        body: { acao: "iniciar", lead_ids: leads.map((l) => l.id) },
-      });
-      if (error) {
-        const codigo = await codigoDoErro(error);
-        throw Object.assign(new Error(codigo ?? error.message), { codigo });
+      const ids = leads.map((l) => l.id);
+      let enviados = 0;
+      let falhas = 0;
+      setProgresso({ feito: 0, total: ids.length });
+      try {
+        for (let i = 0; i < ids.length; i += LOTE_CAMPANHA) {
+          const lote = ids.slice(i, i + LOTE_CAMPANHA);
+          const { data, error } = await supabase.functions.invoke("sonax-campanha", {
+            body: { acao: i === 0 ? "iniciar" : "adicionar", lead_ids: lote },
+          });
+          if (error) {
+            const codigo = await codigoDoErro(error);
+            // Falha no 1º lote = nada começou (erro de verdade). Nos
+            // seguintes, o que já entrou continua discando — conta como
+            // falha e segue para o próximo lote.
+            if (i === 0) throw Object.assign(new Error(codigo ?? error.message), { codigo });
+            falhas += lote.length;
+            continue;
+          }
+          const r = data as { enviados?: number; falhas?: number };
+          enviados += r.enviados ?? 0;
+          falhas += r.falhas ?? 0;
+          setProgresso({ feito: Math.min(i + lote.length, ids.length), total: ids.length });
+        }
+      } finally {
+        setProgresso(null);
       }
-      return data as { enviados: number; falhas: number };
+      return { enviados, falhas };
     },
     onSuccess: (r) => {
       setCampanhaAtiva({ enviados: r.enviados, falhas: r.falhas ?? 0 });
@@ -343,35 +364,25 @@ export function SessaoDiscagem() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          A fila é sempre a sua base que precisa de ligação agora:{" "}
+          A fila é sempre a <strong>sua base completa</strong> que precisa de ligação agora:{" "}
           <strong>leads em Aguardando atendimento</strong> e{" "}
-          <strong>leads com follow-up vencido</strong> — quem está há mais tempo sem contato entra
-          primeiro. O discador liga sozinho e <strong>conecta você só com quem atende</strong>.
-          Leads com opt-out ficam de fora automaticamente.
+          <strong>leads com follow-up vencido</strong> — sem limite de quantidade, quem está há mais
+          tempo sem contato entra primeiro. O discador liga sozinho e{" "}
+          <strong>conecta você só com quem atende</strong>. Leads com opt-out ficam de fora
+          automaticamente.
         </p>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Quantidade</Label>
-            <Select value={quantidade} onValueChange={setQuantidade}>
-              <SelectTrigger className="w-[110px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {["10", "25", "50"].map((n) => (
-                  <SelectItem key={n} value={n}>
-                    {n} leads
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <Button
             className="bg-gradient-gold text-navy-900 hover:opacity-90"
             disabled={iniciarDiscador.isPending || iniciarManual.isPending}
             onClick={() => iniciarDiscador.mutate()}
           >
             <Play className="h-4 w-4 mr-2" />
-            {iniciarDiscador.isPending ? "Montando fila…" : "Iniciar agora"}
+            {iniciarDiscador.isPending
+              ? progresso
+                ? `Enfileirando ${progresso.feito}/${progresso.total}…`
+                : "Montando fila…"
+              : "Iniciar agora"}
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
