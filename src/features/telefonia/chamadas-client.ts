@@ -23,10 +23,11 @@ export type Chamada = {
   gravacao_url: string | null;
   tabulacao: string | null;
   criado_em: string;
+  atualizado_em: string;
 };
 
 const COLUNAS =
-  "id, lead_id, corretor_id, direcao, origem, provider, provider_call_id, numero, ramal, status, duracao_segundos, gravacao_url, tabulacao, criado_em";
+  "id, lead_id, corretor_id, direcao, origem, provider, provider_call_id, numero, ramal, status, duracao_segundos, gravacao_url, tabulacao, criado_em, atualizado_em";
 
 /** Códigos de "tabela ainda não existe" (migration de telefonia pendente). */
 const TABELA_AUSENTE = new Set(["PGRST205", "PGRST202", "42P01"]);
@@ -50,6 +51,35 @@ export async function listarChamadasRecentes(limit = 500): Promise<ChamadasLista
     throw new Error(error.message || "Não foi possível carregar as chamadas.");
   }
   return { rows: (data ?? []) as Chamada[], tabelaAusente: false };
+}
+
+/** Status em que a chamada está VIVA (cliente na linha ou tocando no ramal). */
+export const STATUS_EM_ANDAMENTO = ["atendida", "falando"];
+
+/**
+ * A chamada mais recente DO CORRETOR movimentada na janela (default 10 min) —
+ * combustível do pop-up de chamada ativa. Traz também a recém-encerrada (o
+ * pop-up vira "registrar resultado" quando ela termina). O filtro por
+ * corretor_id é essencial: a RLS deixa a gestão ver tudo, e o pop-up não pode
+ * tocar na tela do gestor a cada chamada da operação.
+ */
+export async function buscarChamadaRecente(
+  corretorId: string,
+  janelaMin = 10,
+): Promise<Chamada | null> {
+  const desde = new Date(Date.now() - janelaMin * 60_000).toISOString();
+  const { data, error } = await supabase
+    .from("chamadas")
+    .select(COLUNAS)
+    .eq("corretor_id", corretorId)
+    .gte("atualizado_em", desde)
+    .order("atualizado_em", { ascending: false })
+    .limit(1);
+  if (error) {
+    if (TABELA_AUSENTE.has(error.code ?? "")) return null;
+    throw new Error(error.message || "Não foi possível verificar a chamada ativa.");
+  }
+  return (data?.[0] as Chamada | undefined) ?? null;
 }
 
 export type KpisChamadasHoje = { total: number; atendidas: number; perdidas: number };

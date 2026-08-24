@@ -36,9 +36,11 @@ em 16/08/2026.
    vê as chamadas da própria carteira/ramal; gestão vê a operação inteira
    (RLS). Atualiza ao vivo via realtime.
 5. **Sessão de discagem ("Iniciar agora") — discador automático** — a aba monta
-   a fila com os leads da carteira do corretor (sem contato há mais tempo
-   primeiro; nunca opt-out, lixeira ou sem telefone; filtro por etapa e tamanho
-   10/25/50) e entrega à **campanha do discador Sonax** (edge function
+   a fila SEMPRE da base do próprio corretor com a régua fixa da operação:
+   **leads em Aguardando atendimento OU com follow-up vencido**
+   (`proximo_followup` no passado, em etapa ativa) — sem contato há mais tempo
+   primeiro; nunca opt-out, lixeira ou sem telefone; tamanho 10/25/50 — e
+   entrega à **campanha do discador Sonax** (edge function
    `sonax-campanha`: `acao=chamada` por lead + `play_campanha`): o PABX disca a
    fila sozinho, **descarta caixa postal e só conecta ao ramal quem atende**,
    continuando até a fila acabar ou o corretor clicar "Parar discador" (stop +
@@ -69,10 +71,21 @@ em 16/08/2026.
    lead só recebe a ligação quando houve atendimento real — chamada perdida
    fica apenas no histórico do Discador.
 
-6. **Modo um a um (fallback)** — para quem ainda não tem campanha configurada:
+6. **Pop-up de chamada ativa (screen pop)** — montado no layout autenticado:
+   quando o PABX conecta um cliente ao corretor (webhook `atendida`/`falando`),
+   um card fixo aparece em QUALQUER tela do CRM com a ficha do lead (nome,
+   telefone, etapa, projeto, último contato, follow-up vencido), som de
+   campainha (sintetizada via Web Audio, toggle persistido) e ações: "Atender
+   no CRM" (abre o dossiê) e "Registrar resultado". Quando a chamada encerra,
+   o card vira o registro do resultado. O ÁUDIO da ligação continua no ramal
+   (fone/softphone) — o PABX entrega a voz lá; o CRM entrega o contexto.
+   Filtro por `corretor_id`: só as chamadas do próprio corretor acordam o
+   pop-up (a gestão vê o histórico inteiro, mas não recebe pop-up de chamada
+   alheia).
+7. **Modo um a um (fallback)** — para quem ainda não tem campanha configurada:
    a mesma fila é discada sequencialmente pelo click-to-call no ramal, com
    avanço humano ("Próximo" ou registrar o resultado já disca o seguinte).
-7. **Tabulação → etapa do funil (automático)** — a tabulação aplicada pelo
+8. **Tabulação → etapa do funil (automático)** — a tabulação aplicada pelo
    corretor no painel de agente do Sonax move o lead de etapa no CRM. A edge
    function `sonax-tabulacoes` baixa o arquivo de contatos da campanha
    (`acao=download_arquivo_contato` — cada contato carrega o UUID do lead),

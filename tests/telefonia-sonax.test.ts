@@ -342,11 +342,32 @@ describe("aba Discador (fiação)", () => {
     expect(sessao).toContain('.eq("opt_out", false)');
     expect(sessao).toContain('.eq("na_lixeira", false)');
     expect(sessao).toContain('.is("deleted_at", null)');
+    // Régua fixa da operação: Aguardando atendimento OU follow-up vencido
+    // (em etapa ativa) — nunca uma fila arbitrária.
+    expect(sessao).toContain("status.eq.aguardando_atendimento");
+    expect(sessao).toContain("proximo_followup.lt.");
     // Prioridade: quem está há mais tempo sem contato entra primeiro.
     expect(sessao).toMatch(/order\("ultima_interacao", \{ ascending: true, nullsFirst: true \}\)/);
     // Disca pelo fluxo único (click-to-call com fallback) e registra resultado
     // pelo diálogo padrão — nada de caminho paralelo sem histórico.
     expect(sessao).toContain("useLigarLead");
     expect(sessao).toContain("RegistrarContatoDialog");
+  });
+
+  it("pop-up global de chamada ativa: filtro do corretor, som e ficha do cliente", () => {
+    const host = readFileSync(join(root, "src/features/telefonia/chamada-ativa-host.tsx"), "utf8");
+    const layout = readFileSync(join(root, "src/routes/_authenticated/route.tsx"), "utf8");
+    // Montado no layout autenticado — a ficha aparece em QUALQUER tela do CRM.
+    expect(layout).toContain("ChamadaAtivaHost");
+    // Só as chamadas do PRÓPRIO corretor acordam o pop-up: a RLS deixa a
+    // gestão ver tudo, e sem o filtro o sino tocaria a cada chamada alheia.
+    expect(host).toContain("corretor_id=eq.");
+    expect(clienteChamadas).toContain('.eq("corretor_id", corretorId)');
+    // Campainha sintetizada (sem asset externo) com preferência persistida.
+    expect(host).toContain("tocarCampainha");
+    expect(host).toContain("localStorage");
+    // Ficha + ações: atender no CRM (dossiê) e registrar o resultado.
+    expect(host).toContain("RegistrarContatoDialog");
+    expect(host).toContain("Atender no CRM");
   });
 });

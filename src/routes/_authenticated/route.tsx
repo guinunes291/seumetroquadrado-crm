@@ -42,6 +42,13 @@ const KeyboardShortcutsHelp = lazy(() =>
     default: KeyboardShortcutsHelp,
   })),
 );
+// Pop-up global de chamada ativa do discador Sonax: quando o PABX conecta um
+// cliente, a ficha do lead aparece em qualquer tela do CRM, com som.
+const ChamadaAtivaHost = lazy(() =>
+  import("@/features/telefonia/chamada-ativa-host").then(({ ChamadaAtivaHost }) => ({
+    default: ChamadaAtivaHost,
+  })),
+);
 
 let lastPresenceMark = 0;
 const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
@@ -153,6 +160,7 @@ function AuthenticatedLayout() {
         <CommandPalette />
         <NovoLeadDialogHost />
         <KeyboardShortcutsHelp />
+        <ChamadaAtivaHost />
       </Suspense>
       <CelebrationHost />
       <Toaster richColors closeButton />
