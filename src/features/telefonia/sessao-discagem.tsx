@@ -1,10 +1,12 @@
-// Sessão de discagem: "Iniciar agora" monta a fila com os leads DA CARTEIRA
-// DO CORRETOR (sem contato há mais tempo primeiro, nunca opt-out/lixeira/sem
-// telefone) e entrega ao DISCADOR AUTOMÁTICO do Sonax (edge function
-// sonax-campanha): o PABX disca a fila sozinho, descarta caixa postal e SÓ
-// conecta ao ramal quem atende — o fluxo segue até a fila acabar ou o
-// corretor parar. As chamadas conectadas chegam pelo webhook (origem
-// campanha) e aparecem no histórico/timeline em tempo real.
+// Sessão de discagem: "Iniciar agora" monta a fila SEMPRE da base do próprio
+// corretor com a régua fixa da operação — leads em AGUARDANDO ATENDIMENTO ou
+// com FOLLOW-UP VENCIDO (proximo_followup no passado, status ativo) — sem
+// contato há mais tempo primeiro, nunca opt-out/lixeira/sem telefone — e
+// entrega ao DISCADOR AUTOMÁTICO do Sonax (edge function sonax-campanha): o
+// PABX disca a fila sozinho, descarta caixa postal e SÓ conecta ao ramal quem
+// atende — o fluxo segue até a fila acabar ou o corretor parar. As chamadas
+// conectadas chegam pelo webhook (origem campanha) e aparecem no
+// histórico/timeline em tempo real.
 //
 // Alternativa "um a um" (click-to-call sequencial) para quem ainda não tem
 // campanha/atendente configurados no PABX: disca cada lead no ramal e o
@@ -40,7 +42,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
-import { FUNNEL_STAGES, LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
+import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
+import { formatPhoneBR } from "@/lib/masks";
 
 type LeadFila = {
   id: string;
@@ -50,6 +53,7 @@ type LeadFila = {
   corretor_id: string | null;
   projeto_nome: string | null;
   ultima_interacao: string | null;
+  proximo_followup: string | null;
 };
 
 // Etapas que não fazem sentido numa fila de discagem ativa.
@@ -58,6 +62,8 @@ const ETAPAS_FORA_DA_FILA = "(perdido,contrato_fechado,pos_venda)";
 const ERRO_CAMPANHA: Record<string, string> = {
   campanha_nao_configurada:
     "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → PABX). Enquanto isso, use o modo um a um.",
+  campanha_compartilhada:
+    "Esta campanha do Sonax está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no painel do Sonax e ajuste em Gestão → Corretores → PABX).",
   ramal_nao_configurado:
     "Seu ramal não está cadastrado (Gestão → Corretores → PABX) — sem ele o discador não tem para onde entregar as chamadas.",
   sonax_nao_configurado: "A integração com o Sonax ainda não foi configurada (secrets).",
@@ -66,18 +72,10 @@ const ERRO_CAMPANHA: Record<string, string> = {
   account_inactive: "Sua conta está inativa.",
 };
 
-function fmtTelefone(raw: string): string {
-  const d = raw.replace(/\D/g, "");
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return raw;
-}
-
 export function SessaoDiscagem() {
   const { user } = useAuth();
   const { ligar, discando } = useLigarLead();
 
-  const [etapa, setEtapa] = useState<"ativas" | LeadStatus>("ativas");
   const [quantidade, setQuantidade] = useState("25");
   // Modo automático (campanha do discador) em andamento.
   const [campanhaAtiva, setCampanhaAtiva] = useState<{ enviados: number; falhas: number } | null>(
@@ -89,23 +87,30 @@ export function SessaoDiscagem() {
   const [indice, setIndice] = useState(0);
   const [registrarAberto, setRegistrarAberto] = useState(false);
 
-  // Fila única para os dois modos: carteira do corretor, sem opt-out, sem
-  // lixeira, telefone válido; quem está há mais tempo sem contato primeiro.
+  // Fila única para os dois modos, com a régua fixa da operação: a base do
+  // PRÓPRIO corretor que precisa de ligação agora — status "Aguardando
+  // atendimento" (fila de entrada) OU follow-up vencido (proximo_followup no
+  // passado, em etapa ativa). Sem opt-out, sem lixeira, telefone válido; quem
+  // está há mais tempo sem contato primeiro.
   async function montarFila(): Promise<LeadFila[]> {
     if (!user) throw new Error("Sessão expirada — entre de novo.");
     const alvo = Number(quantidade);
+    const agora = new Date().toISOString();
     // Margem de 2x: leads com telefone inválido caem no filtro do cliente.
-    let q = supabase
+    const { data, error } = await supabase
       .from("leads")
-      .select("id, nome, telefone, status, corretor_id, projeto_nome, ultima_interacao")
+      .select(
+        "id, nome, telefone, status, corretor_id, projeto_nome, ultima_interacao, proximo_followup",
+      )
       .eq("corretor_id", user.id)
       .eq("na_lixeira", false)
       .is("deleted_at", null)
       .eq("opt_out", false)
+      .or(
+        `status.eq.aguardando_atendimento,and(proximo_followup.lt.${agora},status.not.in.${ETAPAS_FORA_DA_FILA})`,
+      )
       .order("ultima_interacao", { ascending: true, nullsFirst: true })
       .limit(alvo * 2);
-    q = etapa === "ativas" ? q.not("status", "in", ETAPAS_FORA_DA_FILA) : q.eq("status", etapa);
-    const { data, error } = await q;
     if (error) throw error;
     return ((data ?? []) as LeadFila[])
       .filter((l) => (l.telefone ?? "").replace(/\D/g, "").length >= 10)
@@ -272,9 +277,12 @@ export function SessaoDiscagem() {
               {leadAtual.nome}
             </Link>
             <span className="tabular-nums text-muted-foreground">
-              {fmtTelefone(leadAtual.telefone)}
+              {formatPhoneBR(leadAtual.telefone)}
             </span>
             <Badge variant="secondary">{LEAD_STATUS_LABEL[leadAtual.status]}</Badge>
+            {leadAtual.proximo_followup && new Date(leadAtual.proximo_followup) < new Date() && (
+              <Badge variant="destructive">Follow-up vencido</Badge>
+            )}
             {leadAtual.projeto_nome && (
               <span className="text-sm text-muted-foreground">{leadAtual.projeto_nome}</span>
             )}
@@ -335,27 +343,13 @@ export function SessaoDiscagem() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          O discador monta a fila com os leads da sua carteira — quem está há mais tempo sem contato
-          entra primeiro — e liga sozinho, <strong>conectando você só com quem atende</strong>.
+          A fila é sempre a sua base que precisa de ligação agora:{" "}
+          <strong>leads em Aguardando atendimento</strong> e{" "}
+          <strong>leads com follow-up vencido</strong> — quem está há mais tempo sem contato entra
+          primeiro. O discador liga sozinho e <strong>conecta você só com quem atende</strong>.
           Leads com opt-out ficam de fora automaticamente.
         </p>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Etapa</Label>
-            <Select value={etapa} onValueChange={(v) => setEtapa(v as typeof etapa)}>
-              <SelectTrigger className="w-[210px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ativas">Todas as etapas ativas</SelectItem>
-                {FUNNEL_STAGES.filter((s) => s !== "contrato_fechado").map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {LEAD_STATUS_LABEL[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">Quantidade</Label>
             <Select value={quantidade} onValueChange={setQuantidade}>

@@ -16,6 +16,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { comCapturaDeErro } from "../_shared/error-tracking.ts";
+import { toSonaxNumero } from "../_shared/sonax.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -28,15 +29,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
-}
-
-// Número no formato do click2call: DDD + número, só dígitos, sem DDI (o
-// exemplo oficial usa `numero=33999504944`). Tira zeros de tronco e o 55.
-function toSonaxNumero(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  let d = String(raw).replace(/\D/g, "").replace(/^0+/, "");
-  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
-  return d.length >= 10 && d.length <= 11 ? d : null;
 }
 
 Deno.serve((req: Request) => comCapturaDeErro("sonax-discar", () => handleRequest(req)));
@@ -116,10 +108,13 @@ async function handleRequest(req: Request): Promise<Response> {
     return json({ error: "sonax_indisponivel" }, 502);
   }
 
-  // Protocolo = primeira sequência longa de dígitos da resposta (a v1 devolve
-  // texto, não JSON). Sem protocolo a chamada fica sem provider_call_id e o
-  // webhook criará a linha dele — preferimos registrar mesmo assim.
-  const protocolo = respostaSonax.match(/\d{6,}/)?.[0] ?? null;
+  // Protocolo = primeira sequência longa de dígitos da resposta QUE NÃO SEJA
+  // o número discado — a v1 devolve texto e costuma ecoar o número; capturar
+  // o telefone como protocolo colidiria no UNIQUE de provider_call_id na
+  // segunda ligação ao mesmo lead, sumindo com a chamada nova. Sem protocolo
+  // confiável fica null e o webhook cria a linha pelo id_chamada real.
+  const semNumeroDiscado = respostaSonax.replaceAll("55" + numero, " ").replaceAll(numero, " ");
+  const protocolo = semNumeroDiscado.match(/\d{6,}/)?.[0] ?? null;
 
   const { data: chamada, error: chamadaErr } = await supabase
     .from("chamadas")

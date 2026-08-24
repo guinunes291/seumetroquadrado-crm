@@ -181,10 +181,22 @@ async function handleRequest(req: Request): Promise<Response> {
   };
   const eventoDeAtendimento = evento === "atendida" || evento === "falando";
 
-  // Resolve lead pelo número do cliente — tentando variantes (com/sem DDI 55,
-  // sem zeros de tronco): a base guarda formatos mistos e o PABX manda outro.
+  // Resolve o LEAD. O <ID_CONTATO> é AUTORITATIVO quando é o UUID que a
+  // sonax-campanha plantou no enfileiramento — leads com o mesmo telefone
+  // (recadastro, cônjuge) não se confundem. O telefone (com variantes de
+  // DDI/zeros) é o fallback para receptivo e eventos sem id_contato.
+  const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
   let leadId: string | null = null;
-  if (numero) {
+  if (idContato && UUID_RE.test(idContato)) {
+    const uuid = idContato.match(UUID_RE)![0].toLowerCase();
+    const { data: leadPorId } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("id", uuid)
+      .maybeSingle();
+    if (leadPorId) leadId = leadPorId.id as string;
+  }
+  if (!leadId && numero) {
     const semZeros = numero.replace(/^0+/, "");
     const candidatos = new Set<string>([semZeros]);
     if (semZeros.startsWith("55") && semZeros.length >= 12) candidatos.add(semZeros.slice(2));
@@ -200,14 +212,42 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
   let corretorId: string | null = null;
+  let ramalCasado: string | null = null;
   for (const candidato of new Set([ramal, ramalBruto])) {
     if (!candidato || corretorId) continue;
     const { data: profs } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, ramal_sonax")
       .eq("ramal_sonax", candidato)
       .limit(1);
-    corretorId = profs?.[0]?.id ?? null;
+    if (profs?.[0]) {
+      corretorId = profs[0].id as string;
+      ramalCasado = (profs[0].ramal_sonax as string | null) ?? candidato;
+    }
+  }
+  // Fallback por PREFIXO: casa o ramal bruto contra o cadastro dos corretores
+  // sem depender do formato exato do sufixo da conta (SONAX_ID_CLIENTE com ou
+  // sem zeros, contas diferentes). "10300013004" casa com o perfil "103"
+  // porque é o prefixo mais longo cujo resto (>=4 dígitos) é sufixo de conta.
+  if (!corretorId && ramalBruto && ramalBruto.length > 6) {
+    const { data: profs } = await supabase
+      .from("profiles")
+      .select("id, ramal_sonax")
+      .not("ramal_sonax", "is", null);
+    let melhor: { id: string; ramal: string } | null = null;
+    for (const perfil of profs ?? []) {
+      const r = ((perfil.ramal_sonax as string) ?? "").trim();
+      if (!r) continue;
+      if (ramalBruto.startsWith(r) && ramalBruto.length - r.length >= 4) {
+        if (!melhor || r.length > melhor.ramal.length) {
+          melhor = { id: perfil.id as string, ramal: r };
+        }
+      }
+    }
+    if (melhor) {
+      corretorId = melhor.id;
+      ramalCasado = melhor.ramal;
+    }
   }
   // Fallback: eventos de campanha nem sempre trazem o ramal — o vínculo pelo
   // ID do atendente (profiles.sonax_id_atendente) cobre esse caso.
@@ -219,6 +259,9 @@ async function handleRequest(req: Request): Promise<Response> {
       .limit(1);
     corretorId = profs?.[0]?.id ?? null;
   }
+  // O que vai para a linha: o ramal do cadastro quando casou, senão o
+  // normalizado — nunca o bruto com sufixo de conta.
+  const ramalFinal = ramalCasado ?? ramal;
 
   const payloadEvento = {
     evento,
@@ -236,36 +279,52 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // Idempotência/atualização: eventos seguintes da mesma chamada (mesmo
   // id_chamada) atualizam a linha em vez de duplicar.
-  let chamadaExistenteId: string | null = null;
-  let payloadAnterior: Record<string, unknown> = {};
-  let leadExistente: string | null = null;
-  if (idChamada) {
-    const { data: existente } = await supabase
+  type LinhaChamada = {
+    id: string;
+    payload: Record<string, unknown>;
+    lead_id: string | null;
+    status: string;
+    direcao: string;
+  };
+  async function buscarExistente(): Promise<LinhaChamada | null> {
+    if (!idChamada) return null;
+    const { data } = await supabase
       .from("chamadas")
-      .select("id, payload, lead_id")
+      .select("id, payload, lead_id, status, direcao")
       .eq("provider_call_id", idChamada)
       .maybeSingle();
-    if (existente) {
-      chamadaExistenteId = existente.id as string;
-      payloadAnterior = (existente.payload as Record<string, unknown>) ?? {};
-      leadExistente = (existente.lead_id as string | null) ?? null;
-    }
+    if (!data) return null;
+    return {
+      id: data.id as string,
+      payload: (data.payload as Record<string, unknown>) ?? {},
+      lead_id: (data.lead_id as string | null) ?? null,
+      status: (data.status as string) ?? "iniciada",
+      direcao: (data.direcao as string) ?? direcao,
+    };
   }
 
   // A timeline só ganha a ligação quando o agente ATENDEU de fato — no
   // primeiro evento de atendimento da chamada. Chamada que ninguém atendeu
   // fica só no histórico do Discador (`chamadas`), sem virar "contato" do
-  // lead nem atualizar ultimo_contato.
-  const jaAtendidaAntes = Boolean(
-    payloadAnterior["evento_atendida"] || payloadAnterior["evento_falando"],
-  );
-  const ecoarNaTimeline = eventoDeAtendimento && !jaAtendidaAntes;
-  const leadDoEco = leadId ?? leadExistente;
-
-  async function ecoarInteracao(chamadaId: string | null): Promise<string> {
-    if (!ecoarNaTimeline || !leadDoEco) return "nao_aplicavel";
+  // lead nem atualizar ultimo_contato. O dedupe por chamada_id cobre a
+  // corrida de dois eventos de atendimento e o eco que a sonax-discar já fez
+  // para o mesmo protocolo (click2call).
+  async function ecoarInteracao(
+    chamadaId: string | null,
+    leadEco: string | null,
+    direcaoEco: string,
+  ): Promise<string> {
+    if (!leadEco) return "sem_lead";
+    if (chamadaId) {
+      const { data: jaTem } = await supabase
+        .from("interacoes")
+        .select("id")
+        .contains("metadata", { chamada_id: chamadaId })
+        .limit(1);
+      if (jaTem && jaTem.length > 0) return "ja_ecoada";
+    }
     const titulo =
-      direcao === "entrada" ? "Ligação recebida (PABX Sonax)" : "Ligação de campanha (discador)";
+      direcaoEco === "entrada" ? "Ligação recebida (PABX Sonax)" : "Ligação de campanha (discador)";
     const partes = [
       numero ? `Número: ${numero}.` : null,
       ramal ? `Ramal: ${ramal}.` : null,
@@ -274,10 +333,10 @@ async function handleRequest(req: Request): Promise<Response> {
       idCampanha ? `Campanha: ${idCampanha}.` : null,
     ].filter(Boolean);
     const { error: ecoErr } = await supabase.from("interacoes").insert({
-      lead_id: leadDoEco,
+      lead_id: leadEco,
       autor_id: corretorId,
       tipo: "ligacao",
-      direcao,
+      direcao: direcaoEco,
       titulo,
       conteudo: partes.join(" ") || "Chamada atendida no PABX.",
       metadata: {
@@ -291,28 +350,54 @@ async function handleRequest(req: Request): Promise<Response> {
     return ecoErr ? "falhou" : "ok";
   }
 
-  if (chamadaExistenteId) {
+  const TERMINAIS = new Set(["concluida", "nao_atendida", "falha"]);
+
+  // Aplica um evento sobre uma linha existente — usada tanto no caminho
+  // normal quanto para o PERDEDOR da corrida de insert (23505): nenhum
+  // evento é descartado.
+  async function aplicarAtualizacao(existente: LinhaChamada): Promise<Response> {
+    const jaAtendidaAntes = Boolean(
+      existente.payload["evento_atendida"] || existente.payload["evento_falando"],
+    );
+    // Status sem regressão: evento atrasado nunca desfaz um estado terminal —
+    // atendimento chegando depois do desligamento vira "concluida" (a chamada
+    // foi atendida E já terminou); "chamando" atrasado não volta o relógio.
+    let novoStatus = statusFinal(jaAtendidaAntes || eventoDeAtendimento);
+    if (TERMINAIS.has(existente.status)) {
+      novoStatus = eventoDeAtendimento || jaAtendidaAntes ? "concluida" : existente.status;
+    } else if (evento === "chamando" && existente.status !== "iniciada") {
+      novoStatus = existente.status;
+    }
     const { error: updErr } = await supabase
       .from("chamadas")
       .update({
-        status: statusFinal(jaAtendidaAntes || eventoDeAtendimento),
+        status: novoStatus,
         ...(leadId ? { lead_id: leadId } : {}),
         ...(corretorId ? { corretor_id: corretorId } : {}),
+        ...(ramalFinal ? { ramal: ramalFinal } : {}),
         ...(duracao ? { duracao_segundos: Number(duracao) } : {}),
         ...(tabulacao ? { tabulacao } : {}),
-        payload: { ...payloadAnterior, [`evento_${evento}`]: payloadEvento },
+        payload: { ...existente.payload, [`evento_${evento}`]: payloadEvento },
       })
-      .eq("id", chamadaExistenteId);
+      .eq("id", existente.id);
     if (updErr) console.error("sonax-webhook update_failed:", updErr);
-    const timeline = await ecoarInteracao(chamadaExistenteId);
+    // Eco com a direção DA LINHA, não a heurística deste evento: um
+    // click2call (saída) atualizado por evento sem id_campanha continua saída.
+    let timeline = "nao_aplicavel";
+    if (eventoDeAtendimento && !jaAtendidaAntes) {
+      timeline = await ecoarInteracao(existente.id, leadId ?? existente.lead_id, existente.direcao);
+    }
     return json({
       ok: true,
-      chamada_id: chamadaExistenteId,
+      chamada_id: existente.id,
       atualizada: true,
-      lead: leadDoEco ?? "nao_encontrado",
+      lead: leadId ?? existente.lead_id ?? "nao_encontrado",
       timeline,
     });
   }
+
+  const existente = await buscarExistente();
+  if (existente) return await aplicarAtualizacao(existente);
 
   const { data: nova, error: insErr } = await supabase
     .from("chamadas")
@@ -322,7 +407,7 @@ async function handleRequest(req: Request): Promise<Response> {
       direcao,
       origem,
       numero: numero ?? numeroRec ?? "-",
-      ramal,
+      ramal: ramalFinal,
       provider_call_id: idChamada,
       status: statusFinal(eventoDeAtendimento),
       ...(duracao ? { duracao_segundos: Number(duracao) } : {}),
@@ -334,25 +419,20 @@ async function handleRequest(req: Request): Promise<Response> {
 
   if (insErr) {
     // Corrida entre dois eventos da mesma chamada: o UNIQUE parcial barrou o
-    // segundo insert — trata como atualização.
+    // segundo insert — o evento perdedor é APLICADO sobre a linha vencedora
+    // (status/duração/payload/eco), nunca descartado.
     if ((insErr as { code?: string }).code === "23505" && idChamada) {
-      const { data: dup } = await supabase
-        .from("chamadas")
-        .select("id")
-        .eq("provider_call_id", idChamada)
-        .maybeSingle();
-      return json({
-        ok: true,
-        chamada_id: dup?.id ?? null,
-        atualizada: true,
-        lead: leadId ?? "nao_encontrado",
-      });
+      const vencedora = await buscarExistente();
+      if (vencedora) return await aplicarAtualizacao(vencedora);
     }
     console.error("sonax-webhook insert_failed:", insErr);
     return json({ error: "insert_failed", detail: insErr.message }, 500);
   }
 
-  const timeline = await ecoarInteracao(nova?.id ?? null);
+  let timeline = "nao_aplicavel";
+  if (eventoDeAtendimento) {
+    timeline = await ecoarInteracao(nova?.id ?? null, leadId, direcao);
+  }
 
   return json({
     ok: true,

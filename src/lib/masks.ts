@@ -15,6 +15,20 @@ export function maskPhoneBR(v: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
+/**
+ * Exibição de telefone JÁ SALVO: "(11) 98765-4321". Diferente da máscara de
+ * digitação, não trunca — tira o DDI 55 quando presente (números do PABX
+ * chegam com ele) e, se o que sobra não for um telefone BR (10–11 dígitos),
+ * devolve o valor original intacto em vez de mutilar.
+ */
+export function formatPhoneBR(v: string): string {
+  let d = onlyDigits(v);
+  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return v;
+}
+
 /** 123.456.789-09 */
 export function maskCPF(v: string): string {
   const d = onlyDigits(v).slice(0, 11);
@@ -29,7 +43,9 @@ export function maskCPF(v: string): string {
  * "123456" → "R$ 1.234,56". Use `parseCurrencyBRL` para obter o número.
  */
 export function maskCurrencyBRL(v: string): string {
-  const d = onlyDigits(v).replace(/^0+(?=\d)/, "").slice(0, 15);
+  const d = onlyDigits(v)
+    .replace(/^0+(?=\d)/, "")
+    .slice(0, 15);
   if (!d) return "";
   const cents = d.padStart(3, "0");
   const int = cents.slice(0, -2);
