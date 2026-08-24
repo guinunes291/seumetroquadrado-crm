@@ -37,8 +37,9 @@ import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
+import { formatPhoneBR } from "@/lib/masks";
 import { listarTelefoniaSonax } from "@/features/gestao/ramal-sonax-client";
-import { listarChamadasRecentes, type Chamada } from "./chamadas-client";
+import { contarChamadasHoje, listarChamadasRecentes, type Chamada } from "./chamadas-client";
 
 const STATUS_LABEL: Record<string, string> = {
   iniciada: "Iniciada",
@@ -71,14 +72,21 @@ function formatDuracao(s: number | null): string {
   return `${min}:${String(seg).padStart(2, "0")}`;
 }
 
-function formatNumero(numero: string): string {
-  const d = numero.replace(/\D/g, "");
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return numero;
-}
-
 type LeadResumo = { id: string; nome: string; telefone: string };
+
+// PostgREST monta o `.in()` na querystring da URL — com centenas de UUIDs a
+// requisição estoura o limite. Busca em lotes e junta.
+const TAMANHO_LOTE_IN = 100;
+async function buscarEmLotes<T>(
+  ids: string[],
+  buscar: (lote: string[]) => Promise<T[]>,
+): Promise<T[]> {
+  const resultados: T[] = [];
+  for (let i = 0; i < ids.length; i += TAMANHO_LOTE_IN) {
+    resultados.push(...(await buscar(ids.slice(i, i + TAMANHO_LOTE_IN))));
+  }
+  return resultados;
+}
 
 type LinhaChamada = Chamada & {
   leadNome: string | null;
@@ -101,7 +109,14 @@ export function DiscadorCentral() {
     enabled: !!user,
     queryFn: () => listarChamadasRecentes(500),
   });
-  useRealtimeInvalidate("chamadas", [["chamadas:discador"]]);
+  // KPIs do dia por contagem no servidor: a lista é uma janela das 500 mais
+  // recentes — num dia de campanha pesada, contar só a janela subconta.
+  const kpisQ = useQuery({
+    queryKey: ["chamadas:kpis-hoje", user?.id],
+    enabled: !!user,
+    queryFn: contarChamadasHoje,
+  });
+  useRealtimeInvalidate("chamadas", [["chamadas:discador"], ["chamadas:kpis-hoje"]]);
 
   const rows = useMemo(() => chamadasQ.data?.rows ?? [], [chamadasQ.data]);
 
@@ -115,12 +130,15 @@ export function DiscadorCentral() {
     queryKey: ["chamadas:leads", leadIds],
     enabled: leadIds.length > 0,
     queryFn: async (): Promise<Map<string, LeadResumo>> => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("id, nome, telefone")
-        .in("id", leadIds);
-      if (error) throw error;
-      return new Map((data ?? []).map((l) => [l.id, l as LeadResumo]));
+      const linhas = await buscarEmLotes(leadIds, async (lote) => {
+        const { data, error } = await supabase
+          .from("leads")
+          .select("id, nome, telefone")
+          .in("id", lote);
+        if (error) throw error;
+        return data ?? [];
+      });
+      return new Map(linhas.map((l) => [l.id, l as LeadResumo]));
     },
   });
 
@@ -132,12 +150,12 @@ export function DiscadorCentral() {
     queryKey: ["chamadas:corretores", corretorIds],
     enabled: gestao && corretorIds.length > 0,
     queryFn: async (): Promise<Map<string, string>> => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nome")
-        .in("id", corretorIds);
-      if (error) throw error;
-      return new Map((data ?? []).map((p) => [p.id, p.nome as string]));
+      const linhas = await buscarEmLotes(corretorIds, async (lote) => {
+        const { data, error } = await supabase.from("profiles").select("id, nome").in("id", lote);
+        if (error) throw error;
+        return data ?? [];
+      });
+      return new Map(linhas.map((p) => [p.id, p.nome as string]));
     },
   });
 
@@ -206,23 +224,7 @@ export function DiscadorCentral() {
       });
   }, [rows, leadsQ.data, corretoresQ.data, busca, direcao, status]);
 
-  // KPIs do dia — direto das linhas visíveis ao papel (sem query extra).
-  const kpis = useMemo(() => {
-    const inicioHoje = new Date();
-    inicioHoje.setHours(0, 0, 0, 0);
-    const hoje = rows.filter((c) => new Date(c.criado_em) >= inicioHoje);
-    const atendidas = hoje.filter((c) =>
-      ["atendida", "falando", "concluida"].includes(c.status),
-    ).length;
-    const perdidas = hoje.filter((c) => ["nao_atendida", "falha"].includes(c.status)).length;
-    const comDuracao = hoje.filter((c) => (c.duracao_segundos ?? 0) > 0);
-    const mediaSeg = comDuracao.length
-      ? Math.round(
-          comDuracao.reduce((acc, c) => acc + (c.duracao_segundos ?? 0), 0) / comDuracao.length,
-        )
-      : null;
-    return { total: hoje.length, atendidas, perdidas, mediaSeg };
-  }, [rows]);
+  const kpis = kpisQ.data ?? null;
 
   const columns = useMemo<ColumnDef<LinhaChamada, unknown>[]>(
     () => [
@@ -274,7 +276,7 @@ export function DiscadorCentral() {
               <span className="text-muted-foreground">Sem lead</span>
             )}
             <div className="text-xs tabular-nums text-muted-foreground">
-              {formatNumero(row.original.numero)}
+              {formatPhoneBR(row.original.numero)}
             </div>
           </div>
         ),
@@ -379,9 +381,17 @@ export function DiscadorCentral() {
     <div className="space-y-4">
       {/* KPIs do dia + meu ramal */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard icon={PhoneCall} label="Chamadas hoje" valor={String(kpis.total)} />
-        <KpiCard icon={PhoneIncoming} label="Atendidas hoje" valor={String(kpis.atendidas)} />
-        <KpiCard icon={PhoneMissed} label="Perdidas hoje" valor={String(kpis.perdidas)} />
+        <KpiCard icon={PhoneCall} label="Chamadas hoje" valor={kpis ? String(kpis.total) : "…"} />
+        <KpiCard
+          icon={PhoneIncoming}
+          label="Atendidas hoje"
+          valor={kpis ? String(kpis.atendidas) : "…"}
+        />
+        <KpiCard
+          icon={PhoneMissed}
+          label="Perdidas hoje"
+          valor={kpis ? String(kpis.perdidas) : "…"}
+        />
         <KpiCard
           icon={Phone}
           label="Meu ramal"

@@ -199,6 +199,35 @@ async function handleRequest(req: Request): Promise<Response> {
     if (STATUS_VALIDOS.has(v)) mapa.set(normalizar(k), v);
   }
 
+  // Cap de segurança: arquivo gigante não estoura o timeout da function; o
+  // corte é reportado (contatos vs processados) em vez de silencioso.
+  const MAX_PARES = 300;
+  const paresLimitados = pares.slice(0, MAX_PARES);
+
+  // LOTE, não N+1: uma consulta (por fatia de 100) traz as chamadas de
+  // campanha de todos os leads do arquivo; a mais recente de cada lead é o
+  // marcador de idempotência.
+  const leadIds = Array.from(new Set(paresLimitados.map((par) => par.leadId)));
+  const chamadaPorLead = new Map<string, { id: string; tabulacao: string | null }>();
+  for (let i = 0; i < leadIds.length; i += 100) {
+    const fatia = leadIds.slice(i, i + 100);
+    const { data: linhas } = await admin
+      .from("chamadas")
+      .select("id, lead_id, tabulacao")
+      .in("lead_id", fatia)
+      .eq("origem", "campanha")
+      .order("criado_em", { ascending: false });
+    for (const linha of linhas ?? []) {
+      const lid = linha.lead_id as string;
+      if (!chamadaPorLead.has(lid)) {
+        chamadaPorLead.set(lid, {
+          id: linha.id as string,
+          tabulacao: (linha.tabulacao as string | null) ?? null,
+        });
+      }
+    }
+  }
+
   let novas = 0;
   let aplicadas = 0;
   let jaProcessadas = 0;
@@ -207,16 +236,8 @@ async function handleRequest(req: Request): Promise<Response> {
   let jaNaEtapa = 0;
   const bloqueadas: Array<{ lead_id: string; tabulacao: string; erro: string }> = [];
 
-  for (const { leadId, tabulacao } of pares) {
-    // Última chamada de campanha do lead: é o marcador de idempotência.
-    const { data: chamadas } = await admin
-      .from("chamadas")
-      .select("id, tabulacao")
-      .eq("lead_id", leadId)
-      .eq("origem", "campanha")
-      .order("criado_em", { ascending: false })
-      .limit(1);
-    const chamada = chamadas?.[0] as { id: string; tabulacao: string | null } | undefined;
+  for (const { leadId, tabulacao } of paresLimitados) {
+    const chamada = chamadaPorLead.get(leadId);
     if (!chamada) {
       semChamada++;
       continue;
@@ -227,49 +248,61 @@ async function handleRequest(req: Request): Promise<Response> {
     }
     novas++;
 
+    // A TRANSIÇÃO vem antes do marcador: se a RPC falhar (transitório, lead
+    // travado, fora da carteira), a chamada fica SEM marcar e o próximo sync
+    // tenta de novo — marcar primeiro engoliria a falha para sempre.
+    const alvo = mapa.get(normalizar(tabulacao));
+    let desfecho: "aplicada" | "sem_mapeamento" | "ja_na_etapa" | null = null;
+    if (!alvo) {
+      desfecho = "sem_mapeamento";
+    } else {
+      // Lead lido e transicionado com o JWT do corretor: RLS limita à
+      // carteira e a RPC valida a máquina de estados (timeline + follow-up).
+      const { data: lead } = await supabase
+        .from("leads")
+        .select("id, status")
+        .eq("id", leadId)
+        .maybeSingle();
+      if (!lead) {
+        // Fora da carteira de quem sincroniza (campanha compartilhada de
+        // outrora): não marca — o sync do corretor certo processa depois.
+        bloqueadas.push({ lead_id: leadId, tabulacao, erro: "lead_fora_da_carteira" });
+        continue;
+      }
+      if (lead.status === alvo) {
+        desfecho = "ja_na_etapa";
+      } else {
+        const { error: rpcErr } = await supabase.rpc("transicionar_lead", {
+          p_lead_id: leadId,
+          p_novo_status: alvo,
+          p_motivo: `Tabulação do discador: ${tabulacao}`,
+        });
+        if (rpcErr) {
+          bloqueadas.push({ lead_id: leadId, tabulacao, erro: rpcErr.message });
+          continue;
+        }
+        desfecho = "aplicada";
+      }
+    }
+
+    // Marcador de idempotência só depois do desfecho definitivo.
     const { error: updErr } = await admin
       .from("chamadas")
       .update({ tabulacao })
       .eq("id", chamada.id);
     if (updErr) console.error("sonax-tabulacoes chamada_update_failed:", updErr);
+    chamada.tabulacao = tabulacao;
 
-    const alvo = mapa.get(normalizar(tabulacao));
-    if (!alvo) {
-      semMapeamento++;
-      continue;
-    }
-
-    // Lead lido e transicionado com o JWT do corretor: RLS limita à carteira
-    // e a RPC valida a máquina de estados (timeline + follow-up inclusos).
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("id, status")
-      .eq("id", leadId)
-      .maybeSingle();
-    if (!lead) {
-      bloqueadas.push({ lead_id: leadId, tabulacao, erro: "lead_fora_da_carteira" });
-      continue;
-    }
-    if (lead.status === alvo) {
-      jaNaEtapa++;
-      continue;
-    }
-    const { error: rpcErr } = await supabase.rpc("transicionar_lead", {
-      p_lead_id: leadId,
-      p_novo_status: alvo,
-      p_motivo: `Tabulação do discador: ${tabulacao}`,
-    });
-    if (rpcErr) {
-      bloqueadas.push({ lead_id: leadId, tabulacao, erro: rpcErr.message });
-      continue;
-    }
-    aplicadas++;
+    if (desfecho === "aplicada") aplicadas++;
+    else if (desfecho === "sem_mapeamento") semMapeamento++;
+    else if (desfecho === "ja_na_etapa") jaNaEtapa++;
   }
 
   return json({
     ok: true,
     formato,
     contatos: pares.length,
+    processados: paresLimitados.length,
     novas,
     aplicadas,
     ja_processadas: jaProcessadas,

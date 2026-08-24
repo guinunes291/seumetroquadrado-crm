@@ -41,6 +41,7 @@ import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { FUNNEL_STAGES, LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
+import { formatPhoneBR } from "@/lib/masks";
 
 type LeadFila = {
   id: string;
@@ -58,6 +59,8 @@ const ETAPAS_FORA_DA_FILA = "(perdido,contrato_fechado,pos_venda)";
 const ERRO_CAMPANHA: Record<string, string> = {
   campanha_nao_configurada:
     "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → PABX). Enquanto isso, use o modo um a um.",
+  campanha_compartilhada:
+    "Esta campanha do Sonax está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no painel do Sonax e ajuste em Gestão → Corretores → PABX).",
   ramal_nao_configurado:
     "Seu ramal não está cadastrado (Gestão → Corretores → PABX) — sem ele o discador não tem para onde entregar as chamadas.",
   sonax_nao_configurado: "A integração com o Sonax ainda não foi configurada (secrets).",
@@ -65,13 +68,6 @@ const ERRO_CAMPANHA: Record<string, string> = {
   sonax_recusou: "O Sonax recusou a fila — confira a campanha no painel do PABX.",
   account_inactive: "Sua conta está inativa.",
 };
-
-function fmtTelefone(raw: string): string {
-  const d = raw.replace(/\D/g, "");
-  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-  return raw;
-}
 
 export function SessaoDiscagem() {
   const { user } = useAuth();
@@ -272,7 +268,7 @@ export function SessaoDiscagem() {
               {leadAtual.nome}
             </Link>
             <span className="tabular-nums text-muted-foreground">
-              {fmtTelefone(leadAtual.telefone)}
+              {formatPhoneBR(leadAtual.telefone)}
             </span>
             <Badge variant="secondary">{LEAD_STATUS_LABEL[leadAtual.status]}</Badge>
             {leadAtual.projeto_nome && (

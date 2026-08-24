@@ -22,6 +22,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { comCapturaDeErro } from "../_shared/error-tracking.ts";
+import { toSonaxNumero } from "../_shared/sonax.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -34,14 +35,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...cors, "Content-Type": "application/json" },
   });
-}
-
-// Número no formato do discador v1: DDD + número, só dígitos, sem DDI.
-function toSonaxNumero(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  let d = String(raw).replace(/\D/g, "").replace(/^0+/, "");
-  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
-  return d.length >= 10 && d.length <= 11 ? d : null;
 }
 
 const MAX_LEADS_POR_LOTE = 100;
@@ -115,17 +108,42 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // ---- parar ----------------------------------------------------------------
   if (body.acao === "parar") {
+    // Campanha já parada (fila esgotou sozinha) devolve 404 no contrato v1 —
+    // isso é sucesso do ponto de vista do corretor, não recusa: a limpeza
+    // segue e o cockpit fecha.
     const stop = await acaoSonax("stop_campanha", { id_campanha: idCampanha });
     let limpeza: AcaoSonax | null = null;
     if (body.limpar === true) {
       limpeza = await acaoSonax("limpa_contatos_campanha", { id_campanha: idCampanha });
     }
-    if (!stop.ok) return json({ error: "sonax_recusou", detail: stop.resposta }, 502);
-    return json({ ok: true, parada: true, limpeza: limpeza?.ok ?? null });
+    return json({
+      ok: true,
+      parada: true,
+      stop: stop.ok ? "parada" : `ja_parada_ou_recusada: ${stop.resposta}`,
+      limpeza: limpeza?.ok ?? null,
+    });
   }
 
   // ---- iniciar --------------------------------------------------------------
   if (!ramal) return json({ error: "ramal_nao_configurado" }, 422);
+
+  // Guarda de campanha COMPARTILHADA: dois corretores na mesma campanha se
+  // atropelam — a higiene do lote de um APAGA a fila do outro e a fila
+  // entrega chamadas a qualquer ramal logado. Recusar alto e cedo é melhor
+  // do que corromper em silêncio. (Service role só para esta contagem: a RLS
+  // não deixa um corretor enxergar o perfil dos outros.)
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (serviceKey) {
+    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const { count: compartilhada } = await admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("sonax_id_campanha", idCampanha)
+      .neq("id", uid);
+    if ((compartilhada ?? 0) > 0) {
+      return json({ error: "campanha_compartilhada" }, 409);
+    }
+  }
   const leadIds = Array.isArray(body.lead_ids)
     ? (body.lead_ids.filter((v) => typeof v === "string") as string[]).slice(0, MAX_LEADS_POR_LOTE)
     : [];

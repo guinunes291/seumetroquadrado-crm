@@ -92,13 +92,40 @@ describe("sonax-campanha (discador automático)", () => {
     );
   });
 
-  it("sem service_role: fila lida com a RLS do corretor, com as exclusões de compliance", () => {
-    expect(fnCampanha).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  it("fila lida com a RLS do corretor, com as exclusões de compliance", () => {
     expect(fnCampanha).toContain("SUPABASE_ANON_KEY");
     expect(fnCampanha).toContain("conta_atual_ativa");
     expect(fnCampanha).toContain('.eq("opt_out", false)');
     expect(fnCampanha).toContain('.eq("na_lixeira", false)');
     expect(fnCampanha).toContain('.is("deleted_at", null)');
+    // A fila de leads vem do client com o JWT do corretor; a service role
+    // existe SÓ para a contagem da guarda de campanha compartilhada.
+    expect(fnCampanha).toMatch(/await supabase\s*\.from\("leads"\)/);
+  });
+
+  it("campanha compartilhada entre corretores é recusada (409) antes de mexer na fila", () => {
+    // Dois corretores na mesma campanha se atropelam: a higiene do lote de um
+    // apaga a fila do outro. Recusar cedo > corromper em silêncio.
+    expect(fnCampanha).toContain("campanha_compartilhada");
+    expect(fnCampanha).toMatch(/eq\("sonax_id_campanha", idCampanha\)[\s\S]*?neq\("id", uid\)/);
+    expect(fnCampanha.indexOf("campanha_compartilhada")).toBeLessThan(
+      fnCampanha.indexOf("Higiene do lote"),
+    );
+    // E o front traduz o código para o corretor.
+    const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
+    expect(sessao).toContain("campanha_compartilhada:");
+  });
+
+  it("parar tolera campanha já parada (contrato v1 devolve 404) — o cockpit sempre fecha", () => {
+    expect(fnCampanha).toContain("ja_parada_ou_recusada");
+    expect(fnCampanha).toMatch(/ok: true,\s*parada: true/);
+  });
+
+  it("normalização de número é ÚNICA (_shared/sonax.ts) — discar e campanha importam a mesma", () => {
+    const shared = readFileSync(join(root, "supabase/functions/_shared/sonax.ts"), "utf8");
+    expect(shared).toContain("export function toSonaxNumero");
+    expect(fnDiscar).toContain('from "../_shared/sonax.ts"');
+    expect(fnCampanha).toContain('from "../_shared/sonax.ts"');
   });
 
   it("credenciais só por env; enfileira (acao=chamada), dá play e sabe parar/limpar", () => {
@@ -173,6 +200,27 @@ describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
     expect(paginaDiscador).toContain("Sincronizar tabulações");
     expect(paginaDiscador).toContain("refetchInterval");
   });
+
+  it("transição vem ANTES do marcador — falha na RPC fica sem marcar e o próximo sync retenta", () => {
+    // Marcar primeiro engoliria a falha para sempre: a tabulação constaria
+    // como processada e o lead nunca mudaria de etapa.
+    expect(fnTab.indexOf('rpc("transicionar_lead"')).toBeLessThan(
+      fnTab.indexOf(".update({ tabulacao })"),
+    );
+    expect(fnTab).toMatch(
+      /bloqueadas\.push\(\{ lead_id: leadId, tabulacao, erro: rpcErr\.message \}\);\s*continue;/,
+    );
+    // Lead fora da carteira (campanha compartilhada de outrora) também não
+    // marca — o sync do corretor certo processa depois.
+    expect(fnTab).toContain("lead_fora_da_carteira");
+  });
+
+  it("arquivo grande não estoura: cap reportado e lookup de chamadas em lote (sem N+1)", () => {
+    expect(fnTab).toContain("MAX_PARES");
+    expect(fnTab).toContain("processados");
+    expect(fnTab).toContain("chamadaPorLead");
+    expect(fnTab).toMatch(/\.in\("lead_id", fatia\)/);
+  });
 });
 
 describe("sonax-discar (click-to-call)", () => {
@@ -191,6 +239,13 @@ describe("sonax-discar (click-to-call)", () => {
   it("registra a chamada e ecoa na timeline como ligação de saída", () => {
     expect(fnDiscar).toMatch(/from\("chamadas"\)[\s\S]*origem: "click2call"/);
     expect(fnDiscar).toMatch(/from\("interacoes"\)[\s\S]*tipo: "ligacao"[\s\S]*direcao: "saida"/);
+  });
+
+  it("protocolo nunca é o número discado ecoado (colidiria no UNIQUE na rediscagem)", () => {
+    // A v1 devolve texto e costuma ecoar o número; capturá-lo como protocolo
+    // faria a 2ª ligação ao mesmo lead sumir (provider_call_id duplicado).
+    expect(fnDiscar).toContain("semNumeroDiscado");
+    expect(fnDiscar).toMatch(/replaceAll\("55" \+ numero/);
   });
 });
 
@@ -221,6 +276,25 @@ describe("sonax-webhook (URL de integração do PABX)", () => {
     // Variável de template não substituída ("<NUMERO>") nunca vira dado.
     expect(fnWebhook).toMatch(/\^<\.\*>\$/);
   });
+
+  it("lead resolve primeiro pelo <ID_CONTATO> (UUID plantado no enfileiramento)", () => {
+    // Telefone repetido (recadastro, cônjuge) não confunde: o id_contato é
+    // autoritativo; o telefone com variantes é fallback do receptivo.
+    expect(fnWebhook).toMatch(/UUID_RE\.test\(idContato\)/);
+    expect(fnWebhook.indexOf("UUID_RE.test(idContato)")).toBeLessThan(
+      fnWebhook.indexOf('rpc("buscar_lead_ativo_por_telefone_global"'),
+    );
+  });
+
+  it("corrida de insert (23505): o evento perdedor é aplicado na linha vencedora", () => {
+    expect(fnWebhook).toContain("aplicarAtualizacao");
+    expect(fnWebhook).toMatch(/23505[\s\S]*?buscarExistente\(\)/);
+    // Status sem regressão: evento atrasado nunca desfaz estado terminal.
+    expect(fnWebhook).toContain("TERMINAIS");
+    // Eco na timeline com a direção DA LINHA — click2call atualizado por
+    // evento sem id_campanha continua "saída".
+    expect(fnWebhook).toContain("existente.direcao");
+  });
 });
 
 describe("aba Discador (fiação)", () => {
@@ -246,6 +320,17 @@ describe("aba Discador (fiação)", () => {
     // Migration pendente mostra estado explicativo em vez de quebrar.
     expect(pagina).toContain("tabelaAusente");
     expect(clienteChamadas).toContain("tabelaAusente");
+  });
+
+  it("KPIs do dia contam no servidor; lookups .in() vão em lotes; telefone formata sem truncar", () => {
+    // A lista é uma janela das 500 mais recentes — os cartões contam TODAS as
+    // chamadas de hoje (head:true), senão dia de campanha pesada subconta.
+    expect(pagina).toContain("contarChamadasHoje");
+    expect(clienteChamadas).toContain('count: "exact", head: true');
+    // Centenas de UUIDs num .in() só cabem na URL em lotes.
+    expect(pagina).toContain("buscarEmLotes");
+    // Exibição única de telefone (lib/masks) — sem cópia local que trunca.
+    expect(pagina).toContain("formatPhoneBR");
   });
 
   it("sessão de discagem: fila só da carteira, sem opt-out/lixeira, uma chamada por vez", () => {

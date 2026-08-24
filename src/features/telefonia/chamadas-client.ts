@@ -1,18 +1,19 @@
-// Fronteira ÚNICA de acesso do cliente à tabela `chamadas` (os types gerados
-// ainda não a conhecem) — tipos estruturais no molde de mensagens-client.ts,
-// sem gastar o orçamento de type escapes. Ao regenerar os types do Supabase
-// com a migration de telefonia aplicada, troque pelos tipos gerados.
+// Fronteira ÚNICA de acesso do cliente à tabela `chamadas`, já com os types
+// gerados do Supabase (a migration de telefonia está no schema). Mantém o
+// fallback de "tabela ausente" para ambientes onde a migration ainda não
+// rodou — a aba mostra o estado explicativo em vez de quebrar.
 
 import { supabase } from "@/integrations/supabase/client";
 
 export type ChamadaDirecao = "entrada" | "saida";
+export type ChamadaOrigem = "click2call" | "campanha" | "receptivo" | "agendada";
 
 export type Chamada = {
   id: string;
   lead_id: string | null;
   corretor_id: string | null;
   direcao: ChamadaDirecao;
-  origem: "click2call" | "campanha" | "receptivo" | "agendada";
+  origem: ChamadaOrigem;
   provider: string;
   provider_call_id: string | null;
   numero: string;
@@ -23,25 +24,6 @@ export type Chamada = {
   tabulacao: string | null;
   criado_em: string;
 };
-
-type ResultadoDb<T> = PromiseLike<{
-  data: T | null;
-  error: { code?: string; message?: string } | null;
-}>;
-type SelectChamadas = {
-  order: (
-    col: "criado_em",
-    opts: { ascending: boolean },
-  ) => { limit: (n: number) => ResultadoDb<Chamada[]> };
-};
-type ChamadasTable = { select: (cols: string) => SelectChamadas };
-type ClientHolder = { from: unknown };
-type FromChamadas = (tabela: "chamadas") => ChamadasTable;
-
-function tabelaChamadas(): ChamadasTable {
-  const holder: ClientHolder = supabase;
-  return (holder.from as FromChamadas).call(supabase, "chamadas");
-}
 
 const COLUNAS =
   "id, lead_id, corretor_id, direcao, origem, provider, provider_call_id, numero, ramal, status, duracao_segundos, gravacao_url, tabulacao, criado_em";
@@ -58,7 +40,8 @@ export type ChamadasLista = { rows: Chamada[]; tabelaAusente: boolean };
  * quebrar (mesmo espírito da Central de Mensagens).
  */
 export async function listarChamadasRecentes(limit = 500): Promise<ChamadasLista> {
-  const { data, error } = await tabelaChamadas()
+  const { data, error } = await supabase
+    .from("chamadas")
     .select(COLUNAS)
     .order("criado_em", { ascending: false })
     .limit(limit);
@@ -66,5 +49,41 @@ export async function listarChamadasRecentes(limit = 500): Promise<ChamadasLista
     if (TABELA_AUSENTE.has(error.code ?? "")) return { rows: [], tabelaAusente: true };
     throw new Error(error.message || "Não foi possível carregar as chamadas.");
   }
-  return { rows: data ?? [], tabelaAusente: false };
+  return { rows: (data ?? []) as Chamada[], tabelaAusente: false };
+}
+
+export type KpisChamadasHoje = { total: number; atendidas: number; perdidas: number };
+
+const STATUS_ATENDIDAS = ["atendida", "falando", "concluida"];
+const STATUS_PERDIDAS = ["nao_atendida", "falha"];
+
+/**
+ * KPIs do dia por CONTAGEM no servidor (head:true, sem tráfego de linhas): o
+ * histórico da tela é uma janela das N mais recentes, mas os cartões precisam
+ * contar TODAS as chamadas de hoje visíveis ao papel — num dia de campanha
+ * pesada a janela sozinha subconta.
+ */
+export async function contarChamadasHoje(): Promise<KpisChamadasHoje> {
+  const inicioHoje = new Date();
+  inicioHoje.setHours(0, 0, 0, 0);
+  const desde = inicioHoje.toISOString();
+  const contar = async (statuses?: string[]): Promise<number> => {
+    let q = supabase
+      .from("chamadas")
+      .select("id", { count: "exact", head: true })
+      .gte("criado_em", desde);
+    if (statuses) q = q.in("status", statuses);
+    const { count, error } = await q;
+    if (error) {
+      if (TABELA_AUSENTE.has(error.code ?? "")) return 0;
+      throw new Error(error.message || "Não foi possível contar as chamadas de hoje.");
+    }
+    return count ?? 0;
+  };
+  const [total, atendidas, perdidas] = await Promise.all([
+    contar(),
+    contar(STATUS_ATENDIDAS),
+    contar(STATUS_PERDIDAS),
+  ]);
+  return { total, atendidas, perdidas };
 }

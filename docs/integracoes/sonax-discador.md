@@ -16,10 +16,17 @@ em 16/08/2026.
 2. **Eventos de chamada → CRM** — a "URL de integração" do PABX aponta para a
    edge function `sonax-webhook`. Cada evento (receptivo atendido, chamada de
    campanha do discador etc.) vira uma linha em `chamadas` (idempotente por
-   `id_chamada`) e, quando o número casa com um lead ativo
-   (`buscar_lead_ativo_por_telefone_global`), uma interação `ligacao` na
-   timeline — o que já atualiza `leads.ultima_interacao`/`ultimo_contato` via
-   trigger.
+   `id_chamada`) e, quando a chamada casa com um lead ativo, uma interação
+   `ligacao` na timeline — o que já atualiza
+   `leads.ultima_interacao`/`ultimo_contato` via trigger. O lead resolve
+   **primeiro pelo `<ID_CONTATO>`** (o UUID do lead que a `sonax-campanha`
+   planta no enfileiramento — telefone repetido entre leads não confunde);
+   o telefone, com variantes de DDI 55/zeros
+   (`buscar_lead_ativo_por_telefone_global`), é o fallback do receptivo.
+   Eventos da mesma chamada que chegam fora de ordem não regridem o status
+   (um "chamando" atrasado não desfaz "concluída"), e dois eventos simultâneos
+   não se perdem: o que perder a corrida de insert é aplicado sobre a linha
+   vencedora.
 3. **Ramal por corretor** — coluna `profiles.ramal_sonax`, editável pelo admin
    em **Gestão → Corretores** (coluna "Ramal"). É o ramal que o click-to-call
    disca e a chave que casa eventos do webhook (`<RAMAL>`) com o corretor.
@@ -44,7 +51,17 @@ em 16/08/2026.
    **Higiene do lote**: cada "Iniciar agora" primeiro dá stop e limpa a sobra
    de contatos da campanha antes de enfileirar o lote novo — sem isso,
    contatos restantes de uma sessão anterior fariam o PABX voltar a discar
-   sozinho no próximo login do agente. "Parar discador" também limpa.
+   sozinho no próximo login do agente. "Parar discador" também limpa, e
+   tolera campanha já parada (a fila esgotou sozinha): o contrato v1 devolve
+   404 nesse caso, o que é sucesso do ponto de vista do corretor — o cockpit
+   fecha e a limpeza roda mesmo assim.
+
+   **Uma campanha por corretor (obrigatório)**: se dois corretores apontarem
+   para a MESMA campanha Sonax, um apaga a fila do outro na higiene do lote e
+   a fila entrega chamadas a qualquer ramal logado. O "Iniciar agora" recusa
+   com `campanha_compartilhada` (409) quando detecta o ID de campanha repetido
+   em outro perfil — crie uma campanha por corretor no painel Sonax e ajuste
+   em Gestão → Corretores → PABX.
 
    **Semântica de status**: uma chamada só vira "Atendida"/"Concluída" quando
    o webhook de **atendimento** da fila disparou (o agente falou de verdade);
@@ -63,7 +80,12 @@ em 16/08/2026.
    `transicionar_lead` (máquina de estados + timeline + follow-up). Roda
    sozinha a cada 2 min enquanto a aba Discador está aberta, e no botão
    "Sincronizar tabulações". Idempotente: só tabulação **nova** processa — se
-   o corretor mudar a etapa manualmente depois, o sync não briga.
+   o corretor mudar a etapa manualmente depois, o sync não briga. A transição
+   acontece **antes** de marcar a tabulação como processada: se a RPC falhar
+   (transitório, lead fora da carteira), a chamada fica sem marcar e o próximo
+   sync tenta de novo. Arquivos gigantes são processados em fatias (cap por
+   rodada, reportado em `contatos` vs `processados`) com lookup de chamadas em
+   lote.
 
    O mapeamento tabulação → etapa é **configuração**, na `gestao_config`
    (chave `telefonia_tabulacao_status`), comparado sem acento/maiúsculas.
