@@ -168,6 +168,55 @@ export function filtrarSerieJanela<T extends { mes: string }>(
 }
 
 // ---------------------------------------------------------------------------
+// Comparação com o período anterior (Meu Raio-X: o corretor não enxerga os
+// números do time, então a base de comparação é o próprio histórico)
+// ---------------------------------------------------------------------------
+
+export type AgregadoJanela = { meses: number; vendas: number; vgv: number; visitas: number };
+
+export type ComparacaoPeriodos = {
+  atual: AgregadoJanela;
+  /** null quando não há janela anterior COMPLETA (mesmo nº de meses). */
+  anterior: AgregadoJanela | null;
+  deltaVendasPct: number | null;
+  deltaVgvPct: number | null;
+  deltaVisitasPct: number | null;
+};
+
+/**
+ * Agrega os últimos `janelaMeses` meses da série contra a janela imediatamente
+ * anterior de MESMO tamanho. Janela anterior incompleta (série curta) não
+ * gera comparação: absoluto contra base menor inflaria o delta. Base 0 em uma
+ * métrica anula só o delta dela. Fatiamento por linha ordenada, o mesmo
+ * critério da tendenciaSerie — mês ausente na série não conta.
+ */
+export function compararComPeriodoAnterior(
+  serie: PerformanceDrillRow[],
+  janelaMeses: number,
+): ComparacaoPeriodos {
+  const n = Math.max(1, Math.floor(janelaMeses));
+  const ordenada = [...serie].sort((a, b) => a.mes.localeCompare(b.mes));
+  const soma = (rows: PerformanceDrillRow[]): AgregadoJanela => ({
+    meses: rows.length,
+    vendas: rows.reduce((s, m) => s + m.vendas, 0),
+    vgv: rows.reduce((s, m) => s + (Number(m.vgv) || 0), 0),
+    visitas: rows.reduce((s, m) => s + m.visitas_realizadas, 0),
+  });
+  const atual = soma(ordenada.slice(-n));
+  const restante = ordenada.slice(0, Math.max(0, ordenada.length - n));
+  const anterior = restante.length >= n ? soma(restante.slice(-n)) : null;
+  const deltaPct = (valor: number, base: number): number | null =>
+    base === 0 ? null : Math.round(((valor - base) / base) * 100);
+  return {
+    atual,
+    anterior,
+    deltaVendasPct: anterior ? deltaPct(atual.vendas, anterior.vendas) : null,
+    deltaVgvPct: anterior ? deltaPct(atual.vgv, anterior.vgv) : null,
+    deltaVisitasPct: anterior ? deltaPct(atual.visitas, anterior.visitas) : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Comissões (resumo)
 // ---------------------------------------------------------------------------
 

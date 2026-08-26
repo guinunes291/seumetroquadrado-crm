@@ -8,7 +8,8 @@ import { describe, expect, it } from "vitest";
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 const hub = read("src/routes/_authenticated/financeiro/index.tsx");
-const sidebar = read("src/components/app-sidebar.tsx");
+// O menu vem do registro SISTEMAS desde a reorganização em sistemas.
+const sistemas = read("src/features/nav/sistemas.ts");
 const ranking = read("src/routes/_authenticated/ranking.tsx");
 const aprovacao = read("src/components/pending-sales-approval.tsx");
 
@@ -28,12 +29,12 @@ describe("item 2.4 — hub Dinheiro (/financeiro)", () => {
     expect(hub).not.toMatch(/throw redirect\(\{ to: "\/" \}\)/);
   });
 
-  it("o badge de aprovações vive no item Dinheiro e cai na aba que aprova (#15)", () => {
-    expect(sidebar).toMatch(
-      /to: "\/financeiro",\s*search: \{ tab: "comissoes" \},\s*label: "Dinheiro"[\s\S]{0,200}badge: \(b\) => b\.aprovacoes/,
+  it("o badge de aprovações vive no card Assinaturas & Comissões e cai na aba que aprova (#15)", () => {
+    expect(sistemas).toMatch(
+      /home: \{ to: "\/financeiro", search: \{ tab: "comissoes" \} \},\s*badge: \(b\) => b\.aprovacoes/,
     );
     // O antigo destino (Desempenho com badge) morreu — o badge nunca mais mente.
-    expect(sidebar).not.toMatch(/to: "\/ranking"[\s\S]{0,120}badge: \(b\) => b\.aprovacoes/);
+    expect(sistemas).not.toMatch(/to: "\/ranking"[\s\S]{0,120}badge: \(b\) => b\.aprovacoes/);
   });
 
   it("Desempenho não tem mais aba Comissões; o deep-link antigo redireciona", () => {

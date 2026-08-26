@@ -315,13 +315,14 @@ describe("aba Discador (fiação)", () => {
     join(root, "src/features/telefonia/chamadas-client.ts"),
     "utf8",
   );
-  const sidebar = readFileSync(join(root, "src/components/app-sidebar.tsx"), "utf8");
+  // O menu vem do registro SISTEMAS desde a reorganização em sistemas.
+  const sistemas = readFileSync(join(root, "src/features/nav/sistemas.ts"), "utf8");
   const routeTree = readFileSync(join(root, "src/routeTree.gen.ts"), "utf8");
 
-  it("rota /discador existe, está na árvore gerada e no menu Atender", () => {
+  it("rota /discador existe, está na árvore gerada e no menu da Central de Atendimento", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/discador")');
     expect(routeTree).toContain("discador");
-    expect(sidebar).toMatch(/to: "\/discador"[\s\S]{0,40}label: "Discador"/);
+    expect(sistemas).toMatch(/label: "Discador",\s*icon: Phone,\s*to: "\/discador"/);
   });
 
   it("página vive de `chamadas` com realtime e rediscagem pelo hook único", () => {

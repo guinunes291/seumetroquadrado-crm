@@ -53,7 +53,7 @@ import { LeadPeekDrawer, type PeekLead } from "@/features/leads/lead-peek-drawer
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const COLUMNS = FUNNEL_STAGES.map((id) => ({
+const ALL_COLUMNS = FUNNEL_STAGES.map((id) => ({
   id,
   label: LEAD_STATUS_LABEL[id],
   tone: LEAD_STATUS_COLUMN_TONE[id],
@@ -159,6 +159,8 @@ type KanbanBoardProps = {
   initialSearch?: string;
   /** uuid do corretor para filtrar o quadro; "all"/"unassigned" são ignorados. */
   corretorId?: string;
+  /** Subconjunto de colunas (ex.: fase do funil); ausente = quadro completo. */
+  stages?: LeadStatus[];
 };
 
 /**
@@ -166,12 +168,22 @@ type KanbanBoardProps = {
  * uma das visões (toggle Lista/Kanban) dentro de `/leads` — consolidação Fase 1.
  * A rota `/kanban` permanece como redirect de compatibilidade.
  */
-export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}) {
+export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardProps = {}) {
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
   const [search, setSearch] = useState(initialSearch ?? "");
   const debouncedSearch = useDebounce(search.trim(), 300);
-  const [mobileStage, setMobileStage] = useState<LeadStatus>(COLUMNS[0].id);
+  // Filtrar ALL_COLUMNS (e não mapear o prop) preserva a ordem canônica do
+  // funil independente da ordem em que `stages` chegar.
+  const columns = useMemo(
+    () => (stages ? ALL_COLUMNS.filter((c) => stages.includes(c.id)) : ALL_COLUMNS),
+    [stages],
+  );
+  const [mobileStage, setMobileStage] = useState<LeadStatus>(columns[0].id);
+  // O mobileStage salvo pode apontar para coluna fora da fase (fase trocada
+  // com o componente montado, ou default antigo) — deriva no render em vez de
+  // forçar setState.
+  const mobileStageAtual = columns.some((c) => c.id === mobileStage) ? mobileStage : columns[0].id;
   const [extraPages, setExtraPages] = useState<Partial<Record<LeadStatus, StagePage>>>({});
   const [loadingMore, setLoadingMore] = useState<LeadStatus | null>(null);
   const [announcement, setAnnouncement] = useState("");
@@ -201,8 +213,9 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
     return m;
   }, [corretores]);
 
+  // Só as colunas visíveis viram query — fase com menos colunas = menos RPCs.
   const stageQueries = useQueries({
-    queries: COLUMNS.map((column) => ({
+    queries: columns.map((column) => ({
       queryKey: ["pipeline-stage-v2", column.id, debouncedSearch, corretorFiltro ?? null],
       queryFn: async (): Promise<StagePage> => {
         const { data, error } = await supabase.rpc("pipeline_stage_page_v2", {
@@ -254,20 +267,22 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
   const initialPages = useMemo(
     () =>
       new Map<LeadStatus, StagePage>(
-        COLUMNS.flatMap((column, index) => {
+        columns.flatMap((column, index) => {
           const page = stageQueries[index]?.data;
           return page ? [[column.id, page] as const] : [];
         }),
       ),
-    [stageQueries],
+    [stageQueries, columns],
   );
   const leads = useMemo(() => {
     const seen = new Set<string>();
-    return COLUMNS.flatMap((column) => [
-      ...(initialPages.get(column.id)?.items ?? []),
-      ...(extraPages[column.id]?.items ?? []),
-    ]).filter((lead) => (seen.has(lead.id) ? false : (seen.add(lead.id), true)));
-  }, [extraPages, initialPages]);
+    return columns
+      .flatMap((column) => [
+        ...(initialPages.get(column.id)?.items ?? []),
+        ...(extraPages[column.id]?.items ?? []),
+      ])
+      .filter((lead) => (seen.has(lead.id) ? false : (seen.add(lead.id), true)));
+  }, [extraPages, initialPages, columns]);
   const leadsLoading = stageQueries.some((query) => query.isLoading) || snapshotQuery.isLoading;
   const leadsError = stageQueries.some((query) => query.isError) || snapshotQuery.isError;
   const refetchLeads = async () => {
@@ -390,7 +405,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
 
   const byColumn = useMemo(() => {
     const map = new Map<string, Lead[]>();
-    COLUMNS.forEach((c) => map.set(c.id, []));
+    columns.forEach((c) => map.set(c.id, []));
     // O servidor já filtra via `_query` (debounced) na página da etapa e no
     // snapshot. Refiltrar aqui com o texto cru era mais restrito (só nome e
     // telefone, sem unaccent) e dessincronizava os cards dos contadores.
@@ -413,11 +428,18 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
       });
     }
     return map;
-  }, [leads]);
+  }, [leads, columns]);
 
+  // O snapshot devolve TODAS as etapas — restringe às colunas visíveis antes
+  // de qualquer métrica, para os chips (total, VGV) não somarem etapas fora
+  // da fase.
+  const snapshotRows = useMemo(() => {
+    const visiveis = new Set<string>(columns.map((c) => c.id));
+    return (snapshotQuery.data ?? []).filter((row) => visiveis.has(String(row.etapa)));
+  }, [snapshotQuery.data, columns]);
   const snapshotByStage = useMemo(
-    () => new Map((snapshotQuery.data ?? []).map((row) => [row.etapa, row])),
-    [snapshotQuery.data],
+    () => new Map(snapshotRows.map((row) => [row.etapa, row])),
+    [snapshotRows],
   );
   const pipelineTotal = useMemo(
     () => [...snapshotByStage.values()].reduce((sum, row) => sum + Number(row.quantidade), 0),
@@ -425,18 +447,19 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
   );
 
   // Economia do funil: VGV por etapa (v3) + % de conversão acumulada vs. etapa
-  // anterior — derivado das quantidades, sem histórico.
+  // anterior — derivado das quantidades, sem histórico. A ordem é a das
+  // colunas visíveis: numa fase, a conversão compara etapas DENTRO da fase.
   const stageMetrics = useMemo(
     () =>
       computeStageMetrics(
-        (snapshotQuery.data ?? []).map((row) => ({
+        snapshotRows.map((row) => ({
           etapa: String(row.etapa),
           quantidade: Number(row.quantidade),
           vgv: "vgv" in row && row.vgv != null ? Number(row.vgv) : null,
         })),
-        FUNNEL_STAGES,
+        columns.map((c) => c.id),
       ),
-    [snapshotQuery.data],
+    [snapshotRows, columns],
   );
 
   // VGV total do quadro: soma só as etapas do funil (stageMetrics já exclui
@@ -514,7 +537,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
 
       <div className="md:hidden">
         <ResponsiveTabs
-          value={mobileStage}
+          value={mobileStageAtual}
           onValueChange={(value) => {
             const stage = value as LeadStatus;
             setMobileStage(stage);
@@ -522,7 +545,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
           }}
           ariaLabel="Etapa exibida no funil"
           listClassName="w-full sm:w-full"
-          items={COLUMNS.map((column) => ({
+          items={columns.map((column) => ({
             value: column.id,
             label: `${column.label} · ${Number(snapshotByStage.get(column.id)?.quantidade ?? 0)}`,
           }))}
@@ -567,7 +590,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
           tabIndex={0}
         >
           <div className="flex gap-3 min-w-max">
-            {COLUMNS.map((col) => {
+            {columns.map((col) => {
               const items = byColumn.get(col.id) ?? [];
               const metrics = stageMetrics.get(col.id);
               const vgvLabel = formatVgvCompact(metrics?.vgv ?? null);
@@ -616,7 +639,7 @@ export function KanbanBoard({ initialSearch, corretorId }: KanbanBoardProps = {}
                   aria-labelledby={`kanban-col-${col.id}`}
                   className={cn(
                     "w-full shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors md:block md:w-72",
-                    col.id !== mobileStage && "hidden",
+                    col.id !== mobileStageAtual && "hidden",
                     col.tone,
                     dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",
                   )}

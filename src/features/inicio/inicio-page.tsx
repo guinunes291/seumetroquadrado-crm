@@ -10,12 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import {
-  MODULOS,
-  badgeDoModulo,
-  modulosVisiveis,
-  type Modulo,
+  badgeDoSistema,
+  homeDoSistema,
+  sistemasVisiveis,
   type PapelCtx,
-} from "@/features/inicio/modulos";
+  type Sistema,
+} from "@/features/nav/sistemas";
 
 function saudacao(): string {
   const h = new Date().getHours();
@@ -34,8 +34,9 @@ const GRID_CLASSES = "stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3 
 /**
  * Hub "Acesso aos Módulos": a primeira tela após o login. Vive FORA do shell
  * /_authenticated de propósito — sem sidebar, é um portal de passagem onde o
- * corretor escolhe em qual módulo vai trabalhar (a marca da sidebar traz de
- * volta para cá). Quais cards aparecem depende só do papel (MODULOS).
+ * corretor escolhe em qual sistema vai trabalhar (a marca da sidebar traz de
+ * volta para cá). Quais cards aparecem depende só do papel (registro SISTEMAS
+ * em features/nav/sistemas — a mesma fonte da sidebar e do command palette).
  */
 export function InicioPage() {
   const { user } = useAuth();
@@ -49,9 +50,9 @@ export function InicioPage() {
     "corretor";
 
   const ctx: PapelCtx = { roles, isAdmin };
-  const visiveis = modulosVisiveis(MODULOS, ctx);
-  const operacao = visiveis.filter((m) => m.grupo === "operacao");
-  const gestao = visiveis.filter((m) => m.grupo === "gestao");
+  const visiveis = sistemasVisiveis(ctx);
+  const operacao = visiveis.filter((s) => s.grupo === "operacao");
+  const gestao = visiveis.filter((s) => s.grupo === "gestao");
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -111,16 +112,22 @@ export function InicioPage() {
         {loading ? (
           // Papéis ainda carregando: sem grade parcial, para os cards de gestão
           // não "pipocarem" depois (nem piscarem para quem não vai vê-los).
+          // 7 cards de operação = 8 células, porque o destaque ocupa duas.
           <div className={GRID_CLASSES} aria-busy="true">
-            {Array.from({ length: 8 }, (_, i) => (
+            {Array.from({ length: 7 }, (_, i) => (
               <Skeleton key={i} className={cn("h-44 rounded-xl", i === 0 && "sm:col-span-2")} />
             ))}
           </div>
         ) : (
           <>
             <div className={GRID_CLASSES}>
-              {operacao.map((m) => (
-                <ModuloCard key={m.id} modulo={m} badge={badgeDoModulo(m, badges, ctx)} />
+              {operacao.map((s) => (
+                <SistemaCard
+                  key={s.id}
+                  sistema={s}
+                  badge={badgeDoSistema(s, badges, ctx)}
+                  ctx={ctx}
+                />
               ))}
             </div>
 
@@ -130,8 +137,13 @@ export function InicioPage() {
                   Gestão
                 </h2>
                 <div className={GRID_CLASSES}>
-                  {gestao.map((m) => (
-                    <ModuloCard key={m.id} modulo={m} badge={badgeDoModulo(m, badges, ctx)} />
+                  {gestao.map((s) => (
+                    <SistemaCard
+                      key={s.id}
+                      sistema={s}
+                      badge={badgeDoSistema(s, badges, ctx)}
+                      ctx={ctx}
+                    />
                   ))}
                 </div>
               </section>
@@ -145,22 +157,23 @@ export function InicioPage() {
   );
 }
 
-function ModuloCard({ modulo, badge }: { modulo: Modulo; badge: number }) {
-  const Icon = modulo.icon;
+function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number; ctx: PapelCtx }) {
+  const Icon = sistema.icon;
   return (
+    // homeDoSistema resolve o destino (to + search) pelo papel — o BI, por
+    // exemplo, leva o corretor ao /meu-raio-x e a gestão ao /painel-gestor.
     <Link
-      to={modulo.to}
-      search={modulo.search}
+      {...homeDoSistema(sistema, ctx)}
       className={cn(
         "group flex min-h-44 flex-col rounded-xl border border-border-subtle bg-card p-5 shadow-elev-1 hover-lift press-scale hover:border-primary/40",
-        modulo.destaque && "sm:col-span-2",
+        sistema.destaque && "sm:col-span-2",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <span
           className={cn(
             "flex h-10 w-10 items-center justify-center rounded-lg",
-            modulo.destaque
+            sistema.destaque
               ? "bg-gold-500/15 text-gold-600 dark:text-gold-300"
               : "bg-primary/10 text-primary",
           )}
@@ -173,8 +186,8 @@ function ModuloCard({ modulo, badge }: { modulo: Modulo; badge: number }) {
           </span>
         )}
       </div>
-      <h3 className="mt-4 font-display font-semibold">{modulo.titulo}</h3>
-      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{modulo.descricao}</p>
+      <h3 className="mt-4 font-display font-semibold">{sistema.titulo}</h3>
+      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{sistema.descricao}</p>
       <span className="mt-auto flex items-center gap-1 pt-4 text-sm font-medium text-primary">
         Acessar
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
