@@ -1,24 +1,16 @@
-// Painel de campanhas de webhook — onde o gestor vê e opera as roletas por
-// projeto: token do endpoint, equipe da campanha, tier atual de cada corretor
-// e histórico de mudanças de tier. Todos os tokens ficam aqui (não em
-// documento) — vão direto pra Data Table do n8n.
-import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+// Painel de campanhas — SOMENTE LEITURA: métricas ao vivo por equipe e
+// histórico de tiers. Toda a GESTÃO de campanha (criar, equipe, equipe fixa,
+// projeto, token de webhook, recálculo de tiers) vive na Central de
+// Distribuição (aba Filas) — um lugar só, com escrita via RPC auditada.
+// Este arquivo não escreve em roletas nem em roleta_participantes.
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
-import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -37,18 +29,7 @@ import {
 } from "@/components/ui/table";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Switch } from "@/components/ui/switch";
-import {
-  Radio,
-  ShieldAlert,
-  Copy,
-  Users,
-  RefreshCw,
-  Plus,
-  Trash2,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Radio, ShieldAlert, Users, Settings2 } from "lucide-react";
 
 type Roleta = {
   id: string;
@@ -57,7 +38,6 @@ type Roleta = {
   ativo: boolean;
   tipo: string;
   equipe_fixa: boolean;
-  webhook_token: string | null;
   projeto_id: string | null;
   tiers_recalculados_em: string | null;
   peso_tier_a: number;
@@ -71,20 +51,16 @@ type Participante = {
   ativo: boolean;
   tier: "A" | "B" | "C";
   tier_score: number;
-  tier_updated_at: string | null;
   leads_janela: number;
   agendamentos_janela: number;
   vendas_janela: number;
   limite_diario: number | null;
   profile: {
     nome: string;
-    telefone: string | null;
     presente: boolean;
     ativo: boolean;
   } | null;
 };
-
-type Corretor = { id: string; nome: string };
 
 type Projeto = { id: string; nome: string };
 
@@ -95,13 +71,9 @@ const TIER_STYLE: Record<"A" | "B" | "C", string> = {
 };
 
 export function CampanhasPage() {
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin } = useUserRoles();
   const podeVer = isAdmin;
   const [equipeDe, setEquipeDe] = useState<Roleta | null>(null);
-  const [criarProjetoPara, setCriarProjetoPara] = useState<Roleta | null>(null);
-  const [novaCampanhaAberta, setNovaCampanhaAberta] = useState(false);
-  const [tokenVisivel, setTokenVisivel] = useState<Record<string, boolean>>({});
-  const qc = useQueryClient();
 
   const campanhasQ = useQuery({
     queryKey: ["gestao:campanhas"],
@@ -110,7 +82,7 @@ export function CampanhasPage() {
       const { data, error } = await supabase
         .from("roletas")
         .select(
-          "id, slug, nome, ativo, tipo, equipe_fixa, webhook_token, projeto_id, tiers_recalculados_em, peso_tier_a, peso_tier_b, peso_tier_c",
+          "id, slug, nome, ativo, tipo, equipe_fixa, projeto_id, tiers_recalculados_em, peso_tier_a, peso_tier_b, peso_tier_c",
         )
         .eq("tipo", "campanha")
         .order("nome");
@@ -133,146 +105,13 @@ export function CampanhasPage() {
     },
   });
 
-  const vincularProjeto = useMutation({
-    mutationFn: async ({ roletaId, projetoId }: { roletaId: string; projetoId: string | null }) => {
-      const { error } = await supabase
-        .from("roletas")
-        .update({ projeto_id: projetoId })
-        .eq("id", roletaId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Projeto vinculado");
-      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const criarEVincular = useMutation({
-    mutationFn: async ({ roleta, nome }: { roleta: Roleta; nome: string }) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const slug =
-        nome
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "")
-          .slice(0, 60) || `projeto-${Date.now()}`;
-      const { data: novo, error: e1 } = await supabase
-        .from("projetos")
-        .insert({ nome, slug, ativo: true, criado_por: user?.id ?? null })
-        .select("id")
-        .single();
-
-      if (e1) throw e1;
-      const { error: e2 } = await supabase
-        .from("roletas")
-        .update({ projeto_id: (novo as { id: string }).id })
-        .eq("id", roleta.id);
-      if (e2) throw e2;
-    },
-    onSuccess: () => {
-      toast.success("Projeto criado e vinculado");
-      setCriarProjetoPara(null);
-      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
-      void qc.invalidateQueries({ queryKey: ["gestao:projetos-mini"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  // Equipe fixa: campanha que NÃO delega para as roletas de zona — o lead
-  // fica sempre no time da campanha (contas de anúncio próprias por equipe).
-  const toggleEquipeFixa = useMutation({
-    mutationFn: async ({ roletaId, valor }: { roletaId: string; valor: boolean }) => {
-      const { error } = await supabase
-        .from("roletas")
-        .update({ equipe_fixa: valor })
-        .eq("id", roletaId);
-      if (error) throw error;
-      return valor;
-    },
-    onSuccess: (valor) => {
-      toast.success(
-        valor
-          ? "Equipe fixa: os leads desta campanha não vão mais para as roletas de zona."
-          : "Campanha volta a respeitar as roletas de zona.",
-      );
-      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const criarCampanha = useMutation({
-    mutationFn: async ({ nome, equipeFixa }: { nome: string; equipeFixa: boolean }) => {
-      const slug =
-        nome
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "")
-          .slice(0, 60) || `campanha-${Date.now()}`;
-      // Mesmo formato dos tokens gerados no banco: 48 hex (24 bytes).
-      const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-      const { error } = await supabase.from("roletas").insert({
-        slug,
-        nome,
-        tipo: "campanha",
-        criterio_participacao: "manual",
-        exigir_presenca: true,
-        ativo: true,
-        equipe_fixa: equipeFixa,
-        webhook_token: token,
-        descricao: equipeFixa
-          ? "Campanha de equipe fixa — leads caem sempre neste time, sem corte por zona."
-          : "Campanha criada pelo painel.",
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Campanha criada — monte a equipe e copie o token.");
-      setNovaCampanhaAberta(false);
-      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const recalcular = useMutation({
-    mutationFn: async (slug: string) => {
-      const { data, error } = await supabase.rpc("recalcular_tiers_roleta", {
-        _roleta_slug: slug,
-        _gatilho: "manual",
-      });
-      if (error) throw error;
-      return data as number;
-    },
-    onSuccess: (n) => {
-      toast.success(n > 0 ? `${n} mudança(s) de tier` : "Tiers atualizados (sem mudanças)");
-      void qc.invalidateQueries({ queryKey: ["gestao:campanhas"] });
-      void qc.invalidateQueries({ queryKey: ["gestao:equipe"] });
-      void qc.invalidateQueries({ queryKey: ["gestao:tier-hist"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  function copiarToken(t: string | null) {
-    if (!t) return;
-    void navigator.clipboard.writeText(t);
-    toast.success("Token copiado");
-  }
-
   if (!podeVer) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
           <ShieldAlert className="h-10 w-10" />
           <div className="font-medium">Acesso restrito</div>
-          <div className="text-sm">Esta área é exclusiva para gestores e administradores.</div>
+          <div className="text-sm">Esta área é exclusiva para administradores.</div>
         </CardContent>
       </Card>
     );
@@ -287,19 +126,20 @@ export function CampanhasPage() {
           eyebrow="Campanhas"
           title={
             <span className="flex items-center gap-1.5">
-              <Radio className="h-4 w-4 text-primary" /> Roletas por projeto (webhook)
+              <Radio className="h-4 w-4 text-primary" /> Métricas por campanha
             </span>
           }
         />
-        <Button size="sm" onClick={() => setNovaCampanhaAberta(true)}>
-          <Plus className="mr-1 h-3.5 w-3.5" /> Nova campanha
+        <Button asChild size="sm">
+          <Link to="/distribuicao" search={{ tab: "filas" }}>
+            <Settings2 className="mr-1 h-3.5 w-3.5" /> Gerenciar na Central de Distribuição
+          </Link>
         </Button>
       </div>
       <p className="-mt-4 text-sm text-muted-foreground">
-        Cada campanha tem seu próprio token de webhook, sua equipe e sua distribuição ponderada por
-        tier (A={campanhasQ.data?.[0]?.peso_tier_a ?? 3}, B=
-        {campanhasQ.data?.[0]?.peso_tier_b ?? 2}, C={campanhasQ.data?.[0]?.peso_tier_c ?? 1}). Os
-        tokens abaixo alimentam a Data Table do n8n — não colam em documento.
+        Acompanhamento das campanhas: equipe, tiers e resultados nas janelas. Criar campanha, montar
+        equipe, equipe fixa, projeto e token de webhook ficam na Central de Distribuição (aba
+        Filas), com toda mudança auditada.
       </p>
 
       <Card>
@@ -310,149 +150,63 @@ export function CampanhasPage() {
                 <TableHead>Campanha</TableHead>
                 <TableHead>Projeto vinculado</TableHead>
                 <TableHead>Equipe fixa</TableHead>
-                <TableHead>Token do webhook</TableHead>
+                <TableHead>Pesos (A/B/C)</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(campanhasQ.data ?? []).map((r) => {
-                const url = `/api/public/webhooks/lead/${r.webhook_token ?? ""}`;
-                const showing = !!tokenVisivel[r.id];
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell className="align-top">
-                      <div className="font-medium">{r.nome}</div>
-                      <div className="text-xs text-muted-foreground">
-                        slug: <code>{r.slug}</code>
-                        {r.tiers_recalculados_em && (
-                          <>
-                            {" · "}
-                            recalc: {new Date(r.tiers_recalculados_em).toLocaleString("pt-BR")}
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <Select
-                        value={r.projeto_id ?? "__none__"}
-                        onValueChange={(v) => {
-                          if (v === "__new__") {
-                            setCriarProjetoPara(r);
-                            return;
-                          }
-                          vincularProjeto.mutate({
-                            roletaId: r.id,
-                            projetoId: v === "__none__" ? null : v,
-                          });
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-64">
-                          <SelectValue placeholder="Sem projeto (usa o nome da campanha)">
-                            {r.projeto_id
-                              ? projetosById.get(r.projeto_id)
-                              : "Sem projeto vinculado"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Sem projeto vinculado</SelectItem>
-                          <SelectItem value="__new__">
-                            <span className="flex items-center gap-1 text-primary">
-                              <Plus className="h-3.5 w-3.5" /> Criar novo projeto…
-                            </span>
-                          </SelectItem>
-                          {(projetosQ.data ?? []).map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={r.equipe_fixa}
-                          disabled={toggleEquipeFixa.isPending}
-                          onCheckedChange={(v) =>
-                            toggleEquipeFixa.mutate({ roletaId: r.id, valor: v })
-                          }
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {r.equipe_fixa ? "Sempre neste time" : "Respeita zonas"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="flex items-center gap-1">
-                        <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-                          {showing
-                            ? (r.webhook_token ?? "—")
-                            : r.webhook_token
-                              ? `${r.webhook_token.slice(0, 6)}…${r.webhook_token.slice(-4)}`
-                              : "—"}
-                        </code>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setTokenVisivel((s) => ({ ...s, [r.id]: !s[r.id] }))}
-                          title={showing ? "Ocultar" : "Mostrar"}
-                        >
-                          {showing ? (
-                            <EyeOff className="h-3.5 w-3.5" />
-                          ) : (
-                            <Eye className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => copiarToken(r.webhook_token)}
-                          title="Copiar token"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            copiarToken(
-                              typeof window !== "undefined"
-                                ? `${window.location.origin}${url}`
-                                : url,
-                            )
-                          }
-                          title="Copiar URL completa"
-                        >
-                          URL
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right align-top">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" variant="outline" onClick={() => setEquipeDe(r)}>
-                          <Users className="mr-1 h-3.5 w-3.5" /> Equipe
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => recalcular.mutate(r.slug)}
-                          disabled={recalcular.isPending}
-                          title="Recalcular tiers agora"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {(campanhasQ.data ?? []).map((r) => (
+                <TableRow key={r.id}>
+                  <TableCell className="align-top">
+                    <div className="font-medium">
+                      {r.nome}
+                      {!r.ativo && (
+                        <Badge variant="outline" className="ml-1.5 text-[10px]">
+                          inativa
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      slug: <code>{r.slug}</code>
+                      {r.tiers_recalculados_em && (
+                        <>
+                          {" · "}
+                          recalc: {new Date(r.tiers_recalculados_em).toLocaleString("pt-BR")}
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="align-top text-sm">
+                    {r.projeto_id ? (
+                      (projetosById.get(r.projeto_id) ?? "—")
+                    ) : (
+                      <span className="text-muted-foreground">Sem projeto vinculado</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="align-top text-sm">
+                    {r.equipe_fixa ? (
+                      <Badge variant="secondary">Sempre neste time</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Respeita zonas</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="align-top text-sm tabular-nums">
+                    {r.peso_tier_a}/{r.peso_tier_b}/{r.peso_tier_c}
+                  </TableCell>
+                  <TableCell className="text-right align-top">
+                    <Button size="sm" variant="outline" onClick={() => setEquipeDe(r)}>
+                      <Users className="mr-1 h-3.5 w-3.5" /> Equipe
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
               {campanhasQ.isSuccess && (campanhasQ.data ?? []).length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5}>
                     <EmptyState
                       icon={Radio}
                       title="Nenhuma campanha ainda."
-                      description="Crie roletas do tipo campanha para expor tokens de webhook por projeto."
+                      description="Crie campanhas na Central de Distribuição (aba Filas)."
                     />
                   </TableCell>
                 </TableRow>
@@ -465,146 +219,20 @@ export function CampanhasPage() {
       <TierHistorico />
 
       {equipeDe && <EquipeDialog roleta={equipeDe} onClose={() => setEquipeDe(null)} />}
-
-      {criarProjetoPara && (
-        <CriarProjetoDialog
-          roleta={criarProjetoPara}
-          onClose={() => setCriarProjetoPara(null)}
-          onConfirm={(nome) => criarEVincular.mutate({ roleta: criarProjetoPara, nome })}
-          pending={criarEVincular.isPending}
-        />
-      )}
-
-      {novaCampanhaAberta && (
-        <NovaCampanhaDialog
-          onClose={() => setNovaCampanhaAberta(false)}
-          onConfirm={(nome, equipeFixa) => criarCampanha.mutate({ nome, equipeFixa })}
-          pending={criarCampanha.isPending}
-        />
-      )}
     </div>
   );
 }
 
-function NovaCampanhaDialog({
-  onClose,
-  onConfirm,
-  pending,
-}: {
-  onClose: () => void;
-  onConfirm: (nome: string, equipeFixa: boolean) => void;
-  pending: boolean;
-}) {
-  const [nome, setNome] = useState("");
-  const [equipeFixa, setEquipeFixa] = useState(false);
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Nova campanha</DialogTitle>
-          <DialogDescription>
-            Cria a roleta da campanha com token de webhook próprio. Depois, monte a equipe no botão
-            "Equipe" e aponte a fonte (Zap/n8n) para a URL do token.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="nova-campanha-nome">Nome da campanha</Label>
-            <Input
-              id="nova-campanha-nome"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              placeholder="Ex.: Equipe Bruno"
-              autoFocus
-            />
-          </div>
-          <div className="flex items-start gap-3 rounded-md border p-3">
-            <Switch checked={equipeFixa} onCheckedChange={setEquipeFixa} id="nova-campanha-fixa" />
-            <div className="space-y-0.5">
-              <Label htmlFor="nova-campanha-fixa">Equipe fixa</Label>
-              <p className="text-xs text-muted-foreground">
-                Os leads desta campanha caem sempre neste time — não vão para as roletas de zona,
-                seja qual for a zona do lead.
-              </p>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => onConfirm(nome.trim(), equipeFixa)}
-            disabled={!nome.trim() || pending}
-          >
-            {pending ? "Criando…" : "Criar campanha"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CriarProjetoDialog({
-  roleta,
-  onClose,
-  onConfirm,
-  pending,
-}: {
-  roleta: Roleta;
-  onClose: () => void;
-  onConfirm: (nome: string) => void;
-  pending: boolean;
-}) {
-  const [nome, setNome] = useState(roleta.nome);
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Criar projeto</DialogTitle>
-          <DialogDescription>
-            O projeto será criado no CRM e vinculado automaticamente à campanha{" "}
-            <span className="font-medium">{roleta.nome}</span>. Você pode completar os dados
-            comerciais depois em Projetos.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          <Label htmlFor="novo-projeto-nome">Nome do projeto</Label>
-          <Input
-            id="novo-projeto-nome"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Longitude Tucuruvi"
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={pending}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => nome.trim() && onConfirm(nome.trim())}
-            disabled={pending || !nome.trim()}
-          >
-            {pending ? "Criando…" : "Criar e vincular"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
+/** Equipe da campanha — leitura: tiers e resultados ao vivo. A gestão da
+ *  equipe (incluir, remover, limite) é na Central, pelo RPC auditado. */
 function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void }) {
-  const qc = useQueryClient();
-  const [novoCorretor, setNovoCorretor] = useState<string>("");
-
   const equipeQ = useQuery({
     queryKey: ["gestao:equipe", roleta.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("roleta_participantes")
         .select(
-          "id, corretor_id, ativo, tier, tier_score, tier_updated_at, leads_janela, agendamentos_janela, vendas_janela, limite_diario, profiles:profiles!roleta_participantes_corretor_id_fkey(nome, telefone, presente, ativo)",
+          "id, corretor_id, ativo, tier, tier_score, leads_janela, agendamentos_janela, vendas_janela, limite_diario, profiles:profiles!roleta_participantes_corretor_id_fkey(nome, presente, ativo)",
         )
         .eq("roleta_id", roleta.id);
       if (error) throw error;
@@ -616,11 +244,9 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     },
   });
 
-  // Contadores AO VIVO (fonte canônica = distribution_log + agendamentos + vendas
-  // com roleta_slug da campanha, nas janelas do tier). Sobrescreve os snapshots
-  // de roleta_participantes.leads_janela/agendamentos_janela/vendas_janela, que
-  // só são atualizados pelo recálculo semanal e por isso ficavam zerados entre
-  // rodadas.
+  // Contadores AO VIVO (fonte canônica = distribution_log + agendamentos +
+  // vendas nas janelas do tier) — os snapshots de roleta_participantes só
+  // atualizam no recálculo semanal.
   const metricasQ = useQuery({
     queryKey: ["gestao:equipe-metricas", roleta.id],
     refetchInterval: 60_000,
@@ -646,116 +272,16 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
     },
   });
 
-  const corretoresQ = useQuery({
-    queryKey: ["gestao:corretores-elegiveis"],
-    queryFn: async () => {
-      // Todos os corretores ativos com role='corretor' — filtro em duas etapas
-      // pra evitar depender de join complexo no cliente.
-      const { data: roles, error: e1 } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "corretor");
-      if (e1) throw e1;
-      const ids = (roles ?? []).map((r) => r.user_id);
-      if (!ids.length) return [] as Corretor[];
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, nome")
-        .in("id", ids)
-        .eq("ativo", true)
-        .order("nome");
-      if (error) throw error;
-      return (data ?? []) as Corretor[];
-    },
-  });
-
-  const adicionar = useMutation({
-    mutationFn: async (corretorId: string) => {
-      const { error } = await supabase
-        .from("roleta_participantes")
-        .insert({ roleta_id: roleta.id, corretor_id: corretorId, ativo: true });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Corretor adicionado à equipe");
-      setNovoCorretor("");
-      void qc.invalidateQueries({ queryKey: ["gestao:equipe", roleta.id] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const remover = useMutation({
-    mutationFn: async (participanteId: string) => {
-      const { error } = await supabase
-        .from("roleta_participantes")
-        .delete()
-        .eq("id", participanteId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Removido da equipe");
-      void qc.invalidateQueries({ queryKey: ["gestao:equipe", roleta.id] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const atualizarLimite = useMutation({
-    mutationFn: async ({ id, limite }: { id: string; limite: number | null }) => {
-      const { error } = await supabase
-        .from("roleta_participantes")
-        .update({ limite_diario: limite })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["gestao:equipe", roleta.id] }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const jaNaEquipe = useMemo(
-    () => new Set((equipeQ.data ?? []).map((p) => p.corretor_id)),
-    [equipeQ.data],
-  );
-  const disponiveis = (corretoresQ.data ?? []).filter((c) => !jaNaEquipe.has(c.id));
-
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Equipe · {roleta.nome}</DialogTitle>
           <DialogDescription>
-            Só quem estiver aqui, ativo e presente vai receber leads dessa campanha. Tier
-            recalculado semanalmente (ou no botão da tela anterior).
+            Só quem estiver aqui, ativo e presente recebe leads dessa campanha. Para incluir,
+            remover ou ajustar limite, use a Central de Distribuição (aba Filas).
           </DialogDescription>
         </DialogHeader>
-
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Label className="text-xs">Adicionar corretor</Label>
-            <Select value={novoCorretor} onValueChange={setNovoCorretor}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um corretor…" />
-              </SelectTrigger>
-              <SelectContent>
-                {disponiveis.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
-                {disponiveis.length === 0 && (
-                  <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                    Nenhum corretor disponível.
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button
-            onClick={() => novoCorretor && adicionar.mutate(novoCorretor)}
-            disabled={!novoCorretor || adicionar.isPending}
-          >
-            <Plus className="mr-1 h-4 w-4" /> Adicionar
-          </Button>
-        </div>
 
         <div className="max-h-[420px] overflow-auto">
           <Table>
@@ -767,7 +293,6 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                 <TableHead className="text-right">Agend.</TableHead>
                 <TableHead className="text-right">Vendas</TableHead>
                 <TableHead className="text-right">Limite/dia</TableHead>
-                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -794,30 +319,8 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
                     <TableCell className="text-right tabular-nums">{leads}</TableCell>
                     <TableCell className="text-right tabular-nums">{ags}</TableCell>
                     <TableCell className="text-right tabular-nums">{vds}</TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        className="ml-auto h-7 w-20 text-right"
-                        type="number"
-                        min={0}
-                        defaultValue={p.limite_diario ?? ""}
-                        onBlur={(e) => {
-                          const v = e.target.value.trim();
-                          const n = v === "" ? null : Math.max(1, Number(v));
-                          if (n !== p.limite_diario) {
-                            atualizarLimite.mutate({ id: p.id, limite: n });
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => remover.mutate(p.id)}
-                        disabled={remover.isPending}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                    <TableCell className="text-right tabular-nums">
+                      {p.limite_diario ?? <span className="text-muted-foreground">padrão</span>}
                     </TableCell>
                   </TableRow>
                 );
@@ -825,7 +328,7 @@ function EquipeDialog({ roleta, onClose }: { roleta: Roleta; onClose: () => void
 
               {equipeQ.isSuccess && (equipeQ.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                     Sem corretores nessa campanha.
                   </TableCell>
                 </TableRow>
