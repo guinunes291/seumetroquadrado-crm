@@ -7,6 +7,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Json } from "@/integrations/supabase/types";
+import {
+  listarCamposDistribuicaoV2,
+  listarWipCorretores,
+  type CamposDistribuicaoV2,
+  type WipCorretor,
+} from "./corretor-v2-client";
 
 type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
@@ -105,6 +111,12 @@ export interface RoletaRow {
   horario_inicio: string | null;
   horario_fim: string | null;
   permitir_fora_horario: boolean;
+  // Colunas de campanha/tipo — o select("*") de useRoletas já as traz.
+  tipo: string;
+  equipe_fixa: boolean;
+  webhook_token: string | null;
+  projeto_id: string | null;
+  tiers_recalculados_em: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -467,6 +479,81 @@ export function useNomesPerfis(enabled = true) {
   });
 }
 
+/** Projetos ativos (id, nome) — vínculo de campanha na aba Filas. */
+export function useProjetosMini(enabled = true) {
+  return useQuery({
+    queryKey: ["gestao:projetos-mini"],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projetos")
+        .select("id, nome")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; nome: string }>;
+    },
+  });
+}
+
+export interface CorretorDistribuicao {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  presente: boolean;
+  telefone: string | null;
+  zonas: string[];
+  v2: CamposDistribuicaoV2 | null;
+}
+
+/** Corretores (role corretor) com os campos de DISTRIBUIÇÃO — aba Corretores.
+ *  Os campos do modelo v2 chegam pela fronteira tolerante (migration pode
+ *  não ter rodado): v2 = null nesse caso e a tela mostra "—". */
+export function useCorretoresDistribuicao(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:corretores"],
+    enabled,
+    staleTime: 30_000,
+    queryFn: async (): Promise<CorretorDistribuicao[]> => {
+      const { data: roles, error: er } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "corretor");
+      if (er) throw er;
+      const ids = (roles ?? []).map((r) => r.user_id);
+      if (ids.length === 0) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome, ativo, presente, telefone, zonas")
+        .in("id", ids)
+        .order("nome");
+      if (error) throw error;
+      const v2 = await listarCamposDistribuicaoV2(ids);
+      return (data ?? []).map((p) => ({
+        id: p.id,
+        nome: p.nome,
+        ativo: p.ativo ?? false,
+        presente: p.presente ?? false,
+        telefone: p.telefone,
+        zonas: (p.zonas ?? []) as string[],
+        v2: v2[p.id] ?? null,
+      }));
+    },
+  });
+}
+
+/** WIP por corretor contra o disjuntor (view v_wip_corretor). `null` = view
+ *  ainda não existe — a coluna some da tela. */
+export function useWipCorretores(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:wip"],
+    enabled,
+    staleTime: 30_000,
+    queryFn: async (): Promise<Record<string, WipCorretor> | null> => listarWipCorretores(),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Chaves invalidadas em toda mutação da distribuição
 // ---------------------------------------------------------------------------
@@ -483,6 +570,15 @@ export const DISTRIBUICAO_KEYS = [
   ["distribuicao:minha-elegibilidade"],
   ["distribuicao:recebidos-semana"],
   ["distribuicao:vendas-mes-anterior"],
+  ["distribuicao:corretores"],
+  ["distribuicao:wip"],
+  // A página de métricas de Campanhas lê as mesmas linhas que a Central
+  // agora edita — sem estas chaves ela ficaria stale após cada mutação.
+  ["gestao:campanhas"],
+  ["gestao:equipe"],
+  ["gestao:equipe-metricas"],
+  ["gestao:tier-hist"],
+  ["gestao:projetos-mini"],
 ] as const;
 
 function useInvalidateDistribuicao() {
@@ -710,7 +806,8 @@ export function useAtualizarConfigOrigem() {
   });
 }
 
-/** Configuração da própria roleta (horários, presença, ativo) — RPC admin. */
+/** Configuração da própria roleta (horários, presença, ativo e, nas
+ *  campanhas, equipe fixa + projeto) — RPC admin auditada. */
 export function useAtualizarRoleta() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
@@ -721,6 +818,9 @@ export function useAtualizarRoleta() {
       horarioInicio?: string | null;
       horarioFim?: string | null;
       permitirForaHorario?: boolean;
+      equipeFixa?: boolean;
+      /** null = desvincular projeto; undefined = manter. */
+      projetoId?: string | null;
     }) => {
       const { data, error } = await (supabase.rpc as CallableFunction)("atualizar_roleta", {
         _slug: args.slug,
@@ -729,6 +829,9 @@ export function useAtualizarRoleta() {
         _horario_inicio: args.horarioInicio,
         _horario_fim: args.horarioFim,
         _permitir_fora_horario: args.permitirForaHorario,
+        _equipe_fixa: args.equipeFixa,
+        _projeto_id: args.projetoId ?? undefined,
+        _limpar_projeto: args.projetoId === null,
       });
       if (error) throw error;
       return data;
@@ -738,5 +841,83 @@ export function useAtualizarRoleta() {
       toast.success("Roleta atualizada.");
     },
     onError: (e: Error) => toast.error(`Falha ao salvar roleta: ${e.message}`),
+  });
+}
+
+/** Cria roleta de campanha — slug e token nascem no SERVIDOR (RPC auditada). */
+export function useCriarRoletaCampanha() {
+  const invalidate = useInvalidateDistribuicao();
+  return useMutation({
+    mutationFn: async (args: { nome: string; equipeFixa?: boolean; projetoId?: string | null }) => {
+      const { data, error } = await (supabase.rpc as CallableFunction)("criar_roleta_campanha", {
+        _nome: args.nome,
+        _equipe_fixa: args.equipeFixa ?? false,
+        _projeto_id: args.projetoId ?? undefined,
+      });
+      if (error) throw error;
+      return data as { ok?: boolean; roleta?: { slug?: string } } | null;
+    },
+    onSuccess: (res) => {
+      invalidate();
+      toast.success(
+        `Campanha criada${res?.roleta?.slug ? ` (${res.roleta.slug})` : ""} — monte a equipe e copie o token.`,
+      );
+    },
+    onError: (e: Error) => toast.error(`Falha ao criar campanha: ${e.message}`),
+  });
+}
+
+/** Campos de DISTRIBUIÇÃO do corretor (zonas, vínculo, onboarding, limite de
+ *  webhook) — RPC admin auditada; nunca UPDATE direto em profiles. */
+export function useAtualizarCorretorDistribuicao() {
+  const invalidate = useInvalidateDistribuicao();
+  return useMutation({
+    mutationFn: async (args: {
+      corretorId: string;
+      zonas?: string[];
+      /** null = limpar (volta a pendente); undefined = manter. */
+      modeloContrato?: "fixo" | "autonomo" | null;
+      onboardingConcluido?: boolean;
+      limiteDiarioWebhook?: number;
+    }) => {
+      const { data, error } = await (supabase.rpc as CallableFunction)(
+        "atualizar_corretor_distribuicao",
+        {
+          _corretor_id: args.corretorId,
+          _zonas: args.zonas,
+          _modelo_contrato: args.modeloContrato ?? undefined,
+          _limpar_modelo_contrato: args.modeloContrato === null,
+          _onboarding_concluido: args.onboardingConcluido,
+          _limite_diario_webhook: args.limiteDiarioWebhook,
+        },
+      );
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      invalidate();
+      toast.success("Corretor atualizado.");
+    },
+    onError: (e: Error) => toast.error(`Falha ao atualizar corretor: ${e.message}`),
+  });
+}
+
+/** Recalcula os tiers de uma roleta agora (RPC com guarda admin/gestor). */
+export function useRecalcularTiers() {
+  const invalidate = useInvalidateDistribuicao();
+  return useMutation({
+    mutationFn: async (slug: string) => {
+      const { data, error } = await supabase.rpc("recalcular_tiers_roleta", {
+        _roleta_slug: slug,
+        _gatilho: "manual",
+      });
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (n) => {
+      invalidate();
+      toast.success(n > 0 ? `${n} mudança(s) de tier.` : "Tiers atualizados (sem mudanças).");
+    },
+    onError: (e: Error) => toast.error(`Falha ao recalcular tiers: ${e.message}`),
   });
 }

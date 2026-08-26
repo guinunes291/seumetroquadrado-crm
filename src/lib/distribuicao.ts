@@ -22,19 +22,23 @@ export const ZONA_ROLETAS: readonly ZonaRoletaSlug[] = [
   "zona-oeste",
 ] as const;
 
-export type RoletaSlug = "plantao" | "marquinhos" | "landing" | ZonaRoletaSlug;
+export type RoletaSlug = "plantao" | "marquinhos" | "landing" | "base" | ZonaRoletaSlug;
 
 export const ROLETA_LABEL: Record<RoletaSlug, string> = {
   plantao: "Roleta Plantão",
   marquinhos: "Roleta Marquinhos",
   landing: "Roleta Landing Page",
+  base: "Roleta Base",
   "zona-norte": "Roleta Zona Norte",
   "zona-sul": "Roleta Zona Sul",
   "zona-leste": "Roleta Zona Leste",
   "zona-oeste": "Roleta Zona Oeste",
 };
 
-export function roletaLabel(slug: string | null | undefined): string {
+/** Nome vindo do banco (roletas.nome) vence o mapa fixo — campanha e roleta
+ *  nova nunca mais aparecem como slug cru. */
+export function roletaLabel(slug: string | null | undefined, nome?: string | null): string {
+  if (nome && nome.trim() !== "") return nome;
   if (!slug) return "—";
   return ROLETA_LABEL[slug as RoletaSlug] ?? slug;
 }
@@ -51,7 +55,9 @@ export type MotivoInaptidao =
   | "sem_telefone"
   | "ausente_hoje"
   | "cota_diaria_atingida"
-  | "pct_trabalhado_abaixo_minimo";
+  | "pct_trabalhado_abaixo_minimo"
+  | "sem_modelo_contrato"
+  | "onboarding_pendente";
 
 export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   nao_participante: "Não participa da roleta",
@@ -63,9 +69,16 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   ausente_hoje: "Ausente no plantão hoje",
   cota_diaria_atingida: "Cota diária de leads atingida",
   pct_trabalhado_abaixo_minimo: "% de leads trabalhados abaixo do mínimo",
+  sem_modelo_contrato: "Sem modelo de contrato definido",
+  onboarding_pendente: "Onboarding não concluído",
 };
 
 export function motivoInaptidaoLabel(motivo: string): string {
+  // Código dinâmico do disjuntor do v2: disjuntor_wip_<N leads ativos>.
+  if (motivo.startsWith("disjuntor_wip_")) {
+    const n = motivo.slice("disjuntor_wip_".length);
+    return `Teto de leads ativos atingido (${n} no funil)`;
+  }
   return MOTIVO_INAPTIDAO_LABEL[motivo as MotivoInaptidao] ?? motivo;
 }
 

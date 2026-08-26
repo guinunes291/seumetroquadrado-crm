@@ -67,19 +67,30 @@ describe("motor ponderado respeita equipe_fixa", () => {
   });
 });
 
-describe("UI — painel de Campanhas", () => {
+describe("UI — gestão de campanha na Central (consolidação de 27/08)", () => {
+  const filas = read("src/features/distribuicao/tab-filas.tsx");
+  const props = read("src/features/distribuicao/fila-propriedades.tsx");
   const page = read("src/features/gestao/campanhas-page.tsx");
 
-  it("cria campanha pelo painel (nome + equipe fixa + token no formato do banco)", () => {
-    expect(page).toContain("NovaCampanhaDialog");
-    expect(page).toContain('tipo: "campanha"');
-    expect(page).toContain("crypto.getRandomValues(new Uint8Array(24))");
+  it("cria campanha pela RPC do servidor (slug + token nascem no banco), nunca no navegador", () => {
+    expect(filas).toContain("NovaCampanhaDialog");
+    expect(filas).toContain("useCriarRoletaCampanha");
+    expect(read("src/features/distribuicao/queries.ts")).toContain("criar_roleta_campanha");
+    expect(filas).not.toContain("crypto.getRandomValues");
+    expect(page).not.toContain("crypto.getRandomValues");
   });
 
-  it("switch de equipe fixa por campanha, lendo e gravando roletas.equipe_fixa", () => {
-    expect(page).toContain("toggleEquipeFixa");
-    expect(page).toContain(".update({ equipe_fixa: valor })");
-    expect(page).toMatch(/equipe_fixa, webhook_token/);
+  it("equipe fixa é editada pela RPC atualizar_roleta na aba Filas", () => {
+    expect(props).toContain("equipeFixa: v");
+    expect(props).toContain("useAtualizarRoleta");
+  });
+
+  it("o painel de Campanhas virou leitura: sem escrita direta em roletas/participantes", () => {
+    expect(page).not.toMatch(/from\("roletas"\)[\s\S]{0,60}\.(insert|update|delete)\(/);
+    expect(page).not.toMatch(
+      /from\("roleta_participantes"\)[\s\S]{0,60}\.(insert|update|delete)\(/,
+    );
+    expect(page).toContain("Gerenciar na Central de Distribuição");
   });
 });
 

@@ -1,7 +1,8 @@
-// Central de Distribuição — página /distribuicao (distribuição v3).
-// Dashboard de saúde + abas: visão geral, roletas por zona (Norte · Sul ·
-// Leste · Oeste), roletas de origem (fallback, numa aba só), exceções,
-// histórico, configurações (admin) e auditoria.
+// Central de Distribuição — página /distribuicao, o lugar ÚNICO de
+// configuração da distribuição. Dashboard de saúde + abas: visão geral,
+// filas (todas as roletas: zonas, sistema, base e campanhas), corretores
+// (presença, zonas, vínculo, onboarding), exceções, histórico, política
+// (parâmetros do motor v2, admin), configurações (admin) e auditoria.
 
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -30,33 +31,36 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { syncMetricWebhookTokenFn } from "@/lib/metric-webhook.functions";
 import { DISTRIBUICAO_KEYS, useDistribuicaoResumo, useRodarDistribuicao } from "./queries";
 import { TabVisaoGeral } from "./tab-visao-geral";
-import { TabZonas } from "./tab-zonas";
-import { TabOrigem } from "./tab-origem";
+import { TabFilas } from "./tab-filas";
+import { TabCorretores } from "./tab-corretores";
 import { TabExcecoes } from "./tab-excecoes";
 import { TabHistorico } from "./tab-historico";
+import { TabPolitica } from "./tab-politica";
 import { TabConfiguracoes } from "./tab-configuracoes";
 import { TabAuditoria } from "./tab-auditoria";
 
 export type DistribuicaoTab =
   | "visao"
-  | "zonas"
-  | "origem"
+  | "filas"
+  | "corretores"
   | "excecoes"
   | "historico"
+  | "politica"
   | "config"
   | "auditoria";
 
 export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
   "visao",
-  "zonas",
-  "origem",
+  "filas",
+  "corretores",
   "excecoes",
   "historico",
+  "politica",
   "config",
   "auditoria",
 ];
 
-export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
+export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab; fila?: string }) {
   const { isAdmin } = useUserRoles();
   // Distribuição é operação org-wide: só admin opera. Gestor e superintendente
   // enxergam em modo leitura (decisão de produto — sem recorte por equipe).
@@ -96,7 +100,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
     <div>
       <PageHeader
         title="Central de Distribuição"
-        description="Roletas por zona (Norte · Sul · Leste · Oeste), roletas de origem (Plantão · Marquinhos · Landing), fila de exceções, histórico e regras — tudo auditável."
+        description="Toda a configuração da distribuição num lugar só: filas (zonas, sistema, base e campanhas), corretores, exceções, histórico, política do motor v2 e regras — tudo auditável."
         actions={
           somenteLeitura ? undefined : (
             <>
@@ -166,7 +170,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
           icon={Users}
           intent={(r?.aptos_plantao ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("origem")}
+          onClick={() => setTab("filas")}
         />
         <StatTile
           title="Aptos · Marquinhos"
@@ -174,7 +178,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
           icon={Bot}
           intent={(r?.aptos_marquinhos ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("origem")}
+          onClick={() => setTab("filas")}
         />
         <StatTile
           title="Aptos · Landing"
@@ -182,7 +186,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
           icon={Globe}
           intent={(r?.aptos_landing ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
-          onClick={() => setTab("origem")}
+          onClick={() => setTab("filas")}
         />
         <StatTile
           title="Parados (régua de horas)"
@@ -205,8 +209,8 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
       <Tabs value={activeTab} onValueChange={setTab} className="space-y-4">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-          <TabsTrigger value="zonas">Roletas por Zona</TabsTrigger>
-          <TabsTrigger value="origem">Roletas de Origem</TabsTrigger>
+          <TabsTrigger value="filas">Filas</TabsTrigger>
+          <TabsTrigger value="corretores">Corretores</TabsTrigger>
           <TabsTrigger value="excecoes">
             Exceções
             {(r?.excecoes_pendentes ?? 0) > 0 && (
@@ -216,6 +220,7 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
             )}
           </TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
+          {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
           {isAdmin && <TabsTrigger value="config">Configurações</TabsTrigger>}
           <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
         </TabsList>
@@ -223,11 +228,11 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
         <TabsContent value="visao">
           <TabVisaoGeral onVerExcecoes={() => setTab("excecoes")} />
         </TabsContent>
-        <TabsContent value="zonas">
-          <TabZonas somenteLeitura={somenteLeitura} />
+        <TabsContent value="filas">
+          <TabFilas somenteLeitura={somenteLeitura} filaInicial={fila} />
         </TabsContent>
-        <TabsContent value="origem">
-          <TabOrigem somenteLeitura={somenteLeitura} />
+        <TabsContent value="corretores">
+          <TabCorretores somenteLeitura={somenteLeitura} />
         </TabsContent>
         <TabsContent value="excecoes">
           <TabExcecoes somenteLeitura={somenteLeitura} />
@@ -235,6 +240,11 @@ export function DistribuicaoCommandCenter({ tab }: { tab?: DistribuicaoTab }) {
         <TabsContent value="historico">
           <TabHistorico />
         </TabsContent>
+        {isAdmin && (
+          <TabsContent value="politica">
+            <TabPolitica />
+          </TabsContent>
+        )}
         {isAdmin && (
           <TabsContent value="config">
             <TabConfiguracoes />

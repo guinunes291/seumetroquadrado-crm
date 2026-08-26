@@ -167,10 +167,13 @@ describe("fiação de entrada (webhook por token)", () => {
 });
 
 describe("UI — a central conhece as roletas de zona", () => {
-  it("aba 'zonas' registrada e slugs/labels das 4 zonas no vocabulário", () => {
+  it("as zonas vivem na aba Filas (consolidação de 27/08) e o vocabulário mantém os 4 slugs", () => {
     const cc = read("src/features/distribuicao/command-center.tsx");
-    expect(cc).toContain('"zonas"');
-    expect(cc).toContain("TabZonas");
+    expect(cc).toContain('"filas"');
+    expect(cc).toContain("TabFilas");
+    const filas = read("src/features/distribuicao/tab-filas.tsx");
+    expect(filas).toContain("ZONA_ROLETAS");
+    expect(filas).toContain("RoletaTab");
     const lib = read("src/lib/distribuicao.ts");
     for (const slug of ["zona-norte", "zona-sul", "zona-leste", "zona-oeste"]) {
       expect(lib).toContain(`"${slug}"`);

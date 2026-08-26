@@ -73,7 +73,6 @@ import {
   participacaoPercentual,
   proximoDaVez,
   roletaLabel,
-  type RoletaSlug,
 } from "@/lib/distribuicao";
 import {
   useCorretoresDisponiveis,
@@ -128,14 +127,32 @@ function OutrasRoletas({
   );
 }
 
-export function RoletaTab({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
+// Slug é string genérica: a elegibilidade do servidor cobre QUALQUER roleta
+// (zonas, origem, base e campanhas) — o gerenciamento auditado é o mesmo.
+export function RoletaTab({
+  slug,
+  nome,
+  somenteLeitura,
+}: {
+  slug: string;
+  nome?: string | null;
+  somenteLeitura: boolean;
+}) {
   if (slug === "marquinhos") {
     return <MarquinhosSimpleTab somenteLeitura={somenteLeitura} />;
   }
-  return <RoletaTabPadrao slug={slug} somenteLeitura={somenteLeitura} />;
+  return <RoletaTabPadrao slug={slug} nome={nome} somenteLeitura={somenteLeitura} />;
 }
 
-function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLeitura: boolean }) {
+function RoletaTabPadrao({
+  slug,
+  nome,
+  somenteLeitura,
+}: {
+  slug: string;
+  nome?: string | null;
+  somenteLeitura: boolean;
+}) {
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
@@ -175,6 +192,10 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
               "Participação MANUAL: inclua apenas corretores com venda no mês anterior (badge abaixo). Toda inclusão/remoção fica auditada."}
             {ehLanding &&
               "Exclusiva para leads da Landing Page (origem site). Configure os participantes e acompanhe o equilíbrio da distribuição."}
+            {!ehPlantao &&
+              !ehMarquinhos &&
+              !ehLanding &&
+              "Participação manual: quem está aqui entra no rodízio desta fila. Toda inclusão, pausa e remoção fica auditada."}
           </p>
           {!somenteLeitura && (
             <Button size="sm" onClick={() => setIncluirAberto(true)}>
@@ -194,7 +215,7 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
             ) : linhas.length === 0 ? (
               <EmptyState
                 icon={UserX}
-                title={`Nenhum participante na ${roletaLabel(slug)}`}
+                title={`Nenhum participante na ${roletaLabel(slug, nome)}`}
                 description="Sem participantes ativos, todo lead desta roleta vai para a fila de exceções."
                 action={
                   somenteLeitura ? undefined : (
@@ -435,6 +456,7 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
 
         <IncluirParticipanteDialog
           slug={slug}
+          nome={nome}
           aberto={incluirAberto}
           onFechar={() => setIncluirAberto(false)}
           participantesAtuais={linhas}
@@ -446,7 +468,7 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>
-                Remover {removerAlvo?.nome} da {roletaLabel(slug)}?
+                Remover {removerAlvo?.nome} da {roletaLabel(slug, nome)}?
               </AlertDialogTitle>
               <AlertDialogDescription>
                 O corretor deixa de receber leads desta roleta imediatamente. A remoção fica
@@ -483,11 +505,13 @@ function RoletaTabPadrao({ slug, somenteLeitura }: { slug: RoletaSlug; somenteLe
 // ---------------------------------------------------------------------------
 function IncluirParticipanteDialog({
   slug,
+  nome,
   aberto,
   onFechar,
   participantesAtuais,
 }: {
-  slug: RoletaSlug;
+  slug: string;
+  nome?: string | null;
   aberto: boolean;
   onFechar: () => void;
   participantesAtuais: ElegibilidadeLinha[];
@@ -530,7 +554,7 @@ function IncluirParticipanteDialog({
     <Dialog open={aberto} onOpenChange={(o) => !o && onFechar()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Incluir corretor na {roletaLabel(slug)}</DialogTitle>
+          <DialogTitle>Incluir corretor na {roletaLabel(slug, nome)}</DialogTitle>
           <DialogDescription>
             {slug === "marquinhos"
               ? "Critério: pelo menos 1 venda no mês anterior. O sistema mostra o critério, mas a decisão é sua e fica auditada."
@@ -594,7 +618,7 @@ function PausarDialog({
   alvo,
   onFechar,
 }: {
-  slug: RoletaSlug;
+  slug: string;
   alvo: ElegibilidadeLinha | null;
   onFechar: () => void;
 }) {
@@ -663,7 +687,7 @@ function LimiteDialog({
   alvo,
   onFechar,
 }: {
-  slug: RoletaSlug;
+  slug: string;
   alvo: ElegibilidadeLinha | null;
   onFechar: () => void;
 }) {
@@ -720,7 +744,7 @@ function LimiteDialog({
 const INAPTO_ATE = "2099-12-31T23:59:59.000Z";
 
 function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
-  const slug: RoletaSlug = "marquinhos";
+  const slug = "marquinhos";
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(true);
   const outrasRoletasQ = useRoletasPorCorretor();

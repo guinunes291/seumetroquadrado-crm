@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
@@ -28,8 +29,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ZONAS_ORDEM, type Zona } from "@/lib/zonas";
 import { CrmInviteDialog } from "@/components/crm-invite-dialog";
 import {
   listarTelefoniaSonax,
@@ -191,20 +190,6 @@ export function CorretoresPage() {
     onError: (e: Error) => toast.error("Erro", { description: e.message }),
   });
 
-  // Filas por zona: corretor sem nenhuma zona marcada continua recebendo de
-  // todas — marcar zonas é o que restringe a fila dele.
-  const updateZonas = useMutation({
-    mutationFn: async ({ id, zonas }: { id: string; zonas: string[] }) => {
-      const { error } = await supabase.from("profiles").update({ zonas }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["corretores"] });
-      toast.success("Zonas atualizadas");
-    },
-    onError: (e: Error) => toast.error("Erro", { description: e.message }),
-  });
-
   const updateTelefone = useMutation({
     mutationFn: async ({ id, telefone }: { id: string; telefone: string }) => {
       const digits = telefone.replace(/\D/g, "");
@@ -284,7 +269,6 @@ export function CorretoresPage() {
   const mutateAccountStatus = updateAccountStatus.mutate;
   const mutateEquipe = updateEquipe.mutate;
   const mutateRole = setRole.mutate;
-  const mutateZonas = updateZonas.mutate;
   const mutateTelefone = updateTelefone.mutateAsync;
   const mutateTelefonia = updateTelefonia.mutateAsync;
 
@@ -374,23 +358,32 @@ export function CorretoresPage() {
         header: () => <span title="Regiões de onde o corretor recebe leads">Zonas</span>,
         enableSorting: false,
         meta: { label: "Zonas", hideBelow: "lg" },
-        cell: ({ row }) =>
-          isAdmin ? (
-            <ZonasCell
-              zonas={row.original.zonas ?? []}
-              onChange={(zonas) => mutateZonas({ id: row.original.id, zonas })}
-            />
-          ) : (row.original.zonas ?? []).length ? (
-            <div className="flex flex-wrap gap-1">
-              {row.original.zonas.map((z) => (
+        // Somente leitura aqui: as zonas (e os demais campos de distribuição)
+        // são geridas na Central de Distribuição → aba Corretores, por RPC
+        // auditada — configuração de roleta não fica mais espalhada.
+        cell: ({ row }) => (
+          <div className="flex flex-wrap items-center gap-1">
+            {(row.original.zonas ?? []).length ? (
+              row.original.zonas.map((z) => (
                 <Badge key={z} variant="secondary">
                   {z}
                 </Badge>
-              ))}
-            </div>
-          ) : (
-            <span className="text-muted-foreground">Todas</span>
-          ),
+              ))
+            ) : (
+              <span className="text-muted-foreground">Todas</span>
+            )}
+            {isAdmin && (
+              <Link
+                to="/distribuicao"
+                search={{ tab: "corretores" }}
+                className="text-xs text-primary hover:underline"
+                title="Gerenciar zonas e elegibilidade na Central de Distribuição"
+              >
+                Gerenciar
+              </Link>
+            )}
+          </div>
+        ),
       },
       {
         id: "papel",
@@ -479,7 +472,6 @@ export function CorretoresPage() {
       mutateRole,
       mutateTelefone,
       mutateTelefonia,
-      mutateZonas,
     ],
   );
 
@@ -771,44 +763,6 @@ function TelefoniaSonaxCell({
             <Check className="h-3.5 w-3.5 mr-1" /> Salvar
           </Button>
         </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** Zonas atendidas pelo corretor. Nenhuma marcada = recebe de todas. */
-function ZonasCell({ zonas, onChange }: { zonas: string[]; onChange: (z: string[]) => void }) {
-  const marcadas = new Set(zonas);
-  const toggle = (z: Zona) => {
-    const next = new Set(marcadas);
-    if (next.has(z)) next.delete(z);
-    else next.add(z);
-    onChange(ZONAS_ORDEM.filter((x) => next.has(x)));
-  };
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 min-w-[120px] justify-start gap-1">
-          {zonas.length === 0 ? (
-            <span className="text-muted-foreground">Todas</span>
-          ) : (
-            <span className="truncate">{zonas.join(", ")}</span>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-52 p-2">
-        <p className="px-1 pb-2 text-xs text-muted-foreground">
-          Sem marcação, recebe leads de todas as zonas.
-        </p>
-        {ZONAS_ORDEM.map((z) => (
-          <label
-            key={z}
-            className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm hover:bg-muted"
-          >
-            <Checkbox checked={marcadas.has(z)} onCheckedChange={() => toggle(z)} />
-            {z}
-          </label>
-        ))}
       </PopoverContent>
     </Popover>
   );
