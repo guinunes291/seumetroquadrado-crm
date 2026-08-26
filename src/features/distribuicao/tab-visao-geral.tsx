@@ -4,7 +4,7 @@
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Bot, Compass, Globe, Users } from "lucide-react";
+import { ArrowRight, Bot, Compass, Globe, Inbox, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -18,6 +18,7 @@ const ROLETA_ICON = {
   plantao: Users,
   marquinhos: Bot,
   landing: Globe,
+  base: Inbox,
   "zona-norte": Compass,
   "zona-sul": Compass,
   "zona-leste": Compass,

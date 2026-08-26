@@ -111,19 +111,19 @@ describe("webhook por token — roleta desativada não perde lead", () => {
   });
 });
 
-describe("UI — uma aba de origem, uma de zonas", () => {
-  it("a Central tem a aba 'origem' e não tem mais abas por roleta de origem", () => {
+describe("UI — uma aba de Filas para todas as roletas", () => {
+  it("a Central tem a aba 'filas' e não tem mais abas por roleta de origem", () => {
     const cc = read("src/features/distribuicao/command-center.tsx");
-    expect(cc).toContain('"origem"');
-    expect(cc).toContain("TabOrigem");
+    expect(cc).toContain('"filas"');
+    expect(cc).toContain("TabFilas");
     expect(cc).not.toContain('TabsTrigger value="plantao"');
     expect(cc).not.toContain('TabsTrigger value="marquinhos"');
     expect(cc).not.toContain('TabsTrigger value="landing"');
   });
 
-  it("a aba de origem cobre as três roletas via seletor", () => {
-    const tab = read("src/features/distribuicao/tab-origem.tsx");
-    for (const slug of ["plantao", "marquinhos", "landing"]) {
+  it("a aba Filas cobre as roletas de origem (grupo Sistema, com a base) via seletor", () => {
+    const tab = read("src/features/distribuicao/tab-filas.tsx");
+    for (const slug of ["plantao", "marquinhos", "landing", "base"]) {
       expect(tab).toContain(`"${slug}"`);
     }
     expect(tab).toContain("RoletaTab");
