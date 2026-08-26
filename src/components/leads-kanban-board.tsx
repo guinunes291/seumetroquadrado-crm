@@ -441,40 +441,48 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
     () => new Map(snapshotRows.map((row) => [row.etapa, row])),
     [snapshotRows],
   );
+  // O gate de "funil vazio" conta o snapshot SEM o filtro de colunas: o
+  // snapshot devolve todas as etapas do enum (novo/perdido incluídas), e
+  // restringir às colunas visíveis fazia uma base só de leads "novo" parecer
+  // vazia no /pipeline cru.
   const pipelineTotal = useMemo(
-    () => [...snapshotByStage.values()].reduce((sum, row) => sum + Number(row.quantidade), 0),
-    [snapshotByStage],
+    () => (snapshotQuery.data ?? []).reduce((sum, row) => sum + Number(row.quantidade), 0),
+    [snapshotQuery.data],
   );
 
   // Economia do funil: VGV por etapa (v3) + % de conversão acumulada vs. etapa
-  // anterior — derivado das quantidades, sem histórico. A ordem é a das
-  // colunas visíveis: numa fase, a conversão compara etapas DENTRO da fase.
+  // anterior — derivado das quantidades, sem histórico. O acumulado é
+  // POSICIONAL no funil INTEIRO (FUNNEL_STAGES), mesmo numa fase: lead que
+  // avançou além da fronteira segue contando como "chegou até aqui" — truncar
+  // nas colunas da fase inverteria o sinal (progresso contado como perda).
   const stageMetrics = useMemo(
     () =>
       computeStageMetrics(
-        snapshotRows.map((row) => ({
+        (snapshotQuery.data ?? []).map((row) => ({
           etapa: String(row.etapa),
           quantidade: Number(row.quantidade),
           vgv: "vgv" in row && row.vgv != null ? Number(row.vgv) : null,
         })),
-        columns.map((c) => c.id),
+        FUNNEL_STAGES,
       ),
-    [snapshotRows, columns],
+    [snapshotQuery.data],
   );
 
-  // VGV total do quadro: soma só as etapas do funil (stageMetrics já exclui
-  // perdido/pós-venda). null quando o snapshot em uso é a v2 (sem `vgv`).
+  // VGV total do header: soma das etapas VISÍVEIS (snapshotRows já restringe
+  // à fase; perdido/pós-venda ficam fora por não serem coluna) — não do
+  // stageMetrics, que agora cobre o funil inteiro. null quando o snapshot em
+  // uso é a v2 (sem `vgv`).
   const vgvTotal = useMemo(() => {
     let soma = 0;
     let temVgv = false;
-    stageMetrics.forEach((m) => {
-      if (m.vgv != null) {
+    snapshotRows.forEach((row) => {
+      if ("vgv" in row && row.vgv != null) {
         temVgv = true;
-        soma += m.vgv;
+        soma += Number(row.vgv);
       }
     });
     return temVgv ? soma : null;
-  }, [stageMetrics]);
+  }, [snapshotRows]);
   const vgvTotalLabel = formatVgvCompact(vgvTotal);
 
   const toggleColapso = (id: LeadStatus) => {

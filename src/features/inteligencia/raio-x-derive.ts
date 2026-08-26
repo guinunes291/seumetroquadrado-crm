@@ -174,6 +174,58 @@ export function filtrarSerieJanela<T extends { mes: string }>(
 
 export type AgregadoJanela = { meses: number; vendas: number; vgv: number; visitas: number };
 
+const LINHA_MES_ZERADO: Omit<PerformanceDrillRow, "mes"> = {
+  leads_recebidos: 0,
+  interacoes: 0,
+  contatos: 0,
+  agendamentos_criados: 0,
+  visitas_realizadas: 0,
+  no_shows: 0,
+  analises: 0,
+  tarefas_concluidas: 0,
+  vendas: 0,
+  vgv: 0,
+  primeira_resposta_p50_min: null,
+  atualizado_em: null,
+};
+
+/**
+ * Completa a série mensal com meses-calendário zerados: a MV omite mês sem
+ * atividade, e a comparação fatia por CONTAGEM de linhas — o buraco deslocaria
+ * a janela. Preenche do primeiro mês PRESENTE até o mês de `mesFimIso` (borda
+ * inicial conservadora: mês antes da primeira linha pode ser falta de
+ * histórico na MV, não atividade zero — fica de fora). Série vazia continua
+ * vazia: sem linha real não há âncora de onde o histórico começa.
+ */
+export function preencherMesesVazios(
+  serie: PerformanceDrillRow[],
+  mesFimIso: string,
+): PerformanceDrillRow[] {
+  if (serie.length === 0) return [];
+  const ordenada = [...serie].sort((a, b) => a.mes.localeCompare(b.mes));
+  const porMes = new Map(ordenada.map((m) => [m.mes.slice(0, 7), m]));
+  const inicio = ordenada[0].mes.slice(0, 7);
+  const ultimoPresente = ordenada[ordenada.length - 1].mes.slice(0, 7);
+  const mesFim = /^\d{4}-\d{2}/.test(mesFimIso) ? mesFimIso.slice(0, 7) : ultimoPresente;
+  // Linha presente DEPOIS de mesFim também não pode deixar buraco no meio.
+  const fim = mesFim > ultimoPresente ? mesFim : ultimoPresente;
+  const out: PerformanceDrillRow[] = [];
+  let [ano, mes] = inicio.split("-").map(Number);
+  let chave = inicio;
+  // Teto de 240 meses: um `mesFimIso` corrompido não gera série gigante (o
+  // drill da MV cobre no máximo 24).
+  while (chave <= fim && out.length < 240) {
+    out.push(porMes.get(chave) ?? { mes: `${chave}-01`, ...LINHA_MES_ZERADO });
+    mes += 1;
+    if (mes > 12) {
+      mes = 1;
+      ano += 1;
+    }
+    chave = `${ano}-${String(mes).padStart(2, "0")}`;
+  }
+  return out;
+}
+
 export type ComparacaoPeriodos = {
   atual: AgregadoJanela;
   /** null quando não há janela anterior COMPLETA (mesmo nº de meses). */

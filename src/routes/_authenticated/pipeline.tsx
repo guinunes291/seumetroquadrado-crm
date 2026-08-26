@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ResponsiveTabs, ResponsiveTabsContent } from "@/components/ui/responsive-tabs";
 import { PageHeader } from "@/components/page-header";
 import { KanbanBoard } from "@/components/leads-kanban-board";
@@ -17,6 +17,15 @@ export const Route = createFileRoute("/_authenticated/pipeline")({
     // de /pipeline cru continuam abrindo o quadro completo.
     fase: search.fase === "prospeccao" || search.fase === "carteira" ? search.fase : undefined,
   }),
+  // Em Prospecção a aba Fechamento não existe (a página renderiza só o funil),
+  // e o resolvedor da sidebar desempata por `tab` sobre a location CRUA — um
+  // ?fase=prospeccao&tab=fechamento acenderia "Modo Fechamento" na Carteira.
+  // Normaliza a URL para o que a página de fato renderiza.
+  beforeLoad: ({ search }) => {
+    if (search.fase === "prospeccao" && search.tab) {
+      throw redirect({ to: "/pipeline", search: { fase: "prospeccao" }, replace: true });
+    }
+  },
   head: () => ({ meta: [{ title: "Pipeline — Seu Metro Quadrado" }] }),
   component: PipelinePage,
 });

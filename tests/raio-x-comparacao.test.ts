@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { compararComPeriodoAnterior } from "@/features/inteligencia/raio-x-derive";
+import {
+  compararComPeriodoAnterior,
+  preencherMesesVazios,
+} from "@/features/inteligencia/raio-x-derive";
 import type { PerformanceDrillRow } from "@/features/inteligencia/queries";
 
 const mes = (m: string, vendas: number, vgv: number, visitas = 0): PerformanceDrillRow => ({
@@ -108,5 +111,67 @@ describe("compararComPeriodoAnterior", () => {
     );
     expect(r.atual.vendas).toBe(4);
     expect(r.anterior?.vendas).toBe(2); // abril (99) não entra
+  });
+});
+
+describe("preencherMesesVazios", () => {
+  it("série vazia continua vazia — sem linha real não há âncora do histórico", () => {
+    expect(preencherMesesVazios([], "2026-08-26")).toEqual([]);
+  });
+
+  it("insere mês zerado no meio da série (a MV omite mês sem atividade)", () => {
+    const r = preencherMesesVazios(
+      [mes("2026-05-01", 1, 100_000, 3), mes("2026-07-01", 2, 200_000)],
+      "2026-07-15",
+    );
+    expect(r.map((m) => m.mes)).toEqual(["2026-05-01", "2026-06-01", "2026-07-01"]);
+    expect(r[1]).toMatchObject({
+      vendas: 0,
+      vgv: 0,
+      leads_recebidos: 0,
+      visitas_realizadas: 0,
+      primeira_resposta_p50_min: null,
+    });
+    // As linhas reais passam intactas.
+    expect(r[0].vendas).toBe(1);
+    expect(r[2].vgv).toBe(200_000);
+  });
+
+  it("estende até o mês de mesFimIso: mês corrente sem atividade vira zero", () => {
+    const r = preencherMesesVazios([mes("2026-06-01", 3, 300_000)], "2026-08-26");
+    expect(r.map((m) => m.mes)).toEqual(["2026-06-01", "2026-07-01", "2026-08-01"]);
+    expect(r[2].vendas).toBe(0);
+  });
+
+  it("não inventa meses ANTES da primeira linha presente (borda conservadora)", () => {
+    const r = preencherMesesVazios([mes("2026-07-01", 1, 0)], "2026-08-01");
+    expect(r.map((m) => m.mes)).toEqual(["2026-07-01", "2026-08-01"]);
+  });
+
+  it("ordena a entrada e cruza a virada de ano", () => {
+    const r = preencherMesesVazios(
+      [mes("2026-01-01", 2, 0), mes("2025-11-01", 1, 0)],
+      "2026-02-10",
+    );
+    expect(r.map((m) => m.mes)).toEqual(["2025-11-01", "2025-12-01", "2026-01-01", "2026-02-01"]);
+  });
+
+  it("com a comparação: mês vazio no meio não desloca mais a janela", () => {
+    // jun sem atividade; janela de 2 meses terminando em ago. Sem o
+    // preenchimento, a "anterior" viraria abr+mai (deslocada).
+    const r = compararComPeriodoAnterior(
+      preencherMesesVazios(
+        [
+          mes("2026-04-01", 9, 0),
+          mes("2026-05-01", 1, 0),
+          mes("2026-07-01", 2, 0),
+          mes("2026-08-01", 2, 0),
+        ],
+        "2026-08-26",
+      ),
+      2,
+    );
+    expect(r.atual.vendas).toBe(4); // jul + ago
+    expect(r.anterior?.vendas).toBe(1); // mai + jun(0)
   });
 });

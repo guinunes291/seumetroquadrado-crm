@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, LogOut } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { ArrowRight, LogOut, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useNavBadges } from "@/features/nav/use-nav-badges";
@@ -16,6 +17,26 @@ import {
   type PapelCtx,
   type Sistema,
 } from "@/features/nav/sistemas";
+
+// O hub vive fora do shell /_authenticated, então os hosts globais de lá
+// (⌘K, Novo lead, Registrar venda) não existem aqui — sem estas cópias os
+// atalhos ficariam mortos na primeira tela após o login. Todos só dependem
+// de providers do __root (auth/queryClient), por isso funcionam fora do shell.
+const CommandPalette = lazy(() =>
+  import("@/components/command-palette").then(({ CommandPalette }) => ({
+    default: CommandPalette,
+  })),
+);
+const RegistrarVendaDialog = lazy(() =>
+  import("@/components/registrar-venda-dialog").then(({ RegistrarVendaDialog }) => ({
+    default: RegistrarVendaDialog,
+  })),
+);
+const NovoLeadDialogHost = lazy(() =>
+  import("@/features/leads/novo-lead-dialog").then(({ NovoLeadDialogHost }) => ({
+    default: NovoLeadDialogHost,
+  })),
+);
 
 function saudacao(): string {
   const h = new Date().getHours();
@@ -77,6 +98,22 @@ export function InicioPage() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground gap-2"
+              aria-label="Abrir busca global"
+              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+            >
+              <Search className="h-4 w-4" />
+              <span className="hidden sm:inline">Buscar</span>
+              <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
+                ⌘K
+              </kbd>
+            </Button>
+            <Suspense fallback={null}>
+              <RegistrarVendaDialog />
+            </Suspense>
             <ThemeToggle />
             <NotificationBell />
             <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground">
@@ -152,6 +189,10 @@ export function InicioPage() {
         )}
       </main>
 
+      <Suspense fallback={null}>
+        <CommandPalette />
+        <NovoLeadDialogHost />
+      </Suspense>
       <Toaster richColors closeButton />
     </div>
   );

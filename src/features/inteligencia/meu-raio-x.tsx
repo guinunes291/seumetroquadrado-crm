@@ -28,7 +28,7 @@ import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { useAuth } from "@/hooks/use-auth";
 import { exportSheetsXlsx } from "@/lib/spreadsheets";
 import { dateKey } from "@/lib/periodo";
-import { leadStatusLabel, motivoPerdaLabel } from "@/lib/leads";
+import { LEAD_STATUS_ORDER, leadStatusLabel, motivoPerdaLabel } from "@/lib/leads";
 import {
   EsforcoMensalChart,
   fmtBRL,
@@ -42,6 +42,7 @@ import {
   evolucaoTrimestral,
   filtrarSerieJanela,
   mesesDesde,
+  preencherMesesVazios,
   raioXParaSheets,
   resumoComissoes,
   type ComissaoRow,
@@ -85,8 +86,14 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
     [drillQ.data, janelaAtual],
   );
   const comparacao = useMemo(
-    () => compararComPeriodoAnterior(serieAteFimDaJanela, mesesNaJanela),
-    [serieAteFimDaJanela, mesesNaJanela],
+    () =>
+      // Mês sem atividade não vem na MV e o fatiamento é por contagem de
+      // linhas: sem o preenchimento, o buraco deslocaria as janelas comparadas.
+      compararComPeriodoAnterior(
+        preencherMesesVazios(serieAteFimDaJanela, janelaAtual.ate ?? hojeIso),
+        mesesNaJanela,
+      ),
+    [serieAteFimDaJanela, janelaAtual.ate, hojeIso, mesesNaJanela],
   );
   const trimestres = useMemo(() => evolucaoTrimestral(serie), [serie]);
 
@@ -94,16 +101,21 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
     queryKey: ["meu-raiox:carteira", corretorId],
     staleTime: 60_000,
     queryFn: async (): Promise<CarteiraRow[]> => {
-      // Mesma chamada do fallback do snapshot de gestão: distribuição atual
-      // da carteira, auto-escopada pelo caller no banco.
-      const { data, error } = await rpc("dashboard_funil", {
+      // dashboard_funil devolve macro-etapas CUMULATIVAS ("Novos", "Visitas"…),
+      // não distribuição por status — os links /leads?status=… e a carga ativa
+      // saíam errados. O mapa `pipeline` do dashboard_kpis é a foto atual por
+      // status EM ABERTO, auto-escopada pelo caller no banco.
+      const { data, error } = await rpc("dashboard_kpis", {
         _di: null,
         _df: null,
         _corretor: corretorId,
         _campo_data: "criacao",
       });
       if (error) throw error;
-      return (data ?? []) as CarteiraRow[];
+      const pipeline = (data as { pipeline?: Record<string, number> } | null)?.pipeline ?? {};
+      return ["novo", ...LEAD_STATUS_ORDER]
+        .filter((s) => (pipeline[s] ?? 0) > 0)
+        .map((s, i) => ({ etapa: s, ordem: i + 1, quantidade: pipeline[s] ?? 0 }));
     },
   });
   const carteira = useMemo(
@@ -117,7 +129,9 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
     queryFn: async (): Promise<PerdaRow[]> => {
       const { data, error } = await rpc("dashboard_motivos_perda", {
         _di: janelaAtual.de,
-        _df: janelaAtual.ate,
+        // _df é exclusivo no banco (`quando < _df`): meia-noite cortaria o
+        // último dia do intervalo — mesma convenção das comissões abaixo.
+        _df: janelaAtual.ate ? `${janelaAtual.ate}T23:59:59.999` : null,
         _corretor: corretorId,
         _campo_data: "criacao",
       });
@@ -168,6 +182,7 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
     ate: janelaAtual.ate,
     geradoEm: new Date(),
     geradoPor: nome,
+    incluiBlocosGestao: false,
     presente: null,
     cargaAtiva: carteira
       .filter((r) => !ETAPAS_TERMINAIS.has(r.etapa))

@@ -430,9 +430,15 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
           r.capacidadePct != null ? ` (${r.capacidadePct}% da capacidade)` : ""
         }${r.paradosNaCarteira > 0 ? ` · <strong style="color:${C.perigo}">${numero(r.paradosNaCarteira)} parados</strong>` : ""}.</p>`;
 
+  // O vazio afirmativo ("nenhuma exceção") só vale quando as exceções foram
+  // de fato consultadas — no self-serve elas ficam fora do escopo do relatório.
   const excecoes =
     r.excecoes.length === 0
-      ? `<p class="vazio">Nenhuma exceção aberta no momento da geração.</p>`
+      ? `<p class="vazio">${esc(
+          r.incluiBlocosGestao
+            ? "Nenhuma exceção aberta no momento da geração."
+            : "Exceções são acompanhadas no Painel do Dia da gestão — fora do escopo deste relatório.",
+        )}</p>`
       : `<ul class="lista">${r.excecoes
           .slice(0, 12)
           .map((e) => `<li><span class="tag">${esc(e.tipoLabel)}</span> ${esc(e.leadNome)}</li>`)
@@ -519,6 +525,13 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
       : r.sinal === "dar_mais_lead"
         ? "Sinal de gestão: converte acima do time — candidato a receber mais leads."
         : "Sinal de gestão: dentro do padrão do time no mês.";
+  // Sem os blocos de gestão o sinal nunca foi calculado: a linha some em vez
+  // de imprimir "dentro do padrão" como se fosse uma avaliação feita.
+  const sinalHtml = r.incluiBlocosGestao ? `<div class="sinal">${esc(sinalTexto)}</div>` : "";
+
+  const metodologia = r.incluiBlocosGestao
+    ? `funil em leitura de coorte (leads criados na janela seguidos até hoje); comparações usam a média dos demais corretores com atividade no período, com amostra mínima de 3 corretores — abaixo disso o relatório mostra "sem amostra" em vez de um número frágil. Taxas são suprimidas quando a cobertura de histórico fica abaixo de ${esc(r.coberturaMinima)}%. Projeção de meta é linear sobre dias úteis.`
+    : `comparações usam o próprio período anterior de mesmo tamanho — sem janela anterior completa, o relatório omite o delta em vez de comparar contra uma base menor.`;
 
   return `<!doctype html>
 <html lang="pt-BR">
@@ -638,7 +651,7 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
     <h1>Raio-X do Corretor — ${esc(r.nome)}</h1>
     <div class="sub">Relatório individual de performance · gerado em ${esc(dataGeracao)}${r.geradoPor ? ` por ${esc(r.geradoPor)}` : ""}</div>
     <div class="chips">${chips.map((c) => `<span>${esc(c)}</span>`).join("")}</div>
-    <div class="sinal">${esc(sinalTexto)}</div>
+    ${sinalHtml}
   </header>
 
   ${secao("1. Placar do período", r.periodoLabel, `<div class="kpis">${kpis}</div>`)}
@@ -663,7 +676,7 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
   ${secao("9. Plano de ação da 1:1", "prioridade decrescente", plano)}
 
   <div class="rodape">
-    <strong>Metodologia:</strong> funil em leitura de coorte (leads criados na janela seguidos até hoje); comparações usam a média dos demais corretores com atividade no período, com amostra mínima de 3 corretores — abaixo disso o relatório mostra "sem amostra" em vez de um número frágil. Taxas são suprimidas quando a cobertura de histórico fica abaixo de ${esc(r.coberturaMinima)}%. Projeção de meta é linear sobre dias úteis. Dados atualizados em ${esc(r.atualizadoEm ?? "—")}.<br>
+    <strong>Metodologia:</strong> ${metodologia} Dados atualizados em ${esc(r.atualizadoEm ?? "—")}.<br>
     Documento interno e confidencial · Seu Metro Quadrado · ${esc(dataGeracao)}
   </div>
 </body>

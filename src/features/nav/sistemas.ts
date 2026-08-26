@@ -316,6 +316,24 @@ export function homeDoSistema(s: Sistema, ctx: PapelCtx): Destino {
   return s.homePorPapel?.(ctx) ?? s.home;
 }
 
+/** Search do link de uma seção, preservando o contexto da URL atual: entrar
+ *  no Modo Fechamento estando na fase Carteira mantém `fase=carteira` — sem
+ *  isso, voltar à aba Funil cairia no quadro completo. Em Prospecção (ou sem
+ *  fase) nada é injetado: a fase não tem aba Fechamento. */
+export function searchDaSecao(
+  secao: Secao,
+  atual: Record<string, unknown>,
+): Record<string, string> | undefined {
+  if (
+    secao.to === "/pipeline" &&
+    secao.search?.tab === "fechamento" &&
+    String(atual.fase) === "carteira"
+  ) {
+    return { ...secao.search, fase: "carteira" };
+  }
+  return secao.search;
+}
+
 // ---------------------------------------------------------------------------
 // Resolução do sistema ativo a partir da rota (pathname + search)
 // ---------------------------------------------------------------------------

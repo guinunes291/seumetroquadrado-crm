@@ -4,6 +4,7 @@ import {
   SISTEMAS,
   badgeDoSistema,
   homeDoSistema,
+  searchDaSecao,
   secaoAtiva,
   secoesVisiveis,
   sistemaAtivo,
@@ -144,6 +145,36 @@ describe("sistemaAtivo (pathname + search)", () => {
   it("rotas neutras não pertencem a sistema algum", () => {
     expect(em("/meu-perfil")).toBeNull();
     expect(em("/configuracoes")).toBeNull();
+  });
+});
+
+describe("searchDaSecao (search do link com contexto da fase)", () => {
+  const secaoDe = (sistemaId: string, secaoId: string) => {
+    const s = sistema(sistemaId).secoes.find((x) => x.id === secaoId);
+    if (!s) throw new Error(`seção ${secaoId} não existe em ${sistemaId}`);
+    return s;
+  };
+
+  it("entrar no Modo Fechamento estando na Carteira preserva fase=carteira", () => {
+    expect(searchDaSecao(secaoDe("carteira", "fechamento"), { fase: "carteira" })).toEqual({
+      tab: "fechamento",
+      fase: "carteira",
+    });
+  });
+
+  it("não injeta fase quando a atual é prospeccao ou ausente", () => {
+    const fechamento = secaoDe("carteira", "fechamento");
+    expect(searchDaSecao(fechamento, { fase: "prospeccao" })).toEqual({ tab: "fechamento" });
+    expect(searchDaSecao(fechamento, {})).toEqual({ tab: "fechamento" });
+  });
+
+  it("seções sem tab passam intactas (com e sem search declarada)", () => {
+    expect(searchDaSecao(secaoDe("carteira", "funil-carteira"), { fase: "carteira" })).toEqual({
+      fase: "carteira",
+    });
+    expect(
+      searchDaSecao(secaoDe("prospeccao", "base-leads"), { fase: "carteira" }),
+    ).toBeUndefined();
   });
 });
 

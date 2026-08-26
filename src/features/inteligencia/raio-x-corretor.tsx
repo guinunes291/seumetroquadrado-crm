@@ -197,6 +197,7 @@ export function RaioXCorretor({
       (user?.user_metadata?.nome as string | undefined) ??
       user?.email ??
       null,
+    incluiBlocosGestao: true,
     presente: corretor?.presente ?? null,
     cargaAtiva: corretor?.carga_ativa ?? 0,
     capacidadePct: corretor?.capacidade_pct ?? null,

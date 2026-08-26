@@ -16,7 +16,13 @@ import { usePreference } from "@/hooks/use-preference";
 import { useTheme } from "@/hooks/use-theme";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/leads";
-import { secoesVisiveis, sistemasVisiveis, temPapel, type PapelCtx } from "@/features/nav/sistemas";
+import {
+  searchDaSecao,
+  secoesVisiveis,
+  sistemasVisiveis,
+  temPapel,
+  type PapelCtx,
+} from "@/features/nav/sistemas";
 import {
   Users,
   ListTodo,
@@ -233,7 +239,15 @@ export function CommandPalette() {
       secoesVisiveis(sistema, ctx).map((secao) => ({
         label: `${sistema.titulo} · ${secao.label}`,
         icon: secao.icon,
-        go: () => navigate({ to: secao.to, search: secao.search }),
+        // Updater funcional para preservar o contexto da URL atual (ex.:
+        // Modo Fechamento a partir da Carteira mantém `fase=carteira`).
+        go: () =>
+          navigate({
+            to: secao.to,
+            // O updater não pode devolver undefined — seção sem search limpa
+            // a URL com objeto vazio.
+            search: (prev) => searchDaSecao(secao, prev as Record<string, unknown>) ?? {},
+          }),
       })),
     ),
     ...ATALHOS_EXTRAS.filter((a) => temPapel(a.roles, ctx)).map((a) => ({
