@@ -72,7 +72,9 @@ async function vendaAprovada(opts: {
   const id = r.rows[0].id as string;
   await c.query(
     `UPDATE public.vendas
-        SET status_venda = 'aprovada', aprovado_em = COALESCE($2::timestamptz, now())
+        SET status_venda = 'aprovada', aprovado_em = COALESCE($2::timestamptz, now()),
+            -- vendas_efetivacao_aprovada_ck: aprovada exige os 3 marcos ativos.
+            contrato_assinado = true, ato_pago = true, apto_repasse = true
       WHERE id = $1`,
     [id, opts.aprovadoEm ?? null],
   );

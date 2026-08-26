@@ -137,6 +137,22 @@ export async function criarLead(
 }
 
 /**
+ * Liga os 3 marcos de efetivação de uma venda (contrato assinado, ato pago,
+ * apto para repasse) direto como superusuário — pré-condição para
+ * `aprovar_venda('aprovada')` nos fixtures que não exercitam a RPC
+ * `atualizar_efetivacao_venda` em si. Deixa a conexão como superusuário.
+ */
+export async function marcarEfetivacao(c: Client, vendaId: string): Promise<void> {
+  await comoSuperuser(c);
+  await c.query(
+    `UPDATE public.vendas
+        SET contrato_assinado = true, ato_pago = true, apto_repasse = true
+      WHERE id = $1`,
+    [vendaId],
+  );
+}
+
+/**
  * Limpa os dados de negócio entre arquivos de teste, preservando seeds de
  * configuração (copa_config, configuracao_pontuacao, templates etc.).
  */

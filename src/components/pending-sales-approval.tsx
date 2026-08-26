@@ -3,9 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Clock3, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  atualizarEfetivacaoVenda,
+  marcosPendentes,
+  vendaEfetivada,
+  EFETIVACAO_FLAGS,
+  type EfetivacaoFlagKey,
+} from "@/lib/vendas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +35,9 @@ type PendingSale = {
   valor_venda: number;
   data_assinatura: string;
   created_at: string;
+  contrato_assinado: boolean;
+  ato_pago: boolean;
+  apto_repasse: boolean;
   leadNome: string;
   corretorNome: string;
 };
@@ -48,7 +59,9 @@ export function PendingSalesApproval() {
     queryFn: async (): Promise<PendingSale[]> => {
       const { data: sales, error } = await supabase
         .from("vendas")
-        .select("id, lead_id, corretor_id, projeto_nome, valor_venda, data_assinatura, created_at")
+        .select(
+          "id, lead_id, corretor_id, projeto_nome, valor_venda, data_assinatura, created_at, contrato_assinado, ato_pago, apto_repasse",
+        )
         .eq("status_venda", "pendente")
         .order("created_at", { ascending: true })
         .limit(50);
@@ -80,6 +93,16 @@ export function PendingSalesApproval() {
         corretorNome: (sale.corretor_id && profileNames.get(sale.corretor_id)) || "Sem corretor",
       }));
     },
+  });
+
+  // Marcos de efetivação: contrato assinado, ato pago, apto para repasse.
+  // A RPC atualizar_efetivacao_venda audita e o banco trava a aprovação
+  // enquanto os 3 não estiverem ativos.
+  const flagMutation = useMutation({
+    mutationFn: async (input: { vendaId: string; key: EfetivacaoFlagKey; value: boolean }) =>
+      atualizarEfetivacaoVenda(input.vendaId, { [input.key]: input.value }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["vendas"] }),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const mutation = useMutation({
@@ -156,33 +179,65 @@ export function PendingSalesApproval() {
           {query.isLoading ? (
             <div className="h-20 animate-pulse rounded-md bg-muted" />
           ) : (
-            query.data?.map((sale) => (
-              <div
-                key={sale.id}
-                className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{sale.leadNome}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {sale.corretorNome} · {sale.projeto_nome ?? "Sem projeto"} ·{" "}
-                    {new Date(`${sale.data_assinatura}T12:00:00`).toLocaleDateString("pt-BR")}
-                  </p>
+            query.data?.map((sale) => {
+              const efetivada = vendaEfetivada(sale);
+              const pendentes = marcosPendentes(sale);
+              return (
+                <div key={sale.id} className="space-y-2 rounded-lg border p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{sale.leadNome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sale.corretorNome} · {sale.projeto_nome ?? "Sem projeto"} ·{" "}
+                        {new Date(`${sale.data_assinatura}T12:00:00`).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                    <strong className="text-sm tabular-nums">{money(sale.valor_venda)}</strong>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDecision({ sale, type: "rejeitada" })}
+                      >
+                        <XCircle className="h-4 w-4" aria-hidden="true" /> Rejeitar
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!efetivada}
+                        title={efetivada ? undefined : `Aguardando: ${pendentes.join(", ")}`}
+                        onClick={() => setDecision({ sale, type: "aprovada" })}
+                      >
+                        <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Aprovar
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    {EFETIVACAO_FLAGS.map((flag) => (
+                      <label
+                        key={flag.key}
+                        className="flex cursor-pointer items-center gap-1.5 text-xs"
+                      >
+                        <Checkbox
+                          checked={sale[flag.key]}
+                          disabled={flagMutation.isPending}
+                          onCheckedChange={(checked) =>
+                            flagMutation.mutate({
+                              vendaId: sale.id,
+                              key: flag.key,
+                              value: checked === true,
+                            })
+                          }
+                        />
+                        {flag.label}
+                      </label>
+                    ))}
+                    <Badge variant={efetivada ? "default" : "secondary"} className="ml-auto">
+                      {efetivada ? "Pronta para aprovar" : "Em efetivação"}
+                    </Badge>
+                  </div>
                 </div>
-                <strong className="text-sm tabular-nums">{money(sale.valor_venda)}</strong>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setDecision({ sale, type: "rejeitada" })}
-                  >
-                    <XCircle className="h-4 w-4" aria-hidden="true" /> Rejeitar
-                  </Button>
-                  <Button size="sm" onClick={() => setDecision({ sale, type: "aprovada" })}>
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Aprovar
-                  </Button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </CardContent>
       </Card>

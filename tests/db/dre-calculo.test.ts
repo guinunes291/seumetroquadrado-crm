@@ -27,6 +27,7 @@ import {
   criarLead,
   criarUsuario,
   limparDados,
+  marcarEfetivacao,
   novoClient,
   type UsuarioTeste,
 } from "./helpers";
@@ -78,6 +79,8 @@ async function registrarVenda(opts: {
 }
 
 async function aprovar(vendaId: string): Promise<void> {
+  // Aprovação exige os 3 marcos de efetivação ativos.
+  await marcarEfetivacao(c, vendaId);
   await comoUsuario(c, gestor.id);
   await c.query(`SELECT public.aprovar_venda($1, 'aprovada'::public.status_venda, NULL)`, [
     vendaId,
