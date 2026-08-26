@@ -48,8 +48,7 @@ import {
 } from "./raio-x-derive";
 import { montarRelatorioRaioX, type RaioXRelatorioInput } from "./raio-x-relatorio";
 import { usePerformanceDrill } from "./queries";
-
-const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).rpc(name, args);
+import { rpc } from "@/features/dashboard/queries";
 
 type CarteiraRow = { etapa: string; ordem: number; quantidade: number };
 type PerdaRow = { motivo: string; quantidade: number };
