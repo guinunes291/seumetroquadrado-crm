@@ -104,6 +104,41 @@ export type StageLead = {
  *  que é tratado por uma ação dedicada). */
 export const FUNNEL_STAGES: LeadStatus[] = LEAD_STATUS_ORDER.filter((s) => s !== "perdido");
 
+// ---------------------------------------------------------------------------
+// Fases do funil — Prospecção (volumão do topo) × Carteira (quem avança)
+// ---------------------------------------------------------------------------
+
+/** As duas fases comerciais em que o funil se divide nos sistemas do hub:
+ *  Prospecção concentra o volume de entrada; Carteira, os leads em conversa
+ *  ativa (em atendimento em diante). `perdido` e os status legados ficam fora
+ *  de ambas, como já ficam fora do kanban. */
+export type FaseFunil = "prospeccao" | "carteira";
+
+/** Volumão do topo. Inclui `novo` (caixa de entrada, fora do kanban). */
+export const PROSPECCAO_STAGES: LeadStatus[] = [
+  "novo",
+  "aguardando_atendimento",
+  "aguardando_retorno",
+  "qualificacao_corretor",
+];
+
+/** Carteira ativa: em atendimento em diante. */
+export const CARTEIRA_STAGES: LeadStatus[] = [
+  "em_atendimento",
+  "agendado",
+  "visita_realizada",
+  "analise_credito",
+  "contrato_fechado",
+];
+
+/** Colunas de kanban da fase: interseção com FUNNEL_STAGES na ordem canônica.
+ *  Sem fase, devolve undefined (quadro completo). */
+export function stagesDaFase(fase?: FaseFunil): LeadStatus[] | undefined {
+  if (!fase) return undefined;
+  const set = fase === "prospeccao" ? PROSPECCAO_STAGES : CARTEIRA_STAGES;
+  return FUNNEL_STAGES.filter((s) => set.includes(s));
+}
+
 /** Transições que exigem um modal para capturar dados antes de mudar o status. */
 export type StageModal = "agendado" | "visita_realizada" | "analise_credito" | "contrato_fechado";
 
