@@ -102,9 +102,15 @@ describe("fundação: régua extra e auditoria", () => {
   });
 
   it("views do painel semanal usam security_invoker (RLS de quem consulta)", () => {
-    const views = fundCode.match(/CREATE OR REPLACE VIEW[\s\S]*?WITH \(security_invoker = true\)/g) ?? [];
+    const views =
+      fundCode.match(/CREATE OR REPLACE VIEW[\s\S]*?WITH \(security_invoker = true\)/g) ?? [];
     expect(views.length).toBe(4);
-    for (const nome of ["v_velocidade_corretor", "v_wip_corretor", "v_leads_parados", "v_contato_efetivo"]) {
+    for (const nome of [
+      "v_velocidade_corretor",
+      "v_wip_corretor",
+      "v_leads_parados",
+      "v_contato_efetivo",
+    ]) {
       expect(fundCode).toContain(nome);
     }
   });
@@ -189,7 +195,9 @@ describe("motor: posse 7/30 e recálculo semanal", () => {
   });
 
   it("o cron semanal roteia pela flag: faixas de velocidade no v2, cálculo de campanha vigente no rollback", () => {
-    expect(motorFlat).toContain("IF public._modelo_v2_ativo() THEN RETURN public.recalcular_faixas_velocidade(_gatilho);");
+    expect(motorFlat).toContain(
+      "IF public._modelo_v2_ativo() THEN RETURN public.recalcular_faixas_velocidade(_gatilho);",
+    );
     expect(motorCode).toContain("recalcular_tiers_roleta(_r.slug, _gatilho)");
   });
 

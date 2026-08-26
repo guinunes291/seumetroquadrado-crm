@@ -4,16 +4,11 @@ import { Bell, CheckCheck } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { useAuth } from "@/hooks/use-auth";
-
 
 type Alerta = {
   id: string;
@@ -49,14 +44,11 @@ export function NotificationBell() {
     refetchInterval: 5 * 60_000,
   });
 
-
   useEffect(() => {
     const channel = supabase
       .channel("alertas-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "alertas" },
-        () => qc.invalidateQueries({ queryKey: ["alertas"] }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "alertas" }, () =>
+        qc.invalidateQueries({ queryKey: ["alertas"] }),
       )
       .subscribe();
     return () => {
@@ -127,7 +119,9 @@ export function NotificationBell() {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{a.titulo}</div>
                       {a.mensagem && (
-                        <div className="text-xs text-muted-foreground line-clamp-2">{a.mensagem}</div>
+                        <div className="text-xs text-muted-foreground line-clamp-2">
+                          {a.mensagem}
+                        </div>
                       )}
                       <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
