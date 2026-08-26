@@ -43,6 +43,7 @@ const inputBase = (over: Partial<RaioXRelatorioInput> = {}): RaioXRelatorioInput
   ate: null,
   geradoEm: new Date("2026-07-15T12:00:00Z"),
   geradoPor: "Gestor",
+  incluiBlocosGestao: true,
   presente: true,
   cargaAtiva: 40,
   capacidadePct: 80,
@@ -296,5 +297,30 @@ describe("montarHtmlRaioX", () => {
 
   it("marca a etapa gargalo na tabela do funil", () => {
     expect(html).toContain("tag-risco");
+  });
+
+  it("com blocos de gestão imprime sinal, vazio afirmativo e metodologia do time", () => {
+    expect(html).toContain("Sinal de gestão");
+    expect(html).toContain("Nenhuma exceção aberta");
+    expect(html).toContain("média dos demais corretores");
+  });
+});
+
+describe("montarHtmlRaioX (self-serve, sem blocos de gestão)", () => {
+  const html = montarHtmlRaioX(
+    montarRelatorioRaioX(inputBase({ incluiBlocosGestao: false, excecoes: [] })),
+  );
+
+  it("não imprime avaliações que nunca foram calculadas", () => {
+    // Sinal de gestão fora — "dentro do padrão" seria uma avaliação que não houve.
+    expect(html).not.toContain("Sinal de gestão");
+    // Exceções não consultadas: nada de vazio afirmativo.
+    expect(html).not.toContain("Nenhuma exceção aberta");
+    expect(html).toContain("fora do escopo deste relatório");
+  });
+
+  it("metodologia fala do próprio período anterior, não da média do time", () => {
+    expect(html).toContain("próprio período anterior");
+    expect(html).not.toContain("média dos demais corretores");
   });
 });

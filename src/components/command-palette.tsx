@@ -11,28 +11,31 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useUserRoles, type AppRole } from "@/hooks/use-auth";
 import { usePreference } from "@/hooks/use-preference";
 import { useTheme } from "@/hooks/use-theme";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/leads";
 import {
-  Gauge,
+  searchDaSecao,
+  secoesVisiveis,
+  sistemasVisiveis,
+  temPapel,
+  type PapelCtx,
+} from "@/features/nav/sistemas";
+import {
   Users,
-  Trello,
-  CalendarClock,
   ListTodo,
   LayoutDashboard,
   Building2,
-  Headset,
   Sparkles,
   SunMoon,
   UserPlus,
   UserRound,
   DollarSign,
   History,
-  Phone,
   Zap,
+  type LucideIcon,
 } from "lucide-react";
 
 type LeadHit = { id: string; nome: string; telefone: string | null; status: string };
@@ -43,6 +46,34 @@ type CorretorHit = { id: string; nome: string | null };
 /** Item do histórico "Recentes" (persistido por usuário, máx. 8). */
 type RecentEntry = { type: "lead" | "projeto"; id: string; label: string };
 
+/** Atalhos de ABA que o registro SISTEMAS não expressa (as seções apontam
+ *  páginas; estes pulam direto para uma aba interna). Papéis passam pelo
+ *  mesmo temPapel do registro. */
+const ATALHOS_EXTRAS: {
+  label: string;
+  icon: LucideIcon;
+  to: string;
+  search?: Record<string, string>;
+  roles?: AppRole[];
+}[] = [
+  { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
+  { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
+  {
+    label: "Relatórios (Operação)",
+    icon: LayoutDashboard,
+    to: "/painel-gestor",
+    search: { tab: "relatorios" },
+    roles: ["admin", "gestor", "superintendente"],
+  },
+  {
+    label: "Metas & Ritmo",
+    icon: LayoutDashboard,
+    to: "/painel-gestor",
+    search: { tab: "metas" },
+    roles: ["admin", "gestor", "superintendente"],
+  },
+];
+
 /**
  * Paleta de comandos global (⌘K / Ctrl+K): busca leads, projetos, tarefas e
  * corretores no servidor, executa ações (novo lead, registrar venda, tema,
@@ -50,7 +81,7 @@ type RecentEntry = { type: "lead" | "projeto"; id: string; label: string };
  */
 export function CommandPalette() {
   const navigate = useNavigate();
-  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const { roles, isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
   const { setPref, resolved } = useTheme();
   const [open, setOpen] = useState(false);
@@ -194,72 +225,36 @@ export function CommandPalette() {
     run(() => navigate({ to: "/projetos/$projetoId", params: { projetoId: id } }));
   };
 
+  // Navegação derivada do registro SISTEMAS (mesma fonte do hub e da sidebar)
+  // num único grupo plano — grupos por sistema empurrariam os resultados de
+  // busca para baixo do fold.
+  const ctx: PapelCtx = { roles, isAdmin };
   const navItems = [
-    { label: "Central de Comando", icon: Gauge, go: () => navigate({ to: "/hoje" }) },
-    { label: "Leads", icon: Users, go: () => navigate({ to: "/leads" }) },
-    { label: "Atendimento", icon: Headset, go: () => navigate({ to: "/atendimento" }) },
-    { label: "Pipeline (Funil)", icon: Trello, go: () => navigate({ to: "/pipeline" }) },
     {
-      label: "Modo Fechamento",
-      icon: Trello,
-      go: () => navigate({ to: "/pipeline", search: { tab: "fechamento" } }),
+      label: "Acesso aos Módulos",
+      icon: LayoutDashboard,
+      go: () => navigate({ to: "/inicio" }),
     },
-    { label: "Agendamentos", icon: CalendarClock, go: () => navigate({ to: "/agendamentos" }) },
-    { label: "Tarefas", icon: ListTodo, go: () => navigate({ to: "/tarefas" }) },
-    {
-      label: "Projetos em Foco (book e tabela)",
-      icon: Building2,
-      go: () => navigate({ to: "/projetos-foco" }),
-    },
-    {
-      label: "Projetos / Empreendimentos (catálogo)",
-      icon: Building2,
-      go: () => navigate({ to: "/projetos" }),
-    },
-    { label: "Oferta Ativa", icon: Users, go: () => navigate({ to: "/oferta-ativa" }) },
-    { label: "Discador (telefonia)", icon: Phone, go: () => navigate({ to: "/discador" }) },
-    {
-      // /match não tem entrada no menu (é ferramenta de contexto, chamada da
-      // ficha do lead e do hub de projetos). Sem estar aqui, era a única página
-      // viva do sistema impossível de alcançar sem saber a URL de cor.
-      label: "Match Cliente ↔ Empreendimento",
-      icon: Building2,
-      go: () => navigate({ to: "/match" }),
-    },
-    {
-      label: "Comissões",
-      icon: ListTodo,
-      go: () => navigate({ to: "/financeiro", search: { tab: "comissoes" } }),
-    },
-    { label: "Links Úteis", icon: Building2, go: () => navigate({ to: "/links-uteis" }) },
-    ...(canManage
-      ? [
-          {
-            label: "Operação (Painel do Dia)",
-            icon: Gauge,
-            go: () => navigate({ to: "/painel-gestor" }),
-          },
-          {
-            label: "Distribuição (roletas)",
-            icon: Users,
-            go: () => navigate({ to: "/distribuicao" }),
-          },
-        ]
-      : []),
-    ...(canManage || isSuperintendente
-      ? [
-          {
-            label: "Relatórios (Operação)",
-            icon: LayoutDashboard,
-            go: () => navigate({ to: "/painel-gestor", search: { tab: "relatorios" } }),
-          },
-          {
-            label: "Metas & Ritmo",
-            icon: LayoutDashboard,
-            go: () => navigate({ to: "/painel-gestor", search: { tab: "metas" } }),
-          },
-        ]
-      : []),
+    ...sistemasVisiveis(ctx).flatMap((sistema) =>
+      secoesVisiveis(sistema, ctx).map((secao) => ({
+        label: `${sistema.titulo} · ${secao.label}`,
+        icon: secao.icon,
+        // Updater funcional para preservar o contexto da URL atual (ex.:
+        // Modo Fechamento a partir da Carteira mantém `fase=carteira`).
+        go: () =>
+          navigate({
+            to: secao.to,
+            // O updater não pode devolver undefined — seção sem search limpa
+            // a URL com objeto vazio.
+            search: (prev) => searchDaSecao(secao, prev as Record<string, unknown>) ?? {},
+          }),
+      })),
+    ),
+    ...ATALHOS_EXTRAS.filter((a) => temPapel(a.roles, ctx)).map((a) => ({
+      label: a.label,
+      icon: a.icon,
+      go: () => navigate({ to: a.to, search: a.search }),
+    })),
   ];
 
   return (

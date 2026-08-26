@@ -8,28 +8,30 @@ import { describe, expect, it } from "vitest";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
-const sidebar = read("src/components/app-sidebar.tsx");
+// A taxonomia do menu vive no registro SISTEMAS (features/nav/sistemas.ts)
+// desde a reorganização em sistemas — os guards leem a fonte de lá.
+const sistemas = read("src/features/nav/sistemas.ts");
 const blitz = read("src/routes/_authenticated/blitz.tsx");
 const leadsIndex = read("src/routes/_authenticated/leads.index.tsx");
 const bottomNav = read("src/components/bottom-nav.tsx");
 
 describe("item 2.7c — porta única no menu", () => {
-  it("Atender é o botão primário e soma as pendências de atendimento", () => {
-    expect(sidebar).toMatch(
-      /to: "\/atendimento",\s*label: "Atender"[\s\S]{0,120}badge: \(b\) => b\.atendimento \+ b\.tarefasVencidas/,
+  it("Atender segue porta única e soma as pendências de atendimento", () => {
+    expect(sistemas).toMatch(
+      /label: "Atender",\s*icon: Headset,\s*to: "\/atendimento",\s*badge: \(b\) => b\.atendimento \+ b\.tarefasVencidas/,
     );
-    // "Leads" não é mais botão de nível primário…
-    expect(sidebar).not.toMatch(/to: "\/leads",\s*label: "Leads"/);
-    // …mas a base completa segue acessível como subitem (nenhuma rota morre).
-    expect(sidebar).toMatch(/to: "\/leads", label: "Base de leads"/);
+    // "Leads" não é home de sistema algum…
+    expect(sistemas).not.toMatch(/home: \{ to: "\/leads" \}/);
+    // …mas a base completa segue acessível como seção (nenhuma rota morre).
+    expect(sistemas).toContain('label: "Base de leads", icon: Users, to: "/leads"');
   });
 
   it("os antigos filhos de Leads foram realojados, não apagados", () => {
-    expect(sidebar).toContain('to: "/oferta-ativa"');
-    // Captação é gestão de aquisição — mudou para o hub Operação.
-    expect(sidebar).toMatch(/label: "Operação"[\s\S]{0,900}to: "\/leads-landing"/);
+    expect(sistemas).toContain('to: "/oferta-ativa"');
+    // Captação é gestão de aquisição — vive na Prospecção (gestão do volumão).
+    expect(sistemas).toMatch(/titulo: "Prospecção"[\s\S]{0,2000}to: "\/leads-landing"/);
     // O item de menu do Blitz morreu junto com a rota própria.
-    expect(sidebar).not.toContain('to: "/blitz"');
+    expect(sistemas).not.toContain('to: "/blitz"');
   });
 
   it("/blitz redireciona e nenhum link interno aponta mais para lá", () => {

@@ -16,7 +16,10 @@ import { flattenDashboardKpis, type DashboardKpisFlat } from "@/features/dashboa
  */
 type Range = { di: string | null; df: string | null };
 
-const rpc = (name: string, args: Record<string, unknown>) => (supabase as any).rpc(name, args);
+// Fronteira única para RPCs fora dos types gerados — reutilizada pelo Meu
+// Raio-X para não multiplicar escapes de tipo (budget em CI).
+export const rpc = (name: string, args: Record<string, unknown>) =>
+  (supabase as any).rpc(name, args);
 
 export function useDashboardKpis(range: Range, corretor: string | null, enabled = true) {
   return useQuery({

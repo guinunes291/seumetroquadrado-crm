@@ -115,6 +115,9 @@ export type RaioXRelatorioInput = {
   ate: string | null;
   geradoEm: Date;
   geradoPor: string | null;
+  /** false no self-serve (Meu Raio-X): o sinal de gestão e as exceções nunca
+   *  foram calculados ali — o PDF não pode imprimir avaliações que não houve. */
+  incluiBlocosGestao: boolean;
   presente: boolean | null;
   cargaAtiva: number;
   capacidadePct: number | null;

@@ -44,7 +44,7 @@ function AuthPage() {
         if (destino.startsWith("/") && destino !== "/") {
           window.location.href = destino;
         } else {
-          navigate({ to: "/hoje" });
+          navigate({ to: "/inicio" });
         }
       }
     });
@@ -89,7 +89,7 @@ function AuthPage() {
       if (destino !== "/") {
         window.location.href = destino;
       } else {
-        navigate({ to: "/hoje" });
+        navigate({ to: "/inicio" });
       }
     } catch (error) {
       toast.error("Não foi possível entrar", { description: authErrorMessage(error) });
@@ -138,7 +138,7 @@ function AuthPage() {
     if (destino !== "/") {
       window.location.href = destino;
     } else {
-      navigate({ to: "/hoje" });
+      navigate({ to: "/inicio" });
     }
   };
 

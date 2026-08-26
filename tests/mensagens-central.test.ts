@@ -15,7 +15,8 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 const central = read("src/features/mensagens/central-mensagens.tsx");
 const client = read("src/features/mensagens/mensagens-client.ts");
 const rota = read("src/routes/_authenticated/mensagens.tsx");
-const sidebar = read("src/components/app-sidebar.tsx");
+// O menu vem do registro SISTEMAS desde a reorganização em sistemas.
+const sistemas = read("src/features/nav/sistemas.ts");
 
 function msg(parcial: Partial<Mensagem> & { id: string; lead_id: string }): Mensagem {
   return {
@@ -73,9 +74,9 @@ describe("agruparConversas (derive puro)", () => {
 });
 
 describe("fiação da Central (7b)", () => {
-  it("a rota /mensagens existe e o menu aponta para ela sob Atender", () => {
+  it("a rota /mensagens existe e o menu aponta para ela na Central de Atendimento", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/mensagens")');
-    expect(sidebar).toContain('to: "/mensagens", label: "Mensagens"');
+    expect(sistemas).toContain('label: "Mensagens", icon: MessageCircle, to: "/mensagens"');
   });
 
   it("modo simulado: envio registra na conversa E abre o wa.me com o texto", () => {

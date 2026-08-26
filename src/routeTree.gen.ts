@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VitrinePublicaRouteImport } from './routes/vitrine-publica'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -28,6 +29,7 @@ import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authent
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
 import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authenticated/modo-visita'
+import { Route as AuthenticatedMeuRaioXRouteImport } from './routes/_authenticated/meu-raio-x'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
@@ -104,6 +106,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InicioRoute = InicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -186,6 +193,11 @@ const AuthenticatedPainelGestorRoute =
 const AuthenticatedModoVisitaRoute = AuthenticatedModoVisitaRouteImport.update({
   id: '/modo-visita',
   path: '/modo-visita',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMeuRaioXRoute = AuthenticatedMeuRaioXRouteImport.update({
+  id: '/meu-raio-x',
+  path: '/meu-raio-x',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMeuPerfilRoute = AuthenticatedMeuPerfilRouteImport.update({
@@ -527,6 +539,7 @@ const ApiPublicLeadsIdCorretorRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/inicio': typeof InicioRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/vitrine-publica': typeof VitrinePublicaRoute
@@ -557,6 +570,7 @@ export interface FileRoutesByFullPath {
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
+  '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
@@ -609,6 +623,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/inicio': typeof InicioRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/vitrine-publica': typeof VitrinePublicaRoute
@@ -639,6 +654,7 @@ export interface FileRoutesByTo {
   '/metas': typeof AuthenticatedMetasRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
+  '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
@@ -693,6 +709,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/inicio': typeof InicioRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/vitrine-publica': typeof VitrinePublicaRoute
@@ -723,6 +740,7 @@ export interface FileRoutesById {
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
+  '/_authenticated/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
   '/_authenticated/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
@@ -777,6 +795,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/inicio'
     | '/mcp'
     | '/reset-password'
     | '/vitrine-publica'
@@ -807,6 +826,7 @@ export interface FileRouteTypes {
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
+    | '/meu-raio-x'
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
@@ -859,6 +879,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/inicio'
     | '/mcp'
     | '/reset-password'
     | '/vitrine-publica'
@@ -889,6 +910,7 @@ export interface FileRouteTypes {
     | '/metas'
     | '/meu-painel'
     | '/meu-perfil'
+    | '/meu-raio-x'
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
@@ -942,6 +964,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/inicio'
     | '/mcp'
     | '/reset-password'
     | '/vitrine-publica'
@@ -972,6 +995,7 @@ export interface FileRouteTypes {
     | '/_authenticated/metas'
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
+    | '/_authenticated/meu-raio-x'
     | '/_authenticated/modo-visita'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/pipeline'
@@ -1026,6 +1050,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  InicioRoute: typeof InicioRoute
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VitrinePublicaRoute: typeof VitrinePublicaRoute
@@ -1079,6 +1104,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inicio': {
+      id: '/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof InicioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -1191,6 +1223,13 @@ declare module '@tanstack/react-router' {
       path: '/modo-visita'
       fullPath: '/modo-visita'
       preLoaderRoute: typeof AuthenticatedModoVisitaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/meu-raio-x': {
+      id: '/_authenticated/meu-raio-x'
+      path: '/meu-raio-x'
+      fullPath: '/meu-raio-x'
+      preLoaderRoute: typeof AuthenticatedMeuRaioXRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/meu-perfil': {
@@ -1656,6 +1695,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
+  AuthenticatedMeuRaioXRoute: typeof AuthenticatedMeuRaioXRoute
   AuthenticatedModoVisitaRoute: typeof AuthenticatedModoVisitaRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
@@ -1704,6 +1744,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
+  AuthenticatedMeuRaioXRoute: AuthenticatedMeuRaioXRoute,
   AuthenticatedModoVisitaRoute: AuthenticatedModoVisitaRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
@@ -1749,6 +1790,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  InicioRoute: InicioRoute,
   McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VitrinePublicaRoute: VitrinePublicaRoute,

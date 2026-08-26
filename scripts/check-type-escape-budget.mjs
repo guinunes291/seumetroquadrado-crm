@@ -2,12 +2,17 @@ import { readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 
 const ROOTS = ["src"];
-// Ratchet do redesign v2: 242 → 220 (o real caiu para 212 tipando copa/
-// gestão/leads com os tipos gerados). Ao aplicar as migrations no ambiente e
-// regenerar os types do Supabase, dá para baixar de novo (~200): os `as never`
-// das RPCs novas (leads_filtered_v2, nav_pendencias, pipeline_snapshot_v3,
-// gestao_metricas) deixam de ser necessários.
-const MAX_ESCAPES = 220;
+// routeTree.gen.ts é GERADO pelo plugin do TanStack Router e ganha `as any`
+// a cada rota nova — contá-lo faz qualquer PR com rota estourar o teto sem
+// nenhum escape escrito à mão (foi o que quebrou o budget nos últimos runs).
+// Fora da conta, o ratchet volta a medir só o que dá para consertar.
+const IGNORED_FILES = new Set(["src/routeTree.gen.ts"]);
+// Ratchet (só código escrito à mão, sem o gen): 220 com o gen contando →
+// 144 reais hoje. Ao aplicar as migrations no ambiente e regenerar os types
+// do Supabase, dá para baixar de novo: os `as never`/`as any` das RPCs fora
+// dos types (leads_filtered_v2, nav_pendencias, pipeline_snapshot_v3,
+// gestao_metricas, dashboard_*) deixam de ser necessários.
+const MAX_ESCAPES = 144;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {
@@ -24,6 +29,7 @@ async function filesUnder(directory) {
 let escapes = 0;
 for (const root of ROOTS) {
   for (const file of await filesUnder(root)) {
+    if (IGNORED_FILES.has(file)) continue;
     const source = await readFile(file, "utf8");
     escapes += source.match(/\bas\s+(?:any|never)\b|\bunknown\s+as\b/g)?.length ?? 0;
   }
