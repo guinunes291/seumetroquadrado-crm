@@ -1,7 +1,6 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { verificarContaAtiva } from "@/lib/conta-ativa";
+import { guardarRotaAutenticada } from "@/lib/auth-guard";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { NotificationBell } from "@/components/notification-bell";
@@ -50,64 +49,11 @@ const ChamadaAtivaHost = lazy(() =>
   })),
 );
 
-let lastPresenceMark = 0;
-const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
-
-function markPresenceSafely() {
-  const now = Date.now();
-  if (now - lastPresenceMark < PRESENCE_MARK_INTERVAL_MS) return;
-  lastPresenceMark = now;
-
-  void (async () => {
-    try {
-      const { error } = await supabase.rpc("marcar_presenca", { _presente: true });
-      if (error) {
-        lastPresenceMark = 0;
-        console.warn("Não foi possível atualizar presença do corretor", error.message);
-      }
-    } catch (error) {
-      lastPresenceMark = 0;
-      console.warn("Não foi possível atualizar presença do corretor", error);
-    }
-  })();
-}
-
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      throw redirect({ to: "/auth", search: { next: location.href } });
-    }
-
-    // Verifica o estado da conta distinguindo NEGAÇÃO REAL (conta inativa/
-    // bloqueada) de FALHA DE INFRAESTRUTURA (RPC ausente/PGRST202, timeout,
-    // 5xx, rede). Só a negação real encerra a sessão — decisão centralizada
-    // e testada em verificarContaAtiva (tests/auth-guard.test.ts).
-    const resultado = await verificarContaAtiva(async () => {
-      const res = await supabase.rpc("conta_atual_ativa");
-      return { data: res.data as boolean | null, error: res.error };
-    });
-
-    if (resultado === "inativa") {
-      // Resposta definitiva do banco: conta inativa/bloqueada. Encerra apenas a
-      // sessão LOCAL (escopo local não revoga os outros dispositivos) e redireciona.
-      await supabase.auth.signOut({ scope: "local" });
-      throw redirect({ to: "/auth", search: { next: "", motivo: "inativa" } });
-    }
-
-    if (resultado === "indisponivel") {
-      // Indisponibilidade do RPC: não desloga. Segue com a sessão atual; a RLS
-      // barra o acesso a dados caso a conta não esteja realmente ativa.
-      console.warn(
-        "conta_atual_ativa indisponível; seguindo com a sessão (RLS permanece como barreira)",
-      );
-    }
-
-    // Auto check-in para liberar a distribuição automática de leads.
-    markPresenceSafely();
-    return { user: data.user };
-  },
+  // Sessão, conta ativa e presença vivem no guard compartilhado com o hub
+  // /inicio (src/lib/auth-guard.ts) — uma única fonte de verdade.
+  beforeLoad: ({ location }) => guardarRotaAutenticada(location.href),
   component: AuthenticatedLayout,
 });
 

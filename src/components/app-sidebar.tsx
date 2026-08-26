@@ -336,22 +336,33 @@ function SidebarContent({
         <div
           className={cn(
             "flex h-16 items-center border-b border-sidebar-border/60",
-            collapsed ? "justify-center px-2" : "gap-2 px-5",
+            collapsed ? "justify-center px-2" : "px-5",
           )}
         >
-          <img
-            src="/icons/icon-192.png"
-            alt="Seu Metro Quadrado"
-            className="h-9 w-9 shrink-0 rounded-md object-contain bg-white shadow-elev-1"
-          />
-          {!collapsed && (
-            <div className="leading-tight">
-              <div className="font-display font-semibold text-sm">Seu Metro Quadrado</div>
-              <div className="text-[11px] tracking-wide text-sidebar-primary/90">
-                Central de Comando
+          {/* A marca leva de volta ao hub de módulos — o "voltar ao portal". */}
+          <Link
+            to="/inicio"
+            onClick={onNavigate}
+            aria-label="Acesso aos módulos"
+            className={cn(
+              "flex items-center rounded-md transition-opacity hover:opacity-85",
+              collapsed ? "justify-center" : "gap-2",
+            )}
+          >
+            <img
+              src="/icons/icon-192.png"
+              alt="Seu Metro Quadrado"
+              className="h-9 w-9 shrink-0 rounded-md object-contain bg-white shadow-elev-1"
+            />
+            {!collapsed && (
+              <div className="leading-tight">
+                <div className="font-display font-semibold text-sm">Seu Metro Quadrado</div>
+                <div className="text-[11px] tracking-wide text-sidebar-primary/90">
+                  Central de Comando
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </Link>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">

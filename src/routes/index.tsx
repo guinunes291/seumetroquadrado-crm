@@ -21,7 +21,7 @@ function IndexRedirect() {
 
   useEffect(() => {
     let cancelled = false;
-    const redirect = (to: "/auth" | "/hoje", search?: { next: string }) => {
+    const redirect = (to: "/auth" | "/inicio", search?: { next: string }) => {
       if (cancelled) return;
       void navigate(search ? { to, search, replace: true } : { to, replace: true });
     };
@@ -37,7 +37,7 @@ function IndexRedirect() {
 
         window.clearTimeout(failSafe);
         if (data.session) {
-          redirect("/hoje");
+          redirect("/inicio");
           return;
         }
 

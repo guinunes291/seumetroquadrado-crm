@@ -195,6 +195,11 @@ export function CommandPalette() {
   };
 
   const navItems = [
+    {
+      label: "Acesso aos Módulos",
+      icon: LayoutDashboard,
+      go: () => navigate({ to: "/inicio" }),
+    },
     { label: "Central de Comando", icon: Gauge, go: () => navigate({ to: "/hoje" }) },
     { label: "Leads", icon: Users, go: () => navigate({ to: "/leads" }) },
     { label: "Atendimento", icon: Headset, go: () => navigate({ to: "/atendimento" }) },
