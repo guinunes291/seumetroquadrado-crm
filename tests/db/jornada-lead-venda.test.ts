@@ -338,6 +338,8 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     // Esteira de efetivação: o corretor liga os 3 marcos (contrato assinado,
     // ato pago, apto para repasse) via RPC. Sem eles, o passo 10 seria
     // recusado — a aprovação exige a venda efetivada.
+    // (leadRow acima deixou a conexão como superusuário — volta ao corretor.)
+    await comoUsuario(c, corretorJ1.id);
     const efetivacao = await c.query(
       `SELECT (t.r).contrato_assinado, (t.r).ato_pago, (t.r).apto_repasse
        FROM (SELECT public.atualizar_efetivacao_venda($1, true, true, true) AS r) t`,
