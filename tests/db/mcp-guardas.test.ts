@@ -73,10 +73,9 @@ describe("escrita liberada", () => {
   it("T11: transicionar_lead continua liberado", async () => {
     const lead = await criarLead(c, { corretorId: mcpId });
     await comoMcp();
-    await c.query(
-      `SELECT public.transicionar_lead($1,'em_atendimento','teste',NULL,NULL,NULL)`,
-      [lead],
-    );
+    await c.query(`SELECT public.transicionar_lead($1,'em_atendimento','teste',NULL,NULL,NULL)`, [
+      lead,
+    ]);
     await comoSuperuser(c);
     const r = await c.query(`SELECT status::text FROM public.leads WHERE id = $1`, [lead]);
     expect(r.rows[0].status).toBe("em_atendimento");
@@ -87,16 +86,12 @@ describe("as quatro travas", () => {
   it("T3: DELETE em tabela de negócio é bloqueado", async () => {
     const lead = await criarLead(c, { corretorId: mcpId });
     await comoMcp();
-    expect(await errCode(c.query(`DELETE FROM public.leads WHERE id = $1`, [lead]))).toBe(
-      "42501",
-    );
+    expect(await errCode(c.query(`DELETE FROM public.leads WHERE id = $1`, [lead]))).toBe("42501");
   });
 
   it("T4: DELETE na tabela sem RLS também é bloqueado", async () => {
     await comoMcp();
-    expect(
-      await errCode(c.query(`DELETE FROM public.bkp_f085_arquivadas_20260731`)),
-    ).toBe("42501");
+    expect(await errCode(c.query(`DELETE FROM public.bkp_f085_arquivadas_20260731`))).toBe("42501");
   });
 
   it("T5: soft delete (deleted_at) é bloqueado", async () => {
@@ -153,21 +148,33 @@ describe("lead perdido", () => {
 
 describe("financeiro", () => {
   it("T8/T9: venda aprovada é imutável e MCP não aprova", async () => {
+    // Fixtures como dado histórico: modo réplica pula o trigger que zera
+    // aprovado_em em INSERT (a venda 'aprovada' precisa dele e dos 3 marcos
+    // de efetivação pelos checks). Um lead por venda (uq_vendas_lead_ativa).
     await comoSuperuser(c);
-    const lead = await criarLead(c, { corretorId: mcpId });
+    const leadAprovada = await criarLead(c, { corretorId: mcpId });
+    const leadPendente = await criarLead(c, { corretorId: mcpId });
+    await c.query(`SET session_replication_role = replica`);
     const venda = await c.query(
-      `INSERT INTO public.vendas (lead_id, corretor_id, valor_venda, status_venda)
-       VALUES ($1,$2,100000,'aprovada') RETURNING id`,
-      [lead, mcpId],
+      `INSERT INTO public.vendas
+         (lead_id, corretor_id, valor_venda, data_assinatura, status_venda, aprovado_em,
+          contrato_assinado, contrato_assinado_em, ato_pago, ato_pago_em,
+          apto_repasse, apto_repasse_em)
+       VALUES ($1,$2,100000,current_date,'aprovada',now(),true,now(),true,now(),true,now())
+       RETURNING id`,
+      [leadAprovada, mcpId],
     );
     const pendente = await c.query(
-      `INSERT INTO public.vendas (lead_id, corretor_id, valor_venda, status_venda)
-       VALUES ($1,$2,100000,'pendente') RETURNING id`,
-      [lead, mcpId],
+      `INSERT INTO public.vendas (lead_id, corretor_id, valor_venda, data_assinatura, status_venda)
+       VALUES ($1,$2,100000,current_date,'pendente') RETURNING id`,
+      [leadPendente, mcpId],
     );
+    await c.query(`SET session_replication_role = DEFAULT`);
     await comoMcp();
     expect(
-      await errCode(c.query(`UPDATE public.vendas SET valor_venda = 1 WHERE id = $1`, [venda.rows[0].id])),
+      await errCode(
+        c.query(`UPDATE public.vendas SET valor_venda = 1 WHERE id = $1`, [venda.rows[0].id]),
+      ),
     ).toBe("42501");
     expect(
       await errCode(
@@ -188,7 +195,9 @@ describe("financeiro", () => {
 describe("herança e detector", () => {
   it("T12: tabela nova ganha guarda pela função; sem rodar, aparece no detector", async () => {
     await comoSuperuser(c);
-    await c.query(`CREATE TABLE IF NOT EXISTS public.teste_heranca (id uuid primary key default gen_random_uuid(), nome text)`);
+    await c.query(
+      `CREATE TABLE IF NOT EXISTS public.teste_heranca (id uuid primary key default gen_random_uuid(), nome text)`,
+    );
     await c.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON public.teste_heranca TO authenticated`);
     await c.query(`SELECT public.mcp_aplicar_guardas()`);
     await comoMcp();
@@ -196,7 +205,9 @@ describe("herança e detector", () => {
     expect(await errCode(c.query(`DELETE FROM public.teste_heranca`))).toBe("42501");
 
     await comoSuperuser(c);
-    await c.query(`CREATE TABLE IF NOT EXISTS public.teste_heranca_2 (id uuid primary key default gen_random_uuid())`);
+    await c.query(
+      `CREATE TABLE IF NOT EXISTS public.teste_heranca_2 (id uuid primary key default gen_random_uuid())`,
+    );
     const sem = await c.query(
       `SELECT tabela FROM public.mcp_tabelas_sem_guarda WHERE tabela = 'teste_heranca_2'`,
     );
@@ -218,7 +229,9 @@ describe("auditoria e botão de desligar", () => {
       `SELECT acao, tabela, resultado, ator IS NOT NULL AS tem_ator, diff IS NOT NULL AS tem_diff
          FROM public.api_escrita_log WHERE agente = 'mcp' ORDER BY ts`,
     );
-    expect(r.rows.some((x) => x.acao === "update" && x.tabela === "leads" && x.tem_diff)).toBe(true);
+    expect(r.rows.some((x) => x.acao === "update" && x.tabela === "leads" && x.tem_diff)).toBe(
+      true,
+    );
     expect(r.rows.some((x) => x.acao === "delete" && x.resultado === "erro")).toBe(true);
     expect(r.rows.every((x) => x.tem_ator)).toBe(true);
   });
@@ -230,7 +243,9 @@ describe("auditoria e botão de desligar", () => {
     await comoMcp();
     // is_mcp() falso: as guardas somem, mas a identidade não é mais o agente —
     // a escrita passa a depender só de RLS. O contrato aqui é: leitura ok.
-    const leitura = await c.query(`SELECT count(*)::int AS n FROM public.leads WHERE id = $1`, [lead]);
+    const leitura = await c.query(`SELECT count(*)::int AS n FROM public.leads WHERE id = $1`, [
+      lead,
+    ]);
     expect(leitura.rows[0].n).toBe(1);
     expect((await c.query(`SELECT public.is_mcp() AS v`)).rows[0].v).toBe(false);
     await comoSuperuser(c);

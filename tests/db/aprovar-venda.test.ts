@@ -30,6 +30,7 @@ import {
   criarUsuario,
   errCode,
   limparDados,
+  marcarEfetivacao,
   novoClient,
   type UsuarioTeste,
 } from "./helpers";
@@ -98,10 +99,13 @@ async function registrarVendaComoCorretor(leadId: string): Promise<string> {
   return r.rows[0].id as string;
 }
 
-/** Lead em analise_credito na carteira do corretor + venda pendente registrada. */
+/** Lead em analise_credito na carteira do corretor + venda pendente registrada.
+ *  Os 3 marcos de efetivação entram ligados: sem eles a aprovação é recusada
+ *  (a recusa em si é coberta em tests/db/venda-efetivacao.test.ts). */
 async function novoCenario(): Promise<{ leadId: string; vendaId: string }> {
   const leadId = await criarLead(c, { corretorId: corretor.id, status: "analise_credito" });
   const vendaId = await registrarVendaComoCorretor(leadId);
+  await marcarEfetivacao(c, vendaId);
   return { leadId, vendaId };
 }
 

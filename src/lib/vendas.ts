@@ -1,10 +1,50 @@
 // Registro de venda compartilhado pelos dois pontos que criam uma venda:
 // o ContractSaleDialog (Kanban/etapa) e o RegistrarVendaDialog (atalho global).
 // A venda nasce pendente; somente a RPC gerencial `aprovar_venda` produz
-// comissão, ranking, VGV e a transição do lead para contrato fechado.
+// comissão, ranking, VGV e a transição do lead para contrato fechado — e a
+// aprovação exige os três marcos de efetivação ativos (contrato assinado,
+// ato pago e apto para repasse), atualizados via `atualizar_efetivacao_venda`.
 
 import { supabase } from "@/integrations/supabase/client";
 import { validarSplit, type SplitPercentuais } from "@/lib/comissoes";
+
+/** Marcos de efetivação da venda, na ordem em que acontecem na esteira. */
+export const EFETIVACAO_FLAGS = [
+  { key: "contrato_assinado", label: "Contrato Assinado" },
+  { key: "ato_pago", label: "Ato Pago" },
+  { key: "apto_repasse", label: "Apto para repasse" },
+] as const;
+
+export type EfetivacaoFlagKey = (typeof EFETIVACAO_FLAGS)[number]["key"];
+
+export type EfetivacaoVenda = Record<EfetivacaoFlagKey, boolean>;
+
+/** Venda efetivada = os três marcos ativos (condição para aprovar). */
+export function vendaEfetivada(venda: EfetivacaoVenda): boolean {
+  return EFETIVACAO_FLAGS.every((flag) => venda[flag.key]);
+}
+
+/** Rótulos dos marcos que ainda faltam para a venda poder ser aprovada. */
+export function marcosPendentes(venda: EfetivacaoVenda): string[] {
+  return EFETIVACAO_FLAGS.filter((flag) => !venda[flag.key]).map((flag) => flag.label);
+}
+
+/**
+ * Liga/desliga marcos de efetivação de uma venda rascunho/pendente via RPC
+ * (gestão ou o corretor da venda). Campos omitidos ficam como estão.
+ */
+export async function atualizarEfetivacaoVenda(
+  vendaId: string,
+  patch: Partial<EfetivacaoVenda>,
+): Promise<void> {
+  const { error } = await supabase.rpc("atualizar_efetivacao_venda", {
+    p_venda_id: vendaId,
+    p_contrato_assinado: patch.contrato_assinado,
+    p_ato_pago: patch.ato_pago,
+    p_apto_repasse: patch.apto_repasse,
+  });
+  if (error) throw error;
+}
 
 /** Validação pura da venda. Retorna a mensagem de erro ou `null` se ok. */
 export function validarVenda(args: {
@@ -39,6 +79,8 @@ export type RegistrarVendaInput = {
   dataAssinatura: string;
   split: SplitPercentuais;
   observacoes?: string | null;
+  /** Marcos de efetivação já cumpridos no momento do cadastro (opcional). */
+  efetivacao?: Partial<EfetivacaoVenda>;
 };
 
 /**
@@ -63,10 +105,12 @@ export async function registrarVenda(input: RegistrarVendaInput): Promise<string
       percentual_superintendente: input.split.superintendente,
       observacoes: input.observacoes?.trim() || null,
       status_venda: "pendente",
+      contrato_assinado: input.efetivacao?.contrato_assinado ?? false,
+      ato_pago: input.efetivacao?.ato_pago ?? false,
+      apto_repasse: input.efetivacao?.apto_repasse ?? false,
     })
     .select("id")
     .single();
   if (insErr) throw insErr;
   return criada.id;
 }
-

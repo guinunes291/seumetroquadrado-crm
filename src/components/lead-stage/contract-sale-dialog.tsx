@@ -25,8 +25,9 @@ import {
 } from "@/components/ui/select";
 import type { StageLead } from "@/lib/leads";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
+import { EFETIVACAO_INICIAL, EfetivacaoFlagsField } from "@/components/efetivacao-flags-field";
 import { parseSplit, type SplitTexto } from "@/lib/comissoes";
-import { validarVenda, registrarVenda } from "@/lib/vendas";
+import { validarVenda, registrarVenda, type EfetivacaoVenda } from "@/lib/vendas";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -45,6 +46,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
   const [projetoManual, setProjetoManual] = useState("");
   const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [efetivacao, setEfetivacao] = useState<EfetivacaoVenda>(EFETIVACAO_INICIAL);
 
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
@@ -83,7 +85,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
       const corretorDaVenda = lead.corretor_id ?? uid;
       if (!lead.corretor_id) {
         throw new Error(
-          "Este lead ainda não tem corretor responsável. Clique em \"Iniciar atendimento\" antes de registrar a venda.",
+          'Este lead ainda não tem corretor responsável. Clique em "Iniciar atendimento" antes de registrar a venda.',
         );
       }
       if (!corretorDaVenda) {
@@ -114,6 +116,7 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
         dataAssinatura,
         split: split!,
         observacoes,
+        efetivacao,
       });
     },
     onSuccess: () => {
@@ -206,6 +209,10 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
             </div>
           </div>
 
+          <EfetivacaoFlagsField
+            valores={efetivacao}
+            onChange={(key, value) => setEfetivacao((prev) => ({ ...prev, [key]: value }))}
+          />
 
           <ComissaoSplitFields
             valorVenda={parseCurrencyBRL(valor)}

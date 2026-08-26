@@ -334,6 +334,22 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     expect(r.rows[0].status_venda).toBe("pendente");
     // Registrar a venda NÃO fecha o lead — só a aprovação fecha.
     expect((await leadRow(leadId)).status).toBe("analise_credito");
+
+    // Esteira de efetivação: o corretor liga os 3 marcos (contrato assinado,
+    // ato pago, apto para repasse) via RPC. Sem eles, o passo 10 seria
+    // recusado — a aprovação exige a venda efetivada.
+    // (leadRow acima deixou a conexão como superusuário — volta ao corretor.)
+    await comoUsuario(c, corretorJ1.id);
+    const efetivacao = await c.query(
+      `SELECT (t.r).contrato_assinado, (t.r).ato_pago, (t.r).apto_repasse
+       FROM (SELECT public.atualizar_efetivacao_venda($1, true, true, true) AS r) t`,
+      [vendaId],
+    );
+    expect(efetivacao.rows[0]).toEqual({
+      contrato_assinado: true,
+      ato_pago: true,
+      apto_repasse: true,
+    });
   });
 
   it("10. gestor aprova: lead fecha AUTOMATICAMENTE, comissões + ledgers gerados, follow-up pendente cancelado", async () => {
@@ -415,7 +431,8 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       { de: "analise_credito", para: "contrato_fechado" },
     ]);
 
-    // Trilha de lead_eventos: 4 transições via RPC + 1 venda_aprovada.
+    // Trilha de lead_eventos: 4 transições via RPC + 1 efetivacao_venda
+    // (marcos ligados no passo 9) + 1 venda_aprovada.
     // (A atribuição inicial novo->aguardando_atendimento é do motor de
     // distribuição, que loga em distribution_log, não em lead_eventos; o
     // fechamento pela venda gera 'venda_aprovada', não 'transicao_lead'.)
@@ -429,6 +446,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       { tipo: "transicao_lead", de: "em_atendimento", para: "agendado" },
       { tipo: "transicao_lead", de: "agendado", para: "visita_realizada" },
       { tipo: "transicao_lead", de: "visita_realizada", para: "analise_credito" },
+      { tipo: "efetivacao_venda", de: null, para: null },
       { tipo: "venda_aprovada", de: null, para: null },
     ]);
 

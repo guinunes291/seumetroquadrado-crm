@@ -66,6 +66,7 @@ import {
   criarLead,
   criarUsuario,
   limparDados,
+  marcarEfetivacao,
   novoClient,
   type UsuarioTeste,
 } from "./helpers";
@@ -159,8 +160,10 @@ async function registrarVenda(
   return r.rows[0].id as string;
 }
 
-/** Fluxo real: gestor aprova a venda (lead vira contrato_fechado via trigger). */
+/** Fluxo real: gestor aprova a venda (lead vira contrato_fechado via trigger).
+ *  Os 3 marcos de efetivação são ligados antes — aprovação os exige. */
 async function aprovarVenda(vendaId: string): Promise<void> {
+  await marcarEfetivacao(c, vendaId);
   await comoUsuario(c, gestorA.id);
   await c.query(`SELECT public.aprovar_venda($1, 'aprovada'::public.status_venda, NULL)`, [
     vendaId,

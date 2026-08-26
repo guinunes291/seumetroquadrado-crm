@@ -4783,6 +4783,12 @@ export type Database = {
         Row: {
           aprovado_em: string | null
           aprovado_por: string | null
+          apto_repasse: boolean
+          apto_repasse_em: string | null
+          ato_pago: boolean
+          ato_pago_em: string | null
+          contrato_assinado: boolean
+          contrato_assinado_em: string | null
           corretor_id: string | null
           created_at: string
           criado_por_id: string | null
@@ -4812,6 +4818,12 @@ export type Database = {
         Insert: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          apto_repasse?: boolean
+          apto_repasse_em?: string | null
+          ato_pago?: boolean
+          ato_pago_em?: string | null
+          contrato_assinado?: boolean
+          contrato_assinado_em?: string | null
           corretor_id?: string | null
           created_at?: string
           criado_por_id?: string | null
@@ -4841,6 +4853,12 @@ export type Database = {
         Update: {
           aprovado_em?: string | null
           aprovado_por?: string | null
+          apto_repasse?: boolean
+          apto_repasse_em?: string | null
+          ato_pago?: boolean
+          ato_pago_em?: string | null
+          contrato_assinado?: boolean
+          contrato_assinado_em?: string | null
           corretor_id?: string | null
           created_at?: string
           criado_por_id?: string | null
@@ -5645,6 +5663,12 @@ export type Database = {
         Returns: {
           aprovado_em: string | null
           aprovado_por: string | null
+          apto_repasse: boolean
+          apto_repasse_em: string | null
+          ato_pago: boolean
+          ato_pago_em: string | null
+          contrato_assinado: boolean
+          contrato_assinado_em: string | null
           corretor_id: string | null
           created_at: string
           criado_por_id: string | null
@@ -5738,6 +5762,55 @@ export type Database = {
       atualizar_distribuicao_setting: {
         Args: { _chave: string; _valor: Json }
         Returns: Json
+      }
+      atualizar_efetivacao_venda: {
+        Args: {
+          p_apto_repasse?: boolean
+          p_ato_pago?: boolean
+          p_contrato_assinado?: boolean
+          p_venda_id: string
+        }
+        Returns: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          apto_repasse: boolean
+          apto_repasse_em: string | null
+          ato_pago: boolean
+          ato_pago_em: string | null
+          contrato_assinado: boolean
+          contrato_assinado_em: string | null
+          corretor_id: string | null
+          created_at: string
+          criado_por_id: string | null
+          data_assinatura: string
+          data_distrato: string | null
+          data_recebimento: string | null
+          distrato: boolean
+          id: string
+          lead_id: string | null
+          legacy_id: number | null
+          motivo_decisao: string | null
+          motivo_distrato: string | null
+          observacoes: string | null
+          percentual_comissao: number
+          percentual_corretor: number
+          percentual_gerente: number
+          percentual_superintendente: number
+          projeto_id: string | null
+          projeto_nome: string | null
+          status_recebimento: string
+          status_venda: Database["public"]["Enums"]["status_venda"]
+          status_venda_updated_at: string
+          unidade: string | null
+          updated_at: string
+          valor_venda: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vendas"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       atualizar_meu_perfil: {
         Args: { p_avatar_url?: string; p_nome: string; p_telefone?: string }

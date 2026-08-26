@@ -36,8 +36,9 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
+import { EFETIVACAO_INICIAL, EfetivacaoFlagsField } from "@/components/efetivacao-flags-field";
 import { parseSplit, type SplitTexto } from "@/lib/comissoes";
-import { validarVenda, registrarVenda } from "@/lib/vendas";
+import { validarVenda, registrarVenda, type EfetivacaoVenda } from "@/lib/vendas";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -80,6 +81,7 @@ export function RegistrarVendaDialog() {
   const [projetoManual, setProjetoManual] = useState("");
   const [unidade, setUnidade] = useState("");
   const [observacoes, setObservacoes] = useState("");
+  const [efetivacao, setEfetivacao] = useState<EfetivacaoVenda>(EFETIVACAO_INICIAL);
 
   const [percentuais, setPercentuais] = useState<SplitTexto>({
     total: "3.50",
@@ -95,6 +97,7 @@ export function RegistrarVendaDialog() {
     setProjetoId("none");
     setProjetoManual("");
     setObservacoes("");
+    setEfetivacao(EFETIVACAO_INICIAL);
   };
 
   const { data: leads = [], isLoading: loadingLeads } = useQuery({
@@ -172,6 +175,7 @@ export function RegistrarVendaDialog() {
         dataAssinatura,
         split: split!,
         observacoes,
+        efetivacao,
       });
     },
     onSuccess: () => {
@@ -338,6 +342,10 @@ export function RegistrarVendaDialog() {
               </div>
             </div>
 
+            <EfetivacaoFlagsField
+              valores={efetivacao}
+              onChange={(key, value) => setEfetivacao((prev) => ({ ...prev, [key]: value }))}
+            />
 
             <ComissaoSplitFields
               valorVenda={parseCurrencyBRL(valor)}

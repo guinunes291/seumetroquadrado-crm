@@ -19,16 +19,16 @@ Prioridade declarada do modelo quando houver conflito: **velocidade > conversão
 
 Um corretor está apto a receber quando **todas** as condições valem:
 
-| Condição | Fonte |
-|---|---|
-| Perfil ativo com role de corretor | `profiles.ativo` + `user_roles` |
-| Telefone cadastrado | `profiles.telefone` |
+| Condição                            | Fonte                                                                         |
+| ----------------------------------- | ----------------------------------------------------------------------------- |
+| Perfil ativo com role de corretor   | `profiles.ativo` + `user_roles`                                               |
+| Telefone cadastrado                 | `profiles.telefone`                                                           |
 | Vínculo definido (fixo ou autônomo) | `profiles.modelo_contrato` (campo novo; NULL = cadastro pendente, inelegível) |
-| Onboarding concluído | `profiles.onboarding_concluido_em` (campo novo) |
-| Presença marcada no dia | `profiles.presente` + `presente_em` (botão Cheguei) |
-| Não pausado na roleta | `roleta_participantes.pausado_ate` (manual ou automática) |
-| Abaixo do teto de 30 leads ativos | `_wip_corretor()` contra `disjuntor_wip` |
-| Dentro da cota diária da roleta | `distribution_log` (mecanismo vigente) |
+| Onboarding concluído                | `profiles.onboarding_concluido_em` (campo novo)                               |
+| Presença marcada no dia             | `profiles.presente` + `presente_em` (botão Cheguei)                           |
+| Não pausado na roleta               | `roleta_participantes.pausado_ate` (manual ou automática)                     |
+| Abaixo do teto de 30 leads ativos   | `_wip_corretor()` contra `disjuntor_wip`                                      |
+| Dentro da cota diária da roleta     | `distribution_log` (mecanismo vigente)                                        |
 
 Fora da roleta: docs-bot, contas administrativas, gerência e superintendência. Quem cai na régua extra do v2 aparece no contexto da decisão como `inaptos_v2`, com o motivo nomeado (`sem_modelo_contrato`, `onboarding_pendente`, `disjuntor_wip_N`).
 
@@ -46,14 +46,14 @@ Fora da roleta: docs-bot, contas administrativas, gerência e superintendência.
 
 ## 4. Pesos
 
-| Variável | Definição |
-|---|---|
-| t_lead | Minutos úteis (08:00 às 19:00 BRT) entre a atribuição e a primeira interação do corretor no lead |
-| Devolvido por SLA | Entra na amostra valendo 60 minutos |
-| V | Mediana dos t_lead na janela de 14 dias |
-| n | Amostra (leads quentes com contato + devoluções na janela) |
-| Faixa | n < 5: B (neutra). V até 15: A. V até 60: B. Acima: C |
-| Peso | A = 3, B = 2, C = 1 |
+| Variável          | Definição                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| t_lead            | Minutos úteis (08:00 às 19:00 BRT) entre a atribuição e a primeira interação do corretor no lead |
+| Devolvido por SLA | Entra na amostra valendo 60 minutos                                                              |
+| V                 | Mediana dos t_lead na janela de 14 dias                                                          |
+| n                 | Amostra (leads quentes com contato + devoluções na janela)                                       |
+| Faixa             | n < 5: B (neutra). V até 15: A. V até 60: B. Acima: C                                            |
+| Peso              | A = 3, B = 2, C = 1                                                                              |
 
 Fluxo esperado = peso do corretor dividido pela soma dos pesos dos aptos presentes da fila. Recalcula segunda 08:00 (cron `recalc-tiers-roletas-weekly`, roteado pela flag). A faixa do corretor é a mesma em todas as filas e fica visível para ele (com o motivo), sem ranking de colegas. Todos os limiares são chaves em `distribuicao_settings`: recalibrar não exige deploy.
 
@@ -61,13 +61,13 @@ Fluxo esperado = peso do corretor dividido pela soma dos pesos dos aptos present
 
 ## 5. SLA
 
-| Régua | Valor | Estourou |
-|---|---|---|
+| Régua                | Valor                                   | Estourou                                                                                                                                           |
+| -------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1º contato no quente | 15 minutos úteis (`sla_quente_minutos`) | Lead repassa ao próximo (mesma fila; roleta de zona repassa dentro do time da zona); estouro registrado em `sla_estouros` e vale 60 min na mediana |
-| Estouros no dia | 2 (`pausa_estouros_dia`) | Pausa automática no quente até o dia seguinte (00:00 BRT), volta automática, logada como ação do sistema. A base continua |
-| Repasses por lead | 2 tentativas | Escala ao gestor (mecanismo vigente) |
-| Posse inicial | 7 dias sem registro | Devolve para a casa como base (máx. 10 por corretor e 50 por rodada, cron diário 09:00 BRT) |
-| Posse avançada | 30 dias sem registro | Idem, para qualificado, agendado, visita realizada, proposta e análise de crédito |
+| Estouros no dia      | 2 (`pausa_estouros_dia`)                | Pausa automática no quente até o dia seguinte (00:00 BRT), volta automática, logada como ação do sistema. A base continua                          |
+| Repasses por lead    | 2 tentativas                            | Escala ao gestor (mecanismo vigente)                                                                                                               |
+| Posse inicial        | 7 dias sem registro                     | Devolve para a casa como base (máx. 10 por corretor e 50 por rodada, cron diário 09:00 BRT)                                                        |
+| Posse avançada       | 30 dias sem registro                    | Idem, para qualificado, agendado, visita realizada, proposta e análise de crédito                                                                  |
 
 Guarda de virada: o repasse por SLA só considera leads distribuídos nos últimos 7 dias; estoque antigo é assunto da regra de posse, não do repasse (evita rajada no go-live).
 
@@ -98,11 +98,11 @@ Métrica que não muda decisão nenhuma sai do dashboard.
 
 ## 9. Plano de rollout
 
-| Etapa | Duração | Conteúdo |
-|---|---|---|
-| Semana 0 | 1 semana | Saneamento: telefones faltantes, `modelo_contrato` e onboarding de todos, presença auditada. Sombra ligada (`modelo_v2_sombra = true`): `distribuicao_sombra` valida faixas e volumes com dado vivo |
-| Piloto | 2 semanas | Flag ligada; acompanhamento na zona de maior volume + base para o time todo. Todos nascem faixa B; primeira faixa real na segunda do meio |
-| Expansão | 2 semanas | As 4 zonas plenas. Depois disso, desativação das 9 roletas de campanha |
+| Etapa    | Duração   | Conteúdo                                                                                                                                                                                            |
+| -------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Semana 0 | 1 semana  | Saneamento: telefones faltantes, `modelo_contrato` e onboarding de todos, presença auditada. Sombra ligada (`modelo_v2_sombra = true`): `distribuicao_sombra` valida faixas e volumes com dado vivo |
+| Piloto   | 2 semanas | Flag ligada; acompanhamento na zona de maior volume + base para o time todo. Todos nascem faixa B; primeira faixa real na segunda do meio                                                           |
+| Expansão | 2 semanas | As 4 zonas plenas. Depois disso, desativação das 9 roletas de campanha                                                                                                                              |
 
 **Critérios de sucesso** (zona piloto contra as 4 semanas anteriores): mediana do 1º contato até 00:15 e p90 até 01:00; leads sem atendimento acima de 1h útil até 2% da safra; concentração top 3 até 35%; todo apto presente com pelo menos 1 lead por semana; zero lead sem dono por mais de 1h útil sem exceção aberta.
 
