@@ -18,4 +18,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s
       timeout: 3s
-      retries: 15
+      # Orçamento folgado: em runner lento do CI, 15×2s já derrubou o job
+      # antes de o Postgres terminar o bootstrap.
+      retries: 30
+      start_period: 5s

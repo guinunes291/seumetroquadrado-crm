@@ -112,7 +112,9 @@ afterAll(async () => {
 describe("refresh e carimbo", () => {
   it("refresh_all popula as 4 MVs e carimba metrics.atualizacoes", async () => {
     await comoSuperuser(c);
-    const r = await c.query(`SELECT objeto, atualizado_em FROM metrics.atualizacoes ORDER BY objeto`);
+    const r = await c.query(
+      `SELECT objeto, atualizado_em FROM metrics.atualizacoes ORDER BY objeto`,
+    );
     const objetos = r.rows.map((x: { objeto: string }) => x.objeto);
     expect(objetos).toEqual([
       "funil_coorte_mensal",
@@ -134,26 +136,30 @@ describe("refresh e carimbo", () => {
 
 describe("funil_ordem — ordem comercial estável", () => {
   it("espelha LEAD_STATUS_ORDER e não a ordem do enum", async () => {
+    // Numeração pós-20260811151000: qualificacao_corretor entrou como etapa 3
+    // e empurrou o resto (em_atendimento=4 … contrato_fechado=8) — o mesmo
+    // contrato de tests/funil-qualificacao-corretor.test.ts.
     await comoSuperuser(c);
     const r = await c.query(`
       SELECT public.funil_ordem('aguardando_atendimento') AS a1,
              public.funil_ordem('aguardando_retorno') AS a2,
-             public.funil_ordem('em_atendimento') AS a3,
-             public.funil_ordem('qualificado') AS legado3,
-             public.funil_ordem('agendado') AS a4,
-             public.funil_ordem('visita_realizada') AS a5,
-             public.funil_ordem('proposta_enviada') AS legado5,
-             public.funil_ordem('analise_credito') AS a6,
-             public.funil_ordem('contrato_fechado') AS a7,
-             public.funil_ordem('pos_venda') AS terminal7,
+             public.funil_ordem('qualificacao_corretor') AS a3,
+             public.funil_ordem('em_atendimento') AS a4,
+             public.funil_ordem('qualificado') AS legado4,
+             public.funil_ordem('agendado') AS a5,
+             public.funil_ordem('visita_realizada') AS a6,
+             public.funil_ordem('proposta_enviada') AS legado6,
+             public.funil_ordem('analise_credito') AS a7,
+             public.funil_ordem('contrato_fechado') AS a8,
+             public.funil_ordem('pos_venda') AS terminal8,
              public.funil_ordem('novo') AS pre,
              public.funil_ordem('perdido') AS perdido
     `);
     const o = r.rows[0];
-    expect([o.a1, o.a2, o.a3, o.a4, o.a5, o.a6, o.a7]).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(o.legado3).toBe(3);
-    expect(o.legado5).toBe(5);
-    expect(o.terminal7).toBe(7);
+    expect([o.a1, o.a2, o.a3, o.a4, o.a5, o.a6, o.a7, o.a8]).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(o.legado4).toBe(4);
+    expect(o.legado6).toBe(6);
+    expect(o.terminal8).toBe(8);
     expect(o.pre).toBe(0);
     expect(o.perdido).toBe(99);
   });
@@ -229,10 +235,9 @@ describe("escopo por papel", () => {
       c.query(`SELECT * FROM public.gestao_performance_corretor_drill($1, 6)`, [corretorB.id]),
     );
     expect(proibido).toBe("P0001");
-    const proprio = await c.query(
-      `SELECT * FROM public.gestao_performance_corretor_drill($1, 6)`,
-      [corretorA.id],
-    );
+    const proprio = await c.query(`SELECT * FROM public.gestao_performance_corretor_drill($1, 6)`, [
+      corretorA.id,
+    ]);
     expect(Array.isArray(proprio.rows)).toBe(true);
     await comoSuperuser(c);
   });
@@ -287,12 +292,8 @@ describe("painel do dia", () => {
 
   it("filtro por tipo devolve só o tipo pedido", async () => {
     await comoUsuario(c, admin.id);
-    const r = await c.query(
-      `SELECT public.gestao_painel_dia(ARRAY['sla_estourado']) AS p`,
-    );
-    const tipos = new Set(
-      (r.rows[0].p.excecoes as Array<{ tipo: string }>).map((e) => e.tipo),
-    );
+    const r = await c.query(`SELECT public.gestao_painel_dia(ARRAY['sla_estourado']) AS p`);
+    const tipos = new Set((r.rows[0].p.excecoes as Array<{ tipo: string }>).map((e) => e.tipo));
     for (const t of tipos) expect(t).toBe("sla_estourado");
     await comoSuperuser(c);
   });
