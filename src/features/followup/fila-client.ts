@@ -60,21 +60,51 @@ export async function fetchFilaFollowUp(corretorId?: string): Promise<FilaFollow
   return parseFilaFollowUp(data);
 }
 
-/** Régua vigente. gestao_config só é legível pela gestão (RLS); para o
- *  corretor a leitura falha ou volta vazia — cai no REGUA_PADRAO em silêncio,
- *  que é a mesma cadência que a migration semeia no banco. */
+/** Régua vigente, via RPC aberta a qualquer membro ativo — a RLS de
+ *  gestao_config é gestão-only e a régua rege a fila do CORRETOR: sem a RPC,
+ *  a cadência configurada pelo admin seria invisível para o público-alvo.
+ *  Banco antigo (sem a migration) cai no REGUA_PADRAO em silêncio. */
 export async function carregarRegua(): Promise<ReguaFollowUp> {
   try {
-    const { data, error } = await supabase
-      .from("gestao_config")
-      .select("chave, valor")
-      .eq("chave", "regua_followup")
-      .maybeSingle();
+    const { data, error } = await rpc("regua_followup_atual", {});
     if (error || !data) return REGUA_PADRAO;
-    return parseRegua(data.valor);
+    return parseRegua(data);
   } catch {
     return REGUA_PADRAO;
   }
+}
+
+/** Tentativas ATUAIS do lead, direto do contador derivado do banco — a fonte
+ *  de verdade na hora do desfecho. O snapshot da fila pode estar defasado nos
+ *  dois sentidos (o refetch do realtime já contou o toque de hoje, ou ainda
+ *  não); agendar o próximo toque a partir do snapshot dobraria a contagem.
+ *  null = RPC indisponível (banco antigo) — o caller decide o fallback. */
+export async function contarTentativas(leadId: string): Promise<number | null> {
+  try {
+    const { data, error } = await rpc("followup_tentativas", { _lead_id: leadId });
+    if (error || typeof data !== "number") return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+/** Conclui as tarefas de CONTATO abertas do lead com vencimento até o fim de
+ *  hoje — o toque da fila foi dado; sem isso a tarefa que pôs o lead na fila
+ *  ficaria pendente para sempre e ele voltaria amanhã, todo dia, fora da
+ *  cadência. Tarefas futuras (agendadas de propósito) não são tocadas. */
+export async function concluirToquesDeHoje(leadId: string): Promise<void> {
+  const fimDoDia = new Date();
+  fimDoDia.setHours(23, 59, 59, 999);
+  const { error } = await supabase
+    .from("tarefas")
+    .update({ status: "concluida" })
+    .eq("lead_id", leadId)
+    .in("status", ["pendente", "em_andamento"])
+    .in("tipo", ["follow_up", "ligacao", "whatsapp", "email"])
+    .not("data_vencimento", "is", null)
+    .lte("data_vencimento", fimDoDia.toISOString());
+  if (error) throw error;
 }
 
 /** Marca a régua como esgotada (decisão humana pendente: reativar/descartar).

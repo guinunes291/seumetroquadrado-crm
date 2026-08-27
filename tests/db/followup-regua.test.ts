@@ -10,15 +10,17 @@
  *    fosse o 3º toque; o SQL (corretamente, pela regra documentada de
  *    colapso) a funde no 2º toque — ela está a 1min do evento de t0+30min.
  *    O gap é medido do evento anterior, não do início do toque anterior.
- * 2. followup_fila_v1: leads do corretor com toque vencido/hoje ou sem
- *    próximo toque; vencidos primeiro; esgotados fora; guard de acesso
- *    (gestor da equipe pode, corretor alheio não).
+ * 2. followup_fila_v1: leads do corretor com TOQUE (tarefa de contato aberta)
+ *    vencido/hoje ou sem próximo toque; tarefas de outros tipos (visita,
+ *    documentação…) não são toque; vencidos primeiro; esgotados fora; guard
+ *    de acesso (gestor da equipe pode, corretor alheio não).
  * 3. marcar_followup_esgotado / reativar_followup: coluna + cancelamento das
- *    tarefas de contato abertas (espelho proximo_followup zera) + nota.
- * 4. nav_pendencias v3: chave `followups` = tarefas de contato abertas com
- *    vencimento até hoje (BRT).
- * 5. devolver_leads_followup_vencido: opt-in por flag em gestao_config;
- *    devolve o lead à base e loga regra 'followup_vencido'.
+ *    tarefas de contato abertas (espelho proximo_followup zera) + nota;
+ *    reativar zera o contador via baseline followup_reativado_em.
+ * 4. nav_pendencias v3: chave `followups` = LEADS com tarefa de contato
+ *    aberta vencendo até hoje (BRT).
+ * 5. devolver_leads_followup_vencido: gate do modelo v2 + opt-in por flag em
+ *    gestao_config; devolve o lead à base e loga regra 'followup_vencido'.
  * 6. KPIs: MV metrics.followup_tentativa_mensal + RPCs self-serve/gestão.
  *
  * Timestamps sempre relativos a now() (make_interval) — nada de sleep.
@@ -158,6 +160,7 @@ let leadA: string; // vencido ontem
 let leadB: string; // sem próximo followup
 let leadC: string; // amanhã
 let leadD: string; // régua esgotada
+let leadE: string; // só pendência de documentação vencida (não é toque)
 
 // ---------------------------------------------------------------------------
 // 1. Contador com colapso de sessão (retroativo)
@@ -281,9 +284,20 @@ describe("followup_fila_v1: composição, ordem e guard de acesso", () => {
     leadD = await criarLead(c, { corretorId: corretorFila.id, status: "em_atendimento" });
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET followup_esgotado_em = now() WHERE id = $1`, [leadD]);
+
+    // E: só uma pendência de DOCUMENTAÇÃO vencida há 3 dias — não é toque.
+    // Entra na régua como quem não tem próximo toque, nunca como "vencido"
+    // (o espelho proximo_followup cobre qualquer tipo; a fila não pode).
+    leadE = await criarLead(c, { corretorId: corretorFila.id, status: "analise_credito" });
+    await criarTarefa({
+      leadId: leadE,
+      corretorId: corretorFila.id,
+      tipo: "documentacao",
+      vencimento: daquiDias(-3),
+    });
   });
 
-  it("devolve A (vencido) antes de B (sem próximo); C (amanhã) e D (esgotado) ficam fora", async () => {
+  it("devolve A (vencido) antes de B e E (sem próximo toque); C (amanhã) e D (esgotado) ficam fora", async () => {
     await comoUsuario(c, corretorFila.id);
     const r = await c.query(`SELECT public.followup_fila_v1() AS fila`);
     const fila = r.rows[0].fila as {
@@ -292,9 +306,9 @@ describe("followup_fila_v1: composição, ordem e guard de acesso", () => {
     };
 
     expect(fila.corretor_id).toBe(corretorFila.id);
-    expect(fila.itens.map((i) => i.id)).toEqual([leadA, leadB]);
+    expect(fila.itens.map((i) => i.id)).toEqual([leadA, leadB, leadE]);
 
-    const [a, b] = fila.itens;
+    const [a, b, e] = fila.itens;
     // A: vencido ontem — minutos_vencido > 0, 1 toque no histórico, sem resposta
     expect(a.minutos_vencido as number).toBeGreaterThan(0);
     expect(a.tentativas).toBe(1);
@@ -305,13 +319,25 @@ describe("followup_fila_v1: composição, ordem e guard de acesso", () => {
     expect(b.minutos_vencido).toBe(0);
     expect(b.tentativas).toBe(0);
     expect(b.respondeu).toBe(true);
+    // E: a documentação vencida NÃO é toque — entra como quem não tem próximo
+    // toque, sem um "vencido há 3 dias" falso
+    expect(e.proximo_followup).toBeNull();
+    expect(e.minutos_vencido).toBe(0);
   });
 
   it("gestor da equipe consulta a fila do corretor (_corretor explícito)", async () => {
     await comoUsuario(c, gestorFila.id);
     const r = await c.query(`SELECT public.followup_fila_v1($1) AS fila`, [corretorFila.id]);
     const fila = r.rows[0].fila as { itens: Array<{ id: string }> };
-    expect(fila.itens.map((i) => i.id)).toEqual([leadA, leadB]);
+    expect(fila.itens.map((i) => i.id)).toEqual([leadA, leadB, leadE]);
+  });
+
+  it("regua_followup_atual: qualquer membro ativo lê a régua vigente (a fila do corretor depende dela)", async () => {
+    await comoUsuario(c, corretorFila.id);
+    const r = await c.query(`SELECT public.regua_followup_atual() AS regua`);
+    const regua = r.rows[0].regua as Record<string, unknown>;
+    expect(regua.max_toques).toBe(13);
+    expect(regua.devolucao_ativa).toBe(false);
   });
 
   it("corretor alheio pedindo a fila de outro → forbidden", async () => {
@@ -342,6 +368,8 @@ describe("marcar_followup_esgotado / reativar_followup", () => {
       tipo: "follow_up",
       vencimento: daquiDias(2),
     });
+    // um toque no histórico — o teste de reativação prova o reset do contador
+    await inserirInteracao({ leadId: leadEsg, autorId: corretorEsg.id, minutosAtras: 120 });
   });
 
   it("esgotar: seta a coluna, cancela a tarefa de contato aberta, zera o espelho e cria nota", async () => {
@@ -371,11 +399,17 @@ describe("marcar_followup_esgotado / reativar_followup", () => {
     expect(nota.rows[0].autor_id).toBe(corretorEsg.id);
   });
 
-  it("reativar: limpa a coluna e registra a nota de reativação", async () => {
+  it("reativar: limpa a coluna, ZERA o contador (baseline do ciclo) e registra a nota", async () => {
+    // antes da reativação o histórico conta o toque dado
+    expect(await tentativas(leadEsg)).toBe(1);
+
     await comoUsuario(c, corretorEsg.id);
     await c.query(`SELECT public.reativar_followup($1)`, [leadEsg]);
 
     expect((await leadRow(leadEsg)).followup_esgotado_em).toBeNull();
+    // novo ciclo de verdade: o baseline followup_reativado_em zera o derivado
+    // (o toque antigo segue no histórico e na MV, mas a régua recomeça do 1)
+    expect(await tentativas(leadEsg)).toBe(0);
     const nota = await c.query(
       `SELECT 1 FROM public.interacoes
         WHERE lead_id = $1 AND tipo = 'nota' AND metadata ->> 'fonte' = 'followup_regua'
@@ -404,7 +438,8 @@ describe("nav_pendencias: contador followups", () => {
   beforeAll(async () => {
     corretorNav = await criarUsuario(c, { papel: "corretor", nome: "Corretor Nav" });
     const leadNav = await criarLead(c, { corretorId: corretorNav.id, status: "em_atendimento" });
-    // vencida ontem (conta), vencida há 5min = hoje (conta), amanhã (NÃO conta)
+    // duas tarefas de contato até hoje no MESMO lead = UM toque a dar;
+    // a de amanhã NÃO conta.
     await criarTarefa({
       leadId: leadNav,
       corretorId: corretorNav.id,
@@ -423,14 +458,23 @@ describe("nav_pendencias: contador followups", () => {
       tipo: "follow_up",
       vencimento: daquiDias(1),
     });
+    // segundo lead com toque vencido — prova que o contador é por LEAD
+    const leadNav2 = await criarLead(c, { corretorId: corretorNav.id, status: "em_atendimento" });
+    await criarTarefa({
+      leadId: leadNav2,
+      corretorId: corretorNav.id,
+      tipo: "follow_up",
+      vencimento: daquiDias(-2),
+    });
   });
 
-  it("tem a chave `followups` e conta só tarefas de contato com vencimento até hoje", async () => {
+  it("tem a chave `followups` e conta LEADS com toque de contato até hoje", async () => {
     await comoUsuario(c, corretorNav.id);
     const r = await c.query(`SELECT public.nav_pendencias() AS nav`);
     const nav = r.rows[0].nav as Record<string, number>;
     expect(Object.keys(nav)).toContain("followups");
-    // ontem + hoje contam; amanhã fica de fora
+    // leadNav (2 tarefas até hoje = 1 toque) + leadNav2 (1 vencida) = 2 leads;
+    // a tarefa de amanhã fica de fora
     expect(nav.followups).toBe(2);
   });
 });
@@ -453,19 +497,46 @@ describe("devolver_leads_followup_vencido: flag opt-in e handoff para a base", (
     );
   }
 
+  // A devolução produz o estado do modelo v2 (corretor NULL + classe base);
+  // fora do v2 ela é no-op por gate — os testes de handoff ligam a flag.
+  async function setModeloV2(ativo: boolean): Promise<void> {
+    await comoSuperuser(c);
+    if (ativo) {
+      await c.query(
+        `INSERT INTO public.distribuicao_settings (chave, valor)
+         VALUES ('modelo_v2_ativo', 'true'::jsonb)
+         ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor`,
+      );
+    } else {
+      await c.query(`DELETE FROM public.distribuicao_settings WHERE chave = 'modelo_v2_ativo'`);
+    }
+  }
+
   beforeAll(async () => {
     await setFlag(false); // garante o default mesmo após um run abortado
     corretorSla = await criarUsuario(c, { papel: "corretor", nome: "Corretor SLA" });
     leadSla = await criarLead(c, { corretorId: corretorSla.id, status: "em_atendimento" });
-    // proximo_followup 10 dias atrás — via tarefa pendente (espelho), nunca direto
+    // toque vencido há 10 dias — via tarefa de contato pendente, nunca direto
     await criarTarefa({ leadId: leadSla, corretorId: corretorSla.id, vencimento: daquiDias(-10) });
   });
 
   afterAll(async () => {
     await setFlag(false);
+    await setModeloV2(false);
+  });
+
+  it("fora do modelo v2 é no-op mesmo com devolucao_ativa=true (sem esteira p/ lead sem dono)", async () => {
+    await setModeloV2(false);
+    await setFlag(true);
+    await comoSuperuser(c);
+    const r = await c.query(`SELECT public.devolver_leads_followup_vencido() AS n`);
+    expect(r.rows[0].n).toBe(0);
+    expect((await leadRow(leadSla)).corretor_id).toBe(corretorSla.id);
+    await setFlag(false);
   });
 
   it("com devolucao_ativa=false devolve 0 e não toca no lead", async () => {
+    await setModeloV2(true);
     await comoSuperuser(c);
     const r = await c.query(`SELECT public.devolver_leads_followup_vencido() AS n`);
     expect(r.rows[0].n).toBe(0);
@@ -610,8 +681,9 @@ describe("KPIs: metrics.followup_tentativa_mensal + RPCs", () => {
 
     expect(linha).toBeDefined();
     expect(linha.corretor_nome).toBe(corretorFila.nome);
-    // fila de hoje = A (vencido) + B (sem próximo); C é amanhã, D está esgotado
-    expect(Number(linha.fila_hoje)).toBe(2);
+    // fila de hoje = A (vencido) + B e E (sem próximo toque); C é amanhã,
+    // D está esgotado. Vencido é só A — a documentação atrasada de E não conta.
+    expect(Number(linha.fila_hoje)).toBe(3);
     expect(Number(linha.vencidos)).toBe(1);
     expect(Number(linha.esgotados)).toBe(1);
   });

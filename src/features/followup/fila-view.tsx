@@ -5,7 +5,7 @@
 // (abrirWhatsApp/ligar) — o desfecho nunca grava interação duplicada.
 
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +46,8 @@ import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { mensagemDoToque } from "@/features/followup/mensagem-toque";
 import {
   carregarRegua,
+  concluirToquesDeHoje,
+  contarTentativas,
   esgotarFollowUp,
   fetchFilaFollowUp,
   type FilaItem,
@@ -160,6 +162,19 @@ export function FilaFollowUpView() {
 
   const current: FilaItem | undefined = fila[index];
 
+  // O nº do toque EXIBIDO congela no primeiro render de cada lead: o clique
+  // em WhatsApp/Ligar registra a interação e o refetch do realtime bumpa
+  // `tentativas` em segundos — sem o congelamento, o "Toque N de 13" (e o
+  // título da mensagem) pularia para N+1 na frente do corretor, no mesmo
+  // lead. O DESFECHO não usa este valor: ele relê o contador do banco.
+  const tentativasVistas = useRef(new Map<string, number>());
+  if (current && !tentativasVistas.current.has(current.id)) {
+    tentativasVistas.current.set(current.id, current.tentativas);
+  }
+  const tentativasBase = current
+    ? (tentativasVistas.current.get(current.id) ?? current.tentativas)
+    : 0;
+
   // O toque de HOJE: nº tentativas + 1, canal ditado pela régua. null quando
   // as tentativas já alcançaram o teto — só resta o desfecho (esgotar).
   const toqueHoje = current
@@ -167,10 +182,10 @@ export function FilaFollowUpView() {
         regua,
         current.temperatura as TemperaturaRegua | null,
         current.status,
-        current.tentativas,
+        tentativasBase,
       )
     : null;
-  const numeroToque = current ? Math.min(current.tentativas + 1, regua.maxToques) : 1;
+  const numeroToque = current ? Math.min(tentativasBase + 1, regua.maxToques) : 1;
   const canalHoje = toqueHoje?.canal ?? "whatsapp";
 
   const next = useCallback(
@@ -217,17 +232,29 @@ export function FilaFollowUpView() {
     [qc],
   );
 
-  // "Sem resposta": agenda o próximo toque da régua como tarefa comum (dedup
-  // em garantirFollowUpAberto; o espelho tarefas ↔ proximo_followup tira o
-  // lead da fila de hoje) — ou esgota, se o toque de hoje era o último.
+  // "Sem resposta": conclui as tarefas de contato do toque de hoje e agenda o
+  // próximo toque da régua como tarefa comum (dedup em garantirFollowUpAberto;
+  // o espelho tarefas ↔ proximo_followup faz o resto) — ou esgota, se não há
+  // próximo toque na régua.
   const semResposta = useMutation({
     mutationFn: async (item: FilaItem) => {
-      // O toque de hoje já foi dado; o próximo parte de tentativas + 1.
+      // Fonte de verdade na hora do desfecho: o contador derivado do banco já
+      // inclui o toque de hoje quando ele saiu por WhatsApp/Ligar. O snapshot
+      // da fila pode estar nos DOIS estados (o refetch do realtime corre em
+      // paralelo) — somar +1 sobre ele dobraria o toque e esgotaria a régua
+      // um toque mais cedo. Banco antigo (RPC ausente) cai no comportamento
+      // de snapshot.
+      const feitas = (await contarTentativas(item.id)) ?? item.tentativas + 1;
+      // O toque de hoje foi dado: as tarefas de contato que puseram o lead na
+      // fila fecham como concluídas — sem isso elas ficariam pendentes, o
+      // espelho continuaria no passado e o lead voltaria à fila TODO dia,
+      // fora da cadência (e acumulando tarefa aberta por desfecho).
+      await concluirToquesDeHoje(item.id);
       const prox = proximoToque(
         regua,
         item.temperatura as TemperaturaRegua | null,
         item.status,
-        item.tentativas + 1,
+        feitas,
       );
       if (!prox) {
         await esgotarFollowUp(item.id);
@@ -251,6 +278,7 @@ export function FilaFollowUpView() {
         toast("Régua esgotada — lead movido para Esgotados", {
           description: "Decida lá: reativar a régua ou descartar com motivo.",
         });
+        void qc.invalidateQueries({ queryKey: ["followup:esgotados"] });
       } else {
         toast.success(
           `Toque ${r.toque}/${regua.maxToques} agendado para daqui a ${r.emDias} dia${r.emDias === 1 ? "" : "s"}.`,
@@ -455,7 +483,7 @@ export function FilaFollowUpView() {
                     key={i}
                     className={cn(
                       "h-1.5 flex-1 rounded-full",
-                      i < current.tentativas
+                      i < tentativasBase
                         ? "bg-primary"
                         : i === numeroToque - 1
                           ? "bg-primary/50"

@@ -35,6 +35,12 @@
 ALTER TABLE public.leads
   ADD COLUMN IF NOT EXISTS followup_esgotado_em timestamptz;
 
+-- Baseline do ciclo: reativar a régua zera o contador DERIVADO a partir daqui
+-- (sem isso, um lead reativado nasceria com tentativas >= teto para sempre e
+-- o "novo ciclo" seria matematicamente impossível). NULL = primeiro ciclo.
+ALTER TABLE public.leads
+  ADD COLUMN IF NOT EXISTS followup_reativado_em timestamptz;
+
 CREATE INDEX IF NOT EXISTS idx_leads_followup_esgotado
   ON public.leads (corretor_id, followup_esgotado_em)
   WHERE followup_esgotado_em IS NOT NULL;
@@ -57,26 +63,34 @@ STABLE
 SECURITY INVOKER
 SET search_path = public
 AS $$
-  WITH eventos AS (
+  -- O ciclo atual começa na última reativação (baseline); NULL = desde sempre.
+  WITH ciclo AS (
+    SELECT COALESCE(l.followup_reativado_em, '-infinity'::timestamptz) AS desde
+    FROM public.leads l WHERE l.id = _lead_id
+  ),
+  eventos AS (
     SELECT i.ocorreu_em AS quando,
            CASE WHEN i.tipo = 'ligacao' THEN 'ligacao' ELSE 'whatsapp' END AS canal
-    FROM public.interacoes i
+    FROM public.interacoes i, ciclo
     WHERE i.lead_id = _lead_id
+      AND i.ocorreu_em > ciclo.desde
       AND i.direcao = 'saida'
       AND i.autor_id IS NOT NULL
       AND i.tipo NOT IN ('nota','mudanca_status')
       AND i.deleted_at IS NULL
     UNION ALL
     SELECT m.criado_em, 'whatsapp'
-    FROM public.mensagens m
+    FROM public.mensagens m, ciclo
     WHERE m.lead_id = _lead_id
+      AND m.criado_em > ciclo.desde
       AND m.direcao = 'saida'
       AND m.corretor_id IS NOT NULL
       AND m.status <> 'falha'
     UNION ALL
     SELECT c.criado_em, 'ligacao'
-    FROM public.chamadas c
+    FROM public.chamadas c, ciclo
     WHERE c.lead_id = _lead_id
+      AND c.criado_em > ciclo.desde
       AND c.direcao = 'saida'
       AND c.status <> 'falha'
   ),
@@ -111,10 +125,14 @@ GRANT EXECUTE ON FUNCTION public.followup_tentativas(uuid) TO authenticated, ser
 -- ---------------------------------------------------------------------------
 -- Leads do corretor no funil (não-terminais, fora da lixeira, régua não
 -- esgotada) cujo próximo toque é hoje/vencido — ou que NÃO têm próximo toque
--- agendado (entram na régua agora). `respondeu` = a última interação do lead
--- é de ENTRADA (o cliente falou por último) — destaque na fila, decisão do
--- corretor. Mesmo guard do atendimento_inbox: o gestor pode olhar a fila de
--- um corretor do time.
+-- agendado (entram na régua agora). O "próximo toque" aqui são as tarefas de
+-- CONTATO abertas (follow_up/ligacao/whatsapp/email), NÃO o espelho
+-- leads.proximo_followup: o espelho cobre qualquer tipo de tarefa e uma
+-- pendência de visita/documentação vencida não pode virar "toque vencido".
+-- `respondeu` = o cliente falou por último — a última ENTRADA (interação ou
+-- mensagem) é mais recente que a última SAÍDA humana (interação, mensagem ou
+-- chamada); responder pela Central limpa o sinal. Mesmo guard do
+-- atendimento_inbox: o gestor pode olhar a fila de um corretor do time.
 CREATE OR REPLACE FUNCTION public.followup_fila_v1(
   _corretor uuid DEFAULT NULL,
   _take int DEFAULT 200
@@ -143,7 +161,7 @@ BEGIN
   FROM (
     SELECT
       row_number() OVER (
-        ORDER BY (l.proximo_followup IS NULL), l.proximo_followup ASC, l.created_at ASC
+        ORDER BY (tc.venc IS NULL), tc.venc ASC, l.created_at ASC
       ) AS ordem,
       jsonb_build_object(
         'id', l.id,
@@ -159,38 +177,67 @@ BEGIN
         'created_at', l.created_at,
         'ultima_interacao', l.ultima_interacao,
         'proxima_acao', l.proxima_acao,
-        'proximo_followup', l.proximo_followup,
+        'proximo_followup', tc.venc,
         'renda_informada', l.renda_informada,
         'entrada_disponivel', l.entrada_disponivel,
         'usa_fgts', l.usa_fgts,
         'observacoes', l.observacoes,
         'minutos_vencido',
-          CASE WHEN l.proximo_followup IS NOT NULL AND l.proximo_followup < now()
-               THEN floor(extract(epoch FROM (now() - l.proximo_followup)) / 60)::int
+          CASE WHEN tc.venc IS NOT NULL AND tc.venc < now()
+               THEN floor(extract(epoch FROM (now() - tc.venc)) / 60)::int
                ELSE 0 END,
         'tentativas', public.followup_tentativas(l.id),
-        'respondeu', COALESCE(ult.direcao = 'entrada', false)
+        'respondeu',
+          resp.ult_entrada IS NOT NULL
+          AND (resp.ult_saida IS NULL OR resp.ult_entrada > resp.ult_saida)
       ) AS item
     FROM public.leads l
     LEFT JOIN public.projetos p ON p.id = l.projeto_id
+    -- Próximo TOQUE do lead = a tarefa de contato aberta mais próxima.
     LEFT JOIN LATERAL (
-      SELECT i.direcao
-      FROM public.interacoes i
-      WHERE i.lead_id = l.id
-        AND i.deleted_at IS NULL
-        AND i.tipo NOT IN ('nota','mudanca_status')
-      ORDER BY i.ocorreu_em DESC
-      LIMIT 1
-    ) ult ON true
+      SELECT min(t.data_vencimento) AS venc
+      FROM public.tarefas t
+      WHERE t.lead_id = l.id
+        AND t.status IN ('pendente','em_andamento')
+        AND t.deleted_at IS NULL
+        AND t.data_vencimento IS NOT NULL
+        AND t.tipo IN ('follow_up','ligacao','whatsapp','email')
+    ) tc ON true
+    LEFT JOIN LATERAL (
+      SELECT
+        (SELECT max(e.q) FROM (
+           SELECT i.ocorreu_em AS q FROM public.interacoes i
+           WHERE i.lead_id = l.id AND i.direcao = 'entrada'
+             AND i.tipo NOT IN ('nota','mudanca_status') AND i.deleted_at IS NULL
+           UNION ALL
+           SELECT m.criado_em FROM public.mensagens m
+           WHERE m.lead_id = l.id AND m.direcao = 'entrada'
+         ) e) AS ult_entrada,
+        (SELECT max(s.q) FROM (
+           SELECT i.ocorreu_em AS q FROM public.interacoes i
+           WHERE i.lead_id = l.id AND i.direcao = 'saida' AND i.autor_id IS NOT NULL
+             AND i.tipo NOT IN ('nota','mudanca_status') AND i.deleted_at IS NULL
+           UNION ALL
+           SELECT m.criado_em FROM public.mensagens m
+           WHERE m.lead_id = l.id AND m.direcao = 'saida'
+             AND m.corretor_id IS NOT NULL AND m.status <> 'falha'
+           UNION ALL
+           SELECT c.criado_em FROM public.chamadas c
+           WHERE c.lead_id = l.id AND c.direcao = 'saida' AND c.status <> 'falha'
+         ) s) AS ult_saida
+    ) resp ON true
     WHERE l.corretor_id = _target
       AND l.na_lixeira = false
       AND l.deleted_at IS NULL
       AND l.status NOT IN ('contrato_fechado','pos_venda','perdido')
       AND l.followup_esgotado_em IS NULL
       AND (
-        l.proximo_followup IS NULL
-        OR (l.proximo_followup AT TIME ZONE 'America/Sao_Paulo')::date <= _hoje
+        tc.venc IS NULL
+        OR (tc.venc AT TIME ZONE 'America/Sao_Paulo')::date <= _hoje
       )
+    -- Mesmas chaves do row_number: o LIMIT tem de cortar os MENOS urgentes,
+    -- não um subconjunto que o plano escolher.
+    ORDER BY (tc.venc IS NULL), tc.venc ASC, l.created_at ASC
     LIMIT _take
   ) fila;
 
@@ -251,8 +298,11 @@ BEGIN
     RAISE EXCEPTION 'forbidden';
   END IF;
 
+  -- O baseline zera o contador derivado: os toques do ciclo anterior ficam no
+  -- histórico (e na MV de KPIs), mas a régua recomeça do toque 1.
   UPDATE public.leads
-     SET followup_esgotado_em = NULL
+     SET followup_esgotado_em = NULL,
+         followup_reativado_em = now()
    WHERE id = _lead_id AND followup_esgotado_em IS NOT NULL;
 
   INSERT INTO public.interacoes (lead_id, autor_id, tipo, direcao, titulo, conteudo, metadata)
@@ -331,9 +381,11 @@ BEGIN
   WHERE v.status_venda = 'pendente'
     AND (_tudo OR v.corretor_id = ANY(_escopo));
 
-  -- Follow-ups do DIA: tarefas de contato abertas com vencimento até hoje
-  -- (BRT) — vencidas inclusas. É o número que o corretor precisa zerar.
-  SELECT count(*) INTO _followups
+  -- Follow-ups do DIA: LEADS com tarefa de contato aberta vencendo até hoje
+  -- (BRT) — vencidas inclusas. Conta leads (não tarefas): duas tarefas
+  -- vencidas do mesmo lead são UM toque a dar, e é esse o número que zera
+  -- junto com a fila. Tarefa de contato sem lead conta por si.
+  SELECT count(DISTINCT COALESCE(t.lead_id, t.id)) INTO _followups
   FROM public.tarefas t
   WHERE t.status NOT IN ('concluida','cancelada')
     AND t.deleted_at IS NULL
@@ -378,6 +430,28 @@ VALUES (
 )
 ON CONFLICT (chave) DO NOTHING;
 
+-- A RLS de gestao_config é gestão-only, mas a régua rege a fila do CORRETOR:
+-- sem esta leitura, a cadência configurada pelo admin seria invisível para o
+-- público-alvo e a fila rodaria para sempre no padrão. A régua não é dado
+-- sensível — é processo; qualquer membro ativo pode lê-la.
+CREATE OR REPLACE FUNCTION public.regua_followup_atual()
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_active_member(auth.uid()) THEN
+    RAISE EXCEPTION 'forbidden';
+  END IF;
+  RETURN public.gestao_config_valor('regua_followup');
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.regua_followup_atual() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.regua_followup_atual() TO authenticated;
+
 -- ---------------------------------------------------------------------------
 -- 7. SLA duro: follow-up vencido devolve o lead à base (opt-in)
 -- ---------------------------------------------------------------------------
@@ -396,23 +470,40 @@ DECLARE
   _cfg jsonb := public.gestao_config_valor('regua_followup');
   _dias int;
 BEGIN
+  -- O handoff produz o estado do modelo v2 (corretor NULL + classe base +
+  -- aguardando_atendimento); fora do v2 não há esteira que redistribua lead
+  -- sem dono — sem o gate, os devolvidos cairiam num limbo invisível.
+  IF NOT public._modelo_v2_ativo() THEN
+    RETURN 0;
+  END IF;
   IF COALESCE((_cfg ->> 'devolucao_ativa')::boolean, false) IS DISTINCT FROM true THEN
     RETURN 0;
   END IF;
   _dias := GREATEST(COALESCE((_cfg ->> 'sla_devolucao_dias')::int, 3), 1);
 
   FOR _lead IN
+    -- O SLA mede o TOQUE vencido (tarefas de contato abertas), não o espelho
+    -- proximo_followup — uma pendência de visita/documentação atrasada não
+    -- pode custar a carteira do corretor.
     WITH candidatos AS (
-      SELECT l.id, l.corretor_id, l.status, l.proximo_followup,
-             row_number() OVER (PARTITION BY l.corretor_id ORDER BY l.proximo_followup ASC) AS rn
+      SELECT l.id, l.corretor_id, l.status, tc.venc AS proximo_followup,
+             row_number() OVER (PARTITION BY l.corretor_id ORDER BY tc.venc ASC) AS rn
       FROM public.leads l
+      JOIN LATERAL (
+        SELECT min(t.data_vencimento) AS venc
+        FROM public.tarefas t
+        WHERE t.lead_id = l.id
+          AND t.status IN ('pendente','em_andamento')
+          AND t.deleted_at IS NULL
+          AND t.data_vencimento IS NOT NULL
+          AND t.tipo IN ('follow_up','ligacao','whatsapp','email')
+      ) tc ON tc.venc IS NOT NULL
       WHERE l.corretor_id IS NOT NULL
         AND l.na_lixeira = false
         AND l.deleted_at IS NULL
         AND l.status NOT IN ('contrato_fechado','pos_venda','perdido')
         AND l.followup_esgotado_em IS NULL
-        AND l.proximo_followup IS NOT NULL
-        AND l.proximo_followup < now() - (_dias || ' days')::interval
+        AND tc.venc < now() - (_dias || ' days')::interval
     )
     SELECT id, corretor_id, status, proximo_followup
     FROM candidatos
@@ -507,18 +598,26 @@ avaliados AS (
          -- ::int porque row_number() é bigint e as RPCs de curva declaram
          -- RETURNS TABLE (tentativa int, ...) — RETURN QUERY exige tipo exato.
          LEAST(t.tentativa, 20)::int AS tentativa,
-         EXISTS (
+         -- Resposta = entrada em interacoes OU em mensagens: o eco do webhook
+         -- para interacoes é best-effort e a resposta real não pode sumir.
+         (EXISTS (
            SELECT 1 FROM public.interacoes r
            WHERE r.lead_id = t.lead_id
              AND r.direcao = 'entrada'
              AND r.deleted_at IS NULL
              AND r.ocorreu_em > t.quando
              AND r.ocorreu_em <= t.quando + interval '7 days'
-         ) AS respondeu,
+         ) OR EXISTS (
+           SELECT 1 FROM public.mensagens rm
+           WHERE rm.lead_id = t.lead_id
+             AND rm.direcao = 'entrada'
+             AND rm.criado_em > t.quando
+             AND rm.criado_em <= t.quando + interval '7 days'
+         )) AS respondeu,
          EXISTS (
            SELECT 1 FROM public.lead_status_transitions s
            WHERE s.lead_id = t.lead_id
-             AND s.para_status IN ('agendado','visita_realizada','analise_credito','contrato_fechado')
+             AND s.para_status IN ('agendado','visita_realizada','proposta_enviada','analise_credito','contrato_fechado')
              AND s.created_at > t.quando
              AND s.created_at <= t.quando + interval '7 days'
          ) AS avancou
@@ -562,7 +661,10 @@ BEGIN
     BEGIN
       EXECUTE format('REFRESH MATERIALIZED VIEW CONCURRENTLY metrics.%I', _mv);
     EXCEPTION WHEN OTHERS THEN
-      -- 1ª carga (MV nunca populada) não aceita CONCURRENTLY.
+      -- Na prática este fallback roda SEMPRE: CONCURRENTLY não executa dentro
+      -- de função (bloco de transação), além de não valer na 1ª carga. O
+      -- refresh com lock é o comportamento real — padrão herdado de
+      -- 20260727111000, mantido até o refresh sair de função (cron direto).
       EXECUTE format('REFRESH MATERIALIZED VIEW metrics.%I', _mv);
     END;
     INSERT INTO metrics.atualizacoes (objeto, atualizado_em)
@@ -667,18 +769,19 @@ BEGIN
   _esc := public._gestao_escopo();
 
   RETURN QUERY
+  -- Mesma definição de "toque" da fila: tarefas de CONTATO abertas.
   SELECT
     pr.id,
     pr.nome,
     count(*) FILTER (
       WHERE l.followup_esgotado_em IS NULL
-        AND (l.proximo_followup IS NULL
-             OR (l.proximo_followup AT TIME ZONE 'America/Sao_Paulo')::date <= _hoje)
+        AND (tc.venc IS NULL
+             OR (tc.venc AT TIME ZONE 'America/Sao_Paulo')::date <= _hoje)
     )::bigint AS fila_hoje,
     count(*) FILTER (
       WHERE l.followup_esgotado_em IS NULL
-        AND l.proximo_followup IS NOT NULL
-        AND l.proximo_followup < now()
+        AND tc.venc IS NOT NULL
+        AND tc.venc < now()
     )::bigint AS vencidos,
     count(*) FILTER (WHERE l.followup_esgotado_em IS NOT NULL)::bigint AS esgotados
   FROM public.profiles pr
@@ -687,6 +790,15 @@ BEGIN
    AND l.na_lixeira = false
    AND l.deleted_at IS NULL
    AND l.status NOT IN ('contrato_fechado','pos_venda','perdido')
+  LEFT JOIN LATERAL (
+    SELECT min(t.data_vencimento) AS venc
+    FROM public.tarefas t
+    WHERE t.lead_id = l.id
+      AND t.status IN ('pendente','em_andamento')
+      AND t.deleted_at IS NULL
+      AND t.data_vencimento IS NOT NULL
+      AND t.tipo IN ('follow_up','ligacao','whatsapp','email')
+  ) tc ON true
   WHERE pr.ativo = true
     AND (_esc.ve_tudo OR pr.id = ANY(_esc.equipe))
   GROUP BY pr.id, pr.nome
@@ -718,6 +830,16 @@ BEGIN
       AND column_name = 'followup_esgotado_em'
   ) THEN
     RAISE EXCEPTION 'followup_regua: coluna followup_esgotado_em ausente';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'leads'
+      AND column_name = 'followup_reativado_em'
+  ) THEN
+    RAISE EXCEPTION 'followup_regua: coluna followup_reativado_em (baseline do ciclo) ausente';
+  END IF;
+  IF to_regprocedure('public.regua_followup_atual()') IS NULL THEN
+    RAISE EXCEPTION 'followup_regua: leitura da régua para o corretor ausente';
   END IF;
   IF (public.nav_pendencias() ? 'followups') IS DISTINCT FROM true THEN
     -- Sem sessão o retorno é o objeto zerado — a chave tem de existir mesmo assim.
