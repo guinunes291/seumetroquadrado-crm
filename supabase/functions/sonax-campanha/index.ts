@@ -1,30 +1,32 @@
-// Discador automático via campanha do Sonax: enfileira leads na campanha do
-// corretor e dá play — o PABX disca a fila sozinho e SÓ conecta ao ramal quem
-// atende (a campanha, criada no painel Sonax, aponta para a fila do corretor
-// com descarte de caixa postal). Docs: docs/integracoes/sonax-discador.md.
+// Discador automático via campanha do Sonax em POOL COMPARTILHADO: a fila é
+// TODA a base do CRM em Aguardando atendimento (não só a carteira do
+// corretor). O servidor seleciona e RESERVA cada lote (anti-colisão entre
+// corretores), enfileira na campanha do corretor e dá play — o PABX disca
+// sozinho e SÓ conecta ao ramal quem atende. Quem atende aparece no pop-up do
+// CRM; a tabulação de interesse é que move o lead para a carteira do corretor
+// (sonax-tabulacoes). Docs: docs/integracoes/sonax-discador.md.
 //
 // Body:
-//   { acao: "iniciar", lead_ids: string[] }   -> higiene do lote, insere cada
-//     lead na campanha (acao=chamada), garante o login do atendente e dá
-//     play_campanha. Aceita até MAX_LEADS_POR_LOTE por chamada.
-//   { acao: "adicionar", lead_ids: string[] } -> SÓ enfileira mais um lote na
-//     campanha já em curso (o front fatia a base completa em lotes de 100 e
-//     manda o primeiro como "iniciar" e o resto como "adicionar" — repetir a
-//     higiene aqui apagaria os lotes anteriores). Dá play de novo no fim
-//     (best-effort) para o caso de a fila ter esgotado entre lotes.
-//   { acao: "parar", limpar?: boolean }       -> stop_campanha (+ limpa
-//     contatos restantes da fila se limpar=true).
+//   { acao: "iniciar" }   -> higiene do lote, reserva + enfileira o 1º lote do
+//     pool (até MAX_LEADS_POR_LOTE), garante o login do atendente e dá
+//     play_campanha. Devolve restante_pool para o front continuar.
+//   { acao: "adicionar" } -> reserva + enfileira o PRÓXIMO lote do pool na
+//     campanha já em curso (sem higiene — ela apagaria os lotes anteriores).
+//     Dá play de novo no fim (best-effort) caso a fila tenha esgotado.
+//   { acao: "parar", limpar?: boolean } -> stop_campanha (+ limpa contatos
+//     restantes se limpar=true) e devolve as reservas deste corretor ao pool.
 //
-// Requer JWT (verify_jwt = true). Os leads são lidos com o client do próprio
-// corretor — a RLS garante que só a carteira dele entra na fila; opt-out,
-// lixeira e sem telefone são descartados aqui de novo (defesa em camadas).
+// Requer JWT (verify_jwt = true) para autenticar o corretor; a seleção do
+// pool usa a service role (a RLS não deixa um corretor ler a base alheia — a
+// leitura aqui é restrita ao recorte fixo do pool: aguardando_atendimento,
+// sem lixeira/deleted/opt-out, com telefone).
 //
 // Secrets (Supabase -> Edge Functions -> Secrets):
 //   SONAX_TOKEN       (obrigatório) — token de ativação da API v1
 //   SONAX_ID_CLIENTE  (obrigatório) — id do cliente Sonax (dados de ativação)
 //   SONAX_API_URL     (opcional) — default
 //     https://api.sonax.net.br/a2billing_v2/admin/Public/dbdial_webapi.php
-//   SUPABASE_URL / SUPABASE_ANON_KEY — injetadas automaticamente
+//   SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY — automáticas
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { comCapturaDeErro } from "../_shared/error-tracking.ts";
@@ -57,7 +59,9 @@ async function handleRequest(req: Request): Promise<Response> {
   const authorization = req.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
 
-  let body: { acao?: string; lead_ids?: unknown; limpar?: boolean };
+  // lead_ids de versões antigas do front é aceito e IGNORADO: a fila agora é
+  // o pool do CRM, selecionado aqui no servidor.
+  let body: { acao?: string; limpar?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -89,11 +93,15 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!url || !anonKey) return json({ error: "server_config" }, 503);
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !anonKey || !serviceKey) return json({ error: "server_config" }, 503);
   const supabase = createClient(url, anonKey, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  // Service role: seleção/reserva do pool e contagem da guarda de campanha —
+  // a RLS não deixa um corretor enxergar a base (nem os perfis) dos outros.
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return json({ error: "unauthorized" }, 401);
@@ -122,6 +130,13 @@ async function handleRequest(req: Request): Promise<Response> {
     if (body.limpar === true) {
       limpeza = await acaoSonax("limpa_contatos_campanha", { id_campanha: idCampanha });
     }
+    // Devolve ao pool as reservas deste corretor — parar significa "não vou
+    // trabalhar esses leads agora"; outro corretor pode discá-los.
+    const { error: reservaErr } = await admin
+      .from("leads")
+      .update({ discador_reservado_por: null, discador_reservado_em: null })
+      .eq("discador_reservado_por", uid);
+    if (reservaErr) console.error("sonax-campanha limpar_reservas:", reservaErr);
     return json({
       ok: true,
       parada: true,
@@ -137,40 +152,67 @@ async function handleRequest(req: Request): Promise<Response> {
   // Guarda de campanha COMPARTILHADA: dois corretores na mesma campanha se
   // atropelam — a higiene do lote de um APAGA a fila do outro e a fila
   // entrega chamadas a qualquer ramal logado. Recusar alto e cedo é melhor
-  // do que corromper em silêncio. (Service role só para esta contagem: a RLS
-  // não deixa um corretor enxergar o perfil dos outros.)
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (serviceKey) {
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
-    const { count: compartilhada } = await admin
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("sonax_id_campanha", idCampanha)
-      .neq("id", uid);
-    if ((compartilhada ?? 0) > 0) {
-      return json({ error: "campanha_compartilhada" }, 409);
-    }
+  // do que corromper em silêncio.
+  const { count: compartilhada } = await admin
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("sonax_id_campanha", idCampanha)
+    .neq("id", uid);
+  if ((compartilhada ?? 0) > 0) {
+    return json({ error: "campanha_compartilhada" }, 409);
   }
-  const leadIds = Array.isArray(body.lead_ids)
-    ? (body.lead_ids.filter((v) => typeof v === "string") as string[]).slice(0, MAX_LEADS_POR_LOTE)
-    : [];
-  if (leadIds.length === 0) return json({ error: "missing_lead_ids" }, 400);
 
-  // Leitura com a RLS do corretor: lead fora da carteira simplesmente não
-  // volta. Opt-out/lixeira caem aqui mesmo que o front tenha deixado passar.
-  const { data: leads, error: leadsErr } = await supabase
+  // ---- POOL: toda a base em Aguardando atendimento --------------------------
+  // A fila não é a carteira do corretor: é o pool inteiro do CRM que ainda
+  // aguarda primeiro atendimento. Candidatos LIVRES (sem reserva, ou com
+  // reserva expirada pelo TTL), quem espera há mais tempo primeiro. O lote é
+  // RESERVADO antes de enfileirar — dois corretores discando ao mesmo tempo
+  // nunca pegam o mesmo lead; lead discado e não trabalhado volta ao pool
+  // sozinho quando a reserva expira.
+  const POOL_TTL_HORAS = 12;
+  const corte = new Date(Date.now() - POOL_TTL_HORAS * 3_600_000).toISOString();
+  const livre = `discador_reservado_em.is.null,discador_reservado_em.lt.${corte}`;
+  const { data: candidatos, error: poolErr } = await admin
     .from("leads")
     .select("id, nome, telefone, projeto_nome")
-    .in("id", leadIds)
+    .eq("status", "aguardando_atendimento")
     .eq("na_lixeira", false)
     .is("deleted_at", null)
-    .eq("opt_out", false);
-  if (leadsErr) return json({ error: "leads_query_failed", detail: leadsErr.message }, 500);
+    .eq("opt_out", false)
+    .or(livre)
+    .order("ultima_interacao", { ascending: true, nullsFirst: true })
+    .limit(MAX_LEADS_POR_LOTE * 2);
+  if (poolErr) return json({ error: "pool_query_failed", detail: poolErr.message }, 500);
 
-  const discaveis = (leads ?? [])
+  const discaveis = (candidatos ?? [])
     .map((l) => ({ ...l, numeroSonax: toSonaxNumero(l.telefone as string | null) }))
-    .filter((l): l is typeof l & { numeroSonax: string } => l.numeroSonax !== null);
-  if (discaveis.length === 0) return json({ error: "nenhum_lead_discavel" }, 422);
+    .filter((l): l is typeof l & { numeroSonax: string } => l.numeroSonax !== null)
+    .slice(0, MAX_LEADS_POR_LOTE);
+  if (discaveis.length === 0) {
+    // Pool esgotado: no iniciar é aviso ao corretor; no adicionar encerra o
+    // laço do front normalmente.
+    if (adicionar) return json({ ok: true, enviados: 0, falhas: 0, restante_pool: 0 });
+    return json({ error: "pool_vazio" }, 422);
+  }
+
+  // Reserva com RECHECK da condição de livre: se outro corretor reservou no
+  // meio tempo, o UPDATE não pega a linha e o lead sai deste lote.
+  const { data: reservados, error: claimErr } = await admin
+    .from("leads")
+    .update({ discador_reservado_por: uid, discador_reservado_em: new Date().toISOString() })
+    .in(
+      "id",
+      discaveis.map((l) => l.id as string),
+    )
+    .or(livre)
+    .select("id");
+  if (claimErr) return json({ error: "claim_failed", detail: claimErr.message }, 500);
+  const reservadosSet = new Set((reservados ?? []).map((r) => r.id as string));
+  const lote = discaveis.filter((l) => reservadosSet.has(l.id as string));
+  if (lote.length === 0) {
+    if (adicionar) return json({ ok: true, enviados: 0, falhas: 0, restante_pool: 0 });
+    return json({ error: "pool_vazio" }, 422);
+  }
 
   // Higiene do lote: para a discagem e limpa QUALQUER sobra de sessões
   // anteriores ANTES de enfileirar. Sem isso, contatos restantes ficam na
@@ -195,10 +237,10 @@ async function handleRequest(req: Request): Promise<Response> {
   // para não estourar a API. O `script` aparece na tela do agente ao atender.
   let enviados = 0;
   const falhas: Array<{ lead_id: string; detalhe: string }> = [];
-  for (let i = 0; i < discaveis.length; i += CONCORRENCIA) {
-    const lote = discaveis.slice(i, i + CONCORRENCIA);
+  for (let i = 0; i < lote.length; i += CONCORRENCIA) {
+    const fatia = lote.slice(i, i + CONCORRENCIA);
     const resultados = await Promise.all(
-      lote.map((l) =>
+      fatia.map((l) =>
         acaoSonax("chamada", {
           id_contato: l.id as string,
           numero: l.numeroSonax,
@@ -216,6 +258,19 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
 
+  // Lead reservado mas recusado pelo Sonax volta ao pool na hora — sem isso
+  // ficaria travado até o TTL sem ninguém ter discado.
+  if (falhas.length > 0) {
+    const { error: soltarErr } = await admin
+      .from("leads")
+      .update({ discador_reservado_por: null, discador_reservado_em: null })
+      .in(
+        "id",
+        falhas.map((f) => f.lead_id),
+      );
+    if (soltarErr) console.error("sonax-campanha soltar_falhas:", soltarErr);
+  }
+
   if (enviados === 0) {
     return json({ error: "sonax_recusou", detail: falhas[0]?.detalhe ?? "fila_vazia" }, 502);
   }
@@ -226,12 +281,22 @@ async function handleRequest(req: Request): Promise<Response> {
   // recusa e segue.
   const play = await acaoSonax("play_campanha", { id_campanha: idCampanha });
 
+  // Quanto ainda há no pool: o front continua chamando "adicionar" até zerar.
+  const { count: restantePool } = await admin
+    .from("leads")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "aguardando_atendimento")
+    .eq("na_lixeira", false)
+    .is("deleted_at", null)
+    .eq("opt_out", false)
+    .or(livre);
+
   return json({
     ok: true,
     campanha: idCampanha,
     enviados,
-    ignorados: leadIds.length - discaveis.length,
     falhas: falhas.length,
+    restante_pool: restantePool ?? 0,
     login_atendente: loginAtendente,
     play: play.ok ? "ok" : `falhou: ${play.resposta}`,
   });

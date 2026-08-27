@@ -133,23 +133,52 @@ export function ChamadaAtivaHost() {
     !!chamada && TERMINAIS.has(chamada.status) && vistasAtivasRef.current.has(chamada.id);
   const visivel = !!chamada && chamada.id !== dispensadaId && (emAndamento || encerradaVista);
 
-  // Ficha do cliente: quem é, em que etapa está, último contato, follow-up.
+  // Ficha do cliente via RPC ficha_chamada_ativa (SECURITY DEFINER): no pool
+  // compartilhado do discador o lead pode ainda NÃO ser da carteira — a RLS
+  // de leads bloquearia a leitura direta. A RPC libera a ficha porque a
+  // CHAMADA é do corretor (ele está na ligação com esse lead). O refetch
+  // curto pega a atribuição pós-tabulação (o lead entra na carteira e as
+  // ações liberam sem recarregar).
   const leadQ = useQuery({
-    queryKey: ["chamada-ativa:lead", chamada?.lead_id],
+    queryKey: ["chamada-ativa:lead", chamada?.id],
     enabled: visivel && !!chamada?.lead_id,
+    refetchInterval: 20_000,
     queryFn: async (): Promise<LeadFicha | null> => {
-      const { data, error } = await supabase
-        .from("leads")
-        .select(
-          "id, nome, telefone, status, projeto_nome, ultima_interacao, proximo_followup, corretor_id",
-        )
-        .eq("id", chamada!.lead_id!)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as LeadFicha | null) ?? null;
+      const rpc = supabase.rpc as unknown as (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>;
+      const { data, error } = await rpc("ficha_chamada_ativa", { p_chamada_id: chamada!.id });
+      if (error) throw new Error(error.message || "Não foi possível carregar a ficha.");
+      const linha = (Array.isArray(data) ? data[0] : data) as
+        | {
+            lead_id: string;
+            nome: string;
+            telefone: string;
+            status: string;
+            projeto_nome: string | null;
+            ultima_interacao: string | null;
+            proximo_followup: string | null;
+            corretor_id: string | null;
+          }
+        | undefined;
+      if (!linha) return null;
+      return {
+        id: linha.lead_id,
+        nome: linha.nome,
+        telefone: linha.telefone,
+        status: linha.status,
+        projeto_nome: linha.projeto_nome,
+        ultima_interacao: linha.ultima_interacao,
+        proximo_followup: linha.proximo_followup,
+        corretor_id: linha.corretor_id,
+      };
     },
   });
   const lead = leadQ.data ?? null;
+  // Lead do pool ainda não é do corretor: o dossiê/registro só liberam quando
+  // a tabulação de interesse o mover para a carteira (a RLS barraria antes).
+  const minhaCarteira = !!lead && !!user && lead.corretor_id === user.id;
 
   // Cronômetro "em linha há…" enquanto a chamada está viva.
   const [, setTick] = useState(0);
@@ -227,7 +256,7 @@ export function ChamadaAtivaHost() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1">
-            {lead ? (
+            {lead && minhaCarteira ? (
               <Link
                 to="/leads/$leadId"
                 params={{ leadId: lead.id }}
@@ -235,6 +264,8 @@ export function ChamadaAtivaHost() {
               >
                 {lead.nome}
               </Link>
+            ) : lead ? (
+              <div className="truncate font-display text-lg font-semibold">{lead.nome}</div>
             ) : (
               <div className="font-display text-lg font-semibold">
                 {chamada.lead_id ? "Carregando ficha…" : "Número não identificado"}
@@ -266,9 +297,16 @@ export function ChamadaAtivaHost() {
               O áudio está no seu ramal — atenda por lá. Aqui fica a ficha do cliente.
             </p>
           )}
+          {lead && !minhaCarteira && (
+            <p className="text-xs text-muted-foreground">
+              Lead do pool do discador — <strong>tabule no painel do Sonax</strong>: com tabulação
+              de interesse ele entra na sua carteira automaticamente (e o dossiê libera aqui).
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2">
             {lead &&
+              minhaCarteira &&
               (emAndamento ? (
                 <>
                   <Button size="sm" asChild>
@@ -296,7 +334,7 @@ export function ChamadaAtivaHost() {
         </CardContent>
       </Card>
 
-      {lead && (
+      {lead && minhaCarteira && (
         <RegistrarContatoDialog
           open={registrarAberto}
           onOpenChange={setRegistrarAberto}

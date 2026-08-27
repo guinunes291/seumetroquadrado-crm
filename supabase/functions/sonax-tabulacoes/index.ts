@@ -14,10 +14,15 @@
 // gravada dispara processamento. Se o corretor mudar a etapa manualmente
 // depois, o sync não briga — a tabulação já processada não reaplica.
 //
-// Clientes: o JWT do corretor lê o próprio perfil e TRANSICIONA os leads
-// (RPC transicionar_lead — máquina de estados, timeline e follow-up, com
-// autoria dele); a service role só marca chamadas.tabulacao (UPDATE é
-// exclusivo do servidor) e lê o mapeamento em gestao_config.
+// POOL COMPARTILHADO + atribuição por interesse: o discador liga para leads
+// de TODA a base (sonax-campanha), então o lead da chamada pode ainda não ser
+// do corretor. Tabulação de INTERESSE (alvo em etapa ativa) primeiro move o
+// lead para a carteira do corretor da chamada (corretor_id, com
+// corretor_anterior_id preservado) e então transiciona com o JWT dele
+// (autoria correta). Tabulação de DESCARTE (alvo perdido) transiciona via
+// service role SEM atribuir — lead sem interesse não entra na base ativa de
+// ninguém. A service role também marca chamadas.tabulacao e lê o mapeamento
+// em gestao_config.
 //
 // Secrets (Supabase -> Edge Functions -> Secrets):
 //   SONAX_TOKEN / SONAX_ID_CLIENTE (obrigatórios) — dados de ativação v1
@@ -205,8 +210,10 @@ async function handleRequest(req: Request): Promise<Response> {
   const paresLimitados = pares.slice(0, MAX_PARES);
 
   // LOTE, não N+1: uma consulta (por fatia de 100) traz as chamadas de
-  // campanha de todos os leads do arquivo; a mais recente de cada lead é o
-  // marcador de idempotência.
+  // campanha DESTE corretor para os leads do arquivo; a mais recente de cada
+  // lead é o marcador de idempotência. O recorte por corretor importa no pool
+  // compartilhado: cada sync processa só as ligações do próprio corretor —
+  // a atribuição por interesse vai para quem de fato atendeu.
   const leadIds = Array.from(new Set(paresLimitados.map((par) => par.leadId)));
   const chamadaPorLead = new Map<string, { id: string; tabulacao: string | null }>();
   for (let i = 0; i < leadIds.length; i += 100) {
@@ -216,6 +223,7 @@ async function handleRequest(req: Request): Promise<Response> {
       .select("id, lead_id, tabulacao")
       .in("lead_id", fatia)
       .eq("origem", "campanha")
+      .eq("corretor_id", uid)
       .order("criado_em", { ascending: false });
     for (const linha of linhas ?? []) {
       const lid = linha.lead_id as string;
@@ -265,8 +273,11 @@ async function handleRequest(req: Request): Promise<Response> {
   // atendimento) não pula direto para agendado/aguardando_retorno na máquina
   // de estados — mas o atendimento ACONTECEU na ligação, então o pulo
   // intermediário por em_atendimento espelha a realidade e destrava a
-  // tabulação ("agendou visita" num lead novo).
+  // tabulação ("agendou visita" num lead novo). O client é parametrizado:
+  // interesse usa o JWT do corretor (autoria dele, lead já na carteira);
+  // descarte usa a service role (lead do pool, fora de qualquer carteira).
   async function transicionar(
+    client: typeof supabase,
     leadId: string,
     nomeLead: string,
     alvo: string,
@@ -274,7 +285,7 @@ async function handleRequest(req: Request): Promise<Response> {
   ): Promise<{ ok: boolean; erro?: string }> {
     const chamarRpc = (status: string) => {
       const tpl = templateFollowUp(status, nomeLead);
-      return supabase.rpc("transicionar_lead", {
+      return client.rpc("transicionar_lead", {
         p_lead_id: leadId,
         p_novo_status: status,
         p_motivo: motivo,
@@ -317,23 +328,41 @@ async function handleRequest(req: Request): Promise<Response> {
     if (!alvo) {
       desfecho = "sem_mapeamento";
     } else {
-      // Lead lido e transicionado com o JWT do corretor: RLS limita à
-      // carteira e a RPC valida a máquina de estados (timeline + follow-up).
-      const { data: lead } = await supabase
+      // Lead lido via service role: no pool compartilhado ele pode ainda não
+      // ser da carteira de ninguém que este JWT enxergue.
+      const { data: lead } = await admin
         .from("leads")
-        .select("id, nome, status")
+        .select("id, nome, status, corretor_id")
         .eq("id", leadId)
         .maybeSingle();
       if (!lead) {
-        // Fora da carteira de quem sincroniza (campanha compartilhada de
-        // outrora): não marca — o sync do corretor certo processa depois.
-        bloqueadas.push({ lead_id: leadId, tabulacao, erro: "lead_fora_da_carteira" });
-        continue;
-      }
-      if (lead.status === alvo) {
+        // Apagado/limpo depois da discagem: desfecho definitivo, marca e segue.
+        desfecho = "sem_mapeamento";
+      } else if (lead.status === alvo) {
         desfecho = "ja_na_etapa";
       } else {
+        const interesse = alvo !== "perdido";
+        // ATRIBUIÇÃO POR INTERESSE: só quem ATENDEU e tabulou interesse leva
+        // o lead para a carteira. Descarte (perdido) nunca atribui — lead sem
+        // interesse não entra na base ativa do corretor.
+        if (interesse && (lead.corretor_id as string | null) !== uid) {
+          const { error: atribuirErr } = await admin
+            .from("leads")
+            .update({
+              corretor_anterior_id: (lead.corretor_id as string | null) ?? null,
+              corretor_id: uid,
+              data_distribuicao: new Date().toISOString(),
+            })
+            .eq("id", leadId);
+          if (atribuirErr) {
+            bloqueadas.push({ lead_id: leadId, tabulacao, erro: atribuirErr.message });
+            continue;
+          }
+        }
+        // Interesse transiciona com o JWT do corretor (autoria dele, lead já
+        // na carteira); descarte transiciona via service role sem atribuir.
         const r = await transicionar(
+          interesse ? supabase : admin,
           leadId,
           (lead.nome as string) ?? "",
           alvo,
@@ -344,6 +373,12 @@ async function handleRequest(req: Request): Promise<Response> {
           continue;
         }
         desfecho = "aplicada";
+        // Lead trabalhado: devolve a reserva do pool (não precisa esperar TTL).
+        const { error: reservaErr } = await admin
+          .from("leads")
+          .update({ discador_reservado_por: null, discador_reservado_em: null })
+          .eq("id", leadId);
+        if (reservaErr) console.error("sonax-tabulacoes limpar_reserva:", reservaErr);
         // "Não perturbar" descarta DE VERDADE: além de perder o lead, marca
         // opt-out — o discador e o click-to-call nunca mais discam para ele.
         if (alvo === "perdido" && /nao (perturbar|ligar)|descadastr/.test(normalizar(tabulacao))) {

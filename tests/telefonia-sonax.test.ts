@@ -92,15 +92,33 @@ describe("sonax-campanha (discador automático)", () => {
     );
   });
 
-  it("fila lida com a RLS do corretor, com as exclusões de compliance", () => {
+  it("pool do CRM: fila server-side em Aguardando atendimento, com compliance", () => {
     expect(fnCampanha).toContain("SUPABASE_ANON_KEY");
     expect(fnCampanha).toContain("conta_atual_ativa");
+    // A fila é TODA a base em Aguardando atendimento — recorte fixo no
+    // servidor (a RLS não deixa o corretor ler a base alheia).
+    expect(fnCampanha).toContain('.eq("status", "aguardando_atendimento")');
     expect(fnCampanha).toContain('.eq("opt_out", false)');
     expect(fnCampanha).toContain('.eq("na_lixeira", false)');
     expect(fnCampanha).toContain('.is("deleted_at", null)');
-    // A fila de leads vem do client com o JWT do corretor; a service role
-    // existe SÓ para a contagem da guarda de campanha compartilhada.
-    expect(fnCampanha).toMatch(/await supabase\s*\.from\("leads"\)/);
+    // Quem espera há mais tempo entra primeiro.
+    expect(fnCampanha).toMatch(/order\("ultima_interacao", \{ ascending: true, nullsFirst: true/);
+  });
+
+  it("anti-colisão: lote é RESERVADO antes de enfileirar e a reserva se desfaz", () => {
+    // Dois corretores discando ao mesmo tempo nunca pegam o mesmo lead.
+    expect(fnCampanha).toContain("discador_reservado_por: uid");
+    // Reserva expira por TTL (lead não trabalhado volta ao pool) e o claim
+    // recheca a condição de livre (corrida entre corretores).
+    expect(fnCampanha).toContain("discador_reservado_em.is.null");
+    expect(fnCampanha).toMatch(/discador_reservado_em\.lt\./);
+    // Recusado pelo Sonax volta ao pool na hora; "parar" devolve as reservas.
+    expect(fnCampanha).toMatch(/falhas\.map\(\(f\) => f\.lead_id\)/);
+    expect(fnCampanha).toMatch(
+      /update\(\{ discador_reservado_por: null, discador_reservado_em: null \}\)[\s\S]*?\.eq\("discador_reservado_por", uid\)/,
+    );
+    // O front continua o laço pelo restante_pool devolvido.
+    expect(fnCampanha).toContain("restante_pool");
   });
 
   it("campanha compartilhada entre corretores é recusada (409) antes de mexer na fila", () => {
@@ -121,15 +139,17 @@ describe("sonax-campanha (discador automático)", () => {
     expect(fnCampanha).toMatch(/ok: true,\s*parada: true/);
   });
 
-  it("base completa em lotes: acao=adicionar enfileira SEM repetir a higiene", () => {
+  it("pool em lotes: acao=adicionar enfileira SEM repetir a higiene", () => {
     expect(fnCampanha).toContain('"adicionar"');
     // A higiene (stop+limpa) roda só no iniciar — repetida em cada lote,
     // apagaria os lotes anteriores da mesma sessão.
     expect(fnCampanha).toMatch(/if \(!adicionar\) \{\s*await acaoSonax\("stop_campanha"/);
-    // O front fatia a base inteira: 1º lote inicia, os demais adicionam.
+    // O front pilota o laço pelo restante_pool: 1º lote inicia, os demais
+    // adicionam, até o pool zerar ou o teto de segurança.
     const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
     expect(sessao).toContain('"adicionar"');
-    expect(sessao).toContain("LOTE_CAMPANHA");
+    expect(sessao).toContain("MAX_LOTES");
+    expect(sessao).toContain("restante_pool");
   });
 
   it("normalização de número é ÚNICA (_shared/sonax.ts) — discar e campanha importam a mesma", () => {
@@ -221,9 +241,22 @@ describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
     expect(fnTab).toMatch(
       /bloqueadas\.push\(\{ lead_id: leadId, tabulacao, erro: r\.erro \?\? "rpc_falhou" \}\);\s*continue;/,
     );
-    // Lead fora da carteira (campanha compartilhada de outrora) também não
-    // marca — o sync do corretor certo processa depois.
-    expect(fnTab).toContain("lead_fora_da_carteira");
+  });
+
+  it("atribuição por interesse: só quem atendeu e tabulou interesse leva o lead", () => {
+    // Cada sync processa SÓ as ligações do próprio corretor — a atribuição
+    // vai para quem de fato atendeu.
+    expect(fnTab).toMatch(/\.eq\("origem", "campanha"\)\s*\.eq\("corretor_id", uid\)/);
+    // Interesse (alvo ativo) move o lead para a carteira, preservando o dono
+    // anterior; descarte (perdido) NUNCA atribui.
+    expect(fnTab).toContain('const interesse = alvo !== "perdido"');
+    expect(fnTab).toMatch(/interesse && \(lead\.corretor_id as string \| null\) !== uid/);
+    expect(fnTab).toContain("corretor_anterior_id");
+    // Interesse transiciona com o JWT (autoria do corretor); descarte via
+    // service role (lead do pool, fora de qualquer carteira).
+    expect(fnTab).toContain("interesse ? supabase : admin");
+    // Lead trabalhado devolve a reserva do pool sem esperar o TTL.
+    expect(fnTab).toMatch(/discador_reservado_por: null, discador_reservado_em: null/);
   });
 
   it("transição envia o template de follow-up e destrava etapas com pulo intermediário", () => {
@@ -400,5 +433,39 @@ describe("aba Discador (fiação)", () => {
     // Ficha + ações: atender no CRM (dossiê) e registrar o resultado.
     expect(host).toContain("RegistrarContatoDialog");
     expect(host).toContain("Atender no CRM");
+  });
+
+  it("pop-up no pool: ficha via RPC gateada pela chamada; ações só na carteira", () => {
+    const host = readFileSync(join(root, "src/features/telefonia/chamada-ativa-host.tsx"), "utf8");
+    // Lead do pool não é da carteira — a leitura direta de leads seria
+    // barrada pela RLS; a RPC libera porque a CHAMADA é do corretor.
+    expect(host).toContain("ficha_chamada_ativa");
+    // Dossiê/registrar só liberam quando o lead entra na carteira (tabulação
+    // de interesse); antes disso o card orienta a tabular no Sonax.
+    expect(host).toContain("minhaCarteira");
+  });
+});
+
+describe("discador em pool (migration 20260828120000)", () => {
+  const sqlPool = readFileSync(
+    join(root, "supabase/migrations/20260828120000_telefonia_discador_pool.sql"),
+    "utf8",
+  ).replace(/--[^\n]*/g, "");
+
+  it("reserva anti-colisão em leads, com índice do recorte do pool", () => {
+    expect(sqlPool).toContain(
+      "ADD COLUMN IF NOT EXISTS discador_reservado_por uuid REFERENCES public.profiles(id)",
+    );
+    expect(sqlPool).toContain("ADD COLUMN IF NOT EXISTS discador_reservado_em timestamptz");
+    expect(sqlPool).toContain("CREATE INDEX IF NOT EXISTS idx_leads_discador_pool");
+  });
+
+  it("ficha_chamada_ativa: SECURITY DEFINER gateada pela chamada do corretor", () => {
+    expect(sqlPool).toContain("CREATE OR REPLACE FUNCTION public.ficha_chamada_ativa");
+    expect(sqlPool).toContain("SECURITY DEFINER");
+    // O gate é a CHAMADA ser do corretor autenticado — sem uma chamada sua
+    // com o lead, nada volta (não abre a carteira alheia).
+    expect(sqlPool).toMatch(/c\.corretor_id = \(SELECT auth\.uid\(\)\)/);
+    expect(sqlPool).toContain("REVOKE ALL ON FUNCTION public.ficha_chamada_ativa");
   });
 });

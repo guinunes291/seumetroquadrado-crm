@@ -1,16 +1,15 @@
-// Sessão de discagem: "Iniciar agora" monta a fila SEMPRE da base do próprio
-// corretor com a régua fixa da operação — leads em AGUARDANDO ATENDIMENTO ou
-// com FOLLOW-UP VENCIDO (proximo_followup no passado, status ativo) — sem
-// contato há mais tempo primeiro, nunca opt-out/lixeira/sem telefone — e
-// entrega ao DISCADOR AUTOMÁTICO do Sonax (edge function sonax-campanha): o
-// PABX disca a fila sozinho, descarta caixa postal e SÓ conecta ao ramal quem
-// atende — o fluxo segue até a fila acabar ou o corretor parar. As chamadas
-// conectadas chegam pelo webhook (origem campanha) e aparecem no
-// histórico/timeline em tempo real.
+// Sessão de discagem: "Iniciar agora" liga o DISCADOR AUTOMÁTICO do Sonax
+// sobre o POOL DO CRM — toda a base em AGUARDANDO ATENDIMENTO, não só a
+// carteira do corretor. A fila é montada NO SERVIDOR (sonax-campanha), que
+// reserva cada lote (anti-colisão entre corretores), enfileira na campanha e
+// dá play: o PABX disca sozinho, descarta caixa postal e SÓ conecta ao ramal
+// quem atende. Quem atende aparece no pop-up com a ficha; a TABULAÇÃO de
+// interesse no Sonax é que move o lead para a carteira do corretor
+// (sonax-tabulacoes) — sem interesse/descartado não entra na base ativa.
 //
 // Alternativa "um a um" (click-to-call sequencial) para quem ainda não tem
-// campanha/atendente configurados no PABX: disca cada lead no ramal e o
-// próprio corretor avança — nada de discagem em massa paralela.
+// campanha/atendente configurados no PABX: disca a PRÓPRIA carteira
+// (Aguardando atendimento + follow-up vencido) no ramal e o corretor avança.
 
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -80,13 +79,13 @@ export function SessaoDiscagem() {
   const [indice, setIndice] = useState(0);
   const [registrarAberto, setRegistrarAberto] = useState(false);
 
-  // Fila única para os dois modos, com a régua fixa da operação: a BASE
-  // COMPLETA do PRÓPRIO corretor que precisa de ligação agora — status
-  // "Aguardando atendimento" (fila de entrada) OU follow-up vencido
+  // Fila do modo UM A UM (click-to-call na própria carteira): base completa
+  // do corretor em "Aguardando atendimento" OU com follow-up vencido
   // (proximo_followup no passado, em etapa ativa). Sem teto de quantidade:
   // pagina o banco até o fim (PostgREST devolve no máx. 1000 por request).
   // Sem opt-out, sem lixeira, telefone válido; quem está há mais tempo sem
-  // contato primeiro.
+  // contato primeiro. (O modo automático NÃO usa esta fila — o pool é
+  // montado no servidor pela sonax-campanha.)
   const PAGINA = 1000;
   async function montarFila(): Promise<LeadFila[]> {
     if (!user) throw new Error("Sessão expirada — entre de novo.");
@@ -114,44 +113,45 @@ export function SessaoDiscagem() {
     return todos.filter((l) => (l.telefone ?? "").replace(/\D/g, "").length >= 10);
   }
 
-  // ---- Modo automático: campanha do discador --------------------------------
-  // A base completa vai ao PABX em LOTES de 100: o primeiro com acao=iniciar
-  // (higiene + login + play), os seguintes com acao=adicionar (só enfileiram —
-  // repetir a higiene apagaria o lote anterior da campanha).
-  const LOTE_CAMPANHA = 100;
+  // ---- Modo automático: campanha do discador sobre o POOL do CRM ------------
+  // A fila é montada NO SERVIDOR (toda a base em Aguardando atendimento, com
+  // reserva anti-colisão). O front só pilota o laço: 1º lote com acao=iniciar
+  // (higiene + login + play), os seguintes com acao=adicionar, até o pool
+  // zerar (restante_pool) ou o teto de segurança de lotes.
+  const MAX_LOTES = 50;
   const iniciarDiscador = useMutation({
     mutationFn: async () => {
-      const leads = await montarFila();
-      if (leads.length === 0)
-        throw Object.assign(new Error("fila_vazia"), { codigo: "fila_vazia" });
-      const ids = leads.map((l) => l.id);
       let enviados = 0;
       let falhas = 0;
       let playDetalhe: string | null = null;
-      setProgresso({ feito: 0, total: ids.length });
       try {
-        for (let i = 0; i < ids.length; i += LOTE_CAMPANHA) {
-          const lote = ids.slice(i, i + LOTE_CAMPANHA);
+        for (let lote = 0; lote < MAX_LOTES; lote++) {
           const { data, error } = await supabase.functions.invoke("sonax-campanha", {
-            body: { acao: i === 0 ? "iniciar" : "adicionar", lead_ids: lote },
+            body: { acao: lote === 0 ? "iniciar" : "adicionar" },
           });
           if (error) {
             const codigo = await codigoDoErro(error);
             // Falha no 1º lote = nada começou (erro de verdade). Nos
-            // seguintes, o que já entrou continua discando — conta como
-            // falha e segue para o próximo lote.
-            if (i === 0) throw Object.assign(new Error(codigo ?? error.message), { codigo });
-            falhas += lote.length;
-            continue;
+            // seguintes, o que já entrou continua discando — encerra o laço
+            // e reporta o que foi.
+            if (lote === 0) throw Object.assign(new Error(codigo ?? error.message), { codigo });
+            break;
           }
-          const r = data as { enviados?: number; falhas?: number; play?: string };
+          const r = data as {
+            enviados?: number;
+            falhas?: number;
+            play?: string;
+            restante_pool?: number;
+          };
           enviados += r.enviados ?? 0;
           falhas += r.falhas ?? 0;
           // O play do 1º lote é o que LIGA o discador de fato: falha aqui
           // significa "enfileirou mas não está discando" — engolir isso
           // deixaria o corretor esperando um PABX mudo.
-          if (i === 0 && typeof r.play === "string" && r.play !== "ok") playDetalhe = r.play;
-          setProgresso({ feito: Math.min(i + lote.length, ids.length), total: ids.length });
+          if (lote === 0 && typeof r.play === "string" && r.play !== "ok") playDetalhe = r.play;
+          const restante = r.restante_pool ?? 0;
+          setProgresso({ feito: enviados, total: enviados + restante });
+          if (restante <= 0) break;
         }
       } finally {
         setProgresso(null);
@@ -173,8 +173,8 @@ export function SessaoDiscagem() {
     },
     onError: (e) => {
       const codigo = (e as { codigo?: string | null }).codigo ?? null;
-      if (codigo === "fila_vazia") {
-        toast.info("Nenhum lead da sua carteira para discar com esses critérios.");
+      if (codigo === "pool_vazio") {
+        toast.info("Nenhum lead em Aguardando atendimento disponível na base agora.");
         return;
       }
       toast.error(
@@ -376,12 +376,12 @@ export function SessaoDiscagem() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          A fila é sempre a <strong>sua base completa</strong> que precisa de ligação agora:{" "}
-          <strong>leads em Aguardando atendimento</strong> e{" "}
-          <strong>leads com follow-up vencido</strong> — sem limite de quantidade, quem está há mais
-          tempo sem contato entra primeiro. O discador liga sozinho e{" "}
-          <strong>conecta você só com quem atende</strong>. Leads com opt-out ficam de fora
-          automaticamente.
+          A fila é <strong>toda a base do CRM em Aguardando atendimento</strong> — sem limite de
+          quantidade, quem espera há mais tempo entra primeiro, e cada lead é reservado para um
+          corretor por vez (sem colisão). O discador liga sozinho e{" "}
+          <strong>conecta você só com quem atende</strong>: a ficha aparece na sua tela e, com{" "}
+          <strong>tabulação de interesse</strong> no Sonax, o lead entra na sua carteira
+          automaticamente — sem interesse ou descartado, não entra. Opt-out fica de fora sempre.
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <Button
@@ -399,7 +399,8 @@ export function SessaoDiscagem() {
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
           <span className="text-xs text-muted-foreground">
-            Sem campanha configurada no PABX? Disque a mesma fila um a um pelo seu ramal:
+            Sem campanha configurada no PABX? Disque a SUA carteira um a um pelo seu ramal
+            (Aguardando atendimento + follow-up vencido):
           </span>
           <Button
             size="sm"

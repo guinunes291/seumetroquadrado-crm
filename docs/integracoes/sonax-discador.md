@@ -35,14 +35,17 @@ em 16/08/2026.
    (direção, status, busca por lead/número) e rediscagem em um clique. Corretor
    vê as chamadas da própria carteira/ramal; gestão vê a operação inteira
    (RLS). Atualiza ao vivo via realtime.
-5. **Sessão de discagem ("Iniciar agora") — discador automático** — a aba monta
-   a fila SEMPRE da base do próprio corretor com a régua fixa da operação:
-   **leads em Aguardando atendimento OU com follow-up vencido**
-   (`proximo_followup` no passado, em etapa ativa) — sem contato há mais tempo
-   primeiro; nunca opt-out, lixeira ou sem telefone; **a base completa, sem
-   teto de quantidade** (o front pagina o banco até o fim e envia ao PABX em
-   lotes de 100: o primeiro com `acao=iniciar`, os demais com `acao=adicionar`,
-   que enfileira sem repetir a higiene) — e
+5. **Sessão de discagem ("Iniciar agora") — discador automático em POOL** — a
+   fila é **toda a base do CRM em Aguardando atendimento** (não só a carteira
+   do corretor), montada **no servidor** pela `sonax-campanha`: quem espera há
+   mais tempo primeiro; nunca opt-out, lixeira ou sem telefone; sem teto de
+   quantidade. Cada lote é **reservado** antes de enfileirar
+   (`leads.discador_reservado_por/em`, TTL de 12h) — dois corretores discando
+   ao mesmo tempo nunca pegam o mesmo lead; lead recusado pelo Sonax, parado
+   ("Parar discador") ou tabulado devolve a reserva na hora, e reserva não
+   trabalhada expira sozinha. O front pilota o laço pelo `restante_pool`
+   devolvido (1º lote `acao=iniciar`, os demais `acao=adicionar`, que
+   enfileira sem repetir a higiene) — e
    entrega à **campanha do discador Sonax** (edge function
    `sonax-campanha`: `acao=chamada` por lead + `play_campanha`): o PABX disca a
    fila sozinho, **descarta caixa postal e só conecta ao ramal quem atende**,
@@ -78,13 +81,16 @@ em 16/08/2026.
    quando o PABX conecta um cliente ao corretor (webhook `atendida`/`falando`),
    um card fixo aparece em QUALQUER tela do CRM com a ficha do lead (nome,
    telefone, etapa, projeto, último contato, follow-up vencido), som de
-   campainha (sintetizada via Web Audio, toggle persistido) e ações: "Atender
-   no CRM" (abre o dossiê) e "Registrar resultado". Quando a chamada encerra,
-   o card vira o registro do resultado. O ÁUDIO da ligação continua no ramal
-   (fone/softphone) — o PABX entrega a voz lá; o CRM entrega o contexto.
-   Filtro por `corretor_id`: só as chamadas do próprio corretor acordam o
-   pop-up (a gestão vê o histórico inteiro, mas não recebe pop-up de chamada
-   alheia).
+   campainha (sintetizada via Web Audio, toggle persistido) e ações. A ficha
+   vem da RPC **`ficha_chamada_ativa`** (SECURITY DEFINER): o lead do pool
+   ainda não é da carteira do corretor e a RLS barraria a leitura direta — a
+   RPC libera APENAS quando a chamada é do próprio corretor. Enquanto o lead
+   não é da carteira, o card orienta a **tabular no painel do Sonax**; com a
+   tabulação de interesse o lead entra na carteira e os botões "Atender no
+   CRM" (dossiê) e "Registrar resultado" liberam. O ÁUDIO da ligação continua
+   no ramal (fone/softphone) — o PABX entrega a voz lá; o CRM entrega o
+   contexto. Filtro por `corretor_id`: só as chamadas do próprio corretor
+   acordam o pop-up.
 7. **Modo um a um (fallback)** — para quem ainda não tem campanha configurada:
    a mesma fila é discada sequencialmente pelo click-to-call no ramal, com
    avanço humano ("Próximo" ou registrar o resultado já disca o seguinte).
@@ -108,10 +114,17 @@ em 16/08/2026.
    ativas. Quando a máquina de estados não permite o salto direto (ex.: lead
    em Aguardando atendimento tabulado "agendou visita"), o sync faz o **pulo
    intermediário por Em atendimento** — o atendimento aconteceu na ligação.
-   Tabulações de descarte: "sem interesse"/"número errado" movem para
-   **Perdido** (motivo = a tabulação; categoria cai em "outro");
-   "não perturbar" além de perder marca **opt-out** — o lead sai de qualquer
-   fila futura do discador e do click-to-call.
+
+   **Atribuição por interesse (pool)**: cada sync processa só as ligações do
+   próprio corretor (`chamadas.corretor_id`). Tabulação de **interesse**
+   (alvo em etapa ativa) primeiro move o lead para a **carteira do corretor
+   que atendeu** (`corretor_id`, preservando `corretor_anterior_id`) e então
+   transiciona com o JWT dele (autoria correta). Tabulações de **descarte**
+   NUNCA atribuem — lead sem interesse não entra na base ativa de ninguém:
+   "sem interesse"/"número errado" movem para **Perdido** via service role
+   (motivo = a tabulação; categoria cai em "outro"); "não perturbar" além de
+   perder marca **opt-out** — o lead sai de qualquer fila futura do discador
+   e do click-to-call. Em ambos os casos a reserva do pool é devolvida.
 
    O mapeamento tabulação → etapa é **configuração**, na `gestao_config`
    (chave `telefonia_tabulacao_status`), comparado sem acento/maiúsculas.
@@ -127,6 +140,7 @@ em 16/08/2026.
 | ------------------------------------------------ | --------------------------------------------------------------------------- |
 | Migration (`chamadas`, `ramal_sonax`, trigger)   | `supabase/migrations/20260816120000_telefonia_sonax.sql`                    |
 | Migration (vínculos do discador por corretor)    | `supabase/migrations/20260817120000_telefonia_sonax_campanha.sql`           |
+| Migration (pool do discador + ficha do pop-up)   | `supabase/migrations/20260828120000_telefonia_discador_pool.sql`            |
 | Click-to-call (JWT + RLS do corretor)            | `supabase/functions/sonax-discar/index.ts`                                  |
 | Discador automático (fila → campanha, play/stop) | `supabase/functions/sonax-campanha/index.ts`                                |
 | Tabulação → etapa (sync + mapeamento)            | `supabase/functions/sonax-tabulacoes/index.ts` + migration `20260818120000` |
