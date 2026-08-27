@@ -149,9 +149,9 @@ export function InicioPage() {
         {loading ? (
           // Papéis ainda carregando: sem grade parcial, para os cards de gestão
           // não "pipocarem" depois (nem piscarem para quem não vai vê-los).
-          // 7 cards de operação = 8 células, porque o destaque ocupa duas.
+          // 8 cards de operação = 9 células, porque o destaque ocupa duas.
           <div className={GRID_CLASSES} aria-busy="true">
-            {Array.from({ length: 7 }, (_, i) => (
+            {Array.from({ length: 8 }, (_, i) => (
               <Skeleton key={i} className={cn("h-44 rounded-xl", i === 0 && "sm:col-span-2")} />
             ))}
           </div>

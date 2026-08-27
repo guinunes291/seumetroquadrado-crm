@@ -18,6 +18,7 @@ import {
   Building2,
   CalendarClock,
   Headset,
+  Hourglass,
   LineChart,
   Link2,
   Map,
@@ -26,6 +27,7 @@ import {
   MessageCircle,
   Phone,
   PhoneOutgoing,
+  Repeat,
   Settings,
   Shuffle,
   Sparkles,
@@ -60,6 +62,7 @@ export type SistemaId =
   | "prospeccao"
   | "atendimento-central"
   | "carteira"
+  | "follow-up"
   | "financeiro"
   | "docs-projetos"
   | "bi"
@@ -198,6 +201,49 @@ export const SISTEMAS: Sistema[] = [
       },
       { id: "modo-visita", label: "Modo Visita", icon: MapPinned, to: "/modo-visita" },
       { id: "match", label: "Match IA", icon: Sparkles, to: "/match" },
+    ],
+  },
+  {
+    id: "follow-up",
+    titulo: "Follow-Up",
+    descricao:
+      "A régua dos 13 toques: quem tocar hoje, com mensagem pronta e contador por cliente.",
+    icon: Repeat,
+    home: { to: "/follow-up" },
+    // nav_pendencias.followups = tarefas de contato de hoje + vencidas — o
+    // número que o corretor precisa zerar.
+    badge: (b) => b.followups,
+    grupo: "operacao",
+    secoes: [
+      {
+        id: "fila",
+        label: "Fila do dia",
+        icon: Repeat,
+        to: "/follow-up",
+        badge: (b) => b.followups,
+      },
+      {
+        id: "esgotados",
+        label: "Esgotados (13/13)",
+        icon: Hourglass,
+        to: "/follow-up",
+        search: { tab: "esgotados" },
+      },
+      {
+        id: "kpis",
+        label: "Curva de resposta",
+        icon: LineChart,
+        to: "/follow-up",
+        search: { tab: "kpis" },
+      },
+      {
+        id: "cobertura",
+        label: "Cobertura do time",
+        icon: Users,
+        to: "/follow-up",
+        search: { tab: "cobertura" },
+        roles: GESTAO,
+      },
     ],
   },
   {

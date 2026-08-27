@@ -27,12 +27,13 @@ const sistema = (id: string): Sistema => {
 const ids = (ctx: PapelCtx) => sistemasVisiveis(ctx).map((s) => s.id);
 
 describe("visibilidade por papel", () => {
-  it("corretor vê os 7 sistemas de operação, sem Configurações", () => {
+  it("corretor vê os 8 sistemas de operação, sem Configurações", () => {
     expect(ids(corretor)).toEqual([
       "central-comando",
       "prospeccao",
       "atendimento-central",
       "carteira",
+      "follow-up",
       "financeiro",
       "docs-projetos",
       "bi",
@@ -65,11 +66,15 @@ describe("visibilidade por papel", () => {
 });
 
 describe("badges dos cards", () => {
-  const badges = { atendimento: 4, tarefasVencidas: 2, agendaHoje: 3, aprovacoes: 5 };
+  const badges = { atendimento: 4, tarefasVencidas: 2, agendaHoje: 3, aprovacoes: 5, followups: 6 };
 
   it("Prospecção carrega a fila de entrada; Carteira soma tarefas + agenda", () => {
     expect(badgeDoSistema(sistema("prospeccao"), badges, corretor)).toBe(4);
     expect(badgeDoSistema(sistema("carteira"), badges, corretor)).toBe(5);
+  });
+
+  it("Follow-Up carrega os toques do dia (hoje + vencidos)", () => {
+    expect(badgeDoSistema(sistema("follow-up"), badges, corretor)).toBe(6);
   });
 
   it("aprovações respeitam badgeRoles: somem para o corretor, aparecem para a gestão", () => {
@@ -140,6 +145,20 @@ describe("sistemaAtivo (pathname + search)", () => {
     expect(em("/meu-raio-x")).toBe("bi");
     expect(em("/ranking")).toBe("bi");
     expect(em("/painel-gestor", { tab: "time" })).toBe("bi");
+    expect(em("/follow-up")).toBe("follow-up");
+    expect(em("/follow-up", { tab: "esgotados" })).toBe("follow-up");
+    expect(secaoAtiva(sistema("follow-up"), { pathname: "/follow-up", search: {} })?.id).toBe(
+      "fila",
+    );
+    expect(
+      secaoAtiva(sistema("follow-up"), { pathname: "/follow-up", search: { tab: "kpis" } })?.id,
+    ).toBe("kpis");
+  });
+
+  it("Cobertura do time do Follow-Up é só gestão", () => {
+    const secoes = (ctx: PapelCtx) => secoesVisiveis(sistema("follow-up"), ctx).map((s) => s.id);
+    expect(secoes(corretor)).toEqual(["fila", "esgotados", "kpis"]);
+    expect(secoes(gestor)).toContain("cobertura");
   });
 
   it("rotas neutras não pertencem a sistema algum", () => {
