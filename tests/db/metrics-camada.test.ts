@@ -110,13 +110,14 @@ afterAll(async () => {
 });
 
 describe("refresh e carimbo", () => {
-  it("refresh_all popula as 4 MVs e carimba metrics.atualizacoes", async () => {
+  it("refresh_all popula as 5 MVs e carimba metrics.atualizacoes", async () => {
     await comoSuperuser(c);
     const r = await c.query(
       `SELECT objeto, atualizado_em FROM metrics.atualizacoes ORDER BY objeto`,
     );
     const objetos = r.rows.map((x: { objeto: string }) => x.objeto);
     expect(objetos).toEqual([
+      "followup_tentativa_mensal",
       "funil_coorte_mensal",
       "motivos_perda_mensal",
       "performance_corretor_mensal",

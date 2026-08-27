@@ -504,7 +504,9 @@ toques AS (
 ),
 avaliados AS (
   SELECT t.lead_id, t.quando, t.corretor_id,
-         LEAST(t.tentativa, 20) AS tentativa,
+         -- ::int porque row_number() é bigint e as RPCs de curva declaram
+         -- RETURNS TABLE (tentativa int, ...) — RETURN QUERY exige tipo exato.
+         LEAST(t.tentativa, 20)::int AS tentativa,
          EXISTS (
            SELECT 1 FROM public.interacoes r
            WHERE r.lead_id = t.lead_id
