@@ -12,6 +12,9 @@ export type NavBadges = {
   tarefasVencidas: number;
   agendaHoje: number;
   aprovacoes: number;
+  /** Toques de follow-up do dia (hoje + vencidos) — v3 da RPC; 0 em versões
+   *  antigas do banco (o parser tolera a chave ausente). */
+  followups: number;
 };
 
 function parseNavBadges(raw: unknown): NavBadges | null {
@@ -23,6 +26,7 @@ function parseNavBadges(raw: unknown): NavBadges | null {
     tarefasVencidas: num(o.tarefas_vencidas),
     agendaHoje: num(o.agenda_hoje),
     aprovacoes: num(o.aprovacoes),
+    followups: num(o.followups),
   };
 }
 
