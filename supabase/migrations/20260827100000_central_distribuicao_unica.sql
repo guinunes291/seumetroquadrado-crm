@@ -147,12 +147,18 @@ BEGIN
 
   -- Mesma regra de slug que vivia no cliente, agora no servidor (sem
   -- depender de unaccent: translate cobre os acentos do pt-BR).
+  -- Edit in-place de migration histórica, permitido aqui: o original usava
+  -- `btrim(BOTH '-' FROM ...)` — sintaxe do trim(), inválida no btrim() — e
+  -- por isso este arquivo NUNCA executou (replay do harness aborta aqui;
+  -- verificado em produção que a versão não consta em schema_migrations e a
+  -- função não existe). Uma migration de reparo nunca rodaria: o replay
+  -- morre antes de chegar nela.
   _base := left(
-    btrim(BOTH '-' FROM regexp_replace(
+    btrim(regexp_replace(
       translate(lower(btrim(COALESCE(_slug, _nome))),
                 'áàâãäéèêëíìîïóòôõöúùûüçñ',
                 'aaaaaeeeeiiiiooooouuuucn'),
-      '[^a-z0-9]+', '-', 'g')),
+      '[^a-z0-9]+', '-', 'g'), '-'),
     60);
   IF _base = '' THEN
     RAISE EXCEPTION 'slug invalido';

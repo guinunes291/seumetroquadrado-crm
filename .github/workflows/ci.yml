@@ -100,6 +100,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:54329/postgres
 
+      # Falha sem erro SQL nomeado já aconteceu (container/infra) — sem os
+      # logs do Postgres o diagnóstico fica cego.
+      - name: Logs do Postgres (diagnóstico em falha)
+        if: failure()
+        run: docker compose -f scripts/db-harness/docker-compose.yml logs db
+
   # Smoke do ARTEFATO DE PRODUÇÃO num navegador real. É o gate que faltava: build
   # verde não garante que o app renderiza. Boota o build (preset node-server, cujo
   # bundle client é idêntico ao Cloudflare) e reprova em tela branca, erro de
