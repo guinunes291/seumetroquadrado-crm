@@ -219,11 +219,28 @@ describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
       fnTab.indexOf(".update({ tabulacao })"),
     );
     expect(fnTab).toMatch(
-      /bloqueadas\.push\(\{ lead_id: leadId, tabulacao, erro: rpcErr\.message \}\);\s*continue;/,
+      /bloqueadas\.push\(\{ lead_id: leadId, tabulacao, erro: r\.erro \?\? "rpc_falhou" \}\);\s*continue;/,
     );
     // Lead fora da carteira (campanha compartilhada de outrora) também não
     // marca — o sync do corretor certo processa depois.
     expect(fnTab).toContain("lead_fora_da_carteira");
+  });
+
+  it("transição envia o template de follow-up e destrava etapas com pulo intermediário", () => {
+    // A RPC exige próxima ação/follow-up nas etapas ativas — o sync espelha
+    // os templates do front (followUpParaStatus) em vez de falhar sempre.
+    expect(fnTab).toContain("templateFollowUp");
+    expect(fnTab).toContain("p_proxima_acao");
+    expect(fnTab).toContain("p_proximo_followup");
+    // aguardando_atendimento não vai direto para agendado/aguardando_retorno:
+    // o pulo por em_atendimento espelha o atendimento que aconteceu na ligação.
+    expect(fnTab).toMatch(/n\.o permitida/);
+    expect(fnTab).toMatch(/chamarRpc\("em_atendimento"\)/);
+  });
+
+  it('"não perturbar" descarta de verdade: perdido + opt-out (nunca mais discado)', () => {
+    expect(fnTab).toMatch(/alvo === "perdido" && \/nao \(perturbar\|ligar\)\|descadastr\//);
+    expect(fnTab).toContain("opt_out: true");
   });
 
   it("arquivo grande não estoura: cap reportado e lookup de chamadas em lote (sem N+1)", () => {

@@ -228,6 +228,67 @@ async function handleRequest(req: Request): Promise<Response> {
     }
   }
 
+  // Espelho Deno de followUpParaStatus (src/lib/follow-up.ts): a RPC
+  // transicionar_lead EXIGE próxima ação ou follow-up nas etapas ativas — o
+  // front sempre envia o template, e sem ele toda transição do sync falharia
+  // com "informe próxima ação ou follow-up".
+  const DIA_MS = 86_400_000;
+  function templateFollowUp(
+    status: string,
+    nome: string,
+  ): { acao: string; vencimento: string } | null {
+    const emDias = (n: number) => new Date(Date.now() + n * DIA_MS).toISOString();
+    const n = nome.trim() || "o cliente";
+    switch (status) {
+      case "em_atendimento":
+        return { acao: `Follow-up com ${n}`, vencimento: emDias(1) };
+      case "aguardando_retorno":
+        return { acao: `Retomar contato com ${n}`, vencimento: emDias(1) };
+      case "qualificacao_corretor":
+        return { acao: `Qualificar ${n} (perfil, renda e urgência)`, vencimento: emDias(1) };
+      case "qualificado":
+        return { acao: `Apresentar opções aderentes para ${n}`, vencimento: emDias(2) };
+      case "agendado":
+        return { acao: `Confirmar visita com ${n}`, vencimento: emDias(1) };
+      case "visita_realizada":
+        return { acao: `Pós-visita: definir próximo passo com ${n}`, vencimento: emDias(2) };
+      case "proposta_enviada":
+        return { acao: `Acompanhar a proposta de ${n}`, vencimento: emDias(2) };
+      case "analise_credito":
+        return { acao: `Cobrar retorno do crédito de ${n}`, vencimento: emDias(3) };
+      default:
+        return null; // perdido/fechado não pedem follow-up
+    }
+  }
+
+  // Transiciona com a RPC oficial. A etapa de entrada (aguardando
+  // atendimento) não pula direto para agendado/aguardando_retorno na máquina
+  // de estados — mas o atendimento ACONTECEU na ligação, então o pulo
+  // intermediário por em_atendimento espelha a realidade e destrava a
+  // tabulação ("agendou visita" num lead novo).
+  async function transicionar(
+    leadId: string,
+    nomeLead: string,
+    alvo: string,
+    motivo: string,
+  ): Promise<{ ok: boolean; erro?: string }> {
+    const chamarRpc = (status: string) => {
+      const tpl = templateFollowUp(status, nomeLead);
+      return supabase.rpc("transicionar_lead", {
+        p_lead_id: leadId,
+        p_novo_status: status,
+        p_motivo: motivo,
+        ...(tpl ? { p_proxima_acao: tpl.acao, p_proximo_followup: tpl.vencimento } : {}),
+      });
+    };
+    let { error } = await chamarRpc(alvo);
+    if (error && /n.o permitida/i.test(error.message) && alvo !== "em_atendimento") {
+      const hop = await chamarRpc("em_atendimento");
+      if (!hop.error) ({ error } = await chamarRpc(alvo));
+    }
+    return error ? { ok: false, erro: error.message } : { ok: true };
+  }
+
   let novas = 0;
   let aplicadas = 0;
   let jaProcessadas = 0;
@@ -260,7 +321,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // carteira e a RPC valida a máquina de estados (timeline + follow-up).
       const { data: lead } = await supabase
         .from("leads")
-        .select("id, status")
+        .select("id, nome, status")
         .eq("id", leadId)
         .maybeSingle();
       if (!lead) {
@@ -272,16 +333,26 @@ async function handleRequest(req: Request): Promise<Response> {
       if (lead.status === alvo) {
         desfecho = "ja_na_etapa";
       } else {
-        const { error: rpcErr } = await supabase.rpc("transicionar_lead", {
-          p_lead_id: leadId,
-          p_novo_status: alvo,
-          p_motivo: `Tabulação do discador: ${tabulacao}`,
-        });
-        if (rpcErr) {
-          bloqueadas.push({ lead_id: leadId, tabulacao, erro: rpcErr.message });
+        const r = await transicionar(
+          leadId,
+          (lead.nome as string) ?? "",
+          alvo,
+          `Tabulação do discador: ${tabulacao}`,
+        );
+        if (!r.ok) {
+          bloqueadas.push({ lead_id: leadId, tabulacao, erro: r.erro ?? "rpc_falhou" });
           continue;
         }
         desfecho = "aplicada";
+        // "Não perturbar" descarta DE VERDADE: além de perder o lead, marca
+        // opt-out — o discador e o click-to-call nunca mais discam para ele.
+        if (alvo === "perdido" && /nao (perturbar|ligar)|descadastr/.test(normalizar(tabulacao))) {
+          const { error: optErr } = await admin
+            .from("leads")
+            .update({ opt_out: true })
+            .eq("id", leadId);
+          if (optErr) console.error("sonax-tabulacoes opt_out_failed:", optErr);
+        }
       }
     }
 

@@ -103,6 +103,16 @@ em 16/08/2026.
    rodada, reportado em `contatos` vs `processados`) com lookup de chamadas em
    lote.
 
+   A transição envia o **template de follow-up da etapa** (espelho de
+   `followUpParaStatus`) — a RPC exige próxima ação/follow-up nas etapas
+   ativas. Quando a máquina de estados não permite o salto direto (ex.: lead
+   em Aguardando atendimento tabulado "agendou visita"), o sync faz o **pulo
+   intermediário por Em atendimento** — o atendimento aconteceu na ligação.
+   Tabulações de descarte: "sem interesse"/"número errado" movem para
+   **Perdido** (motivo = a tabulação; categoria cai em "outro");
+   "não perturbar" além de perder marca **opt-out** — o lead sai de qualquer
+   fila futura do discador e do click-to-call.
+
    O mapeamento tabulação → etapa é **configuração**, na `gestao_config`
    (chave `telefonia_tabulacao_status`), comparado sem acento/maiúsculas.
    Defaults: interessado → Em atendimento; agendou visita → Agendado; pediu
