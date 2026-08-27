@@ -490,7 +490,11 @@ export function ComissoesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Comissões"
-        description="Geradas somente após a aprovação gerencial da venda."
+        description={
+          canManage
+            ? "Geradas somente após a aprovação gerencial da venda."
+            : "Somente as SUAS comissões, das suas vendas — geradas após a aprovação gerencial."
+        }
         actions={filtros}
       />
 
@@ -839,4 +843,3 @@ function DescontoDialog({
     </Dialog>
   );
 }
-
