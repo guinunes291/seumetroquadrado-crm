@@ -127,6 +127,7 @@ export function SessaoDiscagem() {
       const ids = leads.map((l) => l.id);
       let enviados = 0;
       let falhas = 0;
+      let playDetalhe: string | null = null;
       setProgresso({ feito: 0, total: ids.length });
       try {
         for (let i = 0; i < ids.length; i += LOTE_CAMPANHA) {
@@ -143,18 +144,29 @@ export function SessaoDiscagem() {
             falhas += lote.length;
             continue;
           }
-          const r = data as { enviados?: number; falhas?: number };
+          const r = data as { enviados?: number; falhas?: number; play?: string };
           enviados += r.enviados ?? 0;
           falhas += r.falhas ?? 0;
+          // O play do 1º lote é o que LIGA o discador de fato: falha aqui
+          // significa "enfileirou mas não está discando" — engolir isso
+          // deixaria o corretor esperando um PABX mudo.
+          if (i === 0 && typeof r.play === "string" && r.play !== "ok") playDetalhe = r.play;
           setProgresso({ feito: Math.min(i + lote.length, ids.length), total: ids.length });
         }
       } finally {
         setProgresso(null);
       }
-      return { enviados, falhas };
+      return { enviados, falhas, playDetalhe };
     },
     onSuccess: (r) => {
       setCampanhaAtiva({ enviados: r.enviados, falhas: r.falhas ?? 0 });
+      if (r.playDetalhe) {
+        toast.warning(
+          `A fila entrou na campanha (${r.enviados} lead${r.enviados > 1 ? "s" : ""}), mas o Sonax não confirmou o play (${r.playDetalhe}). Sem o play o PABX não disca — confira a campanha no painel do Sonax.`,
+          { duration: 15_000 },
+        );
+        return;
+      }
       toast.success(
         `Discador rodando: ${r.enviados} lead${r.enviados > 1 ? "s" : ""} na fila. Quem atender toca no seu ramal.`,
       );
