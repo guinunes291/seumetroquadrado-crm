@@ -47,9 +47,9 @@ describe("visibilidade por papel", () => {
     expect(secoes).toContain("captacao");
   });
 
-  it("corretor não vê as seções de gestão da Prospecção", () => {
+  it("corretor vê na Prospecção SÓ o Modo Foco e a Base de leads (decisão 2026-08-27)", () => {
     const secoes = secoesVisiveis(sistema("prospeccao"), corretor).map((s) => s.id);
-    expect(secoes).toEqual(["funil-entrada", "base-leads"]);
+    expect(secoes).toEqual(["modo-foco", "base-leads"]);
   });
 
   it("superintendente: sem Distribuição/Captação, mas com o painel da Operação no BI", () => {
@@ -97,6 +97,13 @@ describe("home do BI por papel", () => {
   });
 });
 
+describe("home da Prospecção", () => {
+  it("o card abre DIRETO no Modo Foco (/prospeccao), para todo papel", () => {
+    expect(homeDoSistema(sistema("prospeccao"), corretor)).toEqual({ to: "/prospeccao" });
+    expect(homeDoSistema(sistema("prospeccao"), gestor)).toEqual({ to: "/prospeccao" });
+  });
+});
+
 describe("sistemaAtivo (pathname + search)", () => {
   const em = (pathname: string, search: Record<string, unknown> = {}) =>
     sistemaAtivo({ pathname, search })?.id ?? null;
@@ -105,8 +112,17 @@ describe("sistemaAtivo (pathname + search)", () => {
     expect(em("/pipeline")).toBe("carteira");
   });
 
-  it("/pipeline?fase=prospeccao pertence à Prospecção", () => {
-    expect(em("/pipeline", { fase: "prospeccao" })).toBe("prospeccao");
+  it("/pipeline?fase=prospeccao pertence à Carteira — o funil de entrada saiu da sidebar da Prospecção", () => {
+    // Sem a seção funil-entrada, o quadro (em qualquer fase) resolve pelo
+    // dominioExtra da Carteira, dona do /pipeline.
+    expect(em("/pipeline", { fase: "prospeccao" })).toBe("carteira");
+  });
+
+  it("/prospeccao é o Modo Foco — home e seção da Prospecção", () => {
+    expect(em("/prospeccao")).toBe("prospeccao");
+    expect(secaoAtiva(sistema("prospeccao"), { pathname: "/prospeccao", search: {} })?.id).toBe(
+      "modo-foco",
+    );
   });
 
   it("/pipeline?fase=carteira e ?tab=fechamento pertencem à Carteira", () => {

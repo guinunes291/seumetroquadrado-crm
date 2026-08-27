@@ -17,6 +17,7 @@ import {
   Briefcase,
   Building2,
   CalendarClock,
+  Crosshair,
   Headset,
   Hourglass,
   LineChart,
@@ -108,20 +109,24 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "prospeccao",
     titulo: "Prospecção",
-    descricao: "O volumão do topo do funil: entrada de leads, primeiro contato e qualificação.",
+    descricao: "O volumão do topo do funil: escolha a base do dia e trabalhe um lead por vez.",
     icon: Users,
-    home: { to: "/pipeline", search: { fase: "prospeccao" } },
+    // Abre DIRETO no Modo Foco: o corretor escolhe a base (Aguardando
+    // Atendimento / Aguardando Retorno / Em Qualificação), o sistema monta o
+    // lote e o trabalho é um por um. O funil kanban da fase saiu da sidebar
+    // de propósito — o quadro completo vive na Carteira (/pipeline).
+    home: { to: "/prospeccao" },
     // nav_pendencias.atendimento conta `aguardando_atendimento` — literalmente
     // uma etapa de Prospecção, por isso o contador vive neste card.
     badge: (b) => b.atendimento,
     grupo: "operacao",
     secoes: [
       {
-        id: "funil-entrada",
-        label: "Funil de entrada",
-        icon: Trello,
-        to: "/pipeline",
-        search: { fase: "prospeccao" },
+        id: "modo-foco",
+        label: "Modo Foco",
+        icon: Crosshair,
+        to: "/prospeccao",
+        badge: (b) => b.atendimento,
       },
       // A base completa (kanban/lista, ações em massa, importação) é a mesa de
       // triagem da entrada; a consulta da carteira segue viva em Carteira via
@@ -129,6 +134,9 @@ export const SISTEMAS: Sistema[] = [
       // de carteira (/leads/$leadId) acende a sidebar de Prospecção — quando
       // doer, o caminho é resolver o sistema pela etapa do lead, não pelo path.
       { id: "base-leads", label: "Base de leads", icon: Users, to: "/leads" },
+      // Para o CORRETOR a sidebar é só Modo Foco + Base de leads (decisão de
+      // 2026-08-27); as seções de gestão continuam role-gated — invisíveis
+      // para o corretor, e o único acesso de navegação da gestão a estas telas.
       {
         id: "distribuicao",
         label: "Distribuição",

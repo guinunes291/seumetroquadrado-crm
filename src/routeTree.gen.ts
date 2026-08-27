@@ -24,6 +24,7 @@ import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
 import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
+import { Route as AuthenticatedProspeccaoRouteImport } from './routes/_authenticated/prospeccao'
 import { Route as AuthenticatedProjetosMateriaisRouteImport } from './routes/_authenticated/projetos-materiais'
 import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
@@ -166,6 +167,11 @@ const AuthenticatedRankingRoute = AuthenticatedRankingRouteImport.update({
 const AuthenticatedRadarRoute = AuthenticatedRadarRouteImport.update({
   id: '/radar',
   path: '/radar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedProspeccaoRoute = AuthenticatedProspeccaoRouteImport.update({
+  id: '/prospeccao',
+  path: '/prospeccao',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjetosMateriaisRoute =
@@ -583,6 +589,7 @@ export interface FileRoutesByFullPath {
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
+  '/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -668,6 +675,7 @@ export interface FileRoutesByTo {
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
+  '/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -755,6 +763,7 @@ export interface FileRoutesById {
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/_authenticated/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
+  '/_authenticated/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/_authenticated/radar': typeof AuthenticatedRadarRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
@@ -842,6 +851,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/projetos-foco'
     | '/projetos-materiais'
+    | '/prospeccao'
     | '/radar'
     | '/ranking'
     | '/relatorios'
@@ -927,6 +937,7 @@ export interface FileRouteTypes {
     | '/pipeline'
     | '/projetos-foco'
     | '/projetos-materiais'
+    | '/prospeccao'
     | '/radar'
     | '/ranking'
     | '/relatorios'
@@ -1013,6 +1024,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pipeline'
     | '/_authenticated/projetos-foco'
     | '/_authenticated/projetos-materiais'
+    | '/_authenticated/prospeccao'
     | '/_authenticated/radar'
     | '/_authenticated/ranking'
     | '/_authenticated/relatorios'
@@ -1200,6 +1212,13 @@ declare module '@tanstack/react-router' {
       path: '/radar'
       fullPath: '/radar'
       preLoaderRoute: typeof AuthenticatedRadarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/prospeccao': {
+      id: '/_authenticated/prospeccao'
+      path: '/prospeccao'
+      fullPath: '/prospeccao'
+      preLoaderRoute: typeof AuthenticatedProspeccaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projetos-materiais': {
@@ -1721,6 +1740,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
   AuthenticatedProjetosMateriaisRoute: typeof AuthenticatedProjetosMateriaisRoute
+  AuthenticatedProspeccaoRoute: typeof AuthenticatedProspeccaoRoute
   AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
@@ -1771,6 +1791,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,
   AuthenticatedProjetosMateriaisRoute: AuthenticatedProjetosMateriaisRoute,
+  AuthenticatedProspeccaoRoute: AuthenticatedProspeccaoRoute,
   AuthenticatedRadarRoute: AuthenticatedRadarRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,

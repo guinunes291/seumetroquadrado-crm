@@ -63,7 +63,7 @@ export type FocusModeProps = {
   startId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  origem?: "leads" | "blitz";
+  origem?: "leads" | "blitz" | "prospeccao";
 };
 
 export function FocusMode({
@@ -134,7 +134,7 @@ export function FocusMode({
           </span>
           <span className="text-xs text-muted-foreground tabular-nums">
             {total > 0 ? `${index + 1} de ${total}` : "fila vazia"}
-            {origem === "blitz" ? " · Blitz" : ""}
+            {origem === "blitz" ? " · Blitz" : origem === "prospeccao" ? " · Prospecção" : ""}
           </span>
           <div className="ml-auto flex items-center gap-1.5">
             {leadId && (
@@ -369,10 +369,7 @@ function FocusBody({
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl border border-border-subtle bg-card p-3 shadow-elev-1">
           <InfoCell label="Telefone" value={lead.telefone} />
           <InfoCell label="E-mail" value={lead.email} />
-          <InfoCell
-            label="Origem"
-            value={<span>{origemLabel(lead.origem)}</span>}
-          />
+          <InfoCell label="Origem" value={<span>{origemLabel(lead.origem)}</span>} />
           <InfoCell label="Projeto" value={lead.projeto_nome} />
           <InfoCell label="Renda" value={lead.renda_informada} />
           <InfoCell label="Entrada" value={lead.entrada_disponivel} />
