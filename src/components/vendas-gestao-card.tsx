@@ -167,12 +167,25 @@ export function VendasGestaoCard({
   const excluirM = useMutation({
     mutationFn: async () => {
       if (!excluirVenda) throw new Error("Venda inválida");
+      const motivoLimpo = motivoExclusao.trim();
+      // Venda aprovada/distratada só sai pelo caminho administrativo, que
+      // desfaz comissões, VGV e metas sem registrar distrato.
+      if (excluirVenda.status_venda === "aprovada" || excluirVenda.distrato) {
+        if (motivoLimpo.length < 10) throw new Error("Descreva o motivo (mínimo 10 caracteres).");
+        const { error } = await supabase.rpc("excluir_venda_lancamento_errado", {
+          p_venda_id: excluirVenda.id,
+          p_motivo: motivoLimpo,
+        });
+        if (error) throw error;
+        return;
+      }
       const { error } = await supabase.rpc("excluir_venda", {
         p_venda_id: excluirVenda.id,
-        p_motivo: motivoExclusao.trim() || undefined,
+        p_motivo: motivoLimpo || undefined,
       });
       if (error) throw error;
     },
+
     onSuccess: async () => {
       toast.success("Venda excluída.");
       setExcluirVenda(null);
