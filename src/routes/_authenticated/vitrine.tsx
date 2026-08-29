@@ -51,6 +51,7 @@ import {
 import { toggleVitrineShortlist } from "@/lib/vitrine-publica";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { cn } from "@/lib/utils";
+import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
 
 const searchSchema = z.object({ leadId: z.string().optional() });
 
@@ -99,7 +100,7 @@ function VitrinePage() {
     queryFn: async (): Promise<VitrineLead | null> => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, nome, telefone, projeto_nome")
+        .select("id, nome, telefone, projeto_nome, status")
         .eq("id", leadId!)
         .maybeSingle();
       if (error) throw error;
@@ -107,6 +108,11 @@ function VitrinePage() {
     },
   });
   const lead = leadQ.data ?? null;
+
+  // Vitrine COM lead é passo da jornada (montar shortlist): a sidebar mantém
+  // o hub da fase do lead em vez de pular para Docs & Projetos. Sem leadId,
+  // é consulta de catálogo e nada é publicado (auditoria 2026-08-27).
+  usePublicarFaseDoLead(leadId ? (lead?.status ?? null) : null);
 
   const all = useMemo(() => projetosQ.data ?? [], [projetosQ.data]);
   const zonas = useMemo(() => zonasDisponiveis(all), [all]);

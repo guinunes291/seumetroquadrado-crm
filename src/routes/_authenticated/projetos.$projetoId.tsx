@@ -34,14 +34,22 @@ import { UnidadesTable } from "@/features/projetos/unidades-table";
 import { UnidadeFormDialog, type UnidadePayload } from "@/features/projetos/unidade-form-dialog";
 import { HistoricoPrecos } from "@/features/projetos/historico-precos";
 import { ProjetoFocoPanel, type FocoPayload } from "@/features/projetos/projeto-foco-panel";
+import { usePublicarFaseDoLeadPorId } from "@/features/nav/contexto-jornada";
 
 export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
+  // ?leadId marca a visita como passo de uma jornada (vindo do Match/Vitrine):
+  // a sidebar mantém o hub da fase do lead (auditoria 2026-08-27).
+  validateSearch: (search: Record<string, unknown>): { leadId?: string } => ({
+    leadId: typeof search.leadId === "string" && search.leadId ? search.leadId : undefined,
+  }),
   head: () => ({ meta: [{ title: "Detalhe do projeto — Seu Metro Quadrado" }] }),
   component: ProjetoDetalhePage,
 });
 
 function ProjetoDetalhePage() {
   const { projetoId } = Route.useParams();
+  const { leadId } = Route.useSearch();
+  usePublicarFaseDoLeadPorId(leadId);
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin;

@@ -19,6 +19,8 @@ export type VitrineLead = {
   nome: string;
   telefone: string;
   projeto_nome?: string | null;
+  /** Etapa do lead — alimenta a resolução contextual da sidebar (jornada). */
+  status?: string | null;
 };
 
 type Props = {
@@ -31,7 +33,11 @@ type Props = {
 };
 
 const precoLabel = (p: ProjetoRow): string =>
-  p.sob_consulta ? "Sob consulta" : p.preco_a_partir != null ? formatBRL(p.preco_a_partir) : "Sob consulta";
+  p.sob_consulta
+    ? "Sob consulta"
+    : p.preco_a_partir != null
+      ? formatBRL(p.preco_a_partir)
+      : "Sob consulta";
 
 function Spec({ k, v }: { k: string; v: string }) {
   return (
@@ -56,19 +62,21 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
 
   return (
     <Sheet open={!!p} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 p-0 sm:max-w-md"
-      >
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
         {p && (
           <>
             <SheetHeader className="space-y-2 border-b bg-primary/5 px-5 py-4 text-left">
               <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                {[zona ? `Zona ${zona}` : null, p.bairro].filter(Boolean).join(" · ") || "Localização a confirmar"}
+                {[zona ? `Zona ${zona}` : null, p.bairro].filter(Boolean).join(" · ") ||
+                  "Localização a confirmar"}
               </div>
               <SheetTitle className="text-xl leading-tight">{p.nome}</SheetTitle>
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                {p.construtora && <span>por <b className="text-foreground">{p.construtora}</b></span>}
+                {p.construtora && (
+                  <span>
+                    por <b className="text-foreground">{p.construtora}</b>
+                  </span>
+                )}
                 <Badge variant="secondary">{deriveSituacao(p)}</Badge>
               </div>
             </SheetHeader>
@@ -93,7 +101,10 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
                 />
                 <Spec
                   k="Entrega"
-                  v={formatEntrega(p.status_entrega, p.mes_entrega, p.ano_entrega) ?? deriveSituacao(p)}
+                  v={
+                    formatEntrega(p.status_entrega, p.mes_entrega, p.ano_entrega) ??
+                    deriveSituacao(p)
+                  }
                 />
               </div>
 
@@ -156,7 +167,9 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
               </div>
               <Button className="w-full gap-2" onClick={() => onEnviar(p)}>
                 <MessageCircle className="h-4 w-4" />
-                {primeiroNome ? `Enviar pro ${primeiroNome} (WhatsApp)` : "Enviar pro cliente (WhatsApp)"}
+                {primeiroNome
+                  ? `Enviar pro ${primeiroNome} (WhatsApp)`
+                  : "Enviar pro cliente (WhatsApp)"}
               </Button>
             </div>
           </>
@@ -198,15 +211,15 @@ function MaterialButton({
       }}
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors",
-        disabled
-          ? "cursor-not-allowed opacity-60"
-          : "hover:border-primary/40 hover:bg-accent",
+        disabled ? "cursor-not-allowed opacity-60" : "hover:border-primary/40 hover:bg-accent",
       )}
     >
       <span className="flex items-center gap-1.5 text-sm font-semibold">
         <Icon className="h-4 w-4" /> {label}
       </span>
-      <span className="text-[11px] text-muted-foreground">{url ? hint : "Sem link cadastrado"}</span>
+      <span className="text-[11px] text-muted-foreground">
+        {url ? hint : "Sem link cadastrado"}
+      </span>
     </a>
   );
 }
