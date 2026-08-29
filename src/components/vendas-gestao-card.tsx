@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
+import type { Hue } from "@/lib/status-tones";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -62,12 +63,8 @@ const hojeLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const statusHue = (s: StatusVenda) =>
-  s === "aprovada"
-    ? "green"
-    : s === "cancelada" || s === "rejeitada"
-      ? "red"
-      : ("amber" as const);
+const statusHue = (s: StatusVenda): Hue =>
+  s === "aprovada" ? "green" : s === "cancelada" || s === "rejeitada" ? "rose" : "amber";
 
 const statusLabel: Record<StatusVenda, string> = {
   rascunho: "Rascunho",
@@ -172,7 +169,7 @@ export function VendasGestaoCard({
       if (!excluirVenda) throw new Error("Venda inválida");
       const { error } = await supabase.rpc("excluir_venda", {
         p_venda_id: excluirVenda.id,
-        p_motivo: motivoExclusao.trim() || null,
+        p_motivo: motivoExclusao.trim() || undefined,
       });
       if (error) throw error;
     },
