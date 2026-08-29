@@ -16,6 +16,7 @@ import {
   type QueueKey,
 } from "@/features/atendimento/derive";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 const QUEUE_ACCENT: Record<QueueKey, string> = {
   novos: "border-primary/30",
@@ -38,6 +39,7 @@ export function QueueSection({
   totalCount,
   icon: Icon,
   iconClass,
+  action,
   onWhatsApp,
   onPeek,
   onRegistrarContato,
@@ -51,6 +53,8 @@ export function QueueSection({
   totalCount?: number;
   icon: LucideIcon;
   iconClass: string;
+  /** Ação do cabeçalho (ex.: link para o hub dono da fila) — opcional. */
+  action?: ReactNode;
   onWhatsApp: (item: QueueItem, mensagem: string) => void;
   onPeek: (item: QueueItem) => void;
   onRegistrarContato: (item: QueueItem) => void;
@@ -80,6 +84,7 @@ export function QueueSection({
           <span className="ml-1 text-xs font-normal text-muted-foreground">
             {QUEUE_HINT[queue]}
           </span>
+          {action && <span className="ml-auto font-normal">{action}</span>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
