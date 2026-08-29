@@ -477,6 +477,15 @@ describe("nav_pendencias: contador followups", () => {
     // a tarefa de amanhã fica de fora
     expect(nav.followups).toBe(2);
   });
+
+  it("contadores DISJUNTOS (v4): tarefa de contato vencida NÃO acende tarefas_vencidas", async () => {
+    // Todas as tarefas vencidas da fixture são de CONTATO — domínio do
+    // contador `followups`. Zerar a régua no hub Follow-Up apaga o esforço em
+    // todo lugar; tarefas_vencidas fica só com visita/documentacao/outro.
+    await comoUsuario(c, corretorNav.id);
+    const r = await c.query(`SELECT public.nav_pendencias() AS nav`);
+    expect((r.rows[0].nav as Record<string, number>).tarefas_vencidas).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

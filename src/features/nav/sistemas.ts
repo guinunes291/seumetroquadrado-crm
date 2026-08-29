@@ -187,18 +187,25 @@ export const SISTEMAS: Sistema[] = [
         search: { fase: "carteira" },
       },
       {
+        // "Reta final" e não "Fechamento": o nome disputava com a aba
+        // Fechamento do Financeiro e mandava gente ao hub errado (auditoria
+        // das abas laterais, 2026-08-27).
         id: "fechamento",
-        label: "Modo Fechamento",
+        label: "Reta final",
         icon: Target,
         to: "/pipeline",
         search: { tab: "fechamento" },
       },
       {
+        // "Trabalhar carteira" e não "Atender": a palavra disputava com a
+        // Central de Atendimento. O badge perdeu b.atendimento de propósito —
+        // cada contador tem UM dono, e aguardando_atendimento é da Prospecção
+        // (Modo Foco); aqui fica só o que é da carteira (tarefas vencidas).
         id: "atender",
-        label: "Atender",
-        icon: Headset,
+        label: "Trabalhar carteira",
+        icon: Briefcase,
         to: "/atendimento",
-        badge: (b) => b.atendimento + b.tarefasVencidas,
+        badge: (b) => b.tarefasVencidas,
       },
       {
         id: "agenda",
@@ -251,6 +258,17 @@ export const SISTEMAS: Sistema[] = [
         to: "/follow-up",
         search: { tab: "cobertura" },
         roles: GESTAO,
+      },
+      {
+        // A régua se configura ONDE se opera (padrão da Central de
+        // Distribuição): quem vê a Cobertura esgotando não deveria caçar o
+        // ajuste num hub admin sem link. Aba admin-only dentro do módulo.
+        id: "config",
+        label: "Config da régua",
+        icon: Settings,
+        to: "/follow-up",
+        search: { tab: "config" },
+        roles: ["admin"],
       },
     ],
   },
@@ -324,7 +342,27 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/configuracoes" },
     roles: ["admin"],
     grupo: "gestao",
-    secoes: [],
+    // As abas mais buscadas ganham endereço na sidebar e no ⌘K (antes o card
+    // era mudo: 9 abas internas inalcançáveis pela navegação). A seção
+    // Integrações, sem search, é dona do /configuracoes cru — o card deixa de
+    // abrir uma tela sem sidebar. Demais abas seguem internas ao painel.
+    secoes: [
+      { id: "integracoes", label: "Integrações", icon: Link2, to: "/configuracoes" },
+      {
+        id: "pessoas",
+        label: "Pessoas",
+        icon: Users,
+        to: "/configuracoes",
+        search: { tab: "pessoas" },
+      },
+      {
+        id: "estoque",
+        label: "Estoque",
+        icon: Building2,
+        to: "/configuracoes",
+        search: { tab: "estoque" },
+      },
+    ],
   },
 ];
 

@@ -26,9 +26,16 @@ const CoberturaView = lazy(() =>
     default: CoberturaView,
   })),
 );
+// A régua se configura onde se opera (auditoria das abas laterais,
+// 2026-08-27): o editor saiu da aba Follow-Up de /configuracoes para cá.
+const ReguaFollowUpConfigCard = lazy(() =>
+  import("@/features/gestao/regua-followup-config").then(({ ReguaFollowUpConfigCard }) => ({
+    default: ReguaFollowUpConfigCard,
+  })),
+);
 
-type FollowUpTab = "esgotados" | "kpis" | "cobertura";
-const TABS: FollowUpTab[] = ["esgotados", "kpis", "cobertura"];
+type FollowUpTab = "esgotados" | "kpis" | "cobertura" | "config";
+const TABS: FollowUpTab[] = ["esgotados", "kpis", "cobertura", "config"];
 
 export const Route = createFileRoute("/_authenticated/follow-up")({
   head: () => ({ meta: [{ title: "Follow-Up — Seu Metro Quadrado" }] }),
@@ -81,6 +88,21 @@ function FollowUpPage() {
             icon={Lock}
             title="Acesso restrito à gestão"
             description="A cobertura de follow-up por corretor é uma visão de gestão. Sua fila do dia continua disponível na seção Fila."
+            className="py-16"
+          />
+        ))}
+      {tab === "config" &&
+        (rolesLoading ? (
+          <AbaSkeleton />
+        ) : isAdmin ? (
+          <Suspense fallback={<AbaSkeleton />}>
+            <ReguaFollowUpConfigCard />
+          </Suspense>
+        ) : (
+          <EmptyState
+            icon={Lock}
+            title="Configuração restrita ao administrador"
+            description="A cadência da régua vale para a operação inteira — o ajuste é do admin. A Cobertura mostra o efeito dela no time."
             className="py-16"
           />
         ))}

@@ -75,7 +75,6 @@ import {
   List,
   Trello,
   Upload,
-  Zap,
   MessageCircle,
   Phone,
   PhoneCall,
@@ -949,11 +948,10 @@ function LeadsPage() {
                 <Trello className="h-4 w-4 mr-1" /> Kanban
               </Button>
             </div>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/atendimento" search={{ modo: "volume" }}>
-                <Zap className="h-4 w-4 mr-1" /> Volume
-              </Link>
-            </Button>
+            {/* O atalho "Volume" saiu daqui de propósito (auditoria das abas
+                laterais, 2026-08-27): empurrava o corretor para o hub Carteira
+                no meio da triagem — trabalhar em lote NESTE hub é o Modo Foco
+                (atalho F). O modo Volume segue com porta na Carteira. */}
             {canManage && (
               <>
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
