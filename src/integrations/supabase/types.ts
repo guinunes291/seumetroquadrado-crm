@@ -6800,6 +6800,10 @@ export type Database = {
           vendas_janela: number
         }[]
       }
+      excluir_venda: {
+        Args: { p_motivo?: string; p_venda_id: string }
+        Returns: undefined
+      }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       faixa_mcmv_norm: { Args: { _v: string }; Returns: string }
       fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }

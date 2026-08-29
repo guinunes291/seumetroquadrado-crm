@@ -18,6 +18,8 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { PageHeader } from "@/components/page-header";
 import { PendingSalesApproval } from "@/components/pending-sales-approval";
+import { VendasGestaoCard } from "@/components/vendas-gestao-card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -499,6 +501,9 @@ export function ComissoesPage() {
       />
 
       {canManage && <PendingSalesApproval />}
+
+      {canManage && <VendasGestaoCard mes={mes} isAdmin={isAdmin} />}
+
 
       <StatGrid>
         <StatTile
