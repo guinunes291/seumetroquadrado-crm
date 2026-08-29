@@ -167,12 +167,25 @@ export function VendasGestaoCard({
   const excluirM = useMutation({
     mutationFn: async () => {
       if (!excluirVenda) throw new Error("Venda inválida");
+      const motivoLimpo = motivoExclusao.trim();
+      // Venda aprovada/distratada só sai pelo caminho administrativo, que
+      // desfaz comissões, VGV e metas sem registrar distrato.
+      if (excluirVenda.status_venda === "aprovada" || excluirVenda.distrato) {
+        if (motivoLimpo.length < 10) throw new Error("Descreva o motivo (mínimo 10 caracteres).");
+        const { error } = await supabase.rpc("excluir_venda_lancamento_errado", {
+          p_venda_id: excluirVenda.id,
+          p_motivo: motivoLimpo,
+        });
+        if (error) throw error;
+        return;
+      }
       const { error } = await supabase.rpc("excluir_venda", {
         p_venda_id: excluirVenda.id,
-        p_motivo: motivoExclusao.trim() || undefined,
+        p_motivo: motivoLimpo || undefined,
       });
       if (error) throw error;
     },
+
     onSuccess: async () => {
       toast.success("Venda excluída.");
       setExcluirVenda(null);
@@ -253,7 +266,7 @@ export function VendasGestaoCard({
                         <FileMinus2 className="mr-2 h-4 w-4" /> Registrar distrato
                       </DropdownMenuItem>
                     )}
-                    {isAdmin && venda.status_venda !== "aprovada" && (
+                    {isAdmin && (
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={() => {
@@ -261,9 +274,13 @@ export function VendasGestaoCard({
                           setMotivoExclusao("");
                         }}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> Excluir venda
+                        <Trash2 className="mr-2 h-4 w-4" />{" "}
+                        {venda.status_venda === "aprovada" || venda.distrato
+                          ? "Excluir venda (lançamento errado)"
+                          : "Excluir venda"}
                       </DropdownMenuItem>
                     )}
+
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -331,13 +348,17 @@ export function VendasGestaoCard({
           <DialogHeader>
             <DialogTitle>Excluir venda</DialogTitle>
             <DialogDescription>
-              A venda e suas comissões são apagadas definitivamente. Vendas aprovadas precisam de
-              distrato antes, e vendas com lançamento financeiro no histórico não podem ser
-              excluídas.
+              {excluirVenda?.status_venda === "aprovada" || excluirVenda?.distrato
+                ? "Para vendas lançadas por engano: a venda, as comissões, o VGV e as metas são desfeitos sem registrar distrato. A ação é auditada e não pode ser desfeita. Vendas já conciliadas no financeiro não podem ser excluídas."
+                : "A venda e suas comissões são apagadas definitivamente. Vendas com lançamento financeiro no histórico não podem ser excluídas."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
-            <Label htmlFor="exclusao-motivo">Motivo (opcional, fica na auditoria)</Label>
+            <Label htmlFor="exclusao-motivo">
+              {excluirVenda?.status_venda === "aprovada" || excluirVenda?.distrato
+                ? "Motivo * (mínimo 10 caracteres, fica na auditoria)"
+                : "Motivo (opcional, fica na auditoria)"}
+            </Label>
             <Textarea
               id="exclusao-motivo"
               maxLength={1000}
@@ -355,7 +376,11 @@ export function VendasGestaoCard({
             </Button>
             <Button
               variant="destructive"
-              disabled={excluirM.isPending}
+              disabled={
+                excluirM.isPending ||
+                ((excluirVenda?.status_venda === "aprovada" || !!excluirVenda?.distrato) &&
+                  motivoExclusao.trim().length < 10)
+              }
               onClick={() => excluirM.mutate()}
             >
               {excluirM.isPending ? "Excluindo…" : "Excluir definitivamente"}
@@ -363,6 +388,7 @@ export function VendasGestaoCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </>
   );
 }
