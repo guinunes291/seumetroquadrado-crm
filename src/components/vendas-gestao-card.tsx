@@ -266,7 +266,7 @@ export function VendasGestaoCard({
                         <FileMinus2 className="mr-2 h-4 w-4" /> Registrar distrato
                       </DropdownMenuItem>
                     )}
-                    {isAdmin && venda.status_venda !== "aprovada" && (
+                    {isAdmin && (
                       <DropdownMenuItem
                         className="text-destructive"
                         onClick={() => {
@@ -274,9 +274,13 @@ export function VendasGestaoCard({
                           setMotivoExclusao("");
                         }}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> Excluir venda
+                        <Trash2 className="mr-2 h-4 w-4" />{" "}
+                        {venda.status_venda === "aprovada" || venda.distrato
+                          ? "Excluir venda (lançamento errado)"
+                          : "Excluir venda"}
                       </DropdownMenuItem>
                     )}
+
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
