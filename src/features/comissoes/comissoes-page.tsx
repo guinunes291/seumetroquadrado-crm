@@ -500,6 +500,9 @@ export function ComissoesPage() {
 
       {canManage && <PendingSalesApproval />}
 
+      {canManage && <VendasGestaoCard mes={mes} isAdmin={isAdmin} />}
+
+
       <StatGrid>
         <StatTile
           title={canManage ? "VGV do período" : "Meu VGV do período"}
