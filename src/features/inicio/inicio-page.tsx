@@ -149,10 +149,9 @@ export function InicioPage() {
         {loading ? (
           // Papéis ainda carregando: sem grade parcial, para os cards de gestão
           // não "pipocarem" depois (nem piscarem para quem não vai vê-los).
-          // 8 cards de operação = 9 células, porque o destaque ocupa duas.
           <div className={GRID_CLASSES} aria-busy="true">
             {Array.from({ length: 8 }, (_, i) => (
-              <Skeleton key={i} className={cn("h-44 rounded-xl", i === 0 && "sm:col-span-2")} />
+              <Skeleton key={i} className="h-44 rounded-xl" />
             ))}
           </div>
         ) : (
@@ -205,10 +204,10 @@ function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number;
     // exemplo, leva o corretor ao /meu-raio-x e a gestão ao /painel-gestor.
     <Link
       {...homeDoSistema(sistema, ctx)}
-      className={cn(
-        "group flex min-h-44 flex-col rounded-xl border border-border-subtle bg-card p-5 shadow-elev-1 hover-lift press-scale hover:border-primary/40",
-        sistema.destaque && "sm:col-span-2",
-      )}
+      // TODOS os cards têm o mesmo tamanho (decisão 2026-08-30): o destaque
+      // vive só no acento dourado do ícone — nada de col-span, que fazia a
+      // Central de Comando ocupar duas células e quebrava o ritmo da grade.
+      className="group flex min-h-44 flex-col rounded-xl border border-border-subtle bg-card p-5 shadow-elev-1 hover-lift press-scale hover:border-primary/40"
     >
       <div className="flex items-start justify-between gap-2">
         <span
@@ -227,8 +226,12 @@ function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number;
           </span>
         )}
       </div>
-      <h3 className="mt-4 font-display font-semibold">{sistema.titulo}</h3>
-      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{sistema.descricao}</p>
+      <h3 className="mt-4 truncate font-display font-semibold">{sistema.titulo}</h3>
+      {/* Espaço FIXO de 2 linhas: descrição curta ou longa, o card não muda
+          de altura entre linhas da grade. */}
+      <p className="mt-1 line-clamp-2 min-h-10 text-sm text-muted-foreground">
+        {sistema.descricao}
+      </p>
       <span className="mt-auto flex items-center gap-1 pt-4 text-sm font-medium text-primary">
         Acessar
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
