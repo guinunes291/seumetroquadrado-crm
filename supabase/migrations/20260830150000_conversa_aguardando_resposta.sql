@@ -13,13 +13,22 @@
 --   1. `conversas_tratadas` — marcador por LEAD ("dei esta conversa por
 --      tratada em T"). Uma linha por lead, upsert; uma entrada NOVA depois de
 --      T reabre a pendência sozinha (nada de flag que gruda).
---   2. `conversa_aguardando_resposta(lead)` — O predicado, fonte única:
---      pendente ⇔ última ENTRADA > última SAÍDA e > tratada_em. Os marcos de
---      entrada/saída espelham a régua de follow-up (20260827130000): entrada
---      em interacoes (sem nota/mudança de status) OU em mensagens — o eco
---      pode falhar e a resposta real não pode sumir; saída em interacoes
---      (com autor), mensagens (sem falha) OU chamadas (sem falha) — qualquer
---      retorno registrado apaga a luz, inclusive os botões wa.me existentes.
+--   2. `conversas_aguardando_resposta(lead_ids)` — O predicado, fonte única,
+--      SET-BASED (um passe agrupado; a versão escalar por lead custava caro
+--      demais dentro do inbox e do nav — revisão adversarial do lote):
+--      pendente ⇔ última ENTRADA > última SAÍDA e > tratada_em, onde
+--        entrada = interacoes de máquina (autor_id IS NULL: eco de webhook,
+--                  ligação perdida — uma ligação ATENDIDA ou um contato
+--                  registrado à mão tem autor e NÃO deixa ninguém esperando;
+--                  nota/mudança de status nunca são conversa)
+--                  OU mensagens (marco = recebida_em, o instante de chegada
+--                  ao CRM — o criado_em do provedor pode chegar atrasado num
+--                  retry de webhook e nascer atrás da saída, sumindo a luz);
+--        saída   = interacoes com autor OU mensagens de corretor sem falha
+--                  OU chamadas de saída sem falha — qualquer retorno HUMANO
+--                  registrado apaga a luz, inclusive os botões wa.me.
+--      A versão escalar `conversa_aguardando_resposta(lead)` é um wrapper da
+--      set-based — uma regra só, deriva impossível.
 --   3. Consumidores na MESMA fonte: nav_pendencias v5 (chave nova
 --      `mensagens_aguardando`, dona única: Comunicações) e a fila
 --      "responder" do atendimento_inbox_v4 (deixa de ler só o eco).
@@ -31,6 +40,17 @@
 -- depois do fim da jornada precisa acender em algum lugar, e esse lugar é a
 -- Central — a fila do /atendimento segue recortada à carteira ativa.
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- 0) mensagens.recebida_em — o marco de pendência é a CHEGADA ao CRM
+-- ---------------------------------------------------------------------------
+-- O webhook grava criado_em = timestamp do provedor (ordem verdadeira da
+-- thread e da régua de toques — não muda). Para a pendência vale o instante
+-- em que o CRM ficou sabendo: entrega atrasada nunca nasce "já respondida".
+ALTER TABLE public.mensagens ADD COLUMN IF NOT EXISTS recebida_em timestamptz;
+UPDATE public.mensagens SET recebida_em = criado_em WHERE recebida_em IS NULL;
+ALTER TABLE public.mensagens ALTER COLUMN recebida_em SET DEFAULT now();
+ALTER TABLE public.mensagens ALTER COLUMN recebida_em SET NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- 1) Marcador "conversa tratada" (por lead)
@@ -63,55 +83,83 @@ EXCEPTION
 END $$;
 
 -- ---------------------------------------------------------------------------
--- 2) O predicado — fonte única de "aguardando resposta"
+-- 2) O predicado — fonte única de "aguardando resposta" (set-based)
 -- ---------------------------------------------------------------------------
 -- SECURITY INVOKER e SEM grant para authenticated: quem chama são as funções
 -- DEFINER abaixo (nav_pendencias, inbox, conversa_estado) — o recorte de
--- acesso é responsabilidade delas, e o predicado nunca vira superfície PostgREST.
+-- acesso é responsabilidade delas, e o predicado nunca vira superfície
+-- PostgREST. Devolve uma linha por lead COM eventos (lead mudo não aparece;
+-- os wrappers tratam a ausência como não-aguardando).
+CREATE OR REPLACE FUNCTION public.conversas_aguardando_resposta(_lead_ids uuid[])
+RETURNS TABLE (lead_id uuid, aguardando boolean, ultima_entrada timestamptz)
+LANGUAGE sql
+STABLE
+SET search_path = public
+AS $$
+  WITH alvo AS (
+    SELECT DISTINCT a.id FROM unnest(_lead_ids) AS a(id) WHERE a.id IS NOT NULL
+  ),
+  eventos AS (
+    SELECT i.lead_id, i.direcao::text AS dir, i.ocorreu_em AS em
+    FROM public.interacoes i
+    JOIN alvo ON alvo.id = i.lead_id
+    WHERE i.deleted_at IS NULL
+      AND i.tipo NOT IN ('nota','mudanca_status')
+      AND ((i.direcao = 'entrada' AND i.autor_id IS NULL)
+        OR (i.direcao = 'saida' AND i.autor_id IS NOT NULL))
+    UNION ALL
+    SELECT m.lead_id, m.direcao, m.recebida_em
+    FROM public.mensagens m
+    JOIN alvo ON alvo.id = m.lead_id
+    WHERE m.direcao = 'entrada'
+       OR (m.direcao = 'saida' AND m.corretor_id IS NOT NULL AND m.status <> 'falha')
+    UNION ALL
+    SELECT c.lead_id, 'saida', c.criado_em
+    FROM public.chamadas c
+    JOIN alvo ON alvo.id = c.lead_id
+    WHERE c.direcao = 'saida' AND c.status <> 'falha'
+  ),
+  marcos AS (
+    SELECT e.lead_id,
+           max(e.em) FILTER (WHERE e.dir = 'entrada') AS ult_entrada,
+           max(e.em) FILTER (WHERE e.dir = 'saida') AS ult_saida
+    FROM eventos e
+    GROUP BY e.lead_id
+  )
+  SELECT
+    m.lead_id,
+    (m.ult_entrada IS NOT NULL
+       AND m.ult_entrada > COALESCE(m.ult_saida, '-infinity'::timestamptz)
+       AND m.ult_entrada > COALESCE(ct.tratada_em, '-infinity'::timestamptz)),
+    m.ult_entrada
+  FROM marcos m
+  LEFT JOIN public.conversas_tratadas ct ON ct.lead_id = m.lead_id
+$$;
+
+REVOKE ALL ON FUNCTION public.conversas_aguardando_resposta(uuid[])
+  FROM PUBLIC, anon, authenticated;
+
+COMMENT ON FUNCTION public.conversas_aguardando_resposta(uuid[])
+  IS 'Fonte unica set-based de "aguardando resposta": ultima entrada de maquina (interacoes com autor NULL sem nota/mudanca_status; mensagens por recebida_em) mais recente que a ultima saida humana (interacoes com autor, mensagens de corretor sem falha, chamadas sem falha) e que o marcador conversas_tratadas.';
+
+-- Versão escalar: wrapper da set-based (uma regra só). Lead sem eventos ou
+-- inexistente → (false, NULL).
 CREATE OR REPLACE FUNCTION public.conversa_aguardando_resposta(_lead_id uuid)
 RETURNS TABLE (aguardando boolean, ultima_entrada timestamptz)
 LANGUAGE sql
 STABLE
 SET search_path = public
 AS $$
-  WITH marcos AS (
-    SELECT
-      (SELECT max(e.q) FROM (
-         SELECT i.ocorreu_em AS q FROM public.interacoes i
-         WHERE i.lead_id = _lead_id AND i.direcao = 'entrada'
-           AND i.tipo NOT IN ('nota','mudanca_status') AND i.deleted_at IS NULL
-         UNION ALL
-         SELECT m.criado_em FROM public.mensagens m
-         WHERE m.lead_id = _lead_id AND m.direcao = 'entrada'
-       ) e) AS ult_entrada,
-      (SELECT max(s.q) FROM (
-         SELECT i.ocorreu_em AS q FROM public.interacoes i
-         WHERE i.lead_id = _lead_id AND i.direcao = 'saida' AND i.autor_id IS NOT NULL
-           AND i.tipo NOT IN ('nota','mudanca_status') AND i.deleted_at IS NULL
-         UNION ALL
-         SELECT m.criado_em FROM public.mensagens m
-         WHERE m.lead_id = _lead_id AND m.direcao = 'saida'
-           AND m.corretor_id IS NOT NULL AND m.status <> 'falha'
-         UNION ALL
-         SELECT c.criado_em FROM public.chamadas c
-         WHERE c.lead_id = _lead_id AND c.direcao = 'saida' AND c.status <> 'falha'
-       ) s) AS ult_saida,
-      (SELECT ct.tratada_em FROM public.conversas_tratadas ct
-        WHERE ct.lead_id = _lead_id) AS tratada_em
-  )
-  SELECT
-    (m.ult_entrada IS NOT NULL
-       AND m.ult_entrada > COALESCE(m.ult_saida, '-infinity'::timestamptz)
-       AND m.ult_entrada > COALESCE(m.tratada_em, '-infinity'::timestamptz)),
-    m.ult_entrada
-  FROM marcos m
+  SELECT COALESCE(c.aguardando, false), c.ultima_entrada
+  FROM (SELECT 1) AS um
+  LEFT JOIN public.conversas_aguardando_resposta(ARRAY[_lead_id]) AS c ON true
 $$;
 
 REVOKE ALL ON FUNCTION public.conversa_aguardando_resposta(uuid)
   FROM PUBLIC, anon, authenticated;
 
 COMMENT ON FUNCTION public.conversa_aguardando_resposta(uuid)
-  IS 'Fonte unica de "aguardando resposta": ultima entrada (interacoes sem nota/mudanca_status OU mensagens) mais recente que a ultima saida (interacoes com autor, mensagens sem falha, chamadas sem falha) e que o marcador conversas_tratadas.';
+  IS 'Wrapper escalar de conversas_aguardando_resposta(uuid[]) — mesma regra, um lead.';
 
 -- ---------------------------------------------------------------------------
 -- 3) RPCs do cliente: estado da conversa e marcar como tratada
@@ -263,17 +311,22 @@ BEGIN
         <= (now() AT TIME ZONE 'America/Sao_Paulo')::date
     AND (_tudo OR t.corretor_id = ANY(_escopo));
 
-  -- v5: conversas aguardando resposta pela FONTE ÚNICA. Leads da fila de
-  -- entrada ficam fora (o badge `atendimento` da Prospecção é o dono deles);
+  -- v5: conversas aguardando resposta pela FONTE ÚNICA, num passe set-based
+  -- (a base inteira de um admin não aguenta função por lead). Leads da fila
+  -- de entrada ficam fora (o badge `atendimento` da Prospecção é o dono);
   -- etapas terminais contam — cliente que escreve depois do fim da jornada
-  -- acende aqui, e o botão de apagar (responder/marcar tratada) vive na Central.
+  -- acende aqui, e o botão de apagar (responder/marcar tratada) vive na
+  -- Central.
   SELECT count(*) INTO _mensagens
-  FROM public.leads l
-  WHERE l.na_lixeira = false
-    AND l.deleted_at IS NULL
-    AND l.status NOT IN ('novo', 'aguardando_atendimento')
-    AND (_tudo OR l.corretor_id = ANY(_escopo))
-    AND (SELECT ca.aguardando FROM public.conversa_aguardando_resposta(l.id) ca);
+  FROM public.conversas_aguardando_resposta(ARRAY(
+    SELECT l.id
+    FROM public.leads l
+    WHERE l.na_lixeira = false
+      AND l.deleted_at IS NULL
+      AND l.status NOT IN ('novo', 'aguardando_atendimento')
+      AND (_tudo OR l.corretor_id = ANY(_escopo))
+  )) ca
+  WHERE ca.aguardando;
 
   RETURN jsonb_build_object(
     'atendimento', _atendimento,
@@ -293,10 +346,11 @@ GRANT EXECUTE ON FUNCTION public.nav_pendencias() TO authenticated;
 -- 5) atendimento_inbox_v4 — a fila "responder" lê a fonte única
 -- ---------------------------------------------------------------------------
 -- Mesma assinatura e mesmas filas da v4 (20260809121000); muda SÓ a origem do
--- "responder": antes `última interação = entrada` (o eco), agora o predicado
--- conversa_aguardando_resposta — eco perdido não cega a fila, e "marcar
--- tratada" na Central tira o lead daqui também (fonte única de verdade).
--- O motivo e o desempate passam a usar a última entrada REAL do cliente.
+-- "responder": antes `última interação = entrada` (o eco), agora a fonte
+-- única — eco perdido não cega a fila, ligação atendida não acende luz falsa,
+-- e "marcar tratada" na Central tira o lead daqui também. O motivo e o
+-- desempate usam a última entrada REAL do cliente. A pendência chega num
+-- passe set-based (CTE `pendentes`), nunca função por lead.
 CREATE OR REPLACE FUNCTION public.atendimento_inbox_v4(
   _corretor_id uuid DEFAULT NULL,
   _limit_per_queue integer DEFAULT 15
@@ -332,6 +386,18 @@ BEGIN
       ('esfriando'::text, 4),
       ('confirmar_visita'::text, 5),
       ('docs'::text, 6)
+  ), pendentes AS (
+    -- Fonte única de "aguardando resposta" para os leads ativos do corretor.
+    SELECT p.lead_id, p.ultima_entrada
+    FROM public.conversas_aguardando_resposta(ARRAY(
+      SELECT l.id
+      FROM public.leads l
+      WHERE l.deleted_at IS NULL
+        AND l.na_lixeira = false
+        AND l.corretor_id = _target
+        AND l.status NOT IN ('perdido', 'contrato_fechado', 'pos_venda')
+    )) AS p
+    WHERE p.aguardando
   ), base AS (
     SELECT
       l.id,
@@ -349,8 +415,8 @@ BEGIN
       l.renda_informada,
       l.entrada_disponivel,
       l.usa_fgts,
-      COALESCE(conversa.aguardando, false) AS aguardando_resposta,
-      conversa.ultima_entrada AS ultima_entrada_cliente,
+      (pendentes.lead_id IS NOT NULL) AS aguardando_resposta,
+      pendentes.ultima_entrada AS ultima_entrada_cliente,
       COALESCE(docs.quantidade, 0::bigint) AS docs_pendentes,
       visita.agendamento_id AS visita_agendamento_id,
       visita.data_inicio AS visita_em,
@@ -363,10 +429,10 @@ BEGIN
         )) / 86400)::integer
       ) AS dias_sem_contato,
       CASE
-        WHEN conversa.ultima_entrada IS NULL THEN NULL
+        WHEN pendentes.ultima_entrada IS NULL THEN NULL
         ELSE GREATEST(
           0,
-          floor(extract(epoch FROM (_now - conversa.ultima_entrada)) / 60)::bigint
+          floor(extract(epoch FROM (_now - pendentes.ultima_entrada)) / 60)::bigint
         )
       END AS minutos_desde_resposta,
       CASE
@@ -381,12 +447,7 @@ BEGIN
         floor(extract(epoch FROM (_now - l.created_at)) / 60)::bigint
       ) AS minutos_desde_chegada
     FROM public.leads AS l
-    LEFT JOIN LATERAL (
-      -- Fonte única de "aguardando resposta" (mensagens + interacoes +
-      -- marcador tratada) — substitui o "última interação = entrada" do eco.
-      SELECT ca.aguardando, ca.ultima_entrada
-      FROM public.conversa_aguardando_resposta(l.id) AS ca
-    ) AS conversa ON true
+    LEFT JOIN pendentes ON pendentes.lead_id = l.id
     LEFT JOIN LATERAL (
       SELECT count(*)::bigint AS quantidade
       FROM public.documentacoes AS d
@@ -579,23 +640,34 @@ GRANT EXECUTE ON FUNCTION public.atendimento_inbox_v4(uuid, integer)
   TO authenticated;
 
 COMMENT ON FUNCTION public.atendimento_inbox_v4(uuid, integer)
-  IS 'Inbox v4.1: a fila responder le a fonte unica conversa_aguardando_resposta (mensagens + interacoes + marcador tratada) em vez do eco de interacoes; motivo e desempate pela ultima entrada real do cliente. Demais filas identicas a v4.';
+  IS 'Inbox v4.1: a fila responder le a fonte unica conversas_aguardando_resposta (mensagens + interacoes de maquina + marcador tratada, set-based) em vez do eco de interacoes; motivo e desempate pela ultima entrada real do cliente. Demais filas identicas a v4.';
 
 -- ---------------------------------------------------------------------------
 -- 6) Sanidade: falha o replay se a fonte única não ficou de pé
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
+  _fonte text := pg_get_functiondef('public.conversas_aguardando_resposta(uuid[])'::regprocedure);
   _nav text := pg_get_functiondef('public.nav_pendencias()'::regprocedure);
   _inbox text := pg_get_functiondef('public.atendimento_inbox_v4(uuid, integer)'::regprocedure);
 BEGIN
   IF to_regclass('public.conversas_tratadas') IS NULL THEN
     RAISE EXCEPTION 'conversa_aguardando_resposta: tabela conversas_tratadas nao existe';
   END IF;
-  IF to_regprocedure('public.conversa_aguardando_resposta(uuid)') IS NULL
+  IF to_regprocedure('public.conversas_aguardando_resposta(uuid[])') IS NULL
+     OR to_regprocedure('public.conversa_aguardando_resposta(uuid)') IS NULL
      OR to_regprocedure('public.conversa_estado(uuid)') IS NULL
      OR to_regprocedure('public.marcar_conversa_tratada(uuid)') IS NULL THEN
     RAISE EXCEPTION 'conversa_aguardando_resposta: funcoes da fonte unica ausentes';
+  END IF;
+  IF (SELECT atttypid FROM pg_attribute
+       WHERE attrelid = 'public.mensagens'::regclass AND attname = 'recebida_em') IS NULL THEN
+    RAISE EXCEPTION 'mensagens.recebida_em (marco de chegada ao CRM) nao existe';
+  END IF;
+
+  -- A regra dos marcos: entrada só de máquina, mensagens pela chegada ao CRM.
+  IF _fonte NOT LIKE '%autor_id IS NULL%' OR _fonte NOT LIKE '%recebida_em%' THEN
+    RAISE EXCEPTION 'fonte unica: filtros de entrada (autor NULL / recebida_em) sumiram';
   END IF;
 
   -- nav v5: chave nova presente (inclusive no objeto zerado) e disjunção com
@@ -603,8 +675,8 @@ BEGIN
   IF (public.nav_pendencias() ? 'mensagens_aguardando') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'nav_pendencias v5: chave mensagens_aguardando ausente do objeto zerado';
   END IF;
-  IF _nav NOT LIKE '%conversa_aguardando_resposta%' THEN
-    RAISE EXCEPTION 'nav_pendencias v5: contador nao le a fonte unica';
+  IF _nav NOT LIKE '%conversas_aguardando_resposta%' THEN
+    RAISE EXCEPTION 'nav_pendencias v5: contador nao le a fonte unica set-based';
   END IF;
   IF _nav NOT LIKE '%NOT IN (''novo'', ''aguardando_atendimento'')%' THEN
     RAISE EXCEPTION 'nav_pendencias v5: contador de mensagens invade o dominio da Prospeccao';
@@ -614,8 +686,9 @@ BEGIN
     RAISE EXCEPTION 'nav_pendencias v5: tarefas_vencidas voltou a contar tarefas de contato';
   END IF;
 
-  -- Inbox: a fila responder lê a fonte única e o caminho antigo (eco) sumiu.
-  IF _inbox NOT LIKE '%conversa_aguardando_resposta%' THEN
+  -- Inbox: a fila responder lê a fonte única set-based e o caminho antigo
+  -- (eco por última interação) sumiu.
+  IF _inbox NOT LIKE '%conversas_aguardando_resposta%' THEN
     RAISE EXCEPTION 'atendimento_inbox v4.1: fila responder nao le a fonte unica';
   END IF;
   IF _inbox LIKE '%ultima_direcao%' THEN

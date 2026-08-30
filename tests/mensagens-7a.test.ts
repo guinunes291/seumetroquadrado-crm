@@ -116,7 +116,7 @@ describe("rota do webhook (fiação)", () => {
     expect(rota).toMatch(/service_unavailable/);
   });
 
-  it("resolve o lead pelo dedup global e ecoa a entrada na fila Responder", () => {
+  it("resolve o lead pelo dedup global e ecoa a entrada na timeline (redundância da fonte única)", () => {
     expect(rota).toContain("buscar_lead_ativo_por_telefone_global");
     expect(rota).toMatch(/from\("interacoes"\)\.insert\(\{/);
     expect(rota).toContain('direcao: "entrada"');

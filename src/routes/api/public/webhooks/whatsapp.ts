@@ -148,10 +148,12 @@ export const Route = createFileRoute("/api/public/webhooks/whatsapp")({
           return json({ ok: false, error: "temporarily_unavailable" }, 503);
         }
 
-        // Eco na timeline: é a interacao de ENTRADA que classifica o lead na
-        // fila "Responder" (atendimento_inbox lê interacoes, não mensagens).
-        // Melhor esforço: se falhar, a mensagem está salva e a Central (7b)
-        // continua íntegra — registra-se o erro na resposta para o n8n.
+        // Eco na timeline (melhor esforço): mantém a mensagem visível na
+        // Timeline do dossiê e serve de redundância deliberada da fila
+        // "Responder" — desde o Lote 3 a fonte única (conversas_aguardando_
+        // resposta) lê mensagens E interacoes, então eco perdido não cega
+        // nada. Se falhar, a mensagem está salva e a Central (7b) continua
+        // íntegra — registra-se o erro na resposta para o n8n.
         const { error: ecoErr } = await supabaseAdmin.from("interacoes").insert({
           lead_id: leadId,
           autor_id: null,

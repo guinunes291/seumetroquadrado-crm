@@ -113,8 +113,11 @@ describe("fiação da Central (7b)", () => {
   });
 
   it("Lote 3: marcar tratada liga na RPC e invalida quem lê a fonte única", () => {
-    // A Central desconta as marcas na lista e oferece o botão de tratar…
+    // A Central desconta as marcas na lista e oferece o botão de tratar —
+    // gated pelo ESTADO da fonte única (RPC ausente → botão some, nunca
+    // clique que quebra num banco sem a migration).
     expect(central).toContain("listarConversasTratadas(");
+    expect(central).toContain("conversaEstado(");
     expect(central).toContain("marcarConversaTratada(");
     // …e qualquer ação que muda a pendência avisa badge e fila Responder.
     expect(central).toContain('queryKey: ["nav-badges"]');

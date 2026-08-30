@@ -3,11 +3,13 @@
  * (migration 20260830150000_conversa_aguardando_resposta).
  *
  * O contrato testado:
- * 1. Predicado (conversa_aguardando_resposta, via conversa_estado): pendente
- *    ⇔ última ENTRADA (interacoes sem nota/mudança de status OU mensagens) é
- *    mais recente que a última SAÍDA (interacoes com autor, mensagens sem
- *    falha) e que o marcador tratada. Eco perdido não cega: entrada SÓ em
- *    `mensagens` acende; entrada SÓ em `interacoes` também.
+ * 1. Predicado (fonte única set-based, via conversa_estado): pendente ⇔
+ *    última ENTRADA DE MÁQUINA (interacoes com autor NULL sem nota/mudança
+ *    de status OU mensagens pelo marco recebida_em — a chegada ao CRM) é
+ *    mais recente que a última SAÍDA humana (interacoes com autor, mensagens
+ *    sem falha) e que o marcador tratada. Eco perdido não cega: entrada SÓ
+ *    em `mensagens` acende; entrada SÓ em `interacoes` também. Ligação
+ *    ATENDIDA (eco com autor) não acende — teve humano na linha.
  * 2. Zerar a luz: responder (INSERT de saída, o fluxo real do corretor) OU
  *    marcar_conversa_tratada; entrada NOVA depois da marca reabre sozinha.
  * 3. nav_pendencias v5: chave `mensagens_aguardando` conta LEADS pendentes,
@@ -61,19 +63,24 @@ async function inserirMensagem(opts: {
   leadId?: string;
   direcao: "entrada" | "saida";
   minutosAtras: number;
+  /** Marco de pendência (chegada ao CRM) — default: o próprio minutosAtras. */
+  recebidaMinutosAtras?: number;
   corretorId?: string | null;
   status?: string;
 }): Promise<void> {
   await comoSuperuser(c);
   await c.query(
-    `INSERT INTO public.mensagens (lead_id, corretor_id, direcao, status, conteudo, criado_em)
-     VALUES ($1, $2, $3, $4, 'msg de teste', now() - make_interval(mins => $5))`,
+    `INSERT INTO public.mensagens
+       (lead_id, corretor_id, direcao, status, conteudo, criado_em, recebida_em)
+     VALUES ($1, $2, $3, $4, 'msg de teste',
+             now() - make_interval(mins => $5), now() - make_interval(mins => $6))`,
     [
       opts.leadId ?? lead,
       opts.corretorId ?? null,
       opts.direcao,
       opts.status ?? (opts.direcao === "entrada" ? "recebida" : "enviada"),
       opts.minutosAtras,
+      opts.recebidaMinutosAtras ?? opts.minutosAtras,
     ],
   );
 }
@@ -145,7 +152,7 @@ describe("predicado da fonte única", () => {
     expect(await estadoComo(ana.id)).toMatchObject({ aguardando: true });
   });
 
-  it("entrada SÓ em interacoes (contato registrado à mão) também acende", async () => {
+  it("entrada de máquina SÓ em interacoes (eco sem mensagem) também acende", async () => {
     await limparConversa();
     await inserirInteracao({ direcao: "entrada", minutosAtras: 30 });
     expect(await estadoComo(ana.id)).toMatchObject({ aguardando: true });
@@ -156,6 +163,26 @@ describe("predicado da fonte única", () => {
     await inserirInteracao({ direcao: "entrada", minutosAtras: 30, tipo: "nota" });
     await inserirInteracao({ direcao: "entrada", minutosAtras: 25, tipo: "mudanca_status" });
     expect(await estadoComo(ana.id)).toMatchObject({ aguardando: false });
+  });
+
+  it("ligação ATENDIDA (eco de entrada COM autor) não acende — teve humano na linha", async () => {
+    await limparConversa();
+    await inserirInteracao({
+      direcao: "entrada",
+      minutosAtras: 30,
+      tipo: "ligacao",
+      autorId: ana.id,
+    });
+    expect(await estadoComo(ana.id)).toMatchObject({ aguardando: false });
+  });
+
+  it("entrega atrasada do provedor ainda acende (marco = chegada ao CRM)", async () => {
+    await limparConversa();
+    await inserirInteracao({ direcao: "saida", minutosAtras: 20, autorId: ana.id });
+    // Retry do webhook: a mensagem OCORREU há 60min no provedor (antes da
+    // saída), mas só chegou agora — recebida_em manda, a luz acende.
+    await inserirMensagem({ direcao: "entrada", minutosAtras: 60, recebidaMinutosAtras: 0 });
+    expect(await estadoComo(ana.id)).toMatchObject({ aguardando: true });
   });
 
   it("resposta pelo fluxo real (INSERT de saída como corretora) apaga a luz", async () => {

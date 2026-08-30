@@ -30,6 +30,7 @@ import { formatRelativeTime } from "@/lib/interacoes";
 import { cn } from "@/lib/utils";
 import { agruparConversas, ordenarThread, previewConversa } from "./derive";
 import {
+  conversaEstado,
   listarConversasTratadas,
   listarMensagensRecentes,
   marcarConversaTratada,
@@ -56,8 +57,12 @@ export function CentralMensagens() {
     enabled: !!user,
     queryFn: () => listarMensagensRecentes(500),
   });
-  useRealtimeInvalidate("mensagens", [["mensagens:central"], ["nav-badges"]]);
-  useRealtimeInvalidate("conversas_tratadas", [["mensagens:tratadas"], ["nav-badges"]]);
+  useRealtimeInvalidate("mensagens", [["mensagens:central"], ["conversa-estado"], ["nav-badges"]]);
+  useRealtimeInvalidate("conversas_tratadas", [
+    ["mensagens:tratadas"],
+    ["conversa-estado"],
+    ["nav-badges"],
+  ]);
 
   const leadIdsComMensagem = useMemo(
     () => [...new Set((mensagensQ.data?.rows ?? []).map((m) => m.lead_id))],
@@ -100,13 +105,24 @@ export function CentralMensagens() {
     [mensagensQ.data, selecionado],
   );
   const leadSelecionado = selecionado ? leads.get(selecionado) : undefined;
-  const conversaSelecionada = conversas.find((c) => c.leadId === selecionado);
+
+  // O botão "Marcar tratada" segue a FONTE ÚNICA (não a contagem derivada da
+  // lista): num banco sem a migration do Lote 3 a RPC devolve null e o botão
+  // simplesmente não aparece — degrada sem quebrar; e uma saída registrada
+  // por fora (wa.me da tabela, ligação) apaga o botão junto com o badge.
+  const estadoSelecionadoQ = useQuery({
+    queryKey: ["conversa-estado", selecionado],
+    enabled: !!selecionado,
+    staleTime: 30_000,
+    queryFn: () => (selecionado ? conversaEstado(selecionado) : null),
+  });
 
   // A resposta e a marca mudam badge da sidebar e fila Responder — invalida
   // as chaves de todo mundo que lê a fonte única.
   const invalidarFonteUnica = () => {
     void qc.invalidateQueries({ queryKey: ["mensagens:central"] });
     void qc.invalidateQueries({ queryKey: ["mensagens:tratadas"] });
+    void qc.invalidateQueries({ queryKey: ["conversa-estado"] });
     void qc.invalidateQueries({ queryKey: ["nav-badges"] });
     void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
   };
@@ -239,7 +255,7 @@ export function CentralMensagens() {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  {(conversaSelecionada?.aguardandoResposta ?? 0) > 0 && (
+                  {estadoSelecionadoQ.data?.aguardando && (
                     <Button
                       variant="outline"
                       size="sm"

@@ -197,12 +197,15 @@ function AtendimentoPage() {
     onError: (e: Error) => toast.error(e.message || "Não foi possível confirmar a visita."),
   });
 
-  // Um único canal para as 4 tabelas (o hook aceita array) — P3-10.
-  // "tarefas" entrou com a fonte única: a fila da régua nasce de tarefas de
-  // contato, e o prefixo ["followup:fila"] refaz o hub e esta tela juntos.
+  // Um único canal para as tabelas (o hook aceita array) — P3-10.
+  // "tarefas" entrou com a fonte única da régua (o prefixo ["followup:fila"]
+  // refaz o hub e esta tela juntos); "mensagens" e "conversas_tratadas"
+  // entraram com o Lote 3: a fila Responder lê a fonte única de "aguardando
+  // resposta" — mensagem que chega SÓ em mensagens (eco perdido) e "marcar
+  // tratada" em outra sessão precisam acordar esta tela e o badge.
   useRealtimeInvalidate(
-    ["leads", "interacoes", "documentacoes", "tarefas"],
-    [["atendimento:inbox"], ["followup:fila"]],
+    ["leads", "interacoes", "documentacoes", "tarefas", "mensagens", "conversas_tratadas"],
+    [["atendimento:inbox"], ["followup:fila"], ["nav-badges"]],
   );
 
   const inboxData = inboxQ.data ?? {
