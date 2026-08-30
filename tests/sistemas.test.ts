@@ -66,11 +66,30 @@ describe("visibilidade por papel", () => {
 });
 
 describe("badges dos cards", () => {
-  const badges = { atendimento: 4, tarefasVencidas: 2, agendaHoje: 3, aprovacoes: 5, followups: 6 };
+  const badges = {
+    atendimento: 4,
+    tarefasVencidas: 2,
+    agendaHoje: 3,
+    aprovacoes: 5,
+    followups: 6,
+    mensagensAguardando: 7,
+  };
 
   it("Prospecção carrega a fila de entrada; Carteira soma tarefas + agenda", () => {
     expect(badgeDoSistema(sistema("prospeccao"), badges, corretor)).toBe(4);
     expect(badgeDoSistema(sistema("carteira"), badges, corretor)).toBe(5);
+  });
+
+  it("Comunicações é dona única do aguardando resposta (Lote 3)", () => {
+    // O rename dá ao hub a identidade mínima que justifica o card: o nome
+    // não disputa mais com o /atendimento da Carteira, e o contador tem dono.
+    expect(sistema("atendimento-central").titulo).toBe("Comunicações");
+    expect(badgeDoSistema(sistema("atendimento-central"), badges, corretor)).toBe(7);
+    // …e nenhum OUTRO sistema lê esse contador (dono único de verdade).
+    const soMensagens = { ...badges, mensagensAguardando: 0 };
+    for (const s of SISTEMAS.filter((x) => x.id !== "atendimento-central")) {
+      expect(badgeDoSistema(s, badges, admin)).toBe(badgeDoSistema(s, soMensagens, admin));
+    }
   });
 
   it("Follow-Up carrega os toques do dia (hoje + vencidos)", () => {

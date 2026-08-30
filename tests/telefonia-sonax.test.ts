@@ -319,7 +319,7 @@ describe("aba Discador (fiação)", () => {
   const sistemas = readFileSync(join(root, "src/features/nav/sistemas.ts"), "utf8");
   const routeTree = readFileSync(join(root, "src/routeTree.gen.ts"), "utf8");
 
-  it("rota /discador existe, está na árvore gerada e no menu da Central de Atendimento", () => {
+  it("rota /discador existe, está na árvore gerada e no menu de Comunicações", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/discador")');
     expect(routeTree).toContain("discador");
     expect(sistemas).toMatch(/label: "Discador",\s*icon: Phone,\s*to: "\/discador"/);

@@ -57,6 +57,21 @@ describe("agruparConversas (derive puro)", () => {
     expect(conversas[0].aguardandoResposta).toBe(0);
   });
 
+  it("marca 'tratada' desconta as entradas até a marca; entrada nova reabre (Lote 3)", () => {
+    const rows = [
+      msg({ id: "1", lead_id: "A", criado_em: "2026-08-09T10:00:00Z" }),
+      msg({ id: "2", lead_id: "A", criado_em: "2026-08-09T11:00:00Z" }),
+    ];
+    // Marca DEPOIS das duas entradas: conversa em dia.
+    const tratadaDepois = new Map([["A", "2026-08-09T12:00:00Z"]]);
+    expect(agruparConversas(rows, tratadaDepois)[0].aguardandoResposta).toBe(0);
+    // Marca ENTRE as duas: só a entrada posterior à marca conta.
+    const tratadaNoMeio = new Map([["A", "2026-08-09T10:30:00Z"]]);
+    expect(agruparConversas(rows, tratadaNoMeio)[0].aguardandoResposta).toBe(1);
+    // Sem marca do lead, nada muda em relação ao derive puro.
+    expect(agruparConversas(rows, new Map())[0].aguardandoResposta).toBe(2);
+  });
+
   it("ordenarThread é cronológico e estável mesmo com entrada fora de ordem", () => {
     const thread = ordenarThread([
       msg({ id: "2", lead_id: "A", criado_em: "2026-08-09T11:00:00Z" }),
@@ -74,9 +89,11 @@ describe("agruparConversas (derive puro)", () => {
 });
 
 describe("fiação da Central (7b)", () => {
-  it("a rota /mensagens existe e o menu aponta para ela na Central de Atendimento", () => {
+  it("a rota /mensagens existe e o menu aponta para ela em Comunicações, com o badge", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/mensagens")');
-    expect(sistemas).toContain('label: "Mensagens", icon: MessageCircle, to: "/mensagens"');
+    expect(sistemas).toMatch(
+      /label: "Mensagens",\s*icon: MessageCircle,\s*to: "\/mensagens",\s*badge: \(b\) => b\.mensagensAguardando/,
+    );
   });
 
   it("modo simulado: envio registra na conversa E abre o wa.me com o texto", () => {
@@ -92,5 +109,23 @@ describe("fiação da Central (7b)", () => {
     expect(client).toContain("tabelaAusente: true");
     expect(central).toContain("tabelaAusente");
     expect(central).toContain('useRealtimeInvalidate("mensagens"');
+    expect(central).toContain('useRealtimeInvalidate("conversas_tratadas"');
+  });
+
+  it("Lote 3: marcar tratada liga na RPC e invalida quem lê a fonte única", () => {
+    // A Central desconta as marcas na lista e oferece o botão de tratar…
+    expect(central).toContain("listarConversasTratadas(");
+    expect(central).toContain("marcarConversaTratada(");
+    // …e qualquer ação que muda a pendência avisa badge e fila Responder.
+    expect(central).toContain('queryKey: ["nav-badges"]');
+    expect(central).toContain('queryKey: ["atendimento:inbox"]');
+    // A ficha do lead embute a MESMA conversa (aba WhatsApp do dossiê).
+    const aba = read("src/features/leads/dossie/whatsapp-tab.tsx");
+    expect(aba).toContain("listarMensagensDoLead(");
+    expect(aba).toContain("conversaEstado(");
+    expect(aba).toContain("marcarConversaTratada(");
+    expect(aba).toContain('queryKey: ["nav-badges"]');
+    const ficha = read("src/routes/_authenticated/leads.$leadId.tsx");
+    expect(ficha).toContain('value: "whatsapp", label: "WhatsApp"');
   });
 });

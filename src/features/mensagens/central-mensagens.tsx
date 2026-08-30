@@ -1,23 +1,26 @@
-// Central de Mensagens (Fase 7b) — inbox unificada de conversas WhatsApp
-// sobre a tabela `mensagens` da 7a, em MODO SIMULADO até a decisão D1 ligar
-// o provedor (7c): a entrada chega pelo webhook n8n; a saída registra a
-// mensagem na conversa E abre o wa.me com o texto — o corretor dispara pelo
-// próprio aparelho, mas o CRM passa a ENXERGAR a conversa (métrica O1).
+// Central de Mensagens (Fase 7b, agora casa do hub Comunicações) — inbox
+// unificada de conversas WhatsApp sobre a tabela `mensagens` da 7a, em MODO
+// SIMULADO até a decisão D1 ligar o provedor (7c): a entrada chega pelo
+// webhook n8n; a saída registra a mensagem na conversa E abre o wa.me com o
+// texto — o corretor dispara pelo próprio aparelho, mas o CRM passa a
+// ENXERGAR a conversa (métrica O1).
 //
-// Sem estado de "lida" no banco nesta fase: "aguardando resposta" é derivado
-// por conversa (derive.ts), preservando a RLS fechada da 7a.
+// Lote 3 (auditoria das abas laterais): o estado "aguardando resposta" agora
+// EXISTE no banco (fonte única conversa_aguardando_resposta + marcador
+// conversas_tratadas). A lista continua com o derive puro por conversa (agora
+// descontando as marcas), e "Marcar como tratada" apaga a luz sem responder —
+// no badge da sidebar E na fila Responder do /atendimento, de uma vez.
 
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ExternalLink, Info, MessageCircle, Send } from "lucide-react";
+import { CheckCheck, ExternalLink, Info, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
@@ -26,7 +29,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { cn } from "@/lib/utils";
 import { agruparConversas, ordenarThread, previewConversa } from "./derive";
-import { listarMensagensRecentes, registrarEnvioSimulado } from "./mensagens-client";
+import {
+  listarConversasTratadas,
+  listarMensagensRecentes,
+  marcarConversaTratada,
+  registrarEnvioSimulado,
+} from "./mensagens-client";
+import { BolhasThread, ComposerConversa } from "./thread-conversa";
 
 type LeadResumo = {
   id: string;
@@ -47,9 +56,25 @@ export function CentralMensagens() {
     enabled: !!user,
     queryFn: () => listarMensagensRecentes(500),
   });
-  useRealtimeInvalidate("mensagens", [["mensagens:central"]]);
+  useRealtimeInvalidate("mensagens", [["mensagens:central"], ["nav-badges"]]);
+  useRealtimeInvalidate("conversas_tratadas", [["mensagens:tratadas"], ["nav-badges"]]);
 
-  const conversas = useMemo(() => agruparConversas(mensagensQ.data?.rows ?? []), [mensagensQ.data]);
+  const leadIdsComMensagem = useMemo(
+    () => [...new Set((mensagensQ.data?.rows ?? []).map((m) => m.lead_id))],
+    [mensagensQ.data],
+  );
+
+  // Marcas "tratada" dos leads em tela — descontam o contador da lista.
+  const tratadasQ = useQuery({
+    queryKey: ["mensagens:tratadas", leadIdsComMensagem],
+    enabled: leadIdsComMensagem.length > 0,
+    queryFn: () => listarConversasTratadas(leadIdsComMensagem),
+  });
+
+  const conversas = useMemo(
+    () => agruparConversas(mensagensQ.data?.rows ?? [], tratadasQ.data),
+    [mensagensQ.data, tratadasQ.data],
+  );
   const leadIds = useMemo(() => conversas.map((c) => c.leadId), [conversas]);
 
   const leadsQ = useQuery({
@@ -75,6 +100,16 @@ export function CentralMensagens() {
     [mensagensQ.data, selecionado],
   );
   const leadSelecionado = selecionado ? leads.get(selecionado) : undefined;
+  const conversaSelecionada = conversas.find((c) => c.leadId === selecionado);
+
+  // A resposta e a marca mudam badge da sidebar e fila Responder — invalida
+  // as chaves de todo mundo que lê a fonte única.
+  const invalidarFonteUnica = () => {
+    void qc.invalidateQueries({ queryKey: ["mensagens:central"] });
+    void qc.invalidateQueries({ queryKey: ["mensagens:tratadas"] });
+    void qc.invalidateQueries({ queryKey: ["nav-badges"] });
+    void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
+  };
 
   // Enviar (simulado): grava a saída na conversa e abre o wa.me com o texto
   // (que também registra a interação de saída na timeline — fluxo existente).
@@ -87,7 +122,7 @@ export function CentralMensagens() {
     },
     onSuccess: (conteudo) => {
       setTexto("");
-      void qc.invalidateQueries({ queryKey: ["mensagens:central"] });
+      invalidarFonteUnica();
       if (leadSelecionado) {
         abrirWhatsApp(
           {
@@ -99,6 +134,19 @@ export function CentralMensagens() {
           { mensagem: conteudo, titulo: "WhatsApp — Central de Mensagens" },
         );
       }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // "Li, não precisa de resposta": apaga a luz sem responder.
+  const marcarTratada = useMutation({
+    mutationFn: async () => {
+      if (!selecionado) throw new Error("Selecione uma conversa.");
+      return marcarConversaTratada(selecionado);
+    },
+    onSuccess: () => {
+      toast.success("Conversa marcada como tratada.");
+      invalidarFonteUnica();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -190,53 +238,39 @@ export function CentralMensagens() {
                     {leadSelecionado?.projeto_nome ? ` · ${leadSelecionado.projeto_nome}` : ""}
                   </div>
                 </div>
-                {selecionado && (
-                  <Button asChild variant="ghost" size="sm">
-                    <Link to="/leads/$leadId" params={{ leadId: selecionado }}>
-                      <ExternalLink className="h-4 w-4" /> Abrir lead
-                    </Link>
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  {(conversaSelecionada?.aguardandoResposta ?? 0) > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => marcarTratada.mutate()}
+                      disabled={marcarTratada.isPending}
+                      title="Apaga o aguardando resposta sem responder — some do badge e da fila Responder"
+                    >
+                      <CheckCheck className="h-4 w-4" /> Marcar tratada
+                    </Button>
+                  )}
+                  {selecionado && (
+                    <Button asChild variant="ghost" size="sm">
+                      <Link to="/leads/$leadId" params={{ leadId: selecionado }}>
+                        <ExternalLink className="h-4 w-4" /> Abrir lead
+                      </Link>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 space-y-2 overflow-y-auto pr-1">
-                {thread.map((m) => (
-                  <div
-                    key={m.id}
-                    className={cn(
-                      "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                      m.direcao === "saida" ? "ml-auto bg-primary/10" : "mr-auto bg-muted",
-                    )}
-                  >
-                    <div className="whitespace-pre-wrap break-words">
-                      {m.conteudo ?? (m.midia_url ? "[mídia]" : "[mensagem]")}
-                    </div>
-                    <div className="mt-1 text-right text-[10px] text-muted-foreground">
-                      {formatRelativeTime(m.criado_em)}
-                      {m.direcao === "saida" ? ` · ${m.status}` : ""}
-                      {m.provider === "simulado" ? " · via aparelho" : ""}
-                    </div>
-                  </div>
-                ))}
+                <BolhasThread thread={thread} />
               </div>
 
-              <div className="flex items-end gap-2 border-t pt-2">
-                <Textarea
-                  value={texto}
-                  onChange={(e) => setTexto(e.target.value)}
-                  placeholder="Escreva a resposta — registra na conversa e abre o WhatsApp com o texto pronto."
-                  className="min-h-[44px] flex-1 resize-none"
-                  rows={2}
-                  aria-label="Mensagem"
-                />
-                <Button
-                  onClick={() => enviar.mutate()}
-                  disabled={enviar.isPending || !texto.trim() || !selecionado}
-                  title="Registrar na conversa e abrir o WhatsApp"
-                >
-                  <Send className="h-4 w-4" /> Enviar
-                </Button>
-              </div>
+              <ComposerConversa
+                value={texto}
+                onChange={setTexto}
+                onEnviar={() => enviar.mutate()}
+                pending={enviar.isPending}
+                disabled={!selecionado}
+              />
             </CardContent>
           </Card>
         </div>

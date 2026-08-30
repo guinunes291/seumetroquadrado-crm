@@ -58,11 +58,13 @@ import { AgendamentosTab, useAgendamentosLead } from "@/features/leads/dossie/ag
 import { LeadStatusCards } from "@/features/leads/dossie/lead-status-cards";
 import { AnaliseCreditoCard } from "@/components/lead-stage/analise-resultado";
 import { WhatsappLeadDialog } from "@/features/leads/dossie/whatsapp-dialog";
+import { WhatsappTab } from "@/features/leads/dossie/whatsapp-tab";
 import { EditarLeadDialog } from "@/features/leads/dossie/editar-lead-dialog";
 import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
 
 const LEAD_TABS = [
   "timeline",
+  "whatsapp",
   "dados",
   "qualificacao",
   "tarefas",
@@ -414,6 +416,7 @@ function LeadDetailPage() {
         ariaLabel="Seções do dossiê do lead"
         items={[
           { value: "timeline", label: `Timeline (${interacoes.length})` },
+          { value: "whatsapp", label: "WhatsApp" },
           { value: "dados", label: "Dados" },
           { value: "qualificacao", label: "Qualificação" },
           { value: "tarefas", label: `Tarefas (${tarefas.length})` },
@@ -426,6 +429,19 @@ function LeadDetailPage() {
       >
         <ResponsiveTabsContent value="timeline" className="mt-4">
           <TimelineTab leadId={leadId} />
+        </ResponsiveTabsContent>
+
+        {/* A conversa REAL (tabela mensagens + estado da fonte única) — só
+            monta quando aberta (Radix desmonta conteúdo inativo). */}
+        <ResponsiveTabsContent value="whatsapp" className="mt-4">
+          <WhatsappTab
+            leadId={leadId}
+            lead={{
+              nome: lead.nome,
+              telefone: lead.telefone,
+              projeto_nome: lead.projeto_nome,
+            }}
+          />
         </ResponsiveTabsContent>
 
         <ResponsiveTabsContent value="dados" className="mt-4">

@@ -12,6 +12,7 @@ const zerado: NavBadges = {
   agendaHoje: 0,
   aprovacoes: 0,
   followups: 0,
+  mensagensAguardando: 0,
 };
 
 describe("buildRondaItems", () => {
