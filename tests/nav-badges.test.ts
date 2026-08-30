@@ -13,18 +13,28 @@ describe("parseNavBadges", () => {
         agenda_hoje: 3,
         aprovacoes: 1,
         followups: 6,
+        mensagens_aguardando: 2,
       }),
-    ).toEqual({ atendimento: 4, tarefasVencidas: 2, agendaHoje: 3, aprovacoes: 1, followups: 6 });
+    ).toEqual({
+      atendimento: 4,
+      tarefasVencidas: 2,
+      agendaHoje: 3,
+      aprovacoes: 1,
+      followups: 6,
+      mensagensAguardando: 2,
+    });
   });
 
   it("tolera payload parcial/estranho sem quebrar (campos viram 0)", () => {
-    // Banco antigo (nav_pendencias v2) não devolve `followups` — vira 0.
+    // Banco antigo (nav_pendencias v2) não devolve `followups` nem a
+    // `mensagens_aguardando` da v5 — viram 0.
     expect(parseNavBadges({ atendimento: "7" })).toEqual({
       atendimento: 0,
       tarefasVencidas: 0,
       agendaHoje: 0,
       aprovacoes: 0,
       followups: 0,
+      mensagensAguardando: 0,
     });
     expect(parseNavBadges(null)).toBeNull();
     expect(parseNavBadges("x")).toBeNull();

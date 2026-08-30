@@ -1,8 +1,11 @@
 // Lógica pura da Central de Mensagens (Fase 7b): agrupamento das linhas de
-// `mensagens` em conversas e ordenação de thread. Sem estado de "lida" no
-// banco nesta fase — "aguardando resposta" é DERIVADO (mensagens do cliente
-// depois da última resposta do corretor), o que dispensa UPDATE e mantém a
-// RLS da 7a fechada (usuário só insere saída).
+// `mensagens` em conversas e ordenação de thread. "Aguardando resposta" da
+// LISTA é derivado (mensagens do cliente depois da última resposta do
+// corretor), agora descontando o marcador `conversas_tratadas` (Lote 3) — a
+// RLS da 7a segue fechada (usuário só insere saída; a marca vem por RPC).
+// A decisão GLOBAL (badge da sidebar, fila Responder do /atendimento) é da
+// fonte única no banco (conversa_aguardando_resposta), que considera também
+// as interações; este derive é o preview por conversa da Central.
 
 export type Mensagem = {
   id: string;
@@ -39,9 +42,11 @@ export function ordenarThread(rows: Mensagem[]): Mensagem[] {
 /**
  * Agrupa as mensagens em conversas (1 por lead), mais recentes primeiro.
  * Aceita linhas em qualquer ordem — a query lista as N mais recentes global
- * e o agrupamento reconstrói cada conversa.
+ * e o agrupamento reconstrói cada conversa. `tratadas` (lead_id → tratada_em)
+ * desconta as entradas já cobertas pela marca "conversa tratada": só entradas
+ * DEPOIS da marca voltam a contar (o mesmo corte da fonte única no banco).
  */
-export function agruparConversas(rows: Mensagem[]): Conversa[] {
+export function agruparConversas(rows: Mensagem[], tratadas?: Map<string, string>): Conversa[] {
   const porLead = new Map<string, Mensagem[]>();
   for (const m of rows) {
     const lista = porLead.get(m.lead_id);
@@ -51,9 +56,14 @@ export function agruparConversas(rows: Mensagem[]): Conversa[] {
   const conversas: Conversa[] = [];
   for (const [leadId, msgs] of porLead) {
     const thread = ordenarThread(msgs);
+    const marcaRaw = tratadas?.get(leadId);
+    const marca = marcaRaw ? Date.parse(marcaRaw) : Number.NaN;
     let aguardando = 0;
     for (let i = thread.length - 1; i >= 0; i--) {
       if (thread[i].direcao !== "entrada") break;
+      // Thread cronológica: se ESTA entrada é anterior à marca, as de trás
+      // também são — dá para parar aqui.
+      if (Number.isFinite(marca) && ts(thread[i]) <= marca) break;
       aguardando++;
     }
     conversas.push({

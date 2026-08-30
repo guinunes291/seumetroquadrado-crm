@@ -15,6 +15,9 @@ export type NavBadges = {
   /** Toques de follow-up do dia (hoje + vencidos) — v3 da RPC; 0 em versões
    *  antigas do banco (o parser tolera a chave ausente). */
   followups: number;
+  /** Conversas aguardando resposta (fonte única conversa_aguardando_resposta,
+   *  v5 da RPC) — dono único: Comunicações; 0 em bancos sem a v5. */
+  mensagensAguardando: number;
 };
 
 function parseNavBadges(raw: unknown): NavBadges | null {
@@ -27,6 +30,7 @@ function parseNavBadges(raw: unknown): NavBadges | null {
     agendaHoje: num(o.agenda_hoje),
     aprovacoes: num(o.aprovacoes),
     followups: num(o.followups),
+    mensagensAguardando: num(o.mensagens_aguardando),
   };
 }
 

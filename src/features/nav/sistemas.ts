@@ -156,13 +156,27 @@ export const SISTEMAS: Sistema[] = [
   },
   {
     id: "atendimento-central",
-    titulo: "Central de Atendimento",
-    descricao: "Central multicanal: conversas de WhatsApp, discador e campanhas de oferta ativa.",
+    // "Comunicações" (era "Central de Atendimento"): o nome antigo disputava
+    // com o /atendimento da Carteira e o hub não tinha identidade própria. O
+    // Lote 3 da auditoria deu a ele a identidade mínima que faltava: dono
+    // ÚNICO do contador "aguardando resposta" (nav_pendencias.mensagens_
+    // aguardando, fonte única conversa_aguardando_resposta no banco). A fila
+    // "Responder" do /atendimento lê a MESMA fonte — responder ou marcar
+    // tratada aqui apaga a luz em todo lugar.
+    titulo: "Comunicações",
+    descricao: "Conversas de WhatsApp aguardando resposta, discador e oferta ativa.",
     icon: Headset,
     home: { to: "/mensagens" },
+    badge: (b) => b.mensagensAguardando,
     grupo: "operacao",
     secoes: [
-      { id: "mensagens", label: "Mensagens", icon: MessageCircle, to: "/mensagens" },
+      {
+        id: "mensagens",
+        label: "Mensagens",
+        icon: MessageCircle,
+        to: "/mensagens",
+        badge: (b) => b.mensagensAguardando,
+      },
       { id: "discador", label: "Discador", icon: Phone, to: "/discador" },
       { id: "oferta-ativa", label: "Oferta Ativa", icon: PhoneOutgoing, to: "/oferta-ativa" },
     ],

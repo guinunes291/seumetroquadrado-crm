@@ -2,7 +2,11 @@
 // Cada lead ativo entra em NO MÁXIMO uma fila (a mais urgente), para a tela
 // nunca duplicar gente. Ordem de urgência das filas:
 //   1. novos      — chegou para o corretor e aguarda o PRIMEIRO contato (SLA)
-//   2. responder  — o cliente falou por último (mensagem recebida sem resposta)
+//   2. responder  — conversa aguardando resposta. No banco (v4.1) a fila lê a
+//                   FONTE ÚNICA conversa_aguardando_resposta (mensagens +
+//                   interações + marcador "tratada" — Lote 3); este espelho
+//                   puro segue a aproximação antiga (última interação =
+//                   entrada), suficiente para os cenários dos testes.
 //   3. followups  — follow-up combinado venceu
 //   4. esfriando  — quente/morno sem contato há 3+ dias (régua única: sem
 //                   interação registrada, conta desde a chegada do lead)

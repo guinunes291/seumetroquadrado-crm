@@ -208,9 +208,11 @@ describe("fonte única na rota /atendimento (modo Prioridade)", () => {
 
   it("a chave da query usa o prefixo do hub — invalidação alcança as duas telas", () => {
     expect(atendimento).toContain('queryKey: ["followup:fila", "atendimento", user?.id]');
-    // Realtime assina "tarefas" (a fila da régua nasce delas) e refaz ambos.
+    // Realtime assina "tarefas" (a fila da régua nasce delas), "mensagens" e
+    // "conversas_tratadas" (a fila Responder lê a fonte única do Lote 3) e
+    // refaz o inbox, a fila da régua e o badge da sidebar juntos.
     expect(atendimento).toMatch(
-      /useRealtimeInvalidate\(\s*\["leads", "interacoes", "documentacoes", "tarefas"\],\s*\[\["atendimento:inbox"\], \["followup:fila"\]\],\s*\)/,
+      /useRealtimeInvalidate\(\s*\["leads", "interacoes", "documentacoes", "tarefas", "mensagens", "conversas_tratadas"\],\s*\[\["atendimento:inbox"\], \["followup:fila"\], \["nav-badges"\]\],\s*\)/,
     );
   });
 

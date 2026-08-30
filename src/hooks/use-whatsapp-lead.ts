@@ -46,6 +46,12 @@ export function useWhatsAppLead() {
       qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
       qc.invalidateQueries({ queryKey: ["lead", leadId] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+      // A saída registrada apaga "aguardando resposta" na fonte única — o
+      // badge da sidebar, o estado da aba WhatsApp e a fila Responder não
+      // podem ficar acesos até o próximo poll.
+      qc.invalidateQueries({ queryKey: ["nav-badges"] });
+      qc.invalidateQueries({ queryKey: ["conversa-estado", leadId] });
+      qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
     },
     onError: (e: Error) =>
       toast.error(`WhatsApp aberto, mas a interação não foi registrada: ${e.message}`),
