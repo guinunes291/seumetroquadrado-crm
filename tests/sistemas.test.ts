@@ -4,7 +4,6 @@ import {
   SISTEMAS,
   badgeDoSistema,
   homeDoSistema,
-  searchDaSecao,
   secaoAtiva,
   secoesVisiveis,
   sistemaAtivo,
@@ -27,16 +26,48 @@ const sistema = (id: string): Sistema => {
 const ids = (ctx: PapelCtx) => sistemasVisiveis(ctx).map((s) => s.id);
 
 describe("visibilidade por papel", () => {
-  it("corretor vê os 8 sistemas de operação, sem Configurações", () => {
+  it("corretor vê os 8 sistemas, sem Configurações — o dia primeiro, a consulta depois", () => {
     expect(ids(corretor)).toEqual([
       "central-comando",
       "prospeccao",
       "atendimento-central",
       "carteira",
       "follow-up",
-      "financeiro",
       "docs-projetos",
+      "financeiro",
       "bi",
+    ]);
+  });
+
+  it("portal por frequência (2026-08-30): o dia em 'operacao', a referência em 'consulta'", () => {
+    const grupos = Object.fromEntries(SISTEMAS.map((s) => [s.id, s.grupo]));
+    expect(grupos).toEqual({
+      "central-comando": "operacao",
+      prospeccao: "operacao",
+      "atendimento-central": "operacao",
+      carteira: "operacao",
+      "follow-up": "operacao",
+      "docs-projetos": "consulta",
+      financeiro: "consulta",
+      bi: "consulta",
+      configuracoes: "gestao",
+    });
+  });
+
+  it("corte 2026-08-30: Carteira com 4 seções e Docs sem Links Úteis no menu do corretor", () => {
+    // Reta final fundiu com o Funil (aba interna do /pipeline) e o Match IA
+    // virou ação dentro da ficha do lead; Links Úteis virou botão na home do
+    // hub. Todas as rotas seguem vivas (dominioExtra + ⌘K).
+    expect(secoesVisiveis(sistema("carteira"), corretor).map((s) => s.id)).toEqual([
+      "funil-carteira",
+      "atender",
+      "agenda",
+      "modo-visita",
+    ]);
+    expect(secoesVisiveis(sistema("docs-projetos"), corretor).map((s) => s.id)).toEqual([
+      "projetos-foco",
+      "catalogo",
+      "vitrine",
     ]);
   });
 
@@ -144,15 +175,20 @@ describe("sistemaAtivo (pathname + search)", () => {
     );
   });
 
-  it("/pipeline?fase=carteira e ?tab=fechamento pertencem à Carteira", () => {
+  it("Reta final é aba interna: ?tab=fechamento resolve pela Carteira sem seção própria", () => {
     expect(em("/pipeline", { fase: "carteira" })).toBe("carteira");
+    // A seção Fechamento saiu da sidebar (corte 2026-08-30) — o dominioExtra
+    // segura o /pipeline em qualquer visão, e com fase=carteira o Funil da
+    // carteira segue aceso enquanto o alternador interno mostra a Reta final.
     expect(em("/pipeline", { tab: "fechamento" })).toBe("carteira");
-  });
-
-  it("com fase E tab juntos, a visão (tab) decide a seção acesa", () => {
     const loc = { pathname: "/pipeline", search: { fase: "carteira", tab: "fechamento" } };
     expect(sistemaAtivo(loc)?.id).toBe("carteira");
-    expect(secaoAtiva(sistema("carteira"), loc)?.id).toBe("fechamento");
+    expect(secaoAtiva(sistema("carteira"), loc)?.id).toBe("funil-carteira");
+  });
+
+  it("portas sem menu continuam com dono: /match é da Carteira, /links-uteis dos Docs", () => {
+    expect(em("/match")).toBe("carteira");
+    expect(em("/links-uteis")).toBe("docs-projetos");
   });
 
   it("/pipeline cru não acende nenhuma seção da Carteira (não é nenhuma das fases)", () => {
@@ -218,36 +254,6 @@ describe("sistemaAtivo (pathname + search)", () => {
     const secoes = (ctx: PapelCtx) => secoesVisiveis(sistema("follow-up"), ctx).map((s) => s.id);
     expect(secoes(gestor)).not.toContain("config");
     expect(secoes(admin)).toContain("config");
-  });
-});
-
-describe("searchDaSecao (search do link com contexto da fase)", () => {
-  const secaoDe = (sistemaId: string, secaoId: string) => {
-    const s = sistema(sistemaId).secoes.find((x) => x.id === secaoId);
-    if (!s) throw new Error(`seção ${secaoId} não existe em ${sistemaId}`);
-    return s;
-  };
-
-  it("entrar no Modo Fechamento estando na Carteira preserva fase=carteira", () => {
-    expect(searchDaSecao(secaoDe("carteira", "fechamento"), { fase: "carteira" })).toEqual({
-      tab: "fechamento",
-      fase: "carteira",
-    });
-  });
-
-  it("não injeta fase quando a atual é prospeccao ou ausente", () => {
-    const fechamento = secaoDe("carteira", "fechamento");
-    expect(searchDaSecao(fechamento, { fase: "prospeccao" })).toEqual({ tab: "fechamento" });
-    expect(searchDaSecao(fechamento, {})).toEqual({ tab: "fechamento" });
-  });
-
-  it("seções sem tab passam intactas (com e sem search declarada)", () => {
-    expect(searchDaSecao(secaoDe("carteira", "funil-carteira"), { fase: "carteira" })).toEqual({
-      fase: "carteira",
-    });
-    expect(
-      searchDaSecao(secaoDe("prospeccao", "base-leads"), { fase: "carteira" }),
-    ).toBeUndefined();
   });
 });
 

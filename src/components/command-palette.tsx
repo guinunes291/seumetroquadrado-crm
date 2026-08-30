@@ -16,20 +16,16 @@ import { usePreference } from "@/hooks/use-preference";
 import { useTheme } from "@/hooks/use-theme";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/leads";
-import {
-  searchDaSecao,
-  secoesVisiveis,
-  sistemasVisiveis,
-  temPapel,
-  type PapelCtx,
-} from "@/features/nav/sistemas";
+import { secoesVisiveis, sistemasVisiveis, temPapel, type PapelCtx } from "@/features/nav/sistemas";
 import {
   Users,
+  Link2,
   ListTodo,
   LayoutDashboard,
   Building2,
   Sparkles,
   SunMoon,
+  Target,
   UserPlus,
   UserRound,
   DollarSign,
@@ -58,6 +54,16 @@ const ATALHOS_EXTRAS: {
 }[] = [
   { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
   { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
+  // Portas que saíram da sidebar no corte de 2026-08-30 — as rotas seguem
+  // vivas (dominioExtra) e o ⌘K é o atalho de quem já as conhece.
+  {
+    label: "Reta final (fechamento do funil)",
+    icon: Target,
+    to: "/pipeline",
+    search: { tab: "fechamento", fase: "carteira" },
+  },
+  { label: "Match IA", icon: Sparkles, to: "/match" },
+  { label: "Links Úteis", icon: Link2, to: "/links-uteis" },
   {
     label: "Relatórios (Operação)",
     icon: LayoutDashboard,
@@ -239,15 +245,10 @@ export function CommandPalette() {
       secoesVisiveis(sistema, ctx).map((secao) => ({
         label: `${sistema.titulo} · ${secao.label}`,
         icon: secao.icon,
-        // Updater funcional para preservar o contexto da URL atual (ex.:
-        // Modo Fechamento a partir da Carteira mantém `fase=carteira`).
-        go: () =>
-          navigate({
-            to: secao.to,
-            // O updater não pode devolver undefined — seção sem search limpa
-            // a URL com objeto vazio.
-            search: (prev) => searchDaSecao(secao, prev as Record<string, unknown>) ?? {},
-          }),
+        // Seção sem search limpa a URL com objeto vazio (o antigo caso
+        // especial da Reta final morreu junto com a seção — o alternador
+        // interno do /pipeline preserva a fase sozinho).
+        go: () => navigate({ to: secao.to, search: secao.search ?? {} }),
       })),
     ),
     ...ATALHOS_EXTRAS.filter((a) => temPapel(a.roles, ctx)).map((a) => ({

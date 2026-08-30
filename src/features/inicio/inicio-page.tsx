@@ -72,7 +72,12 @@ export function InicioPage() {
 
   const ctx: PapelCtx = { roles, isAdmin };
   const visiveis = sistemasVisiveis(ctx);
+  // Portal por FREQUÊNCIA (decisão 2026-08-30): a primeira dobra é "Seu dia"
+  // — os 5 hubs do fluxo diário, na ordem do fluxo — e o que é referência
+  // ocasional desce para "Consulta". A decisão "onde eu clico agora?" cai de
+  // 8 opções iguais para 5 ordenadas.
   const operacao = visiveis.filter((s) => s.grupo === "operacao");
+  const consulta = visiveis.filter((s) => s.grupo === "consulta");
   const gestao = visiveis.filter((s) => s.grupo === "gestao");
 
   const handleSignOut = async () => {
@@ -149,41 +154,17 @@ export function InicioPage() {
         {loading ? (
           // Papéis ainda carregando: sem grade parcial, para os cards de gestão
           // não "pipocarem" depois (nem piscarem para quem não vai vê-los).
+          // 5 células = a primeira dobra ("Seu dia") de qualquer papel.
           <div className={GRID_CLASSES} aria-busy="true">
-            {Array.from({ length: 8 }, (_, i) => (
+            {Array.from({ length: 5 }, (_, i) => (
               <Skeleton key={i} className="h-44 rounded-xl" />
             ))}
           </div>
         ) : (
           <>
-            <div className={GRID_CLASSES}>
-              {operacao.map((s) => (
-                <SistemaCard
-                  key={s.id}
-                  sistema={s}
-                  badge={badgeDoSistema(s, badges, ctx)}
-                  ctx={ctx}
-                />
-              ))}
-            </div>
-
-            {gestao.length > 0 && (
-              <section className="space-y-3">
-                <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                  Gestão
-                </h2>
-                <div className={GRID_CLASSES}>
-                  {gestao.map((s) => (
-                    <SistemaCard
-                      key={s.id}
-                      sistema={s}
-                      badge={badgeDoSistema(s, badges, ctx)}
-                      ctx={ctx}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
+            <GrupoDeSistemas titulo="Seu dia" sistemas={operacao} badges={badges} ctx={ctx} />
+            <GrupoDeSistemas titulo="Consulta" sistemas={consulta} badges={badges} ctx={ctx} />
+            <GrupoDeSistemas titulo="Gestão" sistemas={gestao} badges={badges} ctx={ctx} />
           </>
         )}
       </main>
@@ -194,6 +175,32 @@ export function InicioPage() {
       </Suspense>
       <Toaster richColors closeButton />
     </div>
+  );
+}
+
+function GrupoDeSistemas({
+  titulo,
+  sistemas,
+  badges,
+  ctx,
+}: {
+  titulo: string;
+  sistemas: Sistema[];
+  badges: ReturnType<typeof useNavBadges>;
+  ctx: PapelCtx;
+}) {
+  if (sistemas.length === 0) return null;
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+        {titulo}
+      </h2>
+      <div className={GRID_CLASSES}>
+        {sistemas.map((s) => (
+          <SistemaCard key={s.id} sistema={s} badge={badgeDoSistema(s, badges, ctx)} ctx={ctx} />
+        ))}
+      </div>
+    </section>
   );
 }
 
