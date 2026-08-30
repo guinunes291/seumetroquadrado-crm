@@ -259,10 +259,11 @@ function LeadDetailPage() {
               <PhoneCall className="h-4 w-4 mr-2" /> Registrar contato
             </Button>
             {/* Match IA saiu da sidebar (corte 2026-08-30): o lugar do match
-                é a ficha de quem se quer casar com produto — o /match abre já
-                com este lead em contexto. */}
+                é a ficha de quem se quer casar com produto — abre direto na
+                aba IA, a única que consome o leadId (o match financeiro é
+                calculadora sem contexto de lead). */}
             <Button asChild variant="outline" className="hidden md:inline-flex">
-              <Link to="/match" search={{ leadId }}>
+              <Link to="/match" search={{ leadId, mode: "ia" }}>
                 <Sparkles className="h-4 w-4 mr-2" /> Match IA
               </Link>
             </Button>

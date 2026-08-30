@@ -16,7 +16,13 @@ import { usePreference } from "@/hooks/use-preference";
 import { useTheme } from "@/hooks/use-theme";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/leads";
-import { secoesVisiveis, sistemasVisiveis, temPapel, type PapelCtx } from "@/features/nav/sistemas";
+import {
+  ATALHOS_EXTRAS,
+  secoesVisiveis,
+  sistemasVisiveis,
+  temPapel,
+  type PapelCtx,
+} from "@/features/nav/sistemas";
 import {
   Users,
   Link2,
@@ -42,43 +48,8 @@ type CorretorHit = { id: string; nome: string | null };
 /** Item do histórico "Recentes" (persistido por usuário, máx. 8). */
 type RecentEntry = { type: "lead" | "projeto"; id: string; label: string };
 
-/** Atalhos de ABA que o registro SISTEMAS não expressa (as seções apontam
- *  páginas; estes pulam direto para uma aba interna). Papéis passam pelo
- *  mesmo temPapel do registro. */
-const ATALHOS_EXTRAS: {
-  label: string;
-  icon: LucideIcon;
-  to: string;
-  search?: Record<string, string>;
-  roles?: AppRole[];
-}[] = [
-  { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
-  { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
-  // Portas que saíram da sidebar no corte de 2026-08-30 — as rotas seguem
-  // vivas (dominioExtra) e o ⌘K é o atalho de quem já as conhece.
-  {
-    label: "Reta final (fechamento do funil)",
-    icon: Target,
-    to: "/pipeline",
-    search: { tab: "fechamento", fase: "carteira" },
-  },
-  { label: "Match IA", icon: Sparkles, to: "/match" },
-  { label: "Links Úteis", icon: Link2, to: "/links-uteis" },
-  {
-    label: "Relatórios (Operação)",
-    icon: LayoutDashboard,
-    to: "/painel-gestor",
-    search: { tab: "relatorios" },
-    roles: ["admin", "gestor", "superintendente"],
-  },
-  {
-    label: "Metas & Ritmo",
-    icon: LayoutDashboard,
-    to: "/painel-gestor",
-    search: { tab: "metas" },
-    roles: ["admin", "gestor", "superintendente"],
-  },
-];
+// Os atalhos extras do ⌘K moram no registro SISTEMAS (ATALHOS_EXTRAS) —
+// mesma fonte da sidebar, coberta pelo invariante de destino único.
 
 /**
  * Paleta de comandos global (⌘K / Ctrl+K): busca leads, projetos, tarefas e

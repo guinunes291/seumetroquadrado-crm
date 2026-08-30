@@ -154,12 +154,16 @@ export function InicioPage() {
         {loading ? (
           // Papéis ainda carregando: sem grade parcial, para os cards de gestão
           // não "pipocarem" depois (nem piscarem para quem não vai vê-los).
-          // 5 células = a primeira dobra ("Seu dia") de qualquer papel.
-          <div className={GRID_CLASSES} aria-busy="true">
-            {Array.from({ length: 5 }, (_, i) => (
-              <Skeleton key={i} className="h-44 rounded-xl" />
-            ))}
-          </div>
+          // 5 células + o slot do cabeçalho = a primeira dobra ("Seu dia") de
+          // qualquer papel, sem pulo vertical quando o conteúdo resolve.
+          <section className="space-y-3" aria-busy="true">
+            <Skeleton className="h-4 w-20" />
+            <div className={GRID_CLASSES}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Skeleton key={i} className="h-44 rounded-xl" />
+              ))}
+            </div>
+          </section>
         ) : (
           <>
             <GrupoDeSistemas titulo="Seu dia" sistemas={operacao} badges={badges} ctx={ctx} />

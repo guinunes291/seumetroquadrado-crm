@@ -95,6 +95,18 @@ describe("sistemaAtivoContextual", () => {
     expect(em("/projetos/xyz", null, { leadId: "x" })).toBe("docs-projetos");
   });
 
+  it("/match com lead acompanha a jornada; sem lead é da Carteira (dominioExtra)", () => {
+    // Corte 2026-08-30: o Match saiu da sidebar e virou ação da ficha — de lá
+    // ele chega SEMPRE com ?leadId, e a sidebar não pode saltar para a
+    // Carteira e voltar (match de orçamento é uso típico de qualificação).
+    expect(telaTransversalDeLead({ pathname: "/match", search: { leadId: "x" } })).toBe(true);
+    expect(telaTransversalDeLead({ pathname: "/match", search: {} })).toBe(false);
+    expect(em("/match", "prospeccao", { leadId: "x" })).toBe("prospeccao");
+    expect(em("/match", "carteira", { leadId: "x" })).toBe("carteira");
+    expect(em("/match", null, { leadId: "x" })).toBe("carteira");
+    expect(em("/match", "prospeccao")).toBe("carteira");
+  });
+
   it("rotas não-transversais ignoram o contexto por completo", () => {
     expect(em("/pipeline", "prospeccao", { fase: "carteira" })).toBe("carteira");
     expect(em("/follow-up", "carteira")).toBe("follow-up");

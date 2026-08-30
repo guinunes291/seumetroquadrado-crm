@@ -17,10 +17,10 @@ export const Route = createFileRoute("/_authenticated/pipeline")({
     // de /pipeline cru continuam abrindo o quadro completo.
     fase: search.fase === "prospeccao" || search.fase === "carteira" ? search.fase : undefined,
   }),
-  // Em Prospecção a aba Fechamento não existe (a página renderiza só o funil),
-  // e o resolvedor da sidebar desempata por `tab` sobre a location CRUA — um
-  // ?fase=prospeccao&tab=fechamento acenderia "Modo Fechamento" na Carteira.
-  // Normaliza a URL para o que a página de fato renderiza.
+  // Em Prospecção a aba Fechamento não existe (a página renderiza só o
+  // funil). Normaliza a URL para o que a página de fato renderiza — mesmo
+  // sem a antiga seção Fechamento da sidebar (corte 2026-08-30), um
+  // ?fase=prospeccao&tab=fechamento seguiria mentindo na URL.
   beforeLoad: ({ search }) => {
     if (search.fase === "prospeccao" && search.tab) {
       throw redirect({ to: "/pipeline", search: { fase: "prospeccao" }, replace: true });

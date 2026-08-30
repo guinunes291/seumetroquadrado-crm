@@ -33,6 +33,7 @@ import {
   type Filters,
 } from "@/components/projetos-filters";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePublicarFaseDoLeadPorId } from "@/features/nav/contexto-jornada";
 import { BuscadorIA } from "@/components/match/buscador-ia";
 import { Calculator, Bot } from "lucide-react";
 
@@ -85,6 +86,10 @@ function MatchPage() {
   const tetoAjustado = orc ? Math.round(orc.tetoImovel * (ajuste / 100)) : 0;
 
   const { leadId, mode } = Route.useSearch();
+  // Com ?leadId o Match é tela TRANSVERSAL da jornada (aberto da ficha):
+  // publica a fase do lead e a sidebar acompanha prospecção/carteira em vez
+  // de saltar para a dona do path (auditoria 2026-08-27; corte 2026-08-30).
+  usePublicarFaseDoLeadPorId(leadId);
 
   return (
     <div className="space-y-6">

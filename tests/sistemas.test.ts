@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ATALHOS_EXTRAS,
   SISTEMAS,
   badgeDoSistema,
   homeDoSistema,
@@ -71,7 +72,7 @@ describe("visibilidade por papel", () => {
     ]);
   });
 
-  it("gestor vê os mesmos 7 (Configurações é só admin), com as seções de gestão dentro", () => {
+  it("gestor vê os mesmos 8 (Configurações é só admin), com as seções de gestão dentro", () => {
     expect(ids(gestor)).not.toContain("configuracoes");
     const secoes = secoesVisiveis(sistema("prospeccao"), gestor).map((s) => s.id);
     expect(secoes).toContain("distribuicao");
@@ -258,15 +259,17 @@ describe("sistemaAtivo (pathname + search)", () => {
 });
 
 describe("invariantes do registro", () => {
-  it("nenhum destino (to + search) se repete entre sistemas", () => {
+  it("nenhum destino (to + search) se repete — entre sistemas NEM com os atalhos do ⌘K", () => {
+    // ATALHOS_EXTRAS entrou no invariante junto com o corte de 2026-08-30:
+    // o padrão "seção cortada vira atalho" torna colisão futura provável.
     const vistos = new Set<string>();
-    for (const s of SISTEMAS) {
-      for (const secao of s.secoes) {
-        const chave = `${secao.to}?${JSON.stringify(secao.search ?? {})}`;
-        expect(vistos.has(chave), `destino duplicado: ${chave}`).toBe(false);
-        vistos.add(chave);
-      }
-    }
+    const registrar = (to: string, search?: Record<string, string>) => {
+      const chave = `${to}?${JSON.stringify(search ?? {})}`;
+      expect(vistos.has(chave), `destino duplicado: ${chave}`).toBe(false);
+      vistos.add(chave);
+    };
+    for (const s of SISTEMAS) for (const secao of s.secoes) registrar(secao.to, secao.search);
+    for (const a of ATALHOS_EXTRAS) registrar(a.to, a.search);
   });
 
   it("cada sistema tem no máximo 6 seções (teto por sistema)", () => {

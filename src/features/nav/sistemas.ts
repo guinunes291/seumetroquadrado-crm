@@ -20,8 +20,10 @@ import {
   Crosshair,
   Headset,
   Hourglass,
+  LayoutDashboard,
   LineChart,
   Link2,
+  ListTodo,
   Map,
   MapPinned,
   Megaphone,
@@ -31,8 +33,10 @@ import {
   Repeat,
   Settings,
   Shuffle,
+  Sparkles,
   Star,
   Sun,
+  Target,
   Trello,
   Trophy,
   Users,
@@ -418,6 +422,49 @@ export function homeDoSistema(s: Sistema, ctx: PapelCtx): Destino {
   return s.homePorPapel?.(ctx) ?? s.home;
 }
 
+/** Atalhos do ⌘K que as seções não expressam: pulos direto a uma ABA
+ *  interna e as portas que saíram da sidebar no corte de 2026-08-30 (Reta
+ *  final, Match IA, Links Úteis — rotas vivas via dominioExtra). Moram no
+ *  REGISTRO, não na paleta, para o invariante de destino único (tests/
+ *  sistemas.test.ts) cobrir seções e atalhos juntos. */
+export type AtalhoExtra = {
+  label: string;
+  icon: LucideIcon;
+  to: string;
+  search?: Record<string, string>;
+  roles?: AppRole[];
+};
+
+export const ATALHOS_EXTRAS: AtalhoExtra[] = [
+  { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
+  { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
+  {
+    // "Reta final" é a leitura de fechamento DA CARTEIRA (auditoria
+    // 2026-08-27) — por isso o atalho fixa fase=carteira, mesmo vindo do
+    // quadro completo.
+    label: "Reta final (fechamento do funil)",
+    icon: Target,
+    to: "/pipeline",
+    search: { tab: "fechamento", fase: "carteira" },
+  },
+  { label: "Match IA", icon: Sparkles, to: "/match" },
+  { label: "Links Úteis", icon: Link2, to: "/links-uteis" },
+  {
+    label: "Relatórios (Operação)",
+    icon: LayoutDashboard,
+    to: "/painel-gestor",
+    search: { tab: "relatorios" },
+    roles: ["admin", "gestor", "superintendente"],
+  },
+  {
+    label: "Metas & Ritmo",
+    icon: LayoutDashboard,
+    to: "/painel-gestor",
+    search: { tab: "metas" },
+    roles: ["admin", "gestor", "superintendente"],
+  },
+];
+
 // A antiga searchDaSecao (que injetava fase=carteira no link da Reta final)
 // morreu com a seção Fechamento (corte 2026-08-30): o alternador interno do
 // /pipeline preserva a fase sozinho, e os links de seção usam `secao.search`
@@ -457,8 +504,9 @@ function candidatas(loc: Loc, lista: Sistema[]): Candidata[] {
 }
 
 /** Ranking: mais chaves de search casadas > chave de VISÃO (`tab`) > declaração.
- *  O `tab` desempata porque escolhe a visão renderizada (ex.: /pipeline com
- *  fase E tab=fechamento mostra o Fechamento, não o funil). */
+ *  O desempate por `tab` ficou sem par no registro atual (a seção Fechamento,
+ *  que empatava com o Funil no /pipeline, morreu no corte de 2026-08-30) —
+ *  fica como guarda para a próxima dupla página×visão que surgir. */
 function melhorCandidata(cands: Candidata[]): Candidata | null {
   if (cands.length === 0) return null;
   return cands.reduce((melhor, c) => {
@@ -524,7 +572,15 @@ export function faseDoStatus(status: string | null | undefined): FaseFunil | nul
 export function telaTransversalDeLead(loc: Loc): boolean {
   if (loc.pathname.startsWith("/leads/")) return true;
   const comLead = typeof loc.search.leadId === "string" && loc.search.leadId.length > 0;
-  return comLead && (pathCasa(loc.pathname, "/vitrine") || pathCasa(loc.pathname, "/projetos"));
+  // /match entrou no corte de 2026-08-30: aberto da ficha (?leadId) é parte
+  // da jornada DAQUELE lead — match de orçamento é uso típico de qualificação
+  // — e a sidebar não pode saltar para a Carteira (dominioExtra) e voltar.
+  return (
+    comLead &&
+    (pathCasa(loc.pathname, "/vitrine") ||
+      pathCasa(loc.pathname, "/projetos") ||
+      pathCasa(loc.pathname, "/match"))
+  );
 }
 
 /** sistemaAtivo com o contexto da jornada: numa tela transversal com a fase
