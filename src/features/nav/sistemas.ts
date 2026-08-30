@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import type { AppRole } from "@/hooks/use-auth";
 import type { NavBadges } from "@/features/nav/use-nav-badges";
+import { CARTEIRA_STAGES, type FaseFunil } from "@/lib/leads";
 
 export type Destino = { to: string; search?: Record<string, string> };
 
@@ -130,9 +131,9 @@ export const SISTEMAS: Sistema[] = [
       },
       // A base completa (kanban/lista, ações em massa, importação) é a mesa de
       // triagem da entrada; a consulta da carteira segue viva em Carteira via
-      // /atendimento?modo=consulta. Custo consciente do v1: a ficha de um lead
-      // de carteira (/leads/$leadId) acende a sidebar de Prospecção — quando
-      // doer, o caminho é resolver o sistema pela etapa do lead, não pelo path.
+      // /atendimento?modo=consulta. A ficha (/leads/$leadId) resolve pela
+      // ETAPA do lead (sistemaAtivoContextual) — o prefixo daqui é só o
+      // fallback enquanto o lead carrega.
       { id: "base-leads", label: "Base de leads", icon: Users, to: "/leads" },
       // Para o CORRETOR a sidebar é só Modo Foco + Base de leads (decisão de
       // 2026-08-27); as seções de gestão continuam role-gated — invisíveis
@@ -187,18 +188,25 @@ export const SISTEMAS: Sistema[] = [
         search: { fase: "carteira" },
       },
       {
+        // "Reta final" e não "Fechamento": o nome disputava com a aba
+        // Fechamento do Financeiro e mandava gente ao hub errado (auditoria
+        // das abas laterais, 2026-08-27).
         id: "fechamento",
-        label: "Modo Fechamento",
+        label: "Reta final",
         icon: Target,
         to: "/pipeline",
         search: { tab: "fechamento" },
       },
       {
+        // "Trabalhar carteira" e não "Atender": a palavra disputava com a
+        // Central de Atendimento. O badge perdeu b.atendimento de propósito —
+        // cada contador tem UM dono, e aguardando_atendimento é da Prospecção
+        // (Modo Foco); aqui fica só o que é da carteira (tarefas vencidas).
         id: "atender",
-        label: "Atender",
-        icon: Headset,
+        label: "Trabalhar carteira",
+        icon: Briefcase,
         to: "/atendimento",
-        badge: (b) => b.atendimento + b.tarefasVencidas,
+        badge: (b) => b.tarefasVencidas,
       },
       {
         id: "agenda",
@@ -251,6 +259,17 @@ export const SISTEMAS: Sistema[] = [
         to: "/follow-up",
         search: { tab: "cobertura" },
         roles: GESTAO,
+      },
+      {
+        // A régua se configura ONDE se opera (padrão da Central de
+        // Distribuição): quem vê a Cobertura esgotando não deveria caçar o
+        // ajuste num hub admin sem link. Aba admin-only dentro do módulo.
+        id: "config",
+        label: "Config da régua",
+        icon: Settings,
+        to: "/follow-up",
+        search: { tab: "config" },
+        roles: ["admin"],
       },
     ],
   },
@@ -324,7 +343,27 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/configuracoes" },
     roles: ["admin"],
     grupo: "gestao",
-    secoes: [],
+    // As abas mais buscadas ganham endereço na sidebar e no ⌘K (antes o card
+    // era mudo: 9 abas internas inalcançáveis pela navegação). A seção
+    // Integrações, sem search, é dona do /configuracoes cru — o card deixa de
+    // abrir uma tela sem sidebar. Demais abas seguem internas ao painel.
+    secoes: [
+      { id: "integracoes", label: "Integrações", icon: Link2, to: "/configuracoes" },
+      {
+        id: "pessoas",
+        label: "Pessoas",
+        icon: Users,
+        to: "/configuracoes",
+        search: { tab: "pessoas" },
+      },
+      {
+        id: "estoque",
+        label: "Estoque",
+        icon: Building2,
+        to: "/configuracoes",
+        search: { tab: "estoque" },
+      },
+    ],
   },
 ];
 
@@ -455,4 +494,53 @@ export function sistemaAtivo(loc: Loc, lista: Sistema[] = SISTEMAS): Sistema | n
  *  cru dentro da Carteira — o quadro completo não é nenhuma das duas fases). */
 export function secaoAtiva(sistema: Sistema, loc: Loc): Secao | null {
   return melhorCandidata(candidatas(loc, [sistema]))?.secao ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Telas TRANSVERSAIS: resolução contextual pela fase da jornada do lead
+// ---------------------------------------------------------------------------
+// A ficha do lead (30 links de todos os sistemas desembocam nela), a Vitrine e
+// a ficha de projeto abertas COM um lead são passos de uma jornada — não
+// pertencem a hub fixo. Resolver pelo prefixo do path prendia lead avançado na
+// sidebar de Prospecção (o "custo consciente do v1", medido pela auditoria de
+// 2026-08-27 como a maior fonte de troca falsa de hub). A resolução é por
+// DADO DETERMINÍSTICO (etapa do lead; leadId na URL), nunca por referrer —
+// bookmark e refresh resolvem igual.
+
+/** Fase da jornada pela etapa do lead. Terminais (pos_venda/perdido) contam
+ *  como carteira — o fim da jornada é trabalho de carteira. null = sem dado
+ *  (carregando): o caller cai na resolução padrão por path. */
+export function faseDoStatus(status: string | null | undefined): FaseFunil | null {
+  if (!status) return null;
+  if (
+    (CARTEIRA_STAGES as string[]).includes(status) ||
+    status === "pos_venda" ||
+    status === "perdido"
+  ) {
+    return "carteira";
+  }
+  return "prospeccao";
+}
+
+/** Tela transversal de lead: a ficha (/leads/$id) sempre; Vitrine e ficha de
+ *  projeto SÓ quando abertas com ?leadId — sem lead, são consulta de catálogo
+ *  e pertencem a Docs & Projetos como sempre. */
+export function telaTransversalDeLead(loc: Loc): boolean {
+  if (loc.pathname.startsWith("/leads/")) return true;
+  const comLead = typeof loc.search.leadId === "string" && loc.search.leadId.length > 0;
+  return comLead && (pathCasa(loc.pathname, "/vitrine") || pathCasa(loc.pathname, "/projetos"));
+}
+
+/** sistemaAtivo com o contexto da jornada: numa tela transversal com a fase
+ *  do lead conhecida, a sidebar acompanha a jornada (prospecção/carteira);
+ *  fora disso — ou enquanto a fase carrega — vale a resolução padrão. */
+export function sistemaAtivoContextual(
+  loc: Loc,
+  faseLead: FaseFunil | null,
+  lista: Sistema[] = SISTEMAS,
+): Sistema | null {
+  if (faseLead && telaTransversalDeLead(loc)) {
+    return lista.find((s) => s.id === faseLead) ?? sistemaAtivo(loc, lista);
+  }
+  return sistemaAtivo(loc, lista);
 }

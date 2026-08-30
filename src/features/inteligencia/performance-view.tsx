@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Download, GraduationCap, Info, Rocket } from "lucide-react";
+import { Download, GraduationCap, Info, Repeat, Rocket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
@@ -261,6 +262,15 @@ export function PerformanceView({
         </div>
         <div className="flex items-center gap-2">
           <AtualizadoEm quando={rows[0]?.atualizado_em} />
+          {/* Ponte da ronda do gestor (auditoria das abas laterais,
+              2026-08-27): a leitura do time continua na Cobertura do
+              Follow-Up, que mora em outro sistema — link in-page em vez de
+              memória. */}
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/follow-up" search={{ tab: "cobertura" }}>
+              <Repeat className="mr-1 h-4 w-4" /> Cobertura do follow-up
+            </Link>
+          </Button>
           <Button size="sm" variant="outline" onClick={exportar} disabled={rows.length === 0}>
             <Download className="mr-1 h-4 w-4" /> XLSX
           </Button>

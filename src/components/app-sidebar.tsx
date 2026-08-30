@@ -20,9 +20,10 @@ import {
   searchDaSecao,
   secaoAtiva,
   secoesVisiveis,
-  sistemaAtivo,
+  sistemaAtivoContextual,
   type Secao,
 } from "@/features/nav/sistemas";
+import { useFaseDaJornada } from "@/features/nav/contexto-jornada";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -56,7 +57,10 @@ function SidebarContent({
   const badges = useNavBadges();
 
   const ctx = { roles, isAdmin };
-  const sistema = sistemaAtivo({ pathname, search });
+  // Telas transversais (ficha do lead, vitrine/projeto com ?leadId) publicam
+  // a fase da jornada — a sidebar acompanha o lead, não o prefixo do path.
+  const faseJornada = useFaseDaJornada();
+  const sistema = sistemaAtivoContextual({ pathname, search }, faseJornada);
   const secoes = sistema ? secoesVisiveis(sistema, ctx) : [];
   // Ativação por id da seção resolvida — path puro acenderia junto o par que
   // divide /pipeline (fase × fechamento).

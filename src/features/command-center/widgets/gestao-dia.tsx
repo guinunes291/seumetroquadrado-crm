@@ -1,5 +1,7 @@
 // Widget hero da visão Operação: resumo do Painel do Dia (exceções + R$ em
-// risco) com atalho direto para agir. É a primeira coisa que o gestor vê.
+// risco) com atalho direto para agir, mais a "ronda do dia" — o que exige
+// ação FORA do /painel-gestor (aprovações, régua, entrada), só com contador
+// > 0. É a primeira coisa que o gestor vê.
 
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
@@ -9,11 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import {
-  TIPO_META,
-  TIPOS_ORDENADOS,
-} from "@/features/gestao/painel-dia/derive";
+import { TIPO_META, TIPOS_ORDENADOS } from "@/features/gestao/painel-dia/derive";
 import { usePainelDia } from "@/features/gestao/painel-dia/use-painel-dia";
+import { useNavBadges } from "@/features/nav/use-nav-badges";
+import { buildRondaItems } from "@/features/command-center/ronda";
 import type { WidgetProps } from "@/features/command-center/widget-registry";
 
 const INTENT_TEXTO: Record<string, string> = {
@@ -34,6 +35,9 @@ export function GestaoDiaWidget(_props: WidgetProps) {
   const painelQ = usePainelDia();
   const painel = painelQ.data;
   const resumo = painel?.resumo;
+  // Ronda do dia: pendências fora do Painel do Dia, dos MESMOS badges do nav
+  // (recortados por papel na RPC) — sem query nova. Lista vazia = nada extra.
+  const ronda = buildRondaItems(useNavBadges());
 
   return (
     <Card>
@@ -123,6 +127,30 @@ export function GestaoDiaWidget(_props: WidgetProps) {
             </div>
           )}
         </AsyncBoundary>
+
+        {/* Fora do AsyncBoundary de propósito: a ronda vem de outra fonte
+            (useNavBadges) e continua útil mesmo se o Painel do Dia falhar.
+            Com todos os contadores zerados, nada é renderizado — a trava
+            anti-"menu global" vive em buildRondaItems. */}
+        {ronda.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border-subtle pt-3">
+            <span className="text-xs text-muted-foreground">Ronda do dia:</span>
+            {ronda.map((item) => (
+              <Link
+                key={item.id}
+                to={item.to}
+                search={item.search ?? {}}
+                className="text-sm hover:underline"
+                title={item.descricao}
+              >
+                <span className={cn("font-semibold tabular-nums", INTENT_TEXTO[item.intent] ?? "")}>
+                  {item.count}
+                </span>{" "}
+                <span className="text-muted-foreground">{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

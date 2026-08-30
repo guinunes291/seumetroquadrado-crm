@@ -24,6 +24,10 @@ import {
 import type { StageLead } from "@/lib/leads";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcAtendimentoInbox } from "@/features/atendimento/atendimento-rpc";
+// Fonte única com o hub Follow-Up: a fila "followups" lê a MESMA RPC do hub
+// (importado de features/followup — nunca duplicado aqui).
+import { fetchFilaFollowUp, type FilaFollowUp } from "@/features/followup/fila-client";
+import { aplicarFilaRegua } from "@/features/atendimento/fila-regua";
 import {
   QUEUE_LABEL,
   type AtendimentoLead,
@@ -115,7 +119,9 @@ function AtendimentoPage() {
   // cache da inbox é {filas, counts}, não um array de leads.
   const mudarStatus = useLeadStatusMutation({
     optimisticKeys: [],
-    invalidateKeys: [["atendimento:inbox"], ["leads"], ["nav-badges"]],
+    // ["followup:fila"] junto: mudar a etapa pode tirar o lead da régua e a
+    // fila "followups" daqui lê a mesma fonte do hub Follow-Up.
+    invalidateKeys: [["atendimento:inbox"], ["followup:fila"], ["leads"], ["nav-badges"]],
   });
 
   // Classificação, deduplicação e contagens acontecem no banco. A resposta traz
@@ -152,6 +158,25 @@ function AtendimentoPage() {
     },
   });
 
+  // FONTE ÚNICA com o hub Follow-Up (auditoria 2026-08-27): a fila
+  // "followups" passa a vir da MESMA RPC do hub (followup_fila_v1 — tarefas
+  // de CONTATO abertas), não mais de leads.proximo_followup. Sem isso o
+  // corretor zerava a fila no hub e esta tela continuava mostrando itens.
+  // A chave usa o prefixo "followup:fila" DE PROPÓSITO: toda invalidação do
+  // hub (invalidateQueries(["followup:fila"])) alcança esta query por prefixo
+  // — as duas telas andam juntas sem acoplamento de código.
+  // Banco antigo sem a RPC → null, e a fila "followups" da inbox volta a
+  // valer como era (fallback explícito em `aplicarFilaRegua` abaixo).
+  const filaReguaQ = useQuery({
+    queryKey: ["followup:fila", "atendimento", user?.id],
+    enabled: !!user && modo === "prioridade",
+    queryFn: () =>
+      rpcWithFallback<FilaFollowUp | null>(
+        () => fetchFilaFollowUp(),
+        () => null,
+      ),
+  });
+
   // Confirmar visita in-line (a ação que fecha o ciclo da fila nova): muda o
   // agendamento para "confirmado" — o mesmo efeito do Select do formulário de
   // agenda, sem sair da fila. RLS do agendamento aplica (dono/gestão).
@@ -172,25 +197,42 @@ function AtendimentoPage() {
     onError: (e: Error) => toast.error(e.message || "Não foi possível confirmar a visita."),
   });
 
-  // Um único canal para as 3 tabelas (o hook aceita array) — P3-10.
-  useRealtimeInvalidate(["leads", "interacoes", "documentacoes"], [["atendimento:inbox"]]);
+  // Um único canal para as 4 tabelas (o hook aceita array) — P3-10.
+  // "tarefas" entrou com a fonte única: a fila da régua nasce de tarefas de
+  // contato, e o prefixo ["followup:fila"] refaz o hub e esta tela juntos.
+  useRealtimeInvalidate(
+    ["leads", "interacoes", "documentacoes", "tarefas"],
+    [["atendimento:inbox"], ["followup:fila"]],
+  );
 
-  const filas = inboxQ.data?.filas ?? {
-    novos: [],
-    responder: [],
-    followups: [],
-    esfriando: [],
-    confirmar_visita: [],
-    docs: [],
+  const inboxData = inboxQ.data ?? {
+    filas: {
+      novos: [],
+      responder: [],
+      followups: [],
+      esfriando: [],
+      confirmar_visita: [],
+      docs: [],
+    },
+    counts: {
+      novos: 0,
+      responder: 0,
+      followups: 0,
+      esfriando: 0,
+      confirmar_visita: 0,
+      docs: 0,
+    },
   };
-  const counts = inboxQ.data?.counts ?? {
-    novos: 0,
-    responder: 0,
-    followups: 0,
-    esfriando: 0,
-    confirmar_visita: 0,
-    docs: 0,
-  };
+  // Com a fila da régua disponível, a resposta da inbox para "followups" é
+  // IGNORADA (itens e total) — fonte única com o hub Follow-Up. null = banco
+  // antigo sem followup_fila_v1: a fila da inbox segue valendo como era.
+  const { filas, counts } = filaReguaQ.data
+    ? aplicarFilaRegua({
+        filas: inboxData.filas,
+        counts: inboxData.counts,
+        filaRegua: filaReguaQ.data,
+      })
+    : inboxData;
   const total = QUEUE_ORDER.reduce((acc, q) => acc + counts[q.key], 0);
 
   const onWhatsApp = (item: QueueItem, mensagem: string) => {
@@ -243,11 +285,14 @@ function AtendimentoPage() {
 
       {modo === "prioridade" && (
         <AsyncBoundary
-          isLoading={inboxQ.isLoading}
-          isError={inboxQ.isError}
-          error={inboxQ.error}
+          isLoading={inboxQ.isLoading || filaReguaQ.isLoading}
+          isError={inboxQ.isError || filaReguaQ.isError}
+          error={inboxQ.error ?? filaReguaQ.error}
           errorTitle="Não foi possível carregar as filas de atendimento."
-          onRetry={() => void inboxQ.refetch()}
+          onRetry={() => {
+            void inboxQ.refetch();
+            void filaReguaQ.refetch();
+          }}
           loadingLabel="Carregando filas de atendimento"
           loadingFallback={
             <div className="space-y-3">
@@ -257,17 +302,30 @@ function AtendimentoPage() {
           }
         >
           <div className="space-y-4">
-            {/* O placar só aparece depois do sucesso de todas as consultas. */}
+            {/* O placar só aparece depois do sucesso de todas as consultas.
+                "novos" não exibe contagem própria: o número dos aguardando
+                atendimento tem UM dono (o chamado do hub Prospecção) — o
+                placar aponta a porta em vez de duplicar o contador. O item
+                dos followups usa o total da fila_v1 (mesmo número do hub). */}
             <div className="flex flex-wrap items-center gap-2" aria-label="Resumo das filas">
-              {QUEUE_ORDER.map(({ key }) => (
-                <Badge
-                  key={key}
-                  variant="secondary"
-                  className={counts[key] > 0 ? "" : "opacity-50"}
-                >
-                  {QUEUE_LABEL[key]}: {counts[key]}
-                </Badge>
-              ))}
+              {QUEUE_ORDER.map(({ key }) =>
+                key === "novos" ? (
+                  <Badge key={key} variant="secondary" className="gap-1">
+                    {QUEUE_LABEL[key]}:
+                    <Link to="/prospeccao" className="text-primary hover:underline">
+                      ver na Prospecção
+                    </Link>
+                  </Badge>
+                ) : (
+                  <Badge
+                    key={key}
+                    variant="secondary"
+                    className={counts[key] > 0 ? "" : "opacity-50"}
+                  >
+                    {QUEUE_LABEL[key]}: {counts[key]}
+                  </Badge>
+                ),
+              )}
             </div>
 
             {total === 0 ? (
@@ -305,6 +363,15 @@ function AtendimentoPage() {
                     totalCount={counts[key]}
                     icon={icon}
                     iconClass={iconClass}
+                    action={
+                      // A porta do hub dono: a fila completa e o DESFECHO do
+                      // toque (agendar o próximo, esgotar) vivem no Follow-Up.
+                      key === "followups" ? (
+                        <Button asChild variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                          <Link to="/follow-up">Abrir fila da régua</Link>
+                        </Button>
+                      ) : undefined
+                    }
                     onWhatsApp={onWhatsApp}
                     onPeek={(item) => setPeek(item.lead)}
                     onRegistrarContato={(item) => setContatoLead(item.lead)}
@@ -352,6 +419,8 @@ function AtendimentoPage() {
         onPerdidoOpenChange={(open) => !open && setPerdidoLead(null)}
         onDone={() => {
           void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
+          // Prefixo alcança o hub e a fila da régua desta tela (fonte única).
+          void qc.invalidateQueries({ queryKey: ["followup:fila"] });
           void qc.invalidateQueries({ queryKey: ["nav-badges"] });
         }}
       />

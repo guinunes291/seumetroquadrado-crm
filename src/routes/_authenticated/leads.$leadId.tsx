@@ -59,6 +59,7 @@ import { LeadStatusCards } from "@/features/leads/dossie/lead-status-cards";
 import { AnaliseCreditoCard } from "@/components/lead-stage/analise-resultado";
 import { WhatsappLeadDialog } from "@/features/leads/dossie/whatsapp-dialog";
 import { EditarLeadDialog } from "@/features/leads/dossie/editar-lead-dialog";
+import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
 
 const LEAD_TABS = [
   "timeline",
@@ -106,6 +107,11 @@ function LeadDetailPage() {
       return (data as DossieLead) ?? null;
     },
   });
+
+  // A sidebar acompanha a jornada: lead de carteira acende Carteira, de
+  // prospecção acende Prospecção (fim da troca falsa de hub da ficha —
+  // auditoria 2026-08-27). Enquanto carrega, vale a resolução por path.
+  usePublicarFaseDoLead(lead?.status);
 
   // As queries das abas moram nos módulos de dossie/ e são reusadas aqui só
   // para os contadores dos rótulos (mesma queryKey → um único fetch).

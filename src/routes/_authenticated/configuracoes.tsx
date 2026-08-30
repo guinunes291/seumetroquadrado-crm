@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,6 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { INTENT_BADGE } from "@/lib/status-tones";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import { GestaoConfigCard } from "@/features/gestao/gestao-config-card";
-import { ReguaFollowUpConfigCard } from "@/features/gestao/regua-followup-config";
 import { CorretoresPage } from "@/features/gestao/corretores-page";
 import { EquipesPage } from "@/features/gestao/equipes-page";
 import { TemplatesPage } from "@/features/gestao/templates-page";
@@ -27,6 +26,8 @@ import { Webhook, MessageCircle, Lock, User as UserIcon, BellRing } from "lucide
 const CONFIG_TABS = [
   "integracoes",
   "gestao",
+  // "follow-up" segue na whitelist SÓ para o redirect de deep-links antigos —
+  // o editor da régua mudou para /follow-up?tab=config (auditoria 2026-08-27).
   "follow-up",
   "pessoas",
   "estoque",
@@ -44,6 +45,11 @@ export const Route = createFileRoute("/_authenticated/configuracoes")({
         ? (search.tab as ConfigTab)
         : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.tab === "follow-up") {
+      throw redirect({ to: "/follow-up", search: { tab: "config" }, replace: true });
+    }
+  },
   head: () => ({ meta: [{ title: "Configurações — Seu Metro Quadrado" }] }),
   component: ConfiguracoesPage,
 });
@@ -102,7 +108,6 @@ function ConfiguracoesPage() {
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="integracoes">Integrações</TabsTrigger>
           <TabsTrigger value="gestao">Gestão</TabsTrigger>
-          <TabsTrigger value="follow-up">Follow-Up</TabsTrigger>
           {/* Bloco de cadastro/administração — veio do hub de Operação (2.1). */}
           <TabsTrigger value="pessoas">Pessoas</TabsTrigger>
           <TabsTrigger value="estoque">Estoque</TabsTrigger>
@@ -146,10 +151,6 @@ function ConfiguracoesPage() {
 
         <TabsContent value="gestao" className="grid gap-4 md:grid-cols-2">
           <GestaoConfigCard />
-        </TabsContent>
-
-        <TabsContent value="follow-up">
-          <ReguaFollowUpConfigCard />
         </TabsContent>
 
         <TabsContent value="pessoas" className="space-y-10">

@@ -16,9 +16,11 @@ const leadsIndex = read("src/routes/_authenticated/leads.index.tsx");
 const bottomNav = read("src/components/bottom-nav.tsx");
 
 describe("item 2.7c — porta única no menu", () => {
-  it("Atender segue porta única e soma as pendências de atendimento", () => {
+  it("Trabalhar carteira segue porta única, com badge só do que é da carteira", () => {
+    // Renomeada de "Atender" e badge sem b.atendimento (auditoria 2026-08-27):
+    // a entrada é da Prospecção — cada contador tem UM dono.
     expect(sistemas).toMatch(
-      /label: "Atender",\s*icon: Headset,\s*to: "\/atendimento",\s*badge: \(b\) => b\.atendimento \+ b\.tarefasVencidas/,
+      /label: "Trabalhar carteira",\s*icon: Briefcase,\s*to: "\/atendimento",\s*badge: \(b\) => b\.tarefasVencidas/,
     );
     // "Leads" não é home de sistema algum…
     expect(sistemas).not.toMatch(/home: \{ to: "\/leads" \}/);

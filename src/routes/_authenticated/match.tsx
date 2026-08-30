@@ -396,6 +396,9 @@ function MatchList({
   ajuste: number;
   mostrarForaSegmento: boolean;
 }) {
+  // Lead da jornada (se houver) — propagado ao abrir a ficha do projeto para
+  // a sidebar não pular de hub no meio do atendimento.
+  const { leadId } = Route.useSearch();
   // ajuste em fração (0.8 .. 1.2): usamos orçamento "virtual" com teto ajustado
   // mantendo os recursos (regra 80/20 escala proporcionalmente).
   const orcAjustado: ResultadoOrcamento = {
@@ -463,6 +466,9 @@ function MatchList({
                   <Link
                     to="/projetos/$projetoId"
                     params={{ projetoId: p.id }}
+                    // Propaga o lead: a ficha do projeto vira passo da jornada
+                    // e a sidebar não pula para Docs & Projetos no meio dela.
+                    search={leadId ? { leadId } : undefined}
                     className="font-semibold hover:underline flex items-center gap-2"
                   >
                     <Building2 className="h-4 w-4" />

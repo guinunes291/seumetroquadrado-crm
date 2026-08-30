@@ -179,7 +179,26 @@ describe("sistemaAtivo (pathname + search)", () => {
 
   it("rotas neutras não pertencem a sistema algum", () => {
     expect(em("/meu-perfil")).toBeNull();
-    expect(em("/configuracoes")).toBeNull();
+  });
+
+  it("Configurações deixou de ser card mudo: o cru é Integrações, as abas têm endereço", () => {
+    expect(em("/configuracoes")).toBe("configuracoes");
+    expect(
+      secaoAtiva(sistema("configuracoes"), { pathname: "/configuracoes", search: {} })?.id,
+    ).toBe("integracoes");
+    expect(
+      secaoAtiva(sistema("configuracoes"), {
+        pathname: "/configuracoes",
+        search: { tab: "pessoas" },
+      })?.id,
+    ).toBe("pessoas");
+  });
+
+  it("Config da régua é aba do Follow-Up (admin) — a régua se configura onde se opera", () => {
+    expect(em("/follow-up", { tab: "config" })).toBe("follow-up");
+    const secoes = (ctx: PapelCtx) => secoesVisiveis(sistema("follow-up"), ctx).map((s) => s.id);
+    expect(secoes(gestor)).not.toContain("config");
+    expect(secoes(admin)).toContain("config");
   });
 });
 
