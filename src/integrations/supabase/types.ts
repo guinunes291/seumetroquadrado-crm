@@ -89,6 +89,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       alertas: {
@@ -205,6 +212,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -679,11 +693,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "chamadas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
             foreignKeyName: "chamadas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chamadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -819,6 +847,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "comissoes_venda_id_fkey"
@@ -1395,6 +1430,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "copiloto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       distribuicao_config: {
@@ -1489,6 +1531,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       distribuicao_log_contexto: {
@@ -1541,6 +1590,57 @@ export type Database = {
         }
         Relationships: []
       }
+      distribuicao_sombra: {
+        Row: {
+          classe_lead: string | null
+          contexto: Json
+          criado_em: string
+          faixa_v2: string | null
+          id: string
+          lead_id: string | null
+          roleta_slug: string | null
+          vencedor_real: string | null
+          vencedor_v2: string | null
+        }
+        Insert: {
+          classe_lead?: string | null
+          contexto?: Json
+          criado_em?: string
+          faixa_v2?: string | null
+          id?: string
+          lead_id?: string | null
+          roleta_slug?: string | null
+          vencedor_real?: string | null
+          vencedor_v2?: string | null
+        }
+        Update: {
+          classe_lead?: string | null
+          contexto?: Json
+          criado_em?: string
+          faixa_v2?: string | null
+          id?: string
+          lead_id?: string | null
+          roleta_slug?: string | null
+          vencedor_real?: string | null
+          vencedor_v2?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distribuicao_sombra_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribuicao_sombra_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       distribution_log: {
         Row: {
           corretor_id: string | null
@@ -1585,6 +1685,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -1648,6 +1755,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacao_versoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -1719,6 +1833,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -1961,6 +2082,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dre_unidade_membros_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
           },
           {
             foreignKeyName: "dre_unidade_membros_unidade_id_fkey"
@@ -2339,6 +2467,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "interacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       landing_webhook_idempotency: {
@@ -2437,6 +2572,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lead_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       lead_status_transitions: {
@@ -2475,6 +2617,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lead_status_transitions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       leads: {
@@ -2482,6 +2631,7 @@ export type Database = {
           bairro: string | null
           campanha: string | null
           canal_entrada: string | null
+          classe_lead: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -2505,6 +2655,8 @@ export type Database = {
           faixa_mcmv: string | null
           fase: string | null
           fgts_valor: number | null
+          followup_esgotado_em: string | null
+          followup_reativado_em: string | null
           handoff_em: string | null
           id: string
           import_batch_id: string | null
@@ -2536,6 +2688,7 @@ export type Database = {
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
           tipo_renda: string | null
+          ultima_atividade_em: string
           ultima_interacao: string | null
           ultimo_contato: string | null
           updated_at: string
@@ -2554,6 +2707,7 @@ export type Database = {
           bairro?: string | null
           campanha?: string | null
           canal_entrada?: string | null
+          classe_lead?: string
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -2577,6 +2731,8 @@ export type Database = {
           faixa_mcmv?: string | null
           fase?: string | null
           fgts_valor?: number | null
+          followup_esgotado_em?: string | null
+          followup_reativado_em?: string | null
           handoff_em?: string | null
           id?: string
           import_batch_id?: string | null
@@ -2608,6 +2764,7 @@ export type Database = {
           tentativas_redistribuicao?: number
           timestamp_recebimento?: string | null
           tipo_renda?: string | null
+          ultima_atividade_em?: string
           ultima_interacao?: string | null
           ultimo_contato?: string | null
           updated_at?: string
@@ -2626,6 +2783,7 @@ export type Database = {
           bairro?: string | null
           campanha?: string | null
           canal_entrada?: string | null
+          classe_lead?: string
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -2649,6 +2807,8 @@ export type Database = {
           faixa_mcmv?: string | null
           fase?: string | null
           fgts_valor?: number | null
+          followup_esgotado_em?: string | null
+          followup_reativado_em?: string | null
           handoff_em?: string | null
           id?: string
           import_batch_id?: string | null
@@ -2680,6 +2840,7 @@ export type Database = {
           tentativas_redistribuicao?: number
           timestamp_recebimento?: string | null
           tipo_renda?: string | null
+          ultima_atividade_em?: string
           ultima_interacao?: string | null
           ultimo_contato?: string | null
           updated_at?: string
@@ -2873,6 +3034,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_landing_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -3071,11 +3239,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "mensagens_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
             foreignKeyName: "mensagens_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -3268,6 +3450,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
             foreignKeyName: "oferta_ativa_leads_oferta_id_fkey"
             columns: ["oferta_id"]
             isOneToOne: false
@@ -3318,6 +3507,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ofertas_ativas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
         ]
       }
       profiles: {
@@ -3350,8 +3546,10 @@ export type Database = {
           limite_diario_leads: number
           limite_diario_webhook: number
           logradouro: string | null
+          modelo_contrato: string | null
           nome: string
           numero: string | null
+          onboarding_concluido_em: string | null
           perfil_completo: boolean
           presente: boolean
           presente_em: string | null
@@ -3393,8 +3591,10 @@ export type Database = {
           limite_diario_leads?: number
           limite_diario_webhook?: number
           logradouro?: string | null
+          modelo_contrato?: string | null
           nome?: string
           numero?: string | null
+          onboarding_concluido_em?: string | null
           perfil_completo?: boolean
           presente?: boolean
           presente_em?: string | null
@@ -3436,8 +3636,10 @@ export type Database = {
           limite_diario_leads?: number
           limite_diario_webhook?: number
           logradouro?: string | null
+          modelo_contrato?: string | null
           nome?: string
           numero?: string | null
+          onboarding_concluido_em?: string | null
           perfil_completo?: boolean
           presente?: boolean
           presente_em?: string | null
@@ -3735,6 +3937,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
             foreignKeyName: "propostas_projeto_id_fkey"
             columns: ["projeto_id"]
             isOneToOne: false
@@ -3808,6 +4017,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
+            columns: ["convertido_lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "propostas_visitantes_projeto_id_fkey"
@@ -3918,6 +4134,7 @@ export type Database = {
           agendamentos_janela: number
           ativo: boolean
           corretor_id: string
+          faixa_amostra: number
           id: string
           incluido_em: string
           incluido_por: string | null
@@ -3938,6 +4155,7 @@ export type Database = {
           agendamentos_janela?: number
           ativo?: boolean
           corretor_id: string
+          faixa_amostra?: number
           id?: string
           incluido_em?: string
           incluido_por?: string | null
@@ -3958,6 +4176,7 @@ export type Database = {
           agendamentos_janela?: number
           ativo?: boolean
           corretor_id?: string
+          faixa_amostra?: number
           id?: string
           incluido_em?: string
           incluido_por?: string | null
@@ -3981,6 +4200,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_participantes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
           },
           {
             foreignKeyName: "roleta_participantes_roleta_id_fkey"
@@ -4068,6 +4294,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_tier_historico_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
           },
           {
             foreignKeyName: "roleta_tier_historico_roleta_id_fkey"
@@ -4409,6 +4642,62 @@ export type Database = {
         }
         Relationships: []
       }
+      sla_estouros: {
+        Row: {
+          corretor_id: string
+          criado_em: string
+          id: string
+          lead_id: string | null
+          roleta_slug: string | null
+          sla_minutos: number | null
+        }
+        Insert: {
+          corretor_id: string
+          criado_em?: string
+          id?: string
+          lead_id?: string | null
+          roleta_slug?: string | null
+          sla_minutos?: number | null
+        }
+        Update: {
+          corretor_id?: string
+          criado_em?: string
+          id?: string
+          lead_id?: string | null
+          roleta_slug?: string | null
+          sla_minutos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_estouros_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_estouros_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "sla_estouros_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_estouros_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       tarefas: {
         Row: {
           corretor_id: string
@@ -4471,6 +4760,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -4693,6 +4989,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "venda_integridade_conflitos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
             foreignKeyName: "venda_integridade_conflitos_venda_conflitante_id_fkey"
             columns: ["venda_conflitante_id"]
             isOneToOne: true
@@ -4894,6 +5197,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
             foreignKeyName: "vendas_projeto_id_fkey"
             columns: ["projeto_id"]
             isOneToOne: false
@@ -4996,11 +5306,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "visita_execucoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
             foreignKeyName: "visita_execucoes_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visita_execucoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
         ]
       }
@@ -5058,6 +5382,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "visitas_projeto_id_fkey"
@@ -5248,6 +5579,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vitrine_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       zonas_bairros: {
@@ -5345,6 +5683,13 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       mcp_colunas_sem_grant: {
@@ -5404,6 +5749,60 @@ export type Database = {
         }
         Relationships: []
       }
+      v_contato_efetivo: {
+        Row: {
+          com_resposta: number | null
+          corretor_id: string | null
+          nome: string | null
+          primeiros_contatos: number | null
+        }
+        Relationships: []
+      }
+      v_leads_parados: {
+        Row: {
+          classe_lead: string | null
+          corretor_id: string | null
+          corretor_nome: string | null
+          dias_sem_registro: number | null
+          lead_id: string | null
+          nome: string | null
+          regra_dias: number | null
+          status: Database["public"]["Enums"]["lead_status"] | null
+          ultima_atividade_em: string | null
+        }
+        Relationships: []
+      }
+      v_velocidade_corretor: {
+        Row: {
+          amostra: number | null
+          corretor_id: string | null
+          mediana_min: number | null
+          nome: string | null
+          p90_min: number | null
+        }
+        Relationships: []
+      }
+      v_wip_corretor: {
+        Row: {
+          corretor_id: string | null
+          disjuntor: number | null
+          leads_ativos: number | null
+          nome: string | null
+        }
+        Insert: {
+          corretor_id?: string | null
+          disjuntor?: never
+          leads_ativos?: never
+          nome?: string | null
+        }
+        Update: {
+          corretor_id?: string | null
+          disjuntor?: never
+          leads_ativos?: never
+          nome?: string | null
+        }
+        Relationships: []
+      }
       vw_leads_telefone_duplicado: {
         Row: {
           lead_ids: string[] | null
@@ -5445,6 +5844,13 @@ export type Database = {
           _titulo: string
         }
         Returns: undefined
+      }
+      _apto_extra_v2: {
+        Args: { _corretor_id: string }
+        Returns: {
+          apto: boolean
+          motivos: string[]
+        }[]
       }
       _auditar_redistribuicao: {
         Args: {
@@ -5537,6 +5943,11 @@ export type Database = {
         Returns: undefined
       }
       _gestao_escopo: { Args: never; Returns: Record<string, unknown> }
+      _minutos_uteis_entre: {
+        Args: { _ate: string; _de: string }
+        Returns: number
+      }
+      _modelo_v2_ativo: { Args: never; Returns: boolean }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _notificar_handoff_novo_dono: {
@@ -5549,6 +5960,7 @@ export type Database = {
           bairro: string | null
           campanha: string | null
           canal_entrada: string | null
+          classe_lead: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -5572,6 +5984,8 @@ export type Database = {
           faixa_mcmv: string | null
           fase: string | null
           fgts_valor: number | null
+          followup_esgotado_em: string | null
+          followup_reativado_em: string | null
           handoff_em: string | null
           id: string
           import_batch_id: string | null
@@ -5603,6 +6017,7 @@ export type Database = {
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
           tipo_renda: string | null
+          ultima_atividade_em: string
           ultima_interacao: string | null
           ultimo_contato: string | null
           updated_at: string
@@ -5624,6 +6039,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      _registrar_estouro_sla: {
+        Args: { _corretor: string; _lead: string; _slug: string }
+        Returns: undefined
+      }
       _registrar_excecao_distribuicao: {
         Args: {
           _contexto?: Json
@@ -5643,6 +6062,7 @@ export type Database = {
       }
       _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
+      _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
       alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
       alertar_roletas_sem_apto: { Args: never; Returns: undefined }
       alertar_volume_desproporcional: { Args: never; Returns: undefined }
@@ -5747,6 +6167,17 @@ export type Database = {
         }
         Returns: Json
       }
+      atualizar_corretor_distribuicao: {
+        Args: {
+          _corretor_id: string
+          _limite_diario_webhook?: number
+          _limpar_modelo_contrato?: boolean
+          _modelo_contrato?: string
+          _onboarding_concluido?: boolean
+          _zonas?: string[]
+        }
+        Returns: Json
+      }
       atualizar_distribuicao_config: {
         Args: {
           _limpar_roleta?: boolean
@@ -5843,8 +6274,10 @@ export type Database = {
           limite_diario_leads: number
           limite_diario_webhook: number
           logradouro: string | null
+          modelo_contrato: string | null
           nome: string
           numero: string | null
+          onboarding_concluido_em: string | null
           perfil_completo: boolean
           presente: boolean
           presente_em: string | null
@@ -5867,10 +6300,13 @@ export type Database = {
       atualizar_roleta: {
         Args: {
           _ativo?: boolean
+          _equipe_fixa?: boolean
           _exigir_presenca?: boolean
           _horario_fim?: string
           _horario_inicio?: string
+          _limpar_projeto?: boolean
           _permitir_fora_horario?: boolean
+          _projeto_id?: string
           _slug: string
         }
         Returns: Json
@@ -6060,6 +6496,15 @@ export type Database = {
         Returns: string
       }
       criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
+      criar_roleta_campanha: {
+        Args: {
+          _equipe_fixa?: boolean
+          _nome: string
+          _projeto_id?: string
+          _slug?: string
+        }
+        Returns: Json
+      }
       criar_vitrine_link: {
         Args: {
           _ator_id: string
@@ -6194,6 +6639,8 @@ export type Database = {
           tipo: string
         }[]
       }
+      devolver_leads_followup_vencido: { Args: never; Returns: number }
+      devolver_leads_posse_expirada: { Args: never; Returns: number }
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
         Returns: boolean
@@ -6353,9 +6800,29 @@ export type Database = {
           vendas_janela: number
         }[]
       }
+      excluir_venda: {
+        Args: { p_motivo?: string; p_venda_id: string }
+        Returns: undefined
+      }
+      excluir_venda_lancamento_errado: {
+        Args: { p_motivo: string; p_venda_id: string }
+        Returns: undefined
+      }
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       faixa_mcmv_norm: { Args: { _v: string }; Returns: string }
       fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }
+      followup_fila_v1: {
+        Args: { _corretor?: string; _take?: number }
+        Returns: Json
+      }
+      followup_tentativas: { Args: { _lead_id: string }; Returns: number }
+      followup_toques_do_lead: {
+        Args: { _lead_id: string }
+        Returns: {
+          canal: string
+          quando: string
+        }[]
+      }
       funil_ordem: {
         Args: { _s: Database["public"]["Enums"]["lead_status"] }
         Returns: number
@@ -6381,6 +6848,26 @@ export type Database = {
         Returns: Json
       }
       gestao_config_valor: { Args: { _chave: string }; Returns: Json }
+      gestao_followup_cobertura: {
+        Args: never
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          esgotados: number
+          fila_hoje: number
+          vencidos: number
+        }[]
+      }
+      gestao_followup_tentativas: {
+        Args: { _ate?: string; _corretor?: string; _de?: string }
+        Returns: {
+          atualizado_em: string
+          avancaram: number
+          enviados: number
+          respondidos: number
+          tentativa: number
+        }[]
+      }
       gestao_funil_coorte: {
         Args: {
           _ate?: string
@@ -6948,6 +7435,10 @@ export type Database = {
           revogado_em: string
         }[]
       }
+      marcar_followup_esgotado: {
+        Args: { _lead_id: string }
+        Returns: undefined
+      }
       marcar_lead_perdido: {
         Args: { _categoria?: string; _detalhe?: string; _lead_id: string }
         Returns: string
@@ -6983,6 +7474,11 @@ export type Database = {
         Args: { _lead_id: string; _motivo: string; _motivo_categoria: string }
         Returns: Json
       }
+      mcp_perdidos_orcamento: { Args: never; Returns: Record<string, unknown> }
+      mcp_registrar_perdido: {
+        Args: { _lead_id: string; _motivo: string; _motivo_categoria: string }
+        Returns: undefined
+      }
       mcp_sincronizar_grants_colunas: {
         Args: never
         Returns: {
@@ -6999,6 +7495,16 @@ export type Database = {
       metricas_periodo_v2: {
         Args: { _fim: string; _inicio: string }
         Returns: Json
+      }
+      meu_followup_tentativas: {
+        Args: { _meses?: number }
+        Returns: {
+          atualizado_em: string
+          avancaram: number
+          enviados: number
+          respondidos: number
+          tentativa: number
+        }[]
       }
       minha_elegibilidade: { Args: never; Returns: Json }
       nav_pendencias: { Args: never; Returns: Json }
@@ -7094,6 +7600,11 @@ export type Database = {
           whatsapps: number
         }[]
       }
+      reativar_followup: { Args: { _lead_id: string }; Returns: undefined }
+      recalcular_faixas_velocidade: {
+        Args: { _gatilho?: string }
+        Returns: number
+      }
       recalcular_temperatura_leads: { Args: never; Returns: number }
       recalcular_tiers_roleta: {
         Args: { _gatilho?: string; _roleta_slug: string }
@@ -7132,6 +7643,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      regua_followup_atual: { Args: never; Returns: Json }
       rel_conversao_por_corretor: {
         Args: { _df: string; _di: string }
         Returns: {
@@ -7300,6 +7812,7 @@ export type Database = {
           bairro: string | null
           campanha: string | null
           canal_entrada: string | null
+          classe_lead: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -7323,6 +7836,8 @@ export type Database = {
           faixa_mcmv: string | null
           fase: string | null
           fgts_valor: number | null
+          followup_esgotado_em: string | null
+          followup_reativado_em: string | null
           handoff_em: string | null
           id: string
           import_batch_id: string | null
@@ -7354,6 +7869,7 @@ export type Database = {
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
           tipo_renda: string | null
+          ultima_atividade_em: string
           ultima_interacao: string | null
           ultimo_contato: string | null
           updated_at: string
@@ -7386,6 +7902,7 @@ export type Database = {
           bairro: string | null
           campanha: string | null
           canal_entrada: string | null
+          classe_lead: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -7409,6 +7926,8 @@ export type Database = {
           faixa_mcmv: string | null
           fase: string | null
           fgts_valor: number | null
+          followup_esgotado_em: string | null
+          followup_reativado_em: string | null
           handoff_em: string | null
           id: string
           import_batch_id: string | null
@@ -7440,6 +7959,7 @@ export type Database = {
           tentativas_redistribuicao: number
           timestamp_recebimento: string | null
           tipo_renda: string | null
+          ultima_atividade_em: string
           ultima_interacao: string | null
           ultimo_contato: string | null
           updated_at: string
