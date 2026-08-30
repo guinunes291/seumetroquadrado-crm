@@ -17,7 +17,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/leads";
 import {
-  searchDaSecao,
+  ATALHOS_EXTRAS,
   secoesVisiveis,
   sistemasVisiveis,
   temPapel,
@@ -25,11 +25,13 @@ import {
 } from "@/features/nav/sistemas";
 import {
   Users,
+  Link2,
   ListTodo,
   LayoutDashboard,
   Building2,
   Sparkles,
   SunMoon,
+  Target,
   UserPlus,
   UserRound,
   DollarSign,
@@ -46,33 +48,8 @@ type CorretorHit = { id: string; nome: string | null };
 /** Item do histórico "Recentes" (persistido por usuário, máx. 8). */
 type RecentEntry = { type: "lead" | "projeto"; id: string; label: string };
 
-/** Atalhos de ABA que o registro SISTEMAS não expressa (as seções apontam
- *  páginas; estes pulam direto para uma aba interna). Papéis passam pelo
- *  mesmo temPapel do registro. */
-const ATALHOS_EXTRAS: {
-  label: string;
-  icon: LucideIcon;
-  to: string;
-  search?: Record<string, string>;
-  roles?: AppRole[];
-}[] = [
-  { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
-  { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
-  {
-    label: "Relatórios (Operação)",
-    icon: LayoutDashboard,
-    to: "/painel-gestor",
-    search: { tab: "relatorios" },
-    roles: ["admin", "gestor", "superintendente"],
-  },
-  {
-    label: "Metas & Ritmo",
-    icon: LayoutDashboard,
-    to: "/painel-gestor",
-    search: { tab: "metas" },
-    roles: ["admin", "gestor", "superintendente"],
-  },
-];
+// Os atalhos extras do ⌘K moram no registro SISTEMAS (ATALHOS_EXTRAS) —
+// mesma fonte da sidebar, coberta pelo invariante de destino único.
 
 /**
  * Paleta de comandos global (⌘K / Ctrl+K): busca leads, projetos, tarefas e
@@ -239,15 +216,10 @@ export function CommandPalette() {
       secoesVisiveis(sistema, ctx).map((secao) => ({
         label: `${sistema.titulo} · ${secao.label}`,
         icon: secao.icon,
-        // Updater funcional para preservar o contexto da URL atual (ex.:
-        // Modo Fechamento a partir da Carteira mantém `fase=carteira`).
-        go: () =>
-          navigate({
-            to: secao.to,
-            // O updater não pode devolver undefined — seção sem search limpa
-            // a URL com objeto vazio.
-            search: (prev) => searchDaSecao(secao, prev as Record<string, unknown>) ?? {},
-          }),
+        // Seção sem search limpa a URL com objeto vazio (o antigo caso
+        // especial da Reta final morreu junto com a seção — o alternador
+        // interno do /pipeline preserva a fase sozinho).
+        go: () => navigate({ to: secao.to, search: secao.search ?? {} }),
       })),
     ),
     ...ATALHOS_EXTRAS.filter((a) => temPapel(a.roles, ctx)).map((a) => ({

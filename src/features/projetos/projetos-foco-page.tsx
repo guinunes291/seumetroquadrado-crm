@@ -22,6 +22,7 @@ import {
   Compass,
   Copy,
   ExternalLink,
+  Link2,
   MapPin,
   Search,
   Settings2,
@@ -311,6 +312,14 @@ export function ProjetosFocoPage() {
                 <Link to="/projetos">
                   <Building2 className="mr-1 h-4 w-4" />
                   Catálogo completo
+                </Link>
+              </Button>
+              {/* Links Úteis saiu da sidebar (corte 2026-08-30): a home do
+                  hub é a porta — a rota segue viva e no ⌘K. */}
+              <Button asChild variant="outline" size="sm">
+                <Link to="/links-uteis">
+                  <Link2 className="mr-1 h-4 w-4" />
+                  Links Úteis
                 </Link>
               </Button>
             </>

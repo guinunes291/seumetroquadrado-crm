@@ -17,7 +17,6 @@ import { usePreference } from "@/hooks/use-preference";
 import { useNavBadges } from "@/features/nav/use-nav-badges";
 import {
   badgeDaSecao,
-  searchDaSecao,
   secaoAtiva,
   secoesVisiveis,
   sistemaAtivoContextual,
@@ -98,7 +97,7 @@ function SidebarContent({
     return (
       <Link
         to={secao.to}
-        search={searchDaSecao(secao, search)}
+        search={secao.search}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={leafClasses(active)}
@@ -161,7 +160,7 @@ function SidebarContent({
           <TooltipTrigger asChild>
             <Link
               to={secao.to}
-              search={searchDaSecao(secao, search)}
+              search={secao.search}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
               aria-label={secao.label}

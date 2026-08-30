@@ -20,8 +20,10 @@ import {
   Crosshair,
   Headset,
   Hourglass,
+  LayoutDashboard,
   LineChart,
   Link2,
+  ListTodo,
   Map,
   MapPinned,
   Megaphone,
@@ -85,8 +87,11 @@ export type Sistema = {
   roles?: AppRole[];
   badge?: (b: NavBadges) => number;
   badgeRoles?: AppRole[];
-  grupo: "operacao" | "gestao";
-  /** Card-herói do grid (ocupa duas colunas). */
+  /** Frequência de uso no portal (decisão 2026-08-30): "operacao" é o dia do
+   *  corretor (primeira dobra, na ordem do fluxo), "consulta" é referência
+   *  ocasional (Docs, Financeiro, BI) e "gestao" é só admin. */
+  grupo: "operacao" | "consulta" | "gestao";
+  /** Card com acento dourado no grid (mesmo tamanho dos demais). */
   destaque?: boolean;
   /** Prefixos de rota reivindicados sem seção própria (ex.: /pipeline cru,
    *  que é o quadro completo e pertence à Carteira). */
@@ -190,9 +195,12 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/pipeline", search: { fase: "carteira" } },
     badge: (b) => b.tarefasVencidas + b.agendaHoje,
     grupo: "operacao",
-    // Dona do /pipeline cru: bookmark antigo = quadro completo, sidebar da
-    // Carteira (é onde o Fechamento vive).
-    dominioExtra: ["/pipeline"],
+    // Dona do /pipeline cru (bookmark antigo = quadro completo) e do /match:
+    // a Reta final e o Match saíram da sidebar (corte 2026-08-30) mas as
+    // rotas seguem vivas com dono — a Reta final é aba INTERNA do /pipeline
+    // (o alternador da tela preserva a fase sozinho) e o Match virou ação
+    // dentro da ficha do lead; ambos continuam no ⌘K.
+    dominioExtra: ["/pipeline", "/match"],
     secoes: [
       {
         id: "funil-carteira",
@@ -200,16 +208,6 @@ export const SISTEMAS: Sistema[] = [
         icon: Trello,
         to: "/pipeline",
         search: { fase: "carteira" },
-      },
-      {
-        // "Reta final" e não "Fechamento": o nome disputava com a aba
-        // Fechamento do Financeiro e mandava gente ao hub errado (auditoria
-        // das abas laterais, 2026-08-27).
-        id: "fechamento",
-        label: "Reta final",
-        icon: Target,
-        to: "/pipeline",
-        search: { tab: "fechamento" },
       },
       {
         // "Trabalhar carteira" e não "Atender": a palavra disputava com a
@@ -230,7 +228,6 @@ export const SISTEMAS: Sistema[] = [
         badge: (b) => b.agendaHoje,
       },
       { id: "modo-visita", label: "Modo Visita", icon: MapPinned, to: "/modo-visita" },
-      { id: "match", label: "Match IA", icon: Sparkles, to: "/match" },
     ],
   },
   {
@@ -288,6 +285,29 @@ export const SISTEMAS: Sistema[] = [
     ],
   },
   {
+    id: "docs-projetos",
+    titulo: "Documentação & Projetos",
+    descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapa e materiais.",
+    icon: Building2,
+    home: { to: "/projetos-foco" },
+    grupo: "consulta",
+    // /links-uteis saiu da sidebar (corte 2026-08-30) mas a rota segue viva
+    // com dono — o acesso é o botão em Projetos em Foco e o ⌘K.
+    dominioExtra: ["/links-uteis"],
+    secoes: [
+      { id: "projetos-foco", label: "Projetos em Foco", icon: Star, to: "/projetos-foco" },
+      { id: "catalogo", label: "Catálogo completo", icon: Building2, to: "/projetos" },
+      { id: "vitrine", label: "Vitrine (mapa)", icon: Map, to: "/vitrine" },
+      {
+        id: "materiais",
+        label: "Materiais (gestão)",
+        icon: Megaphone,
+        to: "/projetos-materiais",
+        roles: ["admin", "gestor"],
+      },
+    ],
+  },
+  {
     id: "financeiro",
     titulo: "Assinaturas & Comissões",
     descricao: "Fechamento de vendas, comissões e aprovações — cada papel vê o seu recorte.",
@@ -295,7 +315,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/financeiro", search: { tab: "comissoes" } },
     badge: (b) => b.aprovacoes,
     badgeRoles: GESTAO,
-    grupo: "operacao",
+    grupo: "consulta",
     secoes: [
       // As abas internas (fechamento|comissoes|dre) são o segundo nível; o
       // guard por aba do /financeiro já recorta por papel.
@@ -308,27 +328,6 @@ export const SISTEMAS: Sistema[] = [
     ],
   },
   {
-    id: "docs-projetos",
-    titulo: "Documentação & Projetos",
-    descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapa e materiais.",
-    icon: Building2,
-    home: { to: "/projetos-foco" },
-    grupo: "operacao",
-    secoes: [
-      { id: "projetos-foco", label: "Projetos em Foco", icon: Star, to: "/projetos-foco" },
-      { id: "catalogo", label: "Catálogo completo", icon: Building2, to: "/projetos" },
-      { id: "vitrine", label: "Vitrine (mapa)", icon: Map, to: "/vitrine" },
-      { id: "links-uteis", label: "Links Úteis", icon: Link2, to: "/links-uteis" },
-      {
-        id: "materiais",
-        label: "Materiais (gestão)",
-        icon: Megaphone,
-        to: "/projetos-materiais",
-        roles: ["admin", "gestor"],
-      },
-    ],
-  },
-  {
     id: "bi",
     titulo: "BI — Relatórios",
     descricao: "Relatórios e indicadores: seu Raio-X individual e os painéis da operação.",
@@ -336,7 +335,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/meu-raio-x" },
     homePorPapel: (ctx) =>
       temPapel(GESTAO, ctx) ? { to: "/painel-gestor" } : { to: "/meu-raio-x" },
-    grupo: "operacao",
+    grupo: "consulta",
     secoes: [
       { id: "meu-raio-x", label: "Meu Raio-X", icon: LineChart, to: "/meu-raio-x" },
       { id: "desempenho", label: "Desempenho", icon: Trophy, to: "/ranking" },
@@ -423,23 +422,53 @@ export function homeDoSistema(s: Sistema, ctx: PapelCtx): Destino {
   return s.homePorPapel?.(ctx) ?? s.home;
 }
 
-/** Search do link de uma seção, preservando o contexto da URL atual: entrar
- *  no Modo Fechamento estando na fase Carteira mantém `fase=carteira` — sem
- *  isso, voltar à aba Funil cairia no quadro completo. Em Prospecção (ou sem
- *  fase) nada é injetado: a fase não tem aba Fechamento. */
-export function searchDaSecao(
-  secao: Secao,
-  atual: Record<string, unknown>,
-): Record<string, string> | undefined {
-  if (
-    secao.to === "/pipeline" &&
-    secao.search?.tab === "fechamento" &&
-    String(atual.fase) === "carteira"
-  ) {
-    return { ...secao.search, fase: "carteira" };
-  }
-  return secao.search;
-}
+/** Atalhos do ⌘K que as seções não expressam: pulos direto a uma ABA
+ *  interna e as portas que saíram da sidebar no corte de 2026-08-30 (Reta
+ *  final, Match IA, Links Úteis — rotas vivas via dominioExtra). Moram no
+ *  REGISTRO, não na paleta, para o invariante de destino único (tests/
+ *  sistemas.test.ts) cobrir seções e atalhos juntos. */
+export type AtalhoExtra = {
+  label: string;
+  icon: LucideIcon;
+  to: string;
+  search?: Record<string, string>;
+  roles?: AppRole[];
+};
+
+export const ATALHOS_EXTRAS: AtalhoExtra[] = [
+  { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
+  { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
+  {
+    // "Reta final" é a leitura de fechamento DA CARTEIRA (auditoria
+    // 2026-08-27) — por isso o atalho fixa fase=carteira, mesmo vindo do
+    // quadro completo.
+    label: "Reta final (fechamento do funil)",
+    icon: Target,
+    to: "/pipeline",
+    search: { tab: "fechamento", fase: "carteira" },
+  },
+  { label: "Match IA", icon: Sparkles, to: "/match" },
+  { label: "Links Úteis", icon: Link2, to: "/links-uteis" },
+  {
+    label: "Relatórios (Operação)",
+    icon: LayoutDashboard,
+    to: "/painel-gestor",
+    search: { tab: "relatorios" },
+    roles: ["admin", "gestor", "superintendente"],
+  },
+  {
+    label: "Metas & Ritmo",
+    icon: LayoutDashboard,
+    to: "/painel-gestor",
+    search: { tab: "metas" },
+    roles: ["admin", "gestor", "superintendente"],
+  },
+];
+
+// A antiga searchDaSecao (que injetava fase=carteira no link da Reta final)
+// morreu com a seção Fechamento (corte 2026-08-30): o alternador interno do
+// /pipeline preserva a fase sozinho, e os links de seção usam `secao.search`
+// direto.
 
 // ---------------------------------------------------------------------------
 // Resolução do sistema ativo a partir da rota (pathname + search)
@@ -475,8 +504,9 @@ function candidatas(loc: Loc, lista: Sistema[]): Candidata[] {
 }
 
 /** Ranking: mais chaves de search casadas > chave de VISÃO (`tab`) > declaração.
- *  O `tab` desempata porque escolhe a visão renderizada (ex.: /pipeline com
- *  fase E tab=fechamento mostra o Fechamento, não o funil). */
+ *  O desempate por `tab` ficou sem par no registro atual (a seção Fechamento,
+ *  que empatava com o Funil no /pipeline, morreu no corte de 2026-08-30) —
+ *  fica como guarda para a próxima dupla página×visão que surgir. */
 function melhorCandidata(cands: Candidata[]): Candidata | null {
   if (cands.length === 0) return null;
   return cands.reduce((melhor, c) => {
@@ -542,7 +572,15 @@ export function faseDoStatus(status: string | null | undefined): FaseFunil | nul
 export function telaTransversalDeLead(loc: Loc): boolean {
   if (loc.pathname.startsWith("/leads/")) return true;
   const comLead = typeof loc.search.leadId === "string" && loc.search.leadId.length > 0;
-  return comLead && (pathCasa(loc.pathname, "/vitrine") || pathCasa(loc.pathname, "/projetos"));
+  // /match entrou no corte de 2026-08-30: aberto da ficha (?leadId) é parte
+  // da jornada DAQUELE lead — match de orçamento é uso típico de qualificação
+  // — e a sidebar não pode saltar para a Carteira (dominioExtra) e voltar.
+  return (
+    comLead &&
+    (pathCasa(loc.pathname, "/vitrine") ||
+      pathCasa(loc.pathname, "/projetos") ||
+      pathCasa(loc.pathname, "/match"))
+  );
 }
 
 /** sistemaAtivo com o contexto da jornada: numa tela transversal com a fase

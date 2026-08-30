@@ -258,6 +258,15 @@ function LeadDetailPage() {
             <Button variant="outline" onClick={() => setContatoOpen(true)}>
               <PhoneCall className="h-4 w-4 mr-2" /> Registrar contato
             </Button>
+            {/* Match IA saiu da sidebar (corte 2026-08-30): o lugar do match
+                é a ficha de quem se quer casar com produto — abre direto na
+                aba IA, a única que consome o leadId (o match financeiro é
+                calculadora sem contexto de lead). */}
+            <Button asChild variant="outline" className="hidden md:inline-flex">
+              <Link to="/match" search={{ leadId, mode: "ia" }}>
+                <Sparkles className="h-4 w-4 mr-2" /> Match IA
+              </Link>
+            </Button>
             {/* O conteúdo do diálogo é portalado para o body: esconder só o
                 gatilho no celular não impede a barra fixa de abrir o WhatsApp. */}
             <div className="hidden md:block">
