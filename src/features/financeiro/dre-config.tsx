@@ -1325,12 +1325,8 @@ function DialogoDespesa({
               <SelectTrigger>
                 <SelectValue placeholder="Escolha" />
               </SelectTrigger>
-              <SelectContent>
-                {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-72">
+                <CategoriaOpcoes categorias={categorias} />
               </SelectContent>
             </Select>
           </div>
