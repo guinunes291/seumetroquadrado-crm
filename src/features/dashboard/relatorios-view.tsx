@@ -66,6 +66,10 @@ import {
   usePipelineEtapaNominal,
 } from "@/features/dashboard/relatorios-nominais";
 import { corretorNome, LeadCell, NotaTeto } from "@/features/dashboard/relatorios-partes";
+import { ExportarPdfButton } from "@/features/dashboard/exportar-pdf-button";
+import type { DocumentoRelatorio } from "@/features/dashboard/relatorios-pdf";
+
+type RelatoriosPdf = typeof import("@/features/dashboard/relatorios-pdf");
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { formatDuration } from "@/lib/duracao";
 import { origemLabel } from "@/lib/origem";
@@ -224,8 +228,99 @@ function ResumoTab({
   const origensQ = useOrigens(range, canSeeAll && stage >= 3);
   const motivosQ = useDashboardMotivosPerda(range, scope, stage >= 4);
 
+  const montarPdf = (pdf: RelatoriosPdf): DocumentoRelatorio => {
+    const d = kpisQ.data;
+    const ticket = d ? ticketMedio(d.vgv, d.contrato_fechado) : null;
+    const ant = d?.anterior ?? null;
+    const comparecimento =
+      d && d.visitas_agendadas_periodo > 0
+        ? `${Math.round((d.visitas_periodo / d.visitas_agendadas_periodo) * 100)}%`
+        : "—";
+    return {
+      titulo: "Resumo executivo",
+      periodo: pdf.periodoLabelPdf(range),
+      blocos: [
+        {
+          titulo: "Resultado do período",
+          html: pdf.kpisPdf([
+            {
+              label: "Leads",
+              valor: (d?.total ?? 0).toLocaleString("pt-BR"),
+              hint: ant ? `anterior: ${ant.total.toLocaleString("pt-BR")}` : undefined,
+            },
+            {
+              label: "Vendas",
+              valor: String(d?.contrato_fechado ?? 0),
+              hint: ant ? `anterior: ${ant.contrato_fechado}` : undefined,
+            },
+            {
+              label: "VGV",
+              valor: fmtBRLCompacto(d?.vgv ?? 0),
+              hint: ant ? `anterior: ${fmtBRLCompacto(ant.vgv)}` : undefined,
+            },
+            { label: "Ticket médio", valor: ticket === null ? "—" : fmtBRLCompacto(ticket) },
+          ]),
+        },
+        {
+          titulo: "Produção do período",
+          sub: "cada atividade na data em que aconteceu",
+          html: pdf.kpisPdf([
+            { label: "Agendamentos", valor: String(d?.agendamentos_periodo ?? 0) },
+            { label: "Visitas realizadas", valor: String(d?.visitas_periodo ?? 0) },
+            { label: "Comparecimento", valor: comparecimento },
+            { label: "Pastas montadas", valor: String(d?.pastas_periodo ?? 0) },
+            { label: "Análises", valor: String(d?.analises_periodo ?? 0) },
+            { label: "Perdidos", valor: String(d?.perdido ?? 0) },
+          ]),
+        },
+        {
+          titulo: "Pipeline agora",
+          sub: "estoque por etapa — foto de hoje, não segue o filtro de período",
+          html: pdf.tabelaPdf(
+            ["Etapa", "Leads"],
+            PIPELINE_CARDS.map(({ key, label }) => [label, d?.[key] ?? 0]),
+            { direita: [1] },
+          ),
+        },
+        ...(canSeeAll
+          ? [
+              {
+                titulo: "Origem que vende",
+                sub: origensQ.data?.degradado ? "por status atual" : undefined,
+                html: pdf.tabelaPdf(
+                  ["Origem", "Leads", "Vendas", "Conv."],
+                  (origensQ.data?.rows ?? [])
+                    .slice(0, 10)
+                    .map((r) => [
+                      origemLabel(r.origem),
+                      r.leads.toLocaleString("pt-BR"),
+                      r.vendas,
+                      r.cobertura_pct !== null && Number(r.cobertura_pct) < 60
+                        ? "sem dado"
+                        : `${r.conv_pct ?? 0}%`,
+                    ]),
+                  { direita: [1, 2, 3] },
+                ),
+              },
+            ]
+          : []),
+        {
+          titulo: "Motivos de perda",
+          html: pdf.tabelaPdf(
+            ["Motivo", "Quantidade"],
+            (motivosQ.data ?? []).map((m) => [m.motivo, m.quantidade]),
+            { direita: [1] },
+          ),
+        },
+      ],
+    };
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportarPdfButton montar={montarPdf} disabled={kpisQ.isLoading} />
+      </div>
       {/* 1. Resultado do período (R$ primeiro — é a leitura de negócio) */}
       <AsyncBoundary
         isLoading={kpisQ.isLoading}

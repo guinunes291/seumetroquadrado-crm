@@ -56,6 +56,10 @@ import {
   NotaTeto,
   VazioPeriodo,
 } from "@/features/dashboard/relatorios-partes";
+import { ExportarPdfButton } from "@/features/dashboard/exportar-pdf-button";
+import type { DocumentoRelatorio } from "@/features/dashboard/relatorios-pdf";
+
+type RelatoriosPdf = typeof import("@/features/dashboard/relatorios-pdf");
 
 type Range = { di: string | null; df: string | null };
 
@@ -121,8 +125,98 @@ export function RelatoriosVendasTab({
     [distratos],
   );
 
+  const montarPdf = (pdf: RelatoriosPdf): DocumentoRelatorio => {
+    const corretorDe = (id: string | null) => (canSeeAll ? [corretorNome(id, nomesQ.data)] : []);
+    const colCorretor = canSeeAll ? ["Corretor"] : [];
+    const colVendas = ["Assinatura", "Cliente", ...colCorretor, "Empreendimento", "Valor"];
+    return {
+      titulo: "Relatório de Vendas",
+      periodo: pdf.periodoLabelPdf(range),
+      blocos: [
+        {
+          titulo: "Resultado",
+          html: pdf.kpisPdf([
+            { label: "Vendas", valor: String(vendasQ.data?.total ?? 0), hint: "aprovadas" },
+            { label: "VGV", valor: fmtBRLCompacto(vgv) },
+            { label: "Ticket médio", valor: ticket === null ? "—" : fmtBRLCompacto(ticket) },
+            {
+              label: "Distratos",
+              valor: String(distratosQ.data?.total ?? 0),
+              hint: vgvDistratado > 0 ? `${fmtBRLCompacto(vgvDistratado)} devolvidos` : undefined,
+            },
+          ]),
+        },
+        {
+          titulo: "Vendas do período",
+          sub: projetoFiltro ? `filtrado: ${projetoFiltro}` : undefined,
+          html: pdf.tabelaPdf(
+            colVendas,
+            filtradas.map((v) => [
+              dataCurta(v.data_assinatura),
+              v.lead?.nome ?? "—",
+              ...corretorDe(v.corretor_id),
+              nomeProjeto(v) + (v.unidade ? ` · ${v.unidade}` : ""),
+              fmtBRL(Number(v.valor_venda) || 0),
+            ]),
+            { direita: [colVendas.length - 1] },
+          ),
+        },
+        {
+          titulo: "Top empreendimentos",
+          html: pdf.tabelaPdf(
+            ["Empreendimento", "Vendas", "VGV"],
+            top.map((r) => [r.projeto, r.vendas, fmtBRLCompacto(r.vgv)]),
+            { direita: [1, 2] },
+          ),
+        },
+        ...(canSeeAll
+          ? [
+              {
+                titulo: "Conversão por empreendimento",
+                sub: "leads captados × vendas assinadas no período",
+                html: pdf.tabelaPdf(
+                  ["Empreendimento", "Leads", "Vendas", "VGV", "Conv."],
+                  conversao
+                    .slice(0, 20)
+                    .map((r) => [
+                      r.nome,
+                      r.leads.toLocaleString("pt-BR"),
+                      r.vendas,
+                      fmtBRLCompacto(r.vgv),
+                      r.conv_pct === null ? "—" : `${r.conv_pct.toLocaleString("pt-BR")}%`,
+                    ]),
+                  { direita: [1, 2, 3, 4] },
+                ),
+              },
+            ]
+          : []),
+        {
+          titulo: "Distratos do período",
+          html: pdf.tabelaPdf(
+            ["Distrato", "Cliente", ...colCorretor, "Empreendimento", "Valor", "Motivo"],
+            distratos.map((v) => [
+              dataCurta(v.data_distrato),
+              v.lead?.nome ?? "—",
+              ...corretorDe(v.corretor_id),
+              nomeProjeto(v),
+              fmtBRL(Number(v.valor_venda) || 0),
+              v.motivo_distrato || "—",
+            ]),
+            { direita: [canSeeAll ? 4 : 3] },
+          ),
+        },
+      ],
+    };
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportarPdfButton
+          montar={montarPdf}
+          disabled={vendasQ.isLoading || distratosQ.isLoading}
+        />
+      </div>
       <StatGrid>
         <StatTile
           title="Vendas no período"
