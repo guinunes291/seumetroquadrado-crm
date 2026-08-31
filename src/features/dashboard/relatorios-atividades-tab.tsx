@@ -44,6 +44,10 @@ import {
 } from "@/features/dashboard/relatorios-partes";
 import { ANALISE_STATUS_LABEL, type AnaliseStatus } from "@/features/leads/analise-credito";
 import { motivoPerdaLabel } from "@/lib/leads";
+import { ExportarPdfButton } from "@/features/dashboard/exportar-pdf-button";
+import type { DocumentoRelatorio } from "@/features/dashboard/relatorios-pdf";
+
+type RelatoriosPdf = typeof import("@/features/dashboard/relatorios-pdf");
 
 type Range = { di: string | null; df: string | null };
 
@@ -104,8 +108,89 @@ export function RelatoriosAtividadesTab({
     [analises, analiseFiltro],
   );
 
+  const montarPdf = (pdf: RelatoriosPdf): DocumentoRelatorio => {
+    const corretorDe = (id: string | null) => (canSeeAll ? [corretorNome(id, nomesQ.data)] : []);
+    const colCorretor = canSeeAll ? ["Corretor"] : [];
+    const statusDe = (s: string) => AGENDAMENTO_STATUS[s]?.label ?? s;
+    return {
+      titulo: "Relatório de Atividades",
+      periodo: pdf.periodoLabelPdf(range),
+      blocos: [
+        {
+          titulo: "Agendamentos criados",
+          sub: `${(agendamentosQ.data?.total ?? 0).toLocaleString("pt-BR")} no período`,
+          html: pdf.tabelaPdf(
+            ["Cliente", ...colCorretor, "Para quando", "Tipo", "Status"],
+            (agendamentosQ.data?.rows ?? []).map((a) => [
+              a.lead?.nome ?? "—",
+              ...corretorDe(a.corretor_id),
+              dataHora(a.data_inicio),
+              AGENDAMENTO_TIPO[a.tipo] ?? a.tipo,
+              statusDe(a.status),
+            ]),
+          ),
+        },
+        {
+          titulo: "Visitas do período",
+          sub: `${(visitasQ.data?.total ?? 0).toLocaleString("pt-BR")} marcadas, pelo dia da visita`,
+          html: pdf.tabelaPdf(
+            ["Dia da visita", "Cliente", ...colCorretor, "Status"],
+            (visitasQ.data?.rows ?? []).map((a) => [
+              dataHora(a.data_inicio),
+              a.lead?.nome ?? "—",
+              ...corretorDe(a.corretor_id),
+              statusDe(a.status),
+            ]),
+          ),
+        },
+        {
+          titulo: "Análises de crédito",
+          sub:
+            analiseFiltro === "todas"
+              ? "todas as situações"
+              : (ANALISE_STATUS_LABEL[analiseFiltro as AnaliseStatus] ?? analiseFiltro),
+          html: pdf.tabelaPdf(
+            ["Atualizada em", "Cliente", ...colCorretor, "Situação", "Observações"],
+            analisesFiltradas.map((a) => [
+              dataCurta(a.updated_at),
+              a.lead?.nome ?? "—",
+              ...corretorDe(a.corretor_id),
+              ANALISE_STATUS_LABEL[a.status as AnaliseStatus] ?? a.status,
+              a.observacoes || "—",
+            ]),
+          ),
+        },
+        {
+          titulo: "Perdidos do período",
+          sub: `${(perdidosQ.data?.total ?? 0).toLocaleString("pt-BR")} leads, pela data da perda`,
+          html: pdf.tabelaPdf(
+            ["Quando", "Cliente", ...colCorretor, "Motivo", "Empreendimento"],
+            (perdidosQ.data?.rows ?? []).map((l) => [
+              dataCurta(l.data_perda),
+              l.nome,
+              ...corretorDe(l.corretor_id),
+              motivoPerdaLabel(l.motivo_perda_categoria) ?? l.motivo_perdido ?? "—",
+              l.projeto_nome ?? "—",
+            ]),
+          ),
+        },
+      ],
+    };
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportarPdfButton
+          montar={montarPdf}
+          disabled={
+            agendamentosQ.isLoading ||
+            visitasQ.isLoading ||
+            analisesQ.isLoading ||
+            perdidosQ.isLoading
+          }
+        />
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Agendamentos criados no período */}
         <Card>

@@ -51,6 +51,10 @@ import { useVendasNominais } from "@/features/dashboard/relatorios-nominais";
 import { formatDuration } from "@/lib/duracao";
 import { tipoLabel } from "@/lib/comissoes";
 import { leadStatusLabel } from "@/lib/leads";
+import { ExportarPdfButton } from "@/features/dashboard/exportar-pdf-button";
+import type { DocumentoRelatorio } from "@/features/dashboard/relatorios-pdf";
+
+type RelatoriosPdf = typeof import("@/features/dashboard/relatorios-pdf");
 
 type Range = { di: string | null; df: string | null };
 
@@ -80,8 +84,113 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
     [esquecidosQ.data?.rows],
   );
 
+  const montarPdf = (pdf: RelatoriosPdf): DocumentoRelatorio => ({
+    titulo: "Relatório do Time",
+    periodo: pdf.periodoLabelPdf(range),
+    blocos: [
+      {
+        titulo: "Ranking por corretor",
+        html: pdf.tabelaPdf(
+          [
+            "#",
+            "Corretor",
+            "Leads",
+            "Ag.",
+            "Visitas",
+            "Análise",
+            "Fechados",
+            "VGV",
+            "Ticket",
+            "Conv.",
+          ],
+          (rankingQ.data ?? []).map((r, i) => {
+            const extra = porCorretorVgv.get(r.corretor_id);
+            const ticket = extra ? ticketMedio(extra.vgv, extra.vendas) : null;
+            return [
+              `${i + 1}º`,
+              r.nome,
+              r.leads,
+              r.agendamentos,
+              r.visitas,
+              r.analise,
+              r.fechados,
+              extra ? fmtBRLCompacto(extra.vgv) : "—",
+              ticket === null ? "—" : fmtBRLCompacto(ticket),
+              `${r.conversao}%`,
+            ];
+          }),
+          { direita: [2, 3, 4, 5, 6, 7, 8, 9] },
+        ),
+      },
+      {
+        titulo: "Tempo de 1ª resposta",
+        html: pdf.tabelaPdf(
+          ["Corretor", "Leads", "Respondidos", "Média", "Mediana"],
+          (tempoQ.data ?? [])
+            .slice()
+            .sort((a, b) => (a.tempo_mediana_min ?? 1e9) - (b.tempo_mediana_min ?? 1e9))
+            .map((r) => [
+              corretorNome(r.corretor_id, nomesQ.data),
+              r.leads_no_periodo,
+              r.leads_respondidos,
+              r.tempo_medio_min === null ? "—" : formatDuration(r.tempo_medio_min),
+              r.tempo_mediana_min === null ? "—" : formatDuration(r.tempo_mediana_min),
+            ]),
+          { direita: [1, 2, 3, 4] },
+        ),
+      },
+      {
+        titulo: "Comissões do período",
+        sub: "líquido por beneficiário; canceladas fora",
+        html: pdf.tabelaPdf(
+          ["Beneficiário", "Papel", "Pendente", "Paga", "Total"],
+          beneficiarios.map((b) => [
+            b.nome,
+            b.tipos.map((t) => tipoLabel(t)).join(" · "),
+            b.pendente > 0 ? fmtBRL(b.pendente) : "—",
+            b.paga > 0 ? fmtBRL(b.paga) : "—",
+            fmtBRL(b.total),
+          ]),
+          { direita: [2, 3, 4] },
+        ),
+      },
+      {
+        titulo: `Leads esquecidos (sem atividade há ${diasEsquecido}+ dias)`,
+        html: pdf.tabelaPdf(
+          ["Corretor", "Leads parados", "Mais antigo"],
+          esquecidosGrupo.map((g) => [
+            corretorNome(g.corretor_id, nomesQ.data),
+            g.total,
+            haQuanto(g.maisAntigo),
+          ]),
+          { direita: [1] },
+        ),
+      },
+      {
+        titulo: "Os 10 esquecidos mais antigos",
+        html: pdf.tabelaPdf(
+          ["Cliente", "Corretor", "Etapa", "Parado"],
+          (esquecidosQ.data?.rows ?? [])
+            .slice(0, 10)
+            .map((l) => [
+              l.nome,
+              corretorNome(l.corretor_id, nomesQ.data),
+              leadStatusLabel(l.status),
+              haQuanto(l.ultima_atividade_em),
+            ]),
+        ),
+      },
+    ],
+  });
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ExportarPdfButton
+          montar={montarPdf}
+          disabled={rankingQ.isLoading || vendasQ.isLoading || esquecidosQ.isLoading}
+        />
+      </div>
       {/* Ranking com R$ — quem vende e quanto vale o que vende */}
       <Card>
         <CardHeader>
