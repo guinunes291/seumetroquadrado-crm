@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { QueryErrorState } from "@/components/ui/query-error-state";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -18,7 +19,6 @@ import {
 import {
   ResponsiveContainer,
   LineChart,
-  ComposedChart,
   Line,
   XAxis,
   YAxis,
@@ -39,15 +39,14 @@ import {
   XCircle,
   UserCheck,
   UserX,
-  Trophy,
   AlertTriangle,
   TrendingUp,
   ArrowRight,
-  RefreshCw,
   Megaphone,
-  Building2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { PeriodFilter, useDateFilter, type PeriodPreset } from "@/features/dashboard/period-filter";
@@ -55,25 +54,43 @@ import {
   useDashboardKpis,
   useDashboardSerie,
   useDashboardFunil,
-  useDashboardPorCorretor,
   useDashboardMotivosPerda,
   useDashboardLeadsUrgentes,
-  useDashboardRedistribuicoes,
   useOrigens,
-  useVendasAprovadas,
   type OrigemRow,
 } from "@/features/dashboard/queries";
 import type { DashboardKpisFlat } from "@/features/dashboard/derive";
+import { ticketMedio } from "@/features/dashboard/relatorios-derive";
 import {
-  agruparVendasPorMes,
-  ticketMedio,
-  topProjetos,
-  type ProjetoResultado,
-  type VendasMes,
-} from "@/features/dashboard/relatorios-derive";
+  useCorretorNomes,
+  usePipelineEtapaNominal,
+} from "@/features/dashboard/relatorios-nominais";
+import { corretorNome, LeadCell, NotaTeto } from "@/features/dashboard/relatorios-partes";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { formatDuration } from "@/lib/duracao";
 import { origemLabel } from "@/lib/origem";
+
+// Sub-abas pesadas (tabelas nominais + gráficos) só descem quando abrem.
+const RelatoriosVendasTab = lazy(() =>
+  import("@/features/dashboard/relatorios-vendas-tab").then(({ RelatoriosVendasTab }) => ({
+    default: RelatoriosVendasTab,
+  })),
+);
+const RelatoriosAtividadesTab = lazy(() =>
+  import("@/features/dashboard/relatorios-atividades-tab").then(({ RelatoriosAtividadesTab }) => ({
+    default: RelatoriosAtividadesTab,
+  })),
+);
+const RelatoriosTimeTab = lazy(() =>
+  import("@/features/dashboard/relatorios-time-tab").then(({ RelatoriosTimeTab }) => ({
+    default: RelatoriosTimeTab,
+  })),
+);
+const RelatoriosCorretoresTab = lazy(() =>
+  import("@/features/dashboard/relatorios-corretores-tab").then(({ RelatoriosCorretoresTab }) => ({
+    default: RelatoriosCorretoresTab,
+  })),
+);
 
 /** Link discreto para a aba de análise completa do hub de Gestão. */
 function AbaLink({ tab, label }: { tab: "funil" | "time"; label: string }) {
@@ -88,12 +105,21 @@ function AbaLink({ tab, label }: { tab: "funil" | "time"; label: string }) {
   );
 }
 
+function AbaSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Carregando">
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  );
+}
+
 /**
- * Aba Relatórios da /inteligencia — visão EXECUTIVA em ordem de decisão:
- * resultado em R$ (com delta), situação de agora, pipeline, quais canais
- * VENDEM (mídia), tendência mensal, quais empreendimentos vendem (foco), e
- * as leituras operacionais (funil, motivos, ranking) com atalho para a
- * análise completa em cada aba. A rota /relatorios segue como redirect.
+ * Aba Relatórios do hub de Gestão, agora em SUB-ABAS: Resumo (leitura
+ * executiva em ordem de decisão), Vendas, Atividades, Time e Corretores —
+ * as quatro últimas NOMINAIS: nome do cliente e corretor responsável em cada
+ * linha, sem precisar abrir a base de leads para saber de quem se trata.
+ * A rota /relatorios segue como redirect.
  */
 export function RelatoriosView() {
   const { user } = useAuth();
@@ -104,7 +130,80 @@ export function RelatoriosView() {
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
   const range = useDateFilter(preset, custom);
+  const [aba, setAba] = useState("resumo");
 
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Relatórios"
+        description={
+          canSeeAll
+            ? "Resultado, canais, produto e pessoas — com nome de cliente e corretor."
+            : "Sua performance"
+        }
+        actions={
+          <PeriodFilter
+            preset={preset}
+            onPresetChange={setPreset}
+            custom={custom}
+            onCustomChange={setCustom}
+          />
+        }
+      />
+
+      <Tabs value={aba} onValueChange={setAba} className="space-y-4">
+        <TabsList className="h-auto flex-wrap justify-start">
+          <TabsTrigger value="resumo">Resumo</TabsTrigger>
+          <TabsTrigger value="vendas">Vendas</TabsTrigger>
+          <TabsTrigger value="atividades">Atividades</TabsTrigger>
+          {canSeeAll && <TabsTrigger value="time">Time</TabsTrigger>}
+          {canSeeAll && <TabsTrigger value="corretores">Corretores</TabsTrigger>}
+        </TabsList>
+
+        <TabsContent value="resumo">
+          <ResumoTab range={range} scope={scope} canSeeAll={canSeeAll} />
+        </TabsContent>
+        <TabsContent value="vendas">
+          <Suspense fallback={<AbaSkeleton />}>
+            <RelatoriosVendasTab range={range} scope={scope} canSeeAll={canSeeAll} />
+          </Suspense>
+        </TabsContent>
+        <TabsContent value="atividades">
+          <Suspense fallback={<AbaSkeleton />}>
+            <RelatoriosAtividadesTab range={range} scope={scope} canSeeAll={canSeeAll} />
+          </Suspense>
+        </TabsContent>
+        {canSeeAll && (
+          <TabsContent value="time">
+            <Suspense fallback={<AbaSkeleton />}>
+              <RelatoriosTimeTab range={range} />
+            </Suspense>
+          </TabsContent>
+        )}
+        {canSeeAll && (
+          <TabsContent value="corretores">
+            <Suspense fallback={<AbaSkeleton />}>
+              <RelatoriosCorretoresTab />
+            </Suspense>
+          </TabsContent>
+        )}
+      </Tabs>
+    </div>
+  );
+}
+
+type Range = { di: string | null; df: string | null };
+
+/** Sub-aba RESUMO — a leitura executiva original, em ordem de decisão. */
+function ResumoTab({
+  range,
+  scope,
+  canSeeAll,
+}: {
+  range: Range;
+  scope: string | null;
+  canSeeAll: boolean;
+}) {
   // Carregamento por tiers
   const [stage, setStage] = useState(1);
   useEffect(() => {
@@ -121,35 +220,12 @@ export function RelatoriosView() {
   const kpisQ = useDashboardKpis(range, scope);
   const urgentesQ = useDashboardLeadsUrgentes(scope, stage >= 2);
   const serieQ = useDashboardSerie(range, scope, stage >= 2);
-  const vendasQ = useVendasAprovadas(6, canSeeAll && stage >= 2);
   const funilQ = useDashboardFunil(range, scope, stage >= 3);
   const origensQ = useOrigens(range, canSeeAll && stage >= 3);
-  const porCorretorQ = useDashboardPorCorretor(range, canSeeAll && stage >= 3);
   const motivosQ = useDashboardMotivosPerda(range, scope, stage >= 4);
-  const redistQ = useDashboardRedistribuicoes(range, canSeeAll && stage >= 4);
-
-  const vendasMensais = useMemo(() => agruparVendasPorMes(vendasQ.data ?? []), [vendasQ.data]);
-  const projetos = useMemo(() => topProjetos(vendasQ.data ?? []), [vendasQ.data]);
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Relatórios"
-        description={
-          canSeeAll
-            ? "Resultado, canais e produto — a leitura executiva do negócio."
-            : "Sua performance"
-        }
-        actions={
-          <PeriodFilter
-            preset={preset}
-            onPresetChange={setPreset}
-            custom={custom}
-            onCustomChange={setCustom}
-          />
-        }
-      />
-
       {/* 1. Resultado do período (R$ primeiro — é a leitura de negócio) */}
       <AsyncBoundary
         isLoading={kpisQ.isLoading}
@@ -183,8 +259,13 @@ export function RelatoriosView() {
           />
         ))}
 
-      {/* 3. Pipeline agora (estoque por etapa, clicável) */}
-      <PipelineAgora data={kpisQ.data} loading={kpisQ.isLoading} />
+      {/* 3. Pipeline agora (estoque por etapa) — clique EXPANDE a lista nominal */}
+      <PipelineAgora
+        data={kpisQ.data}
+        loading={kpisQ.isLoading}
+        scope={scope}
+        canSeeAll={canSeeAll}
+      />
 
       {/* 4. Evolução diária + funil compacto */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -231,9 +312,9 @@ export function RelatoriosView() {
         </Card>
       </div>
 
-      {/* 5. Decisão de mídia e tendência de resultado */}
-      {canSeeAll && (
-        <div className="grid gap-4 lg:grid-cols-2">
+      {/* 5. Decisão de mídia + perdas */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {canSeeAll && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -253,58 +334,6 @@ export function RelatoriosView() {
                 loadingFallback={<Skeleton className="h-48 w-full" />}
               >
                 <OrigemTable rows={origensQ.data?.rows ?? []} />
-              </AsyncBoundary>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" /> Vendas e VGV por mês (6 meses)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="h-[280px]">
-              <AsyncBoundary
-                className="h-full"
-                isLoading={vendasQ.isLoading}
-                isError={vendasQ.isError}
-                error={vendasQ.error}
-                errorTitle="Não foi possível carregar a evolução de vendas."
-                onRetry={() => vendasQ.refetch()}
-                loadingFallback={<Skeleton className="h-full w-full" />}
-              >
-                {vendasMensais.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Sem vendas aprovadas nos últimos 6 meses.
-                  </p>
-                ) : (
-                  <EvolucaoMensalChart data={vendasMensais} />
-                )}
-              </AsyncBoundary>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* 6. Produto e perdas */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {canSeeAll && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Top empreendimentos (6 meses)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AsyncBoundary
-                isLoading={vendasQ.isLoading}
-                isError={vendasQ.isError}
-                error={vendasQ.error}
-                errorTitle="Não foi possível carregar os empreendimentos."
-                onRetry={() => vendasQ.refetch()}
-                loadingFallback={<Skeleton className="h-40 w-full" />}
-              >
-                <TopProjetosTable rows={projetos} />
               </AsyncBoundary>
             </CardContent>
           </Card>
@@ -339,30 +368,6 @@ export function RelatoriosView() {
         </Card>
       </div>
 
-      {/* 7. Pessoas */}
-      {canSeeAll && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Trophy className="h-4 w-4" /> Ranking por corretor
-              <AbaLink tab="time" label="performance completa" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AsyncBoundary
-              isLoading={porCorretorQ.isLoading}
-              isError={porCorretorQ.isError}
-              error={porCorretorQ.error}
-              errorTitle="Não foi possível carregar o ranking."
-              onRetry={() => porCorretorQ.refetch()}
-              loadingFallback={<Skeleton className="h-40 w-full" />}
-            >
-              <PorCorretorTable rows={porCorretorQ.data ?? []} />
-            </AsyncBoundary>
-          </CardContent>
-        </Card>
-      )}
-
       {!canSeeAll && (
         <Card>
           <CardHeader>
@@ -380,29 +385,6 @@ export function RelatoriosView() {
               loadingFallback={<Skeleton className="h-32 w-full" />}
             >
               <UrgentesList rows={urgentesQ.data ?? []} />
-            </AsyncBoundary>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 8. Operacional (fim da página) */}
-      {canSeeAll && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" /> Redistribuições recentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AsyncBoundary
-              isLoading={redistQ.isLoading}
-              isError={redistQ.isError}
-              error={redistQ.error}
-              errorTitle="Não foi possível carregar as redistribuições."
-              onRetry={() => redistQ.refetch()}
-              loadingFallback={<Skeleton className="h-40 w-full" />}
-            >
-              <RedistTable rows={redistQ.data ?? []} />
             </AsyncBoundary>
           </CardContent>
         </Card>
@@ -593,34 +575,85 @@ const PIPELINE_CARDS: Array<{
   key: keyof Omit<DashboardKpisFlat, "deltas" | "anterior">;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Chave da expansão nominal (status atual) — undefined = só navega. */
+  etapa?: string;
   status?: string;
 }> = [
-  { key: "aguardando", label: "Aguardando", icon: Hourglass, status: "aguardando_atendimento" },
-  { key: "aguardando_retorno", label: "Ag. retorno", icon: Clock, status: "aguardando_retorno" },
+  {
+    key: "aguardando",
+    label: "Aguardando",
+    icon: Hourglass,
+    etapa: "aguardando_atendimento",
+    status: "aguardando_atendimento",
+  },
+  {
+    key: "aguardando_retorno",
+    label: "Ag. retorno",
+    icon: Clock,
+    etapa: "aguardando_retorno",
+    status: "aguardando_retorno",
+  },
   {
     key: "qualificacao_corretor",
     label: "Qualificação",
     icon: UserCheck,
+    etapa: "qualificacao_corretor",
     status: "qualificacao_corretor",
   },
-  { key: "em_atendimento", label: "Em atendimento", icon: Clock, status: "em_atendimento" },
-  { key: "agendado", label: "Agendado", icon: Calendar, status: "agendado" },
-  { key: "visita_realizada", label: "Visita", icon: Eye, status: "visita_realizada" },
-  { key: "analise_credito", label: "Análise crédito", icon: FileCheck, status: "analise_credito" },
+  {
+    key: "em_atendimento",
+    label: "Em atendimento",
+    icon: Clock,
+    etapa: "em_atendimento",
+    status: "em_atendimento",
+  },
+  { key: "agendado", label: "Agendado", icon: Calendar, etapa: "agendado", status: "agendado" },
+  {
+    key: "visita_realizada",
+    label: "Visita",
+    icon: Eye,
+    etapa: "visita_realizada",
+    status: "visita_realizada",
+  },
+  {
+    key: "analise_credito",
+    label: "Análise crédito",
+    icon: FileCheck,
+    etapa: "analise_credito",
+    status: "analise_credito",
+  },
+  // Perdidos é métrica de PERÍODO (não estoque) — a lista nominal com motivo
+  // vive na sub-aba Atividades; aqui o card navega para a base filtrada.
   { key: "perdido", label: "Perdidos (per.)", icon: XCircle, status: "perdido" },
-  { key: "sem_corretor", label: "Sem corretor", icon: Users },
+  { key: "sem_corretor", label: "Sem corretor", icon: Users, etapa: "sem_corretor" },
 ];
 
-/** 3º bloco: estoque ATUAL por etapa (foto de agora) — cada card abre a lista. */
-function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; loading?: boolean }) {
+/**
+ * 3º bloco: estoque ATUAL por etapa (foto de agora). Clicar num card EXPANDE
+ * ali mesmo a lista nominal — nome do cliente, telefone (oculto), corretor e
+ * há quanto tempo está parado — sem precisar ir para a base de leads.
+ */
+function PipelineAgora({
+  data,
+  loading = false,
+  scope,
+  canSeeAll,
+}: {
+  data?: DashboardKpisFlat;
+  loading?: boolean;
+  scope: string | null;
+  canSeeAll: boolean;
+}) {
+  const [etapaAberta, setEtapaAberta] = useState<string | null>(null);
   return (
     <div>
       <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
         Pipeline agora (estoque por etapa — foto de hoje, não segue o filtro de período)
       </p>
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-9">
-        {PIPELINE_CARDS.map(({ key, label, icon: Icon, status }) => {
+        {PIPELINE_CARDS.map(({ key, label, icon: Icon, etapa, status }) => {
           const value = data?.[key] ?? 0;
+          const aberta = etapa != null && etapaAberta === etapa;
           // Item 3.1: o card de Análise responde "quantos negócios estão
           // liberados" — desdobra a última análise de cada lead da etapa.
           const analiseDetalhe =
@@ -640,7 +673,13 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
                   .join(" · ")
               : null;
           const inner = (
-            <Card className="transition-all hover:border-primary/40 hover:shadow-sm">
+            <Card
+              className={
+                aberta
+                  ? "border-primary/60 shadow-sm transition-all"
+                  : "transition-all hover:border-primary/40 hover:shadow-sm"
+              }
+            >
               <CardContent className="p-3">
                 <div className="flex items-start justify-between mb-1 gap-1">
                   <span className="text-[11px] uppercase tracking-wide text-muted-foreground leading-tight">
@@ -651,7 +690,15 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
                 {loading ? (
                   <Skeleton className="h-7 w-12" />
                 ) : (
-                  <div className="text-2xl font-semibold tabular-nums">{value}</div>
+                  <div className="text-2xl font-semibold tabular-nums flex items-center gap-1">
+                    {value}
+                    {etapa &&
+                      (aberta ? (
+                        <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      ))}
+                  </div>
                 )}
                 {!loading && analiseDetalhe && (
                   <div className="mt-0.5 text-[10px] text-muted-foreground">{analiseDetalhe}</div>
@@ -659,6 +706,19 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
               </CardContent>
             </Card>
           );
+          if (etapa) {
+            return (
+              <button
+                key={key}
+                type="button"
+                className="text-left"
+                title="Ver quem está nesta etapa"
+                onClick={() => setEtapaAberta(aberta ? null : etapa)}
+              >
+                {inner}
+              </button>
+            );
+          }
           return status ? (
             <Link key={key} to="/leads" search={{ status }}>
               {inner}
@@ -670,7 +730,96 @@ function PipelineAgora({ data, loading = false }: { data?: DashboardKpisFlat; lo
           );
         })}
       </div>
+      {etapaAberta && (
+        <PipelineEtapaPainel
+          etapa={etapaAberta}
+          scope={scope}
+          canSeeAll={canSeeAll}
+          onFechar={() => setEtapaAberta(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Expansão inline de uma etapa do pipeline: quem está nela AGORA. */
+function PipelineEtapaPainel({
+  etapa,
+  scope,
+  canSeeAll,
+  onFechar,
+}: {
+  etapa: string;
+  scope: string | null;
+  canSeeAll: boolean;
+  onFechar: () => void;
+}) {
+  const q = usePipelineEtapaNominal(etapa, scope);
+  const nomesQ = useCorretorNomes(canSeeAll);
+  const rotulo = PIPELINE_CARDS.find((c) => c.etapa === etapa)?.label ?? etapa;
+  const linkBase =
+    etapa === "sem_corretor" ? { search: {} } : { search: { status: etapa } as const };
+  return (
+    <Card className="mt-3">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          Quem está em “{rotulo}” agora
+          <span className="text-xs font-normal text-muted-foreground">
+            {q.data ? `${q.data.total.toLocaleString("pt-BR")} leads` : ""}
+          </span>
+          <span className="ml-auto flex items-center gap-3">
+            <Link
+              to="/leads"
+              search={linkBase.search}
+              className="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground hover:text-primary hover:underline"
+            >
+              abrir na base <ArrowRight className="h-3 w-3" />
+            </Link>
+            <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onFechar}>
+              fechar
+            </Button>
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <AsyncBoundary
+          isLoading={q.isLoading}
+          isError={q.isError}
+          error={q.error}
+          errorTitle="Não foi possível carregar os leads da etapa."
+          onRetry={() => q.refetch()}
+          loadingFallback={<Skeleton className="h-32 w-full" />}
+        >
+          {(q.data?.rows.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground">Ninguém nesta etapa agora.</p>
+          ) : (
+            <>
+              <ul className="divide-y">
+                {(q.data?.rows ?? []).map((l) => (
+                  <li key={l.id} className="flex items-center gap-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <LeadCell leadId={l.id} nome={l.nome} telefone={l.telefone} />
+                    </div>
+                    {canSeeAll && (
+                      <span className="hidden sm:block text-xs text-muted-foreground truncate max-w-[160px]">
+                        {corretorNome(l.corretor_id, nomesQ.data)}
+                      </span>
+                    )}
+                    <Badge variant="outline" className="whitespace-nowrap">
+                      parado{" "}
+                      {formatDistanceToNowStrict(parseISO(l.ultima_atividade_em), {
+                        locale: ptBR,
+                      })}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+              <NotaTeto mostrando={q.data?.rows.length ?? 0} total={q.data?.total ?? 0} />
+            </>
+          )}
+        </AsyncBoundary>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -805,69 +954,6 @@ function FunilView({ data }: { data: Array<{ etapa: string; quantidade: number }
   );
 }
 
-function PorCorretorTable({
-  rows,
-}: {
-  rows: Array<{
-    corretor_id: string;
-    nome: string;
-    leads: number;
-    agendamentos: number;
-    visitas: number;
-    analise: number;
-    fechados: number;
-    perdidos: number;
-    conversao: number;
-  }>;
-}) {
-  if (rows.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground">
-        Sem dados neste período. Ajuste o filtro de data acima.
-      </p>
-    );
-  return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10">#</TableHead>
-            <TableHead>Corretor</TableHead>
-            <TableHead className="text-right">Leads</TableHead>
-            <TableHead className="text-right">Ag.</TableHead>
-            <TableHead className="text-right">Visitas</TableHead>
-            <TableHead className="text-right">Análise</TableHead>
-            <TableHead className="text-right">Fechados</TableHead>
-            <TableHead className="text-right">Perdidos</TableHead>
-            <TableHead className="text-right">Conv.</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r, i) => (
-            <TableRow key={r.corretor_id}>
-              <TableCell className="text-muted-foreground">{i + 1}º</TableCell>
-              <TableCell className="font-medium truncate max-w-[220px]">{r.nome}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.leads}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.agendamentos}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.visitas}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.analise}</TableCell>
-              <TableCell className="text-right tabular-nums font-semibold text-emerald-600">
-                {r.fechados}
-              </TableCell>
-              <TableCell className="text-right tabular-nums text-muted-foreground">
-                {r.perdidos}
-              </TableCell>
-              <TableCell className="text-right">
-                <Badge variant={r.conversao >= 5 ? "default" : "secondary"}>{r.conversao}%</Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-}
-
 function UrgentesList({
   rows,
 }: {
@@ -921,64 +1007,6 @@ function MotivosChart({ data }: { data: Array<{ motivo: string; quantidade: numb
         <Bar dataKey="quantidade" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
-  );
-}
-
-const TIPO_LABEL: Record<string, string> = {
-  automatica: "Automática",
-  manual: "Manual",
-  redistribuicao: "Redistribuição",
-};
-
-function RedistTable({
-  rows,
-}: {
-  rows: Array<{
-    quando: string;
-    lead_id: string;
-    lead_nome: string;
-    corretor_nome: string;
-    tipo: string;
-    motivo: string;
-  }>;
-}) {
-  if (rows.length === 0)
-    return <p className="text-sm text-muted-foreground">Sem redistribuições no período.</p>;
-  return (
-    <div className="overflow-x-auto max-h-[280px]">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Quando</TableHead>
-            <TableHead>Lead</TableHead>
-            <TableHead>Corretor</TableHead>
-            <TableHead>Tipo</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.slice(0, 30).map((r, i) => (
-            <TableRow key={`${r.lead_id}-${i}`}>
-              <TableCell className="text-xs whitespace-nowrap">
-                {format(parseISO(r.quando), "dd/MM HH:mm", { locale: ptBR })}
-              </TableCell>
-              <TableCell className="font-medium truncate max-w-[200px]">
-                <Link
-                  to="/leads/$leadId"
-                  params={{ leadId: r.lead_id }}
-                  className="hover:underline"
-                >
-                  {r.lead_nome ?? "—"}
-                </Link>
-              </TableCell>
-              <TableCell className="truncate max-w-[160px]">{r.corretor_nome}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{TIPO_LABEL[r.tipo] ?? r.tipo}</Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
   );
 }
 
@@ -1037,88 +1065,5 @@ function OrigemTable({ rows }: { rows: OrigemRow[] }) {
         </TableBody>
       </Table>
     </div>
-  );
-}
-
-/** Vendas (barras) e VGV (linha) por mês — tendência de resultado. */
-function EvolucaoMensalChart({ data }: { data: VendasMes[] }) {
-  const formatted = data.map((d) => ({
-    ...d,
-    label: format(parseISO(d.mes), "MMM/yy", { locale: ptBR }),
-  }));
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={formatted} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-        <YAxis yAxisId="vendas" tick={{ fontSize: 11 }} allowDecimals={false} />
-        <YAxis
-          yAxisId="vgv"
-          orientation="right"
-          tick={{ fontSize: 11 }}
-          tickFormatter={(v: number) =>
-            v.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 })
-          }
-        />
-        <Tooltip
-          formatter={(value: number, name: string) =>
-            name === "VGV"
-              ? value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-              : value
-          }
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-        <Bar
-          yAxisId="vendas"
-          dataKey="vendas"
-          name="Vendas"
-          fill="var(--chart-2)"
-          radius={[4, 4, 0, 0]}
-        />
-        <Line
-          yAxisId="vgv"
-          type="monotone"
-          dataKey="vgv"
-          name="VGV"
-          stroke="var(--success)"
-          strokeWidth={2}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
-  );
-}
-
-/** Top empreendimentos por VGV — onde o resultado está sendo feito. */
-function TopProjetosTable({ rows }: { rows: ProjetoResultado[] }) {
-  if (rows.length === 0)
-    return (
-      <p className="text-sm text-muted-foreground">Sem vendas aprovadas nos últimos 6 meses.</p>
-    );
-  const maxVgv = Math.max(1, ...rows.map((r) => r.vgv));
-  return (
-    <ul className="space-y-2">
-      {rows.map((r) => (
-        <li key={r.projeto}>
-          <div className="mb-1 flex justify-between gap-2 text-sm">
-            <span className="truncate font-medium">{r.projeto}</span>
-            <span className="shrink-0 tabular-nums text-muted-foreground">
-              {r.vendas} {r.vendas === 1 ? "venda" : "vendas"} ·{" "}
-              {r.vgv.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-                notation: "compact",
-                maximumFractionDigits: 1,
-              })}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full bg-primary/70"
-              style={{ width: `${Math.max(3, Math.round((r.vgv / maxVgv) * 100))}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
