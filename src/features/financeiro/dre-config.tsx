@@ -30,7 +30,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -887,10 +889,50 @@ async function fetchCategorias(): Promise<DreCategoria[]> {
     .from("dre_categorias_despesa")
     .select("*")
     .eq("ativa", true)
+    .order("grupo")
     .order("nome");
   if (error) throw error;
   return data ?? [];
 }
+
+/** Rótulos dos grupos de categoria (agrupamento visual do seletor). */
+const GRUPOS_CATEGORIA: Array<{ chave: string; rotulo: string }> = [
+  { chave: "ocupacao", rotulo: "Estrutura / ocupação" },
+  { chave: "marketing", rotulo: "Marketing e captação" },
+  { chave: "tecnologia", rotulo: "Tecnologia" },
+  { chave: "administrativo", rotulo: "Administrativo e financeiro" },
+  { chave: "outros", rotulo: "Outros" },
+];
+
+/** Categorias agrupadas na ordem acima; grupos desconhecidos vão para "Outros". */
+function agruparCategorias(cats: DreCategoria[]) {
+  return GRUPOS_CATEGORIA.map(({ chave, rotulo }) => ({
+    rotulo,
+    itens: cats.filter((c) =>
+      chave === "outros"
+        ? !GRUPOS_CATEGORIA.some((g) => g.chave !== "outros" && g.chave === c.grupo)
+        : c.grupo === chave,
+    ),
+  })).filter((g) => g.itens.length > 0);
+}
+
+function CategoriaOpcoes({ categorias }: { categorias: DreCategoria[] }) {
+  return (
+    <>
+      {agruparCategorias(categorias).map((g) => (
+        <SelectGroup key={g.rotulo}>
+          <SelectLabel>{g.rotulo}</SelectLabel>
+          {g.itens.map((c) => (
+            <SelectItem key={c.id} value={c.id}>
+              {c.nome}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      ))}
+    </>
+  );
+}
+
 
 function AbaDespesas({ unidades }: { unidades: DreUnidade[] }) {
   const invalidar = useInvalidarDre();
@@ -1075,11 +1117,7 @@ function AbaDespesas({ unidades }: { unidades: DreUnidade[] }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={TODAS}>Todas</SelectItem>
-                  {(categoriasQuery.data ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
+                  <CategoriaOpcoes categorias={categoriasQuery.data ?? []} />
                 </SelectContent>
               </Select>
             </div>
@@ -1287,12 +1325,8 @@ function DialogoDespesa({
               <SelectTrigger>
                 <SelectValue placeholder="Escolha" />
               </SelectTrigger>
-              <SelectContent>
-                {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.nome}
-                  </SelectItem>
-                ))}
+              <SelectContent className="max-h-72">
+                <CategoriaOpcoes categorias={categorias} />
               </SelectContent>
             </Select>
           </div>
