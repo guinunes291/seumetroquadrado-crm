@@ -1035,6 +1035,53 @@ export type Database = {
         }
         Relationships: []
       }
+      conversas_tratadas: {
+        Row: {
+          lead_id: string
+          tratada_em: string
+          tratada_por: string | null
+        }
+        Insert: {
+          lead_id: string
+          tratada_em?: string
+          tratada_por?: string | null
+        }
+        Update: {
+          lead_id?: string
+          tratada_em?: string
+          tratada_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversas_tratadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversas_tratadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "conversas_tratadas_tratada_por_fkey"
+            columns: ["tratada_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversas_tratadas_tratada_por_fkey"
+            columns: ["tratada_por"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       convites_crm: {
         Row: {
           aceito_em: string | null
@@ -3195,6 +3242,7 @@ export type Database = {
           midia_url: string | null
           provider: string | null
           provider_message_id: string | null
+          recebida_em: string
           status: string
           template_nome: string | null
         }
@@ -3211,6 +3259,7 @@ export type Database = {
           midia_url?: string | null
           provider?: string | null
           provider_message_id?: string | null
+          recebida_em?: string
           status?: string
           template_nome?: string | null
         }
@@ -3227,6 +3276,7 @@ export type Database = {
           midia_url?: string | null
           provider?: string | null
           provider_message_id?: string | null
+          recebida_em?: string
           status?: string
           template_nome?: string | null
         }
@@ -6397,6 +6447,22 @@ export type Database = {
         Returns: string
       }
       conta_atual_ativa: { Args: never; Returns: boolean }
+      conversa_aguardando_resposta: {
+        Args: { _lead_id: string }
+        Returns: {
+          aguardando: boolean
+          ultima_entrada: string
+        }[]
+      }
+      conversa_estado: { Args: { _lead_id: string }; Returns: Json }
+      conversas_aguardando_resposta: {
+        Args: { _lead_ids: string[] }
+        Returns: {
+          aguardando: boolean
+          lead_id: string
+          ultima_entrada: string
+        }[]
+      }
       copa_apurar_fase: { Args: { _fase_id: string }; Returns: undefined }
       copa_avancar_fase: { Args: never; Returns: string }
       copa_definir_vencedor: {
@@ -7435,6 +7501,7 @@ export type Database = {
           revogado_em: string
         }[]
       }
+      marcar_conversa_tratada: { Args: { _lead_id: string }; Returns: Json }
       marcar_followup_esgotado: {
         Args: { _lead_id: string }
         Returns: undefined
