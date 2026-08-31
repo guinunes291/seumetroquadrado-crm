@@ -1117,11 +1117,7 @@ function AbaDespesas({ unidades }: { unidades: DreUnidade[] }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={TODAS}>Todas</SelectItem>
-                  {(categoriasQuery.data ?? []).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
+                  <CategoriaOpcoes categorias={categoriasQuery.data ?? []} />
                 </SelectContent>
               </Select>
             </div>
