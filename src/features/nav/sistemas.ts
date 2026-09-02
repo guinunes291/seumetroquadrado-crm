@@ -43,6 +43,7 @@ import {
   Wallet,
 } from "lucide-react";
 import type { AppRole } from "@/hooks/use-auth";
+import type { CorModulo } from "@/features/nav/cores-modulo";
 import type { NavBadges } from "@/features/nav/use-nav-badges";
 import { CARTEIRA_STAGES, type FaseFunil } from "@/lib/leads";
 
@@ -87,6 +88,9 @@ export type Sistema = {
   roles?: AppRole[];
   badge?: (b: NavBadges) => number;
   badgeRoles?: AppRole[];
+  /** Cor fixa do módulo (identidade v3): tile no portal, cabeçalho da sidebar,
+   *  header da página e badge de pendência leem daqui. Ver cores-modulo.ts. */
+  cor: CorModulo;
   /** Frequência de uso no portal (decisão 2026-08-30): "operacao" é o dia do
    *  corretor (primeira dobra, na ordem do fluxo), "consulta" é referência
    *  ocasional (Docs, Financeiro, BI) e "gestao" é só admin. */
@@ -108,6 +112,7 @@ export const SISTEMAS: Sistema[] = [
     descricao: "Seu dia em ordem de prioridade: próxima melhor ação, agenda e metas num só lugar.",
     icon: Sun,
     home: { to: "/hoje" },
+    cor: "central",
     grupo: "operacao",
     destaque: true,
     secoes: [{ id: "hoje", label: "Hoje", icon: Sun, to: "/hoje" }],
@@ -125,6 +130,7 @@ export const SISTEMAS: Sistema[] = [
     // nav_pendencias.atendimento conta `aguardando_atendimento` — literalmente
     // uma etapa de Prospecção, por isso o contador vive neste card.
     badge: (b) => b.atendimento,
+    cor: "prospeccao",
     grupo: "operacao",
     secoes: [
       {
@@ -173,6 +179,7 @@ export const SISTEMAS: Sistema[] = [
     icon: Headset,
     home: { to: "/mensagens" },
     badge: (b) => b.mensagensAguardando,
+    cor: "atendimento",
     grupo: "operacao",
     secoes: [
       {
@@ -194,6 +201,7 @@ export const SISTEMAS: Sistema[] = [
     icon: Briefcase,
     home: { to: "/pipeline", search: { fase: "carteira" } },
     badge: (b) => b.tarefasVencidas + b.agendaHoje,
+    cor: "carteira",
     grupo: "operacao",
     // Dona do /pipeline cru (bookmark antigo = quadro completo) e do /match:
     // a Reta final e o Match saíram da sidebar (corte 2026-08-30) mas as
@@ -240,6 +248,7 @@ export const SISTEMAS: Sistema[] = [
     // nav_pendencias.followups = tarefas de contato de hoje + vencidas — o
     // número que o corretor precisa zerar.
     badge: (b) => b.followups,
+    cor: "followup",
     grupo: "operacao",
     secoes: [
       {
@@ -290,6 +299,7 @@ export const SISTEMAS: Sistema[] = [
     descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapa e materiais.",
     icon: Building2,
     home: { to: "/projetos-foco" },
+    cor: "projetos",
     grupo: "consulta",
     // /links-uteis saiu da sidebar (corte 2026-08-30) mas a rota segue viva
     // com dono — o acesso é o botão em Projetos em Foco e o ⌘K.
@@ -315,6 +325,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/financeiro", search: { tab: "comissoes" } },
     badge: (b) => b.aprovacoes,
     badgeRoles: GESTAO,
+    cor: "financeiro",
     grupo: "consulta",
     secoes: [
       // As abas internas (fechamento|comissoes|dre) são o segundo nível; o
@@ -335,6 +346,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/meu-raio-x" },
     homePorPapel: (ctx) =>
       temPapel(GESTAO, ctx) ? { to: "/painel-gestor" } : { to: "/meu-raio-x" },
+    cor: "bi",
     grupo: "consulta",
     secoes: [
       { id: "meu-raio-x", label: "Meu Raio-X", icon: LineChart, to: "/meu-raio-x" },
@@ -355,6 +367,7 @@ export const SISTEMAS: Sistema[] = [
     icon: Settings,
     home: { to: "/configuracoes" },
     roles: ["admin"],
+    cor: "config",
     grupo: "gestao",
     // As abas mais buscadas ganham endereço na sidebar e no ⌘K (antes o card
     // era mudo: 9 abas internas inalcançáveis pela navegação). A seção

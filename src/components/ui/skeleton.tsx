@@ -1,17 +1,12 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Skeleton único do design system: base discreta + varredura shimmer
- * (idioma premium — o antigo animate-pulse foi aposentado). A varredura é
- * background-position em loop num elemento estático: sem layout, custo nulo.
+ * Skeleton único do design system: base discreta + pulso de opacidade.
+ * (identidade v3: o shimmer saiu — virou marca registrada de placeholder
+ * gerado; o pulso é discreto e some no motion-reduce global.)
  */
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={cn("animate-shimmer shimmer-surface rounded-md bg-primary/10", className)}
-      {...props}
-    />
-  );
+  return <div className={cn("animate-pulse rounded-md bg-primary/10", className)} {...props} />;
 }
 
 export { Skeleton };

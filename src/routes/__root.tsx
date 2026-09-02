@@ -88,9 +88,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content: "Gestão inteligente para corretores venderem mais e melhor!",
       },
       { name: "author", content: "Seu Metro Quadrado" },
-      // Padrão = Modo Comando (escuro); applyTheme() atualiza em runtime se o
-      // usuário preferir o tema claro.
-      { name: "theme-color", content: THEME_COLORS.dark },
+      // Padrão = Clareza (claro, identidade v3); applyTheme() atualiza em
+      // runtime se o usuário preferir o Modo Comando (escuro).
+      { name: "theme-color", content: THEME_COLORS.light },
       // Impede tradução automática (Google Translate / Chrome). O tradutor troca
       // nós de texto por <font> e quebra a reconciliação do React → o app
       // crasha ("removeChild"/"insertBefore") para corretores com tradução ativa.
@@ -124,7 +124,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
     // Roda ANTES do primeiro paint para aplicar o tema salvo sem piscar
-    // (dark é o padrão do produto). Framework-free e idempotente.
+    // (claro é o padrão do produto). Framework-free e idempotente.
     // Nota: a chave é `scripts`, mas o router a renderiza no <head> via
     // HeadContent (match.headScripts ← headFnContent.scripts).
     scripts: [{ children: THEME_INIT_SCRIPT }],
@@ -146,7 +146,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR" translate="no" className="notranslate dark" suppressHydrationWarning>
+    <html lang="pt-BR" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
