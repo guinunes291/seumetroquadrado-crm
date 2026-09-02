@@ -933,7 +933,6 @@ function CategoriaOpcoes({ categorias }: { categorias: DreCategoria[] }) {
   );
 }
 
-
 function AbaDespesas({ unidades }: { unidades: DreUnidade[] }) {
   const invalidar = useInvalidarDre();
   const [unidadeFiltro, setUnidadeFiltro] = useState(TODAS);

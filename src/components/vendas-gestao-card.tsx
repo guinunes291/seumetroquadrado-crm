@@ -280,7 +280,6 @@ export function VendasGestaoCard({
                           : "Excluir venda"}
                       </DropdownMenuItem>
                     )}
-
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -388,7 +387,6 @@ export function VendasGestaoCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </>
   );
 }
