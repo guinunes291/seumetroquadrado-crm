@@ -21,6 +21,8 @@ type Props = {
   /** Empreendimento a enviar; quando não-nulo, o diálogo abre. */
   projeto: ProjetoRow | null;
   onClose: () => void;
+  /** Disparado após abrir o WhatsApp — a prateleira registra o evento de envio. */
+  onEnviado?: (lead: { id: string; nome: string }) => void;
 };
 
 /**
@@ -28,7 +30,7 @@ type Props = {
  * aberta sem um lead em contexto. Reusa a busca por `search_text` da paleta de
  * comandos e o envio+registro de interação do useWhatsAppLead.
  */
-export function EnviarVitrineDialog({ projeto, onClose }: Props) {
+export function EnviarVitrineDialog({ projeto, onClose, onEnviado }: Props) {
   const abrirWhatsApp = useWhatsAppLead();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -97,6 +99,7 @@ export function EnviarVitrineDialog({ projeto, onClose }: Props) {
       { id: lead.id, nome: lead.nome, telefone: lead.telefone },
       { mensagem: msg, titulo: `${WHATSAPP_TITULO_EMPREENDIMENTO}: ${projeto.nome}` },
     );
+    onEnviado?.({ id: lead.id, nome: lead.nome });
     onClose();
   };
 
@@ -131,7 +134,9 @@ export function EnviarVitrineDialog({ projeto, onClose }: Props) {
               <Loader2 className="h-4 w-4 animate-spin" /> Buscando…
             </p>
           ) : leads.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Nenhum lead encontrado.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhum lead encontrado.
+            </p>
           ) : (
             <ul className="divide-y">
               {leads.map((l) => (

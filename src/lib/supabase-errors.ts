@@ -36,6 +36,18 @@ export function isMissingBackendObject(err: unknown): boolean {
 }
 
 /**
+ * `true` quando o erro indica COLUNA ausente (migration aditiva ainda não
+ * aplicada) — a leitura deve refazer o select sem a coluna nova.
+ */
+export function isMissingColumn(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as SupabaseishError;
+  if (e.code === "42703") return true; // undefined_column (Postgres)
+  const msg = `${e.message ?? ""} ${e.details ?? ""}`.toLowerCase();
+  return /column .* does not exist/.test(msg) || msg.includes("could not find the '");
+}
+
+/**
  * Executa a chamada nova; se o backend ainda não tem o objeto, usa o fallback.
  * Qualquer OUTRO erro é propagado — só a ausência do objeto degrada.
  */
@@ -47,6 +59,22 @@ export async function rpcWithFallback<T>(
     return await call();
   } catch (err) {
     if (isMissingBackendObject(err)) return await fallback();
+    throw err;
+  }
+}
+
+/**
+ * Variante para SELECT com colunas novas: se a coluna ainda não existe no
+ * banco, refaz pelo caminho antigo. Outros erros sobem.
+ */
+export async function selectWithColumnFallback<T>(
+  call: () => Promise<T>,
+  fallback: () => Promise<T> | T,
+): Promise<T> {
+  try {
+    return await call();
+  } catch (err) {
+    if (isMissingColumn(err) || isMissingBackendObject(err)) return await fallback();
     throw err;
   }
 }

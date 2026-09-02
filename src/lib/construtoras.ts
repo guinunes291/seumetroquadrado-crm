@@ -24,6 +24,8 @@ export type Parceira = {
   nome: string;
   ordem: number;
   ativo: boolean;
+  /** Logo para o corredor e o card da prateleira (decisão 13 de 2026-09-02). */
+  logo_url?: string | null;
 };
 
 /** Sem acento, sem pontuação, minúsculo — a chave de comparação de nomes. */
@@ -76,4 +78,23 @@ export function parceiraDoProjeto<T extends { nome: string }>(
 /** Ordem de leitura: `ordem` da gestão primeiro, nome como desempate estável. */
 export function ordenarParceiras<T extends { nome: string; ordem: number }>(lista: T[]): T[] {
   return [...lista].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
+/**
+ * Parceira do projeto olhando também o NOME do empreendimento quando a coluna
+ * construtora está vazia ("Mundo APTO Voluntários da Pátria" sem construtora).
+ * Decisão 5 de 2026-09-02: casa pelo nome só na ausência da construtora —
+ * com a coluna preenchida, ela manda, mesmo que o nome cite outra marca.
+ */
+export function parceiraDoProjetoOuNome<T extends { nome: string }>(
+  projeto: { construtora: string | null | undefined; nome: string | null | undefined },
+  parceiras: readonly T[],
+): { parceira: T | null; inferidaPeloNome: boolean } {
+  if (projeto.construtora?.trim()) {
+    return { parceira: parceiraDoProjeto(projeto.construtora, parceiras), inferidaPeloNome: false };
+  }
+  const nome = projeto.nome?.trim();
+  if (!nome) return { parceira: null, inferidaPeloNome: false };
+  const parceira = parceiras.find((p) => mesmaConstrutora(nome, p.nome)) ?? null;
+  return { parceira, inferidaPeloNome: parceira != null };
 }

@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { saneiaLocal, saneiaMetragem } from "@/lib/projetos-saneamento";
 import {
   importarProjetos,
   type ImportProjetosResult,
@@ -294,14 +295,27 @@ export function ImportProjetosDialog({
     if (!parsed) return [];
     const val = (r: Record<string, unknown>, key: string) =>
       key && key !== NONE ? String(r[key] ?? "") : "";
-    return parsed.rows.slice(0, 5).map((r) => ({
-      nome: val(r, mapping.nome),
-      construtora: val(r, mapping.construtora),
-      bairro: val(r, mapping.bairro),
-      dorms: [val(r, mapping.dorms_min), val(r, mapping.dorms_max)].filter(Boolean).join("–"),
-      metr: [val(r, mapping.metragem_min), val(r, mapping.metragem_max)].filter(Boolean).join("–"),
-      preco: val(r, mapping.preco_a_partir),
-    }));
+    const num = (r: Record<string, unknown>, key: string) =>
+      key && key !== NONE ? toNum(r[key]) : null;
+    return parsed.rows.slice(0, 5).map((r) => {
+      // A prévia mostra o que VAI ser gravado: metragem já saneada, com aviso.
+      const metragem = saneiaMetragem(
+        num(r, mapping.metragem_min),
+        num(r, mapping.metragem_max),
+        num(r, mapping.preco_a_partir),
+      );
+      const metr = [metragem.metragem_min, metragem.metragem_max]
+        .filter((v): v is number => v != null)
+        .join("–");
+      return {
+        nome: val(r, mapping.nome),
+        construtora: val(r, mapping.construtora),
+        bairro: saneiaLocal(val(r, mapping.bairro), val(r, mapping.cidade)).bairro ?? "",
+        dorms: [val(r, mapping.dorms_min), val(r, mapping.dorms_max)].filter(Boolean).join("–"),
+        metr: metragem.corrigida ? `${metr} (vírgula corrigida)` : metr,
+        preco: val(r, mapping.preco_a_partir),
+      };
+    });
   }, [parsed, mapping]);
 
   const importar = useMutation({
@@ -315,30 +329,42 @@ export function ImportProjetosDialog({
       const getBool = (r: Record<string, unknown>, key: string) =>
         key && key !== NONE ? toBool(r[key]) : false;
 
-      const rows: ImportProjetoRow[] = parsed.rows.map((r) => ({
-        nome: String(r[mapping.nome] ?? "").trim(),
-        construtora: get(r, mapping.construtora),
-        regiao: get(r, mapping.regiao),
-        bairro: get(r, mapping.bairro),
-        cidade: get(r, mapping.cidade),
-        logradouro: get(r, mapping.logradouro),
-        numero: get(r, mapping.numero),
-        metragem_min: getNum(r, mapping.metragem_min),
-        metragem_max: getNum(r, mapping.metragem_max),
-        dorms_min: getNum(r, mapping.dorms_min),
-        dorms_max: getNum(r, mapping.dorms_max),
-        suites: getNum(r, mapping.suites),
-        tipo_extra: get(r, mapping.tipo_extra),
-        vagas_min: getNum(r, mapping.vagas_min),
-        vagas_max: getNum(r, mapping.vagas_max),
-        vagas_observacao: get(r, mapping.vagas_observacao),
-        preco_a_partir: getNum(r, mapping.preco_a_partir),
-        sob_consulta: getBool(r, mapping.sob_consulta),
-        status_entrega: get(r, mapping.status_entrega),
-        mes_entrega: getNum(r, mapping.mes_entrega),
-        ano_entrega: getNum(r, mapping.ano_entrega),
-        fonte: get(r, mapping.fonte),
-      }));
+      const rows: ImportProjetoRow[] = parsed.rows.map((r) => {
+        const preco_a_partir = getNum(r, mapping.preco_a_partir);
+        // Saneamento na entrada (decisões 1 e 2 de 2026-09-02): o tabelão perde
+        // a vírgula da metragem e cola a cidade no bairro; corrigir aqui evita
+        // reimportar o defeito toda semana.
+        const metragem = saneiaMetragem(
+          getNum(r, mapping.metragem_min),
+          getNum(r, mapping.metragem_max),
+          preco_a_partir,
+        );
+        const local = saneiaLocal(get(r, mapping.bairro), get(r, mapping.cidade));
+        return {
+          nome: String(r[mapping.nome] ?? "").trim(),
+          construtora: get(r, mapping.construtora),
+          regiao: get(r, mapping.regiao),
+          bairro: local.bairro,
+          cidade: local.cidade,
+          logradouro: get(r, mapping.logradouro),
+          numero: get(r, mapping.numero),
+          metragem_min: metragem.metragem_min,
+          metragem_max: metragem.metragem_max,
+          dorms_min: getNum(r, mapping.dorms_min),
+          dorms_max: getNum(r, mapping.dorms_max),
+          suites: getNum(r, mapping.suites),
+          tipo_extra: get(r, mapping.tipo_extra),
+          vagas_min: getNum(r, mapping.vagas_min),
+          vagas_max: getNum(r, mapping.vagas_max),
+          vagas_observacao: get(r, mapping.vagas_observacao),
+          preco_a_partir,
+          sob_consulta: getBool(r, mapping.sob_consulta),
+          status_entrega: get(r, mapping.status_entrega),
+          mes_entrega: getNum(r, mapping.mes_entrega),
+          ano_entrega: getNum(r, mapping.ano_entrega),
+          fonte: get(r, mapping.fonte),
+        };
+      });
       return await importarFn({ data: { rows, atualizarExistentes: atualizar } });
     },
     onSuccess: (res) => {
