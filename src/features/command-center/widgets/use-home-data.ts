@@ -10,7 +10,14 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarCheck, FileText, MapPin, MessageCircle, Phone, Trophy } from "lucide-react";
+import {
+  CalendarCheck,
+  FileText,
+  MapPin,
+  Phone,
+  Trophy,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { dateKey } from "@/lib/periodo";
@@ -237,7 +244,7 @@ export function buildAtividadeCards(totais: TotaisAtividades, meta: MetaDiaria |
     {
       key: "whatsapps",
       label: "WhatsApp",
-      icon: MessageCircle,
+      icon: WhatsappLogo,
       value: totais.whatsapps,
       meta: meta?.meta_whatsapps,
     },

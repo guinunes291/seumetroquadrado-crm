@@ -4,7 +4,7 @@
 // token de webhook (gerado no servidor, exibido aqui) e recálculo de tiers.
 
 import { useState } from "react";
-import { Copy, Eye, EyeOff, Plus, RefreshCw } from "lucide-react";
+import { ArrowClockwise, Copy, Eye, EyeSlash, Plus } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -163,7 +163,7 @@ export function FilaPropriedades({
                   disabled={recalcular.isPending}
                   title="Recalcular tiers agora"
                 >
-                  <RefreshCw className="mr-1 h-3.5 w-3.5" /> Recalcular tiers
+                  <ArrowClockwise className="mr-1 h-3.5 w-3.5" /> Recalcular tiers
                 </Button>
               )}
             </div>
@@ -184,7 +184,7 @@ export function FilaPropriedades({
                 title={tokenVisivel ? "Ocultar" : "Mostrar"}
               >
                 {tokenVisivel ? (
-                  <EyeOff className="h-3.5 w-3.5" />
+                  <EyeSlash className="h-3.5 w-3.5" />
                 ) : (
                   <Eye className="h-3.5 w-3.5" />
                 )}

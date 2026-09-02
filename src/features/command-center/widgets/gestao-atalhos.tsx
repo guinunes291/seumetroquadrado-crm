@@ -3,16 +3,16 @@
 
 import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangle,
-  BarChart3,
+  ChartBar,
   Compass,
-  Filter,
-  Settings2,
+  Funnel,
   Shuffle,
+  Sliders,
   Target,
-  Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+  UsersThree,
+  Warning,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserRoles } from "@/hooks/use-auth";
 import type { WidgetProps } from "@/features/command-center/widget-registry";
@@ -20,7 +20,7 @@ import type { WidgetProps } from "@/features/command-center/widget-registry";
 type Atalho = {
   titulo: string;
   descricao: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   to: string;
   search?: Record<string, string>;
   adminOnly?: boolean;
@@ -30,13 +30,13 @@ const ATALHOS: Atalho[] = [
   {
     titulo: "Painel do Dia",
     descricao: "Exceções e ação em lote",
-    icon: AlertTriangle,
+    icon: Warning,
     to: "/painel-gestor",
   },
   {
     titulo: "Funil",
     descricao: "Coorte × snapshot",
-    icon: Filter,
+    icon: Funnel,
     to: "/painel-gestor",
     search: { tab: "funil" },
   },
@@ -50,14 +50,14 @@ const ATALHOS: Atalho[] = [
   {
     titulo: "Time",
     descricao: "Performance por corretor",
-    icon: Users,
+    icon: UsersThree,
     to: "/painel-gestor",
     search: { tab: "time" },
   },
   {
     titulo: "Relatórios",
     descricao: "KPIs e gráficos",
-    icon: BarChart3,
+    icon: ChartBar,
     to: "/painel-gestor",
     search: { tab: "relatorios" },
   },
@@ -77,7 +77,7 @@ const ATALHOS: Atalho[] = [
   {
     titulo: "Config. da gestão",
     descricao: "Limiares, SLA e pacing",
-    icon: Settings2,
+    icon: Sliders,
     to: "/configuracoes",
     search: { tab: "gestao" },
     adminOnly: true,

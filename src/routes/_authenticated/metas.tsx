@@ -26,7 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Eye, Plus, Target, Trash2, TrendingUp, Trophy, Users } from "lucide-react";
+import { Eye, Plus, Target, Trash, TrendUp, Trophy, UsersThree } from "@phosphor-icons/react";
 import { Progress } from "@/components/ui/progress";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { ScoreRing } from "@/components/ui/score-ring";
@@ -489,7 +489,7 @@ export function MetasPage() {
         <StatTile
           title="Atendimentos"
           value={realizadoQ.data?.total.leads_atendidos ?? 0}
-          icon={Users}
+          icon={UsersThree}
           intent="info"
           hint={`realizado em ${MESES_PT[mes - 1]}/${ano}`}
           loading={realizadoQ.isLoading}
@@ -514,7 +514,7 @@ export function MetasPage() {
           title="VGV"
           value={realizadoQ.data?.total.vgv ?? 0}
           formatValue={fmtBRL}
-          icon={TrendingUp}
+          icon={TrendUp}
           intent="success"
           hint={`realizado em ${MESES_PT[mes - 1]}/${ano}`}
           loading={realizadoQ.isLoading}
@@ -620,7 +620,7 @@ export function MetasPage() {
                           variant="ghost"
                           onClick={() => deleteMutation.mutate(m.id)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash className="h-4 w-4" />
                         </Button>
                       </>
                     )}

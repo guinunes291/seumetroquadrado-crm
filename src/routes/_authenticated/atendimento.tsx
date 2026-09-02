@@ -38,15 +38,15 @@ import { QueueSection } from "@/features/atendimento/queue-section";
 import { VolumeView } from "@/features/atendimento/volume-view";
 import { ConsultaView } from "@/features/atendimento/consulta-view";
 import {
+  ArrowBendUpLeft,
   CalendarCheck,
-  CalendarClock,
-  CheckCircle2,
-  FileWarning,
-  MessageCircleReply,
-  Sparkles,
-  ThermometerSnowflake,
-  Zap,
-} from "lucide-react";
+  CalendarDots,
+  CheckCircle,
+  FileDashed,
+  Lightning,
+  ThermometerCold,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 
 // Atendimento: a tela de guerra do corretor — quem responder, quem cobrar,
 // quem reaquecer e que pasta destravar, tudo em filas priorizadas por score.
@@ -75,16 +75,16 @@ const MODOS: { key: AtendimentoModo; label: string; hint: string }[] = [
 
 const QUEUE_ORDER: {
   key: QueueKey;
-  icon: typeof MessageCircleReply;
+  icon: typeof ArrowBendUpLeft;
   iconClass: string;
 }[] = [
-  { key: "novos", icon: Sparkles, iconClass: "text-primary" },
-  { key: "responder", icon: MessageCircleReply, iconClass: "text-destructive" },
-  { key: "followups", icon: CalendarClock, iconClass: "text-warning" },
-  { key: "esfriando", icon: ThermometerSnowflake, iconClass: "text-info" },
+  { key: "novos", icon: SamiMark, iconClass: "text-primary" },
+  { key: "responder", icon: ArrowBendUpLeft, iconClass: "text-destructive" },
+  { key: "followups", icon: CalendarDots, iconClass: "text-warning" },
+  { key: "esfriando", icon: ThermometerCold, iconClass: "text-info" },
   // 6ª fila (item 2.5): a visita das próximas 48h que ninguém confirmou.
   { key: "confirmar_visita", icon: CalendarCheck, iconClass: "text-success" },
-  { key: "docs", icon: FileWarning, iconClass: "text-muted-foreground" },
+  { key: "docs", icon: FileDashed, iconClass: "text-muted-foreground" },
 ];
 
 // Forma mínima que o menu/modais de etapa precisam, a partir do lead da fila.
@@ -277,7 +277,7 @@ function AtendimentoPage() {
             title={m.hint}
             onClick={() => setModo(m.key)}
           >
-            {m.key === "volume" && <Zap className="h-3.5 w-3.5" />}
+            {m.key === "volume" && <Lightning className="h-3.5 w-3.5" />}
             {m.label}
           </Button>
         ))}
@@ -334,7 +334,7 @@ function AtendimentoPage() {
             {total === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-                  <CheckCircle2 className="h-10 w-10 text-success" />
+                  <CheckCircle className="h-10 w-10 text-success" />
                   <div className="font-display text-lg font-semibold">
                     Caixa de atendimento zerada
                   </div>

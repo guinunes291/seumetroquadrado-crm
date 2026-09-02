@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+import type { Icon as IconComponent } from "@phosphor-icons/react";
 
 type EmptyStateProps = {
-  icon?: LucideIcon;
+  icon?: IconComponent;
   title: string;
   /** Instrução do que fazer a seguir — nunca deixe o usuário sem próximo passo. */
   description?: React.ReactNode;

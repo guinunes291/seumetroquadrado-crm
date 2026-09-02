@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SamiQPanel } from "@/components/samiq/samiq-panel";
 
 /**
- * SamiQ — FAB dourado flutuante (desktop) + painel lateral. No mobile o
+ * SamiQ — monograma da Sami flutuante (desktop) + painel lateral. No mobile o
  * gatilho é o slot central do BottomNav (evento "open-samiq") e o painel vira
  * bottom-drawer. Atalho de teclado: ⌘J / Ctrl+J.
  */
@@ -32,9 +32,7 @@ export function SamiQLauncher() {
 
   const titulo = (
     <span className="flex items-center gap-2">
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-gold text-navy-900">
-        <Sparkles className="h-4 w-4" />
-      </span>
+      <SamiMark className="h-7 w-7" />
       SamiQ — copiloto do corretor
     </span>
   );
@@ -47,9 +45,9 @@ export function SamiQLauncher() {
         aria-label="Abrir SamiQ (⌘J)"
         title="SamiQ — copiloto do corretor (⌘J)"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 hidden h-13 w-13 items-center justify-center rounded-full bg-gradient-gold p-3.5 text-navy-900 shadow-glow-gold transition-transform hover:scale-105 active:scale-95 md:flex"
+        className="fixed bottom-6 right-6 z-40 hidden h-13 w-13 items-center justify-center rounded-full shadow-elev-3 transition-transform hover:scale-105 active:scale-95 md:flex [--sami-halo:var(--color-card)]"
       >
-        <Sparkles className="h-5 w-5" />
+        <SamiMark className="h-13 w-13" />
       </button>
 
       {isMobile ? (

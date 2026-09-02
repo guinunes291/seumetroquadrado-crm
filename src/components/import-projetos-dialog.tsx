@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from "lucide-react";
+import { CircleNotch, FileXls, UploadSimple, WarningCircle } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { saneiaLocal, saneiaMetragem } from "@/lib/projetos-saneamento";
 import {
@@ -387,7 +387,7 @@ export function ImportProjetosDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
+            <FileXls className="h-5 w-5" />
             Importar empreendimentos
           </DialogTitle>
           <DialogDescription>
@@ -403,7 +403,7 @@ export function ImportProjetosDialog({
                   htmlFor="file-upload-projetos"
                   className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 cursor-pointer hover:border-muted-foreground/60 transition-colors"
                 >
-                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <UploadSimple className="h-8 w-8 text-muted-foreground" />
                   <span className="text-sm font-medium">Clique para selecionar uma planilha</span>
                   <span className="text-xs text-muted-foreground">
                     .xlsx, .xls ou .csv (UTF-8, separador ;)
@@ -516,7 +516,7 @@ export function ImportProjetosDialog({
               >
                 {importar.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <CircleNotch className="h-4 w-4 mr-2 animate-spin" />
                     Importando…
                   </>
                 ) : (
@@ -567,7 +567,7 @@ export function ImportProjetosDialog({
             {resultado.detalhes.length > 0 && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
+                  <WarningCircle className="h-4 w-4" />
                   Linhas com observação ({resultado.detalhes.length})
                 </Label>
                 <div className="border rounded-md max-h-64 overflow-y-auto">

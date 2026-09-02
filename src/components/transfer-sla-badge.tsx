@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
-import { Timer, AlertTriangle, Flame, ShieldOff } from "lucide-react";
+import { Fire, ShieldSlash, Timer, Warning } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDuration } from "@/lib/duracao";
 import { origemLabel } from "@/lib/origem";
@@ -175,7 +175,7 @@ export function TransferSlaBadge({
                 className,
               )}
             >
-              <ShieldOff className="h-3 w-3" />
+              <ShieldSlash className="h-3 w-3" />
               {compact ? "sem repasse" : "Sem mais repasses"}
             </Badge>
           </TooltipTrigger>
@@ -208,7 +208,7 @@ export function TransferSlaBadge({
       : status_ === "atencao"
         ? "bg-warning"
         : "bg-success";
-  const Icon = status_ === "estourado" ? Flame : status_ === "atencao" ? AlertTriangle : Timer;
+  const Icon = status_ === "estourado" ? Fire : status_ === "atencao" ? Warning : Timer;
 
   const label = mmss(restanteSec);
   // Barra: enche de 100% → 0% conforme o tempo escoa.

@@ -9,19 +9,19 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  AlarmClock,
-  AlertTriangle,
-  Bot,
-  CalendarClock,
+  Alarm,
+  CalendarDots,
   Globe,
-  Inbox,
+  Lightning,
   Percent,
   Play,
-  ShieldAlert,
-  Users,
-  Webhook,
-  Zap,
-} from "lucide-react";
+  Robot,
+  ShieldWarning,
+  Tray,
+  UsersThree,
+  Warning,
+  WebhooksLogo,
+} from "@phosphor-icons/react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
@@ -110,7 +110,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
                 onClick={() => syncTokenMut.mutate()}
                 disabled={syncTokenMut.isPending}
               >
-                <Webhook className="mr-1.5 h-4 w-4" />
+                <WebhooksLogo className="mr-1.5 h-4 w-4" />
                 Sincronizar token n8n
               </Button>
               <Button size="sm" onClick={() => rodar.mutate()} disabled={rodar.isPending}>
@@ -127,14 +127,14 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Distribuídos hoje"
           value={r?.distribuidos_hoje ?? "—"}
-          icon={Zap}
+          icon={Lightning}
           intent="success"
           loading={loading}
         />
         <StatTile
           title="Aguardando distribuição"
           value={r?.aguardando_distribuicao ?? "—"}
-          icon={Inbox}
+          icon={Tray}
           intent={(r?.aguardando_distribuicao ?? 0) > 0 ? "warning" : "neutral"}
           loading={loading}
           hint="sem corretor na base"
@@ -142,7 +142,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Fila de exceções"
           value={r?.excecoes_pendentes ?? "—"}
-          icon={ShieldAlert}
+          icon={ShieldWarning}
           intent={(r?.excecoes_pendentes ?? 0) > 0 ? "danger" : "success"}
           loading={loading}
           onClick={() => setTab("excecoes")}
@@ -151,7 +151,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Sem atendimento"
           value={r?.sem_atendimento ?? "—"}
-          icon={AlarmClock}
+          icon={Alarm}
           intent={(r?.sem_atendimento ?? 0) > 0 ? "warning" : "neutral"}
           loading={loading}
           hint="acima do tempo máximo"
@@ -159,7 +159,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Erros 24h"
           value={r?.erros_24h ?? "—"}
-          icon={AlertTriangle}
+          icon={Warning}
           intent={(r?.erros_24h ?? 0) > 0 ? "danger" : "success"}
           loading={loading}
           onClick={() => setTab("historico")}
@@ -167,7 +167,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Aptos · Plantão"
           value={r?.aptos_plantao ?? "—"}
-          icon={Users}
+          icon={UsersThree}
           intent={(r?.aptos_plantao ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
           onClick={() => setTab("filas")}
@@ -175,7 +175,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Aptos · Marquinhos"
           value={r?.aptos_marquinhos ?? "—"}
-          icon={Bot}
+          icon={Robot}
           intent={(r?.aptos_marquinhos ?? 0) === 0 ? "danger" : "info"}
           loading={loading}
           onClick={() => setTab("filas")}
@@ -191,7 +191,7 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
         <StatTile
           title="Parados (régua de horas)"
           value={r?.parados_timeout ?? "—"}
-          icon={CalendarClock}
+          icon={CalendarDots}
           intent={(r?.parados_timeout ?? 0) > 0 ? "warning" : "neutral"}
           loading={loading}
           hint="aguardando além do timeout"

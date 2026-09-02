@@ -14,7 +14,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
-import { Boxes, ShieldAlert, Send, Sparkles, Search } from "lucide-react";
+import { MagnifyingGlass, PaperPlaneTilt, ShieldWarning, Stack } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 
 type EstoqueLead = {
   id: string;
@@ -180,7 +181,7 @@ export function EstoquePage() {
             onClick={() => distribuirUm.mutate(row.original.id)}
             disabled={distribuirUm.isPending}
           >
-            <Send className="mr-1 h-3.5 w-3.5" /> Distribuir
+            <PaperPlaneTilt className="mr-1 h-3.5 w-3.5" /> Distribuir
           </Button>
         ),
       },
@@ -192,7 +193,7 @@ export function EstoquePage() {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
-          <ShieldAlert className="h-10 w-10" />
+          <ShieldWarning className="h-10 w-10" />
           <div className="font-medium">Acesso restrito</div>
           <div className="text-sm">Esta área é exclusiva para gestores e administradores.</div>
         </CardContent>
@@ -206,7 +207,7 @@ export function EstoquePage() {
         eyebrow="Estoque"
         title={
           <span className="flex items-center gap-1.5">
-            <Boxes className="h-4 w-4 text-primary" /> Leads sem corretor
+            <Stack className="h-4 w-4 text-primary" /> Leads sem corretor
           </span>
         }
       />
@@ -218,21 +219,21 @@ export function EstoquePage() {
       <StatGrid>
         <StatTile
           title="No estoque"
-          icon={Boxes}
+          icon={Stack}
           intent="info"
           loading={listaQ.isLoading}
           value={totalEstoque}
         />
         <StatTile
           title="Sem 1º contato"
-          icon={Sparkles}
+          icon={SamiMark}
           intent="warning"
           loading={listaQ.isLoading}
           value={semInteracao}
         />
         <StatTile
           title="Parados há 7+ dias"
-          icon={ShieldAlert}
+          icon={ShieldWarning}
           intent="danger"
           loading={listaQ.isLoading}
           value={antigos}
@@ -241,7 +242,7 @@ export function EstoquePage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -254,7 +255,7 @@ export function EstoquePage() {
           disabled={distribuirLote.isPending || filtrados.length === 0}
           className="shrink-0"
         >
-          <Send className="mr-1 h-4 w-4" />
+          <PaperPlaneTilt className="mr-1 h-4 w-4" />
           Distribuir {Math.min(filtrados.length, 100)} agora
         </Button>
       </div>
@@ -270,7 +271,7 @@ export function EstoquePage() {
         onRetry={() => void listaQ.refetch()}
         empty={
           <EmptyState
-            icon={Boxes}
+            icon={Stack}
             title="Sem leads no estoque."
             description="Todos os leads ativos já têm corretor. Bom trabalho!"
           />

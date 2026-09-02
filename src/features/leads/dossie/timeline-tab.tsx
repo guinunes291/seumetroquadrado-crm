@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { MessageCircle } from "lucide-react";
+import { WhatsappLogo } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -134,7 +134,7 @@ export function TimelineTab({ leadId }: { leadId: string }) {
           loading={isLoading}
           empty={
             <EmptyState
-              icon={MessageCircle}
+              icon={WhatsappLogo}
               title="Nenhuma interação registrada ainda"
               description="Registre o primeiro contato — uma ligação, um WhatsApp ou uma nota rápida acima."
             />

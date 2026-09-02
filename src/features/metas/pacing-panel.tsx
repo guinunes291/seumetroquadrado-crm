@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, Gauge, Target, TrendingUp } from "lucide-react";
+import { CalendarDots, Gauge, Target, TrendUp } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -132,14 +132,22 @@ export function PacingPanel({ ano, mes }: { ano: number; mes: number }) {
                 title="Realizado"
                 value={m.vgv}
                 formatValue={fmtBRL}
-                icon={TrendingUp}
+                icon={TrendUp}
                 hint={`${m.vendas} vendas · ${m.visitas} visitas`}
               />
               <StatTile
                 title="Projeção (ritmo atual)"
                 value={projVgv === null ? "—" : fmtBRL(projVgv)}
-                icon={CalendarClock}
-                intent={farolVgv === "verde" ? "success" : farolVgv === "ambar" ? "warning" : farolVgv === "vermelho" ? "danger" : "neutral"}
+                icon={CalendarDots}
+                intent={
+                  farolVgv === "verde"
+                    ? "success"
+                    : farolVgv === "ambar"
+                      ? "warning"
+                      : farolVgv === "vermelho"
+                        ? "danger"
+                        : "neutral"
+                }
                 hint={
                   projVgv === null ? (
                     "sem ritmo ainda (nenhum dia útil passado)"
@@ -172,12 +180,15 @@ export function PacingPanel({ ano, mes }: { ano: number; mes: number }) {
                   </span>{" "}
                   <span className="text-muted-foreground">
                     ≈{" "}
-                    {reverso.analises === null ? "análises: sem dado" : `${reverso.analises} análises`}
+                    {reverso.analises === null
+                      ? "análises: sem dado"
+                      : `${reverso.analises} análises`}
                     {" · "}
                     {reverso.visitas === null ? "visitas: sem dado" : `${reverso.visitas} visitas`}
                     {" · "}
-                    {reverso.leads === null ? "leads: sem dado" : `${reverso.leads} leads`}
-                    {" "}(taxas dos últimos 90 dias{p.taxas_90d.venda_por_visita === null ? " — histórico insuficiente" : ""})
+                    {reverso.leads === null ? "leads: sem dado" : `${reverso.leads} leads`} (taxas
+                    dos últimos 90 dias
+                    {p.taxas_90d.venda_por_visita === null ? " — histórico insuficiente" : ""})
                   </span>
                 </>
               )}

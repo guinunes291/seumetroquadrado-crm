@@ -38,16 +38,16 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import {
-  Link2,
-  Plus,
-  Pencil,
-  Trash2,
+  ArrowSquareOut,
+  ChartBar,
   Eye,
-  EyeOff,
-  ExternalLink,
-  Search,
-  BarChart2,
-} from "lucide-react";
+  EyeSlash,
+  Link,
+  MagnifyingGlass,
+  PencilSimple,
+  Plus,
+  Trash,
+} from "@phosphor-icons/react";
 
 type LinkUtil = {
   id: string;
@@ -343,13 +343,13 @@ export function LinksUteisPage() {
       <Tabs defaultValue="catalogo">
         <TabsList>
           <TabsTrigger value="catalogo">
-            <Link2 className="h-4 w-4 mr-2" /> Catálogo ({totalAtivos})
+            <Link className="h-4 w-4 mr-2" /> Catálogo ({totalAtivos})
           </TabsTrigger>
           {canManage && (
             <>
               <TabsTrigger value="gerenciar">Gerenciar</TabsTrigger>
               <TabsTrigger value="relatorio">
-                <BarChart2 className="h-4 w-4 mr-2" /> Acessos
+                <ChartBar className="h-4 w-4 mr-2" /> Acessos
               </TabsTrigger>
             </>
           )}
@@ -358,7 +358,7 @@ export function LinksUteisPage() {
         <TabsContent value="catalogo" className="mt-4 space-y-4">
           <div className="flex flex-col md:flex-row gap-2 md:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -396,7 +396,7 @@ export function LinksUteisPage() {
           ) : linksPorCategoria.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <Link2 className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                <Link className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                 <div className="font-medium">Nenhum link encontrado</div>
                 <div className="text-sm text-muted-foreground mt-1">
                   {canManage
@@ -422,7 +422,7 @@ export function LinksUteisPage() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <Link2 className="h-4 w-4 text-primary shrink-0" />
+                                <Link className="h-4 w-4 text-primary shrink-0" />
                                 <div className="font-medium truncate">{l.titulo}</div>
                               </div>
                               {l.descricao && (
@@ -447,7 +447,7 @@ export function LinksUteisPage() {
                               onClick={() => abrirLink(l)}
                               className="flex-1"
                             >
-                              <ExternalLink className="h-4 w-4 mr-2" />
+                              <ArrowSquareOut className="h-4 w-4 mr-2" />
                               Abrir link
                             </Button>
                           </div>
@@ -477,7 +477,7 @@ export function LinksUteisPage() {
               />
             ) : links.length === 0 ? (
               <EmptyState
-                icon={Link2}
+                icon={Link}
                 title="Nenhum link cadastrado ainda"
                 description="Crie o primeiro link para centralizar portais, tabelas e materiais do time."
                 action={
@@ -542,7 +542,7 @@ export function LinksUteisPage() {
                               }
                             >
                               {link.status === "ativo" ? (
-                                <EyeOff className="h-4 w-4" />
+                                <EyeSlash className="h-4 w-4" />
                               ) : (
                                 <Eye className="h-4 w-4" />
                               )}
@@ -554,7 +554,7 @@ export function LinksUteisPage() {
                               aria-label={`Editar "${link.titulo}"`}
                               onClick={() => openEdit(link)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <PencilSimple className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -568,7 +568,7 @@ export function LinksUteisPage() {
                                 }
                               }}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -597,7 +597,7 @@ export function LinksUteisPage() {
               />
             ) : acessos.length === 0 ? (
               <EmptyState
-                icon={BarChart2}
+                icon={ChartBar}
                 title="Nenhum acesso registrado ainda"
                 description="Quando o time abrir links do catálogo, os acessos aparecem aqui."
                 className="py-12"

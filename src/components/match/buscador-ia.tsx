@@ -3,16 +3,16 @@ import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import {
-  Bot,
-  Sparkles,
-  Loader2,
-  Search,
-  ChevronRight,
-  Building2,
-  Check,
-  X,
+  Buildings,
   Calculator,
-} from "lucide-react";
+  CaretRight,
+  Check,
+  CircleNotch,
+  MagnifyingGlass,
+  Robot,
+  X,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { toast } from "sonner";
 
 import { Textarea } from "@/components/ui/textarea";
@@ -91,7 +91,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <div className="p-2 bg-primary/10 rounded-lg">
-          <Bot className="h-6 w-6 text-primary" />
+          <Robot className="h-6 w-6 text-primary" />
         </div>
         <div>
           <h2 className="text-xl font-bold">Buscador de Projetos por IA</h2>
@@ -199,22 +199,25 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
             <p className="text-xs text-muted-foreground">
               {leadId ? (
                 <span className="inline-flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
+                  <Buildings className="h-3 w-3" />
                   Buscando para o lead #{leadId}
                 </span>
               ) : (
                 "Ctrl+Enter para buscar"
               )}
             </p>
-            <Button onClick={handleBuscar} disabled={mutation.isPending || descricao.trim().length < 10}>
+            <Button
+              onClick={handleBuscar}
+              disabled={mutation.isPending || descricao.trim().length < 10}
+            >
               {mutation.isPending ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <CircleNotch className="h-4 w-4 mr-2 animate-spin" />
                   Analisando catálogo...
                 </>
               ) : (
                 <>
-                  <Search className="h-4 w-4 mr-2" />
+                  <MagnifyingGlass className="h-4 w-4 mr-2" />
                   Buscar projetos
                 </>
               )}
@@ -226,7 +229,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
       {resultado && (
         <div className="space-y-4">
           <div className="flex items-start gap-2 p-4 bg-primary/5 rounded-lg border border-primary/20">
-            <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <SamiMark className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <p className="text-sm">{resultado.resumo}</p>
           </div>
 
@@ -246,7 +249,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
           {resultado.projetos.length === 0 ? (
             <Card>
               <CardContent className="py-14 text-center space-y-2">
-                <Search className="h-8 w-8 text-muted-foreground mx-auto" />
+                <MagnifyingGlass className="h-8 w-8 text-muted-foreground mx-auto" />
                 <p className="font-medium text-muted-foreground">Nenhum projeto encontrado</p>
                 <p className="text-sm text-muted-foreground">
                   Tente ampliar os critérios ou alterar a região buscada.
@@ -261,7 +264,10 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
                     ? avaliarAderencia(proj.preco_a_partir, orc)
                     : null;
                 return (
-                  <Card key={proj.id} className={`border-l-4 ${BORDA[idx] ?? "border-l-primary/30"}`}>
+                  <Card
+                    key={proj.id}
+                    className={`border-l-4 ${BORDA[idx] ?? "border-l-primary/30"}`}
+                  >
                     <CardContent className="pt-4 pb-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -323,7 +329,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
                         </div>
                         <Button asChild variant="ghost" size="sm" className="shrink-0">
                           <Link to="/projetos/$projetoId" params={{ projetoId: proj.id }}>
-                            Ver <ChevronRight className="h-3 w-3 ml-1" />
+                            Ver <CaretRight className="h-3 w-3 ml-1" />
                           </Link>
                         </Button>
                       </div>

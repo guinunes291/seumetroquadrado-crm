@@ -2,26 +2,26 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
-  MessageCircle,
-  Phone,
-  CheckCircle2,
-  Circle,
-  ExternalLink,
-  MoreVertical,
-  Pencil,
-  Copy,
-  CheckCheck,
   Archive,
-  RotateCcw,
-  Trash2,
-  Search,
-  Send,
-  AlertTriangle,
-  X,
+  ArrowCounterClockwise,
+  ArrowLeft,
+  ArrowSquareOut,
+  CheckCircle,
+  Checks,
+  Circle,
+  Copy,
+  DotsThreeVertical,
+  MagnifyingGlass,
+  PaperPlaneTilt,
+  PencilSimple,
+  Phone,
+  Trash,
   UserPlus,
-  Users,
-} from "lucide-react";
+  UsersThree,
+  Warning,
+  WhatsappLogo,
+  X,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -134,7 +134,7 @@ function ToggleContatado({
       aria-pressed={row.contatado}
     >
       {row.contatado ? (
-        <CheckCircle2 className="w-5 h-5 text-green-600" />
+        <CheckCircle className="w-5 h-5 text-green-600" />
       ) : (
         <Circle className="w-5 h-5 text-muted-foreground" />
       )}
@@ -178,7 +178,7 @@ function LinhaAcoes({
         aria-label={`Enviar WhatsApp para ${l.nome}`}
         onClick={() => onWhatsApp(row)}
       >
-        <MessageCircle className="w-4 h-4" />
+        <WhatsappLogo className="w-4 h-4" />
       </Button>
       <Button size="sm" variant="outline" title="Ligar" asChild>
         <a href={`tel:${l.telefone}`} aria-label={`Ligar para ${l.nome}`}>
@@ -187,7 +187,7 @@ function LinhaAcoes({
       </Button>
       <Button size="sm" variant="outline" title="Abrir lead" asChild>
         <Link to="/leads/$leadId" params={{ leadId: l.id }} aria-label={`Abrir lead ${l.nome}`}>
-          <ExternalLink className="w-4 h-4" />
+          <ArrowSquareOut className="w-4 h-4" />
         </Link>
       </Button>
       {/* Avançar a etapa sem sair da lista — mesmo fluxo do kanban/carteira. */}
@@ -486,7 +486,7 @@ function OfertaDetailPage() {
     const notFound = (q.error as { code?: string } | null)?.code === "PGRST116";
     return (
       <EmptyState
-        icon={AlertTriangle}
+        icon={Warning}
         title={notFound ? "Lista não encontrada" : "Erro ao carregar a lista"}
         description={
           notFound
@@ -496,9 +496,7 @@ function OfertaDetailPage() {
         action={
           notFound ? (
             <Button asChild variant="outline">
-              <Link to="/oferta-ativa">
-                Voltar para Oferta Ativa
-              </Link>
+              <Link to="/oferta-ativa">Voltar para Oferta Ativa</Link>
             </Button>
           ) : (
             <Button variant="outline" onClick={() => q.refetch()}>
@@ -540,12 +538,12 @@ function OfertaDetailPage() {
                         title="Ações da lista"
                         aria-label="Ações da lista"
                       >
-                        <MoreVertical className="w-4 h-4" />
+                        <DotsThreeVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setEditOpen(true)}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
+                        <PencilSimple className="w-4 h-4 mr-2" /> Editar
                       </DropdownMenuItem>
                       {oferta.status !== "arquivada" && (
                         <DropdownMenuItem
@@ -566,12 +564,12 @@ function OfertaDetailPage() {
                       </DropdownMenuItem>
                       {listaAtiva && (
                         <DropdownMenuItem onClick={() => setConfirmConcluir(true)}>
-                          <CheckCheck className="w-4 h-4 mr-2" /> Concluir
+                          <Checks className="w-4 h-4 mr-2" /> Concluir
                         </DropdownMenuItem>
                       )}
                       {!listaAtiva && (
                         <DropdownMenuItem onClick={() => lifecycleM.mutate("reativar")}>
-                          <RotateCcw className="w-4 h-4 mr-2" /> Reativar
+                          <ArrowCounterClockwise className="w-4 h-4 mr-2" /> Reativar
                         </DropdownMenuItem>
                       )}
                       {oferta.status !== "arquivada" && (
@@ -586,7 +584,7 @@ function OfertaDetailPage() {
                             className="text-destructive focus:text-destructive"
                             onClick={() => setConfirmExcluir(true)}
                           >
-                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                            <Trash className="w-4 h-4 mr-2" /> Excluir
                           </DropdownMenuItem>
                         </>
                       )}
@@ -603,7 +601,7 @@ function OfertaDetailPage() {
         <div className="rounded-xl border border-green-600/30 bg-green-600/10 p-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium">Todos os leads desta lista já foram contatados. 🎉</p>
           <Button size="sm" onClick={() => setConfirmConcluir(true)}>
-            <CheckCheck className="w-4 h-4 mr-2" /> Concluir lista
+            <Checks className="w-4 h-4 mr-2" /> Concluir lista
           </Button>
         </div>
       )}
@@ -644,7 +642,7 @@ function OfertaDetailPage() {
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <MagnifyingGlass className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -732,7 +730,7 @@ function OfertaDetailPage() {
             disabled={marcarM.isPending}
             onClick={() => bulkMarcar(true)}
           >
-            <CheckCircle2 className="w-4 h-4 mr-1.5" /> Marcar contatados
+            <CheckCircle className="w-4 h-4 mr-1.5" /> Marcar contatados
           </Button>
           <Button
             size="sm"
@@ -743,7 +741,7 @@ function OfertaDetailPage() {
             <Circle className="w-4 h-4 mr-1.5" /> Desmarcar contato
           </Button>
           <Button size="sm" variant="outline" onClick={() => setEnvioOpen(true)}>
-            <Send className="w-4 h-4 mr-1.5" /> Enviar template
+            <PaperPlaneTilt className="w-4 h-4 mr-1.5" /> Enviar template
           </Button>
           <button
             type="button"
@@ -757,7 +755,7 @@ function OfertaDetailPage() {
 
       {filtered.length === 0 ? (
         <EmptyState
-          icon={Search}
+          icon={MagnifyingGlass}
           title={
             rowsComLead.length === 0 ? "Nenhum lead nesta lista." : "Nenhum lead com esses filtros."
           }
@@ -1048,7 +1046,7 @@ function OfertaDetailPage() {
             </div>
             {corretorSel.size > 1 && statsAll.total > 0 && (
               <div className="rounded-md bg-muted/50 border p-3 text-xs text-muted-foreground flex items-start gap-2">
-                <Users className="w-4 h-4 mt-0.5 shrink-0" />
+                <UsersThree className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>
                   {statsAll.total} leads serão distribuídos igualmente:{" "}
                   <strong>~{Math.floor(statsAll.total / corretorSel.size)} por corretor</strong>

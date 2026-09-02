@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlarmClock, ArrowRight, HandCoins, Timer, Trophy } from "lucide-react";
+import { Alarm, ArrowRight, HandCoins, Timer, Trophy } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -412,7 +412,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <AlarmClock className="h-4 w-4" /> Leads esquecidos
+            <Alarm className="h-4 w-4" /> Leads esquecidos
             <div className="ml-auto">
               <Select
                 value={String(diasEsquecido)}

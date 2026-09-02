@@ -6,7 +6,14 @@ import { cn } from "@/lib/utils";
 import { leadStatusLabel, type LeadStatus, type StageModal } from "@/lib/leads";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
 import { TIER_DOT } from "@/lib/priority";
-import { CalendarCheck, Copy, MessageCircle, Phone, PhoneCall } from "lucide-react";
+import {
+  CalendarCheck,
+  Copy,
+  Phone,
+  PhoneCall,
+  WhatsappLogo,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import {
   QUEUE_HINT,
@@ -15,7 +22,6 @@ import {
   type QueueItem,
   type QueueKey,
 } from "@/features/atendimento/derive";
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 const QUEUE_ACCENT: Record<QueueKey, string> = {
@@ -51,7 +57,7 @@ export function QueueSection({
   queue: QueueKey;
   items: QueueItem[];
   totalCount?: number;
-  icon: LucideIcon;
+  icon: IconComponent;
   iconClass: string;
   /** Ação do cabeçalho (ex.: link para o hub dono da fila) — opcional. */
   action?: ReactNode;
@@ -146,7 +152,7 @@ export function QueueSection({
                   title={`WhatsApp — abre com o script da fila "${QUEUE_LABEL[queue]}"`}
                   onClick={() => onWhatsApp(item, mensagem)}
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <WhatsappLogo className="h-4 w-4" />
                 </Button>
                 <Button
                   asChild

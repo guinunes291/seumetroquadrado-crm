@@ -1,14 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  LayoutGrid,
-  LogOut,
-  Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings,
+  CaretDoubleLeft,
+  CaretDoubleRight,
+  GearSix,
+  List,
+  SignOut,
+  SquaresFour,
   User as UserIcon,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,7 +102,7 @@ function SidebarContent({
         aria-current={active ? "page" : undefined}
         className={leafClasses(active)}
       >
-        <Icon className="h-4 w-4 shrink-0" />
+        <Icon className="h-4 w-4 shrink-0" weight={active ? "fill" : "duotone"} />
         <span className="flex-1 truncate">{secao.label}</span>
         {countPill(n)}
       </Link>
@@ -119,7 +119,7 @@ function SidebarContent({
       aria-current={modulosAtivo ? "page" : undefined}
       className={leafClasses(modulosAtivo)}
     >
-      <LayoutGrid className="h-4 w-4 shrink-0" />
+      <SquaresFour className="h-4 w-4 shrink-0" />
       <span className="flex-1 truncate">← Módulos</span>
     </Link>
   );
@@ -140,7 +140,7 @@ function SidebarContent({
                 : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
             )}
           >
-            <LayoutGrid className="h-5 w-5" />
+            <SquaresFour className="h-5 w-5" />
           </Link>
         </TooltipTrigger>
         <TooltipContent side="right">Acesso aos módulos</TooltipContent>
@@ -171,7 +171,7 @@ function SidebarContent({
                   : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-5 w-5" weight={active ? "fill" : "duotone"} />
               {n > 0 && (
                 <span
                   aria-label={`${n} pendências`}
@@ -191,7 +191,9 @@ function SidebarContent({
 
   return (
     <TooltipProvider delayDuration={100}>
-      <div className="flex h-full flex-col bg-gradient-command text-sidebar-foreground">
+      {/* icon-duo: a área interna dos ícones duotone fica dourada sobre o navy —
+          a marca aparece em cada ícone sem virar bloco de cor. */}
+      <div className="icon-duo flex h-full flex-col bg-gradient-command text-sidebar-foreground [--icon-duo:var(--color-gold)] [--icon-duo-opacity:0.55]">
         <div
           className={cn(
             "flex h-16 items-center border-b border-sidebar-border/60",
@@ -267,7 +269,7 @@ function SidebarContent({
                 <RailFootLink
                   to="/configuracoes"
                   label="Configurações"
-                  icon={Settings}
+                  icon={GearSix}
                   active={isActivePath(pathname, "/configuracoes")}
                   onNavigate={onNavigate}
                 />
@@ -280,7 +282,7 @@ function SidebarContent({
                     aria-label="Sair"
                     className="mx-auto flex h-11 w-11 items-center justify-center rounded-md text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <SignOut className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="right">Sair</TooltipContent>
@@ -304,7 +306,7 @@ function SidebarContent({
                   aria-current={isActivePath(pathname, "/configuracoes") ? "page" : undefined}
                   className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
-                  <Settings className="h-4 w-4" />
+                  <GearSix className="h-4 w-4" />
                   Configurações
                 </Link>
               )}
@@ -313,7 +315,7 @@ function SidebarContent({
                 onClick={handleSignOut}
                 className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               >
-                <LogOut className="h-4 w-4" />
+                <SignOut className="h-4 w-4" />
                 Sair
               </Button>
             </>
@@ -333,10 +335,10 @@ function SidebarContent({
                   )}
                 >
                   {collapsed ? (
-                    <PanelLeftOpen className="h-4 w-4" />
+                    <CaretDoubleRight className="h-4 w-4" />
                   ) : (
                     <>
-                      <PanelLeftClose className="h-4 w-4" />
+                      <CaretDoubleLeft className="h-4 w-4" />
                       <span className="flex-1 text-left">Recolher</span>
                       <span className="rounded border border-sidebar-border px-1 text-[11px] text-sidebar-foreground/50">
                         [
@@ -425,7 +427,7 @@ export function MobileSidebar() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menu">
-          <Menu className="h-5 w-5" />
+          <List className="h-5 w-5" />
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Search, Loader2, User } from "lucide-react";
+import { CircleNotch, MagnifyingGlass, User } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { mensagemEmpreendimento, WHATSAPP_TITULO_EMPREENDIMENTO } from "@/lib/whatsapp";
@@ -114,7 +114,7 @@ export function EnviarVitrineDialog({ projeto, onClose, onEnviado }: Props) {
         </DialogHeader>
 
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             autoFocus
             value={q}
@@ -131,7 +131,7 @@ export function EnviarVitrineDialog({ projeto, onClose, onEnviado }: Props) {
             </p>
           ) : isFetching ? (
             <p className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Buscando…
+              <CircleNotch className="h-4 w-4 animate-spin" /> Buscando…
             </p>
           ) : leads.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">

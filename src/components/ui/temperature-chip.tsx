@@ -1,4 +1,4 @@
-import { Flame, Thermometer, Snowflake } from "lucide-react";
+import { Fire, Snowflake, Thermometer } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   INTENT_BADGE_BORDERED,
@@ -7,8 +7,8 @@ import {
   type Temperatura,
 } from "@/lib/status-tones";
 
-const TEMP_ICON: Record<Temperatura, typeof Flame> = {
-  quente: Flame,
+const TEMP_ICON: Record<Temperatura, typeof Fire> = {
+  quente: Fire,
   morno: Thermometer,
   frio: Snowflake,
 };

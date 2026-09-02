@@ -4,14 +4,14 @@
 
 import {
   ArrowRight,
-  Building2,
-  Calendar,
-  Mail,
+  Buildings,
+  CalendarBlank,
+  Envelope,
   MapPin,
   Phone,
   User,
-  type LucideIcon,
-} from "lucide-react";
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import type { DossieLead } from "@/features/leads/dossie/types";
 
@@ -20,7 +20,7 @@ function DataRow({
   label,
   value,
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   label: string;
   value: string | null | undefined;
 }) {
@@ -41,10 +41,10 @@ export function DadosTab({ lead }: { lead: DossieLead }) {
       <div className="grid gap-4 rounded-xl border border-border-subtle bg-card p-6 text-sm shadow-elev-1 md:grid-cols-2">
         <DataRow icon={User} label="Nome" value={lead.nome} />
         <DataRow icon={Phone} label="Telefone" value={lead.telefone} />
-        <DataRow icon={Mail} label="E-mail" value={lead.email} />
-        <DataRow icon={Building2} label="Empreendimento" value={lead.projeto_nome} />
+        <DataRow icon={Envelope} label="E-mail" value={lead.email} />
+        <DataRow icon={Buildings} label="Empreendimento" value={lead.projeto_nome} />
         <DataRow
-          icon={Calendar}
+          icon={CalendarBlank}
           label="Próximo follow-up"
           value={
             lead.proximo_followup ? new Date(lead.proximo_followup).toLocaleString("pt-BR") : null
@@ -79,10 +79,10 @@ export function DadosTab({ lead }: { lead: DossieLead }) {
           <div className="grid gap-4 p-6 pt-0 text-sm md:grid-cols-2">
             <DataRow icon={ArrowRight} label="Desfecho" value={lead.desfecho} />
             <DataRow icon={ArrowRight} label="Fase" value={lead.fase} />
-            <DataRow icon={Calendar} label="Visita — data" value={lead.visita_data} />
-            <DataRow icon={Calendar} label="Visita — hora" value={lead.visita_hora} />
+            <DataRow icon={CalendarBlank} label="Visita — data" value={lead.visita_data} />
+            <DataRow icon={CalendarBlank} label="Visita — hora" value={lead.visita_hora} />
             <DataRow
-              icon={Building2}
+              icon={Buildings}
               label="Visita — empreendimento"
               value={lead.visita_empreendimento}
             />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Link2, Scale, Trash2, X } from "lucide-react";
+import { Check, Copy, Link, Scales, Trash, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { Button } from "@/components/ui/button";
@@ -122,7 +122,7 @@ export function VitrineShortlist({ projects, leadId, leadName, onRemove, onClear
             Limpar
           </Button>
           <Button type="button" size="sm" disabled={!canCompare} onClick={() => setOpen(true)}>
-            <Scale className="mr-2 h-4 w-4" /> Comparar
+            <Scales className="mr-2 h-4 w-4" /> Comparar
           </Button>
         </div>
       </aside>
@@ -235,7 +235,7 @@ export function VitrineShortlist({ projects, leadId, leadName, onRemove, onClear
                   disabled={revokeMutation.isPending}
                   onClick={() => revokeMutation.mutate(generated.id)}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Revogar agora
+                  <Trash className="mr-2 h-4 w-4" /> Revogar agora
                 </Button>
               </div>
             </div>
@@ -270,7 +270,7 @@ export function VitrineShortlist({ projects, leadId, leadName, onRemove, onClear
                 disabled={createMutation.isPending}
                 onClick={() => createMutation.mutate()}
               >
-                <Link2 className="mr-2 h-4 w-4" />
+                <Link className="mr-2 h-4 w-4" />
                 {createMutation.isPending ? "Criando…" : "Criar link"}
               </Button>
             </div>

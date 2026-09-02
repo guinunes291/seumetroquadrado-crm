@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCheck, ExternalLink, Info, MessageCircle } from "lucide-react";
+import { ArrowSquareOut, Checks, Info, WhatsappLogo } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -152,12 +152,12 @@ export function WhatsappTab({ leadId, lead }: { leadId: string; lead: LeadDaConv
                   disabled={marcarTratada.isPending}
                   title="Apaga o aguardando resposta sem responder — some do badge e da fila Responder"
                 >
-                  <CheckCheck className="h-4 w-4" /> Marcar tratada
+                  <Checks className="h-4 w-4" /> Marcar tratada
                 </Button>
               )}
               <Button asChild variant="ghost" size="sm">
                 <Link to="/mensagens">
-                  <ExternalLink className="h-4 w-4" /> Central
+                  <ArrowSquareOut className="h-4 w-4" /> Central
                 </Link>
               </Button>
             </div>
@@ -166,7 +166,7 @@ export function WhatsappTab({ leadId, lead }: { leadId: string; lead: LeadDaConv
           <div className="flex-1 space-y-2 overflow-y-auto pr-1">
             {thread.length === 0 ? (
               <EmptyState
-                icon={MessageCircle}
+                icon={WhatsappLogo}
                 title="Nenhuma mensagem ainda"
                 description="As mensagens do cliente entram pelo webhook do WhatsApp; cada envio daqui registra na conversa e abre o WhatsApp com o texto pronto."
                 className="py-10"

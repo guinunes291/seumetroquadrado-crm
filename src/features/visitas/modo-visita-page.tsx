@@ -4,20 +4,20 @@ import { Link } from "@tanstack/react-router";
 import { addDays, format, isPast, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  CalendarDays,
-  CheckCircle2,
-  Clock3,
-  ExternalLink,
+  ArrowSquareOut,
+  CalendarDots,
+  CheckCircle,
+  ClockAfternoon,
   FileText,
+  FloppyDisk,
   MapPin,
-  MessageCircle,
-  Mic,
-  MicOff,
+  Microphone,
+  MicrophoneSlash,
+  Path as RouteIcon,
   Phone,
-  Route as RouteIcon,
-  Save,
-  UserRound,
-} from "lucide-react";
+  UserCircle,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -606,7 +606,7 @@ export function ModoVisitaPage() {
       >
         {agendaQ.data?.length === 0 ? (
           <EmptyState
-            icon={CalendarDays}
+            icon={CalendarDots}
             title="Nenhuma visita nos próximos sete dias"
             description="Abra a agenda para criar ou confirmar um compromisso de visita."
             action={
@@ -619,7 +619,7 @@ export function ModoVisitaPage() {
           <div className="space-y-5">
             {pendentesOffline > 0 && (
               <div className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
-                <Save className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <FloppyDisk className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 <p>
                   <strong>
                     {pendentesOffline} {pendentesOffline === 1 ? "visita salva" : "visitas salvas"}{" "}
@@ -633,7 +633,10 @@ export function ModoVisitaPage() {
 
             {pendentesValidacao > 0 && (
               <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-                <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                <ClockAfternoon
+                  className="mt-0.5 h-4 w-4 shrink-0 text-warning"
+                  aria-hidden="true"
+                />
                 <p>
                   <strong>
                     {pendentesValidacao}{" "}
@@ -692,7 +695,7 @@ export function ModoVisitaPage() {
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
-                          <InfoLine icon={Clock3}>
+                          <InfoLine icon={ClockAfternoon}>
                             {format(
                               new Date(selected.data_inicio),
                               "EEEE, dd 'de' MMMM 'às' HH:mm",
@@ -704,7 +707,7 @@ export function ModoVisitaPage() {
                           <InfoLine icon={MapPin}>
                             {selected.local || "Local não informado"}
                           </InfoLine>
-                          <InfoLine icon={UserRound}>
+                          <InfoLine icon={UserCircle}>
                             {leadStatusLabel(selected.lead.status)}
                             {selected.lead.projeto_nome ? ` · ${selected.lead.projeto_nome}` : ""}
                           </InfoLine>
@@ -728,12 +731,12 @@ export function ModoVisitaPage() {
                             {whatsappUrl ? (
                               <Button variant="outline" asChild>
                                 <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                                  <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
+                                  <WhatsappLogo className="mr-2 h-4 w-4" /> WhatsApp
                                 </a>
                               </Button>
                             ) : (
                               <Button variant="outline" disabled>
-                                <MessageCircle className="mr-2 h-4 w-4" /> WhatsApp
+                                <WhatsappLogo className="mr-2 h-4 w-4" /> WhatsApp
                               </Button>
                             )}
                             {mapUrl ? (
@@ -813,9 +816,9 @@ export function ModoVisitaPage() {
                               }
                             >
                               {listening ? (
-                                <MicOff className="mr-2 h-4 w-4" />
+                                <MicrophoneSlash className="mr-2 h-4 w-4" />
                               ) : (
-                                <Mic className="mr-2 h-4 w-4" />
+                                <Microphone className="mr-2 h-4 w-4" />
                               )}
                               {listening ? "Parar ditado" : "Ditar nota"}
                             </Button>
@@ -1048,14 +1051,14 @@ export function ModoVisitaPage() {
                               onClick={() => submit(false)}
                               disabled={saveMutation.isPending || completed}
                             >
-                              <Save className="mr-2 h-4 w-4" /> Salvar progresso
+                              <FloppyDisk className="mr-2 h-4 w-4" /> Salvar progresso
                             </Button>
                             <Button
                               type="button"
                               onClick={() => submit(true)}
                               disabled={saveMutation.isPending || completed}
                             >
-                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                              <CheckCircle className="mr-2 h-4 w-4" />
                               {completed
                                 ? "Visita concluída"
                                 : naoCompareceu
@@ -1084,7 +1087,7 @@ export function ModoVisitaPage() {
                       onClick={() => submit(false)}
                       disabled={saveMutation.isPending || completed}
                     >
-                      <Save className="mr-1 h-4 w-4" /> Salvar
+                      <FloppyDisk className="mr-1 h-4 w-4" /> Salvar
                     </Button>
                     <Button
                       type="button"
@@ -1092,20 +1095,20 @@ export function ModoVisitaPage() {
                       onClick={() => submit(true)}
                       disabled={saveMutation.isPending || completed}
                     >
-                      <CheckCircle2 className="mr-1 h-4 w-4" />
+                      <CheckCircle className="mr-1 h-4 w-4" />
                       {completed ? "Concluída" : "Concluir"}
                     </Button>
                   </StickyActionRail>
                 </form>
               ) : (
                 <EmptyState
-                  icon={UserRound}
+                  icon={UserCircle}
                   title="Visita sem cliente acessível"
                   description="Revise o vínculo do compromisso com o lead na agenda."
                   action={
                     <Button asChild variant="outline">
                       <Link to="/agendamentos">
-                        Abrir agenda <ExternalLink className="ml-2 h-4 w-4" />
+                        Abrir agenda <ArrowSquareOut className="ml-2 h-4 w-4" />
                       </Link>
                     </Button>
                   }
@@ -1119,7 +1122,13 @@ export function ModoVisitaPage() {
   );
 }
 
-function InfoLine({ icon: Icon, children }: { icon: typeof Clock3; children: React.ReactNode }) {
+function InfoLine({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof ClockAfternoon;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-h-8 items-start gap-2">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />

@@ -6,7 +6,7 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Settings } from "lucide-react";
+import { GearSix } from "@phosphor-icons/react";
 import { useUserRoles } from "@/hooks/use-auth";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,7 @@ export function CoberturaView() {
         {isAdmin && (
           <Button asChild variant="outline" size="sm" className="shrink-0">
             <Link to="/follow-up" search={{ tab: "config" }}>
-              <Settings className="mr-1 h-4 w-4" /> Configurar régua
+              <GearSix className="mr-1 h-4 w-4" /> Configurar régua
             </Link>
           </Button>
         )}

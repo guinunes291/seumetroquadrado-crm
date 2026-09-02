@@ -2,7 +2,7 @@
 // versão compacta, com atalho para a tela completa de Metas & Ritmo.
 
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Gauge } from "lucide-react";
+import { ArrowRight, Gauge } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";

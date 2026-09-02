@@ -7,7 +7,7 @@
 // tela). Tudo grava pela RPC auditada atualizar_distribuicao_setting.
 
 import { useState } from "react";
-import { Save, ShieldAlert } from "lucide-react";
+import { FloppyDisk, ShieldWarning } from "@phosphor-icons/react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,7 +65,7 @@ function FlagMotorV2() {
     <div className="flex items-center justify-between gap-4 rounded-md border border-warning/40 bg-warning/5 p-3">
       <div>
         <Label className="flex items-center gap-1.5">
-          <ShieldAlert className="h-4 w-4 text-warning" />
+          <ShieldWarning className="h-4 w-4 text-warning" />
           Motor v2 ativo (quente por velocidade + base universal)
         </Label>
         <p className="text-xs text-muted-foreground">
@@ -179,7 +179,7 @@ function SettingGenerico({ chave }: { chave: string }) {
               )
             }
           >
-            <Save className="mr-1 h-3.5 w-3.5" /> Salvar
+            <FloppyDisk className="mr-1 h-3.5 w-3.5" /> Salvar
           </Button>
         )}
       </div>

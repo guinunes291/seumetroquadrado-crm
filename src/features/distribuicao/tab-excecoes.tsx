@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, RefreshCw, ShieldAlert } from "lucide-react";
+import { ArrowClockwise, CheckCircle, ShieldWarning } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -85,7 +85,7 @@ export function TabExcecoes({ somenteLeitura }: { somenteLeitura: boolean }) {
             <Skeleton className="h-24 w-full" />
           ) : linhas.length === 0 ? (
             <EmptyState
-              icon={CheckCircle2}
+              icon={CheckCircle}
               title={
                 visao === "abertas" ? "Fila de exceções vazia 👏" : "Nenhuma exceção registrada"
               }
@@ -214,7 +214,7 @@ function ResolverExcecaoDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            <ShieldAlert className="mr-1.5 inline h-4 w-4" />
+            <ShieldWarning className="mr-1.5 inline h-4 w-4" />
             Resolver exceção — {alvo?.leads?.nome}
           </DialogTitle>
           <DialogDescription>
@@ -305,7 +305,7 @@ function ResolverExcecaoDialog({
             Cancelar
           </Button>
           <Button onClick={executar} disabled={!pronto || resolver.isPending}>
-            {resolver.isPending ? <RefreshCw className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+            {resolver.isPending ? <ArrowClockwise className="mr-1.5 h-4 w-4 animate-spin" /> : null}
             Executar
           </Button>
         </DialogFooter>

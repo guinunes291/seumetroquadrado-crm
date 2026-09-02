@@ -4,7 +4,8 @@ import { Link } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Sparkles, Loader2, ExternalLink, Check, X } from "lucide-react";
+import { ArrowSquareOut, Buildings, Check, CircleNotch, X } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { buscarProjetosIA } from "@/lib/match-ia.functions";
 import { calcularOrcamento, avaliarAderencia, brl, type ResultadoOrcamento } from "@/lib/orcamento";
 import { parseValorBR } from "@/lib/simulador";
@@ -68,7 +69,7 @@ export function EmpreendimentoRecomendado({ lead }: { lead: LeadPerfil }) {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5">
-            <Building2 className="h-4 w-4 text-primary" /> Empreendimento recomendado (IA)
+            <Buildings className="h-4 w-4 text-primary" /> Empreendimento recomendado (IA)
           </span>
           <Button
             size="sm"
@@ -78,13 +79,13 @@ export function EmpreendimentoRecomendado({ lead }: { lead: LeadPerfil }) {
           >
             {mutation.isPending ? (
               <>
-                <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Buscando…
+                <CircleNotch className="mr-1 h-3 w-3 animate-spin" /> Buscando…
               </>
             ) : mutation.data ? (
               "Atualizar"
             ) : (
               <>
-                <Sparkles className="mr-1 h-3 w-3" /> Sugerir
+                <SamiMark className="mr-1 h-3 w-3" /> Sugerir
               </>
             )}
           </Button>
@@ -121,7 +122,9 @@ export function EmpreendimentoRecomendado({ lead }: { lead: LeadPerfil }) {
               <div className="space-y-2">
                 {mutation.data.projetos.map((p) => {
                   const aderencia =
-                    orc.enquadra && p.preco_a_partir ? avaliarAderencia(p.preco_a_partir, orc) : null;
+                    orc.enquadra && p.preco_a_partir
+                      ? avaliarAderencia(p.preco_a_partir, orc)
+                      : null;
                   return (
                     <Link
                       key={p.id}
@@ -133,7 +136,7 @@ export function EmpreendimentoRecomendado({ lead }: { lead: LeadPerfil }) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1 truncate text-sm font-medium">
                             {p.nome}
-                            <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
+                            <ArrowSquareOut className="h-3 w-3 shrink-0 text-muted-foreground" />
                           </div>
                           <div className="truncate text-xs text-muted-foreground">
                             {[p.construtora, p.bairro, p.cidade].filter(Boolean).join(" · ")}

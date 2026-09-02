@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, MessageCircle, Phone, PhoneCall } from "lucide-react";
+import { ArrowRight, Phone, PhoneCall, WhatsappLogo } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -218,7 +218,7 @@ function PeekBody({
           className="min-h-11 bg-gradient-gold text-navy-900 hover:opacity-90"
           onClick={() => onWhatsApp(lead)}
         >
-          <MessageCircle className="h-4 w-4" /> WhatsApp
+          <WhatsappLogo className="h-4 w-4" /> WhatsApp
         </Button>
         <Button asChild size="sm" variant="outline" className="min-h-11">
           <a href={`tel:${lead.telefone.replace(/\D/g, "")}`}>

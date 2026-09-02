@@ -3,7 +3,7 @@
 // regra de pontuação vive aqui.
 
 import { useMemo } from "react";
-import { Trophy } from "lucide-react";
+import { Trophy } from "@phosphor-icons/react";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";

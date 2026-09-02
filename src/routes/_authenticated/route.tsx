@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
-import { Search } from "lucide-react";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 
 const SamiQLauncher = lazy(() =>
   import("@/components/samiq/samiq-launcher").then(({ SamiQLauncher }) => ({
@@ -88,7 +88,7 @@ function AuthenticatedLayout() {
               aria-label="Abrir busca global"
               onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
             >
-              <Search className="h-4 w-4" />
+              <MagnifyingGlass className="h-4 w-4" />
               <span className="hidden sm:inline">Buscar</span>
               <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
                 ⌘K

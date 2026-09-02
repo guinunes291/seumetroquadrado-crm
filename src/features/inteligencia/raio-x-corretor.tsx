@@ -18,18 +18,18 @@ import {
   YAxis,
 } from "recharts";
 import {
-  AlertTriangle,
   ArrowLeft,
-  CheckCircle2,
-  ChevronDown,
+  CaretDown,
+  CheckCircle,
+  CircleNotch,
   FileText,
   GraduationCap,
   Info,
-  Loader2,
-  Rocket,
-  Table2,
+  RocketLaunch,
+  Table as Table2,
   Wallet,
-} from "lucide-react";
+  Warning,
+} from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -316,7 +316,7 @@ export function RaioXCorretor({
               disabled={gerandoPdf}
             >
               {gerandoPdf ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                <CircleNotch className="mr-1 h-4 w-4 animate-spin" />
               ) : (
                 <FileText className="mr-1 h-4 w-4" />
               )}
@@ -329,7 +329,7 @@ export function RaioXCorretor({
                   className="rounded-l-none border-l border-primary-foreground/25 px-2"
                   aria-label="Outros formatos de exportação"
                 >
-                  <ChevronDown className="h-4 w-4" />
+                  <CaretDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -460,9 +460,9 @@ export function RaioXCorretor({
           {sinal === "mentoria" ? (
             <GraduationCap className="h-4 w-4 shrink-0 text-warning" />
           ) : sinal === "dar_mais_lead" ? (
-            <Rocket className="h-4 w-4 shrink-0 text-success" />
+            <RocketLaunch className="h-4 w-4 shrink-0 text-success" />
           ) : (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
           )}
           <span>
             {sinal
@@ -627,7 +627,7 @@ export function RaioXCorretor({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="h-4 w-4" /> Exceções abertas hoje
+              <Warning className="h-4 w-4" /> Exceções abertas hoje
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -635,7 +635,7 @@ export function RaioXCorretor({
               <Skeleton className="h-32 w-full" />
             ) : (excecoesQ.data?.excecoes ?? []).length === 0 ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-success" /> Nenhuma exceção agora.
+                <CheckCircle className="h-4 w-4 text-success" /> Nenhuma exceção agora.
               </p>
             ) : (
               <ul className="space-y-1.5">

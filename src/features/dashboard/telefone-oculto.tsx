@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeSlash } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,7 +40,7 @@ export function TelefoneOculto({
           setFixo((v) => !v);
         }}
       >
-        {fixo ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+        {fixo ? <EyeSlash className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
       </button>
     </span>
   );

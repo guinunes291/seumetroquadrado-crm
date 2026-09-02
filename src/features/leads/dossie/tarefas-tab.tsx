@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ListTodo, Plus } from "lucide-react";
+import { ListChecks, Plus } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -171,7 +171,7 @@ export function TarefasTab({
         />
       ) : tarefas.length === 0 ? (
         <EmptyState
-          icon={ListTodo}
+          icon={ListChecks}
           title="Sem tarefas vinculadas"
           description="Crie uma tarefa para agendar o próximo passo com este lead."
         />

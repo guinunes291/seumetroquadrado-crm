@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { Clock } from "@phosphor-icons/react";
 
 /**
  * Carimbo de frescor de dados materializados ("Dados de HH:MM · atualização a
@@ -12,9 +12,8 @@ export function AtualizadoEm({ quando }: { quando: string | null | undefined }) 
   return (
     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
       <Clock className="h-3 w-3" aria-hidden />
-      Dados de{" "}
-      {d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · atualização a cada
-      15 min
+      Dados de {d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · atualização
+      a cada 15 min
     </span>
   );
 }

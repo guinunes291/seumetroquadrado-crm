@@ -10,13 +10,13 @@ import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowSquareOut,
   Crosshair,
-  ExternalLink,
-  MessageCircle,
   Phone,
   PhoneCall,
+  WhatsappLogo,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -140,7 +140,7 @@ export function FocusMode({
             {leadId && (
               <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
                 <Link to="/leads/$leadId" params={{ leadId }}>
-                  <ExternalLink className="h-4 w-4" />
+                  <ArrowSquareOut className="h-4 w-4" />
                   <span className="hidden sm:inline">Dossiê completo</span>
                 </Link>
               </Button>
@@ -481,7 +481,7 @@ function FocusBody({
             })
           }
         >
-          <MessageCircle className="h-4 w-4" /> WhatsApp
+          <WhatsappLogo className="h-4 w-4" /> WhatsApp
         </Button>
         <Button asChild variant="outline" className="w-full">
           <a href={`tel:${lead.telefone.replace(/\D/g, "")}`}>

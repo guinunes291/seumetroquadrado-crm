@@ -193,6 +193,10 @@
   --surface-3: oklch(0.96 0.008 250);
   --border-subtle: oklch(0.22 0.05 250 / 0.1);
 
+  /* Monograma da Sami (components/ui/sami-mark): disco, glifo e halo do ponto */
+  --sami-disc: oklch(0.22 0.05 250);
+  --sami-glyph: oklch(0.97 0.01 85);
+
   /* Cor por módulo (valores absolutos do tema claro) */
   --modulo-central: oklch(0.72 0.12 85);
   --modulo-prospeccao: oklch(0.55 0.1 240);
@@ -291,6 +295,10 @@
   --surface-2: oklch(0.225 0.04 250);
   --surface-3: oklch(0.26 0.042 250);
   --border-subtle: oklch(0.95 0.01 85 / 0.08);
+
+  /* Monograma da Sami: disco um passo acima do card para não sumir no escuro */
+  --sami-disc: oklch(0.3 0.05 250);
+  --sami-glyph: oklch(0.97 0.01 85);
 
   /* Cor por módulo — mais claras que no tema claro para contraste sobre --card */
   --modulo-central: oklch(0.77 0.11 85);

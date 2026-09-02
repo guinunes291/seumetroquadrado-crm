@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MessageCircleWarning, X, Plus } from "lucide-react";
+import { ChatCircleText, Plus, X } from "@phosphor-icons/react";
 
 type Props = {
   leadId: string;
@@ -64,7 +64,7 @@ export function LeadObjecoes({ leadId, objecoes }: Props) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-1.5">
-          <MessageCircleWarning className="h-4 w-4 text-primary" /> Objeções do cliente
+          <ChatCircleText className="h-4 w-4 text-primary" /> Objeções do cliente
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

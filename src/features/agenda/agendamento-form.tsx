@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, ExternalLink } from "lucide-react";
+import { ArrowSquareOut, DownloadSimple } from "@phosphor-icons/react";
 import { buildGoogleCalendarUrl, downloadIcs, type CalendarEventInput } from "@/lib/calendar-links";
 import {
   STATUS_LABEL,
@@ -280,7 +280,7 @@ export function AgendamentoForm({
               window.open(buildGoogleCalendarUrl(calendarEvent()), "_blank", "noopener")
             }
           >
-            <ExternalLink className="mr-1 h-3.5 w-3.5" /> Google Agenda
+            <ArrowSquareOut className="mr-1 h-3.5 w-3.5" /> Google Agenda
           </Button>
           <Button
             type="button"
@@ -288,7 +288,7 @@ export function AgendamentoForm({
             size="sm"
             onClick={() => downloadIcs(calendarEvent(), initial.id)}
           >
-            <Download className="mr-1 h-3.5 w-3.5" /> .ics (Apple/Outlook)
+            <DownloadSimple className="mr-1 h-3.5 w-3.5" /> .ics (Apple/Outlook)
           </Button>
         </div>
       )}

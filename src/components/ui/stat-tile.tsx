@@ -1,10 +1,9 @@
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { TrendDown, TrendUp, type Icon as IconComponent } from "@phosphor-icons/react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkline } from "@/components/ui/sparkline";
 import { cn } from "@/lib/utils";
 import { INTENT_TEXT, type Intent } from "@/lib/status-tones";
-import type { LucideIcon } from "lucide-react";
 
 const INTENT_ICON_BG: Record<Intent, string> = {
   success: "bg-success/12 text-success",
@@ -36,7 +35,7 @@ export function StatTile({
   title: string;
   /** Número puro ganha ticker animado; ReactNode pré-formatado entra com count-pop. */
   value: React.ReactNode;
-  icon?: LucideIcon;
+  icon?: IconComponent;
   intent?: Intent;
   /** Variação vs. período anterior (%) — seta ↑ verde / ↓ vermelha. */
   delta?: number;
@@ -100,11 +99,7 @@ export function StatTile({
                     deltaUp ? "text-success" : "text-destructive",
                   )}
                 >
-                  {deltaUp ? (
-                    <TrendingUp className="h-3 w-3" />
-                  ) : (
-                    <TrendingDown className="h-3 w-3" />
-                  )}
+                  {deltaUp ? <TrendUp className="h-3 w-3" /> : <TrendDown className="h-3 w-3" />}
                   {Math.abs(delta).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                 </span>
               )}

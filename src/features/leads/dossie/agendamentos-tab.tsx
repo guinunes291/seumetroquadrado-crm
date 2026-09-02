@@ -3,7 +3,7 @@
 // (evita fetch em toda visita ao dossiê).
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays } from "lucide-react";
+import { CalendarDots } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,7 +64,7 @@ export function AgendamentosTab({ leadId }: { leadId: string }) {
   if (agendamentos.length === 0) {
     return (
       <EmptyState
-        icon={CalendarDays}
+        icon={CalendarDots}
         title="Sem agendamentos vinculados"
         description="Agende uma visita ou reunião para aparecer aqui."
       />

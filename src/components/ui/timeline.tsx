@@ -4,13 +4,13 @@
 // entrada em cascata via stagger (compositor-only, coberto por reduced-motion).
 
 import { useMemo } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { Icon as IconComponent } from "@phosphor-icons/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export type TimelineItem = {
   id: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   /** Tom do ícone (ex.: INTENT_TEXT do status-tones). */
   iconClassName?: string;
   title: React.ReactNode;

@@ -3,18 +3,18 @@
 // comportamento.
 
 import {
-  Shuffle,
-  Trash2,
-  Play,
-  MessageCircle,
-  MoreHorizontal,
-  Phone,
-  DollarSign,
-  ArrowRightLeft,
-  CalendarClock,
-  ChevronDown,
+  ArrowsLeftRight,
+  CalendarDots,
+  CaretDown,
   Crosshair,
-} from "lucide-react";
+  CurrencyDollar,
+  DotsThree,
+  Phone,
+  Play,
+  Shuffle,
+  Trash,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -53,7 +53,7 @@ export function FinanceiroPopover({ lead }: { lead: Lead }) {
           title="Resumo financeiro"
           onClick={(e) => e.stopPropagation()}
         >
-          <DollarSign className="h-3.5 w-3.5" />
+          <CurrencyDollar className="h-3.5 w-3.5" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 text-sm">
@@ -123,7 +123,7 @@ export function LeadRowMenu({
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <DotsThree className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
@@ -136,7 +136,7 @@ export function LeadRowMenu({
             )}
             {onFollowup && (
               <DropdownMenuItem onSelect={onFollowup}>
-                <CalendarClock className="h-4 w-4 mr-2" /> Agendar follow-up
+                <CalendarDots className="h-4 w-4 mr-2" /> Agendar follow-up
               </DropdownMenuItem>
             )}
             {(showStages || canManage) && <DropdownMenuSeparator />}
@@ -161,14 +161,14 @@ export function LeadRowMenu({
             )}
             {!lead.na_lixeira && (
               <DropdownMenuItem onSelect={onTransferir}>
-                <ArrowRightLeft className="h-4 w-4 mr-2" /> Transferir
+                <ArrowsLeftRight className="h-4 w-4 mr-2" /> Transferir
               </DropdownMenuItem>
             )}
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onSelect={onLixeira}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash className="h-4 w-4 mr-2" />
               {lead.na_lixeira ? "Restaurar" : "Mover p/ lixeira"}
             </DropdownMenuItem>
           </>
@@ -208,7 +208,7 @@ export function IniciarSplitButton({
         title={`Iniciar por ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
       >
         {lastContactType === "whatsapp" ? (
-          <MessageCircle className="h-3.5 w-3.5 mr-1" />
+          <WhatsappLogo className="h-3.5 w-3.5 mr-1" />
         ) : (
           <Phone className="h-3.5 w-3.5 mr-1" />
         )}
@@ -221,12 +221,12 @@ export function IniciarSplitButton({
             className="rounded-l-none border-l border-primary-foreground/20 px-1.5"
             disabled={pending}
           >
-            <ChevronDown className="h-3.5 w-3.5" />
+            <CaretDown className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => onIniciar(lead, "whatsapp")}>
-            <MessageCircle className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
+            <WhatsappLogo className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onIniciar(lead, "ligacao")}>
             <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação

@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Download, GraduationCap, Info, Repeat, Rocket } from "lucide-react";
+import {
+  ArrowsClockwise,
+  DownloadSimple,
+  GraduationCap,
+  Info,
+  RocketLaunch,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
@@ -34,7 +40,7 @@ const fmtBRL = (n: number) =>
 function SinalBadge({ sinal }: { sinal: SinalCorretor }) {
   if (!sinal) return null;
   const mentoria = sinal === "mentoria";
-  const Icone = mentoria ? GraduationCap : Rocket;
+  const Icone = mentoria ? GraduationCap : RocketLaunch;
   return (
     <Badge
       variant="outline"
@@ -268,11 +274,11 @@ export function PerformanceView({
               memória. */}
           <Button asChild size="sm" variant="ghost">
             <Link to="/follow-up" search={{ tab: "cobertura" }}>
-              <Repeat className="mr-1 h-4 w-4" /> Cobertura do follow-up
+              <ArrowsClockwise className="mr-1 h-4 w-4" /> Cobertura do follow-up
             </Link>
           </Button>
           <Button size="sm" variant="outline" onClick={exportar} disabled={rows.length === 0}>
-            <Download className="mr-1 h-4 w-4" /> XLSX
+            <DownloadSimple className="mr-1 h-4 w-4" /> XLSX
           </Button>
         </div>
       </div>

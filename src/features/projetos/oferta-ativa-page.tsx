@@ -1,7 +1,15 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Megaphone, Plus, Archive, RotateCcw, Users, Copy, Trash2 } from "lucide-react";
+import {
+  Archive,
+  ArrowCounterClockwise,
+  Copy,
+  Megaphone,
+  Plus,
+  Trash,
+  UsersThree,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -153,7 +161,7 @@ export function OfertaAtivaPage() {
                     }}
                     disabled={restoreM.isPending}
                   >
-                    <RotateCcw className="w-3 h-3" /> Restaurar
+                    <ArrowCounterClockwise className="w-3 h-3" /> Restaurar
                   </button>
                   {isAdmin && (
                     <button
@@ -164,7 +172,7 @@ export function OfertaAtivaPage() {
                       }}
                       disabled={deleteM.isPending}
                     >
-                      <Trash2 className="w-3 h-3" /> Excluir
+                      <Trash className="w-3 h-3" /> Excluir
                     </button>
                   )}
                 </>
@@ -307,7 +315,7 @@ export function OfertaAtivaPage() {
 
       {!canManage && (
         <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <Users className="w-3 h-3" /> Você vê apenas as listas atribuídas a você.
+          <UsersThree className="w-3 h-3" /> Você vê apenas as listas atribuídas a você.
         </p>
       )}
 

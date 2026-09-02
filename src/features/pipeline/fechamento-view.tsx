@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, FileWarning, Flag, MessageCircle, Phone } from "lucide-react";
+import { ArrowRight, FileDashed, Flag, Phone, WhatsappLogo } from "@phosphor-icons/react";
 
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Badge } from "@/components/ui/badge";
@@ -163,7 +163,7 @@ export function FechamentoView() {
                                 className="shrink-0 gap-1 bg-warning/15 text-warning"
                                 title={`${lead.documentos_pendentes} documento(s) pendente(s) ou reprovado(s)`}
                               >
-                                <FileWarning className="h-3 w-3" aria-hidden="true" />
+                                <FileDashed className="h-3 w-3" aria-hidden="true" />
                                 {lead.documentos_pendentes} doc
                               </Badge>
                             )}
@@ -213,7 +213,7 @@ export function FechamentoView() {
                             title="WhatsApp"
                             onClick={() => window.open(waUrl, "_blank", "noopener,noreferrer")}
                           >
-                            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                            <WhatsappLogo className="h-4 w-4" aria-hidden="true" />
                           </Button>
                           <Button
                             size="icon"

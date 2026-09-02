@@ -10,17 +10,18 @@ import { ResponsiveTabs, ResponsiveTabsContent } from "@/components/ui/responsiv
 import { StickyActionRail } from "@/components/ui/sticky-action-rail";
 import { toast } from "sonner";
 import {
-  AlertTriangle,
+  ArrowClockwise,
   ArrowLeft,
   ArrowRight,
+  Check,
+  FileText,
   Phone,
   PhoneCall,
-  RefreshCw,
-  MessageCircle,
-  Check,
-  Sparkles,
-  FileText,
-} from "lucide-react";
+  Warning,
+  WhatsappLogo,
+  Target,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -166,12 +167,12 @@ function LeadDetailPage() {
         </Link>
         <Card className="mt-4">
           <CardContent className="py-12 text-center space-y-3">
-            <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+            <Warning className="h-10 w-10 mx-auto text-destructive opacity-70" />
             <p className="text-sm text-muted-foreground">
               Não foi possível carregar o lead. Verifique sua conexão e tente novamente.
             </p>
             <Button variant="outline" size="sm" onClick={() => refetchLead()}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+              <ArrowClockwise className="h-4 w-4 mr-2" /> Tentar novamente
             </Button>
           </CardContent>
         </Card>
@@ -264,7 +265,7 @@ function LeadDetailPage() {
                 calculadora sem contexto de lead). */}
             <Button asChild variant="outline" className="hidden md:inline-flex">
               <Link to="/match" search={{ leadId, mode: "ia" }}>
-                <Sparkles className="h-4 w-4 mr-2" /> Match IA
+                <SamiMark className="h-4 w-4 mr-2" /> Match IA
               </Link>
             </Button>
             {/* O conteúdo do diálogo é portalado para o body: esconder só o
@@ -305,7 +306,7 @@ function LeadDetailPage() {
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-              <Sparkles className="h-3.5 w-3.5" /> Próxima melhor ação
+              <Target className="h-3.5 w-3.5" /> Próxima melhor ação
             </div>
             <div className="font-display text-base font-semibold tracking-tight md:text-lg">
               {acaoSugerida ? acaoSugerida.label : "Registrar um contato e definir o próximo passo"}
@@ -323,7 +324,7 @@ function LeadDetailPage() {
                       : "bg-warning/15 text-warning",
                   )}
                 >
-                  <AlertTriangle className="h-3 w-3" /> {diasSemContato}d sem contato
+                  <Warning className="h-3 w-3" /> {diasSemContato}d sem contato
                 </Badge>
               )}
               {docsPendentes > 0 && (
@@ -507,7 +508,7 @@ function LeadDetailPage() {
           className="flex-1 px-2 text-success hover:text-success"
           onClick={() => setWaOpen(true)}
         >
-          <MessageCircle aria-hidden="true" />
+          <WhatsappLogo aria-hidden="true" />
           <span>WhatsApp</span>
         </Button>
         <Button

@@ -26,7 +26,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowRightLeft, Search, Users, UserCheck, UserX, Trophy } from "lucide-react";
+import {
+  ArrowsLeftRight,
+  MagnifyingGlass,
+  Trophy,
+  UserCheck,
+  UserMinus,
+  UsersThree,
+} from "@phosphor-icons/react";
 import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
@@ -346,7 +353,7 @@ export function LeadsPorCorretorPage() {
               setTransferOpen(true);
             }}
           >
-            <ArrowRightLeft className="h-4 w-4" />
+            <ArrowsLeftRight className="h-4 w-4" />
           </Button>
         ),
       },
@@ -375,7 +382,7 @@ export function LeadsPorCorretorPage() {
         actions={
           selectedLeads.size > 0 ? (
             <Button onClick={() => setTransferOpen(true)}>
-              <ArrowRightLeft className="mr-2 h-4 w-4" />
+              <ArrowsLeftRight className="mr-2 h-4 w-4" />
               Transferir {selectedLeads.size} {selectedLeads.size === 1 ? "lead" : "leads"}
             </Button>
           ) : null
@@ -440,7 +447,7 @@ export function LeadsPorCorretorPage() {
             </CardTitle>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar nome, email ou telefone..."
                   value={search}
@@ -483,7 +490,7 @@ export function LeadsPorCorretorPage() {
             onSelectedChange={setSelectedLeads}
             empty={
               <EmptyState
-                icon={Users}
+                icon={UsersThree}
                 title="Nenhum lead encontrado"
                 description="Ajuste a busca ou os filtros — ou limpe a seleção de corretor."
               />
@@ -569,7 +576,7 @@ function CorretorCard({
       </CardHeader>
       <CardContent className="text-sm space-y-1">
         <div className="flex items-center gap-2">
-          <Users className="h-3.5 w-3.5 text-blue-600" />
+          <UsersThree className="h-3.5 w-3.5 text-blue-600" />
           <span>{stats.emAtendimento} em atendimento</span>
         </div>
         <div className="flex items-center gap-2">
@@ -581,7 +588,7 @@ function CorretorCard({
           <span>{stats.ganhos} ganhos</span>
         </div>
         <div className="flex items-center gap-2">
-          <UserX className="h-3.5 w-3.5 text-destructive" />
+          <UserMinus className="h-3.5 w-3.5 text-destructive" />
           <span>{stats.perdidos} perdidos</span>
         </div>
         {(redistribuidos ?? 0) > 0 && (
@@ -589,7 +596,7 @@ function CorretorCard({
             className="flex items-center gap-2 text-muted-foreground"
             title="Movimentações do job automático de leads parados nos últimos 7 dias"
           >
-            <ArrowRightLeft className="h-3.5 w-3.5 text-amber-600" />
+            <ArrowsLeftRight className="h-3.5 w-3.5 text-amber-600" />
             <span>{redistribuidos} redistribuições (7d)</span>
           </div>
         )}

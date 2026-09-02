@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LoaderCircle } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
 
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,7 @@ export function AsyncBoundary({
       >
         {loadingFallback ?? (
           <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-10 text-sm text-muted-foreground">
-            <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />
+            <CircleNotch className="h-5 w-5 animate-spin" aria-hidden="true" />
             <span>{loadingLabel}</span>
           </div>
         )}

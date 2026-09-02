@@ -16,7 +16,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowRight, Crosshair, PhoneCall, Sparkles, UserCheck } from "lucide-react";
+import { ArrowRight, Crosshair, PhoneCall, UserCheck } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
@@ -36,7 +37,7 @@ const BASES: {
   status: BaseProspeccao;
   titulo: string;
   descricao: string;
-  icon: typeof Sparkles;
+  icon: typeof SamiMark;
   iconClass: string;
 }[] = [
   {
@@ -44,7 +45,7 @@ const BASES: {
     titulo: "Clientes Aguardando Atendimento",
     descricao:
       "Leads novos na sua mesa, ainda sem o primeiro contato. Quem chegou primeiro sai na frente.",
-    icon: Sparkles,
+    icon: SamiMark,
     iconClass: "bg-primary/10 text-primary",
   },
   {

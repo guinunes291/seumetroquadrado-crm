@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, CaretUpDown } from "@phosphor-icons/react";
 import type { Column } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +44,7 @@ export function DataTableColumnHeader<TData, TValue>({
       ) : sorted === "desc" ? (
         <ArrowDown className="h-3.5 w-3.5 text-primary" />
       ) : (
-        <ChevronsUpDown className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
+        <CaretUpDown className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-60" />
       )}
     </button>
   );

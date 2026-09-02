@@ -2,17 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle,
-  BedDouble,
+  ArrowSquareOut,
+  Bed,
   BookOpen,
-  Building2,
-  CalendarClock,
-  ExternalLink,
+  Buildings,
+  CalendarDots,
+  Cards,
   MapPin,
   Ruler,
-  Table2,
-  WalletCards,
-} from "lucide-react";
+  Table,
+  Warning,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -148,7 +148,7 @@ function VitrinePublicaPage() {
         ) : token === null || unavailableLink ? (
           <Card className="mx-auto max-w-lg">
             <CardContent className="space-y-4 py-12 text-center">
-              <AlertTriangle className="mx-auto h-10 w-10 text-amber-600" />
+              <Warning className="mx-auto h-10 w-10 text-amber-600" />
               <div>
                 <h1 className="text-xl font-semibold">Esta seleção não está mais disponível</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -160,7 +160,7 @@ function VitrinePublicaPage() {
         ) : transientFailure ? (
           <Card className="mx-auto max-w-lg">
             <CardContent className="space-y-4 py-12 text-center">
-              <AlertTriangle className="mx-auto h-10 w-10 text-amber-600" />
+              <Warning className="mx-auto h-10 w-10 text-amber-600" />
               <div>
                 <h1 className="text-xl font-semibold">Não foi possível carregar agora</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -252,7 +252,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
       <CardContent className="space-y-5 p-5">
         <div>
           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Building2 className="h-4 w-4" />
+            <Buildings className="h-4 w-4" />
             {project.construtora || "Construtora a confirmar"}
           </div>
           <h2 className="text-xl font-bold leading-tight">{project.nome}</h2>
@@ -274,7 +274,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
 
         <div className="grid grid-cols-2 gap-2 text-sm">
           <PublicSpec
-            icon={BedDouble}
+            icon={Bed}
             label="Dormitórios"
             value={formatDormsRange(project.dorms_min, project.dorms_max) ?? "A confirmar"}
           />
@@ -284,7 +284,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
             value={formatM2Range(project.metragem_min, project.metragem_max) ?? "A confirmar"}
           />
           <PublicSpec
-            icon={CalendarClock}
+            icon={CalendarDots}
             label="Entrega"
             value={
               formatEntrega(project.status_entrega, project.mes_entrega, project.ano_entrega) ??
@@ -292,7 +292,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
             }
           />
           <PublicSpec
-            icon={WalletCards}
+            icon={Cards}
             label="Renda sugerida"
             value={project.renda_minima == null ? "A confirmar" : formatBRL(project.renda_minima)}
           />
@@ -354,7 +354,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
             <PublicLink
               href={project.tabela_precos_url}
               label="Ver tabela"
-              icon={Table2}
+              icon={Table}
               onClick={() =>
                 track(token, {
                   type: "cta_clicked",
@@ -375,7 +375,7 @@ function PublicSpec({
   label,
   value,
 }: {
-  icon: typeof BedDouble;
+  icon: typeof Bed;
   label: string;
   value: string;
 }) {
@@ -409,7 +409,7 @@ function PublicLink({
       onClick={onClick}
       className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 text-sm font-semibold transition-colors hover:bg-accent"
     >
-      <Icon className="h-4 w-4" /> {label} <ExternalLink className="h-3 w-3" />
+      <Icon className="h-4 w-4" /> {label} <ArrowSquareOut className="h-3 w-3" />
     </a>
   );
 }

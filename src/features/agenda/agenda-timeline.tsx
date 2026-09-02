@@ -4,7 +4,7 @@
 // dialog de edição da rota.
 
 import { format, parseISO } from "date-fns";
-import { CalendarDays, CalendarPlus } from "lucide-react";
+import { CalendarDots, CalendarPlus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,7 +36,7 @@ export function AgendaTimeline({
 }) {
   const items: TimelineItem[] = agendamentos.map((a) => ({
     id: a.id,
-    icon: TIPO_ICON[a.tipo] ?? CalendarDays,
+    icon: TIPO_ICON[a.tipo] ?? CalendarDots,
     iconClassName: TIPO_ICON_TONE[a.tipo],
     timestamp: a.data_inicio,
     title: (
@@ -72,7 +72,7 @@ export function AgendaTimeline({
         loading={loading}
         empty={
           <EmptyState
-            icon={CalendarDays}
+            icon={CalendarDots}
             title="Nenhum agendamento no período"
             description="Mude o mês nos controles acima ou crie um novo compromisso."
             action={

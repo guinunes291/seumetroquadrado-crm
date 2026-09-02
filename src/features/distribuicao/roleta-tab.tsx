@@ -7,18 +7,18 @@ import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  AlertTriangle,
-  BadgeCheck,
-  CalendarOff,
+  CalendarSlash,
   Crown,
-  MoreHorizontal,
+  DotsThree,
   PauseCircle,
   PlayCircle,
   Plus,
-  Trash2,
+  SealCheck,
+  Trash,
   UserCheck,
-  UserX,
-} from "lucide-react";
+  UserMinus,
+  Warning,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -121,7 +121,7 @@ function OutrasRoletas({
   }
   return (
     <p className="mt-0.5 flex items-start gap-1 text-[11px] font-normal text-warning">
-      <AlertTriangle className="mt-px h-3 w-3 shrink-0" aria-hidden="true" />
+      <Warning className="mt-px h-3 w-3 shrink-0" aria-hidden="true" />
       <span>Inapto aqui, mas continua recebendo em: {nomes}</span>
     </p>
   );
@@ -214,7 +214,7 @@ function RoletaTabPadrao({
               </div>
             ) : linhas.length === 0 ? (
               <EmptyState
-                icon={UserX}
+                icon={UserMinus}
                 title={`Nenhum participante na ${roletaLabel(slug, nome)}`}
                 description="Sem participantes ativos, todo lead desta roleta vai para a fila de exceções."
                 action={
@@ -349,7 +349,7 @@ function RoletaTabPadrao({
                           <TableCell>
                             {venda ? (
                               <StatusBadge intent="success">
-                                <BadgeCheck className="mr-1 h-3 w-3" />
+                                <SealCheck className="mr-1 h-3 w-3" />
                                 Sim ({venda.qtd})
                               </StatusBadge>
                             ) : (
@@ -393,7 +393,7 @@ function RoletaTabPadrao({
                                   className="h-11 w-11"
                                   aria-label={`Ações de ${l.nome}`}
                                 >
-                                  <MoreHorizontal className="h-4 w-4" />
+                                  <DotsThree className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -408,7 +408,7 @@ function RoletaTabPadrao({
                                   >
                                     {l.presente ? (
                                       <>
-                                        <UserX className="mr-2 h-4 w-4" /> Marcar ausente
+                                        <UserMinus className="mr-2 h-4 w-4" /> Marcar ausente
                                       </>
                                     ) : (
                                       <>
@@ -444,7 +444,7 @@ function RoletaTabPadrao({
                                   className="text-destructive focus:text-destructive"
                                   onClick={() => setRemoverAlvo(l)}
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Remover da roleta
+                                  <Trash className="mr-2 h-4 w-4" /> Remover da roleta
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -652,7 +652,7 @@ function PausarDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            <CalendarOff className="mr-1.5 inline h-4 w-4" />
+            <CalendarSlash className="mr-1.5 inline h-4 w-4" />
             Pausar {alvo?.nome}
           </DialogTitle>
           <DialogDescription>
@@ -808,7 +808,7 @@ function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
             </div>
           ) : linhas.length === 0 ? (
             <EmptyState
-              icon={UserX}
+              icon={UserMinus}
               title="Nenhum participante na Roleta Marquinhos"
               description="Inclua corretores para começar a distribuir leads desta roleta."
               action={
@@ -871,7 +871,7 @@ function MarquinhosSimpleTab({ somenteLeitura }: { somenteLeitura: boolean }) {
                             aria-label={`Remover ${l.nome}`}
                             onClick={() => setRemoverAlvo(l)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       )}

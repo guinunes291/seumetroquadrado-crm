@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, MessageCircle, Phone, Sparkles, ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle, Phone, WhatsappLogo, Target } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,7 +28,7 @@ export function NextBestAction({
       <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between md:p-6">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-            <Sparkles className="h-3.5 w-3.5" /> Próxima melhor ação
+            <Target className="h-3.5 w-3.5" /> Próxima melhor ação
           </div>
 
           {loading ? (
@@ -61,7 +61,7 @@ export function NextBestAction({
             </div>
           ) : (
             <div className="mt-1.5 flex items-center gap-3">
-              <CheckCircle2 className="h-9 w-9 text-success" />
+              <CheckCircle className="h-9 w-9 text-success" />
               <div>
                 <div className="font-display text-xl font-semibold tracking-tight">
                   Tudo em dia por aqui
@@ -81,7 +81,7 @@ export function NextBestAction({
                 onClick={() => onWhatsApp(mission)}
                 className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
               >
-                <MessageCircle className="h-4 w-4" /> WhatsApp
+                <WhatsappLogo className="h-4 w-4" /> WhatsApp
               </Button>
               {mission.telefone && (
                 <Button asChild variant="outline">

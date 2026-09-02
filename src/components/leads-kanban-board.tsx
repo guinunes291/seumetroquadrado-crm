@@ -10,17 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import {
+  ArrowClockwise,
+  ArrowsHorizontal,
+  CalendarDots,
+  DotsSixVertical,
+  Envelope,
   Phone,
-  Mail,
-  GripVertical,
-  AlertTriangle,
-  RefreshCw,
-  AlertCircle,
-  Ban,
-  CalendarClock,
-  HelpCircle,
-  ChevronsLeftRight,
-} from "lucide-react";
+  Prohibit,
+  Question,
+  Warning,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { usePointerDnd } from "@/features/pipeline/use-pointer-dnd";
@@ -564,12 +564,12 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
 
       {leadsError && (
         <Card className="p-8 text-center space-y-3">
-          <AlertTriangle className="h-8 w-8 mx-auto text-destructive opacity-70" />
+          <Warning className="h-8 w-8 mx-auto text-destructive opacity-70" />
           <p className="text-sm text-muted-foreground">
             Não foi possível carregar o quadro. Tente novamente.
           </p>
           <Button variant="outline" size="sm" onClick={() => refetchLeads()}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+            <ArrowClockwise className="h-4 w-4 mr-2" /> Tentar novamente
           </Button>
         </Card>
       )}
@@ -672,7 +672,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                 className="gap-0.5 bg-destructive/15 text-[10px] text-destructive"
                                 title={`${vencidos} follow-up(s) vencido(s) nesta etapa`}
                               >
-                                <CalendarClock className="h-3 w-3" /> {vencidos}
+                                <CalendarDots className="h-3 w-3" /> {vencidos}
                               </Badge>
                             )}
                             {semAcao > 0 && (
@@ -681,7 +681,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                 className="gap-0.5 bg-muted text-[10px] text-muted-foreground"
                                 title={`${semAcao} lead(s) sem próxima ação registrada`}
                               >
-                                <HelpCircle className="h-3 w-3" /> {semAcao}
+                                <Question className="h-3 w-3" /> {semAcao}
                               </Badge>
                             )}
                             {parados > 0 && (
@@ -690,7 +690,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                 className="gap-0.5 bg-warning/15 text-[10px] text-warning"
                                 title={`${parados} lead(s) parados há 7+ dias nesta etapa`}
                               >
-                                <AlertCircle className="h-3 w-3" /> {parados}
+                                <WarningCircle className="h-3 w-3" /> {parados}
                               </Badge>
                             )}
                           </>
@@ -707,7 +707,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                         title="Recolher coluna"
                         onClick={() => toggleColapso(col.id)}
                       >
-                        <ChevronsLeftRight className="h-3.5 w-3.5" />
+                        <ArrowsHorizontal className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -744,7 +744,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                         )}
                       >
                         <div className="flex items-start gap-1">
-                          <GripVertical
+                          <DotsSixVertical
                             className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0"
                             aria-hidden="true"
                           />
@@ -771,7 +771,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                             </div>
                             {lead.email && (
                               <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Mail className="h-3 w-3" />
+                                <Envelope className="h-3 w-3" />
                                 <span className="truncate">{lead.email}</span>
                               </div>
                             )}
@@ -820,7 +820,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                     )}
                                     title={`Sem interação há ${dias} dias`}
                                   >
-                                    <AlertCircle className="h-2.5 w-2.5" /> {dias}d
+                                    <WarningCircle className="h-2.5 w-2.5" /> {dias}d
                                   </Badge>
                                 ) : null;
                               })()}
@@ -864,7 +864,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                 }}
                                 onPointerDown={(e) => e.stopPropagation()}
                               >
-                                <Ban className="h-4 w-4" />
+                                <Prohibit className="h-4 w-4" />
                               </Button>
                             )}
                           </div>

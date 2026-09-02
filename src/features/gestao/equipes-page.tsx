@@ -27,7 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Users } from "lucide-react";
+import { PencilSimple, Plus, Trash, UsersThree } from "@phosphor-icons/react";
 
 type Equipe = {
   id: string;
@@ -228,7 +228,7 @@ export function EquipesPage() {
                 onClick={() => startEdit(row.original)}
                 aria-label={`Editar equipe ${row.original.nome}`}
               >
-                <Pencil className="h-4 w-4" />
+                <PencilSimple className="h-4 w-4" />
               </Button>
             )}
             {isAdmin && (
@@ -250,7 +250,7 @@ export function EquipesPage() {
                     }
                   }}
                 >
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Trash className="h-4 w-4 text-destructive" />
                 </Button>
               </>
             )}
@@ -352,7 +352,7 @@ export function EquipesPage() {
         onRetry={() => void equipesQuery.refetch()}
         empty={
           <EmptyState
-            icon={Users}
+            icon={UsersThree}
             title="Nenhuma equipe cadastrada."
             description="Crie a primeira equipe comercial e atribua um gestor responsável."
           />

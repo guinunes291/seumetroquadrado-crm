@@ -20,13 +20,13 @@ import {
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
+  CalendarDots,
   CalendarPlus,
-  ChevronLeft,
-  ChevronRight,
-  CalendarDays,
+  CaretLeft,
+  CaretRight,
   List as ListIcon,
-  MapPinned,
-} from "lucide-react";
+  MapPinArea,
+} from "@phosphor-icons/react";
 import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
 import { invalidateAgendamentoQueries } from "@/lib/agendamentos";
 import { AgendaCalendar } from "@/features/agenda/agenda-calendar";
@@ -245,7 +245,7 @@ function AgendaPanel() {
           <div className="flex items-center gap-2">
             <Button variant="outline" asChild>
               <Link to="/modo-visita">
-                <MapPinned className="mr-1 h-4 w-4" /> Modo Visita
+                <MapPinArea className="mr-1 h-4 w-4" /> Modo Visita
               </Link>
             </Button>
             <div className="inline-flex rounded-md border bg-card p-0.5">
@@ -254,7 +254,7 @@ function AgendaPanel() {
                 variant={view === "calendar" ? "default" : "ghost"}
                 onClick={() => setView("calendar")}
               >
-                <CalendarDays className="h-4 w-4 mr-1" /> Calendário
+                <CalendarDots className="h-4 w-4 mr-1" /> Calendário
               </Button>
               <Button
                 size="sm"
@@ -288,13 +288,13 @@ function AgendaPanel() {
         <CardContent className="p-4 flex flex-col md:flex-row gap-3 md:items-center justify-between">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={() => setCursor(addMonths(cursor, -1))}>
-              <ChevronLeft className="h-4 w-4" />
+              <CaretLeft className="h-4 w-4" />
             </Button>
             <div className="font-display text-lg font-semibold capitalize min-w-[180px] text-center">
               {format(cursor, "MMMM 'de' yyyy", { locale: ptBR })}
             </div>
             <Button variant="outline" size="icon" onClick={() => setCursor(addMonths(cursor, 1))}>
-              <ChevronRight className="h-4 w-4" />
+              <CaretRight className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
               Hoje

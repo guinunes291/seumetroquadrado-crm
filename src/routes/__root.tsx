@@ -8,6 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { IconContext } from "@phosphor-icons/react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -158,6 +159,12 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Ícones Phosphor (identidade v3): duotone por padrão em todo o app — a área
+// interna herda currentColor a 20% e, dentro de .icon-duo, a cor do módulo.
+// size 24 espelha o padrão antigo do Lucide; as classes h-4/w-4 continuam
+// mandando via CSS onde existem.
+const ICON_DEFAULTS = { weight: "duotone", size: 24 } as const;
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -171,8 +178,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <IconContext.Provider value={ICON_DEFAULTS}>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </IconContext.Provider>
       </AuthProvider>
     </QueryClientProvider>
   );

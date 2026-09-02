@@ -7,7 +7,14 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, Download, ExternalLink, FileText, Printer, Settings2 } from "lucide-react";
+import {
+  ArrowSquareOut,
+  DownloadSimple,
+  FileText,
+  Printer,
+  Sliders,
+  Warning,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useUserRoles } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/page-header";
@@ -122,7 +129,7 @@ export function DrePage() {
   if (!podeVer) {
     return (
       <EmptyState
-        icon={AlertTriangle}
+        icon={Warning}
         title="DRE é restrita à gestão"
         description="Peça a um administrador para liberar seu papel se você precisa desta visão."
       />
@@ -192,13 +199,13 @@ export function DrePage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={exportarXlsx} disabled={!grade}>
-              <Download className="mr-2 h-4 w-4" /> XLSX
+              <DownloadSimple className="mr-2 h-4 w-4" /> XLSX
             </Button>
             <Button variant="outline" size="sm" onClick={exportarPdf} disabled={!grade}>
               <Printer className="mr-2 h-4 w-4" /> PDF
             </Button>
             <Button variant="outline" size="sm" onClick={() => abrirConfig("equipe")}>
-              <Settings2 className="mr-2 h-4 w-4" /> Configuração
+              <Sliders className="mr-2 h-4 w-4" /> Configuração
             </Button>
           </div>
         }
@@ -406,7 +413,7 @@ function Aviso({ children, acao }: { children: React.ReactNode; acao?: React.Rea
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
       <div className="flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+        <Warning className="h-4 w-4 shrink-0 text-warning" />
         <span>{children}</span>
       </div>
       {acao}
@@ -797,7 +804,7 @@ function TabelaDrillVendas({
                   className="text-muted-foreground hover:text-foreground"
                   title="Abrir o lead desta venda"
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ArrowSquareOut className="h-4 w-4" />
                 </Link>
               )}
             </TableCell>

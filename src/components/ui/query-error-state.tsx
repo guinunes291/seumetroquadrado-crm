@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { AlertTriangle } from "lucide-react";
+import { Warning } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -64,7 +64,7 @@ export function QueryErrorState({
         className,
       )}
     >
-      <AlertTriangle className="h-8 w-8 text-destructive/70" />
+      <Warning className="h-8 w-8 text-destructive/70" />
       <p className="text-sm font-medium">{title}</p>
       {detalhe && <p className="max-w-sm text-xs text-muted-foreground">{detalhe}</p>}
       {onRetry && (

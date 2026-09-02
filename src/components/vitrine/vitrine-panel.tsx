@@ -2,7 +2,14 @@ import { Link } from "@tanstack/react-router";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Table2, MessageCircle, MapPin, ExternalLink, Building2 } from "lucide-react";
+import {
+  ArrowSquareOut,
+  BookOpen,
+  Buildings,
+  MapPin,
+  Table,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import {
   formatBRL,
@@ -145,8 +152,8 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
                 params={{ projetoId: p.id }}
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
-                <Building2 className="h-4 w-4" /> Ver ficha completa
-                <ExternalLink className="h-3 w-3" />
+                <Buildings className="h-4 w-4" /> Ver ficha completa
+                <ArrowSquareOut className="h-3 w-3" />
               </Link>
             </div>
 
@@ -159,14 +166,14 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
                   url={p.book_url}
                 />
                 <MaterialButton
-                  icon={Table2}
+                  icon={Table}
                   label="Tabela"
                   hint="Preços atualizados"
                   url={p.tabela_precos_url}
                 />
               </div>
               <Button className="w-full gap-2" onClick={() => onEnviar(p)}>
-                <MessageCircle className="h-4 w-4" />
+                <WhatsappLogo className="h-4 w-4" />
                 {primeiroNome
                   ? `Enviar pro ${primeiroNome} (WhatsApp)`
                   : "Enviar pro cliente (WhatsApp)"}

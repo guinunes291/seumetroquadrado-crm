@@ -5,7 +5,7 @@
 // disponível. É estimativa: o aviso acompanha sempre.
 
 import { useEffect, useState } from "react";
-import { Wallet, X } from "lucide-react";
+import { Wallet, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

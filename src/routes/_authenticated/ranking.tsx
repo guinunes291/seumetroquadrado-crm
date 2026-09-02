@@ -13,28 +13,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Trophy,
-  Target,
-  Activity,
-  TrendingUp,
-  Maximize,
-  Minimize,
-  RefreshCw,
-  Play,
-  Pause,
-  ChevronDown,
-  Calendar,
-  Users,
-  Phone,
-  MessageSquare,
-  CalendarCheck,
-  Eye,
-  FileCheck,
-  Star,
-  ArrowUp,
+  ArrowClockwise,
   ArrowDown,
+  ArrowsIn,
+  ArrowsOut,
+  ArrowUp,
+  CalendarBlank,
+  CalendarCheck,
+  CaretDown,
+  ChatText,
+  Eye,
+  FileMagnifyingGlass,
   Flag,
-} from "lucide-react";
+  Pause,
+  Phone,
+  Play,
+  Pulse,
+  Star,
+  Target,
+  TrendUp,
+  Trophy,
+  UsersThree,
+} from "@phosphor-icons/react";
 import { CopaPage } from "@/features/ranking/copa-page";
 import { ConquistasPage } from "@/features/ranking/conquistas-page";
 import { Podium } from "@/features/ranking/podium";
@@ -1164,7 +1164,7 @@ function RankingPanel() {
                     value="produtividade"
                     className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-navy-200 text-xs sm:text-sm"
                   >
-                    <Activity className="w-4 h-4 mr-1.5" /> Produtividade
+                    <Pulse className="w-4 h-4 mr-1.5" /> Produtividade
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -1205,7 +1205,7 @@ function RankingPanel() {
                   className="bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white"
                   title="Atualizar"
                 >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                  <ArrowClockwise className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </Button>
                 <Button
                   variant="outline"
@@ -1215,9 +1215,9 @@ function RankingPanel() {
                   title={isFullscreen ? "Sair" : "Tela cheia"}
                 >
                   {isFullscreen ? (
-                    <Minimize className="h-4 w-4" />
+                    <ArrowsIn className="h-4 w-4" />
                   ) : (
-                    <Maximize className="h-4 w-4" />
+                    <ArrowsOut className="h-4 w-4" />
                   )}
                 </Button>
               </div>
@@ -1234,9 +1234,9 @@ function RankingPanel() {
                     className="gap-2 bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white min-w-[160px] justify-between"
                   >
                     <span className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" /> {MESES[selectedMes - 1]} {selectedAno}
+                      <CalendarBlank className="h-4 w-4" /> {MESES[selectedMes - 1]} {selectedAno}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <CaretDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 max-h-80 overflow-y-auto">
@@ -1271,9 +1271,9 @@ function RankingPanel() {
                     className="gap-2 bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white min-w-[180px] justify-between"
                   >
                     <span className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" /> {PERIODO_LABELS[periodo]}
+                      <CalendarBlank className="h-4 w-4" /> {PERIODO_LABELS[periodo]}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <CaretDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -1310,7 +1310,7 @@ function RankingPanel() {
             {/* VGV — Realizado x Meta x Gap */}
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5 mb-5">
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" /> VGV — Realizado x Meta
+                <TrendUp className="w-4 h-4 text-emerald-400" /> VGV — Realizado x Meta
               </h3>
               {(() => {
                 const vgvReal = totaisMes.vgv;
@@ -1444,14 +1444,14 @@ function RankingPanel() {
                   <KPICard
                     label="Contratos"
                     numericValue={totaisMes.vendas}
-                    icon={FileCheck}
+                    icon={FileMagnifyingGlass}
                     variant="success"
                     delta={deltaVendas}
                   />
                   <KPICard
                     label="Leads"
                     numericValue={totaisMes.leads}
-                    icon={Users}
+                    icon={UsersThree}
                     variant="info"
                   />
                   <KPICard
@@ -1586,19 +1586,19 @@ function RankingPanel() {
               <KPICard
                 label="Documentação"
                 numericValue={totaisPeriodo.documentacoes}
-                icon={FileCheck}
+                icon={FileMagnifyingGlass}
                 variant="info"
               />
               <KPICard
                 label="Leads"
                 numericValue={totaisPeriodo.leads}
-                icon={Users}
+                icon={UsersThree}
                 variant="default"
               />
               <KPICard
                 label="Corretores"
                 numericValue={rankingProd.filter((r) => r.pontos > 0).length}
-                icon={Users}
+                icon={UsersThree}
                 variant="default"
               />
             </div>
@@ -1631,7 +1631,7 @@ function RankingPanel() {
 
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-cyan-400" /> Funil de Conversão —{" "}
+                <TrendUp className="w-4 h-4 text-cyan-400" /> Funil de Conversão —{" "}
                 {PERIODO_LABELS[periodo]}
               </h3>
               <FunilConversao
@@ -1645,7 +1645,7 @@ function RankingPanel() {
             {/* VGV por Corretor — soma do VGV de todos que venderam no período */}
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5 mt-5">
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" /> VGV por Corretor —{" "}
+                <TrendUp className="w-4 h-4 text-emerald-400" /> VGV por Corretor —{" "}
                 {PERIODO_LABELS[periodo]}
                 <span className="ml-auto text-emerald-300 normal-case tracking-normal">
                   Total: {fmtBRL(totaisPeriodo.vgv)}
@@ -1734,7 +1734,7 @@ function RankingPanel() {
               <KPICard
                 label="WhatsApp"
                 numericValue={totaisPeriodo.whatsapp}
-                icon={MessageSquare}
+                icon={ChatText}
                 variant="accent"
               />
               <KPICard
@@ -1752,7 +1752,7 @@ function RankingPanel() {
               <KPICard
                 label="Documentação"
                 numericValue={totaisPeriodo.documentacoes}
-                icon={FileCheck}
+                icon={FileMagnifyingGlass}
                 variant="info"
               />
               <KPICard
@@ -1789,7 +1789,7 @@ function RankingPanel() {
 
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
               <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-400" /> Desempenho Detalhado
+                <Pulse className="w-4 h-4 text-emerald-400" /> Desempenho Detalhado
               </h3>
               <DataTable
                 tableId="ranking"
@@ -1800,7 +1800,7 @@ function RankingPanel() {
                 loading={rankingPeriodoQ.isLoading}
                 empty={
                   <EmptyState
-                    icon={Activity}
+                    icon={Pulse}
                     title="Sem atividade no período"
                     description="Ajuste o período no filtro acima para ver a classificação."
                   />

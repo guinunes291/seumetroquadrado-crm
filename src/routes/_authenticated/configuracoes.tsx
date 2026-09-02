@@ -17,7 +17,13 @@ import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
 import { LixeiraPage } from "@/features/gestao/lixeira-page";
 import { EstoquePage } from "@/features/gestao/estoque-page";
 import { CampanhasPage } from "@/features/gestao/campanhas-page";
-import { Webhook, MessageCircle, Lock, User as UserIcon, BellRing } from "lucide-react";
+import {
+  BellRinging,
+  Lock,
+  User as UserIcon,
+  WebhooksLogo,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 
 // Configuração e cadastro do CRM (admin-only). O bloco administrativo que
 // morava em /painel-gestor (Pessoas, Estoque, Campanhas, Comunicação,
@@ -123,7 +129,7 @@ function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Webhook className="h-4 w-4 text-info" /> API pública & Webhooks
+                <WebhooksLogo className="h-4 w-4 text-info" /> API pública & Webhooks
                 <Badge className={INTENT_BADGE.success}>Ativo</Badge>
               </CardTitle>
               <CardDescription>
@@ -137,7 +143,7 @@ function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <MessageCircle className="h-4 w-4 text-info" /> WhatsApp (Z-API)
+                <WhatsappLogo className="h-4 w-4 text-info" /> WhatsApp (Z-API)
                 <Badge className={INTENT_BADGE.success}>Ativo</Badge>
               </CardTitle>
               <CardDescription>
@@ -191,7 +197,7 @@ function ConfiguracoesPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <BellRing className="h-4 w-4 text-info" /> Notificações
+                <BellRinging className="h-4 w-4 text-info" /> Notificações
               </CardTitle>
               <CardDescription>
                 Alertas de SLA, leads parados e lembretes de visita são gerados automaticamente e

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
-import { ArrowRight, LogOut, Search } from "lucide-react";
+import { ArrowRight, MagnifyingGlass, SignOut } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useNavBadges } from "@/features/nav/use-nav-badges";
@@ -117,7 +117,7 @@ export function InicioPage() {
               aria-label="Abrir busca global"
               onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
             >
-              <Search className="h-4 w-4" />
+              <MagnifyingGlass className="h-4 w-4" />
               <span className="hidden sm:inline">Buscar</span>
               <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
                 ⌘K
@@ -129,7 +129,7 @@ export function InicioPage() {
             <ThemeToggle />
             <NotificationBell />
             <Button variant="ghost" onClick={handleSignOut} className="text-muted-foreground">
-              <LogOut className="h-4 w-4" />
+              <SignOut className="h-4 w-4" />
               <span className="hidden sm:inline">Sair</span>
             </Button>
           </div>

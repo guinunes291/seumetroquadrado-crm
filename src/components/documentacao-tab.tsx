@@ -15,17 +15,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ExternalLink,
-  MessageCircle,
+  ArrowSquareOut,
+  Buildings,
+  CircleNotch,
+  FileText,
   ListChecks,
   Paperclip,
-  Loader2,
-  FileText,
-  Building2,
+  Warning,
+  WhatsappLogo,
   X,
-  Sparkles,
-  AlertTriangle,
-} from "lucide-react";
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
@@ -238,7 +238,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
                 )
               }
             >
-              <MessageCircle className="h-4 w-4 mr-2" /> Enviar checklist
+              <WhatsappLogo className="h-4 w-4 mr-2" /> Enviar checklist
             </Button>
             <Button
               size="sm"
@@ -252,7 +252,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
                 )
               }
             >
-              <MessageCircle className="h-4 w-4 mr-2" /> Cobrar pendência
+              <WhatsappLogo className="h-4 w-4 mr-2" /> Cobrar pendência
             </Button>
           </div>
         </CardContent>
@@ -364,7 +364,7 @@ function NaoClassificadosBloco({
     <Card className="border-amber-300 bg-amber-50/50">
       <CardContent className="pt-4 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-          <AlertTriangle className="h-4 w-4" />
+          <Warning className="h-4 w-4" />
           {pendentesRevisao.length} documento(s) precisa(m) de revisão
         </div>
         {pendentesRevisao.map((d) => (
@@ -448,7 +448,7 @@ function EmpreendimentoCard({
       <CardContent className="pt-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Building2 className="h-4 w-4 text-primary" /> Empreendimento de destino
+            <Buildings className="h-4 w-4 text-primary" /> Empreendimento de destino
           </div>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <Switch checked={manual} onCheckedChange={setManual} /> Inserir manualmente
@@ -500,9 +500,9 @@ function EmpreendimentoCard({
 
         <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
           {salvar.isPending ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <CircleNotch className="h-4 w-4 mr-2 animate-spin" />
           ) : (
-            <Building2 className="h-4 w-4 mr-2" />
+            <Buildings className="h-4 w-4 mr-2" />
           )}
           Salvar empreendimento
         </Button>
@@ -567,7 +567,7 @@ function DocRow({
               className="shrink-0 border-emerald-500 text-emerald-700"
               title="Recebido pelo WhatsApp"
             >
-              <MessageCircle className="h-3 w-3 mr-1" /> WhatsApp
+              <WhatsappLogo className="h-3 w-3 mr-1" /> WhatsApp
             </Badge>
           )}
           {doc.classificado_por === "ia" && (
@@ -580,7 +580,7 @@ function DocRow({
                   : "Classificado pela IA"
               }
             >
-              <Sparkles className="h-3 w-3 mr-1" /> IA
+              <SamiMark className="h-3 w-3 mr-1" /> IA
             </Badge>
           )}
         </div>
@@ -640,9 +640,9 @@ function DocRow({
             title="Abrir arquivo"
           >
             {abrindo ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <CircleNotch className="h-4 w-4 animate-spin" />
             ) : (
-              <ExternalLink className="h-4 w-4" />
+              <ArrowSquareOut className="h-4 w-4" />
             )}
           </Button>
           <Button
@@ -676,7 +676,7 @@ function DocRow({
                 rel="noopener noreferrer"
                 aria-label={`Abrir link de ${docLabel(doc.tipo)}`}
               >
-                <ExternalLink className="h-4 w-4" />
+                <ArrowSquareOut className="h-4 w-4" />
               </a>
             </Button>
           )}
@@ -700,7 +700,7 @@ function DocRow({
             disabled={uploading}
           >
             {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <CircleNotch className="h-4 w-4 animate-spin" />
             ) : (
               <Paperclip className="h-4 w-4" />
             )}

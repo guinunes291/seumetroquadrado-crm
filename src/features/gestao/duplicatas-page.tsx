@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Merge, Phone, Mail, CopyCheck } from "lucide-react";
+import { ClipboardText, Envelope, GitMerge, Phone } from "@phosphor-icons/react";
 
 type Grupo = {
   grupo_chave: string;
@@ -84,7 +84,7 @@ export function DuplicatasPage() {
       )}
       {!isLoading && (!grupos || grupos.length === 0) && (
         <EmptyState
-          icon={CopyCheck}
+          icon={ClipboardText}
           title="Nenhuma duplicata encontrada. 🎉"
           description="Leads com o mesmo telefone ou e-mail aparecem aqui para mesclagem."
         />
@@ -127,7 +127,11 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
     <Card className="border-border-subtle shadow-elev-1">
       <CardHeader>
         <CardTitle className="text-sm flex items-center gap-2">
-          {grupo.tipo === "telefone" ? <Phone className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+          {grupo.tipo === "telefone" ? (
+            <Phone className="h-4 w-4" />
+          ) : (
+            <Envelope className="h-4 w-4" />
+          )}
           <span className="font-mono">{grupo.grupo_chave}</span>
           <Badge variant="secondary">{grupo.quantidade} leads</Badge>
         </CardTitle>
@@ -157,7 +161,7 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
                 principal && mesclarMut.mutate({ destino: principal.id, origem: l.id })
               }
             >
-              <Merge className="h-3.5 w-3.5 mr-1" />
+              <GitMerge className="h-3.5 w-3.5 mr-1" />
               Mesclar no base
             </Button>
           </div>

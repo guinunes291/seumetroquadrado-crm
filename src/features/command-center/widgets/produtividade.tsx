@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { DollarSign, Star, Trophy } from "lucide-react";
+import { CurrencyDollar, Star, Trophy } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,7 +85,7 @@ export function ProdutividadeWidget(props: WidgetProps) {
                 value={0}
                 className="bg-gradient-to-br from-primary/10 to-transparent"
               />
-              <StatTile title="VGV" icon={DollarSign} intent="success" loading value={0} />
+              <StatTile title="VGV" icon={CurrencyDollar} intent="success" loading value={0} />
               <StatTile title="Conquistas" icon={Trophy} loading value={0} />
               <StatTile title="Atividades" loading value={0} />
             </StatGrid>
@@ -111,7 +111,7 @@ export function ProdutividadeWidget(props: WidgetProps) {
           />
           <StatTile
             title="VGV"
-            icon={DollarSign}
+            icon={CurrencyDollar}
             intent="success"
             value={totais.vgv}
             formatValue={fmtBRL}

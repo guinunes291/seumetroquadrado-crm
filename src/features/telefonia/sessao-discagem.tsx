@@ -17,14 +17,14 @@ import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  CheckCircle2,
-  ChevronRight,
-  Pencil,
+  CaretRight,
+  CheckCircle,
+  PencilSimple,
   Phone,
-  PhoneForwarded,
+  PhoneTransfer,
   Play,
   Square,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -331,16 +331,16 @@ export function SessaoDiscagem() {
               <Phone className="h-4 w-4 mr-2" /> {autoDiscar ? "Ligar de novo" : "Ligar"}
             </Button>
             <Button variant="outline" onClick={() => setRegistrarAberto(true)}>
-              <Pencil className="h-4 w-4 mr-2" /> Registrar resultado
+              <PencilSimple className="h-4 w-4 mr-2" /> Registrar resultado
             </Button>
             <Button variant="outline" onClick={avancar}>
               {indice + 1 >= fila.length ? (
                 <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" /> Concluir sessão
+                  <CheckCircle className="h-4 w-4 mr-2" /> Concluir sessão
                 </>
               ) : (
                 <>
-                  Próximo <ChevronRight className="h-4 w-4 ml-1" />
+                  Próximo <CaretRight className="h-4 w-4 ml-1" />
                 </>
               )}
             </Button>
@@ -371,7 +371,7 @@ export function SessaoDiscagem() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm">
-          <PhoneForwarded className="h-4 w-4 text-primary" /> Sessão de discagem
+          <PhoneTransfer className="h-4 w-4 text-primary" /> Sessão de discagem
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

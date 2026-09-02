@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Repeat } from "lucide-react";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ export function ReguaFollowUpConfigCard() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Repeat className="h-4 w-4 text-info" /> Régua de Follow-Up
+            <ArrowsClockwise className="h-4 w-4 text-info" /> Régua de Follow-Up
           </CardTitle>
           <CardDescription>
             Configuração indisponível — aplique a migration da régua de follow-up (chave{" "}
@@ -179,7 +179,7 @@ function ReguaEditor({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <Repeat className="h-4 w-4 text-info" /> Régua de Follow-Up
+          <ArrowsClockwise className="h-4 w-4 text-info" /> Régua de Follow-Up
         </CardTitle>
         <CardDescription>
           {row.descricao ||

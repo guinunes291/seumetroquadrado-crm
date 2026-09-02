@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, LayoutGrid, Plus, Table2 } from "lucide-react";
+import { ArrowLeft, Buildings, Plus, SquaresFour, Table } from "@phosphor-icons/react";
 import { UNIDADE_STATUS_LABEL, type UnidadeStatus, formatBRL, calcStats } from "@/lib/unidades";
 import { ProjetoComercial } from "@/components/projeto-comercial";
 import { ProjetoHero } from "@/features/projetos/projeto-hero";
@@ -261,7 +261,7 @@ function ProjetoDetalhePage() {
 
   const unidadesEmpty = (
     <EmptyState
-      icon={Building2}
+      icon={Buildings}
       title={
         unidades.length === 0
           ? "Nenhuma unidade cadastrada ainda."
@@ -328,14 +328,14 @@ function ProjetoDetalhePage() {
                 variant={unidadesView === "grade" ? "default" : "ghost"}
                 onClick={() => setUnidadesView("grade")}
               >
-                <LayoutGrid className="mr-1 h-4 w-4" /> Grade
+                <SquaresFour className="mr-1 h-4 w-4" /> Grade
               </Button>
               <Button
                 size="sm"
                 variant={unidadesView === "tabela" ? "default" : "ghost"}
                 onClick={() => setUnidadesView("tabela")}
               >
-                <Table2 className="mr-1 h-4 w-4" /> Tabela
+                <Table className="mr-1 h-4 w-4" /> Tabela
               </Button>
             </div>
 

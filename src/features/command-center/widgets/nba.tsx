@@ -1,4 +1,4 @@
-import { Zap } from "lucide-react";
+import { Lightning } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { NextBestAction } from "@/features/command-center/next-best-action";
@@ -26,7 +26,7 @@ export function NbaWidget(props: WidgetProps) {
             onClick={() => window.dispatchEvent(new Event("open-sprint"))}
             title="Bloco de prospecção focada com fila automática e cronômetro"
           >
-            <Zap className="h-4 w-4 text-primary" /> Iniciar Sprint
+            <Lightning className="h-4 w-4 text-primary" /> Iniciar Sprint
           </Button>
         }
       />

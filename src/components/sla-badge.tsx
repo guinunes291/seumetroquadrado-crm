@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/duracao";
 import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
-import { Clock, AlertTriangle, Flame } from "lucide-react";
+import { Clock, Fire, Warning } from "@phosphor-icons/react";
 
 export type SlaStatus = "ok" | "atencao" | "estourado";
 
@@ -56,7 +56,7 @@ export function SlaBadge({ slaMinutos, referencia, compact, className }: SlaBadg
         ? INTENT_BADGE_BORDERED.warning
         : INTENT_BADGE_BORDERED.success;
 
-  const Icon = status === "estourado" ? Flame : status === "atencao" ? AlertTriangle : Clock;
+  const Icon = status === "estourado" ? Fire : status === "atencao" ? Warning : Clock;
   const label =
     status === "estourado" ? `−${formatarTempo(restante)}` : `${formatarTempo(restante)}`;
 

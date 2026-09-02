@@ -5,7 +5,7 @@
 // enquanto a invalidação não voltava.
 
 import { useState } from "react";
-import { Save } from "lucide-react";
+import { FloppyDisk } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -82,7 +82,7 @@ export function SettingNumero({
               }
               disabled={salvar.isPending}
             >
-              <Save className="mr-1 h-3.5 w-3.5" /> Salvar
+              <FloppyDisk className="mr-1 h-3.5 w-3.5" /> Salvar
             </Button>
           )}
         </div>
@@ -133,7 +133,7 @@ export function HorarioRoletaCell({ roleta }: { roleta: RoletaRow }) {
             )
           }
         >
-          <Save className="mr-1 h-3.5 w-3.5" /> Salvar
+          <FloppyDisk className="mr-1 h-3.5 w-3.5" /> Salvar
         </Button>
       )}
     </div>

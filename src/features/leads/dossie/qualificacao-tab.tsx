@@ -3,7 +3,7 @@
 // internos cuidam das próprias queries/mutations — aqui é só composição.
 
 import { Link } from "@tanstack/react-router";
-import { Map } from "lucide-react";
+import { MapTrifold } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { LeadObjecoes } from "@/components/lead-objecoes";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
@@ -20,7 +20,7 @@ export function QualificacaoTab({ lead }: { lead: DossieLead }) {
       />
       <Button asChild variant="outline" className="w-full justify-start">
         <Link to="/vitrine" search={{ leadId: lead.id }}>
-          <Map className="mr-2 h-4 w-4" />
+          <MapTrifold className="mr-2 h-4 w-4" />
           Abrir Vitrine para este lead
         </Link>
       </Button>

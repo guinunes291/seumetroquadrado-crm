@@ -1,13 +1,12 @@
-import { Flame, Gauge } from "lucide-react";
+import { Fire, Gauge, type Icon as IconComponent } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
 
 export type DayGoalItem = {
   key: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   value: number;
   meta?: number;
 };
@@ -38,7 +37,7 @@ export function DayGoals({
               className="ml-auto inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning"
               title={`${streak} dia(s) consecutivos com atividade`}
             >
-              <Flame className="h-3.5 w-3.5" /> {streak}d
+              <Fire className="h-3.5 w-3.5" /> {streak}d
             </span>
           )}
         </CardTitle>

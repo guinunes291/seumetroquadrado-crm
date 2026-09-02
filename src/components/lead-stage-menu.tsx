@@ -1,4 +1,4 @@
-import { MoreHorizontal, ArrowRightCircle, Ban, SquarePen } from "lucide-react";
+import { ArrowCircleRight, DotsThree, NotePencil, Prohibit } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,7 +57,7 @@ export function LeadStageMenuItems({
   return (
     <>
       <DropdownMenuLabel className="flex items-center gap-1.5">
-        <ArrowRightCircle className="h-3.5 w-3.5 text-muted-foreground" />
+        <ArrowCircleRight className="h-3.5 w-3.5 text-muted-foreground" />
         Mover para
       </DropdownMenuLabel>
       {FUNNEL_STAGES.map((s) => (
@@ -78,7 +78,7 @@ export function LeadStageMenuItems({
               className="ml-auto inline-flex items-center text-muted-foreground"
               title="Abre formulário para registrar os dados da etapa"
             >
-              <SquarePen className="h-3.5 w-3.5" aria-hidden="true" />
+              <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="sr-only">(abre formulário)</span>
             </span>
           )}
@@ -92,7 +92,7 @@ export function LeadStageMenuItems({
         }
         onSelect={() => onPickPerdido()}
       >
-        <Ban className="h-4 w-4" />
+        <Prohibit className="h-4 w-4" />
         Marcar como perdido
       </DropdownMenuItem>
     </>
@@ -127,7 +127,7 @@ export function LeadStageMenu({
           onPointerDown={(e) => e.stopPropagation()}
           draggable={false}
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <DotsThree className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-52">

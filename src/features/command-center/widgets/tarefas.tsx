@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle2, Clock } from "lucide-react";
+import { ArrowRight, CheckCircle, Clock } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -111,7 +111,7 @@ export function TarefasWidget(props: WidgetProps) {
                     disabled={concluirTarefa.isPending}
                     onClick={() => concluirTarefa.mutate(t.id)}
                   >
-                    <CheckCircle2 className="h-4 w-4" />
+                    <CheckCircle className="h-4 w-4" />
                   </Button>
                 </div>
               );

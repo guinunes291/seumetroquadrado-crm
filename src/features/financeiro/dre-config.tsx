@@ -4,7 +4,7 @@
 // chega aqui (a aba DRE já é guardada por papel; as RLS reforçam no banco).
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Copy, Plus, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Copy, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -1139,7 +1139,7 @@ function AbaDespesas({ unidades }: { unidades: DreUnidade[] }) {
               onClick={() => arquivoRef.current?.click()}
               disabled={importar.isPending}
             >
-              <Upload className="mr-2 h-4 w-4" />
+              <UploadSimple className="mr-2 h-4 w-4" />
               {importar.isPending ? "Importando…" : "Import CSV"}
             </Button>
             <Button
@@ -1207,7 +1207,7 @@ function AbaDespesas({ unidades }: { unidades: DreUnidade[] }) {
                         title="Excluir despesa"
                         onClick={() => excluir.mutate(d.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
@@ -1302,9 +1302,7 @@ function DialogoDespesa({
           ...payload,
           competencia: compI,
           descricao:
-            qtdParcelas > 1
-              ? `${payload.descricao} (${i + 1}/${qtdParcelas})`
-              : payload.descricao,
+            qtdParcelas > 1 ? `${payload.descricao} (${i + 1}/${qtdParcelas})` : payload.descricao,
           // parcelas futuras não herdam a data de pagamento do 1º mês
           data_pagamento: i === 0 ? payload.data_pagamento : null,
         };
@@ -1319,7 +1317,6 @@ function DialogoDespesa({
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao salvar."),
   });
-
 
   return (
     <Dialog open onOpenChange={(open) => !open && onFechar()}>
@@ -1556,7 +1553,7 @@ function AbaOrcamento({ unidades }: { unidades: DreUnidade[] }) {
               onClick={() => arquivoRef.current?.click()}
               disabled={importar.isPending}
             >
-              <Upload className="mr-2 h-4 w-4" />
+              <UploadSimple className="mr-2 h-4 w-4" />
               {importar.isPending ? "Importando…" : "Importar CSV"}
             </Button>
           </div>

@@ -21,7 +21,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowUpRight, Percent, RotateCcw, Send } from "lucide-react";
+import {
+  ArrowCounterClockwise,
+  ArrowUpRight,
+  PaperPlaneTilt,
+  Percent,
+} from "@phosphor-icons/react";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -111,7 +116,7 @@ export function FollowUpKpisView() {
               <StatTile
                 title="Toques enviados"
                 value={kpis.enviados}
-                icon={Send}
+                icon={PaperPlaneTilt}
                 hint={`últimos ${MESES_JANELA} meses`}
               />
               <StatTile
@@ -124,7 +129,7 @@ export function FollowUpKpisView() {
               <StatTile
                 title="Reativados 3º+ toque"
                 value={kpis.reativados}
-                icon={RotateCcw}
+                icon={ArrowCounterClockwise}
                 intent="success"
                 hint="responderam do 3º toque em diante"
               />

@@ -1,4 +1,4 @@
-import { Radar } from "lucide-react";
+import { Broadcast } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +21,7 @@ export function RadarWidget(props: WidgetProps) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-1.5">
-          <Radar className="h-4 w-4 text-destructive" /> Radar de risco
+          <Broadcast className="h-4 w-4 text-destructive" /> Radar de risco
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-sm">

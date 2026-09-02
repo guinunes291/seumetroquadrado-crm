@@ -16,7 +16,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Pencil, Target, Wallet, Sparkles, MessageSquareQuote, Copy } from "lucide-react";
+import { Copy, PencilSimple, Quotes, Target, Wallet } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 
 /** Campos comerciais do empreendimento. Chegam via migration 20260629140000;
  *  ficam opcionais para a UI degradar com segurança antes da coluna existir. */
@@ -110,7 +111,7 @@ export function ProjetoComercial({
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-sm flex items-center gap-1.5">
-          <Sparkles className="h-4 w-4 text-primary" /> Munição comercial
+          <SamiMark className="h-4 w-4 text-primary" /> Munição comercial
         </CardTitle>
         <div className="flex items-center gap-2">
           {temAlgo && (
@@ -130,7 +131,7 @@ export function ProjetoComercial({
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline">
-                  <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                  <PencilSimple className="h-3.5 w-3.5 mr-1" /> Editar
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
@@ -227,7 +228,7 @@ export function ProjetoComercial({
         {argumentos.length > 0 && (
           <div>
             <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-              <MessageSquareQuote className="h-3.5 w-3.5" /> Argumentos de venda
+              <Quotes className="h-3.5 w-3.5" /> Argumentos de venda
             </div>
             <ul className="list-disc pl-5 space-y-0.5">
               {argumentos.map((a) => (

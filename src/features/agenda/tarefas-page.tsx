@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Plus, CheckCircle2, Clock, AlertTriangle, ListTodo } from "lucide-react";
+import { CheckCircle, Clock, ListChecks, Plus, Warning } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   TAREFA_STATUS,
@@ -425,14 +425,14 @@ export function TarefasPage() {
         <StatTile
           title="Atrasadas"
           value={counts.atrasadas}
-          icon={AlertTriangle}
+          icon={Warning}
           intent="danger"
           loading={tarefasQuery.isLoading}
         />
         <StatTile
           title="Concluídas hoje"
           value={counts.concluidas_hoje}
-          icon={CheckCircle2}
+          icon={CheckCircle}
           intent="success"
           loading={tarefasQuery.isLoading}
         />
@@ -514,7 +514,7 @@ export function TarefasPage() {
             />
           ) : tarefasFiltradas.length === 0 ? (
             <EmptyState
-              icon={ListTodo}
+              icon={ListChecks}
               title="Nenhuma tarefa encontrada"
               description={
                 temFiltros
@@ -554,7 +554,7 @@ export function TarefasPage() {
                       )}
                       aria-label="Concluir"
                     >
-                      {t.status === "concluida" && <CheckCircle2 className="h-3 w-3" />}
+                      {t.status === "concluida" && <CheckCircle className="h-3 w-3" />}
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">

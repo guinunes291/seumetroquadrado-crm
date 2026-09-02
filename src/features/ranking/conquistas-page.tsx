@@ -11,7 +11,7 @@ import { ScoreRing } from "@/components/ui/score-ring";
 import { celebrate } from "@/components/ui/celebration";
 import { Medal, type MedalTier } from "@/features/ranking/medal";
 import { cn } from "@/lib/utils";
-import { Award, Lock } from "lucide-react";
+import { Lock, Medal as Award } from "@phosphor-icons/react";
 
 type Tipo = {
   id: string;
