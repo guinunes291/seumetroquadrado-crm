@@ -200,7 +200,7 @@ Leitura inicial no Materiais (gestão) e, depois, widget na Home do gestor.
 3. Preencher capa e preço das parceiras no Materiais (Cury e Mundo Apto primeiro).
 4. Subir os logos das parceiras em `construtoras_parceiras.logo_url`.
 
-## 9. Lição da primeira publicação (02/09, 11h)
+## 10. Lição da primeira publicação (02/09, 11h)
 
 A migration criou `projetos.preco_atualizado_em` e `tabela_atualizada_em`, e a prateleira
 quebrou em produção com `permission denied for table projetos (42501)`. Causa: desde o
@@ -209,3 +209,41 @@ lockdown do `webhook_token` (`20260711136000`), `projetos` tem privilégios **po
 Correção em duas pontas: `20260902130000_prateleira_grants_colunas.sql` e
 `selectWithColumnFallback` passou a degradar também no 42501. Regra daqui em diante:
 **coluna nova em `projetos` = GRANT na mesma migration.**
+
+## 11. Logos das construtoras (02/09, tarde)
+
+Pedido: "busque as logos das construtoras para completar banners, capas e corredores". O
+sandbox não alcança sites externos, então a coleta rodou fora dele, em duas fontes:
+
+1. **Tabelas de venda no Drive** (PDFs) — PyMuPDF extrai a imagem do cabeçalho. Rendeu Vibra
+   (laranja) e Maskan; Lavvi, Mundo Apto, Longitude e Magik vieram melhores do site.
+2. **Sites oficiais via n8n** (`scripts/logos/`): um workflow baixa o HTML, pontua candidatos a
+   logo (`<img>` com "logo" no src/alt/classe, SVG inline, `og:image`, ícones grandes), baixa e
+   devolve em base64. Quatro rodadas: a primeira caiu porque o Code node do n8n não expõe `URL`
+   (resolução manual de caminho relativo); Cury/Trisul/Direcional bloqueiam robô (WAF/Cloudflare)
+   e saíram pelos sites de RI; a Vivaz é SPA sem `<img>` — a logo estava referenciada no bundle
+   `main.*.js`.
+
+**Resultado: 23 marcas em `public/logos/construtoras/`** (SVG quando o site publica vetor):
+Vivaz, Cyrela, Cury, Trisul, Conx, Plano&Plano, MBigucci, Vibra, ONE Innovation, Mundo Apto,
+Lavvi, Tenda, Patriani, Vitta, Bild, Vinx, Emccamp, Maskan, Migras, Magik JC, Longitude,
+Direcional, Kazzas. **Sem logo:** Riva (site e Brandfetch bloqueiam; 1 projeto) e Marques
+(fora de propósito: "Marques" ≈ "Marquês" casaria nomes de empreendimento).
+
+**Regra do fundo.** Metade das marcas só publica a versão branca (Cury RI, Tenda, Emccamp,
+Vitta, Kazzas, ONE). O manifesto `src/lib/logos-construtoras.ts` marca cada logo com
+`fundo: "claro" | "escuro"` e a `PlacaLogo` escolhe branco ou navy — sem isso, ou a Cyrela
+sumia no gradiente ou a Tenda sumia no branco.
+
+**Precedência** (`logoDoItem`): `construtoras_parceiras.logo_url` cadastrada pela gestão >
+logo local pela construtora do projeto (ou pelo nome, sem construtora) > logo local pelo nome
+da parceira casada > iniciais. O casamento é o mesmo das parceiras (`mesmaConstrutora`), e a
+ordem do manifesto resolve "Vivaz (Cyrela)" a favor da Vivaz.
+
+**Onde aparece:** capa do card sem foto (placa grande), canto da foto quando há capa (placa
+pequena), cabeçalho do corredor, banner de campanha (placa no canto ou junto ao chip "Em foco")
+e o diálogo de parceiras, que agora edita a URL da logo inline.
+
+**Para adicionar uma marca:** salvar o arquivo em `public/logos/construtoras/<slug>.(svg|png)`,
+incluir a entrada no manifesto com `fundo` e `nomes`, rodar `tests/logos-construtoras.test.ts`
+(ele confere que todo slug tem arquivo). Logo enviada pela gestão pela tela não precisa de nada.

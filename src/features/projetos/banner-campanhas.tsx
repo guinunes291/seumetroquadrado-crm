@@ -33,6 +33,7 @@ import {
 import { rotuloZona } from "@/lib/zonas";
 import { cn } from "@/lib/utils";
 import type { MaterialTipo } from "./produto-card";
+import { PlacaLogo } from "./placa-logo";
 
 const GLASS_BTN = "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white";
 
@@ -169,9 +170,18 @@ function Slide({
               "radial-gradient(720px 420px at 78% -8%, oklch(0.77 0.11 85 / 0.14), transparent 65%)",
           }}
         >
-          <span className="font-display absolute bottom-4 right-6 text-7xl font-semibold text-white/5 md:text-9xl">
-            {iniciais(item.parceira?.nome ?? item.construtora ?? item.nome)}
-          </span>
+          {item.logo ? (
+            <PlacaLogo
+              logo={item.logo}
+              nome={construtoraExibida(item)}
+              tamanho="xl"
+              className="absolute right-6 top-6 hidden md:grid"
+            />
+          ) : (
+            <span className="font-display absolute bottom-4 right-6 text-7xl font-semibold text-white/5 md:text-9xl">
+              {iniciais(item.parceira?.nome ?? item.construtora ?? item.nome)}
+            </span>
+          )}
         </div>
       )}
 
@@ -191,6 +201,14 @@ function Slide({
               <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
               {urg}
             </span>
+          )}
+          {item.logo && imagem && (
+            <PlacaLogo
+              logo={item.logo}
+              nome={construtoraExibida(item)}
+              tamanho="sm"
+              className="ml-auto"
+            />
           )}
         </div>
 
