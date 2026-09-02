@@ -981,6 +981,7 @@ export type Database = {
           created_at: string
           criado_por: string | null
           id: string
+          logo_url: string | null
           nome: string
           observacao: string | null
           ordem: number
@@ -991,6 +992,7 @@ export type Database = {
           created_at?: string
           criado_por?: string | null
           id?: string
+          logo_url?: string | null
           nome: string
           observacao?: string | null
           ordem?: number
@@ -1001,6 +1003,7 @@ export type Database = {
           created_at?: string
           criado_por?: string | null
           id?: string
+          logo_url?: string | null
           nome?: string
           observacao?: string | null
           ordem?: number
@@ -3751,8 +3754,78 @@ export type Database = {
           },
         ]
       }
+      projeto_eventos: {
+        Row: {
+          created_at: string
+          detalhe: string | null
+          id: string
+          lead_id: string | null
+          origem: string
+          projeto_id: string
+          tipo: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detalhe?: string | null
+          id?: string
+          lead_id?: string | null
+          origem?: string
+          projeto_id: string
+          tipo: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detalhe?: string | null
+          id?: string
+          lead_id?: string | null
+          origem?: string
+          projeto_id?: string
+          tipo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projeto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
+      }
       projeto_foco: {
         Row: {
+          arte_url: string | null
           ativo: boolean
           created_at: string
           criado_por: string | null
@@ -3764,6 +3837,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          arte_url?: string | null
           ativo?: boolean
           created_at?: string
           criado_por?: string | null
@@ -3775,6 +3849,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          arte_url?: string | null
           ativo?: boolean
           created_at?: string
           criado_por?: string | null
@@ -3843,6 +3918,7 @@ export type Database = {
           percentual_comissao: number | null
           perfil_ideal: string | null
           preco_a_partir: number | null
+          preco_atualizado_em: string | null
           preco_inicial: string | null
           regiao: string | null
           renda_minima: number | null
@@ -3851,6 +3927,7 @@ export type Database = {
           status_entrega: string | null
           status_preco: string
           suites: number | null
+          tabela_atualizada_em: string | null
           tabela_precos_url: string | null
           tipo_extra: string | null
           tipologia: string | null
@@ -3895,6 +3972,7 @@ export type Database = {
           percentual_comissao?: number | null
           perfil_ideal?: string | null
           preco_a_partir?: number | null
+          preco_atualizado_em?: string | null
           preco_inicial?: string | null
           regiao?: string | null
           renda_minima?: number | null
@@ -3903,6 +3981,7 @@ export type Database = {
           status_entrega?: string | null
           status_preco?: string
           suites?: number | null
+          tabela_atualizada_em?: string | null
           tabela_precos_url?: string | null
           tipo_extra?: string | null
           tipologia?: string | null
@@ -3947,6 +4026,7 @@ export type Database = {
           percentual_comissao?: number | null
           perfil_ideal?: string | null
           preco_a_partir?: number | null
+          preco_atualizado_em?: string | null
           preco_inicial?: string | null
           regiao?: string | null
           renda_minima?: number | null
@@ -3955,6 +4035,7 @@ export type Database = {
           status_entrega?: string | null
           status_preco?: string
           suites?: number | null
+          tabela_atualizada_em?: string | null
           tabela_precos_url?: string | null
           tipo_extra?: string | null
           tipologia?: string | null
@@ -3967,6 +4048,52 @@ export type Database = {
           zona_smq?: string | null
         }
         Relationships: []
+      }
+      projetos_metragem_backup_20260902: {
+        Row: {
+          corrigido_em: string
+          metragem_max: number | null
+          metragem_min: number | null
+          preco_a_partir: number | null
+          projeto_id: string
+        }
+        Insert: {
+          corrigido_em?: string
+          metragem_max?: number | null
+          metragem_min?: number | null
+          preco_a_partir?: number | null
+          projeto_id: string
+        }
+        Update: {
+          corrigido_em?: string
+          metragem_max?: number | null
+          metragem_min?: number | null
+          preco_a_partir?: number | null
+          projeto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projetos_metragem_backup_20260902_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: true
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projetos_metragem_backup_20260902_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: true
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "projetos_metragem_backup_20260902_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: true
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
       }
       propostas: {
         Row: {
@@ -7686,6 +7813,18 @@ export type Database = {
           elegivel: boolean
           pct_trabalhado: number
           total_ativos: number
+        }[]
+      }
+      projetos_demanda_v1: {
+        Args: never
+        Returns: {
+          envios_30d: number
+          envios_7d: number
+          leads_30d: number
+          leads_total: number
+          projeto_id: string
+          ultimo_envio: string
+          vendas_total: number
         }[]
       }
       ranking_periodo_v2: {
