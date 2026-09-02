@@ -199,3 +199,13 @@ Leitura inicial no Materiais (gestão) e, depois, widget na Home do gestor.
 2. Regenerar `types.ts` e remover `pendentes.ts` (ver comentário no arquivo).
 3. Preencher capa e preço das parceiras no Materiais (Cury e Mundo Apto primeiro).
 4. Subir os logos das parceiras em `construtoras_parceiras.logo_url`.
+
+## 9. Lição da primeira publicação (02/09, 11h)
+
+A migration criou `projetos.preco_atualizado_em` e `tabela_atualizada_em`, e a prateleira
+quebrou em produção com `permission denied for table projetos (42501)`. Causa: desde o
+lockdown do `webhook_token` (`20260711136000`), `projetos` tem privilégios **por coluna**
+(allowlist); toda coluna nova precisa de `GRANT SELECT (coluna) ... TO authenticated`.
+Correção em duas pontas: `20260902130000_prateleira_grants_colunas.sql` e
+`selectWithColumnFallback` passou a degradar também no 42501. Regra daqui em diante:
+**coluna nova em `projetos` = GRANT na mesma migration.**
