@@ -94,21 +94,23 @@ export const HUE_BADGE: Record<Hue, string> = {
   slate: "bg-slate-500/15 text-slate-700 dark:bg-slate-400/15 dark:text-slate-300",
 };
 
-/** Coluna do kanban: fundo 10% + borda 30%. Derivado do MESMO hue do badge. */
+/** Coluna do kanban: só o fio de 2px no topo leva a cor da etapa (identidade
+ *  v3) — a coluna é superfície neutra com hairline. Derivado do MESMO hue do
+ *  badge; a coluna aplica `border-t-2` e este mapa dá a cor do fio. */
 export const HUE_COLUMN: Record<Hue, string> = {
-  blue: "bg-blue-500/10 border-blue-500/30",
-  amber: "bg-amber-500/10 border-amber-500/30",
-  yellow: "bg-yellow-500/10 border-yellow-500/30",
-  violet: "bg-violet-500/10 border-violet-500/30",
-  cyan: "bg-cyan-500/10 border-cyan-500/30",
-  indigo: "bg-indigo-500/10 border-indigo-500/30",
-  emerald: "bg-emerald-500/10 border-emerald-500/30",
-  teal: "bg-teal-500/10 border-teal-500/30",
-  orange: "bg-orange-500/10 border-orange-500/30",
-  green: "bg-green-600/15 border-green-600/40",
-  lime: "bg-lime-500/10 border-lime-500/30",
-  rose: "bg-rose-500/10 border-rose-500/30",
-  slate: "bg-slate-500/10 border-slate-500/30",
+  blue: "border-t-blue-500",
+  amber: "border-t-amber-500",
+  yellow: "border-t-yellow-500",
+  violet: "border-t-violet-500",
+  cyan: "border-t-cyan-500",
+  indigo: "border-t-indigo-500",
+  emerald: "border-t-emerald-500",
+  teal: "border-t-teal-500",
+  orange: "border-t-orange-500",
+  green: "border-t-green-600",
+  lime: "border-t-lime-500",
+  rose: "border-t-rose-500",
+  slate: "border-t-slate-400",
 };
 
 /** Bolinha/dot por hue (legenda de calendário, timeline). */

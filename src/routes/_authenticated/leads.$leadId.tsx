@@ -13,13 +13,17 @@ import {
   ArrowClockwise,
   ArrowLeft,
   ArrowRight,
+  Buildings,
   Check,
+  Clock,
   FileText,
+  Megaphone,
   Phone,
   PhoneCall,
+  Target,
+  Trophy,
   Warning,
   WhatsappLogo,
-  Target,
 } from "@phosphor-icons/react";
 import { SamiMark } from "@/components/ui/sami-mark";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,9 +48,10 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
-import { GlassCard } from "@/components/ui/glass-card";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
+import { LEAD_STATUS_BADGE_TONE } from "@/lib/leads";
+import { origemLabel } from "@/lib/origem";
 import { diasDesde, scoreLead } from "@/lib/priority";
 import { DocumentacaoTab } from "@/components/documentacao-tab";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
@@ -227,6 +232,7 @@ function LeadDetailPage() {
     ultimaInteracao: lead.ultima_interacao,
   });
   const diasSemContato = diasDesde(lead.ultima_interacao ?? lead.created_at, new Date());
+  const diasNoFunil = diasDesde(lead.created_at, new Date());
 
   return (
     <div className="pb-44 md:pb-0">
@@ -239,7 +245,41 @@ function LeadDetailPage() {
 
       <PageHeader
         title={lead.nome}
-        description={`${lead.telefone}${lead.email ? " · " + lead.email : ""}`}
+        // Quem é o lead numa linha: temperatura e etapa encostadas no nome,
+        // contato, projeto, origem e tempo no funil embaixo (identidade v3).
+        titleAddon={
+          <>
+            <TemperatureChip temperatura={lead.temperatura} size="sm" />
+            <Badge
+              variant="secondary"
+              className={LEAD_STATUS_BADGE_TONE[lead.status as LeadStatus]}
+            >
+              {leadStatusLabel(lead.status)}
+            </Badge>
+          </>
+        }
+        description={
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="inline-flex items-center gap-1">
+              <Phone className="h-3.5 w-3.5" /> {lead.telefone}
+            </span>
+            {lead.email && <span>{lead.email}</span>}
+            {lead.projeto_nome && (
+              <span className="inline-flex items-center gap-1">
+                <Buildings className="h-3.5 w-3.5" /> {lead.projeto_nome}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <Megaphone className="h-3.5 w-3.5" /> {origemLabel(lead.origem)}
+            </span>
+            {diasNoFunil !== null && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> no funil há {diasNoFunil} dia
+                {diasNoFunil === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+        }
         actions={
           // No celular, Ligar e WhatsApp já vivem na barra fixa de ações lá
           // embaixo — repetir aqui só rouba espaço. Registrar contato e Editar
@@ -290,7 +330,7 @@ function LeadDetailPage() {
 
       {/* Resumo executivo — quem é, quão urgente, o que fazer agora e o
           briefing por IA, tudo em um painel só (dossiê inteligente). */}
-      <GlassCard className="mb-6 overflow-hidden">
+      <Card className="mb-6 overflow-hidden">
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center md:p-5">
           <ScoreRing
             value={scoreInfo.score}
@@ -305,8 +345,8 @@ function LeadDetailPage() {
             title={`Score de prioridade ${scoreInfo.score} — ${scoreInfo.motivo}`}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-              <Target className="h-3.5 w-3.5" /> Próxima melhor ação
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Target className="h-3.5 w-3.5 text-modulo-central" /> Próxima melhor ação
             </div>
             <div className="font-display text-base font-semibold tracking-tight md:text-lg">
               {acaoSugerida ? acaoSugerida.label : "Registrar um contato e definir o próximo passo"}
@@ -349,60 +389,99 @@ function LeadDetailPage() {
           </div>
         </div>
         {/* Briefing por IA — promovido da aba Timeline para o topo do dossiê. */}
-        <div className="border-t border-glass-border px-4 py-3 md:px-5">
+        <div className="border-t border-border-subtle px-4 py-3 md:px-5">
           <ResumoIA leadId={leadId} />
         </div>
-      </GlassCard>
+      </Card>
 
       {/* Etapas do funil — a única forma de mover o lead para uma etapa que não
           seja a "próxima sugerida". Era `hidden md:block`: no celular o corretor
           ficava preso ao botão "Próxima etapa" da barra fixa, sem conseguir
           pular, voltar ou marcar como perdido. São 7 etapas + perdido, que
           quebram em poucas linhas na tela do telefone. */}
+      {/* Trilha de etapas (identidade v3): cada etapa é um passo numerado —
+          feito em navy com check, atual com anel dourado, futuras em contorno.
+          Mesma mecânica de antes: cada passo é um botão com a permissão da
+          máquina de etapas (transicionarLead), e "perdido" fica à parte. */}
       <Card className="mb-6">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Etapas do funil</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground">
+            Etapas do funil
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {FUNNEL_STAGES.map((s) => {
+        <CardContent className="pb-4">
+          <ol className="flex flex-wrap items-center gap-x-1 gap-y-2">
+            {FUNNEL_STAGES.map((s, idx) => {
               const currentIdx = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
-              const idx = FUNNEL_STAGES.indexOf(s);
               const isCurrent = s === lead.status;
               const isPast = currentIdx >= 0 && idx < currentIdx;
               const permitida =
                 s === "contrato_fechado" || transicaoLeadPermitida(lead.status, s, gestao);
+              const ultimo = idx === FUNNEL_STAGES.length - 1;
               return (
-                <Button
-                  key={s}
-                  size="sm"
-                  variant={isCurrent ? "default" : isPast ? "secondary" : "outline"}
-                  className={cn("h-8", isCurrent && "ring-2 ring-primary/40")}
-                  disabled={isCurrent || !permitida || mudarStatus.isPending}
-                  onClick={() => goToStage(s)}
-                  title={
-                    isCurrent || permitida
-                      ? LEAD_STATUS_LABEL[s]
-                      : motivoTransicaoBloqueada(lead.status, s, gestao)
-                  }
-                >
-                  {isPast && <Check className="h-3.5 w-3.5 mr-1" />}
-                  {LEAD_STATUS_LABEL[s]}
-                </Button>
+                <li key={s} className="flex items-center gap-x-1">
+                  <button
+                    type="button"
+                    aria-current={isCurrent ? "step" : undefined}
+                    disabled={isCurrent || !permitida || mudarStatus.isPending}
+                    onClick={() => goToStage(s)}
+                    title={
+                      isCurrent || permitida
+                        ? LEAD_STATUS_LABEL[s]
+                        : motivoTransicaoBloqueada(lead.status, s, gestao)
+                    }
+                    className={cn(
+                      "press-scale inline-flex h-8 items-center gap-1.5 rounded-md px-1.5 text-xs transition-colors",
+                      isCurrent
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                      "disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:bg-transparent",
+                      !isCurrent && !permitida && "opacity-60",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold tabular-nums",
+                        isPast && "border-primary bg-primary text-primary-foreground",
+                        isCurrent &&
+                          "border-gold-500 bg-card text-foreground ring-[3px] ring-gold-500/20",
+                        !isPast && !isCurrent && "border-border bg-card",
+                      )}
+                    >
+                      {isPast ? (
+                        <Check className="h-3 w-3" weight="bold" />
+                      ) : ultimo ? (
+                        <Trophy className="h-3 w-3" />
+                      ) : (
+                        idx + 1
+                      )}
+                    </span>
+                    {LEAD_STATUS_LABEL[s]}
+                  </button>
+                  {!ultimo && (
+                    <span
+                      aria-hidden="true"
+                      className={cn("h-px w-3 shrink-0", isPast ? "bg-primary" : "bg-border")}
+                    />
+                  )}
+                </li>
               );
             })}
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 text-destructive hover:text-destructive"
-              disabled={
-                lead.status === "perdido" || !transicaoLeadPermitida(lead.status, "perdido", gestao)
-              }
-              onClick={() => setPerdidoLead(stageLead)}
-            >
-              Marcar como perdido
-            </Button>
-          </div>
+            <li className="ml-auto">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 text-destructive hover:text-destructive"
+                disabled={
+                  lead.status === "perdido" ||
+                  !transicaoLeadPermitida(lead.status, "perdido", gestao)
+                }
+                onClick={() => setPerdidoLead(stageLead)}
+              >
+                Marcar como perdido
+              </Button>
+            </li>
+          </ol>
         </CardContent>
       </Card>
 

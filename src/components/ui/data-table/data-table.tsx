@@ -144,7 +144,9 @@ export function DataTable<TData>({
     setDensity,
     reset,
   } = useTablePrefs(tableId);
-  const density = densityProp ?? prefDensity;
+  // No celular a linha volta a 44px (alvo de toque), qualquer que seja a
+  // preferência — compacto é coisa de mouse.
+  const density = densityProp ?? (isMobile ? "comfortable" : prefDensity);
 
   // ---- Sort: controlado externamente (servidor) OU interno + persistido.
   const [internalSorting, setInternalSorting] = React.useState<SortingState>(() =>

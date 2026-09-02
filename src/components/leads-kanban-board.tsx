@@ -613,7 +613,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                     ref={registerColumn(col.id)}
                     aria-labelledby={`kanban-col-${col.id}`}
                     className={cn(
-                      "hidden w-10 shrink-0 rounded-lg border-2 border-dashed transition-colors md:block",
+                      "hidden w-10 shrink-0 rounded-lg border border-border-subtle border-t-2 bg-surface-2 transition-colors md:block",
                       col.tone,
                       dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",
                     )}
@@ -646,7 +646,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                   ref={registerColumn(col.id)}
                   aria-labelledby={`kanban-col-${col.id}`}
                   className={cn(
-                    "w-full shrink-0 rounded-lg border-2 border-dashed p-2 transition-colors md:block md:w-72",
+                    "w-full shrink-0 rounded-lg border border-border-subtle border-t-2 bg-surface-2 p-2 transition-colors md:block md:w-72",
                     col.id !== mobileStageAtual && "hidden",
                     col.tone,
                     dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",

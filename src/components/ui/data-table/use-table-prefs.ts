@@ -19,10 +19,9 @@ export type TablePrefs = {
 export function useTablePrefs(tableId: string) {
   const [prefs, setPrefs] = usePreference<TablePrefs>(`table:${tableId}`, {});
   // Densidade global do usuário — usada quando a tabela não tem override.
-  const [globalDensity, setGlobalDensity] = usePreference<TableDensity>(
-    "ui:density",
-    "comfortable",
-  );
+  // Padrão compacto (identidade v3, decisão 16): 36px por linha, ~30% mais
+  // leads por tela; no celular a DataTable força o confortável (44px).
+  const [globalDensity, setGlobalDensity] = usePreference<TableDensity>("ui:density", "compact");
 
   const setHidden = useCallback(
     (hidden: string[]) => setPrefs((p) => ({ ...p, hidden })),
