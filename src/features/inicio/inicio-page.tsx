@@ -37,6 +37,13 @@ const NovoLeadDialogHost = lazy(() =>
     default: NovoLeadDialogHost,
   })),
 );
+// O popup de metas do dia precisa aparecer JÁ no hub: é a primeira tela após
+// o login, e o corretor pode ir daqui direto para o Modo Visita.
+const MetasDiaGlobal = lazy(() =>
+  import("@/features/metas-dia/metas-dia-global").then(({ MetasDiaGlobal }) => ({
+    default: MetasDiaGlobal,
+  })),
+);
 
 function saudacao(): string {
   const h = new Date().getHours();
@@ -176,6 +183,7 @@ export function InicioPage() {
       <Suspense fallback={null}>
         <CommandPalette />
         <NovoLeadDialogHost />
+        <MetasDiaGlobal />
       </Suspense>
       <Toaster richColors closeButton />
     </div>

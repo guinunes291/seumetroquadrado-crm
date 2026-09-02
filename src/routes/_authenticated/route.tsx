@@ -49,6 +49,14 @@ const ChamadaAtivaHost = lazy(() =>
   })),
 );
 
+// Metas do dia: popup obrigatório na 1ª abertura do dia (corretor) + card
+// flutuante de progresso que sobrevive à navegação.
+const MetasDiaGlobal = lazy(() =>
+  import("@/features/metas-dia/metas-dia-global").then(({ MetasDiaGlobal }) => ({
+    default: MetasDiaGlobal,
+  })),
+);
+
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   // Sessão, conta ativa e presença vivem no guard compartilhado com o hub
@@ -107,6 +115,7 @@ function AuthenticatedLayout() {
         <NovoLeadDialogHost />
         <KeyboardShortcutsHelp />
         <ChamadaAtivaHost />
+        <MetasDiaGlobal />
       </Suspense>
       <CelebrationHost />
       <Toaster richColors closeButton />

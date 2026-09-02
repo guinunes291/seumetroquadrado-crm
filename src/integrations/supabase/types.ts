@@ -3367,6 +3367,45 @@ export type Database = {
           },
         ]
       }
+      metas_dia_corretor: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          dia: string
+          id: string
+          meta_agendamentos: number
+          meta_documentacoes: number
+          meta_vendas_semana: number
+          respondido_em: string
+          semana_inicio: string
+          updated_at: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          dia: string
+          id?: string
+          meta_agendamentos?: number
+          meta_documentacoes?: number
+          meta_vendas_semana?: number
+          respondido_em?: string
+          semana_inicio: string
+          updated_at?: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          dia?: string
+          id?: string
+          meta_agendamentos?: number
+          meta_documentacoes?: number
+          meta_vendas_semana?: number
+          respondido_em?: string
+          semana_inicio?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       metas_diarias: {
         Row: {
           ativo: boolean
