@@ -520,7 +520,7 @@ function FragmentoLinha({
         <tr className="border-b bg-muted/40">
           <td
             colSpan={14}
-            className="sticky left-0 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+            className="sticky left-0 px-3 py-1.5 text-xs font-medium text-muted-foreground"
           >
             {def.secaoAntes}
           </td>

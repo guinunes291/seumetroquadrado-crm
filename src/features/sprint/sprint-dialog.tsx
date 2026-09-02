@@ -113,11 +113,7 @@ export function SprintStartDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
-            onClick={() => iniciar.mutate()}
-            disabled={iniciar.isPending}
-            className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
-          >
+          <Button onClick={() => iniciar.mutate()} disabled={iniciar.isPending}>
             <Lightning className="h-4 w-4" /> Começar agora
           </Button>
         </DialogFooter>

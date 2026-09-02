@@ -17,6 +17,7 @@ import {
   type PapelCtx,
   type Sistema,
 } from "@/features/nav/sistemas";
+import { CLASSES_MODULO } from "@/features/nav/cores-modulo";
 
 // O hub vive fora do shell /_authenticated, então os hosts globais de lá
 // (⌘K, Novo lead, Registrar venda) não existem aqui — sem estas cópias os
@@ -52,6 +53,25 @@ function saudacao(): string {
   return "Boa noite";
 }
 
+/** "terça-feira, 2 de setembro" — a data por extenso substitui o eyebrow
+ *  "CRM IMOBILIÁRIO" em caixa alta (identidade v3, decisão 12). */
+function dataPorExtenso(): string {
+  const s = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Quantos módulos visíveis têm pendência — a frase da faixa responde
+ *  "o que me espera" antes de o corretor escolher por onde começar. */
+function fraseDePendencias(n: number): string {
+  if (n === 0) return "Escolha por onde você quer começar. Nada pendente por enquanto.";
+  if (n === 1) return "Escolha por onde você quer começar. Um módulo tem pendências.";
+  return `Escolha por onde você quer começar. ${n} módulos têm pendências.`;
+}
+
 /** Contagem 99+ para não estourar o layout. */
 function badgeText(n: number): string {
   return n > 99 ? "99+" : String(n);
@@ -83,6 +103,7 @@ export function InicioPage() {
   // — os 5 hubs do fluxo diário, na ordem do fluxo — e o que é referência
   // ocasional desce para "Consulta". A decisão "onde eu clico agora?" cai de
   // 8 opções iguais para 5 ordenadas.
+  const comPendencia = visiveis.filter((s) => badgeDoSistema(s, badges, ctx) > 0).length;
   const operacao = visiveis.filter((s) => s.grupo === "operacao");
   const consulta = visiveis.filter((s) => s.grupo === "consulta");
   const gestao = visiveis.filter((s) => s.grupo === "gestao");
@@ -104,9 +125,7 @@ export function InicioPage() {
             />
             <div className="leading-tight">
               <div className="font-display text-sm font-semibold">Seu Metro Quadrado</div>
-              <div className="text-[11px] tracking-wide text-gold-600 dark:text-gold-300">
-                Acesso aos Módulos
-              </div>
+              <div className="text-xs text-muted-foreground">Acesso aos Módulos</div>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -148,13 +167,13 @@ export function InicioPage() {
             }}
           />
           <div className="relative space-y-1">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-gold-300">
-              CRM Imobiliário
-            </p>
+            <p className="text-sm text-white/75">{dataPorExtenso()}</p>
             <h1 className="font-display text-2xl font-semibold leading-tight md:text-3xl">
               {saudacao()}, {primeiroNome}
             </h1>
-            <p className="text-sm text-white/80">Escolha por onde você quer começar.</p>
+            <p className="text-sm text-white/80">
+              {loading ? "Escolha por onde você quer começar." : fraseDePendencias(comPendencia)}
+            </p>
           </div>
         </section>
 
@@ -204,9 +223,7 @@ function GrupoDeSistemas({
   if (sistemas.length === 0) return null;
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-        {titulo}
-      </h2>
+      <h2 className="text-xs font-semibold text-muted-foreground">{titulo}</h2>
       <div className={GRID_CLASSES}>
         {sistemas.map((s) => (
           <SistemaCard key={s.id} sistema={s} badge={badgeDoSistema(s, badges, ctx)} ctx={ctx} />
@@ -218,6 +235,9 @@ function GrupoDeSistemas({
 
 function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number; ctx: PapelCtx }) {
   const Icon = sistema.icon;
+  // Cor fixa do módulo (identidade v3): o tile e a pílula de pendência leem
+  // do registro — o corretor aprende "terracota = Follow-up" em um dia.
+  const cor = CLASSES_MODULO[sistema.cor];
   return (
     // homeDoSistema resolve o destino (to + search) pelo papel — o BI, por
     // exemplo, leva o corretor ao /meu-raio-x e a gestão ao /painel-gestor.
@@ -226,21 +246,16 @@ function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number;
       // TODOS os cards têm o mesmo tamanho (decisão 2026-08-30): o destaque
       // vive só no acento dourado do ícone — nada de col-span, que fazia a
       // Central de Comando ocupar duas células e quebrava o ritmo da grade.
-      className="group flex min-h-44 flex-col rounded-xl border border-border-subtle bg-card p-5 shadow-elev-1 hover-lift press-scale hover:border-primary/40"
+      className="group flex min-h-44 flex-col rounded-xl border border-border-subtle bg-card p-5 shadow-elev-1 hover-lift press-scale hover:border-primary/40 hover:shadow-elev-2"
     >
       <div className="flex items-start justify-between gap-2">
-        <span
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg",
-            sistema.destaque
-              ? "bg-gold-500/15 text-gold-600 dark:text-gold-300"
-              : "bg-primary/10 text-primary",
-          )}
-        >
+        <span className={cn("flex h-10 w-10 items-center justify-center rounded-lg", cor.tile)}>
           <Icon className="h-5 w-5" />
         </span>
         {badge > 0 && (
-          <span className="rounded-full bg-gold-500/15 px-2 py-0.5 text-xs font-medium tabular-nums text-gold-600 dark:text-gold-300">
+          <span
+            className={cn("rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums", cor.pill)}
+          >
             {badgeText(badge)}
           </span>
         )}
@@ -251,7 +266,7 @@ function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number;
       <p className="mt-1 line-clamp-2 min-h-10 text-sm text-muted-foreground">
         {sistema.descricao}
       </p>
-      <span className="mt-auto flex items-center gap-1 pt-4 text-sm font-medium text-primary">
+      <span className={cn("mt-auto flex items-center gap-1 pt-4 text-sm font-semibold", cor.text)}>
         Acessar
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </span>

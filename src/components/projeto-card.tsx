@@ -238,7 +238,7 @@ export function ProjetoCard({
               }}
               className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 rounded-md"
             >
-              <span className="uppercase tracking-wide">Webhook</span>
+              <span className="font-medium">Webhook</span>
               <CaretDown
                 className={`h-3.5 w-3.5 transition-transform ${webhookOpen ? "rotate-180" : ""}`}
               />

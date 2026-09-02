@@ -129,7 +129,7 @@ export function FocusMode({
 
         {/* Barra superior */}
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border-subtle bg-card/80 px-4 backdrop-blur-sm">
-          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-primary">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-primary">
             <Crosshair className="h-4 w-4" /> Modo foco
           </span>
           <span className="text-xs text-muted-foreground tabular-nums">
@@ -203,12 +203,7 @@ export function FocusMode({
             ))}
             {total > 24 && <span className="text-xs text-muted-foreground">…</span>}
           </div>
-          <Button
-            size="sm"
-            className="bg-gradient-gold text-navy-900 hover:opacity-90"
-            disabled={index >= total - 1}
-            onClick={goNext}
-          >
+          <Button size="sm" disabled={index >= total - 1} onClick={goNext}>
             <span>Próximo lead</span>
             <Kbd className="hidden border-navy-900/30 bg-transparent text-navy-900 md:inline-flex">
               J
@@ -241,7 +236,7 @@ function FocusSkeleton() {
 function InfoCell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground font-medium">{label}</div>
       <div className="truncate text-sm font-medium">{value ?? "—"}</div>
     </div>
   );
@@ -385,16 +380,14 @@ function FocusBody({
 
         {lead.observacoes && (
           <div className="rounded-xl border border-border-subtle bg-card p-3 text-sm text-muted-foreground shadow-elev-1">
-            <div className="mb-1 text-xs uppercase tracking-wide">Observações</div>
+            <div className="mb-1 text-xs font-medium">Observações</div>
             <p className="whitespace-pre-wrap">{lead.observacoes}</p>
           </div>
         )}
 
         {tarefas.length > 0 && (
           <div>
-            <div className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-              Próximos passos
-            </div>
+            <div className="mb-1.5 text-xs text-muted-foreground font-medium">Próximos passos</div>
             <div className="space-y-1.5">
               {tarefas.map((t) => (
                 <div
@@ -422,9 +415,7 @@ function FocusBody({
       {/* Histórico */}
       <section className="min-w-0">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Histórico
-          </h3>
+          <h3 className="text-xs font-medium text-muted-foreground">Histórico</h3>
           {proxima && (
             <span className="text-xs text-muted-foreground">
               Próxima ação sugerida: <span className="text-foreground">{proxima.label}</span>
@@ -471,7 +462,7 @@ function FocusBody({
       {/* Ações */}
       <section className="space-y-2 md:sticky md:top-4 md:self-start">
         <Button
-          className="w-full bg-gradient-gold text-navy-900 hover:opacity-90"
+          className="w-full"
           onClick={() =>
             abrirWhatsApp({
               id: lead.id,

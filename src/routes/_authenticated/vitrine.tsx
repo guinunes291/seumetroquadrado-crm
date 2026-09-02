@@ -416,9 +416,7 @@ function VitrinePage() {
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
     </div>
   );
@@ -634,7 +632,7 @@ function ResultsTable({
     <div className="overflow-x-auto rounded-lg border bg-card">
       <table className="w-full min-w-[520px] border-collapse text-sm">
         <thead>
-          <tr className="border-b bg-muted/50 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+          <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground font-medium">
             <th className="px-3 py-2.5 font-bold">Empreendimento</th>
             <th className="px-3 py-2.5 font-bold">Zona / Bairro</th>
             <th className="px-3 py-2.5 text-right font-bold">A partir de</th>

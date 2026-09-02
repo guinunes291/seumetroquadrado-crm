@@ -166,7 +166,7 @@ function Selos({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
     selos.push({
       chave: "foco",
       texto: "Em foco",
-      tom: "bg-gradient-gold text-navy-900",
+      tom: "bg-modulo-projetos/15 text-modulo-projetos",
       icone: Star,
     });
   if (item.parceira)
@@ -195,7 +195,7 @@ function Selos({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
         <li
           key={s.chave}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
             s.tom,
           )}
         >
@@ -267,9 +267,7 @@ function Preco({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
   if (!item.sob_consulta && item.preco_a_partir != null) {
     return (
       <div className={cn("min-w-0", compacto && "text-right")}>
-        <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-          A partir de
-        </div>
+        <div className="text-xs text-muted-foreground font-medium">A partir de</div>
         <div
           className={cn(
             "font-display font-semibold tabular-nums tracking-tight text-gold-600 dark:text-gold-300",
@@ -283,7 +281,7 @@ function Preco({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
   }
   return (
     <div className={cn("min-w-0", compacto && "text-right")}>
-      <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Preço</div>
+      <div className="text-xs text-muted-foreground font-medium">Preço</div>
       <div
         className={cn(
           "font-display font-semibold tracking-tight text-foreground/80",
@@ -459,10 +457,7 @@ function Acoes({
         <TooltipTrigger asChild>
           <Button
             size="sm"
-            className={cn(
-              "press-scale bg-gradient-gold text-navy-900 hover:opacity-90",
-              compacto && "px-2",
-            )}
+            className={cn("press-scale", compacto && "px-2")}
             onClick={() => onEnviar(item)}
             aria-label={`Enviar ${item.nome} para um lead`}
           >
@@ -589,9 +584,7 @@ function CardGrade(props: ProdutoCardProps) {
         </div>
         <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 text-white">
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-medium uppercase tracking-[0.12em] text-white/80">
-              {construtoraExibida(item)}
-            </p>
+            <p className="truncate text-xs font-medium text-white/80">{construtoraExibida(item)}</p>
             {item.zona && (
               <p className="inline-flex items-center gap-1 text-xs text-white/90">
                 <MapPin className="h-3 w-3" aria-hidden="true" />

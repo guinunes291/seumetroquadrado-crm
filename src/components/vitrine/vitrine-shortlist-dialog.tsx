@@ -92,7 +92,7 @@ export function VitrineShortlist({ projects, leadId, leadName, onRemove, onClear
     <>
       <aside className="sticky bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-30 mx-auto flex max-w-4xl flex-col gap-3 rounded-xl border bg-background/95 p-3 shadow-xl backdrop-blur sm:flex-row sm:items-center md:bottom-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium text-muted-foreground">
             Comparação · {projects.length}/3
           </p>
           <div className="mt-1 flex flex-wrap gap-1.5">
@@ -278,9 +278,7 @@ export function VitrineShortlist({ projects, leadId, leadName, onRemove, onClear
 
           {leadId && activeLinks.length > 0 && !generated && (
             <div className="space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                Links ativos recentes
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">Links ativos recentes</p>
               {activeLinks.slice(0, 3).map((link) => (
                 <div
                   key={link.id}

@@ -139,9 +139,7 @@ function GrupoCard({ grupo, leadsMap }: { grupo: Grupo; leadsMap: Map<string, Le
       <CardContent className="space-y-2">
         {principal && (
           <div className="rounded-lg border bg-success/10 border-success/30 p-3">
-            <div className="text-[11px] uppercase tracking-wider text-success mb-1">
-              Lead-base (mais antigo)
-            </div>
+            <div className="text-xs text-success mb-1 font-medium">Lead-base (mais antigo)</div>
             <LeadLinha lead={principal} />
           </div>
         )}

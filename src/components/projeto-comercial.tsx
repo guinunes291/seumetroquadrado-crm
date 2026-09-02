@@ -117,7 +117,6 @@ export function ProjetoComercial({
           {temAlgo && (
             <Button
               size="sm"
-              className="bg-gradient-gold text-navy-900 hover:opacity-90"
               title="Copia uma mensagem de venda pronta (nome, preço, diferenciais e argumento) para colar no WhatsApp"
               onClick={() => {
                 navigator.clipboard.writeText(montarMensagemVenda(projeto));

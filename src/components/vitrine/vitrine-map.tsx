@@ -184,8 +184,8 @@ export function VitrineMap({
 
       {mode === "geografico" && pins.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
-          Nenhum empreendimento tem coordenada ainda. Rode a geocodificação para
-          vê-los no mapa geográfico (ou use o modo Zonas).
+          Nenhum empreendimento tem coordenada ainda. Rode a geocodificação para vê-los no mapa
+          geográfico (ou use o modo Zonas).
         </div>
       )}
 
@@ -196,9 +196,7 @@ export function VitrineMap({
       )}
 
       <div className="absolute bottom-3 left-3 max-w-[190px] rounded-lg border bg-background/95 p-2.5 text-[11px] shadow-sm backdrop-blur">
-        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          Preço a partir de
-        </div>
+        <div className="mb-1.5 text-xs font-medium text-muted-foreground">Preço a partir de</div>
         <div className="space-y-1">
           {FAIXAS_PRECO.map((f) => (
             <div key={f.label} className="flex items-center gap-2 text-muted-foreground">

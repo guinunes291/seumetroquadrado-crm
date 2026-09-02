@@ -94,9 +94,7 @@ export function Timeline({
       {groups.map((group, gi) => (
         <section key={group.label ?? gi}>
           {group.label && (
-            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {group.label}
-            </h4>
+            <h4 className="mb-2 text-xs font-medium text-muted-foreground">{group.label}</h4>
           )}
           <ol className="stagger-children relative space-y-0">
             {group.items.map((item, i) => {

@@ -133,9 +133,7 @@ export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ati
             segundos é sobre o que ficou combinado da última vez. */}
         {lead.proxima_acao && (
           <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Combinado no último contato
-            </p>
+            <p className="text-xs text-muted-foreground font-medium">Combinado no último contato</p>
             <p className="font-medium">{lead.proxima_acao}</p>
           </div>
         )}
@@ -144,9 +142,7 @@ export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ati
           <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2">
             <Warning className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Objeções já registradas
-              </p>
+              <p className="text-xs text-muted-foreground font-medium">Objeções já registradas</p>
               <ul className="list-inside list-disc">
                 {lead.objecoes?.map((o) => (
                   <li key={o}>{o}</li>
@@ -182,7 +178,7 @@ export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ati
         <PotencialDeCredito orcamento={orcamento} temRenda={renda !== null} />
 
         <div>
-          <p className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+          <p className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
             <ChatText className="h-3.5 w-3.5" /> O que já foi conversado
           </p>
           {interacoesQ.isLoading ? (
@@ -226,7 +222,7 @@ function PotencialDeCredito({
   if (!orcamento || !orcamento.enquadra) {
     return (
       <div className="rounded-md border border-dashed px-3 py-2 text-muted-foreground">
-        <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide">
+        <p className="flex items-center gap-1.5 text-xs font-medium">
           <Calculator className="h-3.5 w-3.5" /> Potencial de crédito
         </p>
         <p>
@@ -240,7 +236,7 @@ function PotencialDeCredito({
 
   return (
     <div className="rounded-md border bg-muted/40 px-3 py-2">
-      <p className="mb-1.5 flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground">
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
         <Calculator className="h-3.5 w-3.5" /> Potencial de crédito · Faixa {orcamento.faixa} (
         {orcamento.segmento})
       </p>

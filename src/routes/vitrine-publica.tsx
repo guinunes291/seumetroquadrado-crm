@@ -182,9 +182,7 @@ function VitrinePublicaPage() {
         ) : (
           <>
             <div className="mb-7 max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">
-                Seleção preparada para você
-              </p>
+              <p className="text-xs font-medium text-amber-700">Seleção preparada para você</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
                 Compare seus empreendimentos favoritos
               </h1>

@@ -140,7 +140,7 @@ export function ProjetoHero({
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-medium uppercase tracking-[0.14em] text-white/70">
+            <div className="text-xs font-medium text-white/70">
               {projeto.sob_consulta ? "Preço" : "A partir de"}
             </div>
             <div className="font-display mt-0.5 text-3xl font-semibold tracking-tight text-gold-300 tabular-nums">
@@ -158,7 +158,7 @@ export function ProjetoHero({
             {temMunicao && (
               <Button
                 size="sm"
-                className="bg-gradient-gold text-navy-900 press-scale hover:opacity-90"
+                className="press-scale"
                 title="Copia uma mensagem de venda pronta (nome, preço, diferenciais e argumento) para colar no WhatsApp"
                 onClick={() => {
                   navigator.clipboard.writeText(montarMensagemVenda(projeto));

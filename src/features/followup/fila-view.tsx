@@ -514,7 +514,7 @@ export function FilaFollowUpView() {
             <Separator />
 
             <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
                 Perfil financeiro
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -544,9 +544,7 @@ export function FilaFollowUpView() {
 
             {current.observacoes && (
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Observações
-                </div>
+                <div className="mb-2 text-xs font-medium text-muted-foreground">Observações</div>
                 <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm text-foreground/90">
                   {current.observacoes}
                 </p>

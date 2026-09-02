@@ -447,9 +447,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-                    Por corretor
-                  </p>
+                  <p className="mb-2 text-xs text-muted-foreground font-medium">Por corretor</p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -474,7 +472,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
                   </Table>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-2 text-xs text-muted-foreground font-medium">
                     Os 10 mais antigos
                   </p>
                   <ul className="divide-y">

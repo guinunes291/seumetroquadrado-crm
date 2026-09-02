@@ -170,9 +170,7 @@ function AuthPage() {
         </div>
 
         <div className="relative max-w-md space-y-6">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-gold-300">
-            CRM Imobiliário
-          </p>
+          <p className="text-xs font-medium text-gold-300">CRM Imobiliário</p>
           <h1 className="font-display text-3xl font-semibold leading-tight">
             A central de comando da sua operação imobiliária.
           </h1>

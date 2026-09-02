@@ -229,9 +229,7 @@ export function PainelDiaView() {
                   : "border-border-subtle bg-card hover:border-primary/40",
               )}
             >
-              <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
-                {meta.label}
-              </span>
+              <span className="block text-xs text-muted-foreground font-medium">{meta.label}</span>
               <span className="font-display text-xl font-semibold tabular-nums">{n}</span>
             </button>
           );

@@ -185,11 +185,7 @@ export function MetasDiaDialog({
                 {modo === "primeira" ? "Hoje não" : "Cancelar"}
               </Button>
             )}
-            <Button
-              type="submit"
-              disabled={salvar.isPending}
-              className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
-            >
+            <Button type="submit" disabled={salvar.isPending}>
               <Target className="h-4 w-4" />
               {modo === "primeira" ? "Começar o dia" : "Salvar metas"}
             </Button>

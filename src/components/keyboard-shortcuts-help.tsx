@@ -44,9 +44,7 @@ export function KeyboardShortcutsHelp() {
         <div className="grid gap-6 sm:grid-cols-2">
           {groups.map(({ group, items }) => (
             <section key={group}>
-              <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {group}
-              </h3>
+              <h3 className="mb-2 text-xs font-medium text-muted-foreground">{group}</h3>
               <ul className="space-y-1.5">
                 {items.map((s) => (
                   <li

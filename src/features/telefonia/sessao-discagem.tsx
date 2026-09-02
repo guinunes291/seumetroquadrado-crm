@@ -385,7 +385,6 @@ export function SessaoDiscagem() {
         </p>
         <div className="flex flex-wrap items-end gap-3">
           <Button
-            className="bg-gradient-gold text-navy-900 hover:opacity-90"
             disabled={iniciarDiscador.isPending || iniciarManual.isPending}
             onClick={() => iniciarDiscador.mutate()}
           >

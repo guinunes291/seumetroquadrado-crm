@@ -49,7 +49,7 @@ const precoLabel = (p: ProjetoRow): string =>
 function Spec({ k, v }: { k: string; v: string }) {
   return (
     <div className="rounded-lg border p-2.5">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{k}</div>
+      <div className="text-xs font-medium text-muted-foreground">{k}</div>
       <div className="mt-0.5 text-sm font-semibold">{v}</div>
     </div>
   );
@@ -73,7 +73,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
         {p && (
           <>
             <SheetHeader className="space-y-2 border-b bg-primary/5 px-5 py-4 text-left">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 {[zona ? `Zona ${zona}` : null, p.bairro].filter(Boolean).join(" · ") ||
                   "Localização a confirmar"}
               </div>
@@ -90,9 +90,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
 
             <div className="flex-1 space-y-5 overflow-auto px-5 py-4">
               <div className="rounded-lg border border-l-4 border-l-amber-400 bg-muted/40 p-3.5">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  Preço a partir de
-                </div>
+                <div className="text-xs font-medium text-muted-foreground">Preço a partir de</div>
                 <div className="mt-0.5 text-2xl font-extrabold tabular-nums">{precoLabel(p)}</div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
                   Valor da tabela vigente da construtora
@@ -188,7 +186,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
       <span className="h-0.5 w-3.5 rounded bg-amber-400" />
       {children}
     </div>

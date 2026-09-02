@@ -76,7 +76,7 @@ export type PeekLead = {
 function InfoCell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs text-muted-foreground font-medium">{label}</div>
       <div className="truncate text-sm font-medium">{value ?? "—"}</div>
     </div>
   );
@@ -213,11 +213,7 @@ function PeekBody({
 
       {/* Ações principais — o motivo de o peek existir */}
       <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          className="min-h-11 bg-gradient-gold text-navy-900 hover:opacity-90"
-          onClick={() => onWhatsApp(lead)}
-        >
+        <Button size="sm" className="min-h-11" onClick={() => onWhatsApp(lead)}>
           <WhatsappLogo className="h-4 w-4" /> WhatsApp
         </Button>
         <Button asChild size="sm" variant="outline" className="min-h-11">
@@ -293,9 +289,7 @@ function PeekBody({
         <>
           <Separator />
           <div>
-            <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-              Próximos passos
-            </div>
+            <div className="mb-1.5 text-xs text-muted-foreground font-medium">Próximos passos</div>
             {tarefasQ.isLoading ? (
               <div className="space-y-1.5">
                 <Skeleton className="h-10 w-full" />
@@ -334,9 +328,7 @@ function PeekBody({
       {/* Histórico resumido */}
       <Separator />
       <div>
-        <div className="mb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
-          Últimas interações
-        </div>
+        <div className="mb-1.5 text-xs text-muted-foreground font-medium">Últimas interações</div>
         {interacoesQ.isLoading ? (
           <div className="space-y-1.5">
             <Skeleton className="h-10 w-full" />

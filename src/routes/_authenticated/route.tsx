@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
 import { MagnifyingGlass } from "@phosphor-icons/react";
+import { NavBreadcrumb } from "@/features/nav/nav-breadcrumb";
 
 const SamiQLauncher = lazy(() =>
   import("@/components/samiq/samiq-launcher").then(({ SamiQLauncher }) => ({
@@ -80,6 +81,9 @@ function AuthenticatedLayout() {
       <main id="conteudo-principal" tabIndex={-1} className="flex-1 overflow-y-auto">
         <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-background/70 backdrop-blur-md px-4 md:px-8 h-14">
           <MobileSidebar />
+          {/* Trilha "Módulo › Seção" com o ícone na cor do módulo — desktop; no
+              celular o título da página já diz onde o corretor está. */}
+          <NavBreadcrumb className="hidden min-w-0 md:flex" />
           <div className="ml-auto flex items-center gap-2">
             <Button
               variant="outline"

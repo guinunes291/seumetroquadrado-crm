@@ -582,7 +582,7 @@ function ProducaoPeriodo({
       : null;
   return (
     <div>
-      <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2 text-xs text-muted-foreground font-medium">
         Produção do período (cada atividade na data em que aconteceu)
       </p>
       <StatGrid>
@@ -748,7 +748,7 @@ function PipelineAgora({
   const [etapaAberta, setEtapaAberta] = useState<string | null>(null);
   return (
     <div>
-      <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2 text-xs text-muted-foreground font-medium">
         Pipeline agora (estoque por etapa — foto de hoje, não segue o filtro de período)
       </p>
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-9">
@@ -783,7 +783,7 @@ function PipelineAgora({
             >
               <CardContent className="p-3">
                 <div className="flex items-start justify-between mb-1 gap-1">
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground leading-tight">
+                  <span className="text-xs text-muted-foreground leading-tight font-medium">
                     {label}
                   </span>
                   <Icon className="h-3.5 w-3.5 text-muted-foreground" />

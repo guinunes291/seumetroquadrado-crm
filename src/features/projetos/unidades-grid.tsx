@@ -211,7 +211,7 @@ export function UnidadesGrid({
         {grupos.map((grupo, gi) => (
           <div key={grupo.bloco ?? `g-${gi}`} className="space-y-2">
             {estruturado && (
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 {grupo.bloco ? `Bloco ${grupo.bloco}` : "Sem bloco"}
               </div>
             )}

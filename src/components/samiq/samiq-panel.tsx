@@ -270,7 +270,6 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
             size="icon"
             disabled={!input.trim() || mutation.isPending}
             onClick={enviarLivre}
-            className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
             aria-label="Enviar"
           >
             <PaperPlaneTilt className="h-4 w-4" />

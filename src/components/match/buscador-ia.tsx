@@ -116,9 +116,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
 
           {!descricao && (
             <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                Exemplos
-              </p>
+              <p className="text-xs text-muted-foreground font-medium">Exemplos</p>
               <div className="flex flex-wrap gap-2">
                 {EXEMPLOS.map((ex) => (
                   <button

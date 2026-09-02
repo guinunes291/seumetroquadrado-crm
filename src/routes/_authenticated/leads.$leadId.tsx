@@ -305,7 +305,7 @@ function LeadDetailPage() {
             title={`Score de prioridade ${scoreInfo.score} — ${scoreInfo.motivo}`}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
               <Target className="h-3.5 w-3.5" /> Próxima melhor ação
             </div>
             <div className="font-display text-base font-semibold tracking-tight md:text-lg">
@@ -341,7 +341,6 @@ function LeadDetailPage() {
               <Button
                 size="sm"
                 disabled={mudarStatus.isPending}
-                className="bg-gradient-gold text-navy-900 hover:opacity-90"
                 onClick={() => goToStage(acaoSugerida.target)}
               >
                 {acaoSugerida.label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
