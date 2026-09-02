@@ -236,7 +236,12 @@ function RoletaTabPadrao({
                     {ehPlantao && <TableHead className="text-right">% trabalhado</TableHead>}
                     {ehMarquinhos && <TableHead>Venda mês anterior</TableHead>}
                     {ehMarquinhos && <TableHead>Incluído por</TableHead>}
-                    <TableHead className="text-right">Hoje</TableHead>
+                    <TableHead
+                      className="text-right"
+                      title="Leads NOVOS recebidos hoje nesta roleta, contra a cota diária. Repasses/redistribuições de leads já existentes não entram nesta conta — veja a coluna 'Último lead'."
+                    >
+                      Novos hoje
+                    </TableHead>
                     {ehLanding && <TableHead className="text-right">Semana</TableHead>}
                     <TableHead className="text-right">Mês</TableHead>
                     {ehLanding && <TableHead className="text-right">Participação</TableHead>}
