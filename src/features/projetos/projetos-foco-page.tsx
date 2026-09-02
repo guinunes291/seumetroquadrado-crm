@@ -114,6 +114,7 @@ import { cn } from "@/lib/utils";
 import { BannerCampanhas } from "./banner-campanhas";
 import { ConstrutorasParceirasDialog } from "./construtoras-parceiras-dialog";
 import { ProdutoCard, type MaterialTipo } from "./produto-card";
+import { PlacaLogo } from "./placa-logo";
 import { RendaCliente } from "./renda-cliente";
 import { useConstrutorasParceiras } from "./use-construtoras-parceiras";
 import {
@@ -903,27 +904,20 @@ function CorredorParceira({
   renderCard: (item: ItemPrateleira) => React.ReactNode;
   onVerTodos: () => void;
 }) {
-  const logo = corredor.parceira?.logo_url ?? null;
   const mostrados = corredor.itens.slice(0, POR_CORREDOR);
   const restantes = corredor.itens.length - mostrados.length;
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-gold-500/30 bg-gradient-command shadow-elev-1">
-          {logo ? (
-            <img
-              src={logo}
-              alt=""
-              aria-hidden="true"
-              loading="lazy"
-              className="h-full w-full object-contain p-1"
-            />
-          ) : (
+        {corredor.logo ? (
+          <PlacaLogo logo={corredor.logo} nome={corredor.titulo} tamanho="md" />
+        ) : (
+          <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-gold-500/30 bg-gradient-command shadow-elev-1">
             <span className="font-display text-sm font-semibold text-gold-300">
               {iniciais(corredor.titulo)}
             </span>
-          )}
-        </div>
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <h3 className="font-display flex items-center gap-2 text-base font-semibold tracking-tight">
             <Star

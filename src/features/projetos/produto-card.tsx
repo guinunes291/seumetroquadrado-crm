@@ -60,6 +60,7 @@ import {
 } from "@/lib/prateleira";
 import { rotuloZona } from "@/lib/zonas";
 import { cn } from "@/lib/utils";
+import { PlacaLogo } from "./placa-logo";
 
 export type MaterialTipo = "book" | "tabela";
 
@@ -100,20 +101,30 @@ function Capa({
   className?: string;
   compacta?: boolean;
 }) {
-  const logo = item.parceira?.logo_url ?? null;
+  const construtora = construtoraExibida(item);
   return (
     <div
       className={cn("relative overflow-hidden bg-gradient-command", className)}
       aria-hidden="true"
     >
       {item.capa_url ? (
-        <img
-          src={item.capa_url}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-        />
+        <>
+          <img
+            src={item.capa_url}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+          {item.logo && !compacta && (
+            <PlacaLogo
+              logo={item.logo}
+              nome={construtora}
+              tamanho="sm"
+              className="absolute bottom-3 right-3 z-10"
+            />
+          )}
+        </>
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <div
@@ -123,15 +134,12 @@ function Capa({
                 "radial-gradient(420px 260px at 80% -10%, oklch(0.77 0.11 85 / 0.16), transparent 65%)",
             }}
           />
-          {logo ? (
-            <img
-              src={logo}
-              alt=""
-              loading="lazy"
-              className={cn(
-                "relative max-h-[45%] max-w-[60%] object-contain drop-shadow",
-                compacta && "max-h-[60%] max-w-[80%]",
-              )}
+          {item.logo ? (
+            <PlacaLogo
+              logo={item.logo}
+              nome={construtora}
+              tamanho={compacta ? "md" : "xl"}
+              className="relative"
             />
           ) : (
             <span

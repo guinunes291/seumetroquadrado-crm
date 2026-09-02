@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Building2, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Building2, Eye, EyeOff, ImageIcon, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { chaveConstrutora, type Parceira } from "@/lib/construtoras";
+import { iniciais, logoDoItem } from "@/lib/prateleira";
 import { CONSTRUTORAS_PARCEIRAS_KEY } from "./use-construtoras-parceiras";
+import { PlacaLogo } from "./placa-logo";
 
 export function ConstrutorasParceirasDialog({
   open,
@@ -37,6 +39,9 @@ export function ConstrutorasParceirasDialog({
 }) {
   const qc = useQueryClient();
   const [nova, setNova] = useState("");
+  // Logo por parceira (decisão 13): URL editada inline, uma por vez.
+  const [editandoLogo, setEditandoLogo] = useState<string | null>(null);
+  const [urlLogo, setUrlLogo] = useState("");
 
   const invalidar = () => qc.invalidateQueries({ queryKey: CONSTRUTORAS_PARCEIRAS_KEY });
 
@@ -70,7 +75,12 @@ export function ConstrutorasParceirasDialog({
   });
 
   const atualizar = useMutation({
-    mutationFn: async (payload: { id: string; ativo?: boolean; ordem?: number }) => {
+    mutationFn: async (payload: {
+      id: string;
+      ativo?: boolean;
+      ordem?: number;
+      logo_url?: string | null;
+    }) => {
       const { id, ...rest } = payload;
       const { error } = await tabela().update(rest).eq("id", id);
       if (error) throw error;
@@ -90,6 +100,23 @@ export function ConstrutorasParceirasDialog({
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const salvarLogo = (p: Parceira) => {
+    const url = urlLogo.trim();
+    if (url && !/^https?:\/\//i.test(url)) {
+      toast.error("Informe a URL completa da imagem, começando com https://");
+      return;
+    }
+    atualizar.mutate(
+      { id: p.id, logo_url: url || null },
+      {
+        onSuccess: () => {
+          setEditandoLogo(null);
+          toast.success(url ? "Logo atualizada" : "Logo removida; vale a logo local, se houver");
+        },
+      },
+    );
+  };
 
   // Trocar a ordem é trocar os dois valores — mantém os saltos de 10 e não
   // exige renumerar a lista inteira a cada movimento.
@@ -145,67 +172,138 @@ export function ConstrutorasParceirasDialog({
             />
           ) : (
             <ul className="divide-y divide-border-subtle overflow-hidden rounded-lg border border-border-subtle">
-              {parceiras.map((p, i) => (
-                <li
-                  key={p.id}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2",
-                    !p.ativo && "bg-muted/40 text-muted-foreground",
-                  )}
-                >
-                  <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {i + 1}
-                  </span>
-                  <span className="flex-1 truncate text-sm font-medium">{p.nome}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Subir ${p.nome}`}
-                    disabled={i === 0}
-                    onClick={() => mover(i, -1)}
+              {parceiras.map((p, i) => {
+                const logo = logoDoItem({ construtora: p.nome, nome: null }, p);
+                const editando = editandoLogo === p.id;
+                return (
+                  <li
+                    key={p.id}
+                    className={cn("px-3 py-2", !p.ativo && "bg-muted/40 text-muted-foreground")}
                   >
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Descer ${p.nome}`}
-                    disabled={i === parceiras.length - 1}
-                    onClick={() => mover(i, 1)}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={p.ativo ? `Desativar ${p.nome}` : `Ativar ${p.nome}`}
-                    title={p.ativo ? "Desativar" : "Ativar"}
-                    onClick={() => atualizar.mutate({ id: p.id, ativo: !p.ativo })}
-                  >
-                    {p.ativo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Remover ${p.nome}`}
-                    title="Remover da lista"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (confirm(`Remover "${p.nome}" das parceiras em foco?`)) {
-                        remover.mutate(p.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      {logo ? (
+                        <PlacaLogo logo={logo} nome={p.nome} tamanho="sm" />
+                      ) : (
+                        <span
+                          className="grid h-7 w-12 shrink-0 place-items-center rounded-md border border-dashed border-border text-[10px] font-semibold text-muted-foreground"
+                          title="Sem logo"
+                          aria-hidden="true"
+                        >
+                          {iniciais(p.nome)}
+                        </span>
+                      )}
+                      <span className="flex-1 truncate text-sm font-medium">{p.nome}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Logo de ${p.nome}`}
+                        aria-expanded={editando}
+                        title={p.logo_url ? "Trocar logo" : "Definir logo"}
+                        onClick={() => {
+                          setEditandoLogo(editando ? null : p.id);
+                          setUrlLogo(p.logo_url ?? "");
+                        }}
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Subir ${p.nome}`}
+                        disabled={i === 0}
+                        onClick={() => mover(i, -1)}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Descer ${p.nome}`}
+                        disabled={i === parceiras.length - 1}
+                        onClick={() => mover(i, 1)}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={p.ativo ? `Desativar ${p.nome}` : `Ativar ${p.nome}`}
+                        title={p.ativo ? "Desativar" : "Ativar"}
+                        onClick={() => atualizar.mutate({ id: p.id, ativo: !p.ativo })}
+                      >
+                        {p.ativo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remover ${p.nome}`}
+                        title="Remover da lista"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (confirm(`Remover "${p.nome}" das parceiras em foco?`)) {
+                            remover.mutate(p.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {editando && (
+                      <form
+                        className="mt-2 flex items-end gap-2 pl-7"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          salvarLogo(p);
+                        }}
+                      >
+                        <div className="flex-1">
+                          <Label htmlFor={`logo-${p.id}`} className="text-xs">
+                            URL da logo (PNG ou SVG; fundo branco ou transparente)
+                          </Label>
+                          <Input
+                            id={`logo-${p.id}`}
+                            type="url"
+                            value={urlLogo}
+                            onChange={(e) => setUrlLogo(e.target.value)}
+                            placeholder="https://…/logo.svg"
+                            className="mt-1 h-8 text-xs"
+                            autoFocus
+                          />
+                        </div>
+                        <Button type="submit" size="sm" loading={atualizar.isPending}>
+                          Salvar
+                        </Button>
+                        {p.logo_url && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setUrlLogo("");
+                              atualizar.mutate(
+                                { id: p.id, logo_url: null },
+                                { onSuccess: () => setEditandoLogo(null) },
+                              );
+                            }}
+                          >
+                            Remover
+                          </Button>
+                        )}
+                      </form>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
 
           <p className="text-xs text-muted-foreground">
             Os projetos entram pela construtora cadastrada na ficha. O nome não precisa ser
-            idêntico: "Cury" casa com "Cury Construtora".
+            idêntico: "Cury" casa com "Cury Construtora". A logo do corredor vem da URL cadastrada
+            aqui; sem URL, vale a logo local da marca quando existe.
           </p>
         </div>
 

@@ -24,6 +24,12 @@ import {
   type MetragemSaneada,
 } from "@/lib/projetos-saneamento";
 import { zonaDoProjeto, type ZonaFiltro, type ZonaProjeto, SEM_ZONA } from "@/lib/zonas";
+import {
+  logoDaConstrutora,
+  logoDoProjeto,
+  urlLogo,
+  type FundoLogo,
+} from "@/lib/logos-construtoras";
 
 /** Linha do catálogo + colunas novas (opcionais: chegam só com a migration). */
 export type ProjetoPrateleiraRow = ProjetoRow & {
@@ -34,6 +40,29 @@ export type ProjetoPrateleiraRow = ProjetoRow & {
 };
 
 export type ParceiraPrateleira = Parceira & { logo_url?: string | null };
+
+/** Logo resolvida para o card, o corredor e o banner (decisão 13). */
+export type LogoPrateleira = {
+  url: string;
+  /** Em que fundo a arte é legível — quem manda é o manifesto local. */
+  fundo: FundoLogo;
+  origem: "parceira" | "local";
+};
+
+/**
+ * Precedência: logo cadastrada pela gestão na parceira > logo local pela
+ * construtora (ou pelo nome do projeto, sem construtora) > logo local pelo
+ * nome da parceira casada > null (o card cai nas iniciais). A logo subida
+ * pela gestão assume fundo claro: é o padrão de arte colorida sobre branco.
+ */
+export function logoDoItem(
+  projeto: { construtora: string | null | undefined; nome: string | null | undefined },
+  parceira: ParceiraPrateleira | null,
+): LogoPrateleira | null {
+  if (parceira?.logo_url) return { url: parceira.logo_url, fundo: "claro", origem: "parceira" };
+  const local = logoDoProjeto(projeto) ?? (parceira ? logoDaConstrutora(parceira.nome) : null);
+  return local ? { url: urlLogo(local), fundo: local.fundo, origem: "local" } : null;
+}
 
 export type FocoRow = {
   id: string;
@@ -70,6 +99,8 @@ export type ItemPrateleira = ProjetoPrateleiraRow & {
   metragem: MetragemSaneada;
   parceira: ParceiraPrateleira | null;
   parceiraInferida: boolean;
+  /** Logo da construtora já resolvida (parceira > local > null). */
+  logo: LogoPrateleira | null;
   foco: FocoVigente | null;
   completude: Completude;
   situacao: Situacao;
@@ -162,6 +193,7 @@ export function montarItem(
     metragem,
     parceira,
     parceiraInferida: inferidaPeloNome,
+    logo: logoDoItem({ construtora: p.construtora, nome: p.nome }, parceira),
     foco: ctx.focos.get(p.id) ?? null,
     completude: completudeProjeto(
       {
@@ -387,6 +419,7 @@ export type Corredor = {
   chave: string;
   titulo: string;
   parceira: ParceiraPrateleira | null;
+  logo: LogoPrateleira | null;
   itens: ItemPrateleira[];
 };
 
@@ -425,6 +458,7 @@ export function montarPrateleira(
         chave: `p:${p.id}`,
         titulo: p.nome,
         parceira: p,
+        logo: logoDoItem({ construtora: p.nome, nome: null }, p),
         itens: porParceira.get(p.id)!,
       })),
     outras,
