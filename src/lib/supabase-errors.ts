@@ -64,8 +64,23 @@ export async function rpcWithFallback<T>(
 }
 
 /**
+ * `true` quando o erro é falta de PRIVILÉGIO (42501). Em tabelas com grant
+ * por coluna (projetos, desde o lockdown do webhook_token), uma coluna nova
+ * sem GRANT devolve "permission denied for table" no SELECT — para a leitura
+ * é o mesmo que a coluna não existir ainda.
+ */
+export function isColumnNotAccessible(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as SupabaseishError;
+  if (e.code === "42501") return true; // insufficient_privilege (Postgres)
+  const msg = `${e.message ?? ""} ${e.details ?? ""}`.toLowerCase();
+  return msg.includes("permission denied for");
+}
+
+/**
  * Variante para SELECT com colunas novas: se a coluna ainda não existe no
- * banco, refaz pelo caminho antigo. Outros erros sobem.
+ * banco (42703) ou ainda não tem GRANT (42501), refaz pelo caminho antigo.
+ * Outros erros sobem.
  */
 export async function selectWithColumnFallback<T>(
   call: () => Promise<T>,
@@ -74,7 +89,9 @@ export async function selectWithColumnFallback<T>(
   try {
     return await call();
   } catch (err) {
-    if (isMissingColumn(err) || isMissingBackendObject(err)) return await fallback();
+    if (isMissingColumn(err) || isColumnNotAccessible(err) || isMissingBackendObject(err)) {
+      return await fallback();
+    }
     throw err;
   }
 }
