@@ -2,6 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { supabasePendente } from "@/integrations/supabase/pendentes";
+import { isMissingColumn } from "@/lib/supabase-errors";
+import { focoVigente } from "@/lib/prateleira";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { usePreference } from "@/hooks/use-preference";
@@ -120,7 +123,9 @@ function ProjetoDetalhePage() {
     },
   });
 
-  const focoAtivo = (focoQ.data ?? []).find((f) => f.ativo);
+  // Vigente = ativo, já iniciado e não encerrado. Campanha programada (início
+  // no futuro, decisão 22 de 2026-09-02) não acende o hero antes da hora.
+  const focoAtivo = (focoQ.data ?? []).find((f) => focoVigente(f, Date.now()));
 
   const saveUnidade = useMutation({
     mutationFn: async (payload: UnidadePayload) => {
@@ -172,21 +177,37 @@ function ProjetoDetalhePage() {
 
   const ativarFoco = useMutation({
     mutationFn: async (payload: FocoPayload) => {
-      // Desativa foco anterior do projeto
-      await supabase
+      const agora = new Date();
+      const inicio = payload.inicio ? new Date(payload.inicio) : agora;
+      const programado = inicio.getTime() > agora.getTime();
+      // Foco anterior: encerra agora — ou, se o novo é programado, segue
+      // valendo até o novo começar (o fim passa a ser o início do próximo).
+      await supabasePendente
         .from("projeto_foco")
-        .update({ ativo: false, fim: new Date().toISOString() })
+        .update(
+          programado ? { fim: inicio.toISOString() } : { ativo: false, fim: agora.toISOString() },
+        )
         .eq("projeto_id", projetoId)
         .eq("ativo", true);
-      const { error } = await supabase.from("projeto_foco").insert({
+      const novo = {
         projeto_id: projetoId,
-        ...payload,
+        motivo: payload.motivo,
+        fim: payload.fim,
+        inicio: inicio.toISOString(),
         criado_por: user?.id,
-      });
-      if (error) throw error;
+      };
+      // arte_url chega com a migration da prateleira; sem a coluna, grava sem ela.
+      const { error } = await supabasePendente
+        .from("projeto_foco")
+        .insert({ ...novo, arte_url: payload.arte_url ?? null });
+      if (error) {
+        if (!isMissingColumn(error)) throw error;
+        const semArte = await supabase.from("projeto_foco").insert(novo);
+        if (semArte.error) throw semArte.error;
+      }
     },
     onSuccess: () => {
-      toast.success("Projeto em foco ativado");
+      toast.success("Projeto em foco salvo");
       setFocoOpen(false);
       qc.invalidateQueries({ queryKey: ["projeto-foco", projetoId] });
     },
