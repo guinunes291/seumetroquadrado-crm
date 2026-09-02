@@ -1261,6 +1261,15 @@ function DialogoDespesa({
   const [pagamento, setPagamento] = useState(despesa?.data_pagamento ?? "");
   const [fornecedor, setFornecedor] = useState(despesa?.fornecedor ?? "");
   const [recorrente, setRecorrente] = useState(despesa?.recorrente ?? false);
+  // Parcelamento: só na criação. N parcelas = N linhas, uma por mês seguinte,
+  // com a descrição sufixada "(i/N)" para rastrear o lançamento original.
+  const [parcelas, setParcelas] = useState("1");
+
+  const qtdParcelas = (() => {
+    const n = Number.parseInt(parcelas, 10);
+    if (!Number.isFinite(n) || n < 1) return 1;
+    return Math.min(n, 60);
+  })();
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -1280,18 +1289,37 @@ function DialogoDespesa({
         fornecedor: fornecedor.trim() || null,
         recorrente,
       };
-      const { error } = despesa
-        ? await supabase.from("dre_despesas").update(payload).eq("id", despesa.id)
-        : await supabase.from("dre_despesas").insert(payload);
+      if (despesa) {
+        const { error } = await supabase.from("dre_despesas").update(payload).eq("id", despesa.id);
+        if (error) throw error;
+        return;
+      }
+      const [ano, mes] = comp.slice(0, 7).split("-").map(Number);
+      const linhas = Array.from({ length: qtdParcelas }, (_, i) => {
+        const d = new Date(Date.UTC(ano, mes - 1 + i, 1));
+        const compI = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+        return {
+          ...payload,
+          competencia: compI,
+          descricao:
+            qtdParcelas > 1
+              ? `${payload.descricao} (${i + 1}/${qtdParcelas})`
+              : payload.descricao,
+          // parcelas futuras não herdam a data de pagamento do 1º mês
+          data_pagamento: i === 0 ? payload.data_pagamento : null,
+        };
+      });
+      const { error } = await supabase.from("dre_despesas").insert(linhas);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Despesa salva.");
+      toast.success(qtdParcelas > 1 ? `${qtdParcelas} parcelas lançadas.` : "Despesa salva.");
       invalidar();
       onFechar();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao salvar."),
   });
+
 
   return (
     <Dialog open onOpenChange={(open) => !open && onFechar()}>
