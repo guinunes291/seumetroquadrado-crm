@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { casarColagem, diffMateriais, parseColagem, urlValida } from "@/lib/materiais";
+import {
+  casarColagem,
+  diffMateriais,
+  edicaoInicial,
+  parseColagem,
+  precoOuNulo,
+  precoValido,
+  urlValida,
+} from "@/lib/materiais";
 
 describe("urlValida", () => {
   it("aceita link de Drive colado da barra de endereço", () => {
@@ -141,5 +149,112 @@ describe("casarColagem", () => {
       projetos,
     );
     expect(r.aplicados[0].valores).toEqual({ tabela_precos_url: "https://a/t.pdf" });
+  });
+});
+
+// 2026-09-02 — capa e preço entram na tela de Materiais (decisões 3 e 23).
+describe("precoOuNulo / precoValido", () => {
+  it("aceita as grafias que chegam de planilha e de WhatsApp", () => {
+    expect(precoOuNulo("250000")).toBe(250_000);
+    expect(precoOuNulo("250.000")).toBe(250_000);
+    expect(precoOuNulo("R$ 250.000,00")).toBe(250_000);
+    expect(precoOuNulo("250 mil")).toBe(250_000);
+    expect(precoOuNulo("1,2 mi")).toBe(1_200_000);
+    expect(precoOuNulo("189.900,50")).toBe(189_901);
+  });
+
+  it("vazio é nulo (apagar preço é legítimo) e lixo é inválido", () => {
+    expect(precoOuNulo("")).toBeNull();
+    expect(precoValido("")).toBe(true);
+    expect(precoValido("consultar")).toBe(false);
+    expect(precoValido("0")).toBe(false);
+    expect(precoValido("R$ 199.000")).toBe(true);
+  });
+});
+
+describe("diffMateriais com capa e preço", () => {
+  const gravado = {
+    book_url: null,
+    tabela_precos_url: null,
+    capa_url: null,
+    preco_a_partir: 200_000,
+  };
+
+  it("reporta capa e preço só quando mudaram, e converte o preço para número", () => {
+    expect(
+      diffMateriais(gravado, {
+        book_url: "",
+        tabela_precos_url: "",
+        capa_url: "https://cdn/capa.jpg",
+        preco_a_partir: "200.000",
+      }),
+    ).toEqual({ capa_url: "https://cdn/capa.jpg" });
+    expect(
+      diffMateriais(gravado, {
+        book_url: "",
+        tabela_precos_url: "",
+        capa_url: "",
+        preco_a_partir: "R$ 215 mil",
+      }),
+    ).toEqual({ preco_a_partir: 215_000 });
+  });
+
+  it("preço inválido não entra no lote", () => {
+    expect(
+      diffMateriais(gravado, {
+        book_url: "",
+        tabela_precos_url: "",
+        capa_url: "",
+        preco_a_partir: "consultar",
+      }),
+    ).toEqual({});
+  });
+
+  it("edicaoInicial reflete o gravado como texto", () => {
+    expect(edicaoInicial(gravado)).toEqual({
+      book_url: "",
+      tabela_precos_url: "",
+      capa_url: "",
+      preco_a_partir: "200000",
+    });
+  });
+});
+
+describe("parseColagem com 5 colunas", () => {
+  it("lê capa e preço quando vêm, e não inventa as colunas quando não vêm", () => {
+    const linhas = parseColagem(
+      "MA Lapa;https://a/book.pdf;https://a/tab.pdf;https://a/capa.jpg;R$ 250.000\nMA Mooca;https://b/book.pdf",
+    );
+    expect(linhas[0]).toEqual({
+      nome: "MA Lapa",
+      book_url: "https://a/book.pdf",
+      tabela_precos_url: "https://a/tab.pdf",
+      capa_url: "https://a/capa.jpg",
+      preco: "R$ 250.000",
+    });
+    expect(linhas[1]).toEqual({
+      nome: "MA Mooca",
+      book_url: "https://b/book.pdf",
+      tabela_precos_url: "",
+    });
+  });
+
+  it("casarColagem aplica capa e preço como texto de edição", () => {
+    const r = casarColagem(
+      [
+        {
+          nome: "MA Mooca",
+          book_url: "",
+          tabela_precos_url: "",
+          capa_url: "https://a/capa.jpg",
+          preco: "230 mil",
+        },
+      ],
+      [{ id: "2", nome: "MA Mooca" }],
+    );
+    expect(r.aplicados[0].valores).toEqual({
+      capa_url: "https://a/capa.jpg",
+      preco_a_partir: "230 mil",
+    });
   });
 });

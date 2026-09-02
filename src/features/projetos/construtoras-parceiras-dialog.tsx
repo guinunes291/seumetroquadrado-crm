@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Building2, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,10 +40,9 @@ export function ConstrutorasParceirasDialog({
 
   const invalidar = () => qc.invalidateQueries({ queryKey: CONSTRUTORAS_PARCEIRAS_KEY });
 
-  // Escape contido: `construtoras_parceiras` ainda não existe no types.ts
-  // gerado — regenerar os types derrete este cast (padrão de conquistas-page).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tabela = () => (supabase as any).from("construtoras_parceiras");
+  // `construtoras_parceiras` ainda não existe no types.ts gerado: a fronteira
+  // tipada (integrations/supabase/pendentes) concentra o escape num lugar só.
+  const tabela = () => supabasePendente.from("construtoras_parceiras");
 
   const adicionar = useMutation({
     mutationFn: async (nome: string) => {

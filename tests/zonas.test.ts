@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { contarPorZona, SEM_ZONA, zonaDoProjeto, zonaOuSemZona } from "@/lib/zonas";
+import {
+  contarPorZona,
+  GRANDE_SP,
+  rotuloZona,
+  SEM_ZONA,
+  zonaDoProjeto,
+  zonaOuSemZona,
+} from "@/lib/zonas";
 
 describe("zonaDoProjeto", () => {
   it("prefere zona_smq quando os dois campos estão preenchidos", () => {
@@ -18,7 +25,23 @@ describe("zonaDoProjeto", () => {
 
   it("devolve null quando nenhum campo diz onde é", () => {
     expect(zonaDoProjeto({ zona_smq: null, regiao: null })).toBeNull();
-    expect(zonaDoProjeto({ regiao: "ABC Paulista" })).toBeNull();
+    expect(zonaDoProjeto({ regiao: "Interior" })).toBeNull();
+  });
+
+  // Decisão 4 de 2026-09-02: Grande SP é zona de primeira classe na prateleira.
+  it("reconhece Grande SP pela zona, pela região, pela cidade e pelo bairro colado", () => {
+    expect(zonaDoProjeto({ zona_smq: "Grande SP" })).toBe(GRANDE_SP);
+    expect(zonaDoProjeto({ regiao: "ABC Paulista" })).toBe(GRANDE_SP);
+    expect(zonaDoProjeto({ zona_smq: "Zona Norte", cidade: "Guarulhos" })).toBe(GRANDE_SP);
+    expect(zonaDoProjeto({ bairro: "Ponte Grande (Guarulhos)" })).toBe(GRANDE_SP);
+    expect(zonaDoProjeto({ cidade: "Osasco" })).toBe(GRANDE_SP);
+  });
+
+  it("cidade São Paulo não vira Grande SP e não confunde bairro com município", () => {
+    expect(zonaDoProjeto({ zona_smq: "Zona Sul", cidade: "São Paulo" })).toBe("Sul");
+    expect(zonaDoProjeto({ bairro: "Vila Mauá", cidade: "São Paulo", zona_smq: "Leste" })).toBe(
+      "Leste",
+    );
   });
 });
 
@@ -48,5 +71,23 @@ describe("contarPorZona", () => {
   it("não gera chip de zona sem projeto", () => {
     const contagem = contarPorZona([{ regiao: "Zona Leste" }]);
     expect(contagem).toEqual([{ zona: "Leste", total: 1 }]);
+  });
+
+  it("Grande SP entra depois da capital e antes de Sem zona", () => {
+    const contagem = contarPorZona([
+      { cidade: "Guarulhos" },
+      { regiao: "Zona Oeste" },
+      { regiao: null },
+    ]);
+    expect(contagem.map((c) => c.zona)).toEqual(["Oeste", GRANDE_SP, SEM_ZONA]);
+  });
+});
+
+describe("rotuloZona", () => {
+  it("prefixa as cardeais com 'Zona' e deixa Centro, Grande SP e Sem zona como estão", () => {
+    expect(rotuloZona("Sul")).toBe("Zona Sul");
+    expect(rotuloZona("Centro")).toBe("Centro");
+    expect(rotuloZona(GRANDE_SP)).toBe("Grande SP");
+    expect(rotuloZona(SEM_ZONA)).toBe("Sem zona");
   });
 });

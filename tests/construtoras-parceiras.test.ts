@@ -6,15 +6,13 @@ import {
   mesmaConstrutora,
   ordenarParceiras,
   parceiraDoProjeto,
+  parceiraDoProjetoOuNome,
   PARCEIRAS_PADRAO,
 } from "@/lib/construtoras";
 
 const MIGRACOES = join(process.cwd(), "supabase", "migrations");
 const migracaoParceiras = readFileSync(
-  join(
-    MIGRACOES,
-    readdirSync(MIGRACOES).find((f) => f.includes("construtoras_parceiras"))!,
-  ),
+  join(MIGRACOES, readdirSync(MIGRACOES).find((f) => f.includes("construtoras_parceiras"))!),
   "utf8",
 );
 
@@ -98,5 +96,36 @@ describe("migração das construtoras parceiras", () => {
     expect(migracaoParceiras).toMatch(
       /CREATE UNIQUE INDEX IF NOT EXISTS uq_construtoras_parceiras_nome[\s\S]*lower\(btrim\(nome\)\)/,
     );
+  });
+});
+
+describe("parceiraDoProjetoOuNome", () => {
+  const parceiras = [
+    { id: "1", nome: "Mundo Apto" },
+    { id: "2", nome: "Cury" },
+  ];
+
+  it("sem construtora, casa a parceira pelo nome do empreendimento", () => {
+    const r = parceiraDoProjetoOuNome(
+      { construtora: null, nome: "Mundo APTO Voluntários da Pátria" },
+      parceiras,
+    );
+    expect(r.parceira?.id).toBe("1");
+    expect(r.inferidaPeloNome).toBe(true);
+  });
+
+  it("com construtora preenchida, a coluna manda mesmo que o nome cite outra marca", () => {
+    const r = parceiraDoProjetoOuNome(
+      { construtora: "Cury Construtora", nome: "Mundo Apto Lapa" },
+      parceiras,
+    );
+    expect(r.parceira?.id).toBe("2");
+    expect(r.inferidaPeloNome).toBe(false);
+  });
+
+  it("nome que não cita parceira não inventa casamento", () => {
+    const r = parceiraDoProjetoOuNome({ construtora: "", nome: "Residencial Aurora" }, parceiras);
+    expect(r.parceira).toBeNull();
+    expect(r.inferidaPeloNome).toBe(false);
   });
 });
