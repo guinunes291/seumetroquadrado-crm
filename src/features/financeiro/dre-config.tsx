@@ -1400,6 +1400,26 @@ function DialogoDespesa({
               onChange={(e) => setFornecedor(e.target.value)}
             />
           </div>
+          {!despesa && (
+            <div className="grid gap-1 sm:col-span-2">
+              <Label htmlFor="dre-desp-parcelas">Parcelas (repetir nos meses seguintes)</Label>
+              <Input
+                id="dre-desp-parcelas"
+                type="number"
+                min={1}
+                max={60}
+                inputMode="numeric"
+                value={parcelas}
+                onChange={(e) => setParcelas(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {qtdParcelas > 1
+                  ? `Serão criadas ${qtdParcelas} despesas de ${valor || "—"}, de ${competencia} em diante.`
+                  : "1 = lançamento único neste mês."}
+              </p>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 sm:col-span-2">
             <Switch id="dre-desp-recorrente" checked={recorrente} onCheckedChange={setRecorrente} />
             <Label htmlFor="dre-desp-recorrente">
