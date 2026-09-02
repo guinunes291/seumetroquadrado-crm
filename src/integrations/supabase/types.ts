@@ -7720,11 +7720,13 @@ export type Database = {
           tabela: string
         }[]
       }
+      mesclar_duplicados_lote: { Args: { _limite?: number }; Returns: number }
       mesclar_leads: {
         Args: { _lead_destino: string; _lead_origem: string }
         Returns: boolean
       }
       mesclar_leads_dup_lote: { Args: { p_limite?: number }; Returns: number }
+      mesclar_leads_por_telefone: { Args: { _chave: string }; Returns: string }
       metricas_periodo_v2: {
         Args: { _fim: string; _inicio: string }
         Returns: Json
