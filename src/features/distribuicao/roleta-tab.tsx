@@ -205,8 +205,8 @@ function RoletaTabPadrao({
                 size="sm"
                 variant="outline"
                 disabled={escoar.isPending}
-                title="Distribui os leads parados sem corretor (estoque) para os aptos desta fila, respeitando cota e presença."
-                onClick={() => escoar.mutate(200)}
+                title="Envia 30 leads do estoque para cada corretor apto desta fila. A rotina automática já faz isso a cada 10 minutos."
+                onClick={() => escoar.mutate(30)}
               >
                 <PlayCircle className="mr-1.5 h-4 w-4" />
                 {escoar.isPending ? "Escoando…" : "Escoar estoque"}
