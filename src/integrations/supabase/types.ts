@@ -6877,6 +6877,10 @@ export type Database = {
         Args: { _lead_id: string }
         Returns: boolean
       }
+      distribuir_estoque_roleta: {
+        Args: { _limite?: number; _roleta?: string }
+        Returns: Json
+      }
       distribuir_lead: {
         Args: {
           _distribuido_por?: string
