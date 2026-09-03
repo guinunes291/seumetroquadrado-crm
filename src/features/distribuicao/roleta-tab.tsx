@@ -77,6 +77,7 @@ import {
 import {
   useCorretoresDisponiveis,
   useElegibilidadeRoleta,
+  useEscoarEstoque,
   useGerenciarParticipante,
   useMarcarPresencaAdmin,
   useNomesPerfis,
