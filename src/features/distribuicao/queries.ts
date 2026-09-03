@@ -763,7 +763,7 @@ export function useEscoarEstoque(slug: string) {
       if (error) throw error;
       return data as {
         distribuidos?: number;
-        parou_sem_apto?: boolean;
+        corretores_aptos?: number;
         restante_estoque?: number;
       } | null;
     },
