@@ -1,0 +1,9 @@
+# Falsos positivos do gitleaks (secret-scan do CI), por fingerprint
+# "<commit>:<arquivo>:<regra>:<linha>". Só entram aqui achados verificados
+# à mão como não-segredo.
+#
+# UUID de usuário em migration de dados (não é chave): a regra generic-api-key
+# casou "auth.users WHERE id = '<uuid>'". O arquivo foi reescrito no commit
+# seguinte (constante no DECLARE), mas o PR-scan varre todo o histórico do PR.
+55fda753d37653341e6f0fd9f97444403badb0ec:supabase/migrations/20260902203454_fe1c6394-bde6-48da-a19e-5b146b0e5dc3.sql:generic-api-key:8
+55fda753d37653341e6f0fd9f97444403badb0ec:supabase/migrations/20260902205951_e2886e97-fd85-4d7c-bf2c-741bbec5f89b.sql:generic-api-key:6
