@@ -105,6 +105,9 @@ function AuthenticatedLayout() {
             <NotificationBell />
           </div>
         </header>
+        {/* Mobile: tira das metas do dia, grudada sob o header (sem cobrir a
+            faixa inferior, disputada por barras de ação e pelo BottomNav). */}
+        <div id="metas-dia-slot" className="sticky top-14 z-10 md:hidden" />
         {/* pb-24 reserva o espaço do BottomNav no mobile. */}
         <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
           <AvatarRequiredBanner />

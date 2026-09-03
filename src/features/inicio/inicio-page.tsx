@@ -154,6 +154,9 @@ export function InicioPage() {
           </div>
         </div>
       </header>
+      {/* Mobile: tira das metas do dia, grudada sob o header (o card flutuante
+          é só desktop). */}
+      <div id="metas-dia-slot" className="sticky top-16 z-10 md:hidden" />
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8">
         <section className="relative overflow-hidden rounded-xl bg-gradient-command p-6 text-white shadow-elev-2 md:p-8">
