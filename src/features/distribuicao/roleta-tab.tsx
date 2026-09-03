@@ -77,6 +77,7 @@ import {
 import {
   useCorretoresDisponiveis,
   useElegibilidadeRoleta,
+  useEscoarEstoque,
   useGerenciarParticipante,
   useMarcarPresencaAdmin,
   useNomesPerfis,
@@ -160,6 +161,7 @@ function RoletaTabPadrao({
   const outrasRoletasQ = useRoletasPorCorretor();
   const gerenciar = useGerenciarParticipante();
   const presencaAdmin = useMarcarPresencaAdmin();
+  const escoar = useEscoarEstoque(slug);
 
   const [incluirAberto, setIncluirAberto] = useState(false);
   const [pausarAlvo, setPausarAlvo] = useState<ElegibilidadeLinha | null>(null);
@@ -198,9 +200,21 @@ function RoletaTabPadrao({
               "Participação manual: quem está aqui entra no rodízio desta fila. Toda inclusão, pausa e remoção fica auditada."}
           </p>
           {!somenteLeitura && (
-            <Button size="sm" onClick={() => setIncluirAberto(true)}>
-              <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={escoar.isPending}
+                title="Distribui os leads parados sem corretor (estoque) para os aptos desta fila, respeitando cota e presença."
+                onClick={() => escoar.mutate(200)}
+              >
+                <PlayCircle className="mr-1.5 h-4 w-4" />
+                {escoar.isPending ? "Escoando…" : "Escoar estoque"}
+              </Button>
+              <Button size="sm" onClick={() => setIncluirAberto(true)}>
+                <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
+              </Button>
+            </div>
           )}
         </div>
 
