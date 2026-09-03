@@ -770,9 +770,8 @@ export function useEscoarEstoque(slug: string) {
     onSuccess: (res) => {
       invalidate();
       toast.success(
-        `${res?.distribuidos ?? 0} leads do estoque distribuídos · ` +
-          `${res?.restante_estoque ?? 0} ainda no estoque` +
-          (res?.parou_sem_apto ? " (parou: sem corretor apto no momento)" : ""),
+        `${res?.distribuidos ?? 0} leads do estoque distribuídos para ${res?.corretores_aptos ?? 0} corretor(es) apto(s) · ` +
+          `${res?.restante_estoque ?? 0} ainda no estoque.`,
       );
     },
     onError: (e: Error) => toast.error(`Falha ao escoar estoque: ${e.message}`),
