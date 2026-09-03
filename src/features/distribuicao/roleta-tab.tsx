@@ -160,6 +160,7 @@ function RoletaTabPadrao({
   const outrasRoletasQ = useRoletasPorCorretor();
   const gerenciar = useGerenciarParticipante();
   const presencaAdmin = useMarcarPresencaAdmin();
+  const escoar = useEscoarEstoque(slug);
 
   const [incluirAberto, setIncluirAberto] = useState(false);
   const [pausarAlvo, setPausarAlvo] = useState<ElegibilidadeLinha | null>(null);
