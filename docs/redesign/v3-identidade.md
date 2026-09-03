@@ -161,3 +161,47 @@ Regra: mesmo nome quando existe; duas trocas de metáfora propositais
 
 Regras que não mudam: máquina de etapas via RPC `transicionarLead`, aprovação
 de venda pela gestão, follow-up automático, roletas. Redesign é só visual.
+
+## Implementação (registro de execução)
+
+Executada em fases na branch `claude/crm-visual-redesign-exa0tr`, cada uma
+com typecheck, lint, orçamento de tipos, Prettier, 1.398 testes, build e
+orçamento de bundle verdes antes do commit.
+
+| Fase | Entrega                                                                                                                                                                                                                                                                      |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Tema claro padrão; Manrope no corpo; `--radius` 0.5rem; fundo off-white e hairline; `elev-1` nula no claro; skeleton sem shimmer; tokens `--modulo-*`, campo `cor` em `SISTEMAS` e `cores-modulo.ts` (com teste que trava os literais); utilitário `icon-duo`.               |
+| 2    | `@phosphor-icons/react` no lugar do `lucide-react` em 193 arquivos via `scripts/codemods/lucide-to-phosphor.mjs` (AST); `IconContext` duotone no `__root`; `fill` no item ativo da sidebar e do BottomNav; `<SamiMark/>`; plugin `smq:phosphor-weights` no `vite.config.ts`. |
+| 3    | Escala de raio 6/8/10/14; `Card` com hairline; portal por cor de módulo com data e pendências na faixa; `NavBreadcrumb` no header do shell; hero da Home sem vidro; 77 rótulos em caixa alta convertidos; dourado deixa de ser CTA em 12 botões.                             |
+| 4    | DataTable compacta no desktop (confortável no celular); dossiê com cabeçalho unificado (`PageHeader.titleAddon`), trilha de etapas numerada e "Resumo da Sami"; kanban com a cor da etapa só no fio de 2px do topo.                                                          |
+| 5    | `EmptyState` com ícone duotone navy/dourado; este registro; smoke test do artefato de produção.                                                                                                                                                                              |
+
+### Como usar o que ficou
+
+- **Ícone novo:** `import { Nome } from "@phosphor-icons/react"`; o peso
+  padrão (duotone) vem do `IconContext`. Para o item ativo de uma navegação,
+  `weight="fill"`. Só duotone, fill e regular embarcam no bundle — se um dia
+  precisar de `bold`/`thin`/`light`, ajuste `PHOSPHOR_WEIGHTS` no
+  `vite.config.ts`.
+- **Área interna do duotone com outra cor:** envolva num contêiner com
+  `icon-duo` e defina `--icon-duo` (e opcionalmente `--icon-duo-opacity`).
+  Exemplos: sidebar (dourado), `CLASSES_MODULO[cor].tile`, `EmptyState`.
+- **Cor de um módulo:** `CLASSES_MODULO[sistema.cor]` dá `tile`, `text`,
+  `pill` e `line`. Novo módulo = novo token `--modulo-*` (claro e escuro em
+  `styles.css`), nova cor em `cores-modulo.ts` e `cor` no registro.
+- **Sami:** `<SamiMark className="h-4 w-4" />` em qualquer slot de ícone
+  (é tipado como `IconProps`). Não envolva num círculo dourado: o monograma
+  já é o disco.
+- **Rótulos:** `text-xs font-medium text-muted-foreground`, frase normal.
+  Nada de `uppercase tracking-*` fora do cabeçalho de dias do calendário.
+
+### O que ficou de fora, de propósito
+
+- **Copa (ranking) e mapa da Vitrine** usam `textTransform: "uppercase"`
+  inline como identidade própria de torneio/mapa, não como eyebrow de
+  template — ficaram como estão.
+- **Beam-border, pulse-glow, glass** em outras superfícies (pódio, Copa,
+  fechamento, insights) continuam: a decisão 15 não marcou removê-los.
+- **`components.json`** ainda declara `iconLibrary: "lucide"` porque o CLI
+  do shadcn não conhece o Phosphor; componentes novos gerados por ele
+  precisam ter o import trocado à mão (ou rodar o codemod).

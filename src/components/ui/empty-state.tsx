@@ -14,6 +14,12 @@ type EmptyStateProps = {
 /**
  * Estado vazio padronizado: ícone + título + orientação + ação. Use no lugar
  * dos "Nenhum resultado" soltos para dar sempre um próximo passo ao usuário.
+ *
+ * Identidade v3 (decisão 19): o ícone é o mesmo Phosphor duotone do resto da
+ * interface, em navy com a área interna dourada — coerente com a sidebar e
+ * sem ilustração de banco de imagens. Sempre que houver o que fazer, passe
+ * `action` (Importar leads, Criar tarefa…): vazio sem próximo passo parece
+ * tela quebrada.
  */
 export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
@@ -23,8 +29,12 @@ export function EmptyState({ icon: Icon, title, description, action, className }
         className,
       )}
     >
-      {Icon && <Icon className="h-8 w-8 text-muted-foreground/60" />}
-      <p className="text-sm font-medium">{title}</p>
+      {Icon && (
+        <span className="icon-duo mb-1 text-primary [--icon-duo:var(--color-gold)] [--icon-duo-opacity:0.35]">
+          <Icon className="h-11 w-11" aria-hidden="true" />
+        </span>
+      )}
+      <p className="text-sm font-semibold">{title}</p>
       {description && <p className="max-w-sm text-xs text-muted-foreground">{description}</p>}
       {action && <div className="mt-2">{action}</div>}
     </div>
