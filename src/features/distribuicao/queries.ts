@@ -751,6 +751,34 @@ export function useRodarDistribuicao() {
   });
 }
 
+/** Escoa o estoque de leads sem corretor para os aptos da roleta. */
+export function useEscoarEstoque(slug: string) {
+  const invalidate = useInvalidateDistribuicao();
+  return useMutation({
+    mutationFn: async (limite = 200) => {
+      const { data, error } = await supabase.rpc("distribuir_estoque_roleta", {
+        _roleta: slug,
+        _limite: limite,
+      });
+      if (error) throw error;
+      return data as {
+        distribuidos?: number;
+        parou_sem_apto?: boolean;
+        restante_estoque?: number;
+      } | null;
+    },
+    onSuccess: (res) => {
+      invalidate();
+      toast.success(
+        `${res?.distribuidos ?? 0} leads do estoque distribuídos · ` +
+          `${res?.restante_estoque ?? 0} ainda no estoque` +
+          (res?.parou_sem_apto ? " (parou: sem corretor apto no momento)" : ""),
+      );
+    },
+    onError: (e: Error) => toast.error(`Falha ao escoar estoque: ${e.message}`),
+  });
+}
+
 export function useAtualizarSetting() {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
