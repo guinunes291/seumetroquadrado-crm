@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { SectionHeader } from "@/components/ui/section-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Radio, ShieldAlert, Users, Settings2 } from "lucide-react";
+import { Radio, ShieldWarning, Sliders, UsersThree } from "@phosphor-icons/react";
 
 type Roleta = {
   id: string;
@@ -109,7 +109,7 @@ export function CampanhasPage() {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
-          <ShieldAlert className="h-10 w-10" />
+          <ShieldWarning className="h-10 w-10" />
           <div className="font-medium">Acesso restrito</div>
           <div className="text-sm">Esta área é exclusiva para administradores.</div>
         </CardContent>
@@ -132,7 +132,7 @@ export function CampanhasPage() {
         />
         <Button asChild size="sm">
           <Link to="/distribuicao" search={{ tab: "filas" }}>
-            <Settings2 className="mr-1 h-3.5 w-3.5" /> Gerenciar na Central de Distribuição
+            <Sliders className="mr-1 h-3.5 w-3.5" /> Gerenciar na Central de Distribuição
           </Link>
         </Button>
       </div>
@@ -195,7 +195,7 @@ export function CampanhasPage() {
                   </TableCell>
                   <TableCell className="text-right align-top">
                     <Button size="sm" variant="outline" onClick={() => setEquipeDe(r)}>
-                      <Users className="mr-1 h-3.5 w-3.5" /> Equipe
+                      <UsersThree className="mr-1 h-3.5 w-3.5" /> Equipe
                     </Button>
                   </TableCell>
                 </TableRow>

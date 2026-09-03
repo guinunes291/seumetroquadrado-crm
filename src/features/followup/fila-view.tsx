@@ -64,23 +64,23 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { ResumoIA } from "@/components/resumo-ia";
 import {
-  Ban,
-  Building2,
+  ArrowBendUpLeft,
+  ArrowSquareOut,
+  Bank,
+  Buildings,
   CalendarCheck,
-  CalendarClock,
-  ClipboardCheck,
+  CalendarDots,
+  ClipboardText,
   Clock,
-  ExternalLink,
-  Landmark,
+  Confetti,
   Megaphone,
-  MessageCircle,
-  MessageCircleReply,
-  PartyPopper,
   Phone,
   PiggyBank,
+  Prohibit,
   Target,
   Wallet,
-} from "lucide-react";
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 
 const ATALHOS = "Atalhos: ← → navegar · W WhatsApp · L ligar · D desfecho.";
 
@@ -335,7 +335,7 @@ export function FilaFollowUpView() {
       variant={canalHoje === "whatsapp" ? "default" : "outline"}
       onClick={doWhatsApp}
     >
-      <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
+      <WhatsappLogo className="mr-1 h-4 w-4" /> WhatsApp
     </Button>
   );
   const acaoLigar = (
@@ -400,7 +400,7 @@ export function FilaFollowUpView() {
         </Card>
       ) : !current ? (
         <EmptyState
-          icon={PartyPopper}
+          icon={Confetti}
           title="Fila zerada 🎉"
           description="Todos os toques do dia foram dados. Os próximos entram aqui quando vencerem — bom momento para avançar a carteira no Atender."
           action={
@@ -424,7 +424,7 @@ export function FilaFollowUpView() {
               <div className="flex items-center gap-2">
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/leads/$leadId" params={{ leadId: current.id }}>
-                    <ExternalLink className="mr-1 h-4 w-4" /> Abrir
+                    <ArrowSquareOut className="mr-1 h-4 w-4" /> Abrir
                   </Link>
                 </Button>
                 <LeadStageMenu
@@ -448,7 +448,7 @@ export function FilaFollowUpView() {
               <TemperatureChip temperatura={current.temperatura} />
               {current.respondeu && (
                 <Badge variant="destructive" className="gap-1">
-                  <MessageCircleReply className="h-3 w-3" /> Respondeu!
+                  <ArrowBendUpLeft className="h-3 w-3" /> Respondeu!
                 </Badge>
               )}
               {current.minutos_vencido > 0 && (
@@ -472,7 +472,7 @@ export function FilaFollowUpView() {
                     </>
                   ) : (
                     <>
-                      <MessageCircle className="h-3 w-3" /> Toque por WhatsApp
+                      <WhatsappLogo className="h-3 w-3" /> Toque por WhatsApp
                     </>
                   )}
                 </Badge>
@@ -501,10 +501,10 @@ export function FilaFollowUpView() {
 
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <InfoLine icon={Phone} label="Telefone" value={current.telefone} />
-              <InfoLine icon={Building2} label="Projeto" value={current.projeto_nome ?? "—"} />
+              <InfoLine icon={Buildings} label="Projeto" value={current.projeto_nome ?? "—"} />
               <InfoLine icon={Megaphone} label="Origem" value={origemLabel(current.origem)} />
               <InfoLine
-                icon={CalendarClock}
+                icon={CalendarDots}
                 label="Último contato"
                 value={fmtDate(current.ultima_interacao)}
               />
@@ -514,7 +514,7 @@ export function FilaFollowUpView() {
             <Separator />
 
             <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
                 Perfil financeiro
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -529,7 +529,7 @@ export function FilaFollowUpView() {
                   value={current.entrada_disponivel ?? "Não informada"}
                 />
                 <InfoTile
-                  icon={Landmark}
+                  icon={Bank}
                   label="FGTS"
                   value={
                     current.usa_fgts === true
@@ -544,9 +544,7 @@ export function FilaFollowUpView() {
 
             {current.observacoes && (
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Observações
-                </div>
+                <div className="mb-2 text-xs font-medium text-muted-foreground">Observações</div>
                 <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-sm text-foreground/90">
                   {current.observacoes}
                 </p>
@@ -564,7 +562,7 @@ export function FilaFollowUpView() {
               disabled={semResposta.isPending}
               onClick={() => setDesfechoOpen(true)}
             >
-              <ClipboardCheck className="mr-1 h-4 w-4" /> Desfecho do toque
+              <ClipboardText className="mr-1 h-4 w-4" /> Desfecho do toque
             </Button>
 
             <div className="flex items-center justify-between border-t pt-4">
@@ -635,7 +633,7 @@ function DesfechoDialog({
       key: "respondeu",
       label: "Respondeu",
       hint: "continue a conversa nas Mensagens — nada é agendado",
-      icon: MessageCircleReply,
+      icon: ArrowBendUpLeft,
     },
     {
       key: "agendou",
@@ -647,7 +645,7 @@ function DesfechoDialog({
       key: "descartar",
       label: "Descartar",
       hint: "marca como perdido, com o motivo",
-      icon: Ban,
+      icon: Prohibit,
       destrutivo: true,
     },
   ];

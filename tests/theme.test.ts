@@ -15,12 +15,12 @@ describe("parseThemePref", () => {
     expect(parseThemePref("system")).toBe("system");
   });
 
-  it("cai no padrão (dark) para qualquer outra entrada", () => {
-    expect(DEFAULT_THEME_PREF).toBe("dark");
-    expect(parseThemePref(null)).toBe("dark");
-    expect(parseThemePref(undefined)).toBe("dark");
-    expect(parseThemePref("")).toBe("dark");
-    expect(parseThemePref("blue")).toBe("dark");
+  it("cai no padrão (light) para qualquer outra entrada", () => {
+    expect(DEFAULT_THEME_PREF).toBe("light");
+    expect(parseThemePref(null)).toBe("light");
+    expect(parseThemePref(undefined)).toBe("light");
+    expect(parseThemePref("")).toBe("light");
+    expect(parseThemePref("blue")).toBe("light");
   });
 });
 
@@ -41,12 +41,14 @@ describe("THEME_INIT_SCRIPT (anti-FOUC)", () => {
     expect(THEME_INIT_SCRIPT).toContain(THEME_STORAGE_KEY);
   });
 
-  it("espelha o padrão dark: só deixa de aplicar .dark quando o usuário pediu claro", () => {
-    // dark é aplicado exceto em light explícito / system+SO claro — inclusive no catch.
-    expect(THEME_INIT_SCRIPT).toContain('t==="light"');
+  it("espelha o padrão light: só aplica .dark quando o usuário pediu escuro", () => {
+    // .dark só entra em dark explícito / system+SO escuro — e nunca no catch.
+    expect(THEME_INIT_SCRIPT).toContain('t==="dark"');
     expect(THEME_INIT_SCRIPT).toContain('t==="system"');
-    expect(THEME_INIT_SCRIPT).toContain("prefers-color-scheme: light");
-    expect(THEME_INIT_SCRIPT).toContain('catch(e){document.documentElement.classList.add("dark")');
+    expect(THEME_INIT_SCRIPT).toContain("prefers-color-scheme: dark");
+    expect(THEME_INIT_SCRIPT).toContain(
+      'catch(e){document.documentElement.classList.remove("dark")',
+    );
   });
 
   it("é framework-free (sem import/require)", () => {

@@ -1,4 +1,4 @@
-import { Moon, Sun, Monitor, Check } from "lucide-react";
+import { Check, Monitor, Moon, Sun } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,8 +10,8 @@ import { useTheme } from "@/hooks/use-theme";
 import { THEME_PREF_LABEL, type ThemePref } from "@/lib/theme";
 
 const OPTIONS: { pref: ThemePref; icon: typeof Sun }[] = [
-  { pref: "dark", icon: Moon },
   { pref: "light", icon: Sun },
+  { pref: "dark", icon: Moon },
   { pref: "system", icon: Monitor },
 ];
 

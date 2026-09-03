@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, MessageCircle, Sparkles } from "lucide-react";
+import { CircleNotch, WhatsappLogo } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -122,7 +123,7 @@ export function WhatsappLeadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button className="bg-emerald-600 text-white hover:bg-emerald-700">
-          <MessageCircle className="h-4 w-4 mr-2" /> WhatsApp
+          <WhatsappLogo className="h-4 w-4 mr-2" /> WhatsApp
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -166,7 +167,7 @@ export function WhatsappLeadDialog({
           </div>
           <div className="rounded-lg border bg-muted/30 p-2.5 space-y-2">
             <div className="flex items-center gap-1.5 text-xs font-medium">
-              <Sparkles className="h-3.5 w-3.5 text-primary" /> Sugerir com IA
+              <SamiMark className="h-3.5 w-3.5 text-primary" /> Sugerir com IA
             </div>
             <Select value={waObjetivo} onValueChange={(v) => setWaObjetivo(v as ObjetivoMensagem)}>
               <SelectTrigger className="h-8">
@@ -210,11 +211,11 @@ export function WhatsappLeadDialog({
             >
               {sugerirMensagem.isPending ? (
                 <>
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Gerando…
+                  <CircleNotch className="mr-1 h-3.5 w-3.5 animate-spin" /> Gerando…
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-1 h-3.5 w-3.5" /> Gerar rascunho
+                  <SamiMark className="mr-1 h-3.5 w-3.5" /> Gerar rascunho
                 </>
               )}
             </Button>

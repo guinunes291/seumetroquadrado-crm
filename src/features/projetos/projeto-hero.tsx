@@ -5,8 +5,15 @@
 // desta tela.
 
 import { toast } from "sonner";
-import { CalendarClock, Copy, ExternalLink, MapPin, Star, Wallet } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import {
+  ArrowSquareOut,
+  CalendarDots,
+  Copy,
+  MapPin,
+  Star,
+  Wallet,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { montarMensagemVenda } from "@/components/projeto-comercial";
@@ -38,7 +45,7 @@ export type ProjetoHeroData = {
 
 const GLASS_BTN = "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white";
 
-function HeroChip({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+function HeroChip({ icon: Icon, children }: { icon: IconComponent; children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
       <Icon className="h-3.5 w-3.5 text-gold-300" aria-hidden="true" />
@@ -120,7 +127,7 @@ export function ProjetoHero({
             <div className="flex flex-wrap gap-1.5 pt-1">
               {localizacao && <HeroChip icon={MapPin}>{localizacao}</HeroChip>}
               {projeto.zona_smq && <HeroChip icon={MapPin}>Zona {projeto.zona_smq}</HeroChip>}
-              {entrega && <HeroChip icon={CalendarClock}>{entrega}</HeroChip>}
+              {entrega && <HeroChip icon={CalendarDots}>{entrega}</HeroChip>}
               {projeto.renda_minima != null && (
                 <HeroChip icon={Wallet}>
                   Renda a partir de {formatBRL(projeto.renda_minima)}
@@ -133,7 +140,7 @@ export function ProjetoHero({
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-medium uppercase tracking-[0.14em] text-white/70">
+            <div className="text-xs font-medium text-white/70">
               {projeto.sob_consulta ? "Preço" : "A partir de"}
             </div>
             <div className="font-display mt-0.5 text-3xl font-semibold tracking-tight text-gold-300 tabular-nums">
@@ -151,7 +158,7 @@ export function ProjetoHero({
             {temMunicao && (
               <Button
                 size="sm"
-                className="bg-gradient-gold text-navy-900 press-scale hover:opacity-90"
+                className="press-scale"
                 title="Copia uma mensagem de venda pronta (nome, preço, diferenciais e argumento) para colar no WhatsApp"
                 onClick={() => {
                   navigator.clipboard.writeText(montarMensagemVenda(projeto));
@@ -164,14 +171,14 @@ export function ProjetoHero({
             {projeto.book_url && (
               <Button size="sm" variant="outline" className={GLASS_BTN} asChild>
                 <a href={projeto.book_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-1 h-3.5 w-3.5" /> Book
+                  <ArrowSquareOut className="mr-1 h-3.5 w-3.5" /> Book
                 </a>
               </Button>
             )}
             {projeto.tabela_precos_url && (
               <Button size="sm" variant="outline" className={GLASS_BTN} asChild>
                 <a href={projeto.tabela_precos_url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="mr-1 h-3.5 w-3.5" /> Tabela de preços
+                  <ArrowSquareOut className="mr-1 h-3.5 w-3.5" /> Tabela de preços
                 </a>
               </Button>
             )}

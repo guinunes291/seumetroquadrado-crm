@@ -5,7 +5,7 @@
 // disponível. É estimativa: o aviso acompanha sempre.
 
 import { useEffect, useState } from "react";
-import { Wallet, X } from "lucide-react";
+import { Wallet, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,10 +60,7 @@ export function RendaCliente({
             <Wallet className="h-5 w-5 text-gold-400" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
-            <Label
-              htmlFor="renda-cliente"
-              className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground"
-            >
+            <Label htmlFor="renda-cliente" className="text-xs font-medium text-muted-foreground">
               {nomeLead
                 ? `Renda familiar de ${nomeLead.split(" ")[0]}`
                 : "Renda familiar do cliente"}

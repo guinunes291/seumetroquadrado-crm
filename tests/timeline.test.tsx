@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Phone } from "lucide-react";
+import { Phone } from "@phosphor-icons/react";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
 
 function iso(daysAgo: number, hour = 10): string {

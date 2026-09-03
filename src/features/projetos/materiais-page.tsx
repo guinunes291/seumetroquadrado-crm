@@ -19,18 +19,18 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ArrowSquareOut,
   BookOpen,
-  Building2,
-  ClipboardPaste,
-  ExternalLink,
+  Buildings,
+  Clipboard,
+  FloppyDisk,
   Image as ImageIcon,
-  Save,
-  Search,
+  MagnifyingGlass,
   Star,
-  Table2,
+  Table,
   Wallet,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -331,7 +331,7 @@ export function MateriaisPage() {
           actions={
             <>
               <Button variant="outline" size="sm" onClick={() => setColarOpen(true)}>
-                <ClipboardPaste className="mr-1 h-4 w-4" />
+                <Clipboard className="mr-1 h-4 w-4" />
                 Colar lista
               </Button>
               <Button asChild variant="outline" size="sm">
@@ -357,7 +357,7 @@ export function MateriaisPage() {
           <StatTile
             title="Com tabela"
             value={comTabela}
-            icon={Table2}
+            icon={Table}
             loading={projetosQ.isLoading}
             hint={total > 0 ? `de ${total} empreendimentos` : undefined}
           />
@@ -392,7 +392,7 @@ export function MateriaisPage() {
 
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
@@ -417,14 +417,14 @@ export function MateriaisPage() {
           </div>
         ) : total === 0 ? (
           <EmptyState
-            icon={Building2}
+            icon={Buildings}
             title="Nenhum empreendimento ativo"
             description="Cadastre projetos no catálogo para preencher os materiais aqui."
             className="py-12"
           />
         ) : filtrados.length === 0 ? (
           <EmptyState
-            icon={soFaltando ? Star : Search}
+            icon={soFaltando ? Star : MagnifyingGlass}
             title={
               soFaltando && !busca.trim()
                 ? "Todo empreendimento já tem book, tabela, capa e preço"
@@ -461,7 +461,7 @@ export function MateriaisPage() {
                       aria-label="Construtora parceira"
                     />
                   ) : (
-                    <Building2 className="h-4 w-4 text-primary" aria-hidden="true" />
+                    <Buildings className="h-4 w-4 text-primary" aria-hidden="true" />
                   )}
                   <h2 className="font-display text-sm font-semibold tracking-tight">{g.titulo}</h2>
                   <Badge variant="outline" className="text-[10px]">
@@ -508,7 +508,7 @@ export function MateriaisPage() {
                 loading={salvar.isPending}
                 disabled={invalidos > 0 || pendentes.length === 0}
               >
-                <Save className="mr-1 h-4 w-4" />
+                <FloppyDisk className="mr-1 h-4 w-4" />
                 Salvar
               </Button>
             </div>
@@ -622,7 +622,7 @@ function LinhaMaterial({
         <Button asChild variant="ghost" size="sm">
           <Link to="/projetos/$projetoId" params={{ projetoId: projeto.id }}>
             Ficha
-            <ExternalLink className="ml-1 h-3.5 w-3.5" />
+            <ArrowSquareOut className="ml-1 h-3.5 w-3.5" />
           </Link>
         </Button>
       </div>
@@ -637,7 +637,7 @@ function LinhaMaterial({
         />
         <CampoUrl
           id={`tabela-${projeto.id}`}
-          icone={Table2}
+          icone={Table}
           rotulo="Tabela de preços"
           valor={edicao.tabela_precos_url}
           onChange={(v) => onChange("tabela_precos_url", v)}
@@ -717,7 +717,7 @@ function CampoUrl({
               rel="noopener noreferrer"
               aria-label={`Abrir ${rotulo.toLowerCase()} de ${projeto}`}
             >
-              <ExternalLink className="h-4 w-4" />
+              <ArrowSquareOut className="h-4 w-4" />
             </a>
           </Button>
         )}

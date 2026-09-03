@@ -15,7 +15,15 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ArrowRight, CheckCircle2, XCircle, Building2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Buildings,
+  Calculator,
+  CheckCircle,
+  Robot,
+  XCircle,
+} from "@phosphor-icons/react";
 import {
   calcularOrcamento,
   avaliarAderencia,
@@ -35,7 +43,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePublicarFaseDoLeadPorId } from "@/features/nav/contexto-jornada";
 import { BuscadorIA } from "@/components/match/buscador-ia";
-import { Calculator, Bot } from "lucide-react";
 
 const searchSchema = z.object({
   leadId: z.string().optional(),
@@ -104,7 +111,7 @@ function MatchPage() {
             <Calculator className="h-4 w-4" /> Match financeiro
           </TabsTrigger>
           <TabsTrigger value="ia" className="gap-2">
-            <Bot className="h-4 w-4" /> Buscador IA
+            <Robot className="h-4 w-4" /> Buscador IA
           </TabsTrigger>
         </TabsList>
 
@@ -451,7 +458,7 @@ function MatchList({
 
       {items.length === 0 && (
         <EmptyState
-          icon={Building2}
+          icon={Buildings}
           title="Nenhum empreendimento no match"
           description={
             semPreco > 0
@@ -476,7 +483,7 @@ function MatchList({
                     search={leadId ? { leadId } : undefined}
                     className="font-semibold hover:underline flex items-center gap-2"
                   >
-                    <Building2 className="h-4 w-4" />
+                    <Buildings className="h-4 w-4" />
                     {p.nome}
                   </Link>
                   <div className="text-xs text-muted-foreground">
@@ -485,7 +492,7 @@ function MatchList({
                 </div>
                 {a.cabe ? (
                   <Badge variant="default" className="gap-1">
-                    <CheckCircle2 className="h-3 w-3" /> Cabe
+                    <CheckCircle className="h-3 w-3" /> Cabe
                   </Badge>
                 ) : (
                   <Badge variant="destructive" className="gap-1">

@@ -17,21 +17,21 @@ import {
   type SamiQSugestao,
 } from "@/lib/samiq";
 import {
-  ClipboardList,
+  CircleNotch,
+  Clipboard,
   Copy,
-  FileCheck2,
-  Flame,
-  ListOrdered,
-  Loader2,
-  MessageCircle,
+  Fire,
+  ListChecks,
+  ListNumbers,
+  PaperPlaneTilt,
+  Path as RouteIcon,
   PhoneCall,
-  Route as RouteIcon,
-  Send,
-  ShieldQuestion,
-  Sparkles,
+  ShieldWarning,
   User,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+  WhatsappLogo,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 
 type Msg = {
   role: "user" | "assistant";
@@ -39,17 +39,17 @@ type Msg = {
   sugestoes?: SamiQSugestao[];
 };
 
-const QUICK_ACTIONS: { action: SamiQAction; icon: LucideIcon }[] = [
+const QUICK_ACTIONS: { action: SamiQAction; icon: IconComponent }[] = [
   { action: "resumo_cliente", icon: User },
-  { action: "mensagem_sugerida", icon: MessageCircle },
-  { action: "responder_objecao", icon: ShieldQuestion },
+  { action: "mensagem_sugerida", icon: WhatsappLogo },
+  { action: "responder_objecao", icon: ShieldWarning },
   { action: "proximo_passo", icon: RouteIcon },
-  { action: "projeto_ideal", icon: Sparkles },
-  { action: "checklist_docs", icon: FileCheck2 },
-  { action: "recuperar_frio", icon: Flame },
+  { action: "projeto_ideal", icon: SamiMark },
+  { action: "checklist_docs", icon: ListChecks },
+  { action: "recuperar_frio", icon: Fire },
   { action: "script_ligacao", icon: PhoneCall },
-  { action: "prioridade_dia", icon: ListOrdered },
-  { action: "analise_funil", icon: ClipboardList },
+  { action: "prioridade_dia", icon: ListNumbers },
+  { action: "analise_funil", icon: Clipboard },
 ];
 
 const UUID_RE = /^\/leads\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
@@ -238,7 +238,7 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
 
           {mutation.isPending && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" /> SamiQ pensando…
+              <CircleNotch className="h-4 w-4 animate-spin text-primary" /> SamiQ pensando…
             </div>
           )}
         </div>
@@ -270,10 +270,9 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
             size="icon"
             disabled={!input.trim() || mutation.isPending}
             onClick={enviarLivre}
-            className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
             aria-label="Enviar"
           >
-            <Send className="h-4 w-4" />
+            <PaperPlaneTilt className="h-4 w-4" />
           </Button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">

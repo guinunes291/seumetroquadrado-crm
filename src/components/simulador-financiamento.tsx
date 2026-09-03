@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Calculator, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Calculator, CheckCircle, Warning, XCircle } from "@phosphor-icons/react";
 import { parseValorBR } from "@/lib/simulador";
 import { calcularOrcamento, avaliarAderencia, brl } from "@/lib/orcamento";
 
@@ -105,7 +105,7 @@ export function SimuladorFinanciamento({
 
         {!orc.enquadra ? (
           <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-500/5 p-3 text-sm text-amber-700">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <Warning className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{orc.motivoNaoEnquadra ?? "Renda fora da tabela APROVE."}</span>
           </div>
         ) : (
@@ -125,10 +125,26 @@ export function SimuladorFinanciamento({
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Resultado titulo="Parcela estimada" valor={brl(orc.parcelaEstimada)} sub={`taxa ${orc.taxaEfetiva}`} />
-              <Resultado titulo="Financiamento" valor={brl(orc.financiamento)} sub={orc.usouRedutor ? "com redutor" : "sem redutor"} />
-              <Resultado titulo="Subsídio" valor={brl(orc.subsidio)} sub={orc.subsidio > 0 ? "Faixa 1" : "não contempla"} />
-              <Resultado titulo="Recursos (não construtora)" valor={brl(orc.recursosNaoConstrutora)} sub="fin + sub + FGTS + entrada" />
+              <Resultado
+                titulo="Parcela estimada"
+                valor={brl(orc.parcelaEstimada)}
+                sub={`taxa ${orc.taxaEfetiva}`}
+              />
+              <Resultado
+                titulo="Financiamento"
+                valor={brl(orc.financiamento)}
+                sub={orc.usouRedutor ? "com redutor" : "sem redutor"}
+              />
+              <Resultado
+                titulo="Subsídio"
+                valor={brl(orc.subsidio)}
+                sub={orc.subsidio > 0 ? "Faixa 1" : "não contempla"}
+              />
+              <Resultado
+                titulo="Recursos (não construtora)"
+                valor={brl(orc.recursosNaoConstrutora)}
+                sub="fin + sub + FGTS + entrada"
+              />
             </div>
 
             <div className="border-t pt-3">
@@ -152,7 +168,7 @@ export function SimuladorFinanciamento({
                   )}
                 >
                   {aderencia.cabe ? (
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   ) : (
                     <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   )}

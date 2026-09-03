@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, Checks } from "@phosphor-icons/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -99,7 +99,7 @@ export function NotificationBell() {
               onClick={() => markAllRead.mutate()}
               disabled={markAllRead.isPending}
             >
-              <CheckCheck className="h-3.5 w-3.5 mr-1" /> Marcar todas
+              <Checks className="h-3.5 w-3.5 mr-1" /> Marcar todas
             </Button>
           )}
         </div>

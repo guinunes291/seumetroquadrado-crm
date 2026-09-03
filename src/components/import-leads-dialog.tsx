@@ -24,13 +24,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Upload,
-  FileSpreadsheet,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  Download,
-} from "lucide-react";
+  CheckCircle,
+  CircleNotch,
+  DownloadSimple,
+  FileXls,
+  UploadSimple,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { useUserRoles } from "@/hooks/use-auth";
 import { importarLeads, type ImportResult } from "@/lib/leads-import.functions";
@@ -224,7 +224,7 @@ export function ImportLeadsDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
+            <FileXls className="h-5 w-5" />
             Importar leads
           </DialogTitle>
           <DialogDescription>
@@ -241,7 +241,7 @@ export function ImportLeadsDialog({
                   htmlFor="file-upload"
                   className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 cursor-pointer hover:border-muted-foreground/60 transition-colors"
                 >
-                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <UploadSimple className="h-8 w-8 text-muted-foreground" />
                   <span className="text-sm font-medium">Clique para selecionar uma planilha</span>
                   <span className="text-xs text-muted-foreground">.xlsx, .xls ou .csv</span>
                   <Input
@@ -410,7 +410,7 @@ export function ImportLeadsDialog({
               >
                 {importar.isPending ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <CircleNotch className="h-4 w-4 mr-2 animate-spin" />
                     Importando…
                   </>
                 ) : (
@@ -468,7 +468,7 @@ export function ImportLeadsDialog({
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <Label className="flex items-center gap-1">
-                    <AlertCircle className="h-4 w-4" />
+                    <WarningCircle className="h-4 w-4" />
                     Linhas não importadas ({resultado.detalhes.length})
                   </Label>
                   <Button
@@ -476,7 +476,7 @@ export function ImportLeadsDialog({
                     size="sm"
                     onClick={() => baixarRelatorioErros(resultado)}
                   >
-                    <Download className="h-4 w-4 mr-2" />
+                    <DownloadSimple className="h-4 w-4 mr-2" />
                     Baixar relatório (CSV)
                   </Button>
                 </div>
@@ -514,7 +514,7 @@ export function ImportLeadsDialog({
                 Importar outra planilha
               </Button>
               <Button onClick={() => onOpenChange(false)}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+                <CheckCircle className="h-4 w-4 mr-2" />
                 Concluir
               </Button>
             </DialogFooter>

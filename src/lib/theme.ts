@@ -1,17 +1,18 @@
 // Tema da Central de Comando SMQ. Função PURA e testável; o hook use-theme e o
-// script anti-FOUC do __root.tsx derivam daqui. O padrão do produto é o escuro
-// ("Modo Comando") — o claro ("Clareza") é opt-in, persistido por dispositivo.
+// script anti-FOUC do __root.tsx derivam daqui. O padrão do produto é o CLARO
+// ("Clareza", identidade v3) — o escuro ("Modo Comando") é opt-in, persistido
+// por dispositivo.
 
 export type ThemePref = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "smq-theme";
-export const DEFAULT_THEME_PREF: ThemePref = "dark";
+export const DEFAULT_THEME_PREF: ThemePref = "light";
 
 /** Cor do chrome do navegador (meta theme-color) por tema resolvido. */
 export const THEME_COLORS: Record<ResolvedTheme, string> = {
   dark: "#0c111d",
-  light: "#fdfdfe",
+  light: "#f5f7f9",
 };
 
 /** Normaliza o valor cru do localStorage (ou qualquer entrada) para uma preferência válida. */
@@ -26,8 +27,8 @@ export function resolveTheme(pref: ThemePref, systemDark: boolean): ResolvedThem
 }
 
 export const THEME_PREF_LABEL: Record<ThemePref, string> = {
-  dark: "Modo Comando (escuro)",
   light: "Clareza (claro)",
+  dark: "Modo Comando (escuro)",
   system: "Seguir o sistema",
 };
 
@@ -41,9 +42,10 @@ export function applyTheme(resolved: ResolvedTheme): void {
 
 /**
  * Script inline injetado no <head> pelo __root.tsx ANTES do primeiro paint,
- * para não piscar claro→escuro (FOUC). Precisa ser framework-free, idempotente
- * e espelhar resolveTheme: dark é o padrão na ausência de preferência salva.
+ * para não piscar escuro→claro (FOUC). Precisa ser framework-free, idempotente
+ * e espelhar resolveTheme: claro é o padrão na ausência de preferência salva —
+ * .dark só entra com "dark" explícito ou "system" + SO escuro (e nunca no catch).
  */
 export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${JSON.stringify(
   THEME_STORAGE_KEY,
-)});var light=t==="light"||(t==="system"&&matchMedia("(prefers-color-scheme: light)").matches);document.documentElement.classList.toggle("dark",!light)}catch(e){document.documentElement.classList.add("dark")}})()`;
+)});var dark=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",dark)}catch(e){document.documentElement.classList.remove("dark")}})()`;

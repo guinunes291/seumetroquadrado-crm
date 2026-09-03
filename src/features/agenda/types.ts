@@ -3,8 +3,14 @@
 // e o formulário. Extraído da rota na Fase 7: mesmos valores, zero mudança de
 // regra.
 
-import { AlarmClock, CalendarDays, MapPinned, Phone, Users } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import {
+  Alarm,
+  CalendarDots,
+  MapPinArea,
+  Phone,
+  UsersThree,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import { HUE_BADGE, HUE_DOT, INTENT_BADGE } from "@/lib/status-tones";
 
 export const TIPO_OPTIONS = ["visita", "reuniao", "ligacao", "follow_up", "outro"] as const;
@@ -52,12 +58,12 @@ export const TIPO_DOT: Record<string, string> = {
 };
 
 /** Ícone por tipo — timeline e legendas. */
-export const TIPO_ICON: Record<string, LucideIcon> = {
-  visita: MapPinned,
-  reuniao: Users,
+export const TIPO_ICON: Record<string, IconComponent> = {
+  visita: MapPinArea,
+  reuniao: UsersThree,
   ligacao: Phone,
-  follow_up: AlarmClock,
-  outro: CalendarDays,
+  follow_up: Alarm,
+  outro: CalendarDots,
 };
 
 /** Tom do ícone da timeline — mesmos hues dos dots (status-tones). */

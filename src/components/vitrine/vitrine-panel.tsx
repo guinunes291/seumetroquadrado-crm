@@ -2,7 +2,14 @@ import { Link } from "@tanstack/react-router";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Table2, MessageCircle, MapPin, ExternalLink, Building2 } from "lucide-react";
+import {
+  ArrowSquareOut,
+  BookOpen,
+  Buildings,
+  MapPin,
+  Table,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import {
   formatBRL,
@@ -42,7 +49,7 @@ const precoLabel = (p: ProjetoRow): string =>
 function Spec({ k, v }: { k: string; v: string }) {
   return (
     <div className="rounded-lg border p-2.5">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{k}</div>
+      <div className="text-xs font-medium text-muted-foreground">{k}</div>
       <div className="mt-0.5 text-sm font-semibold">{v}</div>
     </div>
   );
@@ -66,7 +73,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
         {p && (
           <>
             <SheetHeader className="space-y-2 border-b bg-primary/5 px-5 py-4 text-left">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 {[zona ? `Zona ${zona}` : null, p.bairro].filter(Boolean).join(" · ") ||
                   "Localização a confirmar"}
               </div>
@@ -83,9 +90,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
 
             <div className="flex-1 space-y-5 overflow-auto px-5 py-4">
               <div className="rounded-lg border border-l-4 border-l-amber-400 bg-muted/40 p-3.5">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                  Preço a partir de
-                </div>
+                <div className="text-xs font-medium text-muted-foreground">Preço a partir de</div>
                 <div className="mt-0.5 text-2xl font-extrabold tabular-nums">{precoLabel(p)}</div>
                 <div className="mt-1 text-[11px] text-muted-foreground">
                   Valor da tabela vigente da construtora
@@ -145,8 +150,8 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
                 params={{ projetoId: p.id }}
                 className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
               >
-                <Building2 className="h-4 w-4" /> Ver ficha completa
-                <ExternalLink className="h-3 w-3" />
+                <Buildings className="h-4 w-4" /> Ver ficha completa
+                <ArrowSquareOut className="h-3 w-3" />
               </Link>
             </div>
 
@@ -159,14 +164,14 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
                   url={p.book_url}
                 />
                 <MaterialButton
-                  icon={Table2}
+                  icon={Table}
                   label="Tabela"
                   hint="Preços atualizados"
                   url={p.tabela_precos_url}
                 />
               </div>
               <Button className="w-full gap-2" onClick={() => onEnviar(p)}>
-                <MessageCircle className="h-4 w-4" />
+                <WhatsappLogo className="h-4 w-4" />
                 {primeiroNome
                   ? `Enviar pro ${primeiroNome} (WhatsApp)`
                   : "Enviar pro cliente (WhatsApp)"}
@@ -181,7 +186,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
       <span className="h-0.5 w-3.5 rounded bg-amber-400" />
       {children}
     </div>

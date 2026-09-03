@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2 } from "lucide-react";
+import { CircleNotch } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { gerarResumoLeadIA } from "@/lib/lead-resumo-ia.functions";
 
 /**
@@ -25,15 +26,17 @@ export function ResumoIA({ leadId }: { leadId: string }) {
   });
 
   return (
-    <div className="rounded-lg border bg-gradient-to-br from-primary/5 to-accent/5 p-4">
+    // Única superfície da ficha com dourado (o fio da borda): é onde a Sami
+    // fala. Sem gradiente — identidade v3, decisões 8 e 10.
+    <div className="rounded-lg border border-gold-500/35 bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="h-4 w-4 text-primary" /> Histórico do lead (IA)
+          <SamiMark className="h-5 w-5" /> Resumo da Sami
         </div>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
           {isFetching ? (
             <>
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Gerando…
+              <CircleNotch className="mr-1 h-3 w-3 animate-spin" /> Gerando…
             </>
           ) : data ? (
             "Regenerar"
@@ -57,7 +60,8 @@ export function ResumoIA({ leadId }: { leadId: string }) {
       )}
       {!data && !error && !isFetching && (
         <p className="mt-2 text-xs text-muted-foreground">
-          Clique em "Gerar resumo" para um briefing rápido das interações deste lead.
+          A Sami lê o histórico do lead e resume em três linhas o que importa antes do próximo
+          contato. Clique em "Gerar resumo".
         </p>
       )}
     </div>

@@ -37,23 +37,23 @@ import {
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
 import {
-  Phone,
-  MessageCircle,
+  ArrowSquareOut,
+  Bank,
   CalendarCheck,
-  ChevronLeft,
-  ChevronRight,
+  CalendarDots,
+  CaretLeft,
+  CaretRight,
   Clock,
-  Mail,
-  Flame,
-  Inbox,
-  Wallet,
-  PiggyBank,
-  Landmark,
-  IdCard,
-  ExternalLink,
-  CalendarClock,
+  Envelope,
+  Fire,
+  IdentificationCard,
+  Phone,
   PhoneCall,
-} from "lucide-react";
+  PiggyBank,
+  Tray,
+  Wallet,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import { ResumoIA } from "@/components/resumo-ia";
 import { formatDuration } from "@/lib/duracao";
 import { scoreLead } from "@/lib/priority";
@@ -268,7 +268,7 @@ export function VolumeView() {
         </Card>
       ) : !current ? (
         <EmptyState
-          icon={Inbox}
+          icon={Tray}
           title="Sua fila está vazia"
           description="Nenhum lead ativo atribuído a você no momento. Novos leads entram aqui automaticamente."
           action={
@@ -293,7 +293,7 @@ export function VolumeView() {
               <div className="flex items-center gap-2">
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/leads/$leadId" params={{ leadId: current.id }}>
-                    <ExternalLink className="mr-1 h-4 w-4" /> Abrir
+                    <ArrowSquareOut className="mr-1 h-4 w-4" /> Abrir
                   </Link>
                 </Button>
                 <LeadStageMenu
@@ -320,7 +320,7 @@ export function VolumeView() {
                   variant="secondary"
                   className={cn("uppercase", TEMP_CLS[current.temperatura])}
                 >
-                  <Flame className="mr-1 h-3 w-3" />
+                  <Fire className="mr-1 h-3 w-3" />
                   {current.temperatura}
                 </Badge>
               )}
@@ -335,10 +335,10 @@ export function VolumeView() {
 
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <InfoLine icon={Phone} label="Telefone" value={current.telefone} />
-              <InfoLine icon={Mail} label="E-mail" value={current.email ?? "—"} />
-              <InfoLine icon={IdCard} label="CPF" value={current.cpf ?? "—"} />
+              <InfoLine icon={Envelope} label="E-mail" value={current.email ?? "—"} />
+              <InfoLine icon={IdentificationCard} label="CPF" value={current.cpf ?? "—"} />
               <InfoLine
-                icon={CalendarClock}
+                icon={CalendarDots}
                 label="Último contato"
                 value={fmtDate(current.ultimo_contato ?? current.ultima_interacao)}
               />
@@ -347,7 +347,7 @@ export function VolumeView() {
             <Separator />
 
             <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div className="mb-2 text-xs font-medium text-muted-foreground">
                 Perfil financeiro
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -362,7 +362,7 @@ export function VolumeView() {
                   value={current.entrada_disponivel ?? "Não informada"}
                 />
                 <InfoTile
-                  icon={Landmark}
+                  icon={Bank}
                   label="FGTS"
                   value={
                     current.usa_fgts === true
@@ -377,9 +377,7 @@ export function VolumeView() {
 
             {current.observacoes && (
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Observações
-                </div>
+                <div className="mb-2 text-xs font-medium text-muted-foreground">Observações</div>
                 <p className="rounded-md bg-muted/40 p-3 text-sm text-foreground/90 whitespace-pre-wrap">
                   {current.observacoes}
                 </p>
@@ -420,7 +418,7 @@ export function VolumeView() {
                 className="border-success/40 text-success hover:bg-success/10"
                 onClick={whatsapp}
               >
-                <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
+                <WhatsappLogo className="mr-1 h-4 w-4" /> WhatsApp
               </Button>
               <Button variant="outline" onClick={agendar}>
                 <CalendarCheck className="mr-1 h-4 w-4" /> Agendar
@@ -429,10 +427,10 @@ export function VolumeView() {
 
             <div className="flex items-center justify-between border-t pt-4">
               <Button variant="ghost" onClick={prev} disabled={index === 0}>
-                <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+                <CaretLeft className="mr-1 h-4 w-4" /> Anterior
               </Button>
               <Button onClick={next} disabled={index >= fila.length - 1}>
-                Próximo <ChevronRight className="ml-1 h-4 w-4" />
+                Próximo <CaretRight className="ml-1 h-4 w-4" />
               </Button>
             </div>
           </CardContent>

@@ -13,7 +13,7 @@ import {
 } from "@/lib/google-calendar.functions";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { CalendarClock, Unplug } from "lucide-react";
+import { CalendarDots, Plugs } from "@phosphor-icons/react";
 
 /**
  * Card "Google Agenda": mostra o estado da conexão do usuário atual e permite
@@ -32,8 +32,12 @@ export function GoogleCalendarCard() {
     const params = new URLSearchParams(window.location.search);
     const r = params.get("google");
     if (!r) return;
-    if (r === "conectado") toast.success("Google Agenda conectado! Novos agendamentos serão sincronizados.");
-    else toast.error("Não foi possível conectar o Google Agenda", { description: params.get("motivo") ?? undefined });
+    if (r === "conectado")
+      toast.success("Google Agenda conectado! Novos agendamentos serão sincronizados.");
+    else
+      toast.error("Não foi possível conectar o Google Agenda", {
+        description: params.get("motivo") ?? undefined,
+      });
     params.delete("google");
     params.delete("motivo");
     const qs = params.toString();
@@ -69,7 +73,7 @@ export function GoogleCalendarCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarClock className="h-4 w-4 text-info" /> Google Agenda
+          <CalendarDots className="h-4 w-4 text-info" /> Google Agenda
           {s?.connected && <Badge className={INTENT_BADGE.success}>Conectado</Badge>}
           {s && !s.connected && s.configured && (
             <Badge className={INTENT_BADGE.warning}>Não conectado</Badge>
@@ -86,8 +90,8 @@ export function GoogleCalendarCard() {
           <Skeleton className="h-9 w-44" />
         ) : !s?.configured ? (
           <p className="text-xs text-muted-foreground">
-            Integração ainda não habilitada pelo administrador (requer credenciais do Google
-            Cloud no servidor).
+            Integração ainda não habilitada pelo administrador (requer credenciais do Google Cloud
+            no servidor).
           </p>
         ) : s.connected ? (
           <div className="space-y-4">
@@ -98,8 +102,8 @@ export function GoogleCalendarCard() {
                     Agenda completa da equipe
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Receber TODOS os agendamentos dos corretores na minha agenda Google
-                    (visão do dono/gestor).
+                    Receber TODOS os agendamentos dos corretores na minha agenda Google (visão do
+                    dono/gestor).
                   </p>
                 </div>
                 <Switch
@@ -116,7 +120,7 @@ export function GoogleCalendarCard() {
               disabled={disconnect.isPending}
               onClick={() => disconnect.mutate()}
             >
-              <Unplug className="mr-1 h-4 w-4" /> Desconectar
+              <Plugs className="mr-1 h-4 w-4" /> Desconectar
             </Button>
           </div>
         ) : (

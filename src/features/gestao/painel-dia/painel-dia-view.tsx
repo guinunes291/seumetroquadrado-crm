@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle, CheckCircle2, Download, UserX, Users } from "lucide-react";
+import { CheckCircle, DownloadSimple, UserMinus, UsersThree, Warning } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BulkActionBar } from "@/components/ui/bulk-action-bar";
@@ -103,8 +103,7 @@ export function PainelDiaView() {
       return next;
     });
 
-  const selecionarTodos = () =>
-    setSelecionados(new Set(feed.map((e) => e.lead_id)));
+  const selecionarTodos = () => setSelecionados(new Set(feed.map((e) => e.lead_id)));
 
   const exportar = async () => {
     try {
@@ -124,10 +123,7 @@ export function PainelDiaView() {
       if (error) throw error;
       const sheets = resumoSemanalParaSheets(data);
       if (sheets.length === 0) throw new Error("Resumo vazio — nada para exportar.");
-      await exportSheetsXlsx(
-        `resumo-semanal-${new Date().toISOString().slice(0, 10)}`,
-        sheets,
-      );
+      await exportSheetsXlsx(`resumo-semanal-${new Date().toISOString().slice(0, 10)}`, sheets);
       toast.success("Resumo semanal gerado.");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Falha ao gerar o resumo.";
@@ -193,18 +189,17 @@ export function PainelDiaView() {
           onClick={gerarResumoSemanal}
           title="XLSX dos últimos 7 dias (resumo + por corretor), pronto para o grupo"
         >
-          <Download className="mr-1 h-4 w-4" /> Resumo da semana
+          <DownloadSimple className="mr-1 h-4 w-4" /> Resumo da semana
         </Button>
       </div>
 
       {painel.degradado && (
         <Card className="border-warning/40 bg-warning/5">
           <CardContent className="flex items-center gap-3 p-3 text-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+            <Warning className="h-4 w-4 shrink-0 text-warning" />
             <span>
-              Painel degradado: as migrations da camada de gestão ainda não foram aplicadas no
-              banco — mostrando apenas SLA estourado e leads parados (30 min+), sem R$ nem
-              documentação.
+              Painel degradado: as migrations da camada de gestão ainda não foram aplicadas no banco
+              — mostrando apenas SLA estourado e leads parados (30 min+), sem R$ nem documentação.
             </span>
           </CardContent>
         </Card>
@@ -234,9 +229,7 @@ export function PainelDiaView() {
                   : "border-border-subtle bg-card hover:border-primary/40",
               )}
             >
-              <span className="block text-[11px] uppercase tracking-wide text-muted-foreground">
-                {meta.label}
-              </span>
+              <span className="block text-xs text-muted-foreground font-medium">{meta.label}</span>
               <span className="font-display text-xl font-semibold tabular-nums">{n}</span>
             </button>
           );
@@ -247,7 +240,7 @@ export function PainelDiaView() {
       {resumo.corretores_sem_interacao.length > 0 && (
         <Card className="border-info/40 bg-info/5">
           <CardContent className="flex flex-wrap items-center gap-2 p-3 text-sm">
-            <UserX className="h-4 w-4 shrink-0 text-info" />
+            <UserMinus className="h-4 w-4 shrink-0 text-info" />
             <span className="font-medium">Presentes sem interação hoje:</span>
             {resumo.corretores_sem_interacao.map((c) => (
               <Badge key={c.corretor_id} variant="outline">
@@ -261,15 +254,13 @@ export function PainelDiaView() {
       {/* Feed */}
       {feed.length === 0 ? (
         <EmptyState
-          icon={CheckCircle2}
+          icon={CheckCircle}
           title={
             tipoAtivo
               ? `Nenhuma exceção de "${TIPO_META[tipoAtivo].label}" agora.`
               : "Nenhuma exceção agora — operação em dia. 🎉"
           }
-          description={
-            tipoAtivo ? "Limpe o filtro para ver os demais tipos." : undefined
-          }
+          description={tipoAtivo ? "Limpe o filtro para ver os demais tipos." : undefined}
           action={
             tipoAtivo ? (
               <Button variant="outline" onClick={() => setTipoAtivo(null)}>
@@ -290,7 +281,7 @@ export function PainelDiaView() {
                 Selecionar todos
               </Button>
               <Button size="sm" variant="ghost" onClick={exportar} title="Exportar XLSX">
-                <Download className="h-4 w-4" />
+                <DownloadSimple className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -307,13 +298,9 @@ export function PainelDiaView() {
         </>
       )}
 
-      <BulkActionBar
-        selectedCount={selecionados.size}
-        onClear={limparSelecao}
-        entityLabel="lead"
-      >
+      <BulkActionBar selectedCount={selecionados.size} onClear={limparSelecao} entityLabel="lead">
         <Button size="sm" onClick={() => setTransferirOpen(true)}>
-          <Users className="mr-1 h-4 w-4" /> Transferir
+          <UsersThree className="mr-1 h-4 w-4" /> Transferir
         </Button>
         <Button asChild size="sm" variant="outline">
           <Link to="/leads" search={tipoAtivo ? drillSearchDoTipo(tipoAtivo) : {}}>

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProjetosParaSelecao } from "@/lib/projetos";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, DollarSign } from "lucide-react";
+import { CaretUpDown, Check, CurrencyDollar } from "@phosphor-icons/react";
 import { maskCurrencyBRL, parseCurrencyBRL } from "@/lib/masks";
 import {
   Dialog,
@@ -201,7 +201,7 @@ export function RegistrarVendaDialog() {
         onClick={() => setOpen(true)}
         aria-label="Registrar venda"
       >
-        <DollarSign className="h-4 w-4" />
+        <CurrencyDollar className="h-4 w-4" />
         <span className="hidden sm:inline">Registrar venda</span>
       </Button>
 
@@ -235,7 +235,7 @@ export function RegistrarVendaDialog() {
                     <span className="truncate">
                       {lead ? lead.nome : "Selecione o lead que comprou…"}
                     </span>
-                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                    <CaretUpDown className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">

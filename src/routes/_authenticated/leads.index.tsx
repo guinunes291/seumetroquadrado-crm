@@ -69,33 +69,32 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  UserPlus,
-  Search,
-  Trash2,
+  ArrowClockwise,
+  ArrowsLeftRight,
+  BookmarkSimple,
+  CalendarDots,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  Crosshair,
+  Fire,
+  Kanban,
   List,
-  Trello,
-  Upload,
-  MessageCircle,
+  MagnifyingGlass,
   Phone,
   PhoneCall,
-  Flame,
-  Thermometer,
-  Snowflake,
-  AlertTriangle,
-  ArrowRightLeft,
-  Ban,
-  Bookmark,
-  ChevronDown,
-  CalendarClock,
-  Crosshair,
-  LayoutGrid,
-  RefreshCw,
-  Rows3,
-  ChevronLeft,
-  ChevronRight,
-  CalendarDays,
+  Prohibit,
+  Rows,
   Shuffle,
-} from "lucide-react";
+  Snowflake,
+  SquaresFour,
+  Thermometer,
+  Trash,
+  UploadSimple,
+  UserPlus,
+  Warning,
+  WhatsappLogo,
+} from "@phosphor-icons/react";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImportLeadsDialog } from "@/components/import-leads-dialog";
@@ -945,7 +944,7 @@ function LeadsPage() {
                 aria-pressed={activeView === "kanban"}
                 onClick={() => setView("kanban")}
               >
-                <Trello className="h-4 w-4 mr-1" /> Kanban
+                <Kanban className="h-4 w-4 mr-1" /> Kanban
               </Button>
             </div>
             {/* O atalho "Volume" saiu daqui de propósito (auditoria das abas
@@ -955,7 +954,7 @@ function LeadsPage() {
             {canManage && (
               <>
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
-                  <Upload className="h-4 w-4 mr-1" /> Importar
+                  <UploadSimple className="h-4 w-4 mr-1" /> Importar
                 </Button>
                 <ImportLeadsDialog open={importOpen} onOpenChange={setImportOpen} />
               </>
@@ -1106,7 +1105,7 @@ function LeadsPage() {
                             {paradoDiasFilter === "all"
                               ? "Parado há…"
                               : `Parado ${PARADO_OPCOES.find((o) => o.value === paradoDiasFilter)?.label ?? `${paradoDiasFilter}+ dias`}`}
-                            <ChevronDown className="ml-1 inline h-3.5 w-3.5" />
+                            <CaretDown className="ml-1 inline h-3.5 w-3.5" />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-44">
@@ -1128,8 +1127,8 @@ function LeadsPage() {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="min-h-11">
-                              <Bookmark className="h-3.5 w-3.5 mr-1" /> Visões
-                              <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                              <BookmarkSimple className="h-3.5 w-3.5 mr-1" /> Visões
+                              <CaretDown className="h-3.5 w-3.5 ml-1" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-60">
@@ -1163,7 +1162,7 @@ function LeadsPage() {
                                         setConfirmDeleteView({ id: v.id, nome: v.nome });
                                       }}
                                     >
-                                      <Trash2 className="h-3.5 w-3.5" />
+                                      <Trash className="h-3.5 w-3.5" />
                                     </button>
                                   </DropdownMenuItem>
                                 ))}
@@ -1171,7 +1170,7 @@ function LeadsPage() {
                             )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onSelect={() => setSaveViewOpen(true)}>
-                              <Bookmark className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
+                              <BookmarkSimple className="h-3.5 w-3.5 mr-2" /> Salvar visão atual
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1217,7 +1216,7 @@ function LeadsPage() {
                 className="shadow-none"
                 primary={
                   <div className="relative max-w-xl">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
@@ -1250,7 +1249,7 @@ function LeadsPage() {
                         title="Ver em tabela"
                         onClick={() => setViewMode("tabela")}
                       >
-                        <Rows3 aria-hidden="true" />
+                        <Rows aria-hidden="true" />
                       </Button>
                       <Button
                         size="icon"
@@ -1260,7 +1259,7 @@ function LeadsPage() {
                         title="Ver em cards"
                         onClick={() => setViewMode("cards")}
                       >
-                        <LayoutGrid aria-hidden="true" />
+                        <SquaresFour aria-hidden="true" />
                       </Button>
                     </div>
                     {canManage && (
@@ -1353,7 +1352,7 @@ function LeadsPage() {
                   {periodoFilter === "custom" && (
                     <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2 lg:col-span-4 lg:grid-cols-4">
                       <div className="relative">
-                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <CalendarDots className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="date"
                           value={dataInicioFilter}
@@ -1363,7 +1362,7 @@ function LeadsPage() {
                         />
                       </div>
                       <div className="relative">
-                        <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <CalendarDots className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="date"
                           value={dataFimFilter}
@@ -1403,7 +1402,7 @@ function LeadsPage() {
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline" disabled={bulkTemperatura.isPending}>
                       <Thermometer className="h-3.5 w-3.5 mr-1" /> Temperatura
-                      <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                      <CaretDown className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -1428,9 +1427,7 @@ function LeadsPage() {
                           });
                         }}
                       >
-                        {opt.key === "quente" && (
-                          <Flame className="h-4 w-4 mr-2 text-destructive" />
-                        )}
+                        {opt.key === "quente" && <Fire className="h-4 w-4 mr-2 text-destructive" />}
                         {opt.key === "morno" && (
                           <Thermometer className="h-4 w-4 mr-2 text-warning" />
                         )}
@@ -1441,7 +1438,7 @@ function LeadsPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button size="sm" variant="outline" onClick={() => setBulkFollowupOpen(true)}>
-                  <CalendarClock className="h-3.5 w-3.5 mr-1" /> Follow-up
+                  <CalendarDots className="h-3.5 w-3.5 mr-1" /> Follow-up
                 </Button>
                 <Button
                   size="sm"
@@ -1450,7 +1447,7 @@ function LeadsPage() {
                   disabled={bulkDescartar.isPending}
                   onClick={() => setBulkDescarteOpen(true)}
                 >
-                  <Ban className="h-3.5 w-3.5 mr-1" /> Descartar
+                  <Prohibit className="h-3.5 w-3.5 mr-1" /> Descartar
                 </Button>
                 {isAdmin && (
                   <Button
@@ -1474,7 +1471,7 @@ function LeadsPage() {
                 {canManage && (
                   <>
                     <Button size="sm" variant="outline" onClick={() => setBulkTransferOpen(true)}>
-                      <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Transferir
+                      <ArrowsLeftRight className="h-3.5 w-3.5 mr-1" /> Transferir
                     </Button>
                     <Button
                       size="sm"
@@ -1492,7 +1489,7 @@ function LeadsPage() {
                         });
                       }}
                     >
-                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      <Trash className="h-3.5 w-3.5 mr-1" />
                       {showLixeira ? "Restaurar" : "Mover p/ lixeira"}
                     </Button>
                   </>
@@ -1540,7 +1537,7 @@ function LeadsPage() {
               {listError ? (
                 <Card>
                   <CardContent className="py-12 text-center space-y-3">
-                    <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+                    <Warning className="h-10 w-10 mx-auto text-destructive opacity-70" />
                     <p className="text-sm text-muted-foreground">
                       Não foi possível carregar os leads ou seus filtros. Verifique sua conexão e
                       tente novamente.
@@ -1555,7 +1552,7 @@ function LeadsPage() {
                         if (contatoFilter === "com_followup") void refetchFollowups();
                       }}
                     >
-                      <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+                      <ArrowClockwise className="h-4 w-4 mr-2" /> Tentar novamente
                     </Button>
                   </CardContent>
                 </Card>
@@ -1759,7 +1756,7 @@ function LeadsPage() {
                             title="Abrir WhatsApp com mensagem pronta"
                             onClick={() => abrirWhatsApp(l)}
                           >
-                            <MessageCircle className="h-4 w-4" />
+                            <WhatsappLogo className="h-4 w-4" />
                           </Button>
                           <Button
                             asChild
@@ -1856,7 +1853,7 @@ function LeadsPage() {
                       disabled={pageSafe <= 1}
                       onClick={() => setPage(pageSafe - 1)}
                     >
-                      <ChevronLeft className="h-4 w-4" /> Anterior
+                      <CaretLeft className="h-4 w-4" /> Anterior
                     </Button>
                     <Button
                       variant="outline"
@@ -1865,7 +1862,7 @@ function LeadsPage() {
                       disabled={pageSafe >= totalPages}
                       onClick={() => setPage(pageSafe + 1)}
                     >
-                      Próxima <ChevronRight className="h-4 w-4" />
+                      Próxima <CaretRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1939,7 +1936,7 @@ function LeadsPage() {
                   disabled={iniciarAtendimento.isPending}
                   className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
                 >
-                  <MessageCircle className="h-10 w-10 text-success" />
+                  <WhatsappLogo className="h-10 w-10 text-success" />
                   <span className="font-medium">WhatsApp</span>
                 </button>
               </div>

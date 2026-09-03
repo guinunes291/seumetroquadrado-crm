@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Edit2, Trash2, MessageSquare } from "lucide-react";
+import { ChatText, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -295,7 +295,7 @@ export function TemplatesPage() {
         </div>
       ) : templates.length === 0 ? (
         <EmptyState
-          icon={MessageSquare}
+          icon={ChatText}
           title="Nenhum template criado"
           description="Crie modelos prontos para acelerar follow-ups e propostas."
           action={
@@ -324,7 +324,7 @@ export function TemplatesPage() {
                     </div>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" onClick={() => openEdit(t)}>
-                        <Edit2 className="h-4 w-4" />
+                        <PencilSimple className="h-4 w-4" />
                       </Button>
                       <Button
                         size="icon"
@@ -333,7 +333,7 @@ export function TemplatesPage() {
                           if (confirm(`Remover "${t.nome}"?`)) remove.mutate(t.id);
                         }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

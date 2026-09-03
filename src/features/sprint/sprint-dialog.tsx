@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { scoreLead } from "@/lib/priority";
 import { useSprint, type SprintState } from "@/features/sprint/use-sprint";
-import { Zap, Trophy, MessageCircle, CheckCircle2 } from "lucide-react";
+import { CheckCircle, Lightning, Trophy, WhatsappLogo } from "@phosphor-icons/react";
 
 /**
  * Diálogo de INÍCIO do sprint: escolhe duração e meta; a fila é montada na
@@ -72,7 +72,7 @@ export function SprintStartDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-display flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" /> Iniciar Sprint
+            <Lightning className="h-5 w-5 text-primary" /> Iniciar Sprint
           </DialogTitle>
           <DialogDescription>
             Um bloco de prospecção focada: fila automática com seus leads mais prioritários,
@@ -113,12 +113,8 @@ export function SprintStartDialog({
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button
-            onClick={() => iniciar.mutate()}
-            disabled={iniciar.isPending}
-            className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
-          >
-            <Zap className="h-4 w-4" /> Começar agora
+          <Button onClick={() => iniciar.mutate()} disabled={iniciar.isPending}>
+            <Lightning className="h-4 w-4" /> Começar agora
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -181,7 +177,7 @@ export function SprintResultDialog({
         </DialogHeader>
         <div className="grid grid-cols-3 gap-3 py-2 text-center">
           <div className="rounded-lg border p-3">
-            <CheckCircle2 className="mx-auto h-5 w-5 text-success" />
+            <CheckCircle className="mx-auto h-5 w-5 text-success" />
             <div className="font-display mt-1 text-2xl font-bold tabular-nums">
               {sprint.done.length}
               <span className="text-sm font-normal text-muted-foreground">/{sprint.goal}</span>
@@ -189,14 +185,14 @@ export function SprintResultDialog({
             <div className="text-xs text-muted-foreground">leads atacados</div>
           </div>
           <div className="rounded-lg border p-3">
-            <MessageCircle className="mx-auto h-5 w-5 text-info" />
+            <WhatsappLogo className="mx-auto h-5 w-5 text-info" />
             <div className="font-display mt-1 text-2xl font-bold tabular-nums">
               {resultado.data?.interacoes ?? "…"}
             </div>
             <div className="text-xs text-muted-foreground">interações registradas</div>
           </div>
           <div className="rounded-lg border p-3">
-            <Zap className="mx-auto h-5 w-5 text-warning" />
+            <Lightning className="mx-auto h-5 w-5 text-warning" />
             <div className="font-display mt-1 text-2xl font-bold tabular-nums">
               {resultado.data?.tarefas ?? "…"}
             </div>

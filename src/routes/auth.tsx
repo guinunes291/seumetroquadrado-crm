@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-import { Eye, EyeOff, Gauge, Target, Users } from "lucide-react";
+import { Eye, EyeSlash, Gauge, Target, UsersThree } from "@phosphor-icons/react";
 import { safeSameOriginPath } from "@/lib/safe-navigation";
 
 export const Route = createFileRoute("/auth")({
@@ -170,16 +170,14 @@ function AuthPage() {
         </div>
 
         <div className="relative max-w-md space-y-6">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-gold-300">
-            CRM Imobiliário
-          </p>
+          <p className="text-xs font-medium text-gold-300">CRM Imobiliário</p>
           <h1 className="font-display text-3xl font-semibold leading-tight">
             A central de comando da sua operação imobiliária.
           </h1>
           <ul className="space-y-3 text-sm text-white/80">
             <li className="flex items-center gap-3">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.08]">
-                <Users className="h-4 w-4 text-gold-300" />
+                <UsersThree className="h-4 w-4 text-gold-300" />
               </span>
               Leads priorizados por urgência, com a próxima ação sempre à vista
             </li>
@@ -283,7 +281,7 @@ function AuthPage() {
                       onClick={() => setShowPassword((visible) => !visible)}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4" aria-hidden="true" />
+                        <EyeSlash className="h-4 w-4" aria-hidden="true" />
                       ) : (
                         <Eye className="h-4 w-4" aria-hidden="true" />
                       )}

@@ -7,7 +7,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlarmClock, ArrowRight, HandCoins, Timer, Trophy } from "lucide-react";
+import { Alarm, ArrowRight, HandCoins, Timer, Trophy } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -412,7 +412,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <AlarmClock className="h-4 w-4" /> Leads esquecidos
+            <Alarm className="h-4 w-4" /> Leads esquecidos
             <div className="ml-auto">
               <Select
                 value={String(diasEsquecido)}
@@ -447,9 +447,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
-                    Por corretor
-                  </p>
+                  <p className="mb-2 text-xs text-muted-foreground font-medium">Por corretor</p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -474,7 +472,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
                   </Table>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+                  <p className="mb-2 text-xs text-muted-foreground font-medium">
                     Os 10 mais antigos
                   </p>
                   <ul className="divide-y">

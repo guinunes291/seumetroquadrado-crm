@@ -6,7 +6,7 @@
 // marcar_presenca_admin e atualizar_corretor_distribuicao.
 
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, UserMinus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,7 +32,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { UserX } from "lucide-react";
 import { ZONAS_ORDEM, type Zona } from "@/lib/zonas";
 import {
   useAtualizarCorretorDistribuicao,
@@ -79,7 +78,7 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
           <CardContent className="overflow-x-auto pt-4">
             {linhas.length === 0 ? (
               <EmptyState
-                icon={UserX}
+                icon={UserMinus}
                 title="Nenhum corretor com papel de corretor"
                 description="Convide e ative corretores em Configurações → Pessoas."
               />

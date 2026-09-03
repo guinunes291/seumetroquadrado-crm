@@ -4,7 +4,7 @@
 // só vendas sem lançamento no ledger, o histórico financeiro é imutável).
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileMinus2, MoreVertical, Trash2 } from "lucide-react";
+import { DotsThreeVertical, FileMinus, Trash } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -251,7 +251,7 @@ export function VendasGestaoCard({
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" title="Ações da venda">
-                      <MoreVertical className="h-4 w-4" />
+                      <DotsThreeVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -263,7 +263,7 @@ export function VendasGestaoCard({
                           setMotivo("");
                         }}
                       >
-                        <FileMinus2 className="mr-2 h-4 w-4" /> Registrar distrato
+                        <FileMinus className="mr-2 h-4 w-4" /> Registrar distrato
                       </DropdownMenuItem>
                     )}
                     {isAdmin && (
@@ -274,7 +274,7 @@ export function VendasGestaoCard({
                           setMotivoExclusao("");
                         }}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />{" "}
+                        <Trash className="mr-2 h-4 w-4" />{" "}
                         {venda.status_venda === "aprovada" || venda.distrato
                           ? "Excluir venda (lançamento errado)"
                           : "Excluir venda"}

@@ -7,7 +7,16 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Building2, Eye, EyeOff, ImageIcon, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Buildings,
+  Eye,
+  EyeSlash,
+  ImageIcon,
+  Plus,
+  Trash,
+} from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { Button } from "@/components/ui/button";
@@ -165,7 +174,7 @@ export function ConstrutorasParceirasDialog({
 
           {parceiras.length === 0 ? (
             <EmptyState
-              icon={Building2}
+              icon={Buildings}
               title="Nenhuma construtora parceira"
               description="Adicione as construtoras que o time trabalha para elas abrirem a bancada."
               className="py-8"
@@ -234,7 +243,7 @@ export function ConstrutorasParceirasDialog({
                         title={p.ativo ? "Desativar" : "Ativar"}
                         onClick={() => atualizar.mutate({ id: p.id, ativo: !p.ativo })}
                       >
-                        {p.ativo ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {p.ativo ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                       <Button
                         variant="ghost"
@@ -248,7 +257,7 @@ export function ConstrutorasParceirasDialog({
                           }
                         }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                     {editando && (

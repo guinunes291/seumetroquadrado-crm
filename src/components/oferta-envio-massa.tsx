@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MessageCircle, SkipForward, CheckCircle2 } from "lucide-react";
+import { CheckCircle, SkipForward, WhatsappLogo } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -187,7 +187,7 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
                 }}
                 disabled={fila.length === 0}
               >
-                <MessageCircle className="w-4 h-4 mr-2" /> Iniciar envio
+                <WhatsappLogo className="w-4 h-4 mr-2" /> Iniciar envio
               </Button>
             </DialogFooter>
           </>
@@ -212,7 +212,7 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
                 <p className="text-xs text-muted-foreground">{atual.lead.telefone}</p>
                 {atual.contatado && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-green-600" /> Já contatado antes
+                    <CheckCircle className="w-3 h-3 text-green-600" /> Já contatado antes
                   </p>
                 )}
               </div>
@@ -227,7 +227,7 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
                 <SkipForward className="w-4 h-4 mr-2" /> Pular
               </Button>
               <Button onClick={abrirWhatsApp}>
-                <MessageCircle className="w-4 h-4 mr-2" /> Abrir WhatsApp
+                <WhatsappLogo className="w-4 h-4 mr-2" /> Abrir WhatsApp
               </Button>
             </DialogFooter>
           </>

@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Search, X, SlidersHorizontal, MapPin } from "lucide-react";
+import { MagnifyingGlass, MapPin, SlidersHorizontal, X } from "@phosphor-icons/react";
 import type { ProjetoRow } from "./projeto-card";
 import { RangeSelect } from "./range-select";
 import {
@@ -183,8 +183,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
     (filters.entregaAnoMin != null || filters.entregaAnoMax != null ? 1 : 0);
 
   const activeChips: Array<{ label: string; onClear: () => void }> = [];
-  if (filters.q)
-    activeChips.push({ label: `"${filters.q}"`, onClear: () => set({ q: "" }) });
+  if (filters.q) activeChips.push({ label: `"${filters.q}"`, onClear: () => set({ q: "" }) });
   if (filters.cidade)
     activeChips.push({
       label: filters.cidade,
@@ -251,14 +250,13 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
   const hasAny = activeChips.length > 0;
 
   const locLabel =
-    [filters.cidade, filters.regiao, filters.bairro].filter(Boolean).join(" · ") ||
-    "Localização";
+    [filters.cidade, filters.regiao, filters.bairro].filter(Boolean).join(" · ") || "Localização";
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[240px]">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, construtora, bairro, endereço…"
             value={qLocal}
@@ -281,12 +279,7 @@ export function ProjetosFilters({ projetos, filters, onChange }: Props) {
           onBairro={(v) => set({ bairro: v })}
         />
 
-        <MaisFiltrosDialog
-          filters={filters}
-          onApply={onChange}
-          opts={opts}
-          count={advCount}
-        />
+        <MaisFiltrosDialog filters={filters} onApply={onChange} opts={opts} count={advCount} />
 
         {hasAny && (
           <Button variant="ghost" size="sm" onClick={() => onChange(emptyFilters)}>
@@ -375,10 +368,7 @@ function LocalizacaoPopover({
         {cidades.length > 0 && (
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Cidade</Label>
-            <Select
-              value={cidade ?? ALL}
-              onValueChange={(v) => onCidade(v === ALL ? null : v)}
-            >
+            <Select value={cidade ?? ALL} onValueChange={(v) => onCidade(v === ALL ? null : v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Todas cidades" />
               </SelectTrigger>
@@ -514,11 +504,7 @@ function MaisFiltrosDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        variant={count > 0 ? "default" : "outline"}
-        size="sm"
-        onClick={() => setOpen(true)}
-      >
+      <Button variant={count > 0 ? "default" : "outline"} size="sm" onClick={() => setOpen(true)}>
         <SlidersHorizontal className="h-3.5 w-3.5 mr-1" />
         Mais filtros
         {count > 0 && (
@@ -564,7 +550,11 @@ function MaisFiltrosDialog({
               selected={draft.vagas}
               onToggle={(v) => toggleD("vagas", v)}
               formatOption={(v) =>
-                v === "0" ? "Sem vaga" : v === "3+" ? "3 ou mais" : `${v} vaga${v === "1" ? "" : "s"}`
+                v === "0"
+                  ? "Sem vaga"
+                  : v === "3+"
+                    ? "3 ou mais"
+                    : `${v} vaga${v === "1" ? "" : "s"}`
               }
             />
             <label className="flex items-center gap-2 text-sm">
@@ -700,10 +690,7 @@ function MaisFiltrosDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="ghost"
-            onClick={() => setDraft({ ...emptyFilters, q: filters.q })}
-          >
+          <Button variant="ghost" onClick={() => setDraft({ ...emptyFilters, q: filters.q })}>
             Limpar tudo
           </Button>
           <Button

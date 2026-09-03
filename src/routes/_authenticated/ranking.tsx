@@ -13,28 +13,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Trophy,
-  Target,
-  Activity,
-  TrendingUp,
-  Maximize,
-  Minimize,
-  RefreshCw,
-  Play,
-  Pause,
-  ChevronDown,
-  Calendar,
-  Users,
-  Phone,
-  MessageSquare,
-  CalendarCheck,
-  Eye,
-  FileCheck,
-  Star,
-  ArrowUp,
+  ArrowClockwise,
   ArrowDown,
+  ArrowsIn,
+  ArrowsOut,
+  ArrowUp,
+  CalendarBlank,
+  CalendarCheck,
+  CaretDown,
+  ChatText,
+  Eye,
+  FileMagnifyingGlass,
   Flag,
-} from "lucide-react";
+  Pause,
+  Phone,
+  Play,
+  Pulse,
+  Star,
+  Target,
+  TrendUp,
+  Trophy,
+  UsersThree,
+} from "@phosphor-icons/react";
 import { CopaPage } from "@/features/ranking/copa-page";
 import { ConquistasPage } from "@/features/ranking/conquistas-page";
 import { Podium } from "@/features/ranking/podium";
@@ -273,9 +273,7 @@ function KPICard({
     >
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] uppercase tracking-wider font-semibold mb-1 text-navy-100">
-            {label}
-          </p>
+          <p className="text-xs font-medium mb-1 text-navy-100">{label}</p>
           <p className="text-2xl font-bold text-white leading-tight tabular-nums">{displayValue}</p>
           {subValue && <p className="text-[11px] text-navy-200 mt-0.5 font-medium">{subValue}</p>}
           {delta !== undefined && delta !== 0 && (
@@ -353,7 +351,7 @@ function GaugeChart({
               <span className="text-4xl font-bold text-white tabular-nums">
                 {(animated / 10).toFixed(1) === "NaN" ? "0" : animated.toFixed(1)}%
               </span>
-              <span className="text-xs text-navy-300 uppercase tracking-wider">{label}</span>
+              <span className="text-xs text-navy-300 font-medium">{label}</span>
             </>
           ) : (
             <>
@@ -464,7 +462,7 @@ function RankingLateral({
 }) {
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-12 gap-2 text-[10px] text-navy-400 uppercase tracking-wider px-2 pb-2 border-b border-navy-700/50">
+      <div className="grid grid-cols-12 gap-2 text-xs text-navy-400 px-2 pb-2 border-b border-navy-700/50 font-medium">
         <div className="col-span-1">#</div>
         <div className="col-span-7">Executivo</div>
         <div className="col-span-4 text-right">
@@ -1133,9 +1131,7 @@ function RankingPanel() {
                     AO VIVO
                   </span>
                 </div>
-                <p className="text-[10px] text-cyan-300 uppercase tracking-wider font-medium">
-                  Performance em Vendas
-                </p>
+                <p className="text-xs text-cyan-300 font-medium">Performance em Vendas</p>
               </div>
             </div>
 
@@ -1164,7 +1160,7 @@ function RankingPanel() {
                     value="produtividade"
                     className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-navy-200 text-xs sm:text-sm"
                   >
-                    <Activity className="w-4 h-4 mr-1.5" /> Produtividade
+                    <Pulse className="w-4 h-4 mr-1.5" /> Produtividade
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -1205,7 +1201,7 @@ function RankingPanel() {
                   className="bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white"
                   title="Atualizar"
                 >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                  <ArrowClockwise className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                 </Button>
                 <Button
                   variant="outline"
@@ -1215,9 +1211,9 @@ function RankingPanel() {
                   title={isFullscreen ? "Sair" : "Tela cheia"}
                 >
                   {isFullscreen ? (
-                    <Minimize className="h-4 w-4" />
+                    <ArrowsIn className="h-4 w-4" />
                   ) : (
-                    <Maximize className="h-4 w-4" />
+                    <ArrowsOut className="h-4 w-4" />
                   )}
                 </Button>
               </div>
@@ -1234,9 +1230,9 @@ function RankingPanel() {
                     className="gap-2 bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white min-w-[160px] justify-between"
                   >
                     <span className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" /> {MESES[selectedMes - 1]} {selectedAno}
+                      <CalendarBlank className="h-4 w-4" /> {MESES[selectedMes - 1]} {selectedAno}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <CaretDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 max-h-80 overflow-y-auto">
@@ -1271,9 +1267,9 @@ function RankingPanel() {
                     className="gap-2 bg-navy-800/50 border-navy-700/50 text-white hover:bg-navy-700/50 hover:text-white min-w-[180px] justify-between"
                   >
                     <span className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" /> {PERIODO_LABELS[periodo]}
+                      <CalendarBlank className="h-4 w-4" /> {PERIODO_LABELS[periodo]}
                     </span>
-                    <ChevronDown className="h-4 w-4" />
+                    <CaretDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -1309,8 +1305,8 @@ function RankingPanel() {
 
             {/* VGV — Realizado x Meta x Gap */}
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5 mb-5">
-              <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" /> VGV — Realizado x Meta
+              <h3 className="text-xs text-navy-300 mb-4 flex items-center gap-2 font-medium">
+                <TrendUp className="w-4 h-4 text-emerald-400" /> VGV — Realizado x Meta
               </h3>
               {(() => {
                 const vgvReal = totaisMes.vgv;
@@ -1335,7 +1331,7 @@ function RankingPanel() {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                       <div className="bg-emerald-900/30 border border-emerald-500/30 rounded-xl p-4">
-                        <div className="text-[11px] uppercase tracking-wider text-emerald-200 mb-1">
+                        <div className="text-xs text-emerald-200 mb-1 font-medium">
                           VGV Realizado
                         </div>
                         <div className="text-2xl font-bold text-white tabular-nums">
@@ -1346,9 +1342,7 @@ function RankingPanel() {
                         </div>
                       </div>
                       <div className="bg-navy-800/60 border border-navy-600/40 rounded-xl p-4">
-                        <div className="text-[11px] uppercase tracking-wider text-navy-200 mb-1">
-                          Meta VGV
-                        </div>
+                        <div className="text-xs text-navy-200 mb-1 font-medium">Meta VGV</div>
                         <div className="text-2xl font-bold text-white tabular-nums">
                           {vgvMeta > 0 ? fmtBRL(vgvMeta) : "—"}
                         </div>
@@ -1359,9 +1353,7 @@ function RankingPanel() {
                       <div
                         className={`rounded-xl p-4 border ${gap > 0 ? "bg-red-900/30 border-red-500/30" : "bg-emerald-900/30 border-emerald-500/30"}`}
                       >
-                        <div className="text-[11px] uppercase tracking-wider text-navy-100 mb-1">
-                          GAP VGV
-                        </div>
+                        <div className="text-xs text-navy-100 mb-1 font-medium">GAP VGV</div>
                         <div
                           className={`text-2xl font-bold tabular-nums ${gap > 0 ? "text-red-300" : "text-emerald-300"}`}
                         >
@@ -1391,7 +1383,7 @@ function RankingPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               {/* Gauge */}
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 mb-4 flex items-center gap-2 font-medium">
                   <Target className="w-4 h-4 text-purple-400" /> Atingimento da Meta
                 </h3>
                 <div className="flex flex-col items-center gap-4">
@@ -1437,21 +1429,21 @@ function RankingPanel() {
 
               {/* Indicadores do mês */}
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5 space-y-4">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 flex items-center gap-2 font-medium">
                   <Star className="w-4 h-4 text-purple-400" /> Indicadores do Mês
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <KPICard
                     label="Contratos"
                     numericValue={totaisMes.vendas}
-                    icon={FileCheck}
+                    icon={FileMagnifyingGlass}
                     variant="success"
                     delta={deltaVendas}
                   />
                   <KPICard
                     label="Leads"
                     numericValue={totaisMes.leads}
-                    icon={Users}
+                    icon={UsersThree}
                     variant="info"
                   />
                   <KPICard
@@ -1471,7 +1463,7 @@ function RankingPanel() {
 
               {/* Top vendedores do mês */}
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
                   <Trophy className="w-4 h-4 text-purple-400" /> Top Vendedores do Mês
                 </h3>
                 <RankingLateral
@@ -1483,7 +1475,7 @@ function RankingPanel() {
 
             {/* Faixa de corretores com meta individual */}
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-              <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <h3 className="text-xs text-navy-300 mb-4 flex items-center gap-2 font-medium">
                 <Target className="w-4 h-4 text-purple-400" /> Vendas por Corretor — Real x Meta
                 <span className="ml-auto text-emerald-300 normal-case tracking-normal">
                   VGV total: {fmtBRL(totaisMes.vgv)}
@@ -1586,26 +1578,26 @@ function RankingPanel() {
               <KPICard
                 label="Documentação"
                 numericValue={totaisPeriodo.documentacoes}
-                icon={FileCheck}
+                icon={FileMagnifyingGlass}
                 variant="info"
               />
               <KPICard
                 label="Leads"
                 numericValue={totaisPeriodo.leads}
-                icon={Users}
+                icon={UsersThree}
                 variant="default"
               />
               <KPICard
                 label="Corretores"
                 numericValue={rankingProd.filter((r) => r.pontos > 0).length}
-                icon={Users}
+                icon={UsersThree}
                 variant="default"
               />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               <div className="lg:col-span-2 bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
                   <Trophy className="w-4 h-4 text-yellow-400" /> Pódio — VGV
                 </h3>
                 <Podium
@@ -1616,7 +1608,7 @@ function RankingPanel() {
                 />
               </div>
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
                   <Flag className="w-4 h-4 text-cyan-400" /> Ranking de VGV
                 </h3>
                 <RankingLateral
@@ -1630,8 +1622,8 @@ function RankingPanel() {
             </div>
 
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-              <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-cyan-400" /> Funil de Conversão —{" "}
+              <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
+                <TrendUp className="w-4 h-4 text-cyan-400" /> Funil de Conversão —{" "}
                 {PERIODO_LABELS[periodo]}
               </h3>
               <FunilConversao
@@ -1644,8 +1636,8 @@ function RankingPanel() {
 
             {/* VGV por Corretor — soma do VGV de todos que venderam no período */}
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5 mt-5">
-              <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" /> VGV por Corretor —{" "}
+              <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
+                <TrendUp className="w-4 h-4 text-emerald-400" /> VGV por Corretor —{" "}
                 {PERIODO_LABELS[periodo]}
                 <span className="ml-auto text-emerald-300 normal-case tracking-normal">
                   Total: {fmtBRL(totaisPeriodo.vgv)}
@@ -1663,7 +1655,7 @@ function RankingPanel() {
                 const max = rows[0].vgv || 1;
                 return (
                   <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
-                    <div className="grid grid-cols-12 gap-2 text-[10px] text-navy-400 uppercase tracking-wider px-2 pb-2 border-b border-navy-700/50">
+                    <div className="grid grid-cols-12 gap-2 text-xs text-navy-400 px-2 pb-2 border-b border-navy-700/50 font-medium">
                       <div className="col-span-1">#</div>
                       <div className="col-span-6">Executivo</div>
                       <div className="col-span-2 text-right">Vendas</div>
@@ -1734,7 +1726,7 @@ function RankingPanel() {
               <KPICard
                 label="WhatsApp"
                 numericValue={totaisPeriodo.whatsapp}
-                icon={MessageSquare}
+                icon={ChatText}
                 variant="accent"
               />
               <KPICard
@@ -1752,7 +1744,7 @@ function RankingPanel() {
               <KPICard
                 label="Documentação"
                 numericValue={totaisPeriodo.documentacoes}
-                icon={FileCheck}
+                icon={FileMagnifyingGlass}
                 variant="info"
               />
               <KPICard
@@ -1765,7 +1757,7 @@ function RankingPanel() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
               <div className="lg:col-span-2 bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
                   <Star className="w-4 h-4 text-yellow-400" /> Pódio — Pontuação
                 </h3>
                 <Podium
@@ -1776,7 +1768,7 @@ function RankingPanel() {
                 />
               </div>
               <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-                <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
                   <Flag className="w-4 h-4 text-cyan-400" /> Ranking
                 </h3>
                 <RankingLateral
@@ -1788,8 +1780,8 @@ function RankingPanel() {
             </div>
 
             <div className="bg-navy-900/60 rounded-2xl border border-navy-800/50 p-5">
-              <h3 className="text-xs text-navy-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-emerald-400" /> Desempenho Detalhado
+              <h3 className="text-xs text-navy-300 mb-3 flex items-center gap-2 font-medium">
+                <Pulse className="w-4 h-4 text-emerald-400" /> Desempenho Detalhado
               </h3>
               <DataTable
                 tableId="ranking"
@@ -1800,7 +1792,7 @@ function RankingPanel() {
                 loading={rankingPeriodoQ.isLoading}
                 empty={
                   <EmptyState
-                    icon={Activity}
+                    icon={Pulse}
                     title="Sem atividade no período"
                     description="Ajuste o período no filtro acima para ver a classificação."
                   />

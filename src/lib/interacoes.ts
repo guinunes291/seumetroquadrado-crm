@@ -1,16 +1,16 @@
 import {
-  Phone,
-  MessageCircle,
-  Mail,
-  MessageSquare,
-  MapPin,
-  Users,
-  StickyNote,
-  RefreshCw,
+  ArrowClockwise,
+  ChatText,
+  Envelope,
   FileText,
-  CircleDot,
-  type LucideIcon,
-} from "lucide-react";
+  MapPin,
+  Note,
+  Phone,
+  RadioButton,
+  UsersThree,
+  WhatsappLogo,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import { HUE_BADGE, INTENT_BADGE } from "@/lib/status-tones";
 
 export type InteracaoTipo =
@@ -40,17 +40,17 @@ export const INTERACAO_LABEL: Record<InteracaoTipo, string> = {
   outro: "Outro",
 };
 
-export const INTERACAO_ICON: Record<InteracaoTipo, LucideIcon> = {
+export const INTERACAO_ICON: Record<InteracaoTipo, IconComponent> = {
   ligacao: Phone,
-  whatsapp: MessageCircle,
-  email: Mail,
-  sms: MessageSquare,
+  whatsapp: WhatsappLogo,
+  email: Envelope,
+  sms: ChatText,
   visita: MapPin,
-  reuniao: Users,
-  nota: StickyNote,
-  mudanca_status: RefreshCw,
+  reuniao: UsersThree,
+  nota: Note,
+  mudanca_status: ArrowClockwise,
   proposta: FileText,
-  outro: CircleDot,
+  outro: RadioButton,
 };
 
 export const INTERACAO_TONE: Record<InteracaoTipo, string> = {

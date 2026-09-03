@@ -4,7 +4,7 @@
 // > 0. É a primeira coisa que o gestor vê.
 
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle, Warning } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +43,7 @@ export function GestaoDiaWidget(_props: WidgetProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle className="h-4 w-4" /> O que exige ação hoje
+          <Warning className="h-4 w-4" /> O que exige ação hoje
           {painel?.degradado && (
             <span className="text-xs font-normal text-warning">modo degradado</span>
           )}
@@ -65,7 +65,7 @@ export function GestaoDiaWidget(_props: WidgetProps) {
         >
           {resumo && resumo.total === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-success" /> Nenhuma exceção agora — operação em
+              <CheckCircle className="h-4 w-4 text-success" /> Nenhuma exceção agora — operação em
               dia.
             </p>
           ) : (

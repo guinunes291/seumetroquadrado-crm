@@ -19,11 +19,7 @@ export function SectionHeader({
   return (
     <div className={cn("mb-3 flex items-end justify-between gap-2", className)}>
       <div className="min-w-0">
-        {eyebrow && (
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            {eyebrow}
-          </div>
-        )}
+        {eyebrow && <div className="text-xs font-medium text-muted-foreground">{eyebrow}</div>}
         <h2 className="font-display truncate text-base font-semibold tracking-tight text-foreground">
           {title}
         </h2>

@@ -8,15 +8,15 @@ import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  ArrowClockwise,
   Info,
+  MagnifyingGlass,
   Phone,
   PhoneCall,
   PhoneIncoming,
-  PhoneMissed,
   PhoneOutgoing,
-  RefreshCw,
-  Search,
-} from "lucide-react";
+  PhoneX,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -387,11 +387,7 @@ export function DiscadorCentral() {
           label="Atendidas hoje"
           valor={kpis ? String(kpis.atendidas) : "…"}
         />
-        <KpiCard
-          icon={PhoneMissed}
-          label="Perdidas hoje"
-          valor={kpis ? String(kpis.perdidas) : "…"}
-        />
+        <KpiCard icon={PhoneX} label="Perdidas hoje" valor={kpis ? String(kpis.perdidas) : "…"} />
         <KpiCard
           icon={Phone}
           label="Meu ramal"
@@ -407,7 +403,7 @@ export function DiscadorCentral() {
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por lead ou número…"
             value={busca}
@@ -445,7 +441,7 @@ export function DiscadorCentral() {
             onClick={() => void syncTabulacoes.refetch()}
             title="Puxa as tabulações aplicadas no painel do Sonax e move os leads de etapa conforme o mapeamento. Roda sozinho a cada 2 minutos com a aba aberta."
           >
-            <RefreshCw
+            <ArrowClockwise
               className={`h-4 w-4 mr-2 ${syncTabulacoes.isFetching ? "animate-spin" : ""}`}
             />
             Sincronizar tabulações
@@ -509,7 +505,7 @@ function KpiCard({
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <Icon className="h-3.5 w-3.5" /> {label}
         </div>
         <div className="mt-1 font-display text-2xl font-semibold tabular-nums" title={hint}>

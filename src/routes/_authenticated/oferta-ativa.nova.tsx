@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Lock, Plus, Users } from "lucide-react";
+import { ArrowLeft, CircleNotch, Lock, Plus, UsersThree } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -154,7 +154,7 @@ function NovaOfertaPage() {
   if (rolesLoading || (de && canManage && origemQ.isLoading)) {
     return (
       <div className="flex justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <CircleNotch className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -168,9 +168,7 @@ function NovaOfertaPage() {
         description="A criação de listas de Oferta Ativa é exclusiva para gestores e administradores. Você trabalha as listas atribuídas a você na aba Oferta Ativa."
         action={
           <Button asChild variant="outline">
-            <Link to="/oferta-ativa">
-              Voltar para Oferta Ativa
-            </Link>
+            <Link to="/oferta-ativa">Voltar para Oferta Ativa</Link>
           </Button>
         }
         className="py-20"
@@ -413,10 +411,10 @@ function NovaOfertaPage() {
         </div>
 
         <div className="bg-muted/50 rounded-lg p-4 flex items-center gap-3">
-          <Users className="w-5 h-5 text-muted-foreground shrink-0" />
+          <UsersThree className="w-5 h-5 text-muted-foreground shrink-0" />
           {previewQ.isLoading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin" /> Calculando...
+              <CircleNotch className="w-4 h-4 animate-spin" /> Calculando...
             </div>
           ) : previewQ.isError ? (
             <div role="alert" className="text-sm">

@@ -1,4 +1,4 @@
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/manrope";
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -6,7 +6,7 @@
 /* Sora Variable (display) — vendorizada em public/fonts para não alterar o
    bun.lock (o registro privado exige token no CI). Subset latin cobre pt-BR.
    Uso restrito: títulos de página, valores de KPI, timer do Sprint e números
-   do ranking — sempre com tabular-nums. Corpo continua Inter. */
+   do ranking — sempre com tabular-nums. Corpo é Manrope (identidade v3). */
 @font-face {
   font-family: "Sora Variable";
   font-style: normal;
@@ -21,15 +21,18 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Sora Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Sora Variable", "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Escala de raio (identidade v3, decisão 13): sm 6px = badges, md 8px =
+     botões/inputs/menus, lg e xl 10px = cards e diálogos, 2xl 14px. lg e xl
+     colapsam de propósito: os dois eram usados para "bloco de conteúdo". */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 6px);
+  --radius-3xl: calc(var(--radius) + 10px);
+  --radius-4xl: calc(var(--radius) + 14px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -95,6 +98,20 @@
   --color-gold-800: oklch(0.45 0.09 78);
   --color-gold-900: oklch(0.36 0.07 75);
 
+  /* Cor por módulo (identidade v3): uma cor fixa por sistema do portal, com a
+     mesma saturação (chroma ≈ 0,10) para parecerem uma família. Dourado é
+     reservado à Central de Comando; BI e Configurações ficam em neutros.
+     → bg-modulo-prospeccao/13, text-modulo-followup… */
+  --color-modulo-central: var(--modulo-central);
+  --color-modulo-prospeccao: var(--modulo-prospeccao);
+  --color-modulo-atendimento: var(--modulo-atendimento);
+  --color-modulo-carteira: var(--modulo-carteira);
+  --color-modulo-followup: var(--modulo-followup);
+  --color-modulo-projetos: var(--modulo-projetos);
+  --color-modulo-financeiro: var(--modulo-financeiro);
+  --color-modulo-bi: var(--modulo-bi);
+  --color-modulo-config: var(--modulo-config);
+
   /* Superfícies glass (variam por tema) */
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
@@ -112,9 +129,8 @@
   --shadow-elev-4: var(--elev-4);
   --shadow-glow-gold: var(--glow-gold);
 
-  /* Microinterações → animate-pulse-glow, animate-shimmer, animate-slide-fade, animate-count-pop */
+  /* Microinterações → animate-pulse-glow, animate-slide-fade, animate-count-pop */
   --animate-pulse-glow: pulse-glow 2.4s ease-in-out infinite;
-  --animate-shimmer: shimmer 1.8s linear infinite;
   --animate-slide-fade: slide-fade 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-count-pop: count-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-scale-in: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -122,11 +138,14 @@
 }
 
 :root {
-  /* Seu Metro Quadrado — navy + gold · tema "Clareza" (light) */
-  --radius: 0.65rem;
+  /* Seu Metro Quadrado — navy + gold · tema "Clareza" (light, PADRÃO desde a
+     identidade v3). Cantos: controles 8px, cards 10px, badges 6px. */
+  --radius: 0.5rem;
   --navy: oklch(0.22 0.05 250);
   --gold: oklch(0.72 0.12 85);
-  --background: oklch(0.99 0.002 250);
+  /* Fundo off-white azulado: com cards brancos SEM sombra, a página precisa
+     estar um passo abaixo do card para o card existir (Pipedrive/HubSpot). */
+  --background: oklch(0.975 0.004 250);
   --foreground: oklch(0.22 0.05 250);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.22 0.05 250);
@@ -175,7 +194,22 @@
   --surface-1: oklch(1 0 0);
   --surface-2: oklch(0.98 0.004 250);
   --surface-3: oklch(0.96 0.008 250);
-  --border-subtle: oklch(0.22 0.05 250 / 0.08);
+  --border-subtle: oklch(0.22 0.05 250 / 0.1);
+
+  /* Monograma da Sami (components/ui/sami-mark): disco, glifo e halo do ponto */
+  --sami-disc: oklch(0.22 0.05 250);
+  --sami-glyph: oklch(0.97 0.01 85);
+
+  /* Cor por módulo (valores absolutos do tema claro) */
+  --modulo-central: oklch(0.72 0.12 85);
+  --modulo-prospeccao: oklch(0.55 0.1 240);
+  --modulo-atendimento: oklch(0.58 0.09 195);
+  --modulo-carteira: oklch(0.42 0.09 262);
+  --modulo-followup: oklch(0.6 0.11 40);
+  --modulo-projetos: oklch(0.5 0.1 320);
+  --modulo-financeiro: oklch(0.58 0.09 150);
+  --modulo-bi: oklch(0.5 0.03 250);
+  --modulo-config: oklch(0.55 0.01 250);
 
   /* Luz ambiente do shell (estática — pintada 1x, nunca reanimada) */
   --ambient: radial-gradient(
@@ -191,8 +225,11 @@
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
 
-  /* Elevação — sombras tintadas de navy (nunca preto puro no claro) */
-  --elev-1: 0 1px 2px oklch(0.22 0.05 250 / 0.06), 0 1px 3px oklch(0.22 0.05 250 / 0.08);
+  /* Elevação — sombras tintadas de navy (nunca preto puro no claro).
+     elev-1 é NULA no claro (identidade v3): card se separa do fundo pela
+     hairline + off-white, não por sombra. Sombra só em overlay (popover,
+     menu, diálogo, sheet) e no hover de card clicável (elev-2). */
+  --elev-1: 0 0 0 0 transparent;
   --elev-2: 0 4px 16px -4px oklch(0.22 0.05 250 / 0.1), 0 1px 2px oklch(0.22 0.05 250 / 0.06);
   --elev-3: 0 8px 28px -6px oklch(0.22 0.05 250 / 0.14), 0 2px 6px oklch(0.22 0.05 250 / 0.06);
   --elev-4: 0 16px 48px -8px oklch(0.22 0.05 250 / 0.2), 0 4px 12px oklch(0.22 0.05 250 / 0.08);
@@ -210,7 +247,7 @@
 }
 
 .dark {
-  /* Tema "Modo Comando" (padrão) — navy profundo premium */
+  /* Tema "Modo Comando" (escuro, opt-in) — navy profundo premium */
   --navy: oklch(0.14 0.025 250);
   --gold: oklch(0.72 0.12 85);
   --background: oklch(0.14 0.025 250);
@@ -262,6 +299,21 @@
   --surface-3: oklch(0.26 0.042 250);
   --border-subtle: oklch(0.95 0.01 85 / 0.08);
 
+  /* Monograma da Sami: disco um passo acima do card para não sumir no escuro */
+  --sami-disc: oklch(0.3 0.05 250);
+  --sami-glyph: oklch(0.97 0.01 85);
+
+  /* Cor por módulo — mais claras que no tema claro para contraste sobre --card */
+  --modulo-central: oklch(0.77 0.11 85);
+  --modulo-prospeccao: oklch(0.7 0.1 240);
+  --modulo-atendimento: oklch(0.72 0.09 195);
+  --modulo-carteira: oklch(0.66 0.09 262);
+  --modulo-followup: oklch(0.74 0.11 40);
+  --modulo-projetos: oklch(0.7 0.1 320);
+  --modulo-financeiro: oklch(0.72 0.09 150);
+  --modulo-bi: oklch(0.7 0.03 250);
+  --modulo-config: oklch(0.7 0.01 250);
+
   /* Luz ambiente dourada muito sutil no topo do shell */
   --ambient: radial-gradient(
     1100px 520px at 82% -12%,
@@ -300,15 +352,6 @@
     box-shadow:
       0 0 0 3px oklch(0.72 0.12 85 / 0.18),
       0 0 18px -4px oklch(0.72 0.12 85 / 0.45);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
   }
 }
 
@@ -442,6 +485,17 @@
   }
 }
 
+/* Ícones Phosphor duotone com segunda cor. O Phosphor renderiza a área interna
+   como <path opacity="0.2"> herdando currentColor; dentro de um contêiner
+   .icon-duo ela passa a usar --icon-duo (cor do módulo, ou dourado na sidebar
+   navy). Sem --icon-duo definido, fica igual ao padrão da biblioteca. */
+@utility icon-duo {
+  & svg path[opacity="0.2"] {
+    fill: var(--icon-duo, currentColor);
+    opacity: var(--icon-duo-opacity, 0.2);
+  }
+}
+
 @utility bg-gradient-command {
   background-image: var(--gradient-command);
 }
@@ -452,17 +506,6 @@
 
 @utility bg-gradient-surface {
   background-image: var(--gradient-surface);
-}
-
-/* Skeleton premium: base muted + varredura shimmer. */
-@utility shimmer-surface {
-  background-image: linear-gradient(
-    100deg,
-    transparent 30%,
-    oklch(1 0 0 / 0.06) 50%,
-    transparent 70%
-  );
-  background-size: 200% 100%;
 }
 
 /* Luz ambiente do shell — aplicar no contêiner que NÃO rola. */
@@ -584,7 +627,6 @@
    -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-glow,
-  .animate-shimmer,
   .animate-slide-fade,
   .animate-count-pop,
   .animate-scale-in,

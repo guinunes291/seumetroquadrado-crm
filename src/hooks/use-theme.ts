@@ -43,7 +43,7 @@ function getSnapshot(): Snapshot {
 }
 
 function getServerSnapshot(): Snapshot {
-  return "dark:dark";
+  return "light:light";
 }
 
 function refresh() {

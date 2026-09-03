@@ -9,13 +9,13 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
-  CalendarClock,
-  ChevronLeft,
-  ChevronRight,
-  Send,
+  CalendarDots,
+  CaretLeft,
+  CaretRight,
+  PaperPlaneTilt,
   Star,
-  Table2,
-} from "lucide-react";
+  Table,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
@@ -105,7 +105,7 @@ export function BannerCampanhas({
               onClick={() => api?.scrollPrev()}
               aria-label="Campanha anterior"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <CaretLeft className="h-4 w-4" />
             </Button>
             <Button
               size="icon"
@@ -114,7 +114,7 @@ export function BannerCampanhas({
               onClick={() => api?.scrollNext()}
               aria-label="Próxima campanha"
             >
-              <ChevronRight className="h-4 w-4" />
+              <CaretRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -187,8 +187,8 @@ function Slide({
 
       <div className="relative flex min-h-[220px] flex-col justify-between gap-4 p-5 md:min-h-[260px] md:p-7">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-gold px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-navy-900">
-            <Star className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-modulo-projetos/15 px-2.5 py-1 text-xs font-semibold text-modulo-projetos">
+            <Star className="h-3.5 w-3.5" aria-hidden="true" weight="fill" />
             Em foco
           </span>
           {item.foco?.motivo && (
@@ -198,7 +198,7 @@ function Slide({
           )}
           {urg && (
             <span className="inline-flex items-center gap-1 rounded-full border border-gold-400/40 bg-gold-500/15 px-2.5 py-1 text-xs font-medium text-gold-200">
-              <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+              <CalendarDots className="h-3.5 w-3.5" aria-hidden="true" />
               {urg}
             </span>
           )}
@@ -214,7 +214,7 @@ function Slide({
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-white/70">
+            <p className="text-xs font-medium text-white/70">
               {construtoraExibida(item)}
               {local ? ` · ${local}` : ""}
             </p>
@@ -240,12 +240,8 @@ function Slide({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              className="press-scale bg-gradient-gold text-navy-900 hover:opacity-90"
-              onClick={() => onEnviar(item)}
-            >
-              <Send className="mr-1 h-3.5 w-3.5" /> Enviar ao cliente
+            <Button size="sm" className="press-scale" onClick={() => onEnviar(item)}>
+              <PaperPlaneTilt className="mr-1 h-3.5 w-3.5" /> Enviar ao cliente
             </Button>
             {item.book_url && (
               <Button size="sm" variant="outline" className={GLASS_BTN} asChild>
@@ -267,7 +263,7 @@ function Slide({
                   rel="noopener noreferrer"
                   onClick={() => onAbrirMaterial(item, "tabela")}
                 >
-                  <Table2 className="mr-1 h-3.5 w-3.5" /> Tabela
+                  <Table className="mr-1 h-3.5 w-3.5" /> Tabela
                 </a>
               </Button>
             )}

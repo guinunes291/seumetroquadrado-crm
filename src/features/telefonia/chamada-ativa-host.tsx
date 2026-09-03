@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { PhoneCall, PhoneOff, Volume2, VolumeX, X } from "lucide-react";
+import { PhoneCall, PhoneSlash, SpeakerHigh, SpeakerSlash, X } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -197,7 +197,7 @@ export function ChamadaAtivaHost() {
                 </>
               ) : (
                 <>
-                  <PhoneOff className="h-4 w-4 text-muted-foreground" />
+                  <PhoneSlash className="h-4 w-4 text-muted-foreground" />
                   Chamada encerrada
                 </>
               )}
@@ -211,7 +211,7 @@ export function ChamadaAtivaHost() {
                 title={som ? "Silenciar aviso de chamada" : "Ativar som de chamada"}
                 onClick={alternarSom}
               >
-                {som ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {som ? <SpeakerHigh className="h-4 w-4" /> : <SpeakerSlash className="h-4 w-4" />}
               </Button>
               <Button
                 size="icon"

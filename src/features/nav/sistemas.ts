@@ -11,38 +11,39 @@
 // Arquivo puro (sem React) de propósito: os filtros e o resolvedor de sistema
 // ativo são funções puras testáveis.
 
-import type { LucideIcon } from "lucide-react";
 import {
-  BarChart3,
+  ArrowsClockwise,
   Briefcase,
-  Building2,
-  CalendarClock,
+  Buildings,
+  CalendarDots,
+  ChartBar,
+  ChartLineUp,
   Crosshair,
+  GearSix,
   Headset,
   Hourglass,
-  LayoutDashboard,
-  LineChart,
-  Link2,
-  ListTodo,
-  Map,
-  MapPinned,
+  Kanban,
+  Layout,
+  Link,
+  ListChecks,
+  MapPinArea,
+  MapTrifold,
   Megaphone,
-  MessageCircle,
   Phone,
   PhoneOutgoing,
-  Repeat,
-  Settings,
   Shuffle,
-  Sparkles,
   Star,
-  Sun,
+  SunHorizon,
   Target,
-  Trello,
   Trophy,
-  Users,
+  UsersThree,
   Wallet,
-} from "lucide-react";
+  WhatsappLogo,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import type { AppRole } from "@/hooks/use-auth";
+import type { CorModulo } from "@/features/nav/cores-modulo";
 import type { NavBadges } from "@/features/nav/use-nav-badges";
 import { CARTEIRA_STAGES, type FaseFunil } from "@/lib/leads";
 
@@ -51,7 +52,7 @@ export type Destino = { to: string; search?: Record<string, string> };
 export type Secao = {
   id: string;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   to: string;
   /** Match ESTRITO na ativação: a seção só acende com o param presente. */
   search?: Record<string, string>;
@@ -77,7 +78,7 @@ export type Sistema = {
   titulo: string;
   /** Uma frase curta — o card corta em duas linhas (line-clamp-2). */
   descricao: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   /** Destino do card no hub (padrão). */
   home: Destino;
   /** Home dependente do papel — só o BI usa (gestão cai no painel). */
@@ -87,6 +88,9 @@ export type Sistema = {
   roles?: AppRole[];
   badge?: (b: NavBadges) => number;
   badgeRoles?: AppRole[];
+  /** Cor fixa do módulo (identidade v3): tile no portal, cabeçalho da sidebar,
+   *  header da página e badge de pendência leem daqui. Ver cores-modulo.ts. */
+  cor: CorModulo;
   /** Frequência de uso no portal (decisão 2026-08-30): "operacao" é o dia do
    *  corretor (primeira dobra, na ordem do fluxo), "consulta" é referência
    *  ocasional (Docs, Financeiro, BI) e "gestao" é só admin. */
@@ -106,17 +110,18 @@ export const SISTEMAS: Sistema[] = [
     id: "central-comando",
     titulo: "Central de Comando",
     descricao: "Seu dia em ordem de prioridade: próxima melhor ação, agenda e metas num só lugar.",
-    icon: Sun,
+    icon: SunHorizon,
     home: { to: "/hoje" },
+    cor: "central",
     grupo: "operacao",
     destaque: true,
-    secoes: [{ id: "hoje", label: "Hoje", icon: Sun, to: "/hoje" }],
+    secoes: [{ id: "hoje", label: "Hoje", icon: SunHorizon, to: "/hoje" }],
   },
   {
     id: "prospeccao",
     titulo: "Prospecção",
     descricao: "O volumão do topo do funil: escolha a base do dia e trabalhe um lead por vez.",
-    icon: Users,
+    icon: UsersThree,
     // Abre DIRETO no Modo Foco: o corretor escolhe a base (Aguardando
     // Atendimento / Aguardando Retorno / Em Qualificação), o sistema monta o
     // lote e o trabalho é um por um. O funil kanban da fase saiu da sidebar
@@ -125,6 +130,7 @@ export const SISTEMAS: Sistema[] = [
     // nav_pendencias.atendimento conta `aguardando_atendimento` — literalmente
     // uma etapa de Prospecção, por isso o contador vive neste card.
     badge: (b) => b.atendimento,
+    cor: "prospeccao",
     grupo: "operacao",
     secoes: [
       {
@@ -139,7 +145,7 @@ export const SISTEMAS: Sistema[] = [
       // /atendimento?modo=consulta. A ficha (/leads/$leadId) resolve pela
       // ETAPA do lead (sistemaAtivoContextual) — o prefixo daqui é só o
       // fallback enquanto o lead carrega.
-      { id: "base-leads", label: "Base de leads", icon: Users, to: "/leads" },
+      { id: "base-leads", label: "Base de leads", icon: UsersThree, to: "/leads" },
       // Para o CORRETOR a sidebar é só Modo Foco + Base de leads (decisão de
       // 2026-08-27); as seções de gestão continuam role-gated — invisíveis
       // para o corretor, e o único acesso de navegação da gestão a estas telas.
@@ -173,12 +179,13 @@ export const SISTEMAS: Sistema[] = [
     icon: Headset,
     home: { to: "/mensagens" },
     badge: (b) => b.mensagensAguardando,
+    cor: "atendimento",
     grupo: "operacao",
     secoes: [
       {
         id: "mensagens",
         label: "Mensagens",
-        icon: MessageCircle,
+        icon: WhatsappLogo,
         to: "/mensagens",
         badge: (b) => b.mensagensAguardando,
       },
@@ -194,6 +201,7 @@ export const SISTEMAS: Sistema[] = [
     icon: Briefcase,
     home: { to: "/pipeline", search: { fase: "carteira" } },
     badge: (b) => b.tarefasVencidas + b.agendaHoje,
+    cor: "carteira",
     grupo: "operacao",
     // Dona do /pipeline cru (bookmark antigo = quadro completo) e do /match:
     // a Reta final e o Match saíram da sidebar (corte 2026-08-30) mas as
@@ -205,7 +213,7 @@ export const SISTEMAS: Sistema[] = [
       {
         id: "funil-carteira",
         label: "Funil da carteira",
-        icon: Trello,
+        icon: Kanban,
         to: "/pipeline",
         search: { fase: "carteira" },
       },
@@ -223,11 +231,11 @@ export const SISTEMAS: Sistema[] = [
       {
         id: "agenda",
         label: "Agenda & Tarefas",
-        icon: CalendarClock,
+        icon: CalendarDots,
         to: "/agendamentos",
         badge: (b) => b.agendaHoje,
       },
-      { id: "modo-visita", label: "Modo Visita", icon: MapPinned, to: "/modo-visita" },
+      { id: "modo-visita", label: "Modo Visita", icon: MapPinArea, to: "/modo-visita" },
     ],
   },
   {
@@ -235,17 +243,18 @@ export const SISTEMAS: Sistema[] = [
     titulo: "Follow-Up",
     descricao:
       "A régua dos 13 toques: quem tocar hoje, com mensagem pronta e contador por cliente.",
-    icon: Repeat,
+    icon: ArrowsClockwise,
     home: { to: "/follow-up" },
     // nav_pendencias.followups = tarefas de contato de hoje + vencidas — o
     // número que o corretor precisa zerar.
     badge: (b) => b.followups,
+    cor: "followup",
     grupo: "operacao",
     secoes: [
       {
         id: "fila",
         label: "Fila do dia",
-        icon: Repeat,
+        icon: ArrowsClockwise,
         to: "/follow-up",
         badge: (b) => b.followups,
       },
@@ -259,14 +268,14 @@ export const SISTEMAS: Sistema[] = [
       {
         id: "kpis",
         label: "Curva de resposta",
-        icon: LineChart,
+        icon: ChartLineUp,
         to: "/follow-up",
         search: { tab: "kpis" },
       },
       {
         id: "cobertura",
         label: "Cobertura do time",
-        icon: Users,
+        icon: UsersThree,
         to: "/follow-up",
         search: { tab: "cobertura" },
         roles: GESTAO,
@@ -277,7 +286,7 @@ export const SISTEMAS: Sistema[] = [
         // ajuste num hub admin sem link. Aba admin-only dentro do módulo.
         id: "config",
         label: "Config da régua",
-        icon: Settings,
+        icon: GearSix,
         to: "/follow-up",
         search: { tab: "config" },
         roles: ["admin"],
@@ -288,16 +297,17 @@ export const SISTEMAS: Sistema[] = [
     id: "docs-projetos",
     titulo: "Documentação & Projetos",
     descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapa e materiais.",
-    icon: Building2,
+    icon: Buildings,
     home: { to: "/projetos-foco" },
+    cor: "projetos",
     grupo: "consulta",
     // /links-uteis saiu da sidebar (corte 2026-08-30) mas a rota segue viva
     // com dono — o acesso é o botão em Projetos em Foco e o ⌘K.
     dominioExtra: ["/links-uteis"],
     secoes: [
       { id: "projetos-foco", label: "Projetos em Foco", icon: Star, to: "/projetos-foco" },
-      { id: "catalogo", label: "Catálogo completo", icon: Building2, to: "/projetos" },
-      { id: "vitrine", label: "Vitrine (mapa)", icon: Map, to: "/vitrine" },
+      { id: "catalogo", label: "Catálogo completo", icon: Buildings, to: "/projetos" },
+      { id: "vitrine", label: "Vitrine (mapa)", icon: MapTrifold, to: "/vitrine" },
       {
         id: "materiais",
         label: "Materiais (gestão)",
@@ -315,6 +325,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/financeiro", search: { tab: "comissoes" } },
     badge: (b) => b.aprovacoes,
     badgeRoles: GESTAO,
+    cor: "financeiro",
     grupo: "consulta",
     secoes: [
       // As abas internas (fechamento|comissoes|dre) são o segundo nível; o
@@ -331,18 +342,19 @@ export const SISTEMAS: Sistema[] = [
     id: "bi",
     titulo: "BI — Relatórios",
     descricao: "Relatórios e indicadores: seu Raio-X individual e os painéis da operação.",
-    icon: LineChart,
+    icon: ChartLineUp,
     home: { to: "/meu-raio-x" },
     homePorPapel: (ctx) =>
       temPapel(GESTAO, ctx) ? { to: "/painel-gestor" } : { to: "/meu-raio-x" },
+    cor: "bi",
     grupo: "consulta",
     secoes: [
-      { id: "meu-raio-x", label: "Meu Raio-X", icon: LineChart, to: "/meu-raio-x" },
+      { id: "meu-raio-x", label: "Meu Raio-X", icon: ChartLineUp, to: "/meu-raio-x" },
       { id: "desempenho", label: "Desempenho", icon: Trophy, to: "/ranking" },
       {
         id: "operacao",
         label: "Operação",
-        icon: BarChart3,
+        icon: ChartBar,
         to: "/painel-gestor",
         roles: GESTAO,
       },
@@ -352,27 +364,28 @@ export const SISTEMAS: Sistema[] = [
     id: "configuracoes",
     titulo: "Configurações",
     descricao: "Integrações, pessoas, estoque e preferências da conta.",
-    icon: Settings,
+    icon: GearSix,
     home: { to: "/configuracoes" },
     roles: ["admin"],
+    cor: "config",
     grupo: "gestao",
     // As abas mais buscadas ganham endereço na sidebar e no ⌘K (antes o card
     // era mudo: 9 abas internas inalcançáveis pela navegação). A seção
     // Integrações, sem search, é dona do /configuracoes cru — o card deixa de
     // abrir uma tela sem sidebar. Demais abas seguem internas ao painel.
     secoes: [
-      { id: "integracoes", label: "Integrações", icon: Link2, to: "/configuracoes" },
+      { id: "integracoes", label: "Integrações", icon: Link, to: "/configuracoes" },
       {
         id: "pessoas",
         label: "Pessoas",
-        icon: Users,
+        icon: UsersThree,
         to: "/configuracoes",
         search: { tab: "pessoas" },
       },
       {
         id: "estoque",
         label: "Estoque",
-        icon: Building2,
+        icon: Buildings,
         to: "/configuracoes",
         search: { tab: "estoque" },
       },
@@ -429,15 +442,15 @@ export function homeDoSistema(s: Sistema, ctx: PapelCtx): Destino {
  *  sistemas.test.ts) cobrir seções e atalhos juntos. */
 export type AtalhoExtra = {
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   to: string;
   search?: Record<string, string>;
   roles?: AppRole[];
 };
 
 export const ATALHOS_EXTRAS: AtalhoExtra[] = [
-  { label: "Tarefas", icon: ListTodo, to: "/agendamentos", search: { tab: "tarefas" } },
-  { label: "Comissões", icon: ListTodo, to: "/financeiro", search: { tab: "comissoes" } },
+  { label: "Tarefas", icon: ListChecks, to: "/agendamentos", search: { tab: "tarefas" } },
+  { label: "Comissões", icon: ListChecks, to: "/financeiro", search: { tab: "comissoes" } },
   {
     // "Reta final" é a leitura de fechamento DA CARTEIRA (auditoria
     // 2026-08-27) — por isso o atalho fixa fase=carteira, mesmo vindo do
@@ -447,18 +460,18 @@ export const ATALHOS_EXTRAS: AtalhoExtra[] = [
     to: "/pipeline",
     search: { tab: "fechamento", fase: "carteira" },
   },
-  { label: "Match IA", icon: Sparkles, to: "/match" },
-  { label: "Links Úteis", icon: Link2, to: "/links-uteis" },
+  { label: "Match IA", icon: SamiMark, to: "/match" },
+  { label: "Links Úteis", icon: Link, to: "/links-uteis" },
   {
     label: "Relatórios (Operação)",
-    icon: LayoutDashboard,
+    icon: Layout,
     to: "/painel-gestor",
     search: { tab: "relatorios" },
     roles: ["admin", "gestor", "superintendente"],
   },
   {
     label: "Metas & Ritmo",
-    icon: LayoutDashboard,
+    icon: Layout,
     to: "/painel-gestor",
     search: { tab: "metas" },
     roles: ["admin", "gestor", "superintendente"],

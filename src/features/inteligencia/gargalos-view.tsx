@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowDownRight, Clock3, Info, XCircle } from "lucide-react";
+import { ArrowDownRight, ClockAfternoon, Info, Warning, XCircle } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,7 +82,7 @@ function tituloDoProblema(p: GargaloProblema): string {
 const ICONE_PROBLEMA = {
   queda_conversao: ArrowDownRight,
   motivo_perda: XCircle,
-  etapa_lenta: Clock3,
+  etapa_lenta: ClockAfternoon,
 } as const;
 
 /**
@@ -105,7 +105,7 @@ export function GargalosView({ filtros }: { filtros: FiltrosInteligencia }) {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-            <AlertTriangle className="h-4 w-4" /> Onde está travando (por impacto estimado)
+            <Warning className="h-4 w-4" /> Onde está travando (por impacto estimado)
             <AtualizadoEm quando={gargalosQ.data?.atualizado_em} />
           </CardTitle>
         </CardHeader>
@@ -133,7 +133,7 @@ export function GargalosView({ filtros }: { filtros: FiltrosInteligencia }) {
             <>
               <ol className="space-y-2">
                 {gargalos!.problemas.map((p, i) => {
-                  const Icone = ICONE_PROBLEMA[p.tipo] ?? AlertTriangle;
+                  const Icone = ICONE_PROBLEMA[p.tipo] ?? Warning;
                   return (
                     <li
                       key={`${p.tipo}:${p.etapa ?? p.categoria ?? i}`}

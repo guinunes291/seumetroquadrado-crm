@@ -25,7 +25,7 @@ describe("item 2.7c — porta única no menu", () => {
     // "Leads" não é home de sistema algum…
     expect(sistemas).not.toMatch(/home: \{ to: "\/leads" \}/);
     // …mas a base completa segue acessível como seção (nenhuma rota morre).
-    expect(sistemas).toContain('label: "Base de leads", icon: Users, to: "/leads"');
+    expect(sistemas).toContain('label: "Base de leads", icon: UsersThree, to: "/leads"');
   });
 
   it("os antigos filhos de Leads foram realojados, não apagados", () => {

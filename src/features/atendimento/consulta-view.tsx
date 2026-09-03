@@ -16,15 +16,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  MessageCircle,
+  CalendarDots,
+  CaretLeft,
+  CaretRight,
+  MagnifyingGlass,
   Phone,
-  Search,
   SlidersHorizontal,
+  WhatsappLogo,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,7 +228,7 @@ export function ConsultaView() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1 basis-56">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
@@ -386,7 +386,7 @@ export function ConsultaView() {
             {filtros.periodo === "custom" && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
-                  <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <CalendarDots className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="date"
                     value={filtros.dataInicio}
@@ -396,7 +396,7 @@ export function ConsultaView() {
                   />
                 </div>
                 <div className="relative">
-                  <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <CalendarDots className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     type="date"
                     value={filtros.dataFim}
@@ -465,7 +465,7 @@ export function ConsultaView() {
       >
         {rows.length === 0 ? (
           <EmptyState
-            icon={Search}
+            icon={MagnifyingGlass}
             title="Nenhum lead encontrado"
             description="Ajuste a busca ou os filtros — o recorte atual não devolveu ninguém."
             className="py-12"
@@ -517,7 +517,7 @@ export function ConsultaView() {
                       })
                     }
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <WhatsappLogo className="h-4 w-4" />
                   </Button>
                   <Button
                     asChild
@@ -541,7 +541,7 @@ export function ConsultaView() {
                   disabled={pageSafe <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+                  <CaretLeft className="mr-1 h-4 w-4" /> Anterior
                 </Button>
                 <Button
                   variant="ghost"
@@ -549,7 +549,7 @@ export function ConsultaView() {
                   disabled={pageSafe >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  Próxima <ChevronRight className="ml-1 h-4 w-4" />
+                  Próxima <CaretRight className="ml-1 h-4 w-4" />
                 </Button>
               </div>
             )}

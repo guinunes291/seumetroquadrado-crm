@@ -4,7 +4,7 @@
 // do hub — sem sair da página de relatórios.
 
 import { lazy, Suspense, useState } from "react";
-import { User } from "lucide-react";
+import { User } from "@phosphor-icons/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AsyncBoundary } from "@/components/ui/async-boundary";

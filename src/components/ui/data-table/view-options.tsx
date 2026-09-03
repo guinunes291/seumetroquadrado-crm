@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, Rows3, Settings2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Rows, Sliders } from "@phosphor-icons/react";
 import type { Table } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +47,7 @@ export function DataTableViewOptions<TData>({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1.5">
-          <Settings2 className="h-4 w-4" />
+          <Sliders className="h-4 w-4" />
           <span className="hidden sm:inline">Colunas</span>
         </Button>
       </DropdownMenuTrigger>
@@ -107,7 +107,7 @@ export function DataTableViewOptions<TData>({
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="flex items-center gap-2">
-          <Rows3 className="h-3.5 w-3.5" /> Densidade
+          <Rows className="h-3.5 w-3.5" /> Densidade
         </DropdownMenuLabel>
         <div className="flex gap-1 px-2 pb-1.5">
           {(

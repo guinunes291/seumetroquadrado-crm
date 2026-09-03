@@ -6,6 +6,49 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+import type { Plugin } from "vite";
+
+// Pesos do Phosphor que o CRM usa (identidade v3): duotone é o padrão
+// (IconContext no __root), fill marca o item ativo da navegação e regular é o
+// fallback da biblioteca quando não há provider (testes). Cada módulo de ícone
+// do @phosphor-icons/react carrega os SEIS pesos num Map — mesmo com
+// tree-shaking, um ícone custa 6× o path. Este transform apaga as entradas dos
+// pesos não usados no build; se o formato do módulo mudar, devolve o original.
+const PHOSPHOR_WEIGHTS = new Set(["duotone", "fill", "regular"]);
+
+function phosphorWeightsPlugin(): Plugin {
+  return {
+    name: "smq:phosphor-weights",
+    enforce: "pre",
+    transform(code, id) {
+      if (!id.includes("@phosphor-icons/react/dist/defs/")) return null;
+      const open = code.indexOf("new Map([");
+      const close = code.lastIndexOf("]);");
+      if (open < 0 || close < 0) return null;
+      const inner = code.slice(open + "new Map([".length, close);
+      // Entradas: `[\n    "peso",\n    ...\n  ]` separadas por vírgula + quebra.
+      const entries = inner.split(/\n {2}\],?\n {2}\[\n/);
+      if (entries.length !== 6) return null;
+      const kept = entries.filter((entry) => {
+        const m = entry.match(/^\s*\[?\s*"([a-z]+)"/);
+        return m ? PHOSPHOR_WEIGHTS.has(m[1]) : true;
+      });
+      if (kept.length === entries.length) return null;
+      const first = kept[0].replace(/^\s*\[\n/, "");
+      const last = kept[kept.length - 1].replace(/\n {2}\]\s*$/, "");
+      const body = kept.map((e, i) => {
+        let t = e;
+        if (i === 0) t = first;
+        if (i === kept.length - 1) t = last;
+        return `  [\n${t}\n  ]`;
+      });
+      return {
+        code: `${code.slice(0, open)}new Map([\n${body.join(",\n")}\n${code.slice(close)}`,
+        map: null,
+      };
+    },
+  };
+}
 
 const publicBackendEnv = {
   url:
@@ -27,7 +70,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    plugins: [mcpPlugin(), phosphorWeightsPlugin()],
     define: {
       "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(publicBackendEnv.url),
       "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(

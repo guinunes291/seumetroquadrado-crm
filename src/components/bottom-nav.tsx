@@ -1,5 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Building2, Headset, Plus, Search, Sparkles, Sun, UserPlus, Users } from "lucide-react";
+import {
+  Buildings,
+  Headset,
+  MagnifyingGlass,
+  Plus,
+  SunHorizon,
+  UserPlus,
+  UsersThree,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +21,7 @@ import { cn } from "@/lib/utils";
 type Slot = {
   to: string;
   label: string;
-  icon: typeof Sun;
+  icon: typeof SunHorizon;
 };
 
 // Os 4 destinos de polegar do corretor. O slot central (dourado) é o botão de
@@ -23,8 +32,8 @@ type Slot = {
 // longe do polegar. O kanban é revisão de desktop; no celular o avanço de
 // etapa acontece pela ficha do lead. Pipeline continua no menu lateral.
 const LEFT: Slot[] = [
-  { to: "/hoje", label: "Início", icon: Sun },
-  { to: "/leads", label: "Leads", icon: Users },
+  { to: "/hoje", label: "Início", icon: SunHorizon },
+  { to: "/leads", label: "Leads", icon: UsersThree },
 ];
 const RIGHT: Slot[] = [{ to: "/atendimento", label: "Atender", icon: Headset }];
 
@@ -43,14 +52,15 @@ function NavSlot({ slot, active }: { slot: Slot; active: boolean }) {
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
-      <Icon className="h-5 w-5" />
+      <Icon className="h-5 w-5" weight={active ? "fill" : "duotone"} />
       <span className="truncate">{slot.label}</span>
     </Link>
   );
 }
 
 /**
- * Navegação mobile fixa (glass) com FAB central dourado. Desktop usa a sidebar.
+ * Navegação mobile fixa (glass) com FAB central dourado sólido (o único acento
+ * dourado da tela — regra do dourado raro, identidade v3). Desktop usa a sidebar.
  * O wrapper de conteúdo do shell reserva o espaço com pb (ver route.tsx).
  */
 export function BottomNav() {
@@ -70,7 +80,7 @@ export function BottomNav() {
             <button
               type="button"
               aria-label="Ações rápidas"
-              className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full bg-gradient-gold text-navy-900 shadow-glow-gold transition-transform active:scale-95"
+              className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full bg-gold-500 text-navy-900 shadow-elev-3 transition-transform active:scale-95"
             >
               <Plus className="h-6 w-6" />
             </button>
@@ -85,13 +95,13 @@ export function BottomNav() {
                 para a bancada — lá book e tabela abrem direto da lista. */}
             <DropdownMenuItem asChild>
               <Link to="/projetos-foco">
-                <Building2 className="h-4 w-4" />
+                <Buildings className="h-4 w-4" />
                 Projetos e preços
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event("open-samiq"))}>
-              <Sparkles className="h-4 w-4" />
-              SamiQ
+              <SamiMark className="h-4 w-4" />
+              Falar com a Sami
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -104,7 +114,7 @@ export function BottomNav() {
           onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
           className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          <Search className="h-5 w-5" />
+          <MagnifyingGlass className="h-5 w-5" />
           <span className="truncate">Buscar</span>
         </button>
       </div>

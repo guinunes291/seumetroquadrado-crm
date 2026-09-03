@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Building2, CheckCircle2, FileX2, TrendingUp, Undo2, X } from "lucide-react";
+import { ArrowUUpLeft, Buildings, CheckCircle, FileX, TrendUp, X } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -221,7 +221,7 @@ export function RelatoriosVendasTab({
         <StatTile
           title="Vendas no período"
           value={vendasQ.data?.total ?? 0}
-          icon={CheckCircle2}
+          icon={CheckCircle}
           intent="success"
           loading={vendasQ.isLoading}
           hint="aprovadas, pela data de assinatura"
@@ -230,20 +230,20 @@ export function RelatoriosVendasTab({
           title="VGV"
           value={vgv}
           formatValue={fmtBRLCompacto}
-          icon={TrendingUp}
+          icon={TrendUp}
           intent="success"
           loading={vendasQ.isLoading}
         />
         <StatTile
           title="Ticket médio"
           value={ticket === null ? "—" : fmtBRLCompacto(ticket)}
-          icon={Building2}
+          icon={Buildings}
           loading={vendasQ.isLoading}
         />
         <StatTile
           title="Distratos"
           value={distratosQ.data?.total ?? 0}
-          icon={Undo2}
+          icon={ArrowUUpLeft}
           intent={(distratosQ.data?.total ?? 0) > 0 ? "warning" : "neutral"}
           loading={distratosQ.isLoading}
           hint={vgvDistratado > 0 ? `${fmtBRLCompacto(vgvDistratado)} devolvidos` : undefined}
@@ -254,7 +254,7 @@ export function RelatoriosVendasTab({
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" /> Vendas do período
+              <CheckCircle className="h-4 w-4" /> Vendas do período
               {projetoFiltro && (
                 <Button
                   size="sm"
@@ -338,7 +338,7 @@ export function RelatoriosVendasTab({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Building2 className="h-4 w-4" /> Top empreendimentos
+              <Buildings className="h-4 w-4" /> Top empreendimentos
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -402,7 +402,7 @@ export function RelatoriosVendasTab({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Ano mês a mês (12 meses)
+              <TrendUp className="h-4 w-4" /> Ano mês a mês (12 meses)
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
@@ -428,7 +428,7 @@ export function RelatoriosVendasTab({
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Conversão por empreendimento
+                <Buildings className="h-4 w-4" /> Conversão por empreendimento
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -501,7 +501,7 @@ export function RelatoriosVendasTab({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <FileX2 className="h-4 w-4" /> Distratos do período
+            <FileX className="h-4 w-4" /> Distratos do período
           </CardTitle>
         </CardHeader>
         <CardContent>

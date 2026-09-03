@@ -29,23 +29,23 @@ import {
   Bar,
 } from "recharts";
 import {
-  Users,
-  Hourglass,
-  Clock,
-  Calendar,
-  Eye,
-  FileCheck,
-  CheckCircle2,
-  XCircle,
-  UserCheck,
-  UserX,
-  AlertTriangle,
-  TrendingUp,
   ArrowRight,
+  CalendarBlank,
+  CaretDown,
+  CaretUp,
+  CheckCircle,
+  Clock,
+  Eye,
+  FileMagnifyingGlass,
+  Hourglass,
   Megaphone,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  TrendUp,
+  UserCheck,
+  UserMinus,
+  UsersThree,
+  Warning,
+  XCircle,
+} from "@phosphor-icons/react";
 import { format, formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -367,7 +367,7 @@ function ResumoTab({
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Evolução no período
+              <TrendUp className="h-4 w-4" /> Evolução no período
             </CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
@@ -467,7 +467,7 @@ function ResumoTab({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" /> Meus leads urgentes
+              <Warning className="h-4 w-4" /> Meus leads urgentes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -512,7 +512,7 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
       <StatTile
         title="Leads no período"
         value={data?.total ?? 0}
-        icon={Users}
+        icon={UsersThree}
         loading={loading}
         delta={data?.deltas.total ?? undefined}
         deltaLabel="vs. período anterior"
@@ -521,7 +521,7 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
       <StatTile
         title="Vendas"
         value={data?.contrato_fechado ?? 0}
-        icon={CheckCircle2}
+        icon={CheckCircle}
         intent="success"
         loading={loading}
         delta={data?.deltas.contrato_fechado ?? undefined}
@@ -532,7 +532,7 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
         title="VGV"
         value={data?.vgv ?? 0}
         formatValue={fmtBRLCompacto}
-        icon={TrendingUp}
+        icon={TrendUp}
         intent="success"
         loading={loading}
         delta={data?.deltas.vgv ?? undefined}
@@ -542,7 +542,7 @@ function ResultadoHero({ data, loading = false }: { data?: DashboardKpisFlat; lo
       <StatTile
         title="Ticket médio"
         value={ticket === null ? "—" : fmtBRLCompacto(ticket)}
-        icon={FileCheck}
+        icon={FileMagnifyingGlass}
         loading={loading}
         hint={
           ticket === null
@@ -582,14 +582,14 @@ function ProducaoPeriodo({
       : null;
   return (
     <div>
-      <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2 text-xs text-muted-foreground font-medium">
         Produção do período (cada atividade na data em que aconteceu)
       </p>
       <StatGrid>
         <StatTile
           title="Agendamentos criados"
           value={data?.agendamentos_periodo ?? 0}
-          icon={Calendar}
+          icon={CalendarBlank}
           loading={loading}
           delta={data?.deltas.agendamentos ?? undefined}
           deltaLabel="vs. período anterior"
@@ -615,7 +615,7 @@ function ProducaoPeriodo({
         <StatTile
           title="Comparecimento"
           value={comparecimento === null ? "—" : `${comparecimento}%`}
-          icon={CheckCircle2}
+          icon={CheckCircle}
           intent={comparecimento !== null && comparecimento < 50 ? "warning" : "neutral"}
           loading={loading}
           hint={
@@ -629,7 +629,7 @@ function ProducaoPeriodo({
         <StatTile
           title="Pastas montadas"
           value={data?.pastas_periodo ?? 0}
-          icon={FileCheck}
+          icon={FileMagnifyingGlass}
           loading={loading}
           delta={data?.deltas.pastas ?? undefined}
           deltaLabel="vs. período anterior"
@@ -642,7 +642,7 @@ function ProducaoPeriodo({
         <StatTile
           title="Análises de crédito"
           value={data?.analises_periodo ?? 0}
-          icon={FileCheck}
+          icon={FileMagnifyingGlass}
           loading={loading}
           delta={data?.deltas.analises ?? undefined}
           deltaLabel="vs. período anterior"
@@ -702,7 +702,13 @@ const PIPELINE_CARDS: Array<{
     etapa: "em_atendimento",
     status: "em_atendimento",
   },
-  { key: "agendado", label: "Agendado", icon: Calendar, etapa: "agendado", status: "agendado" },
+  {
+    key: "agendado",
+    label: "Agendado",
+    icon: CalendarBlank,
+    etapa: "agendado",
+    status: "agendado",
+  },
   {
     key: "visita_realizada",
     label: "Visita",
@@ -713,14 +719,14 @@ const PIPELINE_CARDS: Array<{
   {
     key: "analise_credito",
     label: "Análise crédito",
-    icon: FileCheck,
+    icon: FileMagnifyingGlass,
     etapa: "analise_credito",
     status: "analise_credito",
   },
   // Perdidos é métrica de PERÍODO (não estoque) — a lista nominal com motivo
   // vive na sub-aba Atividades; aqui o card navega para a base filtrada.
   { key: "perdido", label: "Perdidos (per.)", icon: XCircle, status: "perdido" },
-  { key: "sem_corretor", label: "Sem corretor", icon: Users, etapa: "sem_corretor" },
+  { key: "sem_corretor", label: "Sem corretor", icon: UsersThree, etapa: "sem_corretor" },
 ];
 
 /**
@@ -742,7 +748,7 @@ function PipelineAgora({
   const [etapaAberta, setEtapaAberta] = useState<string | null>(null);
   return (
     <div>
-      <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2 text-xs text-muted-foreground font-medium">
         Pipeline agora (estoque por etapa — foto de hoje, não segue o filtro de período)
       </p>
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-9">
@@ -777,7 +783,7 @@ function PipelineAgora({
             >
               <CardContent className="p-3">
                 <div className="flex items-start justify-between mb-1 gap-1">
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground leading-tight">
+                  <span className="text-xs text-muted-foreground leading-tight font-medium">
                     {label}
                   </span>
                   <Icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -789,9 +795,9 @@ function PipelineAgora({
                     {value}
                     {etapa &&
                       (aberta ? (
-                        <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                        <CaretUp className="h-3.5 w-3.5 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                        <CaretDown className="h-3.5 w-3.5 text-muted-foreground" />
                       ))}
                   </div>
                 )}
@@ -932,7 +938,7 @@ function SituacaoAgora({
       {parados30 > 0 && (
         <Card className="border-orange-500/40 bg-orange-500/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <AlertTriangle className="h-6 w-6 text-orange-500" />
+            <Warning className="h-6 w-6 text-orange-500" />
             <div className="flex-1">
               <div className="text-sm font-semibold">
                 {parados30} {parados30 === 1 ? "lead parado" : "leads parados"} há mais de{" "}
@@ -951,7 +957,7 @@ function SituacaoAgora({
       {semCorretor > 0 && (
         <Card className="border-red-500/40 bg-red-500/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <UserX className="h-6 w-6 text-red-500" />
+            <UserMinus className="h-6 w-6 text-red-500" />
             <div className="flex-1">
               <div className="text-sm font-semibold">
                 {semCorretor} {semCorretor === 1 ? "lead sem corretor" : "leads sem corretor"}

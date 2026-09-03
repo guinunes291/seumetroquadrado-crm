@@ -12,26 +12,26 @@
 
 import { Link } from "@tanstack/react-router";
 import {
-  BedDouble,
+  ArrowSquareOut,
+  Bed,
   BookOpen,
-  CalendarClock,
+  CalendarDots,
   Car,
   Copy,
-  ExternalLink,
+  DotsThree,
   Flag,
   Heart,
   MapPin,
-  MoreHorizontal,
+  PaperPlaneTilt,
   Ruler,
-  Scale,
-  Send,
-  Sparkles,
+  Scales,
   Star,
-  Table2,
+  Table,
   Trophy,
-  Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+  UsersThree,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -161,12 +161,12 @@ function Capa({
 }
 
 function Selos({ item, compacto }: { item: ItemPrateleira; compacto?: boolean }) {
-  const selos: Array<{ chave: string; texto: string; tom: string; icone?: LucideIcon }> = [];
+  const selos: Array<{ chave: string; texto: string; tom: string; icone?: IconComponent }> = [];
   if (item.foco)
     selos.push({
       chave: "foco",
       texto: "Em foco",
-      tom: "bg-gradient-gold text-navy-900",
+      tom: "bg-modulo-projetos/15 text-modulo-projetos",
       icone: Star,
     });
   if (item.parceira)
@@ -180,7 +180,7 @@ function Selos({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
       chave: "atualizado",
       texto: "Preço/tabela atualizada",
       tom: "bg-success/90 text-success-foreground",
-      icone: Sparkles,
+      icone: SamiMark,
     });
   if (item.situacao === "Pronto")
     selos.push({
@@ -195,7 +195,7 @@ function Selos({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
         <li
           key={s.chave}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
             s.tom,
           )}
         >
@@ -244,11 +244,11 @@ function Specs({ item, className }: { item: ItemPrateleira; className?: string }
   const metr = formatM2Range(item.metragem.metragem_min, item.metragem.metragem_max);
   const vagas = formatVagasRange(item.vagas_min, item.vagas_max, item.vagas_observacao);
   const entrega = formatEntrega(item.status_entrega, item.mes_entrega, item.ano_entrega);
-  const partes: Array<{ icone: LucideIcon; texto: string }> = [];
-  if (dorms) partes.push({ icone: BedDouble, texto: dorms });
+  const partes: Array<{ icone: IconComponent; texto: string }> = [];
+  if (dorms) partes.push({ icone: Bed, texto: dorms });
   if (metr) partes.push({ icone: Ruler, texto: metr });
   if (vagas) partes.push({ icone: Car, texto: vagas });
-  if (entrega) partes.push({ icone: CalendarClock, texto: entrega });
+  if (entrega) partes.push({ icone: CalendarDots, texto: entrega });
   if (partes.length === 0)
     return <p className={cn("text-xs text-muted-foreground", className)}>Detalhes na ficha</p>;
   return (
@@ -267,9 +267,7 @@ function Preco({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
   if (!item.sob_consulta && item.preco_a_partir != null) {
     return (
       <div className={cn("min-w-0", compacto && "text-right")}>
-        <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-          A partir de
-        </div>
+        <div className="text-xs text-muted-foreground font-medium">A partir de</div>
         <div
           className={cn(
             "font-display font-semibold tabular-nums tracking-tight text-gold-600 dark:text-gold-300",
@@ -283,7 +281,7 @@ function Preco({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
   }
   return (
     <div className={cn("min-w-0", compacto && "text-right")}>
-      <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Preço</div>
+      <div className="text-xs text-muted-foreground font-medium">Preço</div>
       <div
         className={cn(
           "font-display font-semibold tracking-tight text-foreground/80",
@@ -335,10 +333,10 @@ function CabeNaRenda({ item, renda }: { item: ItemPrateleira; renda: number | nu
 function Demanda({ item }: { item: ItemPrateleira }) {
   const d = item.demanda;
   if (!d) return null;
-  const partes: Array<{ icone: LucideIcon; texto: string; titulo: string }> = [];
+  const partes: Array<{ icone: IconComponent; texto: string; titulo: string }> = [];
   if (d.leads_30d > 0)
     partes.push({
-      icone: Users,
+      icone: UsersThree,
       texto: `${d.leads_30d} ${d.leads_30d === 1 ? "lead" : "leads"} · 30d`,
       titulo: "Leads vinculados a este projeto nos últimos 30 dias",
     });
@@ -350,7 +348,7 @@ function Demanda({ item }: { item: ItemPrateleira }) {
     });
   if (d.envios_7d > 0)
     partes.push({
-      icone: Send,
+      icone: PaperPlaneTilt,
       texto: `${d.envios_7d} ${d.envios_7d === 1 ? "envio" : "envios"} · 7d`,
       titulo: "Vezes que o time enviou este projeto a clientes nos últimos 7 dias",
     });
@@ -383,7 +381,7 @@ function BotaoMaterial({
   compacto?: boolean;
 }) {
   const url = tipo === "book" ? item.book_url : item.tabela_precos_url;
-  const Icone = tipo === "book" ? BookOpen : Table2;
+  const Icone = tipo === "book" ? BookOpen : Table;
   const rotulo = tipo === "book" ? "Book" : "Tabela";
   if (!url) {
     return (
@@ -459,14 +457,11 @@ function Acoes({
         <TooltipTrigger asChild>
           <Button
             size="sm"
-            className={cn(
-              "press-scale bg-gradient-gold text-navy-900 hover:opacity-90",
-              compacto && "px-2",
-            )}
+            className={cn("press-scale", compacto && "px-2")}
             onClick={() => onEnviar(item)}
             aria-label={`Enviar ${item.nome} para um lead`}
           >
-            <Send className="h-4 w-4" />
+            <PaperPlaneTilt className="h-4 w-4" />
             {!compacto && <span className="ml-1">Enviar</span>}
           </Button>
         </TooltipTrigger>
@@ -486,7 +481,7 @@ function Acoes({
               }
               className={cn("press-scale", compacto && "px-2")}
             >
-              <Scale className="h-4 w-4" />
+              <Scales className="h-4 w-4" />
               {!compacto && <span className="ml-1">{emComparacao ? "Na sacola" : "Comparar"}</span>}
             </Button>
           </span>
@@ -505,7 +500,7 @@ function Acoes({
             aria-label={`Mais ações para ${item.nome}`}
             className="px-2"
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <DotsThree className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -518,7 +513,7 @@ function Acoes({
               params={{ projetoId: item.id }}
               onClick={() => onAbrirFicha?.(item)}
             >
-              <ExternalLink className="h-4 w-4" /> Abrir ficha completa
+              <ArrowSquareOut className="h-4 w-4" /> Abrir ficha completa
             </Link>
           </DropdownMenuItem>
           {onReportarErro && (
@@ -589,9 +584,7 @@ function CardGrade(props: ProdutoCardProps) {
         </div>
         <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 text-white">
           <div className="min-w-0">
-            <p className="truncate text-[11px] font-medium uppercase tracking-[0.12em] text-white/80">
-              {construtoraExibida(item)}
-            </p>
+            <p className="truncate text-xs font-medium text-white/80">{construtoraExibida(item)}</p>
             {item.zona && (
               <p className="inline-flex items-center gap-1 text-xs text-white/90">
                 <MapPin className="h-3 w-3" aria-hidden="true" />

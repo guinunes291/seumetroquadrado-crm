@@ -9,7 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Plus, Building2, Upload, Sparkles, AlertTriangle, RefreshCw, X } from "lucide-react";
+import { ArrowClockwise, Buildings, Plus, UploadSimple, Warning, X } from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 import { webhookUrl } from "@/lib/projetos";
 import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
 import { ProjetoFormDialog } from "@/components/projeto-form-dialog";
@@ -150,13 +151,13 @@ function CatalogoPanel() {
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm">
               <Link to="/match">
-                <Sparkles className="mr-1 h-4 w-4" /> Match IA
+                <SamiMark className="mr-1 h-4 w-4" /> Match IA
               </Link>
             </Button>
             {canManage && (
               <>
                 <Button variant="outline" onClick={() => setImportOpen(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
+                  <UploadSimple className="h-4 w-4 mr-2" />
                   Importar projetos
                 </Button>
                 <Button
@@ -194,12 +195,12 @@ function CatalogoPanel() {
       ) : projetosQ.isError ? (
         <Card>
           <CardContent className="py-12 text-center space-y-3">
-            <AlertTriangle className="h-10 w-10 mx-auto text-destructive opacity-70" />
+            <Warning className="h-10 w-10 mx-auto text-destructive opacity-70" />
             <p className="text-sm text-muted-foreground">
               Não foi possível carregar os projetos. Verifique sua conexão e tente novamente.
             </p>
             <Button variant="outline" size="sm" onClick={() => projetosQ.refetch()}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <ArrowClockwise className="h-4 w-4 mr-2" />
               Tentar novamente
             </Button>
           </CardContent>
@@ -207,7 +208,7 @@ function CatalogoPanel() {
       ) : all.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground space-y-3">
-            <Building2 className="h-10 w-10 mx-auto opacity-40" />
+            <Buildings className="h-10 w-10 mx-auto opacity-40" />
             <p>Nenhum projeto cadastrado ainda.</p>
             {canManage && (
               <Button
@@ -238,7 +239,7 @@ function CatalogoPanel() {
           {filtered.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground space-y-3">
-                <Building2 className="h-10 w-10 mx-auto opacity-40" />
+                <Buildings className="h-10 w-10 mx-auto opacity-40" />
                 <p>Nenhum projeto corresponde aos filtros aplicados.</p>
                 <Button variant="outline" size="sm" onClick={() => setFilters(emptyFilters)}>
                   <X className="h-4 w-4 mr-2" />

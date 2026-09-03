@@ -23,7 +23,7 @@ import {
   type MetaGestor,
 } from "@/features/metas-dia/metas-dia";
 import { useSalvarMetaDia } from "@/features/metas-dia/use-metas-dia";
-import { CalendarCheck, FileText, Sunrise, Target, Trophy } from "lucide-react";
+import { CalendarCheck, FileText, SunHorizon, Target, Trophy } from "@phosphor-icons/react";
 
 const ICONE: Record<MetaChave, typeof Target> = {
   agendamentos: CalendarCheck,
@@ -137,7 +137,7 @@ export function MetasDiaDialog({
         <form onSubmit={submit}>
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
-              <Sunrise className="h-5 w-5 text-primary" />
+              <SunHorizon className="h-5 w-5 text-primary" />
               {modo === "primeira" ? "Suas metas de hoje" : "Ajustar metas de hoje"}
             </DialogTitle>
             <DialogDescription>
@@ -185,11 +185,7 @@ export function MetasDiaDialog({
                 {modo === "primeira" ? "Hoje não" : "Cancelar"}
               </Button>
             )}
-            <Button
-              type="submit"
-              disabled={salvar.isPending}
-              className="bg-gradient-gold text-navy-900 shadow-glow-gold hover:opacity-90"
-            >
+            <Button type="submit" disabled={salvar.isPending}>
               <Target className="h-4 w-4" />
               {modo === "primeira" ? "Começar o dia" : "Salvar metas"}
             </Button>

@@ -6,16 +6,16 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  AlertTriangle,
-  Ban,
-  CheckCircle2,
-  History,
+  ArrowCounterClockwise,
+  CheckCircle,
+  ClockCounterClockwise,
   Lock,
-  RotateCcw,
+  Prohibit,
   Timer,
-  UserCog,
+  UserGear,
   Wallet,
-} from "lucide-react";
+  Warning,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -173,7 +180,7 @@ export function FechamentoPage() {
     return (
       <div className="p-4 md:p-6">
         <EmptyState
-          icon={AlertTriangle}
+          icon={Warning}
           title="Não foi possível carregar o fechamento"
           description="Recarregue a página. Se persistir, avise a gestão."
         />
@@ -200,7 +207,7 @@ export function FechamentoPage() {
               })
             }
           >
-            <History className="mr-2 h-4 w-4" />
+            <ClockCounterClockwise className="mr-2 h-4 w-4" />
             Histórico
           </Button>
         }
@@ -247,7 +254,7 @@ export function FechamentoPage() {
               `${c.apto.qtd} liberadas`
             )
           }
-          icon={CheckCircle2}
+          icon={CheckCircle}
           intent="success"
         />
         <StatTile
@@ -258,7 +265,6 @@ export function FechamentoPage() {
           intent="neutral"
         />
       </StatGrid>
-
 
       <Tabs defaultValue="fila" className="mt-6">
         <TabsList>
@@ -285,7 +291,7 @@ export function FechamentoPage() {
             />
             {selecionados.length > 0 && (
               <Button onClick={() => setAcao({ tipo: "lote", ids: selecionados })}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
+                <CheckCircle className="mr-2 h-4 w-4" />
                 Marcar {selecionados.length} como pagas
               </Button>
             )}
@@ -293,7 +299,7 @@ export function FechamentoPage() {
 
           {filaFiltrada.length === 0 ? (
             <EmptyState
-              icon={CheckCircle2}
+              icon={CheckCircle}
               title="Nada em aberto"
               description="Nenhuma comissão aguardando decisão."
             />
@@ -381,7 +387,7 @@ export function FechamentoPage() {
                             onClick={() => setAcao({ tipo: "beneficiario", item: f })}
                             title="Corrigir beneficiário"
                           >
-                            <UserCog className="h-4 w-4" />
+                            <UserGear className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -396,7 +402,7 @@ export function FechamentoPage() {
                             }
                             title="Cancelar comissão"
                           >
-                            <Ban className="h-4 w-4" />
+                            <Prohibit className="h-4 w-4" />
                           </Button>
 
                           <Button
@@ -412,7 +418,7 @@ export function FechamentoPage() {
                             }
                             title="Histórico"
                           >
-                            <History className="h-4 w-4" />
+                            <ClockCounterClockwise className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
@@ -524,7 +530,7 @@ export function FechamentoPage() {
                                 })
                               }
                             >
-                              <Ban className="mr-2 h-4 w-4" />
+                              <Prohibit className="mr-2 h-4 w-4" />
                               Cancelar
                             </Button>
                             <Button
@@ -540,7 +546,7 @@ export function FechamentoPage() {
                               }
                               title="Histórico"
                             >
-                              <History className="h-4 w-4" />
+                              <ClockCounterClockwise className="h-4 w-4" />
                             </Button>
                           </div>
                         </TableCell>
@@ -552,7 +558,6 @@ export function FechamentoPage() {
             </section>
           )}
         </TabsContent>
-
       </Tabs>
 
       <DialogAcao
@@ -570,7 +575,9 @@ export function FechamentoPage() {
         onBeneficiario={(id, beneficiarioId, motivo) =>
           mutUnit.mutate({ comissao_id: id, beneficiario_id: beneficiarioId, motivo })
         }
-        onLote={(ids, data) => mutLote.mutate({ ids, patch: { status: "paga", data_pagamento: data } })}
+        onLote={(ids, data) =>
+          mutLote.mutate({ ids, patch: { status: "paga", data_pagamento: data } })
+        }
         onCorretor={(vendaId, corretorId, motivo) =>
           mutCorretor.mutate({ vendaId, corretorId, motivo })
         }
@@ -591,7 +598,7 @@ function TabelaVendas({
   onHistorico: (v: VendaItem) => void;
 }) {
   if (!vendas.length) {
-    return <EmptyState icon={CheckCircle2} title="Nada por aqui" description={vazio} />;
+    return <EmptyState icon={CheckCircle} title="Nada por aqui" description={vazio} />;
   }
   return (
     <div className="rounded-xl border border-border-subtle overflow-x-auto">
@@ -638,8 +645,13 @@ function TabelaVendas({
                       Definir corretor
                     </Button>
                   )}
-                  <Button size="sm" variant="ghost" onClick={() => onHistorico(v)} title="Histórico">
-                    <History className="h-4 w-4" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onHistorico(v)}
+                    title="Histórico"
+                  >
+                    <ClockCounterClockwise className="h-4 w-4" />
                   </Button>
                 </div>
               </TableCell>
@@ -714,8 +726,7 @@ function DialogAcao({
             <DialogHeader>
               <DialogTitle>Marcar comissão como paga</DialogTitle>
               <DialogDescription>
-                {acao.item.beneficiario_nome ?? "Sem beneficiário"} ·{" "}
-                {brl(acao.item.valor_liquido)}
+                {acao.item.beneficiario_nome ?? "Sem beneficiário"} · {brl(acao.item.valor_liquido)}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
@@ -745,14 +756,16 @@ function DialogAcao({
           <>
             <DialogHeader>
               <DialogTitle>Reabrir comissão</DialogTitle>
-              <DialogDescription>A comissão volta para pendente, sem data de pagamento.</DialogDescription>
+              <DialogDescription>
+                A comissão volta para pendente, sem data de pagamento.
+              </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="ghost" onClick={fechar}>
                 Voltar
               </Button>
               <Button disabled={salvando} onClick={() => onReabrir(acao.item.id)}>
-                <RotateCcw className="mr-2 h-4 w-4" />
+                <ArrowCounterClockwise className="mr-2 h-4 w-4" />
                 Reabrir
               </Button>
             </DialogFooter>

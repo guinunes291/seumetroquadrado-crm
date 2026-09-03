@@ -2,7 +2,7 @@
 // rota, revestidas com o design system (hairline + elev-1, estados de
 // carregamento/vazio padronizados).
 
-import { History } from "lucide-react";
+import { ClockCounterClockwise } from "@phosphor-icons/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +40,7 @@ export function HistoricoPrecos({
           </div>
         ) : historico.length === 0 ? (
           <EmptyState
-            icon={History}
+            icon={ClockCounterClockwise}
             title="Sem alterações de preço registradas."
             description="Toda mudança no valor de uma unidade aparece aqui automaticamente."
             className="m-4 border-0"

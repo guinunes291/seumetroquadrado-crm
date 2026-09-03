@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, FileText, Loader2, Table2, Wallet } from "lucide-react";
+import { CaretDown, CircleNotch, FileText, Table, Wallet } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
@@ -303,7 +303,7 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
               disabled={gerandoPdf}
             >
               {gerandoPdf ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                <CircleNotch className="mr-1 h-4 w-4 animate-spin" />
               ) : (
                 <FileText className="mr-1 h-4 w-4" />
               )}
@@ -316,7 +316,7 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
                   className="rounded-l-none border-l border-primary-foreground/25 px-2"
                   aria-label="Outros formatos de exportação"
                 >
-                  <ChevronDown className="h-4 w-4" />
+                  <CaretDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -324,7 +324,7 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
                   <FileText className="mr-2 h-4 w-4" /> Relatório PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => void exportarPlanilha()}>
-                  <Table2 className="mr-2 h-4 w-4" /> Planilha .xlsx (dados brutos)
+                  <Table className="mr-2 h-4 w-4" /> Planilha .xlsx (dados brutos)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -2,7 +2,7 @@
 // roleta e o MOTIVO exato (transparência da distribuição v3), sem enxergar
 // dados dos colegas.
 
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";

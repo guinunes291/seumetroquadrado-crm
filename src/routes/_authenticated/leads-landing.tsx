@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MessageCircle, ExternalLink, Inbox } from "lucide-react";
+import { ArrowSquareOut, Tray, WhatsappLogo } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 type LeadLanding = {
@@ -262,7 +262,7 @@ function LeadsLandingPage() {
                 <TableRow>
                   <TableCell colSpan={9} className="p-0">
                     <EmptyState
-                      icon={Inbox}
+                      icon={Tray}
                       title="Nenhum lead encontrado"
                       description={
                         filtrosAtivos
@@ -313,7 +313,7 @@ function LeadsLandingPage() {
                             rel="noreferrer"
                             aria-label={`Abrir WhatsApp de ${l.nome ?? "lead"}`}
                           >
-                            <MessageCircle className="h-4 w-4" />
+                            <WhatsappLogo className="h-4 w-4" />
                           </a>
                         </Button>
                       )}
@@ -339,7 +339,7 @@ function LeadsLandingPage() {
                 {waLink(selected.whatsapp) && (
                   <Button asChild size="sm">
                     <a href={waLink(selected.whatsapp)!} target="_blank" rel="noreferrer">
-                      <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp
+                      <WhatsappLogo className="h-4 w-4 mr-1" /> WhatsApp
                     </a>
                   </Button>
                 )}
@@ -432,7 +432,7 @@ function LeadsLandingPage() {
                       target="_blank"
                       rel="noreferrer"
                     >
-                      <ExternalLink className="h-3 w-3" /> {selected.pagina}
+                      <ArrowSquareOut className="h-3 w-3" /> {selected.pagina}
                     </a>
                   </div>
                 )}

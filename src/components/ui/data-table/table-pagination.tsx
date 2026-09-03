@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 
 export type DataTablePaginationProps = {
@@ -43,7 +43,7 @@ export function DataTablePagination({
           onClick={() => onPageChange(page - 1)}
           aria-label="Página anterior"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <CaretLeft className="h-4 w-4" />
         </Button>
         <span className="min-w-20 text-center tabular-nums">
           Página {page}
@@ -56,7 +56,7 @@ export function DataTablePagination({
           onClick={() => onPageChange(page + 1)}
           aria-label="Próxima página"
         >
-          <ChevronRight className="h-4 w-4" />
+          <CaretRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

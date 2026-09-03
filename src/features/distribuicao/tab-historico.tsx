@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { History, Search } from "lucide-react";
+import { ClockCounterClockwise, MagnifyingGlass } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import {
@@ -173,14 +173,14 @@ export function TabHistorico() {
         eyebrow="Distribuição"
         title={
           <span className="flex items-center gap-1.5">
-            <History className="h-4 w-4 text-primary" /> Decisões do motor
+            <ClockCounterClockwise className="h-4 w-4 text-primary" /> Decisões do motor
           </span>
         }
       />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="w-56 pl-8"
             placeholder="Lead, corretor ou motivo…"
@@ -248,7 +248,7 @@ export function TabHistorico() {
         onRetry={() => void q.refetch()}
         empty={
           <EmptyState
-            icon={History}
+            icon={ClockCounterClockwise}
             title="Nenhuma decisão no período/filtros"
             description="Ajuste os filtros ou aguarde novas distribuições."
           />

@@ -9,7 +9,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BadgeCheck, BadgeX, FileSearch, RotateCcw } from "lucide-react";
+import {
+  ArrowCounterClockwise,
+  FileMagnifyingGlass,
+  SealCheck,
+  XCircle,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -100,7 +105,7 @@ export function AnaliseCreditoCard({
     >
       <CardContent className="space-y-2 p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <FileSearch className="h-4 w-4 text-muted-foreground" />
+          <FileMagnifyingGlass className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-semibold">Análise de crédito</span>
           {analiseQ.isLoading ? (
             <Skeleton className="h-5 w-24" />
@@ -141,7 +146,7 @@ export function AnaliseCreditoCard({
               disabled={decidir.isPending}
               onClick={() => decidir.mutate({ resultado: "aprovada" })}
             >
-              <BadgeCheck className="h-4 w-4" /> Aprovar
+              <SealCheck className="h-4 w-4" /> Aprovar
             </Button>
             <Button
               size="sm"
@@ -150,7 +155,7 @@ export function AnaliseCreditoCard({
               disabled={decidir.isPending}
               onClick={() => setDialogo("aprovada_condicionada")}
             >
-              <BadgeCheck className="h-4 w-4" /> Aprovar c/ condição
+              <SealCheck className="h-4 w-4" /> Aprovar c/ condição
             </Button>
             <Button
               size="sm"
@@ -159,7 +164,7 @@ export function AnaliseCreditoCard({
               disabled={decidir.isPending}
               onClick={() => setDialogo("reprovada")}
             >
-              <BadgeX className="h-4 w-4" /> Reprovar
+              <XCircle className="h-4 w-4" /> Reprovar
             </Button>
           </div>
         ) : status === "aprovada" || status === "aprovada_condicionada" ? (
@@ -172,7 +177,7 @@ export function AnaliseCreditoCard({
             {/* Condicionada: se a condição não fechar, cabe nova rodada. */}
             {status === "aprovada_condicionada" && onNovaAnalise && (
               <Button size="sm" variant="outline" onClick={onNovaAnalise}>
-                <RotateCcw className="h-4 w-4" /> Nova análise
+                <ArrowCounterClockwise className="h-4 w-4" /> Nova análise
               </Button>
             )}
           </div>
@@ -180,7 +185,7 @@ export function AnaliseCreditoCard({
           <div className="flex flex-wrap gap-2">
             {onNovaAnalise && (
               <Button size="sm" variant="outline" onClick={onNovaAnalise}>
-                <RotateCcw className="h-4 w-4" /> Nova análise
+                <ArrowCounterClockwise className="h-4 w-4" /> Nova análise
               </Button>
             )}
             {onPerdido && (

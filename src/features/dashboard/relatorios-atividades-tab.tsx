@@ -5,7 +5,13 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Eye, FileCheck, RefreshCw, XCircle } from "lucide-react";
+import {
+  ArrowClockwise,
+  CalendarBlank,
+  Eye,
+  FileMagnifyingGlass,
+  XCircle,
+} from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -196,7 +202,7 @@ export function RelatoriosAtividadesTab({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Calendar className="h-4 w-4" /> Agendamentos criados
+              <CalendarBlank className="h-4 w-4" /> Agendamentos criados
               <span className="ml-auto text-xs font-normal text-muted-foreground">
                 {agendamentosQ.data
                   ? `${agendamentosQ.data.total.toLocaleString("pt-BR")} no período`
@@ -337,7 +343,7 @@ export function RelatoriosAtividadesTab({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <FileCheck className="h-4 w-4" /> Análises de crédito
+            <FileMagnifyingGlass className="h-4 w-4" /> Análises de crédito
             <div className="ml-auto">
               <Select value={analiseFiltro} onValueChange={setAnaliseFiltro}>
                 <SelectTrigger className="h-8 w-[210px] text-xs">
@@ -490,7 +496,7 @@ export function RelatoriosAtividadesTab({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <RefreshCw className="h-4 w-4" /> Redistribuições recentes
+              <ArrowClockwise className="h-4 w-4" /> Redistribuições recentes
             </CardTitle>
           </CardHeader>
           <CardContent>

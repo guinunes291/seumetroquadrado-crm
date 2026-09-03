@@ -8,7 +8,7 @@
 
 import { Link } from "@tanstack/react-router";
 import type { OnChangeFn } from "@tanstack/react-table";
-import { MessageCircle, Phone, Thermometer, UserPlus } from "lucide-react";
+import { Phone, Thermometer, UserPlus, WhatsappLogo } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -244,7 +244,7 @@ export function LeadsTable({
                   title="Abrir WhatsApp com mensagem pronta"
                   onClick={() => onWhatsApp(l)}
                 >
-                  <MessageCircle className="h-4 w-4" />
+                  <WhatsappLogo className="h-4 w-4" />
                 </Button>
                 <Button
                   asChild

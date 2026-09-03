@@ -17,18 +17,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Search,
-  X,
-  LayoutList,
+  ArrowClockwise,
+  ArrowsOutSimple,
+  ListDashes,
+  MagnifyingGlass,
+  MapPinArea,
+  MapTrifold as MapIcon,
+  StackSimple,
   Table as TableIcon,
-  AlertTriangle,
-  RefreshCw,
   User,
-  Layers,
-  MapPinned,
-  Map as MapIcon,
-  Maximize2,
-} from "lucide-react";
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 import type { ProjetoRow } from "@/components/projeto-card";
 import { formatBRL, formatDormsRange } from "@/lib/projetos";
 import { VitrineMap, type MapMode } from "@/components/vitrine/vitrine-map";
@@ -184,7 +184,7 @@ function VitrinePage() {
       <div className="space-y-3 rounded-lg border bg-card p-3">
         <div className="flex flex-wrap items-end gap-3">
           <div className="relative min-w-[220px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={filters.q}
               onChange={(e) => set({ q: e.target.value })}
@@ -268,12 +268,12 @@ function VitrinePage() {
       ) : projetosQ.isError ? (
         <Card>
           <CardContent className="space-y-3 py-12 text-center">
-            <AlertTriangle className="mx-auto h-10 w-10 text-destructive opacity-70" />
+            <Warning className="mx-auto h-10 w-10 text-destructive opacity-70" />
             <p className="text-sm text-muted-foreground">
               Não foi possível carregar os empreendimentos. Verifique a conexão e tente de novo.
             </p>
             <Button variant="outline" size="sm" onClick={() => projetosQ.refetch()}>
-              <RefreshCw className="mr-2 h-4 w-4" /> Tentar novamente
+              <ArrowClockwise className="mr-2 h-4 w-4" /> Tentar novamente
             </Button>
           </CardContent>
         </Card>
@@ -287,13 +287,13 @@ function VitrinePage() {
                   active={mapMode === "schematic"}
                   onClick={() => setMapMode("schematic")}
                 >
-                  <Layers className="h-4 w-4" /> Zonas
+                  <StackSimple className="h-4 w-4" /> Zonas
                 </ViewButton>
                 <ViewButton
                   active={mapMode === "geografico"}
                   onClick={() => setMapMode("geografico")}
                 >
-                  <MapPinned className="h-4 w-4" /> Geográfico
+                  <MapPinArea className="h-4 w-4" /> Geográfico
                 </ViewButton>
                 <ViewButton active={mapMode === "mercado"} onClick={() => setMapMode("mercado")}>
                   <MapIcon className="h-4 w-4" /> Mercado
@@ -306,7 +306,7 @@ function VitrinePage() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  <Maximize2 className="h-3.5 w-3.5" /> Abrir em tela cheia
+                  <ArrowsOutSimple className="h-3.5 w-3.5" /> Abrir em tela cheia
                 </a>
               ) : (
                 <span className="text-xs text-muted-foreground">
@@ -346,7 +346,7 @@ function VitrinePage() {
               </div>
               <div className="flex overflow-hidden rounded-md border">
                 <ViewButton active={view === "list"} onClick={() => setView("list")}>
-                  <LayoutList className="h-4 w-4" /> Lista
+                  <ListDashes className="h-4 w-4" /> Lista
                 </ViewButton>
                 <ViewButton active={view === "tabela"} onClick={() => setView("tabela")}>
                   <TableIcon className="h-4 w-4" /> Tabela
@@ -416,9 +416,7 @@ function VitrinePage() {
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
       {children}
     </div>
   );
@@ -634,7 +632,7 @@ function ResultsTable({
     <div className="overflow-x-auto rounded-lg border bg-card">
       <table className="w-full min-w-[520px] border-collapse text-sm">
         <thead>
-          <tr className="border-b bg-muted/50 text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+          <tr className="border-b bg-muted/50 text-left text-xs text-muted-foreground font-medium">
             <th className="px-3 py-2.5 font-bold">Empreendimento</th>
             <th className="px-3 py-2.5 font-bold">Zona / Bairro</th>
             <th className="px-3 py-2.5 text-right font-bold">A partir de</th>

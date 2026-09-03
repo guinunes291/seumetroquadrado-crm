@@ -15,7 +15,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CheckCheck, ExternalLink, Info, MessageCircle } from "lucide-react";
+import { ArrowSquareOut, Checks, Info, WhatsappLogo } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -199,7 +199,7 @@ export function CentralMensagens() {
     >
       {conversas.length === 0 ? (
         <EmptyState
-          icon={MessageCircle}
+          icon={WhatsappLogo}
           title="Nenhuma conversa ainda"
           description="As mensagens dos clientes entram aqui pelo webhook do WhatsApp (Fase 7a). Você também pode iniciar uma conversa pelo lead — cada envio da Central registra a mensagem e abre o WhatsApp com o texto pronto."
           className="py-16"
@@ -263,13 +263,13 @@ export function CentralMensagens() {
                       disabled={marcarTratada.isPending}
                       title="Apaga o aguardando resposta sem responder — some do badge e da fila Responder"
                     >
-                      <CheckCheck className="h-4 w-4" /> Marcar tratada
+                      <Checks className="h-4 w-4" /> Marcar tratada
                     </Button>
                   )}
                   {selecionado && (
                     <Button asChild variant="ghost" size="sm">
                       <Link to="/leads/$leadId" params={{ leadId: selecionado }}>
-                        <ExternalLink className="h-4 w-4" /> Abrir lead
+                        <ArrowSquareOut className="h-4 w-4" /> Abrir lead
                       </Link>
                     </Button>
                   )}

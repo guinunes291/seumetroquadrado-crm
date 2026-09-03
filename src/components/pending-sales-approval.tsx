@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Clock3, XCircle } from "lucide-react";
+import { CheckCircle, ClockAfternoon, XCircle } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -165,7 +165,7 @@ export function PendingSalesApproval() {
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Clock3 className="h-4 w-4 text-amber-600" aria-hidden="true" />
+              <ClockAfternoon className="h-4 w-4 text-amber-600" aria-hidden="true" />
               Aprovações de venda
             </CardTitle>
             {!query.isLoading && (
@@ -207,7 +207,7 @@ export function PendingSalesApproval() {
                         title={efetivada ? undefined : `Aguardando: ${pendentes.join(", ")}`}
                         onClick={() => setDecision({ sale, type: "aprovada" })}
                       >
-                        <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Aprovar
+                        <CheckCircle className="h-4 w-4" aria-hidden="true" /> Aprovar
                       </Button>
                     </div>
                   </div>

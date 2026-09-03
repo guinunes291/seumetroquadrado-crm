@@ -28,7 +28,7 @@ import { REGUA_PADRAO } from "@/lib/regua-followup";
 import { carregarRegua, reativarFollowUp } from "@/features/followup/fila-client";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { LeadStageModals, type PerdidoState } from "@/components/lead-stage/lead-stage-modals";
-import { Ban, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowCounterClockwise, CheckCircle, Prohibit } from "@phosphor-icons/react";
 
 // A coluna followup_esgotado_em é nova (migration followup_regua) e ainda não
 // está nos types gerados — o parse zod fail-closed é a fronteira de tipo.
@@ -124,7 +124,7 @@ export function EsgotadosView() {
         </div>
       ) : leads.length === 0 ? (
         <EmptyState
-          icon={CheckCircle2}
+          icon={CheckCircle}
           title="Nenhuma régua esgotada"
           description={`Quando um lead completar os ${maxToques} toques sem responder, ele aparece aqui para a sua decisão: reativar ou descartar.`}
           className="py-16"
@@ -160,7 +160,7 @@ export function EsgotadosView() {
                     disabled={reativar.isPending}
                     onClick={() => reativar.mutate(lead.id)}
                   >
-                    <RotateCcw className="mr-1 h-4 w-4" /> Reativar régua
+                    <ArrowCounterClockwise className="mr-1 h-4 w-4" /> Reativar régua
                   </Button>
                   <Button
                     variant="outline"
@@ -177,7 +177,7 @@ export function EsgotadosView() {
                       })
                     }
                   >
-                    <Ban className="mr-1 h-4 w-4" /> Descartar
+                    <Prohibit className="mr-1 h-4 w-4" /> Descartar
                   </Button>
                 </div>
               </CardContent>

@@ -36,7 +36,14 @@ import {
   type TelefoniaSonax,
 } from "./ramal-sonax-client";
 import { toast } from "sonner";
-import { Search, AlertTriangle, Check, X, Pencil, Users } from "lucide-react";
+import {
+  Check,
+  MagnifyingGlass,
+  PencilSimple,
+  UsersThree,
+  Warning,
+  X,
+} from "@phosphor-icons/react";
 
 type AppRole = "admin" | "superintendente" | "gestor" | "corretor";
 
@@ -301,7 +308,7 @@ export function CorretoresPage() {
             <span className="text-muted-foreground">{row.original.telefone}</span>
           ) : (
             <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" /> Sem telefone
+              <Warning className="h-3 w-3" /> Sem telefone
             </Badge>
           ),
       },
@@ -502,7 +509,7 @@ export function CorretoresPage() {
 
       {semTelefone > 0 && (
         <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
+          <Warning className="h-4 w-4" />
           {semTelefone} corretor{semTelefone > 1 ? "es ativos estão" : " ativo está"} sem telefone
           cadastrado. Sem telefone, o webhook não consegue distribuir leads para ele
           {semTelefone > 1 ? "s" : ""}.
@@ -511,7 +518,7 @@ export function CorretoresPage() {
 
       <div className="mb-4 flex gap-2">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <MagnifyingGlass className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por nome, e-mail ou telefone…"
             value={q}
@@ -531,7 +538,7 @@ export function CorretoresPage() {
         onRetry={() => void corretoresQuery.refetch()}
         empty={
           <EmptyState
-            icon={Users}
+            icon={UsersThree}
             title={q ? "Nenhum corretor para essa busca." : "Nenhum corretor cadastrado ainda."}
             description={
               q
@@ -603,7 +610,7 @@ function TelefoneCell({
           <span className="text-muted-foreground">{valor}</span>
         ) : (
           <Badge variant="destructive" className="gap-1">
-            <AlertTriangle className="h-3 w-3" /> Sem telefone
+            <Warning className="h-3 w-3" /> Sem telefone
           </Badge>
         )}
         <Button
@@ -616,7 +623,7 @@ function TelefoneCell({
           }}
           aria-label="Editar telefone"
         >
-          <Pencil className="h-3.5 w-3.5" />
+          <PencilSimple className="h-3.5 w-3.5" />
         </Button>
       </div>
     );
@@ -702,7 +709,7 @@ function TelefoniaSonaxCell({
           ) : (
             <span className="text-muted-foreground">Configurar</span>
           )}
-          <Pencil className="ml-auto h-3 w-3 shrink-0 opacity-60" />
+          <PencilSimple className="ml-auto h-3 w-3 shrink-0 opacity-60" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 space-y-3 p-3">

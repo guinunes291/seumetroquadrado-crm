@@ -12,7 +12,7 @@ import {
   format,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, CalendarRange } from "lucide-react";
+import { CalendarDots } from "@phosphor-icons/react";
 import {
   Select,
   SelectContent,
@@ -105,7 +105,7 @@ export function PeriodFilter({
     <div className="flex flex-wrap items-center gap-2">
       <Select value={preset} onValueChange={(v) => onPresetChange(v as PeriodPreset)}>
         <SelectTrigger className="w-[200px]">
-          <CalendarDays className="h-4 w-4 mr-2" />
+          <CalendarDots className="h-4 w-4 mr-2" />
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -120,7 +120,7 @@ export function PeriodFilter({
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-[260px] justify-start text-left font-normal">
-              <CalendarRange className="mr-2 h-4 w-4" />
+              <CalendarDots className="mr-2 h-4 w-4" />
               {custom.from
                 ? custom.to
                   ? `${format(custom.from, "dd/MM/yy", { locale: ptBR })} – ${format(custom.to, "dd/MM/yy", { locale: ptBR })}`

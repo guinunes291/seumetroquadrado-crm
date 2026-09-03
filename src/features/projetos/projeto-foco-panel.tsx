@@ -6,7 +6,7 @@
 // futuro — entra sozinha na prateleira na data) e ter ARTE própria para o
 // banner (sem arte, a prateleira usa a capa do projeto).
 
-import { CalendarClock, Image as ImageIcon, Star } from "lucide-react";
+import { CalendarDots, Image as ImageIcon, Star } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -220,7 +220,7 @@ export function ProjetoFocoPanel({
                         <Badge>{status.rotulo}</Badge>
                       ) : status.tom === "programado" ? (
                         <Badge variant="secondary" className="gap-1">
-                          <CalendarClock className="h-3 w-3" aria-hidden="true" />
+                          <CalendarDots className="h-3 w-3" aria-hidden="true" />
                           {status.rotulo}
                         </Badge>
                       ) : (

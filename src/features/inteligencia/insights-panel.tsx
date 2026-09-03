@@ -12,15 +12,21 @@ import {
 } from "@/features/dashboard/queries";
 import { gerarInsights } from "@/features/inteligencia/insights";
 import { INTENT_TEXT } from "@/lib/status-tones";
-import { AlertTriangle, Crosshair, Lightbulb, TrendingUp, Target } from "lucide-react";
+import {
+  Crosshair,
+  Lightbulb,
+  Target,
+  TrendUp,
+  Warning,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
 import type { Insight } from "@/features/inteligencia/insights";
-import type { LucideIcon } from "lucide-react";
 
-const TIPO_ICON: Record<Insight["tipo"], LucideIcon> = {
+const TIPO_ICON: Record<Insight["tipo"], IconComponent> = {
   gargalo: Crosshair,
   previsao: Target,
-  perda: AlertTriangle,
-  tendencia: TrendingUp,
+  perda: Warning,
+  tendencia: TrendUp,
   conversao: Lightbulb,
 };
 

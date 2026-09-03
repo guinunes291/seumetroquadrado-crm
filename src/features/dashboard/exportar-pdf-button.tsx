@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileDown, Loader2 } from "lucide-react";
+import { CircleNotch, FileArrowDown } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -37,7 +37,11 @@ export function ExportarPdfButton({
       disabled={disabled || gerando}
       title="Gera o documento na caixa de impressão — escolha “Salvar como PDF”"
     >
-      {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+      {gerando ? (
+        <CircleNotch className="h-4 w-4 animate-spin" />
+      ) : (
+        <FileArrowDown className="h-4 w-4" />
+      )}
       Exportar PDF
     </Button>
   );

@@ -6,7 +6,7 @@
 // (gerenciar_participante_roleta), propriedades SEMPRE por atualizar_roleta.
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

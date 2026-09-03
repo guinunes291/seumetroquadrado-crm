@@ -24,21 +24,21 @@ import {
   type PapelCtx,
 } from "@/features/nav/sistemas";
 import {
-  Users,
-  Link2,
-  ListTodo,
-  LayoutDashboard,
-  Building2,
-  Sparkles,
-  SunMoon,
+  Buildings,
+  CircleHalf,
+  ClockCounterClockwise,
+  CurrencyDollar,
+  Layout,
+  Lightning,
+  Link,
+  ListChecks,
   Target,
+  UserCircle,
   UserPlus,
-  UserRound,
-  DollarSign,
-  History,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+  UsersThree,
+  type Icon as IconComponent,
+} from "@phosphor-icons/react";
+import { SamiMark } from "@/components/ui/sami-mark";
 
 type LeadHit = { id: string; nome: string; telefone: string | null; status: string };
 type ProjetoHit = { id: string; nome: string; bairro: string | null };
@@ -209,7 +209,7 @@ export function CommandPalette() {
   const navItems = [
     {
       label: "Acesso aos Módulos",
-      icon: LayoutDashboard,
+      icon: Layout,
       go: () => navigate({ to: "/inicio" }),
     },
     ...sistemasVisiveis(ctx).flatMap((sistema) =>
@@ -253,7 +253,7 @@ export function CommandPalette() {
                       r.type === "lead" ? abrirLead(r.id, r.label) : abrirProjeto(r.id, r.label)
                     }
                   >
-                    <History className="text-muted-foreground" />
+                    <ClockCounterClockwise className="text-muted-foreground" />
                     <span className="flex-1 truncate">{r.label}</span>
                     <span className="text-xs text-muted-foreground">
                       {r.type === "lead" ? "lead" : "projeto"}
@@ -272,7 +272,7 @@ export function CommandPalette() {
                 ) : (
                   leads.map((l) => (
                     <CommandItem key={l.id} value={l.id} onSelect={() => abrirLead(l.id, l.nome)}>
-                      <Users className="text-muted-foreground" />
+                      <UsersThree className="text-muted-foreground" />
                       <span className="flex-1 truncate">{l.nome}</span>
                       {l.telefone && (
                         <span className="text-xs text-muted-foreground">{l.telefone}</span>
@@ -297,7 +297,7 @@ export function CommandPalette() {
                     value={`projeto-${p.id}`}
                     onSelect={() => abrirProjeto(p.id, p.nome)}
                   >
-                    <Building2 className="text-muted-foreground" />
+                    <Buildings className="text-muted-foreground" />
                     <span className="flex-1 truncate">{p.nome}</span>
                     {p.bairro && <span className="text-xs text-muted-foreground">{p.bairro}</span>}
                   </CommandItem>
@@ -315,7 +315,7 @@ export function CommandPalette() {
                       run(() => navigate({ to: "/agendamentos", search: { tab: "tarefas" } }))
                     }
                   >
-                    <ListTodo className="text-muted-foreground" />
+                    <ListChecks className="text-muted-foreground" />
                     <span className="flex-1 truncate">{t.titulo}</span>
                   </CommandItem>
                 ))}
@@ -338,7 +338,7 @@ export function CommandPalette() {
                       )
                     }
                   >
-                    <UserRound className="text-muted-foreground" />
+                    <UserCircle className="text-muted-foreground" />
                     <span className="flex-1 truncate">{c.nome ?? "Corretor"}</span>
                   </CommandItem>
                 ))}
@@ -357,28 +357,28 @@ export function CommandPalette() {
                 value="Registrar venda"
                 onSelect={() => run(() => window.dispatchEvent(new Event("open-registrar-venda")))}
               >
-                <DollarSign className="text-primary" />
+                <CurrencyDollar className="text-primary" />
                 Registrar venda
               </CommandItem>
               <CommandItem
                 value="Abrir SamiQ copiloto"
                 onSelect={() => run(() => window.dispatchEvent(new Event("open-samiq")))}
               >
-                <Sparkles className="text-primary" />
+                <SamiMark className="text-primary" />
                 Abrir SamiQ (⌘J)
               </CommandItem>
               <CommandItem
                 value="Iniciar Sprint prospecção"
                 onSelect={() => run(() => window.dispatchEvent(new Event("open-sprint")))}
               >
-                <Zap className="text-primary" />
+                <Lightning className="text-primary" />
                 Iniciar Sprint
               </CommandItem>
               <CommandItem
                 value="Alternar tema claro escuro"
                 onSelect={() => run(() => setPref(resolved === "dark" ? "light" : "dark"))}
               >
-                <SunMoon className="text-primary" />
+                <CircleHalf className="text-primary" />
                 Alternar tema ({resolved === "dark" ? "→ claro" : "→ escuro"})
               </CommandItem>
             </CommandGroup>

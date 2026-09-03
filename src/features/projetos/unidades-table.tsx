@@ -4,7 +4,7 @@
 // rota via `onChangeStatus`; editar/excluir seguem com o gestor.
 
 import { useMemo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
@@ -147,7 +147,7 @@ export function UnidadesTable({
               aria-label={`Remover unidade ${row.original.identificador}`}
               onClick={() => onDelete(row.original)}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash className="h-4 w-4" />
             </Button>
           </div>
         ),

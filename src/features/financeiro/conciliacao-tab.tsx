@@ -5,14 +5,14 @@ import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Ban,
-  CheckCircle2,
-  Landmark,
-  RotateCcw,
-  Upload,
-} from "lucide-react";
+  ArrowCircleDown,
+  ArrowCircleUp,
+  ArrowCounterClockwise,
+  Bank,
+  CheckCircle,
+  Prohibit,
+  UploadSimple,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile, StatGrid } from "@/components/ui/stat-tile";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +66,6 @@ import {
   type TransacaoItem,
 } from "@/lib/conciliacao-types";
 
-
 const brl = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n || 0);
 const dataBR = (d: string | null) =>
@@ -94,11 +100,11 @@ export function ConciliacaoTab() {
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
   const [loteIgnorarOpen, setLoteIgnorarOpen] = useState(false);
   const [motivoLote, setMotivoLote] = useState("");
-  const [confirmAlvo, setConfirmAlvo] = useState<
-    { transacao: TransacaoItem; sugestao: SugestaoComissao } | null
-  >(null);
+  const [confirmAlvo, setConfirmAlvo] = useState<{
+    transacao: TransacaoItem;
+    sugestao: SugestaoComissao;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
 
   const painel = useQuery({
     queryKey: ["financeiro-conciliacao"],
@@ -112,7 +118,12 @@ export function ConciliacaoTab() {
     void queryClient.invalidateQueries({ queryKey: ["financeiro-historico"] });
   };
 
-  const trataResultado = (r: { ok: boolean; mensagem?: string; erro?: string; detalhe?: string }) => {
+  const trataResultado = (r: {
+    ok: boolean;
+    mensagem?: string;
+    erro?: string;
+    detalhe?: string;
+  }) => {
     if (r.ok) {
       toast.success(r.mensagem ?? "Concluído");
       invalidar();
@@ -129,10 +140,9 @@ export function ConciliacaoTab() {
     },
     onSuccess: (r: any) => {
       if (r.ok) {
-        toast.success(
-          `${r.inseridas} lançamento(s) importado(s)`,
-          { description: `${r.duplicadas} já existiam e foram ignorados.` },
-        );
+        toast.success(`${r.inseridas} lançamento(s) importado(s)`, {
+          description: `${r.duplicadas} já existiam e foram ignorados.`,
+        });
         setImportOpen(false);
         setArquivo(null);
         if (inputRef.current) inputRef.current.value = "";
@@ -227,7 +237,6 @@ export function ConciliacaoTab() {
     confirmarSugestao(transacao, sugestao);
   };
 
-
   if (painel.isLoading) {
     return (
       <div className="space-y-3">
@@ -240,7 +249,7 @@ export function ConciliacaoTab() {
   if (painel.isError || !dados) {
     return (
       <EmptyState
-        icon={Landmark}
+        icon={Bank}
         title="Não foi possível carregar a conciliação"
         description="Tente novamente em instantes."
       />
@@ -253,13 +262,13 @@ export function ConciliacaoTab() {
     <div className="space-y-4">
       <StatGrid>
         <StatTile
-          icon={CheckCircle2}
+          icon={CheckCircle}
           title="Comissões conciliadas"
           value={`${p.comissoes_conciliadas} de ${p.comissoes_pagas}`}
           hint={`${brl(p.valor_conciliado)} de ${brl(p.valor_total)}`}
         />
         <StatTile
-          icon={ArrowDownCircle}
+          icon={ArrowCircleDown}
           title="Débitos pendentes"
           value={String(
             dados.transacoes.filter((t) => t.status === "pendente" && t.valor < 0).length,
@@ -267,7 +276,7 @@ export function ConciliacaoTab() {
           hint="Saídas do extrato ainda sem vínculo"
         />
         <StatTile
-          icon={ArrowUpCircle}
+          icon={ArrowCircleUp}
           title="Créditos pendentes"
           value={String(
             dados.transacoes.filter((t) => t.status === "pendente" && t.valor >= 0).length,
@@ -275,7 +284,7 @@ export function ConciliacaoTab() {
           hint="Entradas de construtora a identificar"
         />
         <StatTile
-          icon={Landmark}
+          icon={Bank}
           title="Lançamentos no extrato"
           value={String(dados.transacoes.length)}
           hint="Itaú LTDA + C6 EI"
@@ -284,7 +293,7 @@ export function ConciliacaoTab() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setImportOpen(true)}>
-          <Upload className="mr-2 h-4 w-4" /> Importar extrato
+          <UploadSimple className="mr-2 h-4 w-4" /> Importar extrato
         </Button>
         {(["pendentes", "conciliadas", "ignoradas"] as Filtro[]).map((f) => (
           <Button
@@ -300,9 +309,7 @@ export function ConciliacaoTab() {
           <Button
             size="sm"
             variant="ghost"
-            onClick={() =>
-              setSelecionadas((atual) => (atual.length ? [] : lista.map((t) => t.id)))
-            }
+            onClick={() => setSelecionadas((atual) => (atual.length ? [] : lista.map((t) => t.id)))}
           >
             {selecionadas.length ? "Limpar seleção" : "Selecionar todos"}
           </Button>
@@ -313,14 +320,14 @@ export function ConciliacaoTab() {
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/40 p-2 text-sm">
           <span>{selecionadas.length} lançamento(s) selecionado(s)</span>
           <Button size="sm" variant="outline" onClick={() => setLoteIgnorarOpen(true)}>
-            <Ban className="mr-1 h-4 w-4" /> Ignorar selecionados
+            <Prohibit className="mr-1 h-4 w-4" /> Ignorar selecionados
           </Button>
         </div>
       )}
 
       {lista.length === 0 ? (
         <EmptyState
-          icon={Landmark}
+          icon={Bank}
           title="Nada por aqui"
           description={
             filtro === "pendentes"
@@ -353,14 +360,14 @@ export function ConciliacaoTab() {
                         />
                       )}
                       <div>
-                      <CardTitle className="text-base">
-                        {t.valor < 0 ? "− " : "+ "}
-                        {brl(Math.abs(t.valor))}
-                      </CardTitle>
+                        <CardTitle className="text-base">
+                          {t.valor < 0 ? "− " : "+ "}
+                          {brl(Math.abs(t.valor))}
+                        </CardTitle>
 
-                      <p className="text-sm text-muted-foreground">
-                        {dataBR(t.data)} · {contaLabel(t.conta)} · {t.descricao}
-                      </p>
+                        <p className="text-sm text-muted-foreground">
+                          {dataBR(t.data)} · {contaLabel(t.conta)} · {t.descricao}
+                        </p>
                       </div>
                     </div>
 
@@ -370,7 +377,7 @@ export function ConciliacaoTab() {
                       </Badge>
                       {t.status === "pendente" && (
                         <Button size="sm" variant="ghost" onClick={() => setIgnorarAlvo(t)}>
-                          <Ban className="mr-1 h-4 w-4" /> Ignorar
+                          <Prohibit className="mr-1 h-4 w-4" /> Ignorar
                         </Button>
                       )}
                       {t.status === "ignorada" && (
@@ -380,7 +387,7 @@ export function ConciliacaoTab() {
                           onClick={() => mutReativar.mutate(t.id)}
                           disabled={mutReativar.isPending}
                         >
-                          <RotateCcw className="mr-1 h-4 w-4" /> Voltar à fila
+                          <ArrowCounterClockwise className="mr-1 h-4 w-4" /> Voltar à fila
                         </Button>
                       )}
                       {t.status === "conciliada" && (
@@ -390,7 +397,7 @@ export function ConciliacaoTab() {
                           onClick={() => mutDesconciliar.mutate(t.id)}
                           disabled={mutDesconciliar.isPending}
                         >
-                          <RotateCcw className="mr-1 h-4 w-4" /> Desconciliar
+                          <ArrowCounterClockwise className="mr-1 h-4 w-4" /> Desconciliar
                         </Button>
                       )}
                     </div>
@@ -447,7 +454,9 @@ export function ConciliacaoTab() {
                           >
                             <div className="space-y-1">
                               <p className="font-medium">
-                                {s.tipo === "exato" ? "Match exato" : `Lote de ${s.comissoes.length}`}
+                                {s.tipo === "exato"
+                                  ? "Match exato"
+                                  : `Lote de ${s.comissoes.length}`}
                                 {" · "}
                                 {s.beneficiario_nome}
                               </p>
@@ -494,7 +503,6 @@ export function ConciliacaoTab() {
                       )}
                     </div>
                   )}
-
 
                   {t.status === "pendente" && t.valor >= 0 && (
                     <div className="flex items-center justify-between gap-2">
@@ -602,7 +610,10 @@ export function ConciliacaoTab() {
             <Button variant="ghost" onClick={() => setImportOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => mutImportar.mutate()} disabled={!arquivo || mutImportar.isPending}>
+            <Button
+              onClick={() => mutImportar.mutate()}
+              disabled={!arquivo || mutImportar.isPending}
+            >
               Importar
             </Button>
           </DialogFooter>
@@ -754,9 +765,7 @@ export function ConciliacaoTab() {
                   type="button"
                   onClick={() =>
                     setVendasSelecionadas((atual) =>
-                      marcada
-                        ? atual.filter((id) => id !== v.venda_id)
-                        : [...atual, v.venda_id],
+                      marcada ? atual.filter((id) => id !== v.venda_id) : [...atual, v.venda_id],
                     )
                   }
                   className={`w-full rounded-md border p-2 text-left text-sm ${

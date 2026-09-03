@@ -9,7 +9,7 @@ import {
   useSprint,
 } from "@/features/sprint/use-sprint";
 import { SprintResultDialog } from "@/features/sprint/sprint-dialog";
-import { CheckCircle2, Square, Zap } from "lucide-react";
+import { CheckCircle, Lightning, Square } from "@phosphor-icons/react";
 
 function fmtMMSS(ms: number): string {
   const total = Math.ceil(ms / 1000);
@@ -65,7 +65,7 @@ export function SprintHud() {
         retaFinal && "animate-pulse-glow motion-reduce:animate-none",
       )}
     >
-      <Zap className="h-4 w-4 shrink-0 text-primary" />
+      <Lightning className="h-4 w-4 shrink-0 text-primary" />
       <div className="font-display shrink-0 text-lg font-bold tabular-nums" title="Tempo restante">
         {fmtMMSS(restante)}
       </div>
@@ -112,7 +112,7 @@ export function SprintHud() {
           title="Marcar este lead como atacado e avançar"
           onClick={() => done(proximo.id)}
         >
-          <CheckCircle2 className="h-4 w-4" /> Feito
+          <CheckCircle className="h-4 w-4" /> Feito
         </Button>
       )}
       <Button

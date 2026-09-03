@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2,
-  CheckCircle2,
+  ArrowCounterClockwise,
+  Buildings,
+  CheckCircle,
   Clock,
-  Download,
+  DotsThreeVertical,
+  DownloadSimple,
   HandCoins,
-  MoreVertical,
   Percent,
-  RotateCcw,
-  TrendingUp,
+  TrendUp,
   UserPlus,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
@@ -104,18 +104,18 @@ function AcoesLinha({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" title="Ações da comissão">
-          <MoreVertical className="w-4 h-4" />
+          <DotsThreeVertical className="w-4 h-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {row.status !== "paga" && (
           <DropdownMenuItem onClick={() => onPagar(row)}>
-            <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como paga
+            <CheckCircle className="w-4 h-4 mr-2" /> Marcar como paga
           </DropdownMenuItem>
         )}
         {row.status === "paga" && (
           <DropdownMenuItem onClick={() => onReverter(row)}>
-            <RotateCcw className="w-4 h-4 mr-2" /> Reverter para pendente
+            <ArrowCounterClockwise className="w-4 h-4 mr-2" /> Reverter para pendente
           </DropdownMenuItem>
         )}
         {row.status !== "paga" && (
@@ -322,7 +322,7 @@ export function ComissoesPage() {
         </Select>
       )}
       <Button variant="outline" size="sm" onClick={exportarXlsx} disabled={filtered.length === 0}>
-        <Download className="w-4 h-4 mr-1.5" /> Exportar
+        <DownloadSimple className="w-4 h-4 mr-1.5" /> Exportar
       </Button>
     </div>
   );
@@ -509,7 +509,7 @@ export function ComissoesPage() {
           title={canManage ? "VGV do período" : "Meu VGV do período"}
           value={formatBRL2(resumoVendas.vgv)}
           hint={mesLabel}
-          icon={TrendingUp}
+          icon={TrendUp}
           loading={vendasQ.isLoading}
         />
         <StatTile
@@ -520,7 +520,7 @@ export function ComissoesPage() {
               ? "Prevista sobre as vendas do período"
               : "Prevista sobre as minhas vendas do período"
           }
-          icon={Building2}
+          icon={Buildings}
           loading={vendasQ.isLoading}
         />
         <StatTile
@@ -535,7 +535,7 @@ export function ComissoesPage() {
           title={canManage ? "Comissões pagas" : "Minha comissão paga"}
           value={formatBRL2(totais.paga)}
           hint={hintComissoes}
-          icon={CheckCircle2}
+          icon={CheckCircle}
           intent="success"
           loading={comissoesQ.isLoading}
         />

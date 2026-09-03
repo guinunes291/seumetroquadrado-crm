@@ -20,7 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { ArrowCounterClockwise, Trash } from "@phosphor-icons/react";
 
 export function LixeiraPage() {
   const { isAdmin } = useUserRoles();
@@ -155,7 +155,7 @@ function ListaLixeira({ tabela }: { tabela: LixeiraTabela }) {
               onClick={() => mutateRestaurar({ id, resumo })}
               aria-label={`Restaurar ${resumo}`}
             >
-              <RotateCcw className="h-3.5 w-3.5 mr-1" />
+              <ArrowCounterClockwise className="h-3.5 w-3.5 mr-1" />
               Restaurar
             </Button>
           );
@@ -185,7 +185,7 @@ function ListaLixeira({ tabela }: { tabela: LixeiraTabela }) {
         onRetry={() => void refetch()}
         empty={
           <EmptyState
-            icon={Trash2}
+            icon={Trash}
             title={`Nenhum registro de ${LIXEIRA_LABEL[tabela].toLowerCase()} na lixeira.`}
             description="Registros excluídos aparecem aqui e podem ser restaurados por 90 dias."
           />

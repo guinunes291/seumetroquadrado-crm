@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, AlertTriangle } from "lucide-react";
+import { Camera, Warning } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -58,7 +58,8 @@ export function AvatarUploadCard({ avatarUrl, nome }: Props) {
       qc.invalidateQueries({ queryKey: ["avatar-obrigatorio"] });
       qc.invalidateQueries({ queryKey: ["corretores"] });
     },
-    onError: (e: Error) => toast.error("Não foi possível enviar a foto", { description: e.message }),
+    onError: (e: Error) =>
+      toast.error("Não foi possível enviar a foto", { description: e.message }),
   });
 
   const atual = preview ?? avatarUrl;
@@ -83,7 +84,7 @@ export function AvatarUploadCard({ avatarUrl, nome }: Props) {
           <p className="text-sm text-muted-foreground">
             {pendente ? (
               <span className="flex items-center gap-1.5 text-destructive">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <Warning className="h-4 w-4 shrink-0" />
                 Obrigatório: envie uma foto sua, de rosto e recente.
               </span>
             ) : (

@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil } from "lucide-react";
+import { PencilSimple } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,7 +104,7 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
   return (
     <>
       <Button variant="outline" onClick={openEdit}>
-        <Pencil className="h-4 w-4 mr-2" /> Editar dados
+        <PencilSimple className="h-4 w-4 mr-2" /> Editar dados
       </Button>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

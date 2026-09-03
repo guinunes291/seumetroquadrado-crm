@@ -2,7 +2,7 @@
 // pela aba WhatsApp da ficha do lead (Lote 3): UMA aparência de thread no app
 // inteiro, com os mesmos rótulos de status/provedor.
 
-import { Send } from "lucide-react";
+import { PaperPlaneTilt } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/lib/interacoes";
@@ -64,7 +64,7 @@ export function ComposerConversa({
         disabled={pending || !value.trim() || disabled}
         title="Registrar na conversa e abrir o WhatsApp"
       >
-        <Send className="h-4 w-4" /> Enviar
+        <PaperPlaneTilt className="h-4 w-4" /> Enviar
       </Button>
     </div>
   );

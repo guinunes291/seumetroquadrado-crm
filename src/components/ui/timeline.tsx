@@ -4,13 +4,13 @@
 // entrada em cascata via stagger (compositor-only, coberto por reduced-motion).
 
 import { useMemo } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { Icon as IconComponent } from "@phosphor-icons/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 export type TimelineItem = {
   id: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   /** Tom do ícone (ex.: INTENT_TEXT do status-tones). */
   iconClassName?: string;
   title: React.ReactNode;
@@ -94,9 +94,7 @@ export function Timeline({
       {groups.map((group, gi) => (
         <section key={group.label ?? gi}>
           {group.label && (
-            <h4 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {group.label}
-            </h4>
+            <h4 className="mb-2 text-xs font-medium text-muted-foreground">{group.label}</h4>
           )}
           <ol className="stagger-children relative space-y-0">
             {group.items.map((item, i) => {

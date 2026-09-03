@@ -21,19 +21,19 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   BookOpen,
-  Building2,
-  ChevronRight,
+  Buildings,
+  CaretRight,
   Compass,
   Flag,
-  LayoutGrid,
-  LayoutList,
-  Link2,
-  Search,
-  Settings2,
+  Link as Link2,
+  ListDashes,
+  MagnifyingGlass,
+  Sliders,
+  SquaresFour,
   Star,
-  UserRound,
+  UserCircle,
   X,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -449,13 +449,13 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
               )}
               {podeGerirParceiras && (
                 <Button variant="outline" size="sm" onClick={() => setGerirOpen(true)}>
-                  <Settings2 className="mr-1 h-4 w-4" />
+                  <Sliders className="mr-1 h-4 w-4" />
                   Parceiras
                 </Button>
               )}
               <Button asChild variant="outline" size="sm">
                 <Link to="/projetos">
-                  <Building2 className="mr-1 h-4 w-4" />
+                  <Buildings className="mr-1 h-4 w-4" />
                   Catálogo completo
                 </Link>
               </Button>
@@ -481,7 +481,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
 
         {lead && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-            <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
+            <UserCircle className="h-4 w-4 text-primary" aria-hidden="true" />
             <span>
               Montando a seleção para <strong>{lead.nome}</strong>. Enviar manda direto no WhatsApp
               e a sacola gera o link da Vitrine.
@@ -489,7 +489,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
             <Button asChild size="sm" variant="ghost" className="ml-auto">
               <Link to="/leads/$leadId" params={{ leadId: lead.id }}>
                 Voltar ao dossiê
-                <ChevronRight className="ml-1 h-3.5 w-3.5" />
+                <CaretRight className="ml-1 h-3.5 w-3.5" />
               </Link>
             </Button>
           </div>
@@ -523,7 +523,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
           }
           primary={
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <MagnifyingGlass className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={filtros.busca}
                 onChange={(e) => set({ busca: e.target.value })}
@@ -581,10 +581,10 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
                   aria-label="Modo de exibição"
                 >
                   <ToggleGroupItem value="grade" aria-label="Grade">
-                    <LayoutGrid className="h-4 w-4" />
+                    <SquaresFour className="h-4 w-4" />
                   </ToggleGroupItem>
                   <ToggleGroupItem value="lista" aria-label="Lista">
-                    <LayoutList className="h-4 w-4" />
+                    <ListDashes className="h-4 w-4" />
                   </ToggleGroupItem>
                 </ToggleGroup>
               )}
@@ -715,7 +715,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
           <PrateleiraSkeleton view={view} />
         ) : itens.length === 0 ? (
           <EmptyState
-            icon={Building2}
+            icon={Buildings}
             title="Nenhum empreendimento ativo no catálogo"
             description="Assim que a gestão cadastrar (ou reativar) projetos, eles aparecem aqui com book e tabela."
             action={
@@ -727,7 +727,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
           />
         ) : ordenados.length === 0 ? (
           <EmptyState
-            icon={Search}
+            icon={MagnifyingGlass}
             title={
               filtros.soQueCabe && filtros.renda != null && !filtros.busca
                 ? "Nada cabe nessa renda com os filtros atuais"
@@ -933,7 +933,7 @@ function CorredorParceira({
         {restantes > 0 && (
           <Button size="sm" variant="ghost" onClick={onVerTodos}>
             Ver todos ({corredor.itens.length})
-            <ChevronRight className="ml-1 h-4 w-4" />
+            <CaretRight className="ml-1 h-4 w-4" />
           </Button>
         )}
       </div>

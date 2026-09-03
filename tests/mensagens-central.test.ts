@@ -92,7 +92,7 @@ describe("fiação da Central (7b)", () => {
   it("a rota /mensagens existe e o menu aponta para ela em Comunicações, com o badge", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/mensagens")');
     expect(sistemas).toMatch(
-      /label: "Mensagens",\s*icon: MessageCircle,\s*to: "\/mensagens",\s*badge: \(b\) => b\.mensagensAguardando/,
+      /label: "Mensagens",\s*icon: WhatsappLogo,\s*to: "\/mensagens",\s*badge: \(b\) => b\.mensagensAguardando/,
     );
   });
 

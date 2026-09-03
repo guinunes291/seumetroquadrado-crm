@@ -19,7 +19,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CalendarRange } from "lucide-react";
+import { CalendarDots } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -106,7 +106,7 @@ export function SeletorPeriodo({ periodo }: { periodo: PeriodoRaioX }) {
       <Popover>
         <PopoverTrigger asChild>
           <Button size="sm" variant={custom?.from ? "default" : "ghost"}>
-            <CalendarRange className="mr-1 h-4 w-4" />
+            <CalendarDots className="mr-1 h-4 w-4" />
             {custom?.from
               ? `${format(custom.from, "dd/MM/yy")}${custom.to ? ` – ${format(custom.to, "dd/MM/yy")}` : ""}`
               : "Personalizado"}

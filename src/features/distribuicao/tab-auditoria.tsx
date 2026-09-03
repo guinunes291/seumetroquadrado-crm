@@ -4,7 +4,7 @@
 import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ScrollText, Users } from "lucide-react";
+import { Scroll, UsersThree } from "@phosphor-icons/react";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeader } from "@/components/ui/section-header";
@@ -157,8 +157,8 @@ export function TabAuditoria() {
           eyebrow="Auditoria"
           title={
             <span className="flex items-center gap-1.5">
-              <Users className="h-4 w-4 text-primary" /> Participação nas roletas — quem incluiu,
-              removeu, pausou e quando
+              <UsersThree className="h-4 w-4 text-primary" /> Participação nas roletas — quem
+              incluiu, removeu, pausou e quando
             </span>
           }
         />
@@ -170,7 +170,9 @@ export function TabAuditoria() {
           loading={logQ.isLoading}
           error={logQ.isError ? logQ.error : undefined}
           onRetry={() => void logQ.refetch()}
-          empty={<EmptyState icon={Users} title="Nenhuma mudança de participação registrada" />}
+          empty={
+            <EmptyState icon={UsersThree} title="Nenhuma mudança de participação registrada" />
+          }
         />
       </section>
 
@@ -179,7 +181,7 @@ export function TabAuditoria() {
           eyebrow="Auditoria"
           title={
             <span className="flex items-center gap-1.5">
-              <ScrollText className="h-4 w-4 text-primary" /> Decisões com falha (30 dias)
+              <Scroll className="h-4 w-4 text-primary" /> Decisões com falha (30 dias)
             </span>
           }
         />
@@ -191,9 +193,7 @@ export function TabAuditoria() {
           loading={falhasQ.isLoading}
           error={falhasQ.isError ? falhasQ.error : undefined}
           onRetry={() => void falhasQ.refetch()}
-          empty={
-            <EmptyState icon={ScrollText} title="Nenhuma falha de distribuição em 30 dias 👏" />
-          }
+          empty={<EmptyState icon={Scroll} title="Nenhuma falha de distribuição em 30 dias 👏" />}
         />
       </section>
     </div>

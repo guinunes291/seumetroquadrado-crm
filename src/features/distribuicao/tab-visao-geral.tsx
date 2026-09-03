@@ -4,7 +4,7 @@
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Bot, Compass, Globe, Inbox, Users } from "lucide-react";
+import { ArrowRight, Compass, Globe, Robot, Tray, UsersThree } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -15,10 +15,10 @@ import type { RoletaSlug } from "@/lib/distribuicao";
 import { useElegibilidadeRoleta, useHistoricoDistribuicao, useNomesPerfis } from "./queries";
 
 const ROLETA_ICON = {
-  plantao: Users,
-  marquinhos: Bot,
+  plantao: UsersThree,
+  marquinhos: Robot,
   landing: Globe,
-  base: Inbox,
+  base: Tray,
   "zona-norte": Compass,
   "zona-sul": Compass,
   "zona-leste": Compass,

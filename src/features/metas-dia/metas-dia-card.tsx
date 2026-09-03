@@ -16,13 +16,13 @@ import {
 } from "@/features/metas-dia/metas-dia";
 import {
   CalendarCheck,
-  ChevronDown,
-  ChevronUp,
+  CaretDown,
+  CaretUp,
   FileText,
-  Pencil,
+  PencilSimple,
   Target,
   Trophy,
-} from "lucide-react";
+} from "@phosphor-icons/react";
 
 const ICONE: Record<MetaChave, typeof Target> = {
   agendamentos: CalendarCheck,
@@ -167,7 +167,7 @@ function Acoes({
         title="Ajustar metas de hoje"
         onClick={onEditar}
       >
-        <Pencil className="h-3.5 w-3.5" />
+        <PencilSimple className="h-3.5 w-3.5" />
       </Button>
       <Button
         size="icon"
@@ -177,7 +177,7 @@ function Acoes({
         aria-label={recolhido ? "Expandir metas" : "Recolher metas"}
         onClick={onToggle}
       >
-        {recolhido ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+        {recolhido ? <CaretDown className="h-4 w-4" /> : <CaretUp className="h-4 w-4" />}
       </Button>
     </>
   );
