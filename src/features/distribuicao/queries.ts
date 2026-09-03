@@ -755,7 +755,7 @@ export function useRodarDistribuicao() {
 export function useEscoarEstoque(slug: string) {
   const invalidate = useInvalidateDistribuicao();
   return useMutation({
-    mutationFn: async (limite: number = 200) => {
+    mutationFn: async (limite: number) => {
       const { data, error } = await supabase.rpc("distribuir_estoque_roleta", {
         _roleta: slug,
         _limite: limite,
