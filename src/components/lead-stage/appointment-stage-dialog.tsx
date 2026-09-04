@@ -158,7 +158,7 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone, moverLead =
         <DialogHeader>
           <DialogTitle>Agendar — {lead.nome}</DialogTitle>
           <DialogDescription>
-            Crie o agendamento. O lead será movido para "Agendado".
+            Crie o agendamento.{moverLead ? ' O lead será movido para "Agendado".' : ""}
           </DialogDescription>
         </DialogHeader>
 
