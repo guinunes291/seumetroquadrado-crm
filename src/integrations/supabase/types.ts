@@ -7867,6 +7867,11 @@ export type Database = {
         Returns: string
       }
       marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
+      metas_dia_alerta_checkpoint: {
+        Args: { _dia: string; _checkpoint: number; _titulo: string; _mensagem: string }
+        Returns: boolean
+      }
+      metas_dia_taxas: { Args: { _dias?: number }; Returns: Json }
       marcar_presenca_admin: {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined

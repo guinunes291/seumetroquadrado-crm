@@ -12,13 +12,16 @@ import {
   fimSemana,
   inicioSemana,
   limitesDoDia,
+  normalizarTaxasRpc,
   type MetaDia,
   type RealizadoDia,
+  type TaxasRpc,
 } from "@/features/metas-dia/metas-dia";
 
 export const METAS_DIA_KEY = "metas-dia";
 
-const COLUNAS = "dia, semana_inicio, meta_agendamentos, meta_documentacoes, meta_vendas_semana";
+const COLUNAS =
+  "dia, semana_inicio, meta_agendamentos, meta_documentacoes, meta_vendas_semana, respondido_em";
 
 /** Resposta de HOJE do corretor (null = ainda não respondeu → popup). */
 export function useMetaDeHoje(dia: string) {
@@ -41,7 +44,7 @@ export function useMetaDeHoje(dia: string) {
   });
 }
 
-/** Última resposta ANTES de hoje — pré-preenche o popup. */
+/** Última resposta ANTES de hoje — pré-preenche o popup e alimenta o balanço. */
 export function useUltimaMeta(dia: string) {
   const { user } = useAuth();
   const uid = user?.id;
@@ -85,58 +88,119 @@ export function useMetaGestor() {
   });
 }
 
+/** Realizado de um dia (e da semana daquele dia), direto das tabelas de origem. */
+async function buscarRealizado(uid: string, dia: string): Promise<RealizadoDia> {
+  const { ini, fim } = limitesDoDia(dia);
+  const semanaIni = inicioSemana(dia);
+  const semanaFim = fimSemana(dia);
+  const [agR, docR, venR] = await Promise.all([
+    supabase
+      .from("agendamentos")
+      .select("tipo, status, auto_gerado, deleted_at")
+      .eq("corretor_id", uid)
+      .gte("created_at", ini)
+      .lte("created_at", fim),
+    supabase
+      .from("lead_status_transitions")
+      .select("id", { count: "exact", head: true })
+      .eq("corretor_id", uid)
+      .eq("para_status", "analise_credito")
+      .gte("created_at", ini)
+      .lte("created_at", fim),
+    supabase
+      .from("vendas")
+      .select("status_venda, distrato")
+      .eq("corretor_id", uid)
+      .gte("data_assinatura", semanaIni)
+      .lte("data_assinatura", semanaFim),
+  ]);
+  if (agR.error) throw agR.error;
+  if (docR.error) throw docR.error;
+  if (venR.error) throw venR.error;
+  const vendas = contarVendasSemana(venR.data ?? []);
+  return {
+    agendamentos: contarAgendamentos(agR.data ?? []),
+    documentacoes: docR.count ?? 0,
+    vendas_semana: vendas.total,
+    vendas_pendentes: vendas.pendentes,
+  };
+}
+
 /**
- * Realizado do dia/semana direto das tabelas de origem.
- * Atualiza ao voltar o foco da janela e a cada 2 min; as ações do próprio
- * usuário (agendar, vender, mover etapa) invalidam na hora via
- * useInvalidarMetasDiaAoMudarDados.
+ * Realizado de HOJE. Atualiza ao voltar o foco da janela e a cada 2 min; as
+ * ações do próprio usuário (agendar, vender, mover etapa) invalidam na hora
+ * via useInvalidarMetasDiaAoMudarDados.
  */
 export function useRealizadoHoje(dia: string, enabled = true) {
   const { user } = useAuth();
   const uid = user?.id;
-  const { ini, fim } = limitesDoDia(dia);
-  const semanaIni = inicioSemana(dia);
-  const semanaFim = fimSemana(dia);
   return useQuery({
     queryKey: [METAS_DIA_KEY, "realizado", uid, dia],
     enabled: !!uid && enabled,
     staleTime: 30_000,
     refetchInterval: 2 * 60_000,
     refetchOnWindowFocus: true,
-    queryFn: async (): Promise<RealizadoDia> => {
-      const [agR, docR, venR] = await Promise.all([
-        supabase
-          .from("agendamentos")
-          .select("tipo, status, auto_gerado, deleted_at")
-          .eq("corretor_id", uid!)
-          .gte("created_at", ini)
-          .lte("created_at", fim),
-        supabase
-          .from("lead_status_transitions")
-          .select("id", { count: "exact", head: true })
-          .eq("corretor_id", uid!)
-          .eq("para_status", "analise_credito")
-          .gte("created_at", ini)
-          .lte("created_at", fim),
-        supabase
-          .from("vendas")
-          .select("status_venda, distrato")
-          .eq("corretor_id", uid!)
-          .gte("data_assinatura", semanaIni)
-          .lte("data_assinatura", semanaFim),
-      ]);
-      if (agR.error) throw agR.error;
-      if (docR.error) throw docR.error;
-      if (venR.error) throw venR.error;
-      const vendas = contarVendasSemana(venR.data ?? []);
-      return {
-        agendamentos: contarAgendamentos(agR.data ?? []),
-        documentacoes: docR.count ?? 0,
-        vendas_semana: vendas.total,
-        vendas_pendentes: vendas.pendentes,
-      };
+    queryFn: () => buscarRealizado(uid!, dia),
+  });
+}
+
+/** Realizado de um dia PASSADO (balanço) — não muda mais, cache longo. */
+export function useRealizadoDoDia(dia: string | null | undefined, enabled = true) {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: [METAS_DIA_KEY, "realizado-dia", uid, dia],
+    enabled: !!uid && !!dia && enabled,
+    staleTime: 60 * 60_000,
+    queryFn: () => buscarRealizado(uid!, dia!),
+  });
+}
+
+/**
+ * Contagens do funil (contatos → agendamentos → documentações → vendas) dos
+ * últimos 30 dias, do corretor e do time (RPC metas_dia_taxas). Falha vira
+ * null: o popup e o card seguem sem a sugestão de contatos, nunca travam.
+ */
+export function useTaxasConversao(enabled = true) {
+  const { user } = useAuth();
+  const uid = user?.id;
+  return useQuery({
+    queryKey: [METAS_DIA_KEY, "taxas", uid],
+    enabled: !!uid && enabled,
+    staleTime: 30 * 60_000,
+    retry: false,
+    queryFn: async (): Promise<TaxasRpc | null> => {
+      const { data, error } = await supabase.rpc("metas_dia_taxas", { _dias: 30 });
+      if (error) {
+        console.warn("metas_dia_taxas indisponível:", error.message);
+        return null;
+      }
+      return normalizarTaxasRpc(data);
     },
   });
+}
+
+/**
+ * Grava o aviso do checkpoint no sino (RPC com dedup por corretor+dia+checkpoint).
+ * true = inserido agora; false = já existia (outro aparelho) ou falhou.
+ */
+export async function registrarAlertaCheckpoint(
+  dia: string,
+  checkpoint: number,
+  titulo: string,
+  mensagem: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("metas_dia_alerta_checkpoint", {
+    _dia: dia,
+    _checkpoint: checkpoint,
+    _titulo: titulo,
+    _mensagem: mensagem,
+  });
+  if (error) {
+    console.warn("metas_dia_alerta_checkpoint indisponível:", error.message);
+    return false;
+  }
+  return data === true;
 }
 
 export type SalvarMetaInput = {

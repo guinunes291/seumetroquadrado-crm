@@ -20,6 +20,7 @@ import {
   CaretUp,
   FileText,
   PencilSimple,
+  PhoneCall,
   Target,
   Trophy,
 } from "@phosphor-icons/react";
@@ -148,6 +149,20 @@ function Barras({
   );
 }
 
+/** "≈ N contatos para bater hoje" — some quando não há taxa ou tudo já foi batido. */
+function Contatos({ n, todasBatidas }: { n: number | null | undefined; todasBatidas: boolean }) {
+  if (n === null || n === undefined || n <= 0 || todasBatidas) return null;
+  return (
+    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <PhoneCall className="h-3 w-3 text-primary" />
+      <span>
+        ≈ <span className="font-semibold tabular-nums text-foreground">{n} contatos</span> para
+        bater hoje
+      </span>
+    </p>
+  );
+}
+
 function Acoes({
   recolhido,
   onEditar,
@@ -195,12 +210,15 @@ export function MetasDiaCard({
   dia,
   meta,
   realizado,
+  contatosHoje,
   onEditar,
 }: {
   uid: string;
   dia: string;
   meta: MetaDia;
   realizado: RealizadoDia | undefined;
+  /** Contatos estimados para bater as metas de hoje (null = sem taxa). */
+  contatosHoje?: number | null;
   onEditar: () => void;
 }) {
   const [recolhido, setRecolhido] = usePreference<boolean>(PREF_CARD_RECOLHIDO, false);
@@ -262,6 +280,7 @@ export function MetasDiaCard({
           {!recolhido && (
             <div className="space-y-2 pb-1 pt-1.5">
               <Barras prog={prog} visiveis={visiveis} realizado={realizado} />
+              <Contatos n={contatosHoje} todasBatidas={todasBatidas} />
             </div>
           )}
         </div>,
@@ -285,6 +304,7 @@ export function MetasDiaCard({
         {!recolhido && (
           <div className="space-y-2.5 px-3 pb-3">
             <Barras prog={prog} visiveis={visiveis} realizado={realizado} />
+            <Contatos n={contatosHoje} todasBatidas={todasBatidas} />
           </div>
         )}
       </aside>
