@@ -595,7 +595,18 @@ function LeadDetailPage() {
         </ResponsiveTabsContent>
 
         <ResponsiveTabsContent value="agendamentos" className="mt-4">
-          <AgendamentosTab leadId={leadId} />
+          <AgendamentosTab
+            leadId={leadId}
+            lead={{
+              id: leadId,
+              nome: lead.nome,
+              status: lead.status,
+              corretor_id: lead.corretor_id,
+              projeto_id: lead.projeto_id,
+              projeto_nome: lead.projeto_nome,
+              observacoes: lead.observacoes,
+            }}
+          />
         </ResponsiveTabsContent>
 
         <ResponsiveTabsContent value="documentacao" className="mt-4">
