@@ -1,5 +1,7 @@
-// Card "Seu dia" do hub /inicio: a agenda acionável na primeira tela após o
-// login. Três recortes — visitas passadas sem validação, hoje, prévia de
+// Card da agenda do dia no hub /inicio: a agenda acionável na primeira tela
+// após o login. O escopo segue o papel (regra em escopoDaAgenda): corretor vê
+// "Seu dia"; gestor, a agenda da equipe; admin/superintendente, a operação —
+// nesses dois casos cada linha traz o nome do corretor. Três recortes — visitas passadas sem validação, hoje, prévia de
 // amanhã — e, em cada linha, o que o corretor precisa fazer sem trocar de
 // aba: ligar / WhatsApp / rota, confirmar, validar (realizada ou não veio) e
 // remarcar. Regras em agenda-do-dia.ts; escrita em use-agenda-do-dia.ts.
@@ -54,9 +56,12 @@ import {
   aguardaValidacao,
   estaAberto,
   fraseResumo,
+  LIMITE_LISTA_SECUNDARIA,
   mensagemContato,
   resumoDoDia,
   tipoLabel,
+  tituloDoEscopo,
+  vazioDoEscopo,
   type ItemAgendaDia,
 } from "./agenda-do-dia";
 import { useAcoesAgenda, useAgendaDoDia, useCriarAgendamento } from "./use-agenda-do-dia";
@@ -66,7 +71,10 @@ type Desfecho = "realizada" | "nao_compareceu";
 export function AgendaDoDiaCard() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
-  const { query, agora, classificada } = useAgendaDoDia();
+  const { query, agora, classificada, escopo, nomes, escopoPronto, escopoErro, refetchEscopo } =
+    useAgendaDoDia();
+  const tipoEscopo = escopo?.tipo ?? "minha";
+  const mostrarCorretor = tipoEscopo !== "minha";
   const acoes = useAcoesAgenda();
   const criar = useCriarAgendamento();
 
@@ -115,6 +123,9 @@ export function AgendaDoDiaCard() {
   const linhaProps = {
     agora,
     ocupadoId,
+    nomeCorretor: mostrarCorretor
+      ? (item: ItemAgendaDia) => nomes.get(item.corretor_id)
+      : undefined,
     onConfirmar: (item: ItemAgendaDia) => acoes.confirmar.mutate(item),
     onValidar: (item: ItemAgendaDia, desfecho: Desfecho) => setValidando({ item, desfecho }),
     onRemarcar: (item: ItemAgendaDia) => setRemarcando(item),
@@ -127,11 +138,11 @@ export function AgendaDoDiaCard() {
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-            <CalendarCheck className="h-4 w-4" aria-hidden="true" /> Seu dia ·{" "}
+            <CalendarCheck className="h-4 w-4" aria-hidden="true" /> {tituloDoEscopo(tipoEscopo)} ·{" "}
             <span className="capitalize">{format(agora, "EEEE", { locale: ptBR })}</span>
           </p>
           <h2 className="mt-1 font-display text-lg font-semibold leading-tight">
-            {query.isLoading ? "Carregando a agenda…" : fraseResumo(resumo)}
+            {!escopoPronto || query.isLoading ? "Carregando a agenda…" : fraseResumo(resumo)}
           </h2>
         </div>
         <Dialog open={openNew} onOpenChange={setOpenNew}>
@@ -156,11 +167,15 @@ export function AgendaDoDiaCard() {
 
       <CardContent className="space-y-4">
         <AsyncBoundary
-          isLoading={query.isLoading}
-          isError={query.isError}
-          error={query.error}
-          errorTitle="Não foi possível carregar a sua agenda."
-          onRetry={() => void query.refetch()}
+          isLoading={!escopoPronto && !escopoErro ? true : query.isLoading}
+          isError={!!escopoErro || query.isError}
+          error={escopoErro ?? query.error}
+          errorTitle={
+            escopoErro
+              ? "Não foi possível carregar a sua equipe para montar a agenda."
+              : "Não foi possível carregar a agenda."
+          }
+          onRetry={() => void (escopoErro ? refetchEscopo() : query.refetch())}
           loadingFallback={
             <div className="space-y-2" aria-busy="true">
               <Skeleton className="h-14 w-full rounded-lg" />
@@ -176,16 +191,17 @@ export function AgendaDoDiaCard() {
               tone="warning"
               descricao="Enquanto não forem validadas, não entram no relatório de visitas."
             >
-              {classificada.pendentes.map((item) => (
+              {classificada.pendentes.slice(0, LIMITE_LISTA_SECUNDARIA).map((item) => (
                 <Linha key={item.id} item={item} mostrarDia {...linhaProps} />
               ))}
+              <MaisNaAgenda total={classificada.pendentes.length} />
             </Secao>
           )}
 
           <Secao icon={CalendarDots} titulo="Hoje" contagem={classificada.hoje.length}>
             {classificada.hoje.length === 0 ? (
               <li className="flex flex-col items-start gap-2 rounded-lg border border-dashed border-border-subtle p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span>Sem compromissos hoje. Que tal encaixar uma visita?</span>
+                <span>{vazioDoEscopo(tipoEscopo)}</span>
                 <Button size="sm" variant="outline" onClick={() => setOpenNew(true)}>
                   <CalendarPlus className="h-4 w-4" /> Agendar
                 </Button>
@@ -202,9 +218,10 @@ export function AgendaDoDiaCard() {
               contagem={classificada.amanha.length}
               descricao="Confirme hoje o que é amanhã — é o D-1 da régua."
             >
-              {classificada.amanha.map((item) => (
+              {classificada.amanha.slice(0, LIMITE_LISTA_SECUNDARIA).map((item) => (
                 <Linha key={item.id} item={item} {...linhaProps} />
               ))}
+              <MaisNaAgenda total={classificada.amanha.length} />
             </Secao>
           )}
         </AsyncBoundary>
@@ -259,6 +276,19 @@ export function AgendaDoDiaCard() {
         />
       )}
     </Card>
+  );
+}
+
+/** "+N mais" das listas secundárias — o resto vive na agenda completa. */
+function MaisNaAgenda({ total }: { total: number }) {
+  const resto = total - LIMITE_LISTA_SECUNDARIA;
+  if (resto <= 0) return null;
+  return (
+    <li className="px-1 text-xs text-muted-foreground">
+      <Link to="/agendamentos" className="font-medium text-primary hover:underline">
+        +{resto} {resto === 1 ? "compromisso" : "compromissos"} na agenda completa
+      </Link>
+    </li>
   );
 }
 
@@ -348,6 +378,7 @@ function Linha({
   agora,
   ocupadoId,
   mostrarDia,
+  nomeCorretor,
   onConfirmar,
   onValidar,
   onRemarcar,
@@ -356,6 +387,8 @@ function Linha({
   agora: Date;
   ocupadoId: string | null;
   mostrarDia?: boolean;
+  /** Presente na agenda da equipe/operação: quem atende este compromisso. */
+  nomeCorretor?: (item: ItemAgendaDia) => string | undefined;
   onConfirmar: (item: ItemAgendaDia) => void;
   onValidar: (item: ItemAgendaDia, desfecho: Desfecho) => void;
   onRemarcar: (item: ItemAgendaDia) => void;
@@ -372,7 +405,13 @@ function Linha({
   const rota = item.local
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.local)}`
     : null;
-  const detalhes = [tipoLabel(item.tipo), item.lead ? item.titulo : null, item.local]
+  const corretor = nomeCorretor?.(item);
+  const detalhes = [
+    corretor ? `Corretor: ${corretor}` : null,
+    tipoLabel(item.tipo),
+    item.lead ? item.titulo : null,
+    item.local,
+  ]
     .filter(Boolean)
     .join(" · ");
 

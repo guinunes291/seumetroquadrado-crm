@@ -3,6 +3,7 @@ import {
   acoesDisponiveis,
   aguardaValidacao,
   classificarAgenda,
+  escopoDaAgenda,
   fraseResumo,
   janelaDaAgenda,
   mensagemConfirmacao,
@@ -13,8 +14,10 @@ import {
   resumoDoDia,
   rotuloDoDia,
   sugestaoProximoContato,
+  tituloDoEscopo,
   validarRegistroVisita,
   validarRemarcacao,
+  vazioDoEscopo,
   type ItemAgendaDia,
   type RegistroVisita,
 } from "@/features/agenda/agenda-do-dia";
@@ -356,5 +359,46 @@ describe("resumo do cabeçalho", () => {
     expect(fraseResumo({ total: 0, semConfirmacao: 0, paraValidar: 1, concluidos: 0 })).toBe(
       "1 visita para validar.",
     );
+  });
+});
+
+describe("escopo da agenda por papel", () => {
+  it("admin e superintendente veem a operação inteira (sem filtro de corretor)", () => {
+    expect(
+      escopoDaAgenda({ userId: "u1", isAdmin: true, isSuperintendente: false, isGestor: false }),
+    ).toEqual({ tipo: "operacao", ids: null });
+    expect(
+      escopoDaAgenda({ userId: "u1", isAdmin: false, isSuperintendente: true, isGestor: true }),
+    ).toEqual({ tipo: "operacao", ids: null });
+  });
+
+  it("gestor vê a equipe e a si mesmo, sem duplicar o próprio id", () => {
+    expect(
+      escopoDaAgenda({
+        userId: "g1",
+        isAdmin: false,
+        isSuperintendente: false,
+        isGestor: true,
+        equipeIds: ["g1", "c1", "c2"],
+      }),
+    ).toEqual({ tipo: "equipe", ids: ["g1", "c1", "c2"] });
+    // Equipe ainda não carregada / sem membros: só ele.
+    expect(
+      escopoDaAgenda({ userId: "g1", isAdmin: false, isSuperintendente: false, isGestor: true }),
+    ).toEqual({ tipo: "equipe", ids: ["g1"] });
+  });
+
+  it("corretor vê só a própria agenda", () => {
+    expect(
+      escopoDaAgenda({ userId: "c1", isAdmin: false, isSuperintendente: false, isGestor: false }),
+    ).toEqual({ tipo: "minha", ids: ["c1"] });
+  });
+
+  it("título e texto de vazio acompanham o escopo", () => {
+    expect(tituloDoEscopo("minha")).toBe("Seu dia");
+    expect(tituloDoEscopo("equipe")).toBe("Agenda da equipe");
+    expect(tituloDoEscopo("operacao")).toBe("Agenda da operação");
+    expect(vazioDoEscopo("operacao")).toMatch(/operação/);
+    expect(vazioDoEscopo("minha")).toMatch(/encaixar uma visita/);
   });
 });

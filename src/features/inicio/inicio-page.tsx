@@ -106,9 +106,10 @@ export function InicioPage() {
     "corretor";
 
   const ctx: PapelCtx = { roles, isAdmin };
-  // Papéis da OPERAÇÃO de venda (mesma lista de OPERACAO em nav/sistemas):
-  // são eles que têm agenda própria. O SDR confirma visitas no hub /sdr.
-  const temAgendaPropria = isAdmin || isGestor || isCorretor || isSuperintendente;
+  // Papéis da OPERAÇÃO de venda (mesma lista de OPERACAO em nav/sistemas). O
+  // escopo do card segue o papel (corretor: a própria; gestor: a equipe;
+  // admin/superintendente: a operação). O SDR confirma visitas no hub /sdr.
+  const temAgenda = isAdmin || isGestor || isCorretor || isSuperintendente;
   const visiveis = sistemasVisiveis(ctx);
   // Portal por FREQUÊNCIA (decisão 2026-08-30): a primeira dobra é "Seu dia"
   // — os 5 hubs do fluxo diário, na ordem do fluxo — e o que é referência
@@ -191,7 +192,7 @@ export function InicioPage() {
           </div>
         </section>
 
-        {!loading && temAgendaPropria && (
+        {!loading && temAgenda && (
           <Suspense fallback={<Skeleton className="h-40 rounded-xl" aria-busy="true" />}>
             <AgendaDoDiaCard />
           </Suspense>
