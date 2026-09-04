@@ -13,13 +13,14 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { invalidateAgendamentoQueries } from "@/lib/agendamentos";
 import { criarFollowUpAutomatico, garantirFollowUpAberto } from "@/lib/follow-up";
 import { syncAgendamentoGoogle } from "@/lib/google-calendar.functions";
 import {
   classificarAgenda,
+  escopoDaAgenda,
   etapaEfetiva,
   janelaDaAgenda,
   payloadSalvarVisita,
@@ -27,6 +28,7 @@ import {
   validarRegistroVisita,
   validarRemarcacao,
   type AgendamentoInsert,
+  type EscopoAgenda,
   type ItemAgendaDia,
   type RegistroVisita,
 } from "./agenda-do-dia";
@@ -49,39 +51,125 @@ export function useRelogio(intervaloMs = 60_000): Date {
   return agora;
 }
 
+/**
+ * Corretores da equipe do gestor (inclui ele mesmo). MESMA queryKey da rota
+ * /hoje — o react-query deduplica e as duas telas leem a mesma equipe.
+ */
+function useEquipeDoGestor(enabled: boolean) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["hoje:equipe-corretores", user?.id],
+    enabled: !!user && enabled,
+    queryFn: async () => {
+      const { data: equipes, error: equipesError } = await supabase
+        .from("equipes")
+        .select("id")
+        .eq("gestor_id", user!.id);
+      if (equipesError) throw equipesError;
+      const equipeIds = (equipes ?? []).map((e) => e.id);
+      if (equipeIds.length === 0) return [user!.id];
+      const { data: membros, error: membrosError } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("equipe_id", equipeIds);
+      if (membrosError) throw membrosError;
+      return Array.from(new Set([user!.id, ...(membros ?? []).map((m) => m.id)]));
+    },
+  });
+}
+
+/** Escopo da agenda pelo PAPEL (regra em escopoDaAgenda). `pronto` só vira
+ *  true quando papéis e, para o gestor, a equipe já chegaram — sem isso a
+ *  query rodaria com escopo incompleto e mostraria "sem compromissos". */
+export function useEscopoAgenda() {
+  const { user } = useAuth();
+  const { isAdmin, isGestor, isSuperintendente, loading } = useUserRoles();
+  const precisaEquipe = !loading && isGestor && !isAdmin && !isSuperintendente;
+  const equipeQ = useEquipeDoGestor(precisaEquipe);
+  const escopo = useMemo<EscopoAgenda | null>(
+    () =>
+      user?.id && !loading
+        ? escopoDaAgenda({
+            userId: user.id,
+            isAdmin,
+            isSuperintendente,
+            isGestor,
+            equipeIds: equipeQ.data ?? null,
+          })
+        : null,
+    [user?.id, loading, isAdmin, isSuperintendente, isGestor, equipeQ.data],
+  );
+  const pronto = !!escopo && (!precisaEquipe || equipeQ.data !== undefined);
+  return {
+    escopo,
+    pronto,
+    isError: precisaEquipe && equipeQ.isError,
+    error: equipeQ.error,
+    refetch: equipeQ.refetch,
+  };
+}
+
+/** Nome dos corretores para as linhas da equipe/operação (id → nome). Mesma
+ *  queryKey do formulário e da rota /agendamentos. */
+export function useNomesCorretores(enabled: boolean) {
+  const q = useQuery({
+    queryKey: ["profiles-min"],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome, email")
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  return useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of q.data ?? []) m.set(p.id, p.nome ?? p.email ?? "");
+    return m;
+  }, [q.data]);
+}
+
 export function useAgendaDoDia() {
   const { user } = useAuth();
   const uid = user?.id;
   const agora = useRelogio();
+  const escopoQ = useEscopoAgenda();
+  const escopo = escopoQ.escopo;
+  const ids = escopo?.ids ?? null;
+  const scopeKey = ids ? ids.join(",") : "operacao:all";
   // A janela depende só do DIA — recalcular por minuto invalidaria a query à toa.
   const diaKey = format(agora, "yyyy-MM-dd");
   const janela = useMemo(() => janelaDaAgenda(new Date(`${diaKey}T12:00:00`)), [diaKey]);
 
   const query = useQuery({
-    queryKey: [AGENDA_DO_DIA_KEY, uid, diaKey],
-    enabled: !!uid,
+    queryKey: [AGENDA_DO_DIA_KEY, scopeKey, diaKey],
+    enabled: !!uid && escopoQ.pronto,
     staleTime: 30_000,
     queryFn: async (): Promise<ItemAgendaDia[]> => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("agendamentos")
         .select(COLUNAS)
-        .eq("corretor_id", uid!)
         .is("deleted_at", null)
         .neq("status", "cancelado")
         .gte("data_inicio", janela.inicio.toISOString())
         .lte("data_inicio", janela.fim.toISOString())
         .order("data_inicio")
-        .limit(200);
+        .limit(300);
+      if (ids) q = q.in("corretor_id", ids);
+      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
   });
 
-  // Push do Supabase só para as MINHAS linhas — outro aparelho (ou o gestor)
-  // mexendo na agenda reflete aqui sem polling.
+  // Push do Supabase: na agenda própria, só as MINHAS linhas; na equipe/
+  // operação, qualquer mudança da tabela (o filtro do canal aceita um id só).
   useRealtimeInvalidate("agendamentos", [[AGENDA_DO_DIA_KEY]], {
-    enabled: !!uid,
-    filter: uid ? `corretor_id=eq.${uid}` : undefined,
+    enabled: !!uid && escopoQ.pronto,
+    filter: ids && ids.length === 1 ? `corretor_id=eq.${ids[0]}` : undefined,
   });
 
   const classificada = useMemo(
@@ -89,7 +177,20 @@ export function useAgendaDoDia() {
     [query.data, agora],
   );
 
-  return { query, agora, classificada };
+  // Nomes só quando a lista mistura corretores.
+  const nomes = useNomesCorretores(!!escopo && escopo.tipo !== "minha");
+
+  return {
+    query,
+    agora,
+    classificada,
+    escopo,
+    nomes,
+    /** Escopo (papéis/equipe) ainda resolvendo — a tela mostra esqueleto. */
+    escopoPronto: escopoQ.pronto,
+    escopoErro: escopoQ.isError ? escopoQ.error : null,
+    refetchEscopo: escopoQ.refetch,
+  };
 }
 
 /** Invalidação canônica + as chaves específicas desta tela e das vizinhas

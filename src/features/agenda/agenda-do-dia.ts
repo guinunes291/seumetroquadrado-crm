@@ -370,3 +370,50 @@ export function mensagemContato(item: ItemAgendaDia, agora: Date = new Date()): 
   }
   return saudacao;
 }
+
+// ---------------------------------------------------------------------------
+// Escopo: de quem é a agenda que a home mostra. Mesma regra da Central de
+// Comando (/hoje): admin e superintendente veem a operação inteira, gestor vê
+// a própria equipe (e a si), corretor vê só a própria. Um admin sem
+// compromisso no próprio nome via "sem compromissos hoje" com o calendário
+// cheio — a agenda da gestão é a da operação, não a pessoal.
+// ---------------------------------------------------------------------------
+
+export type TipoEscopoAgenda = "minha" | "equipe" | "operacao";
+
+export type EscopoAgenda = {
+  tipo: TipoEscopoAgenda;
+  /** null = sem filtro de corretor (toda a operação); array = restringe. */
+  ids: string[] | null;
+};
+
+export function escopoDaAgenda(p: {
+  userId: string;
+  isAdmin: boolean;
+  isSuperintendente: boolean;
+  isGestor: boolean;
+  /** Corretores da equipe do gestor (pode incluir ou não o próprio gestor). */
+  equipeIds?: string[] | null;
+}): EscopoAgenda {
+  if (p.isAdmin || p.isSuperintendente) return { tipo: "operacao", ids: null };
+  if (p.isGestor) {
+    return { tipo: "equipe", ids: Array.from(new Set([p.userId, ...(p.equipeIds ?? [])])) };
+  }
+  return { tipo: "minha", ids: [p.userId] };
+}
+
+export function tituloDoEscopo(tipo: TipoEscopoAgenda): string {
+  if (tipo === "operacao") return "Agenda da operação";
+  if (tipo === "equipe") return "Agenda da equipe";
+  return "Seu dia";
+}
+
+export function vazioDoEscopo(tipo: TipoEscopoAgenda): string {
+  if (tipo === "operacao") return "Nenhum compromisso na operação hoje.";
+  if (tipo === "equipe") return "Nenhum compromisso da equipe hoje.";
+  return "Sem compromissos hoje. Que tal encaixar uma visita?";
+}
+
+/** Listas secundárias (pendências e amanhã) cortam aqui; o resto vai para a
+ *  agenda completa. Na operação inteira a prévia de amanhã passa de 10 linhas. */
+export const LIMITE_LISTA_SECUNDARIA = 10;
