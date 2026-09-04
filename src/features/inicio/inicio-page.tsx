@@ -38,6 +38,14 @@ const NovoLeadDialogHost = lazy(() =>
     default: NovoLeadDialogHost,
   })),
 );
+// Agenda acionável do dia (decisão 2026-09-04): o corretor vê e resolve o
+// próprio dia — confirmar, validar visita, remarcar — na primeira tela após o
+// login, sem trocar de aba. Lazy: o hub continua leve para quem só passa.
+const AgendaDoDiaCard = lazy(() =>
+  import("@/features/agenda/agenda-do-dia-card").then(({ AgendaDoDiaCard }) => ({
+    default: AgendaDoDiaCard,
+  })),
+);
 // O popup de metas do dia precisa aparecer JÁ no hub: é a primeira tela após
 // o login, e o corretor pode ir daqui direto para o Modo Visita.
 const MetasDiaGlobal = lazy(() =>
@@ -88,7 +96,7 @@ const GRID_CLASSES = "stagger-children grid gap-4 sm:grid-cols-2 lg:grid-cols-3 
  */
 export function InicioPage() {
   const { user } = useAuth();
-  const { roles, isAdmin, loading } = useUserRoles();
+  const { roles, isAdmin, isGestor, isCorretor, isSuperintendente, loading } = useUserRoles();
   const badges = useNavBadges();
 
   const primeiroNome =
@@ -98,6 +106,9 @@ export function InicioPage() {
     "corretor";
 
   const ctx: PapelCtx = { roles, isAdmin };
+  // Papéis da OPERAÇÃO de venda (mesma lista de OPERACAO em nav/sistemas):
+  // são eles que têm agenda própria. O SDR confirma visitas no hub /sdr.
+  const temAgendaPropria = isAdmin || isGestor || isCorretor || isSuperintendente;
   const visiveis = sistemasVisiveis(ctx);
   // Portal por FREQUÊNCIA (decisão 2026-08-30): a primeira dobra é "Seu dia"
   // — os 5 hubs do fluxo diário, na ordem do fluxo — e o que é referência
@@ -179,6 +190,12 @@ export function InicioPage() {
             </p>
           </div>
         </section>
+
+        {!loading && temAgendaPropria && (
+          <Suspense fallback={<Skeleton className="h-40 rounded-xl" aria-busy="true" />}>
+            <AgendaDoDiaCard />
+          </Suspense>
+        )}
 
         {loading ? (
           // Papéis ainda carregando: sem grade parcial, para os cards de gestão
