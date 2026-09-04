@@ -21,6 +21,7 @@ import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
+import { Route as AuthenticatedSdrRouteImport } from './routes/_authenticated/sdr'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
 import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
@@ -152,6 +153,11 @@ const AuthenticatedTemplatesRoute = AuthenticatedTemplatesRouteImport.update({
 const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
   id: '/tarefas',
   path: '/tarefas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSdrRoute = AuthenticatedSdrRouteImport.update({
+  id: '/sdr',
+  path: '/sdr',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
@@ -593,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/sdr': typeof AuthenticatedSdrRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
@@ -679,6 +686,7 @@ export interface FileRoutesByTo {
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/sdr': typeof AuthenticatedSdrRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
@@ -767,6 +775,7 @@ export interface FileRoutesById {
   '/_authenticated/radar': typeof AuthenticatedRadarRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
+  '/_authenticated/sdr': typeof AuthenticatedSdrRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
@@ -855,6 +864,7 @@ export interface FileRouteTypes {
     | '/radar'
     | '/ranking'
     | '/relatorios'
+    | '/sdr'
     | '/tarefas'
     | '/templates'
     | '/vitrine'
@@ -941,6 +951,7 @@ export interface FileRouteTypes {
     | '/radar'
     | '/ranking'
     | '/relatorios'
+    | '/sdr'
     | '/tarefas'
     | '/templates'
     | '/vitrine'
@@ -1028,6 +1039,7 @@ export interface FileRouteTypes {
     | '/_authenticated/radar'
     | '/_authenticated/ranking'
     | '/_authenticated/relatorios'
+    | '/_authenticated/sdr'
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
@@ -1191,6 +1203,13 @@ declare module '@tanstack/react-router' {
       path: '/tarefas'
       fullPath: '/tarefas'
       preLoaderRoute: typeof AuthenticatedTarefasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sdr': {
+      id: '/_authenticated/sdr'
+      path: '/sdr'
+      fullPath: '/sdr'
+      preLoaderRoute: typeof AuthenticatedSdrRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/relatorios': {
@@ -1744,6 +1763,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
+  AuthenticatedSdrRoute: typeof AuthenticatedSdrRoute
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
@@ -1795,6 +1815,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedRadarRoute: AuthenticatedRadarRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
+  AuthenticatedSdrRoute: AuthenticatedSdrRoute,
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,

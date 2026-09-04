@@ -12,7 +12,7 @@ import { useRouter } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 
-export type AppRole = "admin" | "gestor" | "corretor" | "superintendente";
+export type AppRole = "admin" | "gestor" | "corretor" | "superintendente" | "sdr";
 export type AccountStatus = "pendente" | "ativa" | "bloqueada";
 
 type AuthContextValue = {
@@ -126,6 +126,8 @@ export function useUserRoles() {
     isGestor: has("gestor"),
     isCorretor: has("corretor"),
     isSuperintendente: has("superintendente"),
+    // Papel SDR (2026-09-04): pré-venda com carteira própria; exclusivo — nunca corretor.
+    isSdr: has("sdr"),
     has,
   };
 }

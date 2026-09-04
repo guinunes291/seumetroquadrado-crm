@@ -27,12 +27,13 @@ import { useCriarRoletaCampanha, useRoletas, type RoletaRow } from "./queries";
 import { FilaPropriedades } from "./fila-propriedades";
 import { RoletaTab } from "./roleta-tab";
 
-type Grupo = "zonas" | "sistema" | "campanhas";
+type Grupo = "zonas" | "sistema" | "campanhas" | "sdr";
 
 const GRUPO_LABEL: Record<Grupo, string> = {
   zonas: "Zonas",
   sistema: "Sistema",
   campanhas: "Campanhas",
+  sdr: "SDR",
 };
 
 const ORDEM_SISTEMA = ["plantao", "marquinhos", "landing", "base"];
@@ -44,11 +45,13 @@ const DESCRICAO_GRUPO: Record<Grupo, string> = {
     "Plantão, Marquinhos e Landing são o fallback de quem não tem zona resolvida. A Base é a esteira universal do modelo v2: rodízio puro para todos os aptos.",
   campanhas:
     "Cada campanha tem token de webhook próprio e equipe própria (distribuição ponderada por tier). Equipe fixa: o lead nunca sai do time, seja qual for a zona.",
+  sdr: "Roleta de agendados do SDR: recebe o lead que o SDR agendou ou entregou com motivo. Aptidão própria — perfil ativo, telefone, teto de carteira e agenda livre no horário da visita; sem presença do dia nem cota diária. O corretor original de um lead reaquecido tem prioridade e nem passa por aqui.",
 };
 
 function grupoDe(r: RoletaRow): Grupo {
   if (r.tipo === "zona") return "zonas";
   if (r.tipo === "campanha") return "campanhas";
+  if (r.tipo === "sdr") return "sdr";
   return "sistema";
 }
 
@@ -77,7 +80,8 @@ export function TabFilas({
     const campanhas = todas
       .filter((r) => grupoDe(r) === "campanhas")
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-    return { zonas, sistema, campanhas } as Record<Grupo, RoletaRow[]>;
+    const sdr = todas.filter((r) => grupoDe(r) === "sdr");
+    return { zonas, sistema, campanhas, sdr } as Record<Grupo, RoletaRow[]>;
   }, [roletasQ.data]);
 
   const grupoInicial: Grupo = useMemo(() => {

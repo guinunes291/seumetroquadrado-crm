@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate, redirect } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,7 @@ function saudacao(): string {
  */
 function CommandCenterPage() {
   const { user } = useAuth();
-  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const { isAdmin, isGestor, isSuperintendente, isSdr } = useUserRoles();
   // Período do bloco de desempenho — vive na rota porque os widgets "metas" e
   // "produtividade" compartilham o mesmo seletor (e as mesmas queries).
   const [periodo, setPeriodo] = useState<Periodo>("hoje");
@@ -86,6 +86,12 @@ function CommandCenterPage() {
   const scopeReady = !precisaEquipe || equipeCorretorIds !== undefined;
 
   const widgets = useHomeWidgets(escopo);
+
+  // O SDR tem hub próprio (/sdr): a Central de Comando é o dia do corretor e
+  // da gestão — para ele seria um cockpit vazio.
+  if (isSdr && !isAdmin) {
+    return <Navigate to="/sdr" replace />;
+  }
 
   const primeiroNome =
     (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??

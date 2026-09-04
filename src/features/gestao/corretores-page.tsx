@@ -45,7 +45,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 
-type AppRole = "admin" | "superintendente" | "gestor" | "corretor";
+type AppRole = "admin" | "superintendente" | "gestor" | "corretor" | "sdr";
 
 type CorretorRow = {
   id: string;
@@ -411,6 +411,7 @@ export function CorretoresPage() {
                 <SelectItem value="gestor">Gestor</SelectItem>
                 <SelectItem value="superintendente">Superintendente</SelectItem>
                 <SelectItem value="corretor">Corretor</SelectItem>
+                <SelectItem value="sdr">SDR</SelectItem>
               </SelectContent>
             </Select>
           ) : (
@@ -560,6 +561,10 @@ export function CorretoresPage() {
           </li>
           <li>
             <strong>Corretor</strong>: operação do dia a dia.
+          </li>
+          <li>
+            <strong>SDR</strong>: pré-venda — esquenta a base própria e entrega ao corretor pela
+            roleta de agendados. Papel exclusivo (nunca entra em roleta) e gerido só pelo admin.
           </li>
         </ul>
       </div>

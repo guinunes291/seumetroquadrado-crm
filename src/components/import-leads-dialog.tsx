@@ -32,7 +32,7 @@ import {
   WarningCircle,
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { importarLeads, type ImportResult } from "@/lib/leads-import.functions";
 import { readTabularFile } from "@/lib/spreadsheets";
 
@@ -102,8 +102,13 @@ export function ImportLeadsDialog({
   const [projetoFixo, setProjetoFixo] = useState<string>(NONE);
   const [corretorId, setCorretorId] = useState<string>(NONE);
   const [distribuirRoleta, setDistribuirRoleta] = useState(false);
+  const [sdrId, setSdrId] = useState<string>(NONE);
   const [resultado, setResultado] = useState<ImportResult | null>(null);
-  const { isAdmin } = useUserRoles();
+  const { isAdmin, isSdr } = useUserRoles();
+  const { user } = useAuth();
+  // SDR (2026-09-04) importa SEMPRE para a própria base — sem corretor, sem roleta.
+  const modoSdr = isSdr && !isAdmin;
+  const sdrDestino = modoSdr ? (user?.id ?? null) : sdrId !== NONE ? sdrId : null;
 
   const importarFn = useServerFn(importarLeads);
 
@@ -115,6 +120,28 @@ export function ImportLeadsDialog({
       return data ?? [];
     },
     enabled: open,
+  });
+
+  const { data: sdrs } = useQuery({
+    queryKey: ["sdrs-import"],
+    enabled: open && isAdmin,
+    queryFn: async () => {
+      const { data: roles, error: e1 } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "sdr");
+      if (e1) throw e1;
+      const ids = (roles ?? []).map((r) => r.user_id);
+      if (!ids.length) return [] as Array<{ id: string; nome: string }>;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("id", ids)
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 
   const { data: corretores } = useQuery({
@@ -199,8 +226,9 @@ export function ImportLeadsDialog({
         data: {
           rows,
           projeto_id: projetoFixo !== NONE ? projetoFixo : null,
-          corretorId: corretorId !== NONE ? corretorId : null,
-          distribuirRoleta,
+          corretorId: sdrDestino ? null : corretorId !== NONE ? corretorId : null,
+          distribuirRoleta: sdrDestino ? false : distribuirRoleta,
+          sdrId: sdrDestino,
         },
       });
     },
@@ -326,15 +354,47 @@ export function ImportLeadsDialog({
               </Select>
             </div>
 
-            {/* Destino: corretor fixo OU roleta (mutuamente exclusivos — o servidor valida de novo) */}
+            {/* Destino: corretor fixo OU roleta OU base de um SDR (mutuamente
+                exclusivos — o servidor valida de novo). O SDR nem escolhe: os
+                leads entram na base dele. */}
             <div className="space-y-3 border rounded-md p-3">
               <Label>Destino dos leads</Label>
-              <div className="space-y-2">
+              {modoSdr && (
+                <p className="text-sm text-muted-foreground">
+                  Os leads entram na <strong>sua base de pré-venda</strong>, sem passar pela roleta.
+                  Telefone que já é lead ativo de corretor é pulado e listado no relatório.
+                </p>
+              )}
+              {isAdmin && (sdrs?.length ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Base de um SDR (pré-venda)
+                  </Label>
+                  <Select
+                    value={sdrId}
+                    onValueChange={setSdrId}
+                    disabled={distribuirRoleta || corretorId !== NONE}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Não enviar ao SDR" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Não enviar ao SDR</SelectItem>
+                      {(sdrs ?? []).map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className={modoSdr ? "hidden" : "space-y-2"}>
                 <Label className="text-xs text-muted-foreground">Atribuir a corretor</Label>
                 <Select
                   value={corretorId}
                   onValueChange={setCorretorId}
-                  disabled={distribuirRoleta}
+                  disabled={distribuirRoleta || sdrId !== NONE}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Sem corretor (distribuir depois)" />
@@ -355,7 +415,7 @@ export function ImportLeadsDialog({
                     id="distribuir-roleta"
                     checked={distribuirRoleta}
                     onCheckedChange={(v) => setDistribuirRoleta(v === true)}
-                    disabled={corretorId !== NONE}
+                    disabled={corretorId !== NONE || sdrId !== NONE}
                   />
                   <Label htmlFor="distribuir-roleta" className="text-sm font-normal">
                     Distribuir automaticamente via roleta

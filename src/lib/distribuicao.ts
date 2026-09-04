@@ -22,13 +22,20 @@ export const ZONA_ROLETAS: readonly ZonaRoletaSlug[] = [
   "zona-oeste",
 ] as const;
 
-export type RoletaSlug = "plantao" | "marquinhos" | "landing" | "base" | ZonaRoletaSlug;
+export type RoletaSlug =
+  | "plantao"
+  | "marquinhos"
+  | "landing"
+  | "base"
+  | "agendados-sdr"
+  | ZonaRoletaSlug;
 
 export const ROLETA_LABEL: Record<RoletaSlug, string> = {
   plantao: "Roleta Plantão",
   marquinhos: "Roleta Marquinhos",
   landing: "Roleta Landing Page",
   base: "Roleta Base",
+  "agendados-sdr": "Agendados do SDR",
   "zona-norte": "Roleta Zona Norte",
   "zona-sul": "Roleta Zona Sul",
   "zona-leste": "Roleta Zona Leste",
@@ -57,7 +64,8 @@ export type MotivoInaptidao =
   | "cota_diaria_atingida"
   | "pct_trabalhado_abaixo_minimo"
   | "sem_modelo_contrato"
-  | "onboarding_pendente";
+  | "onboarding_pendente"
+  | "conflito_agenda";
 
 export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   nao_participante: "Não participa da roleta",
@@ -71,6 +79,7 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   pct_trabalhado_abaixo_minimo: "% de leads trabalhados abaixo do mínimo",
   sem_modelo_contrato: "Sem modelo de contrato definido",
   onboarding_pendente: "Onboarding não concluído",
+  conflito_agenda: "Conflito de agenda no horário da visita",
 };
 
 export function motivoInaptidaoLabel(motivo: string): string {

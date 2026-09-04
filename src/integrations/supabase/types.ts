@@ -2586,6 +2586,63 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_acessos: {
+        Row: {
+          ativo: boolean
+          concedido_em: string
+          concedido_por: string | null
+          id: string
+          lead_id: string
+          motivo: string
+          motivo_remocao: string | null
+          papel: string
+          removido_em: string | null
+          removido_por: string | null
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          concedido_em?: string
+          concedido_por?: string | null
+          id?: string
+          lead_id: string
+          motivo: string
+          motivo_remocao?: string | null
+          papel?: string
+          removido_em?: string | null
+          removido_por?: string | null
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          concedido_em?: string
+          concedido_por?: string | null
+          id?: string
+          lead_id?: string
+          motivo?: string
+          motivo_remocao?: string | null
+          papel?: string
+          removido_em?: string | null
+          removido_por?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_acessos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_acessos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       lead_eventos: {
         Row: {
           agente: string | null
@@ -2729,6 +2786,10 @@ export type Database = {
           renda_informada: string | null
           resumo_qualificacao: string | null
           roleta_slug: string | null
+          sdr_devolvido_em: string | null
+          sdr_entregue_em: string | null
+          sdr_id: string | null
+          sdr_interesse_confirmado: boolean
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -2805,6 +2866,10 @@ export type Database = {
           renda_informada?: string | null
           resumo_qualificacao?: string | null
           roleta_slug?: string | null
+          sdr_devolvido_em?: string | null
+          sdr_entregue_em?: string | null
+          sdr_id?: string | null
+          sdr_interesse_confirmado?: boolean
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -2881,6 +2946,10 @@ export type Database = {
           renda_informada?: string | null
           resumo_qualificacao?: string | null
           roleta_slug?: string | null
+          sdr_devolvido_em?: string | null
+          sdr_entregue_em?: string | null
+          sdr_id?: string | null
+          sdr_interesse_confirmado?: boolean
           search_text?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           telefone?: string
@@ -8038,6 +8107,62 @@ export type Database = {
           tempo_medio_min: number
         }[]
       }
+      _sdr_ativo: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      agendar_visita_sdr: {
+        Args: {
+          _data_fim?: string
+          _data_inicio: string
+          _descricao?: string
+          _lead_id: string
+          _local?: string
+          _proxima_acao?: string
+          _titulo?: string
+        }
+        Returns: Json
+      }
+      alocar_espelho_lead: {
+        Args: { _corretor_id: string; _lead_id: string; _modo: string; _motivo: string }
+        Returns: Json
+      }
+      devolver_lead_ao_sdr: {
+        Args: { _lead_id: string; _motivo: string }
+        Returns: Json
+      }
+      entregar_lead_sdr: {
+        Args: { _lead_id: string; _motivo: string }
+        Returns: Json
+      }
+      remover_espelho_lead: {
+        Args: { _corretor_id: string; _lead_id: string; _motivo: string }
+        Returns: Json
+      }
+      sdr_leads_reaquecer: {
+        Args: { _limit?: number }
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          dias_parado: number
+          id: string
+          nome: string
+          projeto_nome: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          temperatura: Database["public"]["Enums"]["lead_temperatura"]
+          ultima_atividade_em: string
+          zona: string
+        }[]
+      }
+      sdr_pegar_lead: {
+        Args: { _lead_id: string }
+        Returns: Database["public"]["Tables"]["leads"]["Row"]
+      }
+      sdr_raio_x: {
+        Args: { _ate?: string; _de?: string; _sdr_id?: string }
+        Returns: Json
+      }
       transferir_leads: {
         Args: { _corretor: string; _ids: string[] }
         Returns: number
@@ -8316,7 +8441,7 @@ export type Database = {
         | "commissions:write"
         | "commissions:write:beneficiary"
         | "sales:write"
-      app_role: "admin" | "gestor" | "corretor" | "superintendente"
+      app_role: "admin" | "gestor" | "corretor" | "superintendente" | "sdr"
       convite_crm_estado: "pendente" | "aceito" | "revogado" | "expirado"
       distribuicao_tipo: "automatica" | "manual" | "inicial" | "redistribuicao"
       interacao_direcao: "entrada" | "saida" | "interna"
@@ -8545,7 +8670,7 @@ export const Constants = {
         "commissions:write:beneficiary",
         "sales:write",
       ],
-      app_role: ["admin", "gestor", "corretor", "superintendente"],
+      app_role: ["admin", "gestor", "corretor", "superintendente", "sdr"],
       convite_crm_estado: ["pendente", "aceito", "revogado", "expirado"],
       distribuicao_tipo: ["automatica", "manual", "inicial", "redistribuicao"],
       interacao_direcao: ["entrada", "saida", "interna"],

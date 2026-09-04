@@ -37,4 +37,10 @@ export type DossieLead = {
   // Opcionais: filas por zona (migrations 20260811172447 e 20260813100000).
   zona?: string | null;
   bairro?: string | null;
+  // Opcionais: pré-venda / SDR (migration 20260904101000).
+  sdr_id?: string | null;
+  sdr_entregue_em?: string | null;
+  sdr_devolvido_em?: string | null;
+  sdr_interesse_confirmado?: boolean;
+  renda_estimada?: number | null;
 };

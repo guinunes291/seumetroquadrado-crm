@@ -4,7 +4,7 @@
 import { Link } from "@tanstack/react-router";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ArrowRight, Compass, Globe, Robot, Tray, UsersThree } from "@phosphor-icons/react";
+import { ArrowRight, Compass, Fire, Globe, Robot, Tray, UsersThree } from "@phosphor-icons/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -19,6 +19,7 @@ const ROLETA_ICON = {
   marquinhos: Robot,
   landing: Globe,
   base: Tray,
+  "agendados-sdr": Fire,
   "zona-norte": Compass,
   "zona-sul": Compass,
   "zona-leste": Compass,

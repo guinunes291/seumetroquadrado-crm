@@ -18,7 +18,8 @@ export type CorModulo =
   | "projetos"
   | "financeiro"
   | "bi"
-  | "config";
+  | "config"
+  | "sdr";
 
 export type ClassesModulo = {
   /** Quadrado com fundo tintado + ícone na cor; a área interna do duotone
@@ -95,6 +96,13 @@ export const CLASSES_MODULO: Record<CorModulo, ClassesModulo> = {
     text: "text-modulo-config",
     pill: "bg-modulo-config/15 text-modulo-config",
     line: "bg-modulo-config",
+  },
+  // Pré-venda (SDR, 2026-09-04): vermelho-quente — "esquentar" a base.
+  sdr: {
+    tile: "icon-duo bg-modulo-sdr/13 text-modulo-sdr [--icon-duo:var(--color-modulo-sdr)]",
+    text: "text-modulo-sdr",
+    pill: "bg-modulo-sdr/15 text-modulo-sdr",
+    line: "bg-modulo-sdr",
   },
 };
 
