@@ -68,8 +68,9 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
     na hora, com motivo.
 11. **Avisos ao corretor.** Um WhatsApp por entrega, disparado **pelo banco**
     depois que a visita existe (`_sdr_notificar_corretor` → pg_net → Edge
-    Function `notify-lead-transfer`, contexto `sdr`, chave `service_role_key`
-    no Vault): data e hora da visita, **endereço** (obrigatório), renda, tipo
+    Function `notify-lead-transfer` com um **token de uso único** de
+    `sdr_avisos_corretor` — nenhuma chave no banco, o Lovable Cloud não a
+    expõe): data e hora da visita, **endereço** (obrigatório), renda, tipo
     de renda, FGTS, resumo do cliente e nome do SDR — nunca o telefone do
     cliente. Vale para o card do hub, o modal comum da ficha, a página Agenda,
     o n8n e o reparo. O dossiê do Marcão (webhook `copiloto/handoff`) **não**
@@ -85,18 +86,18 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
 
 ## 2. Chaves de configuração (`distribuicao_settings`)
 
-| Chave                          | Default  | O que faz                                                             |
-| ------------------------------ | -------- | --------------------------------------------------------------------- |
-| `sdr_ativo`                    | false    | Liga o modelo inteiro. Rollback = false.                              |
-| `sdr_reaquecer_dias`           | 7        | Dias sem registro para o lead de corretor entrar no Reaquecer.        |
-| `sdr_devolucao_dias`           | 7        | Dias sem registro do corretor até o lead voltar ao SDR.               |
-| `sdr_perdidos_dias`            | 30       | Dias após a perda para reciclar o perdido na base do SDR.             |
-| `sdr_comissao_percentual`      | 0        | % do VGV para o SDR na aprovação da venda (0 = sem linha).            |
-| `sdr_meta_contatos_dia`        | 40       | Meta do Raio-X.                                                       |
-| `sdr_meta_agendamentos_semana` | 8        | Meta do Raio-X.                                                       |
-| `sdr_meta_comparecimento_pct`  | 60       | Meta do Raio-X.                                                       |
-| `sdr_teto_leads_ativos`        | 0        | Teto de leads ativos por corretor na roleta do SDR (0 = sem teto).    |
-| `sdr_aviso_corretor_url`       | URL prod | Edge Function do WhatsApp de entrega ao corretor (vazio = não avisa). |
+| Chave                          | Default  | O que faz                                                                                        |
+| ------------------------------ | -------- | ------------------------------------------------------------------------------------------------ |
+| `sdr_ativo`                    | false    | Liga o modelo inteiro. Rollback = false.                                                         |
+| `sdr_reaquecer_dias`           | 7        | Dias sem registro para o lead de corretor entrar no Reaquecer.                                   |
+| `sdr_devolucao_dias`           | 7        | Dias sem registro do corretor até o lead voltar ao SDR.                                          |
+| `sdr_perdidos_dias`            | 30       | Dias após a perda para reciclar o perdido na base do SDR.                                        |
+| `sdr_comissao_percentual`      | 0        | % do VGV para o SDR na aprovação da venda (0 = sem linha).                                       |
+| `sdr_meta_contatos_dia`        | 40       | Meta do Raio-X.                                                                                  |
+| `sdr_meta_agendamentos_semana` | 8        | Meta do Raio-X.                                                                                  |
+| `sdr_meta_comparecimento_pct`  | 60       | Meta do Raio-X.                                                                                  |
+| `sdr_teto_leads_ativos`        | 0        | Teto de leads ativos por corretor na roleta do SDR (0 = sem teto).                               |
+| `sdr_aviso_corretor_url`       | URL prod | Edge Function do WhatsApp de entrega ao corretor (vazio = não avisa); o banco manda só um token. |
 
 Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 
@@ -154,9 +155,12 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 ## 6. Pendências fora do código (donas da gestão)
 
 - Definir `sdr_comissao_percentual` antes do piloto (nasce 0).
-- Guardar a chave service_role no Vault (`select vault.create_secret('<chave>', 'service_role_key')`)
-  e publicar a Edge Function `notify-lead-transfer` — sem isso o WhatsApp de
-  entrega fica registrado em `lead_eventos` como não enviado (`sem_chave_vault`).
+- Publicar a Edge Function `notify-lead-transfer` (`verify_jwt = false`; ela
+  autentica sozinha: token de uso único ou JWT do usuário). Enquanto a versão
+  nova não estiver no ar, o token é emitido, o POST sai e a função antiga
+  responde 401 — confira em `lead_eventos` (`sdr_aviso_corretor`) e na
+  tabela `sdr_avisos_corretor` (`consumido_em` preenchido = função nova
+  recebeu).
 - Montar o time da roleta `agendados-sdr` na Central de Distribuição → Filas → SDR.
 - 3C Plus: estudar a integração de discador para o SDR (sem documentação da API
   ainda). Até lá, ligação e WhatsApp pela ficha do lead.

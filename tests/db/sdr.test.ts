@@ -751,9 +751,25 @@ describe("aviso ao corretor sai do banco; endereço obrigatório", () => {
     const p = ev.rows[0].payload as Record<string, unknown>;
     expect(p.corretor_id).toBe(corretorA.id);
     expect(p.gatilho).toBe("agendamento_sdr");
-    // Sem Vault no harness: o motivo fica registrado e a entrega não cai.
-    expect(p.enviado).toBe(false);
-    expect(p.motivo).toBe("sem_chave_vault");
+    // Sem chave no banco: sai um token de uso único e só ele vai no POST.
+    expect(p.enviado).toBe(true);
+    const tk = await c.query(
+      `SELECT token, consumido_em, expira_em > now() AS valido
+         FROM public.sdr_avisos_corretor WHERE lead_id = $1 AND corretor_id = $2`,
+      [l, corretorA.id],
+    );
+    expect(tk.rowCount).toBe(1);
+    expect(tk.rows[0].consumido_em).toBeNull();
+    expect(tk.rows[0].valido).toBe(true);
+    expect(p.token).toBe(tk.rows[0].token);
+    const req = await c.query(
+      `SELECT url, body, headers FROM net.http_request_queue WHERE body->>'token' = $1`,
+      [tk.rows[0].token],
+    );
+    expect(req.rowCount).toBe(1);
+    expect(String(req.rows[0].url)).toContain("/functions/v1/notify-lead-transfer");
+    expect(Object.keys(req.rows[0].body as object)).toEqual(["token"]);
+    expect(JSON.stringify(req.rows[0].headers)).not.toMatch(/Authorization|apikey/);
   });
 
   it("modal comum: sem endereço a visita não é criada; com endereço avisa depois de inserir; lead comum não avisa", async () => {
