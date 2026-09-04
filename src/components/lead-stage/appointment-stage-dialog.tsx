@@ -44,6 +44,8 @@ type Props = {
   lead: StageLead;
   onOpenChange: (open: boolean) => void;
   onDone?: () => void;
+  /** Move o lead para "agendado" ao salvar (padrão: true). */
+  moverLead?: boolean;
 };
 
 /** Modal de "Agendado": cria um agendamento e move o lead para `agendado`. */
