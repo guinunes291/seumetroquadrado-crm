@@ -67,6 +67,10 @@ import { WhatsappLeadDialog } from "@/features/leads/dossie/whatsapp-dialog";
 import { WhatsappTab } from "@/features/leads/dossie/whatsapp-tab";
 import { EditarLeadDialog } from "@/features/leads/dossie/editar-lead-dialog";
 import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
+import { useAuth } from "@/hooks/use-auth";
+import { SdrLeadCard } from "@/features/sdr/sdr-lead-card";
+import { EspelhoLeadCard } from "@/features/sdr/espelho-lead-card";
+import { AgendarVisitaSdrDialog } from "@/features/sdr/agendar-visita-sdr-dialog";
 
 const LEAD_TABS = [
   "timeline",
@@ -97,6 +101,8 @@ function LeadDetailPage() {
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
   const [waOpen, setWaOpen] = useState(false);
   const [contatoOpen, setContatoOpen] = useState(false);
+  const [agendarSdrOpen, setAgendarSdrOpen] = useState(false);
+  const { user } = useAuth();
 
   const {
     data: lead,
@@ -149,7 +155,7 @@ function LeadDetailPage() {
     onSuccess: () => toast.success("Status atualizado"),
   });
 
-  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const { isAdmin, isGestor, isSuperintendente, isSdr } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
   const { ligar, discando } = useLigarLead();
 
@@ -210,10 +216,18 @@ function LeadDetailPage() {
   // Valida contra a máquina de estados do banco antes de agir — destinos fora
   // do mapa nem deveriam estar clicáveis, mas o guarda evita o erro genérico
   // da RPC. "Venda" fica fora do gate (registra venda para aprovação).
+  // SDR dono de lead ainda não entregue: "Agendado" é a ENTREGA (roleta antes
+  // do agendamento) — nunca o modal comum, que criaria a visita no nome dele.
+  const sdrDonoNaoEntregue = isSdr && !!user && lead.sdr_id === user.id && !lead.sdr_entregue_em;
+
   const goToStage = (target: LeadStatus) => {
     if (target === lead.status) return;
     if (target !== "contrato_fechado" && !transicaoLeadPermitida(lead.status, target, gestao)) {
       toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
+      return;
+    }
+    if (target === "agendado" && sdrDonoNaoEntregue) {
+      setAgendarSdrOpen(true);
       return;
     }
     const action = resolveStageAction(target);
@@ -484,6 +498,42 @@ function LeadDetailPage() {
           </ol>
         </CardContent>
       </Card>
+
+      {/* Pré-venda (SDR, 2026-09-04): ações do SDR dono, "pegar" lead parado
+          de corretor e, para o admin, o espelho do lead. */}
+      <SdrLeadCard
+        lead={{
+          id: lead.id,
+          nome: lead.nome,
+          status: lead.status,
+          corretor_id: lead.corretor_id,
+          projeto_nome: lead.projeto_nome,
+          renda_informada: lead.renda_informada,
+          renda_estimada: lead.renda_estimada ?? null,
+          tipo_renda: lead.tipo_renda,
+          decisor: lead.decisor,
+          sdr_id: lead.sdr_id ?? null,
+          sdr_entregue_em: lead.sdr_entregue_em ?? null,
+          sdr_devolvido_em: lead.sdr_devolvido_em ?? null,
+          sdr_interesse_confirmado: lead.sdr_interesse_confirmado ?? false,
+        }}
+      />
+      <EspelhoLeadCard
+        lead={{
+          id: lead.id,
+          nome: lead.nome,
+          corretor_id: lead.corretor_id,
+          sdr_id: lead.sdr_id ?? null,
+          sdr_entregue_em: lead.sdr_entregue_em ?? null,
+        }}
+      />
+      {agendarSdrOpen && (
+        <AgendarVisitaSdrDialog
+          lead={{ id: lead.id, nome: lead.nome, projeto_nome: lead.projeto_nome }}
+          open={agendarSdrOpen}
+          onOpenChange={setAgendarSdrOpen}
+        />
+      )}
 
       {/* Decisão da análise de crédito (item 3.1): aprovar/reprovar com o
           próximo passo do fluxo embutido — só aparece na etapa de análise. */}

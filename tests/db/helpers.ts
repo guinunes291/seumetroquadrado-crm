@@ -34,7 +34,7 @@ export async function comoSuperuser(c: Client): Promise<void> {
   await c.query(`SELECT set_config('request.jwt.claims', '', false)`);
 }
 
-export type Papel = "admin" | "gestor" | "corretor" | "superintendente";
+export type Papel = "admin" | "gestor" | "corretor" | "superintendente" | "sdr";
 
 export interface UsuarioTeste {
   id: string;

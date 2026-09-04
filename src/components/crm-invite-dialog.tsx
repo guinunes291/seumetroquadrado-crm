@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type PapelConvite = "admin" | "superintendente" | "gestor" | "corretor";
+type PapelConvite = "admin" | "superintendente" | "gestor" | "corretor" | "sdr";
 
 export function CrmInviteDialog({
   equipes,
@@ -119,6 +119,8 @@ export function CrmInviteDialog({
                         <SelectItem value="gestor">Gestor</SelectItem>
                         <SelectItem value="superintendente">Superintendente</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
+                        {/* SDR (pré-venda): só o admin gerencia — decisão 2026-09-04. */}
+                        <SelectItem value="sdr">SDR (pré-venda)</SelectItem>
                       </>
                     )}
                   </SelectContent>

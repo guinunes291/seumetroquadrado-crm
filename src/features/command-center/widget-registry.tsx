@@ -7,7 +7,7 @@
 // tela mais aberta do sistema.
 
 import { useMemo, type ComponentType } from "react";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useUserRoles, type AppRole } from "@/hooks/use-auth";
 import { NbaWidget } from "@/features/command-center/widgets/nba";
 import { MissoesWidget } from "@/features/command-center/widgets/missoes";
 import { HojeAgendaWidget } from "@/features/command-center/widgets/hoje-agenda";
@@ -43,7 +43,7 @@ export type WidgetDef = {
   /** Título exibido no diálogo de personalização. */
   title: string;
   /** Papéis que veem o widget; ausente = todos. */
-  roles?: Array<"admin" | "gestor" | "corretor" | "superintendente">;
+  roles?: AppRole[];
   /** Visões em que o widget existe; ausente = ambas. */
   escopos?: Array<"minha" | "operacao">;
   size: "hero" | "half" | "third" | "full";

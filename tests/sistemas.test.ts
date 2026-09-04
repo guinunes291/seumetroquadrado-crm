@@ -17,6 +17,7 @@ const corretor: PapelCtx = { roles: ["corretor"], isAdmin: false };
 const gestor: PapelCtx = { roles: ["gestor"], isAdmin: false };
 const superintendente: PapelCtx = { roles: ["superintendente"], isAdmin: false };
 const admin: PapelCtx = { roles: ["admin"], isAdmin: true };
+const sdr: PapelCtx = { roles: ["sdr"], isAdmin: false };
 
 const sistema = (id: string): Sistema => {
   const s = SISTEMAS.find((x) => x.id === id);
@@ -48,6 +49,7 @@ describe("visibilidade por papel", () => {
       "atendimento-central": "operacao",
       carteira: "operacao",
       "follow-up": "operacao",
+      sdr: "operacao",
       "docs-projetos": "consulta",
       financeiro: "consulta",
       bi: "consulta",
@@ -94,6 +96,23 @@ describe("visibilidade por papel", () => {
 
   it("admin vê todos os sistemas, Configurações incluída", () => {
     expect(ids(admin)).toEqual(SISTEMAS.map((s) => s.id));
+  });
+
+  it("SDR (2026-09-04): hub próprio + Docs & Projetos; nada do dia do corretor", () => {
+    expect(ids(sdr)).toEqual(["sdr", "docs-projetos"]);
+    expect(secoesVisiveis(sistema("sdr"), sdr).map((s) => s.id)).toEqual([
+      "base",
+      "reaquecer",
+      "entregues",
+      "agenda",
+      "raio-x",
+    ]);
+    // …e nenhum papel de venda enxerga o hub do SDR (admin enxerga tudo).
+    expect(ids(corretor)).not.toContain("sdr");
+    expect(ids(gestor)).not.toContain("sdr");
+    expect(ids(superintendente)).not.toContain("sdr");
+    expect(ids(admin)).toContain("sdr");
+    expect(homeDoSistema(sistema("sdr"), sdr)).toEqual({ to: "/sdr" });
   });
 });
 
@@ -235,6 +254,17 @@ describe("sistemaAtivo (pathname + search)", () => {
 
   it("rotas neutras não pertencem a sistema algum", () => {
     expect(em("/meu-perfil")).toBeNull();
+  });
+
+  it("/sdr e suas abas resolvem para o hub do SDR", () => {
+    expect(em("/sdr")).toBe("sdr");
+    expect(secaoAtiva(sistema("sdr"), { pathname: "/sdr", search: {} })?.id).toBe("base");
+    expect(secaoAtiva(sistema("sdr"), { pathname: "/sdr", search: { tab: "reaquecer" } })?.id).toBe(
+      "reaquecer",
+    );
+    expect(secaoAtiva(sistema("sdr"), { pathname: "/sdr", search: { tab: "raio-x" } })?.id).toBe(
+      "raio-x",
+    );
   });
 
   it("Configurações deixou de ser card mudo: o cru é Integrações, as abas têm endereço", () => {

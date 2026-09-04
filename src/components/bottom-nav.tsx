@@ -1,6 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  ArrowsClockwise,
   Buildings,
+  CalendarDots,
+  Fire,
   Headset,
   MagnifyingGlass,
   Plus,
@@ -16,10 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
+import { useUserRoles } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 type Slot = {
   to: string;
+  /** Aba interna (?tab=) — o slot só acende com o param presente. */
+  search?: Record<string, string>;
   label: string;
   icon: typeof SunHorizon;
 };
@@ -37,8 +43,24 @@ const LEFT: Slot[] = [
 ];
 const RIGHT: Slot[] = [{ to: "/atendimento", label: "Atender", icon: Headset }];
 
-function isActive(pathname: string, to: string) {
-  return pathname === to || pathname.startsWith(to + "/");
+// SDR (2026-09-04): o dia dele é base → reaquecer → visitas. Mesma barra,
+// destinos do hub próprio.
+const LEFT_SDR: Slot[] = [
+  { to: "/sdr", label: "Base", icon: Fire },
+  { to: "/sdr", search: { tab: "reaquecer" }, label: "Reaquecer", icon: ArrowsClockwise },
+];
+const RIGHT_SDR: Slot[] = [
+  { to: "/sdr", search: { tab: "agenda" }, label: "Visitas", icon: CalendarDots },
+];
+
+function isActive(loc: { pathname: string; search: Record<string, unknown> }, slot: Slot) {
+  const pathOk = loc.pathname === slot.to || loc.pathname.startsWith(slot.to + "/");
+  if (!pathOk) return false;
+  if (slot.search) {
+    return Object.entries(slot.search).every(([k, v]) => String(loc.search[k]) === v);
+  }
+  // Slot sem aba: só acende quando nenhuma aba conhecida está aberta.
+  return typeof loc.search.tab !== "string";
 }
 
 function NavSlot({ slot, active }: { slot: Slot; active: boolean }) {
@@ -46,6 +68,7 @@ function NavSlot({ slot, active }: { slot: Slot; active: boolean }) {
   return (
     <Link
       to={slot.to}
+      search={slot.search}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
@@ -64,7 +87,16 @@ function NavSlot({ slot, active }: { slot: Slot; active: boolean }) {
  * O wrapper de conteúdo do shell reserva o espaço com pb (ver route.tsx).
  */
 export function BottomNav() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const loc = useRouterState({
+    select: (s) => ({
+      pathname: s.location.pathname,
+      search: s.location.search as Record<string, unknown>,
+    }),
+  });
+  const { isSdr, isAdmin } = useUserRoles();
+  const modoSdr = isSdr && !isAdmin;
+  const left = modoSdr ? LEFT_SDR : LEFT;
+  const right = modoSdr ? RIGHT_SDR : RIGHT;
 
   return (
     <nav
@@ -72,8 +104,8 @@ export function BottomNav() {
       className="glass-panel fixed inset-x-0 bottom-0 z-40 border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       <div className="mx-auto flex max-w-md items-stretch">
-        {LEFT.map((s) => (
-          <NavSlot key={s.to} slot={s} active={isActive(pathname, s.to)} />
+        {left.map((s) => (
+          <NavSlot key={s.label} slot={s} active={isActive(loc, s)} />
         ))}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -105,8 +137,8 @@ export function BottomNav() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {RIGHT.map((s) => (
-          <NavSlot key={s.to} slot={s} active={isActive(pathname, s.to)} />
+        {right.map((s) => (
+          <NavSlot key={s.label} slot={s} active={isActive(loc, s)} />
         ))}
         <button
           type="button"

@@ -111,6 +111,7 @@
   --color-modulo-financeiro: var(--modulo-financeiro);
   --color-modulo-bi: var(--modulo-bi);
   --color-modulo-config: var(--modulo-config);
+  --color-modulo-sdr: var(--modulo-sdr);
 
   /* Superfícies glass (variam por tema) */
   --color-glass: var(--glass);
@@ -210,6 +211,7 @@
   --modulo-financeiro: oklch(0.58 0.09 150);
   --modulo-bi: oklch(0.5 0.03 250);
   --modulo-config: oklch(0.55 0.01 250);
+  --modulo-sdr: oklch(0.58 0.11 15);
 
   /* Luz ambiente do shell (estática — pintada 1x, nunca reanimada) */
   --ambient: radial-gradient(
@@ -313,6 +315,7 @@
   --modulo-financeiro: oklch(0.72 0.09 150);
   --modulo-bi: oklch(0.7 0.03 250);
   --modulo-config: oklch(0.7 0.01 250);
+  --modulo-sdr: oklch(0.72 0.11 15);
 
   /* Luz ambiente dourada muito sutil no topo do shell */
   --ambient: radial-gradient(

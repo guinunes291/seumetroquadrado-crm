@@ -37,23 +37,32 @@ export const importarLeads = createServerFn({ method: "POST" })
       projeto_id?: string | null;
       corretorId?: string | null;
       distribuirRoleta?: boolean;
+      /** Destino SDR (2026-09-04): os leads nascem na base de pré-venda deste
+       *  SDR, sem passar pela roleta. Admin escolhe o SDR; o SDR só importa
+       *  para si. */
+      sdrId?: string | null;
     }) => input,
   )
   .handler(async ({ data, context }): Promise<ImportResult> => {
     const { supabase, userId } = context;
 
-    // verifica role admin/gestor
+    // verifica role admin/gestor (ou SDR importando para a própria base)
     const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const isAdmin = (roles ?? []).some((r) => r.role === "admin");
-    const isAllowed = isAdmin || (roles ?? []).some((r) => r.role === "gestor");
-    if (!isAllowed) throw new Error("Apenas admin ou gestor podem importar leads.");
+    const isSdr = (roles ?? []).some((r) => r.role === "sdr");
+    const sdrId = data.sdrId ?? null;
+    const isAllowed =
+      isAdmin || (roles ?? []).some((r) => r.role === "gestor") || (isSdr && sdrId === userId);
+    if (!isAllowed)
+      throw new Error("Apenas admin, gestor ou SDR (para a própria base) podem importar leads.");
 
     const corretorId = data.corretorId ?? null;
     const distribuirRoleta = data.distribuirRoleta === true;
-    if (corretorId && distribuirRoleta) {
-      throw new Error(
-        "Escolha apenas um destino: atribuir a um corretor OU distribuir pela roleta.",
-      );
+    if ([corretorId, distribuirRoleta, sdrId].filter(Boolean).length > 1) {
+      throw new Error("Escolha apenas um destino: corretor, roleta OU base de um SDR.");
+    }
+    if (sdrId && !isAdmin && sdrId !== userId) {
+      throw new Error("SDR só importa para a própria base.");
     }
     // Roleta em massa é decisão de operação — mesmo gate admin-only da RPC de triagem.
     if (distribuirRoleta && !isAdmin) {
@@ -159,9 +168,11 @@ export const importarLeads = createServerFn({ method: "POST" })
           origem: "importacao",
           // com corretor definido o lead já nasce na carteira dele
           corretor_id: corretorId,
-          status: corretorId ? "aguardando_atendimento" : "novo",
+          status: corretorId || sdrId ? "aguardando_atendimento" : "novo",
           import_batch_id: batchId,
-        },
+          // Base do SDR: colunas fora dos types gerados (migration 20260904).
+          ...(sdrId ? ({ sdr_id: sdrId, classe_lead: "base" } as Record<string, unknown>) : {}),
+        } as LeadInsert,
       });
     }
 

@@ -19,7 +19,9 @@ import {
   ChartBar,
   ChartLineUp,
   Crosshair,
+  Fire,
   GearSix,
+  Handshake,
   Headset,
   Hourglass,
   Kanban,
@@ -71,7 +73,8 @@ export type SistemaId =
   | "financeiro"
   | "docs-projetos"
   | "bi"
-  | "configuracoes";
+  | "configuracoes"
+  | "sdr";
 
 export type Sistema = {
   id: SistemaId;
@@ -105,6 +108,11 @@ export type Sistema = {
 
 const GESTAO: AppRole[] = ["admin", "gestor", "superintendente"];
 
+// Papéis da OPERAÇÃO de venda (2026-09-04): os hubs do dia do corretor e da
+// gestão. O SDR (pré-venda) tem hub próprio e só compartilha Docs & Projetos —
+// o resto seria cockpit vazio para ele (RLS não lhe mostra carteira alguma).
+const OPERACAO: AppRole[] = ["admin", "gestor", "corretor", "superintendente"];
+
 export const SISTEMAS: Sistema[] = [
   {
     id: "central-comando",
@@ -112,6 +120,7 @@ export const SISTEMAS: Sistema[] = [
     descricao: "Seu dia em ordem de prioridade: próxima melhor ação, agenda e metas num só lugar.",
     icon: SunHorizon,
     home: { to: "/hoje" },
+    roles: OPERACAO,
     cor: "central",
     grupo: "operacao",
     destaque: true,
@@ -130,6 +139,7 @@ export const SISTEMAS: Sistema[] = [
     // nav_pendencias.atendimento conta `aguardando_atendimento` — literalmente
     // uma etapa de Prospecção, por isso o contador vive neste card.
     badge: (b) => b.atendimento,
+    roles: OPERACAO,
     cor: "prospeccao",
     grupo: "operacao",
     secoes: [
@@ -179,6 +189,7 @@ export const SISTEMAS: Sistema[] = [
     icon: Headset,
     home: { to: "/mensagens" },
     badge: (b) => b.mensagensAguardando,
+    roles: OPERACAO,
     cor: "atendimento",
     grupo: "operacao",
     secoes: [
@@ -201,6 +212,7 @@ export const SISTEMAS: Sistema[] = [
     icon: Briefcase,
     home: { to: "/pipeline", search: { fase: "carteira" } },
     badge: (b) => b.tarefasVencidas + b.agendaHoje,
+    roles: OPERACAO,
     cor: "carteira",
     grupo: "operacao",
     // Dona do /pipeline cru (bookmark antigo = quadro completo) e do /match:
@@ -248,6 +260,7 @@ export const SISTEMAS: Sistema[] = [
     // nav_pendencias.followups = tarefas de contato de hoje + vencidas — o
     // número que o corretor precisa zerar.
     badge: (b) => b.followups,
+    roles: OPERACAO,
     cor: "followup",
     grupo: "operacao",
     secoes: [
@@ -294,6 +307,51 @@ export const SISTEMAS: Sistema[] = [
     ],
   },
   {
+    // Pré-venda (SDR): carteira própria de base (importação, estoque,
+    // devolvidos, perdidos), reaquecimento de lead parado de corretor e
+    // entrega pela roleta de agendados. Só o papel sdr vê este card (admin
+    // enxerga tudo, como sempre). Decisões em docs/politica-sdr-v1.md.
+    id: "sdr",
+    titulo: "Pré-venda (SDR)",
+    descricao: "Esquente a base, qualifique e agende: o corretor recebe o lead pronto pela roleta.",
+    icon: Fire,
+    home: { to: "/sdr" },
+    roles: ["sdr"],
+    cor: "sdr",
+    grupo: "operacao",
+    secoes: [
+      { id: "base", label: "Minha base", icon: Fire, to: "/sdr" },
+      {
+        id: "reaquecer",
+        label: "Reaquecer (parados)",
+        icon: ArrowsClockwise,
+        to: "/sdr",
+        search: { tab: "reaquecer" },
+      },
+      {
+        id: "entregues",
+        label: "Entregues",
+        icon: Handshake,
+        to: "/sdr",
+        search: { tab: "entregues" },
+      },
+      {
+        id: "agenda",
+        label: "Visitas & confirmações",
+        icon: CalendarDots,
+        to: "/sdr",
+        search: { tab: "agenda" },
+      },
+      {
+        id: "raio-x",
+        label: "Raio-X do SDR",
+        icon: ChartLineUp,
+        to: "/sdr",
+        search: { tab: "raio-x" },
+      },
+    ],
+  },
+  {
     id: "docs-projetos",
     titulo: "Documentação & Projetos",
     descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapa e materiais.",
@@ -325,6 +383,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/financeiro", search: { tab: "comissoes" } },
     badge: (b) => b.aprovacoes,
     badgeRoles: GESTAO,
+    roles: OPERACAO,
     cor: "financeiro",
     grupo: "consulta",
     secoes: [
@@ -346,6 +405,7 @@ export const SISTEMAS: Sistema[] = [
     home: { to: "/meu-raio-x" },
     homePorPapel: (ctx) =>
       temPapel(GESTAO, ctx) ? { to: "/painel-gestor" } : { to: "/meu-raio-x" },
+    roles: OPERACAO,
     cor: "bi",
     grupo: "consulta",
     secoes: [
