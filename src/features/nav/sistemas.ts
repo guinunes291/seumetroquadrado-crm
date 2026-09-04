@@ -112,6 +112,11 @@ const GESTAO: AppRole[] = ["admin", "gestor", "superintendente"];
 // gestão. O SDR (pré-venda) tem hub próprio e só compartilha Docs & Projetos —
 // o resto seria cockpit vazio para ele (RLS não lhe mostra carteira alguma).
 const OPERACAO: AppRole[] = ["admin", "gestor", "corretor", "superintendente"];
+// O papel `sdr` fica fora de OPERACAO de propósito (o dia dele é o hub /sdr),
+// com uma exceção: Prospecção (Modo Foco + Base de leads). Quem virou SDR vindo
+// de corretor ainda é `corretor_id` de leads agendados e de base da carteira
+// antiga e precisa continuar controlando esses atendimentos pelo mesmo lugar
+// (2026-09-04). As seções de gestão de lá seguem só para admin/gestor.
 
 export const SISTEMAS: Sistema[] = [
   {
@@ -139,7 +144,8 @@ export const SISTEMAS: Sistema[] = [
     // nav_pendencias.atendimento conta `aguardando_atendimento` — literalmente
     // uma etapa de Prospecção, por isso o contador vive neste card.
     badge: (b) => b.atendimento,
-    roles: OPERACAO,
+    // + sdr: carteira antiga de quem virou SDR (ver nota em OPERACAO).
+    roles: [...OPERACAO, "sdr"],
     cor: "prospeccao",
     grupo: "operacao",
     secoes: [

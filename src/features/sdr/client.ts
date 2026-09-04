@@ -150,6 +150,16 @@ export async function sdrAtivo(): Promise<boolean | null> {
   return Boolean(data);
 }
 
+/** Mesma régua do banco (`lead_reaquecivel_sdr`): flag ligada, lead de corretor
+ * sem SDR, etapa viva, parado há N dias e sem visita futura. É o que decide se
+ * o botão "Pegar para reaquecer" pode aparecer — sem isso a RPC falharia com
+ * 22023 (ex.: lead agendado com visita marcada). */
+export async function leadReaquecivelSdr(leadId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc("lead_reaquecivel_sdr", { _lead_id: leadId });
+  if (error) throw error;
+  return Boolean(data);
+}
+
 // ---------------------------------------------------------------------------
 // Escritas (sempre RPC)
 // ---------------------------------------------------------------------------
@@ -252,6 +262,7 @@ export const SDR_KEYS = {
   raioX: (sdrId: string | null | undefined, de?: string, ate?: string) =>
     ["sdr:raio-x", sdrId ?? "eu", de ?? "", ate ?? ""] as const,
   espelhos: (leadId: string) => ["sdr:espelhos", leadId] as const,
+  reaquecivel: (leadId: string) => ["sdr:reaquecivel", leadId] as const,
 };
 
 export function useMinhaBase(sdrId: string | undefined, escopo: "base" | "entregues") {
@@ -294,12 +305,22 @@ export function useInvalidarSdr() {
     void qc.invalidateQueries({ queryKey: ["leads-kanban"] });
     if (leadId) {
       void qc.invalidateQueries({ queryKey: ["lead", leadId] });
+      void qc.invalidateQueries({ queryKey: SDR_KEYS.reaquecivel(leadId) });
       void qc.invalidateQueries({ queryKey: ["interacoes", leadId] });
       void qc.invalidateQueries({ queryKey: ["agendamentos-lead", leadId] });
       void qc.invalidateQueries({ queryKey: ["tarefas-lead", leadId] });
       void qc.invalidateQueries({ queryKey: SDR_KEYS.espelhos(leadId) });
     }
   };
+}
+
+export function useLeadReaquecivel(leadId: string, enabled = true) {
+  return useQuery({
+    queryKey: SDR_KEYS.reaquecivel(leadId),
+    enabled,
+    staleTime: 30_000,
+    queryFn: () => leadReaquecivelSdr(leadId),
+  });
 }
 
 export function usePegarLead() {

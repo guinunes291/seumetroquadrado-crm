@@ -88,14 +88,15 @@ function ReagendarDialog({
       const di = new Date(inicio);
       const df = new Date(fim);
       if (Number.isNaN(di.getTime())) throw new Error("Data de início inválida");
-      if (Number.isNaN(df.getTime()) || df <= di) throw new Error("O fim deve ser depois do início");
+      if (Number.isNaN(df.getTime()) || df <= di)
+        throw new Error("O fim deve ser depois do início");
       const { error } = await supabase
         .from("agendamentos")
         .update({
           data_inicio: di.toISOString(),
           data_fim: df.toISOString(),
           status: "remarcado",
-        } as never)
+        })
         .eq("id", agendamento.id);
       if (error) throw error;
       syncAgendamentoGoogle({ data: { agendamentoId: agendamento.id } }).catch(() => {});
@@ -162,7 +163,7 @@ export function AgendamentosTab({ leadId, lead }: { leadId: string; lead?: Stage
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("agendamentos")
-        .update({ status: "confirmado" } as never)
+        .update({ status: "confirmado" })
         .eq("id", id);
       if (error) throw error;
     },
@@ -237,10 +238,7 @@ export function AgendamentosTab({ leadId, lead }: { leadId: string; lead?: Stage
       <div className="rounded-xl border border-border-subtle bg-card shadow-elev-1">
         <div className="px-6 py-4 divide-y">
           {agendamentos.map((a) => (
-            <div
-              key={a.id}
-              className="py-3 flex flex-wrap items-center justify-between gap-2"
-            >
+            <div key={a.id} className="py-3 flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div className="text-sm font-medium">{a.titulo}</div>
                 <div className="text-xs text-muted-foreground">

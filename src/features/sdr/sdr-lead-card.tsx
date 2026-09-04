@@ -26,7 +26,7 @@ import {
 } from "@/lib/sdr";
 import { AgendarVisitaSdrDialog } from "./agendar-visita-sdr-dialog";
 import { EntregarLeadSdrDialog } from "./entregar-lead-sdr-dialog";
-import { useInvalidarSdr, useMarcarInteresse, usePegarLead } from "./client";
+import { useInvalidarSdr, useLeadReaquecivel, useMarcarInteresse, usePegarLead } from "./client";
 
 export type LeadSdrFicha = {
   id: string;
@@ -69,7 +69,15 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
   const pegar = usePegarLead();
 
   const souDono = !!user && lead.sdr_id === user.id;
-  const podePegar = isSdr && !lead.sdr_id && !!lead.corretor_id;
+  // Carteira antiga: quem virou SDR vindo de corretor ainda é corretor_id de
+  // leads agendados/base. Esses leads vivem em Prospecção; aqui só muda a
+  // conversa (a visita vai pela roleta — SDR nunca tem prioridade de corretor).
+  const carteiraAntiga = !!user && lead.corretor_id === user.id;
+  // "Pegar" só quando a régua do banco (lead_reaquecivel_sdr) deixa: lead de
+  // corretor, sem SDR, parado e sem visita futura. Sem isso a RPC falharia.
+  const candidatoPegar = isSdr && !lead.sdr_id && !!lead.corretor_id;
+  const reaquecivel = useLeadReaquecivel(lead.id, candidatoPegar);
+  const podePegar = candidatoPegar && reaquecivel.data === true;
   const entregueEm = lead.sdr_entregue_em ?? null;
 
   const qualificar = useMutation({
@@ -116,8 +124,17 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
         {podePegar && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-muted-foreground">
-              Lead parado na carteira de <strong>{nomeCorretor}</strong>. Ao pegar, você reaquece; o
-              corretor mantém a posse e tem prioridade na visita.
+              {carteiraAntiga ? (
+                <>
+                  Lead parado da sua carteira de corretor. Ao pegar, ele entra na sua base de
+                  pré-venda e a visita vai para um corretor apto pela roleta de agendados.
+                </>
+              ) : (
+                <>
+                  Lead parado na carteira de <strong>{nomeCorretor}</strong>. Ao pegar, você
+                  reaquece; o corretor mantém a posse e tem prioridade na visita.
+                </>
+              )}
             </p>
             <Button
               size="sm"
@@ -149,7 +166,13 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
         {/* SDR dono: ações */}
         {souDono && !entregueEm && (
           <>
-            {lead.corretor_id && (
+            {lead.corretor_id && carteiraAntiga && (
+              <p className="text-muted-foreground">
+                Lead da sua carteira de corretor: como você é SDR, a visita vai para um corretor
+                apto pela roleta de agendados (sem prioridade de dono original).
+              </p>
+            )}
+            {lead.corretor_id && !carteiraAntiga && (
               <p className="text-muted-foreground">
                 Lead de <strong>{nomeCorretor}</strong>: ele mantém a posse e recebe a visita direto
                 (sem roleta) se estiver ativo e com agenda livre.
