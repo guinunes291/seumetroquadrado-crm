@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motivoEntregaValido, sdrRegraLabel } from "@/lib/sdr";
-import { entregarLeadSdr, notificarCorretorSdr, useInvalidarSdr } from "./client";
+import { entregarLeadSdr, useInvalidarSdr } from "./client";
 
 type Props = {
   lead: { id: string; nome: string };
@@ -36,7 +36,6 @@ export function EntregarLeadSdrDialog({ lead, open, onOpenChange, onDone }: Prop
       toast.success(`Entregue a ${res.corretor_nome ?? "um corretor"}`, {
         description: `${sdrRegraLabel(res.regra)} · o lead entra em Qualificação Corretor na base dele.`,
       });
-      if (res.corretor_id) void notificarCorretorSdr(lead.id, res.corretor_id);
       invalidar(lead.id);
       onOpenChange(false);
       onDone?.();

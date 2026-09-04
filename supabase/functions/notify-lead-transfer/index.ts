@@ -116,18 +116,30 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   if (!url || !anonKey) return json({ error: "server_config" }, 503);
 
-  const supabase = createClient(url, anonKey, {
+  // Chamada interna (banco → pg_net, `_sdr_notificar_corretor`) autenticada
+  // com a service role guardada no Vault. Só vale para o contexto SDR: o motor
+  // já validou a entrega e o lead é relido abaixo com a mesma checagem
+  // (corretor_id + sdr_entregue_em). Sem usuário, sem RLS — por isso o
+  // contexto é restrito.
+  const bearer = authorization.slice("Bearer ".length).trim();
+  const interna = serviceKey.length > 0 && bearer === serviceKey;
+  if (interna && !contextoSdr) return json({ error: "forbidden" }, 403);
+
+  const supabase = createClient(url, interna ? serviceKey : anonKey, {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) return json({ error: "unauthorized" }, 401);
+  if (!interna) {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData.user) return json({ error: "unauthorized" }, 401);
 
-  const { data: contaAtiva, error: contaError } = await supabase.rpc("conta_atual_ativa");
-  if (contaError || !contaAtiva) return json({ error: "account_inactive" }, 403);
+    const { data: contaAtiva, error: contaError } = await supabase.rpc("conta_atual_ativa");
+    if (contaError || !contaAtiva) return json({ error: "account_inactive" }, 403);
+  }
 
   const { data: lead, error: leadErr } = await supabase
     .from("leads")

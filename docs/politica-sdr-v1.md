@@ -66,9 +66,14 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
     sem registro há 7 dias (cron): corretor perde o lead, tarefas abertas dele
     cancelam, espelhos caem, SDR ganha tarefa de reaquecer. Admin também devolve
     na hora, com motivo.
-11. **Avisos ao corretor.** Push (trigger), WhatsApp via Z-API
-    (`notify-lead-transfer` com `contexto: "sdr"` — vale para qualquer origem,
-    nunca leva o telefone do cliente) e handoff n8n. Sem mensagem automática ao
+11. **Avisos ao corretor.** Um WhatsApp por entrega, disparado **pelo banco**
+    depois que a visita existe (`_sdr_notificar_corretor` → pg_net → Edge
+    Function `notify-lead-transfer`, contexto `sdr`, chave `service_role_key`
+    no Vault): data e hora da visita, **endereço** (obrigatório), renda, tipo
+    de renda, FGTS, resumo do cliente e nome do SDR — nunca o telefone do
+    cliente. Vale para o card do hub, o modal comum da ficha, a página Agenda,
+    o n8n e o reparo. O dossiê do Marcão (webhook `copiloto/handoff`) **não**
+    roda na entrega do SDR. Push no CRM continua. Sem mensagem automática ao
     cliente.
 12. **Métricas e comissão.** Raio-X do SDR (contatos, qualificados,
     agendamentos, comparecimento, entregues, devolvidos, vendas) contra metas
@@ -80,39 +85,41 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
 
 ## 2. Chaves de configuração (`distribuicao_settings`)
 
-| Chave                          | Default | O que faz                                                          |
-| ------------------------------ | ------- | ------------------------------------------------------------------ |
-| `sdr_ativo`                    | false   | Liga o modelo inteiro. Rollback = false.                           |
-| `sdr_reaquecer_dias`           | 7       | Dias sem registro para o lead de corretor entrar no Reaquecer.     |
-| `sdr_devolucao_dias`           | 7       | Dias sem registro do corretor até o lead voltar ao SDR.            |
-| `sdr_perdidos_dias`            | 30      | Dias após a perda para reciclar o perdido na base do SDR.          |
-| `sdr_comissao_percentual`      | 0       | % do VGV para o SDR na aprovação da venda (0 = sem linha).         |
-| `sdr_meta_contatos_dia`        | 40      | Meta do Raio-X.                                                    |
-| `sdr_meta_agendamentos_semana` | 8       | Meta do Raio-X.                                                    |
-| `sdr_meta_comparecimento_pct`  | 60      | Meta do Raio-X.                                                    |
-| `sdr_teto_leads_ativos`        | 0       | Teto de leads ativos por corretor na roleta do SDR (0 = sem teto). |
+| Chave                          | Default  | O que faz                                                             |
+| ------------------------------ | -------- | --------------------------------------------------------------------- |
+| `sdr_ativo`                    | false    | Liga o modelo inteiro. Rollback = false.                              |
+| `sdr_reaquecer_dias`           | 7        | Dias sem registro para o lead de corretor entrar no Reaquecer.        |
+| `sdr_devolucao_dias`           | 7        | Dias sem registro do corretor até o lead voltar ao SDR.               |
+| `sdr_perdidos_dias`            | 30       | Dias após a perda para reciclar o perdido na base do SDR.             |
+| `sdr_comissao_percentual`      | 0        | % do VGV para o SDR na aprovação da venda (0 = sem linha).            |
+| `sdr_meta_contatos_dia`        | 40       | Meta do Raio-X.                                                       |
+| `sdr_meta_agendamentos_semana` | 8        | Meta do Raio-X.                                                       |
+| `sdr_meta_comparecimento_pct`  | 60       | Meta do Raio-X.                                                       |
+| `sdr_teto_leads_ativos`        | 0        | Teto de leads ativos por corretor na roleta do SDR (0 = sem teto).    |
+| `sdr_aviso_corretor_url`       | URL prod | Edge Function do WhatsApp de entrega ao corretor (vazio = não avisa). |
 
 Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 
 ## 3. Peças no repositório
 
-| Peça                                                 | Onde                                                                   |
-| ---------------------------------------------------- | ---------------------------------------------------------------------- |
-| Enum `app_role` + 'sdr'                              | `supabase/migrations/20260904100000_sdr_papel_enum.sql`                |
-| Colunas, `lead_acessos`, settings, roleta, RLS       | `supabase/migrations/20260904101000_sdr_fundacao.sql`                  |
-| Motor: entrega, espelho, devolução, crons, comissão  | `supabase/migrations/20260904102000_sdr_motor.sql`                     |
-| Prioridade do dono original exige papel corretor     | `supabase/migrations/20260904110000_sdr_prioridade_exige_corretor.sql` |
-| Teto de leads ativos próprio da roleta do SDR        | `supabase/migrations/20260904120000_sdr_teto_proprio.sql`              |
-| Visita por qualquer caminho passa pela roleta; dedup | `supabase/migrations/20260904130000_sdr_visita_roleta.sql`             |
-| Suíte de banco                                       | `tests/db/sdr.test.ts` (29 casos, ponta a ponta)                       |
-| Regras puras + testes                                | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
-| Fronteira do cliente (RPCs/tabelas novas)            | `src/features/sdr/client.ts`                                           |
-| Hub `/sdr`                                           | `src/routes/_authenticated/sdr.tsx`, `src/features/sdr/sdr-page.tsx`   |
-| Ações na ficha do lead                               | `src/features/sdr/sdr-lead-card.tsx`, `espelho-lead-card.tsx`          |
-| Navegação (hub, cor, bottom-nav, redirect da Hoje)   | `src/features/nav/sistemas.ts`, `cores-modulo.ts`, `styles.css`        |
-| Convite / papel                                      | `crm-invite-dialog.tsx`, `corretores-page.tsx`, `crm-convites`         |
-| Importação para a base do SDR                        | `import-leads-dialog.tsx`, `leads-import.functions.ts`                 |
-| WhatsApp ao corretor (contexto sdr)                  | `supabase/functions/notify-lead-transfer/index.ts`                     |
+| Peça                                                            | Onde                                                                   |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Enum `app_role` + 'sdr'                                         | `supabase/migrations/20260904100000_sdr_papel_enum.sql`                |
+| Colunas, `lead_acessos`, settings, roleta, RLS                  | `supabase/migrations/20260904101000_sdr_fundacao.sql`                  |
+| Motor: entrega, espelho, devolução, crons, comissão             | `supabase/migrations/20260904102000_sdr_motor.sql`                     |
+| Prioridade do dono original exige papel corretor                | `supabase/migrations/20260904110000_sdr_prioridade_exige_corretor.sql` |
+| Teto de leads ativos próprio da roleta do SDR                   | `supabase/migrations/20260904120000_sdr_teto_proprio.sql`              |
+| Visita por qualquer caminho passa pela roleta; dedup            | `supabase/migrations/20260904130000_sdr_visita_roleta.sql`             |
+| Aviso ao corretor pelo banco, Marcão fora, endereço obrigatório | `supabase/migrations/20260904140000_sdr_aviso_corretor.sql`            |
+| Suíte de banco                                                  | `tests/db/sdr.test.ts` (29 casos, ponta a ponta)                       |
+| Regras puras + testes                                           | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
+| Fronteira do cliente (RPCs/tabelas novas)                       | `src/features/sdr/client.ts`                                           |
+| Hub `/sdr`                                                      | `src/routes/_authenticated/sdr.tsx`, `src/features/sdr/sdr-page.tsx`   |
+| Ações na ficha do lead                                          | `src/features/sdr/sdr-lead-card.tsx`, `espelho-lead-card.tsx`          |
+| Navegação (hub, cor, bottom-nav, redirect da Hoje)              | `src/features/nav/sistemas.ts`, `cores-modulo.ts`, `styles.css`        |
+| Convite / papel                                                 | `crm-invite-dialog.tsx`, `corretores-page.tsx`, `crm-convites`         |
+| Importação para a base do SDR                                   | `import-leads-dialog.tsx`, `leads-import.functions.ts`                 |
+| WhatsApp ao corretor (contexto sdr)                             | `supabase/functions/notify-lead-transfer/index.ts`                     |
 
 ## 4. RPCs e crons
 
@@ -147,6 +154,9 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 ## 6. Pendências fora do código (donas da gestão)
 
 - Definir `sdr_comissao_percentual` antes do piloto (nasce 0).
+- Guardar a chave service_role no Vault (`select vault.create_secret('<chave>', 'service_role_key')`)
+  e publicar a Edge Function `notify-lead-transfer` — sem isso o WhatsApp de
+  entrega fica registrado em `lead_eventos` como não enviado (`sem_chave_vault`).
 - Montar o time da roleta `agendados-sdr` na Central de Distribuição → Filas → SDR.
 - 3C Plus: estudar a integração de discador para o SDR (sem documentação da API
   ainda). Até lá, ligação e WhatsApp pela ficha do lead.

@@ -240,18 +240,6 @@ export async function devolverAoSdr(leadId: string, motivo: string) {
   if (error) throw erro(error, "Não foi possível devolver o lead ao SDR.");
 }
 
-/** WhatsApp ao corretor (Z-API) via edge function — best-effort, nunca
- *  bloqueia a entrega (a decisão já foi gravada pela RPC). */
-export async function notificarCorretorSdr(leadId: string, corretorId: string) {
-  try {
-    await supabase.functions.invoke("notify-lead-transfer", {
-      body: { lead_id: leadId, corretor_id: corretorId, contexto: "sdr" },
-    });
-  } catch {
-    // silencioso: o push e o handoff n8n já saíram do banco
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Hooks
 // ---------------------------------------------------------------------------

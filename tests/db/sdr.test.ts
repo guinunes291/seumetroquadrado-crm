@@ -329,7 +329,10 @@ describe("carteira própria e RLS", () => {
   it("lead já entregue não é agendado de novo pelo SDR", async () => {
     await comoUsuario(c, sdr.id);
     const msg = await errMsg(
-      c.query(`SELECT public.agendar_visita_sdr($1, now() + interval '2 days')`, [leadId]),
+      c.query(
+        `SELECT public.agendar_visita_sdr($1, now() + interval '2 days', NULL, NULL, 'Estande')`,
+        [leadId],
+      ),
     );
     expect(msg).toMatch(/já entregue/);
     await comoSuperuser(c);
@@ -438,7 +441,7 @@ describe("reaquecer lead parado de corretor", () => {
   it("ao agendar, o Bruno (dono original, ativo, agenda livre) tem prioridade — sem roleta", async () => {
     await comoUsuario(c, sdr.id);
     const r = await c.query(
-      `SELECT public.agendar_visita_sdr($1, now() + interval '4 days') AS res`,
+      `SELECT public.agendar_visita_sdr($1, now() + interval '4 days', NULL, NULL, 'Estande') AS res`,
       [leadB],
     );
     const res = r.rows[0].res as Record<string, unknown>;
@@ -469,10 +472,10 @@ describe("reaquecer lead parado de corretor", () => {
       `SELECT data_inicio FROM public.agendamentos WHERE lead_id = $1 AND status = 'agendado'`,
       [leadB],
     );
-    const r = await c.query(`SELECT public.agendar_visita_sdr($1, $2::timestamptz) AS res`, [
-      leadB2,
-      ag.rows[0].data_inicio,
-    ]);
+    const r = await c.query(
+      `SELECT public.agendar_visita_sdr($1, $2::timestamptz, NULL, NULL, 'Estande') AS res`,
+      [leadB2, ag.rows[0].data_inicio],
+    );
     const res = r.rows[0].res as Record<string, unknown>;
     expect(res.ok).toBe(true);
     expect(res.regra).toBe("roleta_sdr");
@@ -502,7 +505,7 @@ describe("reaquecer lead parado de corretor", () => {
     await c.query(`SELECT public.sdr_pegar_lead($1)`, [legado]);
     // …mas na visita a prioridade é recusada (corretor_sem_papel) e cai na roleta.
     const r = await c.query(
-      `SELECT public.agendar_visita_sdr($1, now() + interval '6 days') AS res`,
+      `SELECT public.agendar_visita_sdr($1, now() + interval '6 days', NULL, NULL, 'Estande') AS res`,
       [legado],
     );
     const res = r.rows[0].res as Record<string, unknown>;
@@ -540,8 +543,8 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
   ) {
     const r = await c.query(
       `INSERT INTO public.agendamentos
-         (lead_id, corretor_id, criado_por_id, tipo, status, titulo, data_inicio, data_fim)
-       VALUES ($1, $2, $3, 'visita', 'agendado', 'Visita',
+         (lead_id, corretor_id, criado_por_id, tipo, status, titulo, local, data_inicio, data_fim)
+       VALUES ($1, $2, $3, 'visita', 'agendado', 'Visita', 'Estande',
                now() + make_interval(hours => $4), now() + make_interval(hours => $4) + interval '1 hour')
        RETURNING id, corretor_id`,
       [leadId, corretorId, criadoPor, horas],
@@ -711,6 +714,89 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
     const l = await lead(pendente);
     expect(l.corretor_id).toBe(corretorA.id);
     expect(l.sdr_entregue_em).not.toBeNull();
+  });
+});
+
+describe("aviso ao corretor sai do banco; endereço obrigatório", () => {
+  const INSERE = `INSERT INTO public.agendamentos
+      (lead_id, corretor_id, criado_por_id, tipo, status, titulo, local, data_inicio, data_fim)
+    VALUES ($1, $2, $2, 'visita', 'agendado', 'Visita', $3, $4::timestamptz, $4::timestamptz + interval '1 hour')
+    RETURNING corretor_id`;
+
+  it("agendar_visita_sdr: sem endereço falha (22023); com endereço entrega e registra o aviso", async () => {
+    await comoSuperuser(c);
+    const l = await criarLead(c, { nome: "Aviso RPC", status: "em_atendimento" });
+    await c.query(`UPDATE public.leads SET sdr_id = $2, corretor_id = NULL WHERE id = $1`, [
+      l,
+      sdr.id,
+    ]);
+    await comoUsuario(c, sdr.id);
+    expect(
+      await errCode(
+        c.query(`SELECT public.agendar_visita_sdr($1, now() + interval '14 days')`, [l]),
+      ),
+    ).toBe("22023");
+    const r = await c.query(
+      `SELECT public.agendar_visita_sdr($1, now() + interval '14 days', NULL, NULL, 'Rua A, 100') AS res`,
+      [l],
+    );
+    expect((r.rows[0].res as Record<string, unknown>).ok).toBe(true);
+
+    await comoSuperuser(c);
+    const ev = await c.query(
+      `SELECT payload FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_aviso_corretor'`,
+      [l],
+    );
+    expect(ev.rowCount).toBe(1);
+    const p = ev.rows[0].payload as Record<string, unknown>;
+    expect(p.corretor_id).toBe(corretorA.id);
+    expect(p.gatilho).toBe("agendamento_sdr");
+    // Sem Vault no harness: o motivo fica registrado e a entrega não cai.
+    expect(p.enviado).toBe(false);
+    expect(p.motivo).toBe("sem_chave_vault");
+  });
+
+  it("modal comum: sem endereço a visita não é criada; com endereço avisa depois de inserir; lead comum não avisa", async () => {
+    await comoSuperuser(c);
+    const l = await criarLead(c, { nome: "Aviso trigger", status: "em_atendimento" });
+    await c.query(`UPDATE public.leads SET sdr_id = $2, corretor_id = NULL WHERE id = $1`, [
+      l,
+      sdr.id,
+    ]);
+    await comoUsuario(c, sdr.id);
+    const quando = new Date(Date.now() + 15 * 24 * 3600 * 1000).toISOString();
+    expect(await errCode(c.query(INSERE, [l, sdr.id, null, quando]))).toBe("22023");
+    const lead1 = await lead(l);
+    expect(lead1.sdr_entregue_em).toBeNull();
+
+    await comoUsuario(c, sdr.id);
+    const ag = await c.query(INSERE, [l, sdr.id, "Rua B, 200", quando]);
+    expect(ag.rows[0].corretor_id).toBe(corretorA.id);
+    await comoSuperuser(c);
+    const ev = await c.query(
+      `SELECT payload FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_aviso_corretor'`,
+      [l],
+    );
+    expect(ev.rowCount).toBe(1);
+    expect((ev.rows[0].payload as Record<string, unknown>).gatilho).toBe("agendamento_visita");
+    expect((ev.rows[0].payload as Record<string, unknown>).corretor_id).toBe(corretorA.id);
+
+    // Corretor comum em lead comum: nada do SDR dispara.
+    const lb = await criarLead(c, {
+      nome: "Comum sem aviso",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    await comoUsuario(c, corretorB.id);
+    const quando2 = new Date(Date.now() + 16 * 24 * 3600 * 1000).toISOString();
+    const agB = await c.query(INSERE, [lb, corretorB.id, null, quando2]);
+    expect(agB.rows[0].corretor_id).toBe(corretorB.id);
+    await comoSuperuser(c);
+    const ev2 = await c.query(
+      `SELECT count(*)::int AS n FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_aviso_corretor'`,
+      [lb],
+    );
+    expect(ev2.rows[0].n).toBe(0);
   });
 });
 
@@ -896,7 +982,12 @@ describe("flag desligada", () => {
     await c.query(`UPDATE public.leads SET sdr_id = $2 WHERE id = $1`, [l, sdr.id]);
     await comoUsuario(c, sdr.id);
     expect(
-      await errCode(c.query(`SELECT public.agendar_visita_sdr($1, now() + interval '1 day')`, [l])),
+      await errCode(
+        c.query(
+          `SELECT public.agendar_visita_sdr($1, now() + interval '1 day', NULL, NULL, 'Estande')`,
+          [l],
+        ),
+      ),
     ).toBe("42501");
     const reaq = await c.query(`SELECT count(*)::int AS n FROM public.sdr_leads_reaquecer(10)`);
     expect(reaq.rows[0].n).toBe(0);
