@@ -149,6 +149,51 @@ describe("fundação: papel, seeds e flag", () => {
     );
     expect(propria.rows[0].apto).toBe(true);
   });
+
+  it("teto de leads ativos é próprio do SDR (sdr_teto_leads_ativos) e nasce desligado", async () => {
+    // 04/09/2026: com o disjuntor_wip global (30) a fila inteira ficou inapta —
+    // a equipe toda carrega mais de 30 leads ativos e a roleta comum nunca
+    // aplicou esse teto. A roleta do SDR lê a chave própria; 0 = sem teto.
+    await comoSuperuser(c);
+    const seed = await c.query(
+      `SELECT valor FROM public.distribuicao_settings WHERE chave = 'sdr_teto_leads_ativos'`,
+    );
+    expect(seed.rows[0].valor).toBe(0);
+
+    const leadWip = await criarLead(c, {
+      nome: "Carteira da Ana",
+      corretorId: corretorA.id,
+      status: "em_atendimento",
+    });
+    const apta = async () => {
+      const r = await c.query(
+        `SELECT apto, motivos FROM public.elegibilidade_roleta('agendados-sdr') WHERE corretor_id = $1`,
+        [corretorA.id],
+      );
+      return r.rows[0] as { apto: boolean; motivos: string[] };
+    };
+    // Sem teto: 1 lead ativo não pesa nada, mesmo com disjuntor_wip global = 1.
+    await c.query(
+      `UPDATE public.distribuicao_settings SET valor = '1'::jsonb WHERE chave = 'disjuntor_wip'`,
+    );
+    expect((await apta()).apto).toBe(true);
+    // Teto próprio = 1: Ana (1 lead ativo) fica inapta com o motivo do disjuntor.
+    await c.query(
+      `UPDATE public.distribuicao_settings SET valor = '1'::jsonb WHERE chave = 'sdr_teto_leads_ativos'`,
+    );
+    const bloqueada = await apta();
+    expect(bloqueada.apto).toBe(false);
+    expect(bloqueada.motivos.some((m) => m.startsWith("disjuntor_wip_"))).toBe(true);
+    // Volta ao padrão e tira o lead da conta.
+    await c.query(
+      `UPDATE public.distribuicao_settings SET valor = '0'::jsonb WHERE chave = 'sdr_teto_leads_ativos'`,
+    );
+    await c.query(
+      `UPDATE public.distribuicao_settings SET valor = '30'::jsonb WHERE chave = 'disjuntor_wip'`,
+    );
+    await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [leadWip]);
+    expect((await apta()).apto).toBe(true);
+  });
 });
 
 describe("carteira própria e RLS", () => {
