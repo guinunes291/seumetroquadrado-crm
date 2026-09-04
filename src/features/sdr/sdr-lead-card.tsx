@@ -76,8 +76,9 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
   // "Pegar" só quando a régua do banco (lead_reaquecivel_sdr) deixa: lead de
   // corretor, sem SDR, parado e sem visita futura. Sem isso a RPC falharia.
   const candidatoPegar = isSdr && !lead.sdr_id && !!lead.corretor_id;
-  const reaquecivel = useLeadReaquecivel(lead.id, candidatoPegar);
-  const podePegar = candidatoPegar && reaquecivel.data === true;
+  const reaquecivel = useLeadReaquecivel(lead.id, candidatoPegar && !carteiraAntiga);
+  // Carteira antiga entra sempre (a RPC deixa); lead de outro corretor só se parado.
+  const podePegar = candidatoPegar && (carteiraAntiga || reaquecivel.data === true);
   const entregueEm = lead.sdr_entregue_em ?? null;
 
   const qualificar = useMutation({
@@ -126,8 +127,8 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
             <p className="text-muted-foreground">
               {carteiraAntiga ? (
                 <>
-                  Lead parado da sua carteira de corretor. Ao pegar, ele entra na sua base de
-                  pré-venda e a visita vai para um corretor apto pela roleta de agendados.
+                  Lead da sua carteira de corretor. Traga para a base de pré-venda para trabalhar
+                  pelo hub; a visita vai para um corretor apto pela roleta de agendados.
                 </>
               ) : (
                 <>
@@ -141,12 +142,18 @@ export function SdrLeadCard({ lead }: { lead: LeadSdrFicha }) {
               disabled={pegar.isPending}
               onClick={() =>
                 pegar.mutate(lead.id, {
-                  onSuccess: () => toast.success("Lead na sua base para reaquecer"),
+                  onSuccess: () =>
+                    toast.success(
+                      carteiraAntiga
+                        ? "Lead na sua base de pré-venda"
+                        : "Lead na sua base para reaquecer",
+                    ),
                   onError: (e: Error) => toast.error(e.message),
                 })
               }
             >
-              <HandGrabbing className="mr-1.5 h-4 w-4" /> Pegar para reaquecer
+              <HandGrabbing className="mr-1.5 h-4 w-4" />{" "}
+              {carteiraAntiga ? "Trazer para minha base" : "Pegar para reaquecer"}
             </Button>
           </div>
         )}
