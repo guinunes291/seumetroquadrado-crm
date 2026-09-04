@@ -41,9 +41,12 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
    (lead cai em Qualificação Corretor). Corretor original ativo e com agenda
    livre recebe **direto, sem roleta**.
 7. **Roleta nova `agendados-sdr`** com aptidão própria: participante ativo e
-   não pausado, perfil ativo, telefone, teto de carteira (`disjuntor_wip`) e
+   não pausado, perfil ativo, telefone, teto de carteira **próprio**
+   (`sdr_teto_leads_ativos`, nasce 0 = sem teto; migration `20260904120000`) e
    **agenda livre no horário** — sem presença do dia, sem cota diária, sem
-   percentual trabalhado. Rodízio há-mais-tempo-sem-receber; quem já tentou o
+   percentual trabalhado. O `disjuntor_wip` global (30) não vale aqui: a roleta
+   comum v3 nunca o aplicou e a equipe inteira carrega mais de 30 leads ativos,
+   o que deixava a fila do SDR toda inapta em 04/09/2026. Rodízio há-mais-tempo-sem-receber; quem já tentou o
    lead é pulado se sobrar alguém.
 8. **Espelho = mesmo registro.** Nada de cópia. Depois da entrega o SDR
    continua vendo e editando (`sdr_id`) e o corretor é o dono comercial
@@ -69,16 +72,17 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
 
 ## 2. Chaves de configuração (`distribuicao_settings`)
 
-| Chave                          | Default | O que faz                                                      |
-| ------------------------------ | ------- | -------------------------------------------------------------- |
-| `sdr_ativo`                    | false   | Liga o modelo inteiro. Rollback = false.                       |
-| `sdr_reaquecer_dias`           | 7       | Dias sem registro para o lead de corretor entrar no Reaquecer. |
-| `sdr_devolucao_dias`           | 7       | Dias sem registro do corretor até o lead voltar ao SDR.        |
-| `sdr_perdidos_dias`            | 30      | Dias após a perda para reciclar o perdido na base do SDR.      |
-| `sdr_comissao_percentual`      | 0       | % do VGV para o SDR na aprovação da venda (0 = sem linha).     |
-| `sdr_meta_contatos_dia`        | 40      | Meta do Raio-X.                                                |
-| `sdr_meta_agendamentos_semana` | 8       | Meta do Raio-X.                                                |
-| `sdr_meta_comparecimento_pct`  | 60      | Meta do Raio-X.                                                |
+| Chave                          | Default | O que faz                                                          |
+| ------------------------------ | ------- | ------------------------------------------------------------------ |
+| `sdr_ativo`                    | false   | Liga o modelo inteiro. Rollback = false.                           |
+| `sdr_reaquecer_dias`           | 7       | Dias sem registro para o lead de corretor entrar no Reaquecer.     |
+| `sdr_devolucao_dias`           | 7       | Dias sem registro do corretor até o lead voltar ao SDR.            |
+| `sdr_perdidos_dias`            | 30      | Dias após a perda para reciclar o perdido na base do SDR.          |
+| `sdr_comissao_percentual`      | 0       | % do VGV para o SDR na aprovação da venda (0 = sem linha).         |
+| `sdr_meta_contatos_dia`        | 40      | Meta do Raio-X.                                                    |
+| `sdr_meta_agendamentos_semana` | 8       | Meta do Raio-X.                                                    |
+| `sdr_meta_comparecimento_pct`  | 60      | Meta do Raio-X.                                                    |
+| `sdr_teto_leads_ativos`        | 0       | Teto de leads ativos por corretor na roleta do SDR (0 = sem teto). |
 
 Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 
@@ -90,7 +94,8 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 | Colunas, `lead_acessos`, settings, roleta, RLS      | `supabase/migrations/20260904101000_sdr_fundacao.sql`                  |
 | Motor: entrega, espelho, devolução, crons, comissão | `supabase/migrations/20260904102000_sdr_motor.sql`                     |
 | Prioridade do dono original exige papel corretor    | `supabase/migrations/20260904110000_sdr_prioridade_exige_corretor.sql` |
-| Suíte de banco                                      | `tests/db/sdr.test.ts` (22 casos, ponta a ponta)                       |
+| Teto de leads ativos próprio da roleta do SDR       | `supabase/migrations/20260904120000_sdr_teto_proprio.sql`              |
+| Suíte de banco                                      | `tests/db/sdr.test.ts` (23 casos, ponta a ponta)                       |
 | Regras puras + testes                               | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
 | Fronteira do cliente (RPCs/tabelas novas)           | `src/features/sdr/client.ts`                                           |
 | Hub `/sdr`                                          | `src/routes/_authenticated/sdr.tsx`, `src/features/sdr/sdr-page.tsx`   |
