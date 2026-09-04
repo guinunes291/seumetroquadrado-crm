@@ -4909,6 +4909,54 @@ export type Database = {
         }
         Relationships: []
       }
+      sdr_avisos_corretor: {
+        Row: {
+          consumido_em: string | null
+          corretor_id: string
+          criado_em: string
+          expira_em: string
+          gatilho: string | null
+          lead_id: string
+          request_id: number | null
+          token: string
+        }
+        Insert: {
+          consumido_em?: string | null
+          corretor_id: string
+          criado_em?: string
+          expira_em?: string
+          gatilho?: string | null
+          lead_id: string
+          request_id?: number | null
+          token?: string
+        }
+        Update: {
+          consumido_em?: string | null
+          corretor_id?: string
+          criado_em?: string
+          expira_em?: string
+          gatilho?: string | null
+          lead_id?: string
+          request_id?: number | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sdr_avisos_corretor_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sdr_avisos_corretor_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       service_bots: {
         Row: {
           created_at: string
@@ -6410,6 +6458,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _sdr_notificar_corretor: {
+        Args: { _corretor_id: string; _gatilho: string; _lead_id: string }
+        Returns: boolean
+      }
       _sdr_set_status: {
         Args: {
           _agente: string
@@ -6424,6 +6476,16 @@ export type Database = {
       _sdr_setting_int: {
         Args: { _chave: string; _default: number }
         Returns: number
+      }
+      _sdr_visita_roleta: {
+        Args: {
+          _corretor_agenda: string
+          _fim: string
+          _gatilho: string
+          _inicio: string
+          _lead_id: string
+        }
+        Returns: string
       }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
@@ -7867,11 +7929,6 @@ export type Database = {
         Returns: string
       }
       marcar_presenca: { Args: { _presente: boolean }; Returns: undefined }
-      metas_dia_alerta_checkpoint: {
-        Args: { _dia: string; _checkpoint: number; _titulo: string; _mensagem: string }
-        Returns: boolean
-      }
-      metas_dia_taxas: { Args: { _dias?: number }; Returns: Json }
       marcar_presenca_admin: {
         Args: { _corretor_id: string; _presente: boolean }
         Returns: undefined
@@ -7918,6 +7975,16 @@ export type Database = {
       }
       mesclar_leads_dup_lote: { Args: { p_limite?: number }; Returns: number }
       mesclar_leads_por_telefone: { Args: { _chave: string }; Returns: string }
+      metas_dia_alerta_checkpoint: {
+        Args: {
+          _checkpoint: number
+          _dia: string
+          _mensagem: string
+          _titulo: string
+        }
+        Returns: boolean
+      }
+      metas_dia_taxas: { Args: { _dias?: number }; Returns: Json }
       metricas_periodo_v2: {
         Args: { _fim: string; _inicio: string }
         Returns: Json
@@ -8323,6 +8390,19 @@ export type Database = {
       sdr_raio_x: {
         Args: { _ate?: string; _de?: string; _sdr_id?: string }
         Returns: Json
+      }
+      sdr_reentregar_visitas_pendentes: {
+        Args: never
+        Returns: {
+          agendamento_id: string
+          corretor_id: string
+          corretor_nome: string
+          data_inicio: string
+          erro: string
+          lead_id: string
+          lead_nome: string
+          regra: string
+        }[]
       }
       set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
       sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
