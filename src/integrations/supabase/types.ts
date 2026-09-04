@@ -6147,6 +6147,20 @@ export type Database = {
         Returns: undefined
       }
       _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
+      _devolver_lead_ao_sdr: {
+        Args: { _gatilho: string; _lead_id: string; _motivo: string }
+        Returns: boolean
+      }
+      _distribuir_lead_sdr: {
+        Args: {
+          _fim?: string
+          _gatilho?: string
+          _inicio?: string
+          _lead_id: string
+          _motivo: string
+        }
+        Returns: Json
+      }
       _distribuir_lead_v3: {
         Args: {
           _contexto_extra?: Json
@@ -6203,6 +6217,28 @@ export type Database = {
       }
       _elegibilidade_roleta: {
         Args: { _corretor_id?: string; _slug: string }
+        Returns: {
+          aguardando: number
+          apto: boolean
+          carteira_total: number
+          corretor_id: string
+          incluido_em: string
+          incluido_por: string
+          limite_diario: number
+          motivo_pausa: string
+          motivos: string[]
+          nome: string
+          participante_ativo: boolean
+          pausado: boolean
+          pct_trabalhado: number
+          presente: boolean
+          recebidos_hoje: number
+          recebidos_mes: number
+          ultimo_lead_em: string
+        }[]
+      }
+      _elegibilidade_roleta_sdr: {
+        Args: { _fim?: string; _inicio?: string; _slug: string }
         Returns: {
           aguardando: number
           apto: boolean
@@ -6293,6 +6329,10 @@ export type Database = {
           renda_informada: string | null
           resumo_qualificacao: string | null
           roleta_slug: string | null
+          sdr_devolvido_em: string | null
+          sdr_entregue_em: string | null
+          sdr_id: string | null
+          sdr_interesse_confirmado: boolean
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -6324,6 +6364,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      _proximo_sdr: { Args: never; Returns: string }
       _registrar_estouro_sla: {
         Args: { _corretor: string; _lead: string; _slug: string }
         Returns: undefined
@@ -6346,11 +6387,71 @@ export type Database = {
         Returns: string
       }
       _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
+      _sdr_agenda_conflita: {
+        Args: { _corretor_id: string; _fim: string; _inicio: string }
+        Returns: boolean
+      }
+      _sdr_ativo: { Args: never; Returns: boolean }
+      _sdr_gate_lead: {
+        Args: {
+          _lead: Database["public"]["Tables"]["leads"]["Row"]
+          _uid: string
+        }
+        Returns: undefined
+      }
+      _sdr_log_base: {
+        Args: {
+          _extra?: Json
+          _gatilho: string
+          _lead_id: string
+          _motivo: string
+          _regra: string
+          _sdr_id: string
+        }
+        Returns: undefined
+      }
+      _sdr_set_status: {
+        Args: {
+          _agente: string
+          _forcar?: boolean
+          _lead_id: string
+          _motivo: string
+          _novo: Database["public"]["Enums"]["lead_status"]
+          _proxima_acao: string
+        }
+        Returns: undefined
+      }
+      _sdr_setting_int: {
+        Args: { _chave: string; _default: number }
+        Returns: number
+      }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
+      agendar_visita_sdr: {
+        Args: {
+          _data_fim?: string
+          _data_inicio: string
+          _descricao?: string
+          _lead_id: string
+          _local?: string
+          _proxima_acao?: string
+          _titulo?: string
+        }
+        Returns: Json
+      }
       alertar_leads_sem_atendimento: { Args: never; Returns: undefined }
       alertar_roletas_sem_apto: { Args: never; Returns: undefined }
       alertar_volume_desproporcional: { Args: never; Returns: undefined }
+      alimentar_base_sdr_perdidos: { Args: never; Returns: number }
+      alocar_espelho_lead: {
+        Args: {
+          _corretor_id: string
+          _lead_id: string
+          _modo: string
+          _motivo: string
+        }
+        Returns: Json
+      }
       aplicar_desconto_comissao: {
         Args: {
           _comissao_id: string
@@ -6940,8 +7041,13 @@ export type Database = {
           tipo: string
         }[]
       }
+      devolver_lead_ao_sdr: {
+        Args: { _lead_id: string; _motivo: string }
+        Returns: Json
+      }
       devolver_leads_followup_vencido: { Args: never; Returns: number }
       devolver_leads_posse_expirada: { Args: never; Returns: number }
+      devolver_leads_sdr_parados: { Args: never; Returns: number }
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
         Returns: boolean
@@ -6950,6 +7056,7 @@ export type Database = {
         Args: { _limite?: number; _roleta?: string }
         Returns: Json
       }
+      distribuir_estoque_sdr: { Args: { _limite?: number }; Returns: Json }
       distribuir_lead: {
         Args: {
           _distribuido_por?: string
@@ -7095,6 +7202,10 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      entregar_lead_sdr: {
+        Args: { _lead_id: string; _motivo: string }
+        Returns: Json
       }
       equipe_metricas_campanha: {
         Args: { _roleta_id: string }
@@ -7357,6 +7468,7 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
+      lead_reaquecivel_sdr: { Args: { _lead_id: string }; Returns: boolean }
       lead_ultima_atividade: {
         Args: {
           _ultima_interacao: string
@@ -7379,6 +7491,7 @@ export type Database = {
           temperatura_calc: Database["public"]["Enums"]["lead_temperatura"]
         }[]
       }
+      leads_espelhados: { Args: { _user_id: string }; Returns: string[] }
       leads_filtered: {
         Args: {
           _corretor?: string
@@ -8003,6 +8116,10 @@ export type Database = {
         Args: { _key_hash: string; _lease_token: string; _request_hash: string }
         Returns: boolean
       }
+      remover_espelho_lead: {
+        Args: { _corretor_id: string; _lead_id: string; _motivo: string }
+        Returns: Json
+      }
       reprocessar_excecao: { Args: { _excecao_id: string }; Returns: Json }
       resetar_cotas_diarias: { Args: never; Returns: undefined }
       resetar_presenca_diaria: { Args: never; Returns: undefined }
@@ -8093,52 +8210,6 @@ export type Database = {
           system_prompt: string
         }[]
       }
-      set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
-      sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
-      telefone_digits: { Args: { _telefone: string }; Returns: string }
-      tempo_primeira_resposta: {
-        Args: { _corretor?: string; _df: string; _di: string }
-        Returns: {
-          corretor_id: string
-          leads_dado_sujo: number
-          leads_no_periodo: number
-          leads_respondidos: number
-          tempo_mediana_min: number
-          tempo_medio_min: number
-        }[]
-      }
-      _sdr_ativo: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      agendar_visita_sdr: {
-        Args: {
-          _data_fim?: string
-          _data_inicio: string
-          _descricao?: string
-          _lead_id: string
-          _local?: string
-          _proxima_acao?: string
-          _titulo?: string
-        }
-        Returns: Json
-      }
-      alocar_espelho_lead: {
-        Args: { _corretor_id: string; _lead_id: string; _modo: string; _motivo: string }
-        Returns: Json
-      }
-      devolver_lead_ao_sdr: {
-        Args: { _lead_id: string; _motivo: string }
-        Returns: Json
-      }
-      entregar_lead_sdr: {
-        Args: { _lead_id: string; _motivo: string }
-        Returns: Json
-      }
-      remover_espelho_lead: {
-        Args: { _corretor_id: string; _lead_id: string; _motivo: string }
-        Returns: Json
-      }
       sdr_leads_reaquecer: {
         Args: { _limit?: number }
         Returns: {
@@ -8157,11 +8228,110 @@ export type Database = {
       }
       sdr_pegar_lead: {
         Args: { _lead_id: string }
-        Returns: Database["public"]["Tables"]["leads"]["Row"]
+        Returns: {
+          bairro: string | null
+          campanha: string | null
+          canal_entrada: string | null
+          classe_lead: string
+          consentimento_lgpd: boolean | null
+          construtora: string | null
+          copiloto_notificado_em: string | null
+          corretor_anterior_id: string | null
+          corretor_id: string | null
+          corretores_que_tentaram: string[]
+          cpf: string | null
+          created_at: string
+          data_distribuicao: string | null
+          data_movido_lixeira: string | null
+          data_perda: string | null
+          decisor: string | null
+          deleted_at: string | null
+          desfecho: string | null
+          docs_pendentes: Json | null
+          docs_recebidos: Json | null
+          email: string | null
+          entrada_disponivel: string | null
+          estado: Database["public"]["Enums"]["lead_estado"] | null
+          etapa: string | null
+          faixa_mcmv: string | null
+          fase: string | null
+          fgts_valor: number | null
+          followup_esgotado_em: string | null
+          followup_reativado_em: string | null
+          handoff_em: string | null
+          id: string
+          import_batch_id: string | null
+          legacy_id: number | null
+          motivo_handoff: string | null
+          motivo_perda_categoria: string | null
+          motivo_perdido: string | null
+          na_lixeira: boolean
+          nome: string
+          objecoes: string[]
+          observacoes: string | null
+          opt_out: boolean
+          origem: Database["public"]["Enums"]["lead_origem"]
+          pasta_montada_em: string | null
+          projeto_id: string | null
+          projeto_nome: string | null
+          proxima_acao: string | null
+          proximo_followup: string | null
+          renda_estimada: number | null
+          renda_informada: string | null
+          resumo_qualificacao: string | null
+          roleta_slug: string | null
+          sdr_devolvido_em: string | null
+          sdr_entregue_em: string | null
+          sdr_id: string | null
+          sdr_interesse_confirmado: boolean
+          search_text: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+          telefone_e164: string | null
+          tem_fgts: boolean | null
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+          tentativas_redistribuicao: number
+          timestamp_recebimento: string | null
+          tipo_renda: string | null
+          ultima_atividade_em: string
+          ultima_interacao: string | null
+          ultimo_contato: string | null
+          updated_at: string
+          usa_fgts: boolean
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          via_webhook: boolean
+          visita_data: string | null
+          visita_empreendimento: string | null
+          visita_hora: string | null
+          zona: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "leads"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       sdr_raio_x: {
         Args: { _ate?: string; _de?: string; _sdr_id?: string }
         Returns: Json
+      }
+      set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
+      sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
+      telefone_digits: { Args: { _telefone: string }; Returns: string }
+      tempo_primeira_resposta: {
+        Args: { _corretor?: string; _df: string; _di: string }
+        Returns: {
+          corretor_id: string
+          leads_dado_sujo: number
+          leads_no_periodo: number
+          leads_respondidos: number
+          tempo_mediana_min: number
+          tempo_medio_min: number
+        }[]
       }
       transferir_leads: {
         Args: { _corretor: string; _ids: string[] }
@@ -8236,6 +8406,10 @@ export type Database = {
           renda_informada: string | null
           resumo_qualificacao: string | null
           roleta_slug: string | null
+          sdr_devolvido_em: string | null
+          sdr_entregue_em: string | null
+          sdr_id: string | null
+          sdr_interesse_confirmado: boolean
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string
@@ -8326,6 +8500,10 @@ export type Database = {
           renda_informada: string | null
           resumo_qualificacao: string | null
           roleta_slug: string | null
+          sdr_devolvido_em: string | null
+          sdr_entregue_em: string | null
+          sdr_id: string | null
+          sdr_interesse_confirmado: boolean
           search_text: string | null
           status: Database["public"]["Enums"]["lead_status"]
           telefone: string

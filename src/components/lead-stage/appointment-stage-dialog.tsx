@@ -44,10 +44,12 @@ type Props = {
   lead: StageLead;
   onOpenChange: (open: boolean) => void;
   onDone?: () => void;
+  /** Move o lead para "agendado" ao salvar (padrão: true). */
+  moverLead?: boolean;
 };
 
 /** Modal de "Agendado": cria um agendamento e move o lead para `agendado`. */
-export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
+export function AppointmentStageDialog({ lead, onOpenChange, onDone, moverLead = true }: Props) {
   const qc = useQueryClient();
   const now = new Date();
   const [titulo, setTitulo] = useState(`Visita - ${lead.nome}`);
@@ -116,7 +118,7 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
           dataInicio: inicio.toISOString(),
           dataFim: fim.toISOString(),
         },
-        { moverLeadPara: "agendado", criarFollowUp: true },
+        { moverLeadPara: moverLead ? "agendado" : null, criarFollowUp: moverLead },
       );
 
       // Espelha na agenda Google do corretor (se conectada) sem travar o fluxo.
@@ -132,7 +134,7 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
         descricao: [`Lead: ${lead.nome}`, descricao.trim() || null].filter(Boolean).join("\n"),
       });
       toast.success(
-        "Agendamento criado · lead movido para Agendado" +
+        (moverLead ? "Agendamento criado · lead movido para Agendado" : "Agendamento criado") +
           (res?.followUpCriado ? " · tarefa de confirmação criada" : ""),
         {
           action: {
@@ -156,7 +158,7 @@ export function AppointmentStageDialog({ lead, onOpenChange, onDone }: Props) {
         <DialogHeader>
           <DialogTitle>Agendar — {lead.nome}</DialogTitle>
           <DialogDescription>
-            Crie o agendamento. O lead será movido para "Agendado".
+            Crie o agendamento.{moverLead ? ' O lead será movido para "Agendado".' : ""}
           </DialogDescription>
         </DialogHeader>
 
