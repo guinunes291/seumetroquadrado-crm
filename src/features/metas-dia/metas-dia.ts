@@ -236,6 +236,8 @@ export type ContagemFunil = {
 
 export type TaxasRpc = {
   dias: number;
+  /** Primeiro dia da janela (YYYY-MM-DD); null se a RPC não informou. */
+  inicio: string | null;
   minhas: ContagemFunil;
   time: ContagemFunil;
   corretores: number;
@@ -264,7 +266,29 @@ export function normalizarTaxasRpc(raw: unknown): TaxasRpc | null {
   const minhas = contagem(r.minhas);
   const time = contagem(r.time);
   if (!minhas || !time) return null;
-  return { dias: numOuZero(r.dias) || 30, minhas, time, corretores: numOuZero(r.corretores) };
+  const inicio =
+    typeof r.inicio === "string" && /^\d{4}-\d{2}-\d{2}/.test(r.inicio)
+      ? r.inicio.slice(0, 10)
+      : null;
+  return {
+    dias: numOuZero(r.dias) || 30,
+    inicio,
+    minhas,
+    time,
+    corretores: numOuZero(r.corretores),
+  };
+}
+
+/** Dias úteis (seg–sex) no intervalo (ini, fim] — ini exclusivo, fim inclusivo. */
+export function diasUteisEntre(iniExclusivo: string, fimInclusivo: string): number {
+  let n = 0;
+  let d = somarDias(iniExclusivo, 1);
+  // Limite defensivo: janela de no máximo 400 dias.
+  for (let i = 0; i < 400 && d <= fimInclusivo; i++) {
+    if (diaDaSemanaIso(d) <= 5) n++;
+    d = somarDias(d, 1);
+  }
+  return n;
 }
 
 /** Abaixo disso a taxa própria é ruído — usa a do time como referência. */
@@ -280,6 +304,10 @@ export type TaxasFunil = {
   venda_por_contato: number | null;
   minhas: ContagemFunil | null;
   time: ContagemFunil | null;
+  /** Dias úteis dentro da janela analisada. */
+  dias_uteis_janela: number;
+  /** Média de contatos do PRÓPRIO corretor por dia útil na janela (null sem janela). */
+  media_contatos_dia: number | null;
 };
 
 const SEM_TAXAS: TaxasFunil = {
@@ -291,6 +319,8 @@ const SEM_TAXAS: TaxasFunil = {
   venda_por_contato: null,
   minhas: null,
   time: null,
+  dias_uteis_janela: 0,
+  media_contatos_dia: null,
 };
 
 /** Taxa = resultado / contatos. null quando não há contatos ou nenhum resultado (não dá para projetar). */
@@ -302,12 +332,19 @@ function taxaDe(resultado: number, contatos: number): number | null {
  * Escolhe a base das taxas: a do corretor quando ele tem volume mínimo de
  * contatos no período; senão a do time (todos com papel corretor).
  */
-export function taxasConversao(r: TaxasRpc | null): TaxasFunil {
+export function taxasConversao(r: TaxasRpc | null, hoje: string = diaSaoPaulo()): TaxasFunil {
   if (!r) return SEM_TAXAS;
   const usarMinha = r.minhas.contatos >= MIN_CONTATOS_TAXA_PROPRIA;
   const base = usarMinha ? r.minhas : r.time;
   const fonte: TaxasFunil["fonte"] = usarMinha ? "minha" : base.contatos > 0 ? "time" : null;
+  // Janela: (inicio, hoje]. Sem `inicio`, aproxima pelos dias corridos (5/7 úteis).
+  const diasUteis = r.inicio
+    ? diasUteisEntre(r.inicio, hoje)
+    : Math.max(1, Math.round((r.dias * 5) / 7));
   return {
+    dias_uteis_janela: diasUteis,
+    media_contatos_dia:
+      diasUteis > 0 ? Math.round((r.minhas.contatos / diasUteis) * 10) / 10 : null,
     fonte,
     dias: r.dias,
     contatos_base: fonte ? base.contatos : 0,
@@ -317,6 +354,26 @@ export function taxasConversao(r: TaxasRpc | null): TaxasFunil {
     minhas: r.minhas,
     time: r.time,
   };
+}
+
+/**
+ * O que a média diária de contatos do corretor projeta de resultado por dia,
+ * pela taxa vigente. null quando não há média ou taxa.
+ */
+export function projecaoPorDia(
+  mediaContatosDia: number | null,
+  taxa: number | null,
+): number | null {
+  if (mediaContatosDia === null || mediaContatosDia <= 0 || taxa === null || taxa <= 0) return null;
+  return mediaContatosDia * taxa;
+}
+
+/** "≈ 2 agendamentos por dia" ou "≈ 1 agendamento a cada 12 dias úteis". */
+export function descreverProjecao(porDia: number | null, chave: MetaChave): string | null {
+  if (porDia === null || porDia <= 0) return null;
+  if (porDia >= 0.95) return `≈ ${plural(Math.round(porDia), chave)} por dia`;
+  const cada = Math.max(2, Math.round(1 / porDia));
+  return `≈ 1 ${NOME[chave][0]} a cada ${cada} dias úteis`;
 }
 
 /** "1 a cada N contatos" — N arredondado; null sem taxa. */
