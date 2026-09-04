@@ -39,7 +39,15 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
 6. **Entrega.** Dois gatilhos: **agendar visita** (roleta ANTES do agendamento,
    agendamento nasce no nome do corretor) ou **entrega manual com motivo**
    (lead cai em Qualificação Corretor). Corretor original ativo e com agenda
-   livre recebe **direto, sem roleta**.
+   livre recebe **direto, sem roleta**. **Por qualquer caminho** (migration
+   `20260904130000`): o trigger `trg_sdr_visita_roleta` em `agendamentos` faz
+   toda visita futura em lead de SDR não entregue — ou no nome de um SDR
+   (carteira antiga) — passar pela roleta; a visita já nasce no nome do
+   corretor vencedor e as confirmações D-1/D-0 ficam com o SDR. Cadastro pelo
+   SDR que bate em lead existente (dedup por telefone) sem SDR, em etapa viva
+   e sem corretor / do próprio SDR / parado entra na base de pré-venda
+   (`criar_lead_dedup` devolve `sdr_pegou`). O SDR também traz lead da própria
+   carteira antiga com **Pegar**, sem precisar estar parado.
 7. **Roleta nova `agendados-sdr`** com aptidão própria: participante ativo e
    não pausado, perfil ativo, telefone, teto de carteira **próprio**
    (`sdr_teto_leads_ativos`, nasce 0 = sem teto; migration `20260904120000`) e
@@ -88,22 +96,23 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 
 ## 3. Peças no repositório
 
-| Peça                                                | Onde                                                                   |
-| --------------------------------------------------- | ---------------------------------------------------------------------- |
-| Enum `app_role` + 'sdr'                             | `supabase/migrations/20260904100000_sdr_papel_enum.sql`                |
-| Colunas, `lead_acessos`, settings, roleta, RLS      | `supabase/migrations/20260904101000_sdr_fundacao.sql`                  |
-| Motor: entrega, espelho, devolução, crons, comissão | `supabase/migrations/20260904102000_sdr_motor.sql`                     |
-| Prioridade do dono original exige papel corretor    | `supabase/migrations/20260904110000_sdr_prioridade_exige_corretor.sql` |
-| Teto de leads ativos próprio da roleta do SDR       | `supabase/migrations/20260904120000_sdr_teto_proprio.sql`              |
-| Suíte de banco                                      | `tests/db/sdr.test.ts` (23 casos, ponta a ponta)                       |
-| Regras puras + testes                               | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
-| Fronteira do cliente (RPCs/tabelas novas)           | `src/features/sdr/client.ts`                                           |
-| Hub `/sdr`                                          | `src/routes/_authenticated/sdr.tsx`, `src/features/sdr/sdr-page.tsx`   |
-| Ações na ficha do lead                              | `src/features/sdr/sdr-lead-card.tsx`, `espelho-lead-card.tsx`          |
-| Navegação (hub, cor, bottom-nav, redirect da Hoje)  | `src/features/nav/sistemas.ts`, `cores-modulo.ts`, `styles.css`        |
-| Convite / papel                                     | `crm-invite-dialog.tsx`, `corretores-page.tsx`, `crm-convites`         |
-| Importação para a base do SDR                       | `import-leads-dialog.tsx`, `leads-import.functions.ts`                 |
-| WhatsApp ao corretor (contexto sdr)                 | `supabase/functions/notify-lead-transfer/index.ts`                     |
+| Peça                                                 | Onde                                                                   |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- |
+| Enum `app_role` + 'sdr'                              | `supabase/migrations/20260904100000_sdr_papel_enum.sql`                |
+| Colunas, `lead_acessos`, settings, roleta, RLS       | `supabase/migrations/20260904101000_sdr_fundacao.sql`                  |
+| Motor: entrega, espelho, devolução, crons, comissão  | `supabase/migrations/20260904102000_sdr_motor.sql`                     |
+| Prioridade do dono original exige papel corretor     | `supabase/migrations/20260904110000_sdr_prioridade_exige_corretor.sql` |
+| Teto de leads ativos próprio da roleta do SDR        | `supabase/migrations/20260904120000_sdr_teto_proprio.sql`              |
+| Visita por qualquer caminho passa pela roleta; dedup | `supabase/migrations/20260904130000_sdr_visita_roleta.sql`             |
+| Suíte de banco                                       | `tests/db/sdr.test.ts` (29 casos, ponta a ponta)                       |
+| Regras puras + testes                                | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
+| Fronteira do cliente (RPCs/tabelas novas)            | `src/features/sdr/client.ts`                                           |
+| Hub `/sdr`                                           | `src/routes/_authenticated/sdr.tsx`, `src/features/sdr/sdr-page.tsx`   |
+| Ações na ficha do lead                               | `src/features/sdr/sdr-lead-card.tsx`, `espelho-lead-card.tsx`          |
+| Navegação (hub, cor, bottom-nav, redirect da Hoje)   | `src/features/nav/sistemas.ts`, `cores-modulo.ts`, `styles.css`        |
+| Convite / papel                                      | `crm-invite-dialog.tsx`, `corretores-page.tsx`, `crm-convites`         |
+| Importação para a base do SDR                        | `import-leads-dialog.tsx`, `leads-import.functions.ts`                 |
+| WhatsApp ao corretor (contexto sdr)                  | `supabase/functions/notify-lead-transfer/index.ts`                     |
 
 ## 4. RPCs e crons
 
@@ -116,6 +125,7 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 | `alocar_espelho_lead(lead, corretor, modo, motivo)` | admin (UI)                              | adicionar / substituir                                      |
 | `remover_espelho_lead(lead, corretor, motivo)`      | admin (UI)                              | Remove espelho extra                                        |
 | `devolver_lead_ao_sdr(lead, motivo)`                | admin (UI)                              | Devolução manual                                            |
+| `sdr_reentregar_visitas_pendentes()`                | admin / SDR (SQL)                       | Reparo: visitas que ficaram no nome de um SDR vão à roleta  |
 | `sdr_raio_x(sdr, de, ate)`                          | SDR / gestão                            | KPIs + metas                                                |
 | `devolver_leads_sdr_parados()`                      | cron `sdr-devolver-parados` 09:30 BRT   | Devolução por 7 dias sem registro                           |
 | `alimentar_base_sdr_perdidos()`                     | cron `sdr-alimentar-perdidos` 08:00 BRT | Perdidos reciclados                                         |

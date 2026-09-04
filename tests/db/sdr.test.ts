@@ -531,6 +531,189 @@ describe("reaquecer lead parado de corretor", () => {
   });
 });
 
+describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () => {
+  async function insereVisita(
+    leadId: string,
+    corretorId: string,
+    criadoPor: string,
+    horas: number,
+  ) {
+    const r = await c.query(
+      `INSERT INTO public.agendamentos
+         (lead_id, corretor_id, criado_por_id, tipo, status, titulo, data_inicio, data_fim)
+       VALUES ($1, $2, $3, 'visita', 'agendado', 'Visita',
+               now() + make_interval(hours => $4), now() + make_interval(hours => $4) + interval '1 hour')
+       RETURNING id, corretor_id`,
+      [leadId, corretorId, criadoPor, horas],
+    );
+    return r.rows[0] as { id: string; corretor_id: string };
+  }
+  async function entregasSucesso(leadId: string) {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT count(*)::int AS n FROM public.distribution_log WHERE lead_id = $1 AND resultado = 'sucesso' AND corretor_id IS NOT NULL`,
+      [leadId],
+    );
+    return r.rows[0].n as number;
+  }
+
+  it("lead da base do SDR: visita pelo modal comum nasce no nome da corretora da roleta, D-1/D-0 com o SDR", async () => {
+    await comoSuperuser(c);
+    const leadBase = await criarLead(c, { nome: "Base via modal", status: "em_atendimento" });
+    await c.query(`UPDATE public.leads SET sdr_id = $1, corretor_id = NULL WHERE id = $2`, [
+      sdr.id,
+      leadBase,
+    ]);
+    await comoUsuario(c, sdr.id);
+    const ag = await insereVisita(leadBase, sdr.id, sdr.id, 8 * 24);
+    expect(ag.corretor_id).toBe(corretorA.id);
+    const l = await lead(leadBase);
+    expect(l.corretor_id).toBe(corretorA.id);
+    expect(l.sdr_id).toBe(sdr.id);
+    expect(l.sdr_entregue_em).not.toBeNull();
+    const t = await c.query(
+      `SELECT count(*)::int AS n FROM public.tarefas
+        WHERE lead_id = $1 AND corretor_id = $2 AND status = 'pendente' AND titulo LIKE 'Confirmar visita de %'`,
+      [leadBase, sdr.id],
+    );
+    expect(t.rows[0].n).toBeGreaterThanOrEqual(1);
+    expect(await entregasSucesso(leadBase)).toBe(1);
+
+    // Remarcação depois de entregue: fica com a Ana, sem nova roleta.
+    await comoUsuario(c, corretorA.id);
+    const ag2 = await insereVisita(leadBase, corretorA.id, corretorA.id, 8 * 24 + 12);
+    expect(ag2.corretor_id).toBe(corretorA.id);
+    expect(await entregasSucesso(leadBase)).toBe(1);
+  });
+
+  it("carteira antiga: visita no nome do SDR entra na base dele e vai para a roleta", async () => {
+    await comoSuperuser(c);
+    const legado = await criarLead(c, {
+      nome: "Legado com visita",
+      corretorId: sdr.id,
+      status: "em_atendimento",
+    });
+    await comoUsuario(c, sdr.id);
+    const ag = await insereVisita(legado, sdr.id, sdr.id, 9 * 24);
+    expect(ag.corretor_id).toBe(corretorA.id);
+    const l = await lead(legado);
+    expect(l.sdr_id).toBe(sdr.id);
+    expect(l.corretor_id).toBe(corretorA.id);
+    expect(l.corretor_anterior_id).toBe(sdr.id);
+    expect(l.sdr_entregue_em).not.toBeNull();
+    const ev = await c.query(
+      `SELECT regra_aplicada FROM public.distribution_log WHERE lead_id = $1 ORDER BY created_at`,
+      [legado],
+    );
+    expect(ev.rows.map((x) => x.regra_aplicada)).toEqual(["sdr_carteira_antiga", "roleta_sdr"]);
+  });
+
+  it("lead comum de corretor: a visita fica com ele, nada muda", async () => {
+    await comoSuperuser(c);
+    const comum = await criarLead(c, {
+      nome: "Comum do Bruno",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    await comoUsuario(c, corretorB.id);
+    const ag = await insereVisita(comum, corretorB.id, corretorB.id, 10 * 24);
+    expect(ag.corretor_id).toBe(corretorB.id);
+    const l = await lead(comum);
+    expect(l.sdr_id).toBeNull();
+    expect(l.corretor_id).toBe(corretorB.id);
+  });
+
+  it("cadastro pelo SDR que bate em lead existente: parado ou da própria carteira entra na base; recente de corretor não", async () => {
+    await comoSuperuser(c);
+    const paradoBruno = await criarLead(c, {
+      nome: "Parado Bruno dedup",
+      telefone: "11977770001",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    await c.query(
+      `UPDATE public.leads SET ultima_atividade_em = now() - interval '10 days' WHERE id = $1`,
+      [paradoBruno],
+    );
+    const recenteBruno = await criarLead(c, {
+      nome: "Recente Bruno dedup",
+      telefone: "11977770002",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    const meuLegado = await criarLead(c, {
+      nome: "Meu legado dedup",
+      telefone: "11977770003",
+      corretorId: sdr.id,
+      status: "novo",
+    });
+
+    await comoUsuario(c, sdr.id);
+    const dedup = async (telefone: string) => {
+      const r = await c.query(`SELECT public.criar_lead_dedup($1::jsonb) AS res`, [
+        JSON.stringify({ nome: "Cadastro SDR", telefone }),
+      ]);
+      return r.rows[0].res as { duplicado: boolean; lead_id: string; sdr_pegou: boolean };
+    };
+    const r1 = await dedup("(11) 97777-0001");
+    expect(r1.duplicado).toBe(true);
+    expect(r1.lead_id).toBe(paradoBruno);
+    expect(r1.sdr_pegou).toBe(true);
+    const r2 = await dedup("(11) 97777-0002");
+    expect(r2.duplicado).toBe(true);
+    expect(r2.sdr_pegou).toBe(false);
+    const r3 = await dedup("(11) 97777-0003");
+    expect(r3.sdr_pegou).toBe(true);
+
+    expect((await lead(paradoBruno)).sdr_id).toBe(sdr.id);
+    expect((await lead(paradoBruno)).corretor_id).toBe(corretorB.id);
+    expect((await lead(recenteBruno)).sdr_id).toBeNull();
+    const meu = await lead(meuLegado);
+    expect(meu.sdr_id).toBe(sdr.id);
+    expect(meu.status).toBe("aguardando_atendimento");
+  });
+
+  it("pegar: lead da própria carteira antiga entra na base mesmo sem estar parado", async () => {
+    await comoSuperuser(c);
+    const fresco = await criarLead(c, {
+      nome: "Meu legado fresco",
+      corretorId: sdr.id,
+      status: "aguardando_retorno",
+    });
+    await comoUsuario(c, sdr.id);
+    await c.query(`SELECT public.sdr_pegar_lead($1)`, [fresco]);
+    const l = await lead(fresco);
+    expect(l.sdr_id).toBe(sdr.id);
+    expect(l.corretor_id).toBe(sdr.id);
+  });
+
+  it("reparo: visita que ficou no nome do SDR (flag desligada na hora) passa pela roleta depois", async () => {
+    await setFlag(false);
+    await comoSuperuser(c);
+    const pendente = await criarLead(c, { nome: "Pendente de reparo", status: "em_atendimento" });
+    await c.query(`UPDATE public.leads SET sdr_id = $1, corretor_id = NULL WHERE id = $2`, [
+      sdr.id,
+      pendente,
+    ]);
+    await comoUsuario(c, sdr.id);
+    const ag = await insereVisita(pendente, sdr.id, sdr.id, 11 * 24);
+    expect(ag.corretor_id).toBe(sdr.id);
+    await setFlag(true);
+
+    await comoUsuario(c, admin.id);
+    const r = await c.query(`SELECT * FROM public.sdr_reentregar_visitas_pendentes()`);
+    const linha = r.rows.find((x) => x.agendamento_id === ag.id);
+    expect(linha?.erro).toBeNull();
+    expect(linha?.corretor_id).toBe(corretorA.id);
+    await comoSuperuser(c);
+    const a = await c.query(`SELECT corretor_id FROM public.agendamentos WHERE id = $1`, [ag.id]);
+    expect(a.rows[0].corretor_id).toBe(corretorA.id);
+    const l = await lead(pendente);
+    expect(l.corretor_id).toBe(corretorA.id);
+    expect(l.sdr_entregue_em).not.toBeNull();
+  });
+});
+
 describe("espelho pelo admin", () => {
   let leadE: string;
 

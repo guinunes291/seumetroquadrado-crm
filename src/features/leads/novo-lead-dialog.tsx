@@ -199,8 +199,19 @@ function NovoLeadForm({
         lead_id: string;
         nome?: string | null;
         na_carteira?: boolean;
+        /** SDR: o lead já existia e entrou na base de pré-venda (RPC decide). */
+        sdr_pegou?: boolean;
       } | null;
       if (!resultado?.lead_id) throw new Error("Falha ao criar o lead. Tente novamente.");
+      if (resultado.duplicado && resultado.sdr_pegou) {
+        return {
+          id: resultado.lead_id,
+          corretor: null,
+          corretorNome: resultado.nome ?? null,
+          selfAssigned: false,
+          sdrPegou: true,
+        };
+      }
       if (resultado.duplicado) {
         throw new Error(
           resultado.na_carteira && resultado.nome
@@ -222,6 +233,7 @@ function NovoLeadForm({
           corretor: res?.ok ? (res.corretor_id ?? null) : null,
           corretorNome: null as string | null,
           selfAssigned: false,
+          sdrPegou: false,
         };
       }
       return {
@@ -232,19 +244,23 @@ function NovoLeadForm({
           ? ((corretores ?? []).find((c) => c.id === corretorId)?.nome ?? null)
           : null,
         selfAssigned: !canManage,
+        sdrPegou: false,
       };
     },
     onSuccess: (r) => {
+      if (r.sdrPegou) qc.invalidateQueries({ queryKey: ["sdr:base"] });
       toast.success(
-        r.selfAssigned
-          ? "Lead criado e atribuído a você"
-          : r.corretorNome
-            ? `Lead criado e atribuído a ${r.corretorNome}`
-            : r.corretor
-              ? "Lead criado e atribuído"
-              : podeDistribuir && distribuirAuto
-                ? "Lead criado (nenhum corretor disponível na fila)"
-                : "Lead criado",
+        r.sdrPegou
+          ? `Este cliente já existia no CRM${r.corretorNome ? ` ("${r.corretorNome}")` : ""}: entrou na sua base de pré-venda`
+          : r.selfAssigned
+            ? "Lead criado e atribuído a você"
+            : r.corretorNome
+              ? `Lead criado e atribuído a ${r.corretorNome}`
+              : r.corretor
+                ? "Lead criado e atribuído"
+                : podeDistribuir && distribuirAuto
+                  ? "Lead criado (nenhum corretor disponível na fila)"
+                  : "Lead criado",
       );
       qc.invalidateQueries({ queryKey: ["leads"] });
       // Contadores e Kanban: sem estas invalidações, criar lead com o board

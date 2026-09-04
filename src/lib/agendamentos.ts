@@ -86,10 +86,27 @@ export async function criarAgendamento(
       timezone: "America/Sao_Paulo",
       lembrete_minutos: input.lembreteMinutos ?? 30,
     } as never)
-    .select("id")
+    .select("id, corretor_id")
     .single();
   if (insErr) throw insErr;
-  const agendamentoId = (criado as { id: string }).id;
+  const linha = criado as { id: string; corretor_id: string | null };
+  const agendamentoId = linha.id;
+
+  // SDR (trigger trg_sdr_visita_roleta): visita em lead de pré-venda nasce no
+  // nome do corretor da roleta, não de quem marcou. Avisa e não cria o
+  // follow-up de etapa — as confirmações D-1/D-0 já ficaram com o SDR.
+  const entregueViaSdr =
+    !!input.corretorId && !!linha.corretor_id && linha.corretor_id !== input.corretorId;
+  if (entregueViaSdr) {
+    const { data: p } = await supabase
+      .from("profiles")
+      .select("nome")
+      .eq("id", linha.corretor_id!)
+      .maybeSingle();
+    avisos.push(
+      `Visita entregue pela roleta do SDR a ${p?.nome ?? "um corretor"}. As confirmações D-1 e D-0 ficam com você.`,
+    );
+  }
 
   // 2) Move o lead pela máquina de estados — COM COMPENSAÇÃO. Se a RPC falhar,
   //    desfaz o agendamento
@@ -120,7 +137,7 @@ export async function criarAgendamento(
 
   // 3) Follow-up automático (best-effort — vira aviso, nunca derruba o fluxo).
   let followUpCriado = false;
-  if (opts.criarFollowUp && opts.moverLeadPara) {
+  if (opts.criarFollowUp && opts.moverLeadPara && !entregueViaSdr) {
     try {
       followUpCriado = await criarFollowUpAutomatico({
         leadId: input.leadId,
