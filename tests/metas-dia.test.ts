@@ -237,8 +237,11 @@ import {
   balancoDoDia,
   checkpointDevido,
   contatosNecessarios,
+  descreverProjecao,
+  diasUteisEntre,
   diasUteisRestantesSemana,
   horaSaoPaulo,
+  projecaoPorDia,
   mensagemCheckpoint,
   normalizarTaxasRpc,
   ritmoEsperado,
@@ -250,6 +253,7 @@ import {
 
 const rpc = (over: Partial<TaxasRpc> = {}): TaxasRpc => ({
   dias: 30,
+  inicio: "2026-08-05",
   minhas: { contatos: 100, agendamentos: 10, documentacoes: 5, vendas: 2 },
   time: { contatos: 1000, agendamentos: 50, documentacoes: 20, vendas: 5 },
   corretores: 8,
@@ -269,6 +273,7 @@ describe("taxasConversao", () => {
       }),
     ).toEqual({
       dias: 30,
+      inicio: null,
       minhas: { contatos: 7, agendamentos: 1, documentacoes: 0, vendas: 0 },
       time: { contatos: 10, agendamentos: 2, documentacoes: 1, vendas: 1 },
       corretores: 3,
@@ -458,5 +463,36 @@ describe("checkpoints", () => {
         ),
       ),
     ).toBeNull();
+  });
+});
+
+describe("ritmo próprio e projeção", () => {
+  it("diasUteisEntre conta seg–sex no intervalo (ini, fim]", () => {
+    // 05/08 (qua) exclusivo → 04/09 (sex) inclusivo: 22 dias úteis
+    expect(diasUteisEntre("2026-08-05", "2026-09-04")).toBe(22);
+    expect(diasUteisEntre("2026-09-04", "2026-09-06")).toBe(0); // só sáb/dom
+    expect(diasUteisEntre("2026-09-04", "2026-09-04")).toBe(0);
+  });
+  it("média diária de contatos vem do PRÓPRIO corretor, mesmo quando a taxa é do time", () => {
+    const t = taxasConversao(
+      rpc({ minhas: { contatos: 11, agendamentos: 1, documentacoes: 0, vendas: 0 } }),
+      "2026-09-04",
+    );
+    expect(t.fonte).toBe("time");
+    expect(t.dias_uteis_janela).toBe(22);
+    expect(t.media_contatos_dia).toBe(0.5);
+    // sem inicio: aproxima 30 dias corridos ≈ 21 úteis
+    const semInicio = taxasConversao(rpc({ inicio: null }), "2026-09-04");
+    expect(semInicio.dias_uteis_janela).toBe(21);
+    expect(semInicio.media_contatos_dia).toBe(4.8);
+  });
+  it("projeção: média × taxa, descrita em linguagem de gente", () => {
+    expect(projecaoPorDia(null, 0.1)).toBeNull();
+    expect(projecaoPorDia(5, null)).toBeNull();
+    expect(projecaoPorDia(5, 0.02)).toBeCloseTo(0.1);
+    expect(descreverProjecao(0.1, "agendamentos")).toBe("≈ 1 agendamento a cada 10 dias úteis");
+    expect(descreverProjecao(2.4, "agendamentos")).toBe("≈ 2 agendamentos por dia");
+    expect(descreverProjecao(1, "documentacoes")).toBe("≈ 1 documentação por dia");
+    expect(descreverProjecao(null, "agendamentos")).toBeNull();
   });
 });

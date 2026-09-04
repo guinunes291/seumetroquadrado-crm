@@ -149,15 +149,30 @@ function Barras({
   );
 }
 
-/** "≈ N contatos para bater hoje" — some quando não há taxa ou tudo já foi batido. */
-function Contatos({ n, todasBatidas }: { n: number | null | undefined; todasBatidas: boolean }) {
+/** "≈ N contatos para bater hoje · sua média: M/dia" — some quando não há taxa ou tudo já foi batido. */
+function Contatos({
+  n,
+  media,
+  todasBatidas,
+}: {
+  n: number | null | undefined;
+  media: number | null | undefined;
+  todasBatidas: boolean;
+}) {
   if (n === null || n === undefined || n <= 0 || todasBatidas) return null;
+  const acima = media !== null && media !== undefined && media > 0 && n > media * 2;
   return (
     <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-      <PhoneCall className="h-3 w-3 text-primary" />
+      <PhoneCall className={cn("h-3 w-3", acima ? "text-warning" : "text-primary")} />
       <span>
         ≈ <span className="font-semibold tabular-nums text-foreground">{n} contatos</span> para
         bater hoje
+        {media !== null && media !== undefined && (
+          <span className={cn(acima && "text-warning")}>
+            {" "}
+            · sua média: <span className="tabular-nums">{media}</span>/dia
+          </span>
+        )}
       </span>
     </p>
   );
@@ -211,6 +226,7 @@ export function MetasDiaCard({
   meta,
   realizado,
   contatosHoje,
+  mediaContatosDia,
   onEditar,
 }: {
   uid: string;
@@ -219,6 +235,8 @@ export function MetasDiaCard({
   realizado: RealizadoDia | undefined;
   /** Contatos estimados para bater as metas de hoje (null = sem taxa). */
   contatosHoje?: number | null;
+  /** Média diária de contatos do corretor na janela (null = sem dado). */
+  mediaContatosDia?: number | null;
   onEditar: () => void;
 }) {
   const [recolhido, setRecolhido] = usePreference<boolean>(PREF_CARD_RECOLHIDO, false);
@@ -280,7 +298,7 @@ export function MetasDiaCard({
           {!recolhido && (
             <div className="space-y-2 pb-1 pt-1.5">
               <Barras prog={prog} visiveis={visiveis} realizado={realizado} />
-              <Contatos n={contatosHoje} todasBatidas={todasBatidas} />
+              <Contatos n={contatosHoje} media={mediaContatosDia} todasBatidas={todasBatidas} />
             </div>
           )}
         </div>,
@@ -304,7 +322,7 @@ export function MetasDiaCard({
         {!recolhido && (
           <div className="space-y-2.5 px-3 pb-3">
             <Barras prog={prog} visiveis={visiveis} realizado={realizado} />
-            <Contatos n={contatosHoje} todasBatidas={todasBatidas} />
+            <Contatos n={contatosHoje} media={mediaContatosDia} todasBatidas={todasBatidas} />
           </div>
         )}
       </aside>

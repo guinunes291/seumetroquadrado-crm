@@ -16,7 +16,9 @@ import {
   METAS_CHAVES,
   ROTULOS,
   contatosNecessarios,
+  descreverProjecao,
   normalizarMeta,
+  projecaoPorDia,
   plural,
   popupBloqueante,
   rotuloDoDia,
@@ -137,6 +139,7 @@ function BlocoConversao({ taxas }: { taxas: TaxasFunil }) {
           : time.vendas;
     return n > 0 ? Math.max(1, Math.round(time.contatos / n)) : null;
   };
+  const media = taxas.media_contatos_dia;
   return (
     <div className="space-y-1.5">
       <p className="text-xs text-muted-foreground">
@@ -181,6 +184,13 @@ function BlocoConversao({ taxas }: { taxas: TaxasFunil }) {
           );
         })}
       </ul>
+      {media !== null && (
+        <p className="text-xs text-muted-foreground">
+          Seu ritmo atual:{" "}
+          <span className="font-semibold text-foreground tabular-nums">{media} contatos</span> por
+          dia útil ({taxas.minhas?.contatos ?? 0} em {taxas.dias_uteis_janela} dias úteis).
+        </p>
+      )}
     </div>
   );
 }
@@ -213,6 +223,13 @@ function LinhaContatos({
     [valores, taxas, vendasSemanaAtual, dia],
   );
   if (!taxas.fonte) return null;
+  const media = taxas.media_contatos_dia;
+  // Meta muito acima do ritmo: o corretor precisa mais que o dobro do que faz por dia.
+  const acimaDoRitmo = calc.total !== null && media !== null && media > 0 && calc.total > media * 2;
+  const projecaoAg = descreverProjecao(
+    projecaoPorDia(media, taxas.agendamento_por_contato),
+    "agendamentos",
+  );
   const partes: string[] = [];
   if (calc.agendamentos !== null && calc.agendamentos > 0)
     partes.push(`${calc.agendamentos} p/ agendamentos`);
@@ -251,6 +268,19 @@ function LinhaContatos({
       </div>
       {partes.length > 1 && (
         <p className="mt-1 pl-6 text-[11px] text-muted-foreground">{partes.join(" · ")}</p>
+      )}
+      {media !== null && calc.total !== null && calc.total > 0 && (
+        <p
+          className={cn(
+            "mt-1 pl-6 text-[11px]",
+            acimaDoRitmo ? "text-warning" : "text-muted-foreground",
+          )}
+        >
+          Sua média é <span className="font-semibold tabular-nums">{media}</span> contatos por dia
+          {projecaoAg ? <>, o que projeta {projecaoAg}</> : null}.
+          {acimaDoRitmo &&
+            " Para bater essa meta, o volume de contatos precisa subir — ou a meta precisa caber no seu ritmo."}
+        </p>
       )}
     </div>
   );

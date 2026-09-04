@@ -143,7 +143,7 @@ export function MetasDiaGlobal() {
   const ultimaPronta = !ultimaQ.isPending;
   const ontemPronto = !precisaOntem || ontemQ.data !== undefined || ontemQ.isError;
 
-  const taxas = useMemo(() => taxasConversao(taxasQ.data ?? null), [taxasQ.data]);
+  const taxas = useMemo(() => taxasConversao(taxasQ.data ?? null, dia), [taxasQ.data, dia]);
   const balanco = useMemo(
     () =>
       primeira && ultimaQ.data && ontemQ.data ? balancoDoDia(ultimaQ.data, ontemQ.data, dia) : null,
@@ -235,6 +235,7 @@ export function MetasDiaGlobal() {
           meta={metaHoje}
           realizado={realizado}
           contatosHoje={contatosHoje?.total ?? null}
+          mediaContatosDia={taxas.media_contatos_dia}
           onEditar={() => setEditar(true)}
         />
       )}
