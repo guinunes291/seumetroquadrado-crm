@@ -228,3 +228,235 @@ describe("realizado", () => {
     ).toEqual({ total: 2, pendentes: 1 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fase 2 — conversão, contatos necessários, balanço e checkpoints
+// ---------------------------------------------------------------------------
+import {
+  avaliarCheckpoint,
+  balancoDoDia,
+  checkpointDevido,
+  contatosNecessarios,
+  diasUteisRestantesSemana,
+  horaSaoPaulo,
+  mensagemCheckpoint,
+  normalizarTaxasRpc,
+  ritmoEsperado,
+  rotuloDoDia,
+  taxasConversao,
+  umACada,
+  type TaxasRpc,
+} from "@/features/metas-dia/metas-dia";
+
+const rpc = (over: Partial<TaxasRpc> = {}): TaxasRpc => ({
+  dias: 30,
+  minhas: { contatos: 100, agendamentos: 10, documentacoes: 5, vendas: 2 },
+  time: { contatos: 1000, agendamentos: 50, documentacoes: 20, vendas: 5 },
+  corretores: 8,
+  ...over,
+});
+
+describe("taxasConversao", () => {
+  it("normaliza o jsonb da RPC e rejeita shape errado", () => {
+    expect(normalizarTaxasRpc(null)).toBeNull();
+    expect(normalizarTaxasRpc({ minhas: {} })).toBeNull();
+    expect(
+      normalizarTaxasRpc({
+        dias: "30",
+        minhas: { contatos: "7", agendamentos: 1, documentacoes: null, vendas: 0 },
+        time: { contatos: 10, agendamentos: 2, documentacoes: 1, vendas: 1 },
+        corretores: 3,
+      }),
+    ).toEqual({
+      dias: 30,
+      minhas: { contatos: 7, agendamentos: 1, documentacoes: 0, vendas: 0 },
+      time: { contatos: 10, agendamentos: 2, documentacoes: 1, vendas: 1 },
+      corretores: 3,
+    });
+  });
+  it("com 20+ contatos usa a taxa própria", () => {
+    const t = taxasConversao(rpc());
+    expect(t.fonte).toBe("minha");
+    expect(t.agendamento_por_contato).toBeCloseTo(0.1);
+    expect(umACada(t.agendamento_por_contato)).toBe(10);
+    expect(umACada(t.documentacao_por_contato)).toBe(20);
+    expect(umACada(t.venda_por_contato)).toBe(50);
+  });
+  it("com menos de 20 contatos cai na taxa do time e avisa a fonte", () => {
+    const t = taxasConversao(
+      rpc({ minhas: { contatos: 8, agendamentos: 3, documentacoes: 1, vendas: 0 } }),
+    );
+    expect(t.fonte).toBe("time");
+    expect(umACada(t.agendamento_por_contato)).toBe(20);
+  });
+  it("sem contatos em lugar nenhum: fonte null e taxas null", () => {
+    const t = taxasConversao(
+      rpc({
+        minhas: { contatos: 0, agendamentos: 0, documentacoes: 0, vendas: 0 },
+        time: { contatos: 0, agendamentos: 0, documentacoes: 0, vendas: 0 },
+      }),
+    );
+    expect(t.fonte).toBeNull();
+    expect(t.agendamento_por_contato).toBeNull();
+    expect(taxasConversao(null).fonte).toBeNull();
+  });
+  it("resultado zero com contatos não vira taxa zero (impossível projetar)", () => {
+    const t = taxasConversao(
+      rpc({ minhas: { contatos: 40, agendamentos: 4, documentacoes: 0, vendas: 0 } }),
+    );
+    expect(t.fonte).toBe("minha");
+    expect(t.documentacao_por_contato).toBeNull();
+  });
+});
+
+describe("contatosNecessarios", () => {
+  const taxas = taxasConversao(rpc()); // 1 ag / 10 contatos; 1 doc / 20; 1 venda / 50
+  it("é o maior entre as três necessidades", () => {
+    const r = contatosNecessarios(
+      { meta_agendamentos: 3, meta_documentacoes: 1, meta_vendas_semana: 1 },
+      taxas,
+      0,
+      "2026-09-02", // quarta: restam 3 dias úteis
+    );
+    expect(r.agendamentos).toBe(30);
+    expect(r.documentacoes).toBe(20);
+    expect(r.vendas).toBe(17); // ceil(1 / 0.02 / 3)
+    expect(r.total).toBe(30);
+  });
+  it("meta zero pede zero contatos; vendas já batidas na semana também", () => {
+    const r = contatosNecessarios(
+      { meta_agendamentos: 0, meta_documentacoes: 0, meta_vendas_semana: 2 },
+      taxas,
+      2,
+      "2026-09-02",
+    );
+    expect(r).toEqual({ agendamentos: 0, documentacoes: 0, vendas: 0, vendas_faltam: 0, total: 0 });
+  });
+  it("sem taxa: null, não NaN nem zero falso", () => {
+    const r = contatosNecessarios(
+      { meta_agendamentos: 3, meta_documentacoes: 0, meta_vendas_semana: 0 },
+      taxasConversao(null),
+      0,
+      "2026-09-02",
+    );
+    expect(r.agendamentos).toBeNull();
+    expect(r.total).toBeNull();
+  });
+  it("dias úteis restantes: seg=5 … sex=1, fim de semana=0 (cálculo usa mínimo 1)", () => {
+    expect(diasUteisRestantesSemana("2026-09-07")).toBe(5);
+    expect(diasUteisRestantesSemana("2026-09-04")).toBe(1);
+    expect(diasUteisRestantesSemana("2026-09-05")).toBe(0);
+    const sab = contatosNecessarios(
+      { meta_agendamentos: 0, meta_documentacoes: 0, meta_vendas_semana: 1 },
+      taxas,
+      0,
+      "2026-09-05",
+    );
+    expect(sab.vendas).toBe(50);
+  });
+});
+
+describe("balancoDoDia", () => {
+  const realizado = { agendamentos: 2, documentacoes: 2, vendas_semana: 1, vendas_pendentes: 1 };
+  it("lista o que faltou e o que foi batido, ignorando metas zero", () => {
+    const b = balancoDoDia(
+      meta({ dia: "2026-09-01", meta_documentacoes: 0 }),
+      realizado,
+      "2026-09-02",
+    );
+    expect(b.itens).toEqual([
+      { chave: "agendamentos", meta: 3, realizado: 2, faltou: 1, batida: false },
+    ]);
+    expect(b.vendas.semana_encerrada).toBe(false);
+    expect(b.pct_geral).toBe(67);
+  });
+  it("na segunda, a semana de sexta já fechou e as vendas entram no balanço", () => {
+    const sexta = meta({ dia: "2026-09-04", semana_inicio: "2026-08-31", meta_vendas_semana: 2 });
+    const b = balancoDoDia(sexta, realizado, "2026-09-07");
+    expect(b.vendas.semana_encerrada).toBe(true);
+    expect(b.vendas.faltou).toBe(1);
+    // ag 67% + doc 100% + vendas 50% = 72%
+    expect(b.pct_geral).toBe(72);
+  });
+  it("rotuloDoDia: ontem, senão dia da semana com data", () => {
+    expect(rotuloDoDia("2026-09-01", "2026-09-02")).toBe("ontem");
+    expect(rotuloDoDia("2026-09-04", "2026-09-07")).toBe("sexta-feira (04/09)");
+  });
+});
+
+describe("checkpoints", () => {
+  it("hora em São Paulo, não em UTC", () => {
+    expect(horaSaoPaulo(new Date("2026-09-02T18:30:00Z"))).toBe(15);
+    expect(horaSaoPaulo(new Date("2026-09-03T02:59:00Z"))).toBe(23);
+  });
+  it("ritmo esperado: 9h=0%, 12h=33%, 15h=67%, 18h+=100%", () => {
+    expect(ritmoEsperado(8)).toBe(0);
+    expect(ritmoEsperado(12)).toBeCloseTo(1 / 3);
+    expect(ritmoEsperado(15)).toBeCloseTo(2 / 3);
+    expect(ritmoEsperado(20)).toBe(1);
+  });
+  it("dispara só o último checkpoint passado, uma vez, e nunca antes da declaração", () => {
+    expect(checkpointDevido(11, [], null)).toBeNull();
+    expect(checkpointDevido(12, [], null)).toBe(12);
+    expect(checkpointDevido(16, [], null)).toBe(15); // abriu às 16h: só o das 15h
+    expect(checkpointDevido(16, [12, 15], null)).toBeNull();
+    expect(checkpointDevido(17, [12, 15], null)).toBe(17);
+    expect(checkpointDevido(16, [], 16)).toBeNull(); // declarou às 16h
+    expect(checkpointDevido(17, [], 16)).toBe(17);
+  });
+  it("avaliação: compara com o esperado para a hora", () => {
+    const av = avaliarCheckpoint(
+      meta(),
+      { agendamentos: 1, documentacoes: 2, vendas_semana: 0, vendas_pendentes: 0 },
+      15,
+    );
+    // 15h = 67%: esperado ceil(3*0.67)=2 agendamentos (tem 1 → atrasada); doc ceil(2*0.67)=2 (tem 2 → ok)
+    expect(av.esperado_pct).toBe(67);
+    expect(av.itens.find((i) => i.chave === "agendamentos")).toMatchObject({
+      esperado: 2,
+      atrasada: true,
+      faltam: 2,
+    });
+    expect(av.atrasadas).toBe(1);
+  });
+  it("mensagem: atenção quando atrasada, com sugestão de contatos pela taxa", () => {
+    const av = avaliarCheckpoint(
+      meta(),
+      { agendamentos: 1, documentacoes: 2, vendas_semana: 0, vendas_pendentes: 0 },
+      15,
+    );
+    const m = mensagemCheckpoint(av, taxasConversao(rpc()));
+    expect(m?.tom).toBe("atencao");
+    expect(m?.titulo).toBe("Ritmo abaixo da meta às 15h");
+    expect(m?.mensagem).toContain("Faltam 2 agendamentos");
+    expect(m?.mensagem).toContain("≈ 20 contatos");
+  });
+  it("mensagem: ok no ritmo; batidas quando tudo fechou; null sem meta", () => {
+    const ok = mensagemCheckpoint(
+      avaliarCheckpoint(
+        meta(),
+        { agendamentos: 2, documentacoes: 2, vendas_semana: 0, vendas_pendentes: 0 },
+        12,
+      ),
+    );
+    expect(ok?.tom).toBe("ok");
+    expect(ok?.titulo).toBe("No ritmo às 12h");
+    const fechou = mensagemCheckpoint(
+      avaliarCheckpoint(
+        meta(),
+        { agendamentos: 3, documentacoes: 2, vendas_semana: 0, vendas_pendentes: 0 },
+        17,
+      ),
+    );
+    expect(fechou?.titulo).toBe("Metas de hoje batidas às 17h");
+    expect(
+      mensagemCheckpoint(
+        avaliarCheckpoint(
+          meta({ meta_agendamentos: 0, meta_documentacoes: 0 }),
+          { agendamentos: 0, documentacoes: 0, vendas_semana: 0, vendas_pendentes: 0 },
+          12,
+        ),
+      ),
+    ).toBeNull();
+  });
+});
