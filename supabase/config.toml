@@ -27,6 +27,12 @@ verify_jwt = false
 [functions.crm-convites]
 verify_jwt = true
 
+# WhatsApp de entrega ao corretor. Dois chamadores: o app (JWT do usuário,
+# RLS) e o banco via pg_net (token de uso único em sdr_avisos_corretor, sem
+# JWT). A função autentica os dois sozinha, por isso o gateway não verifica.
+[functions.notify-lead-transfer]
+verify_jwt = false
+
 # Telefonia Sonax — click-to-call chamado do app com o JWT do corretor (RLS
 # decide o que ele pode discar/registrar).
 [functions.sonax-discar]

@@ -101,45 +101,62 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // exigir papel fixo, preservando o fluxo de roleta (o corretor vira dono do
   // lead antes de a notificação disparar).
   const authorization = req.headers.get("authorization") ?? "";
-  if (!authorization.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
 
-  let body: { lead_id?: string; corretor_id?: string; contexto?: string };
+  let body: { lead_id?: string; corretor_id?: string; contexto?: string; token?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
-  const leadId = body.lead_id;
-  const corretorId = body.corretor_id;
-  const contextoSdr = body.contexto === "sdr";
-  if (!leadId || !corretorId) return json({ error: "missing_params" }, 400);
 
   const url = Deno.env.get("SUPABASE_URL");
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   if (!url || !anonKey) return json({ error: "server_config" }, 503);
 
-  // Chamada interna (banco → pg_net, `_sdr_notificar_corretor`) autenticada
-  // com a service role guardada no Vault. Só vale para o contexto SDR: o motor
-  // já validou a entrega e o lead é relido abaixo com a mesma checagem
-  // (corretor_id + sdr_entregue_em). Sem usuário, sem RLS — por isso o
-  // contexto é restrito.
-  const bearer = authorization.slice("Bearer ".length).trim();
-  const interna = serviceKey.length > 0 && bearer === serviceKey;
-  if (interna && !contextoSdr) return json({ error: "forbidden" }, 403);
+  // Chamada interna (banco → pg_net, `_sdr_notificar_corretor`): o banco não
+  // guarda chave nenhuma — manda um TOKEN de uso único (sdr_avisos_corretor,
+  // 1 h de validade) e esta função, com a service role que recebe do
+  // ambiente, consome o token e descobre lead/corretor. O token só existe se
+  // o motor gravou a entrega; o lead é relido abaixo com a mesma checagem
+  // (corretor_id + sdr_entregue_em). Sempre contexto SDR.
+  let leadId = body.lead_id;
+  let corretorId = body.corretor_id;
+  let contextoSdr = body.contexto === "sdr";
+  const token = typeof body.token === "string" ? body.token.trim() : "";
+  const interna = token.length > 0;
+
+  if (interna && serviceKey.length === 0) return json({ error: "server_config" }, 503);
 
   const supabase = createClient(url, interna ? serviceKey : anonKey, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: interna ? `Bearer ${serviceKey}` : authorization } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  if (!interna) {
+  if (interna) {
+    const { data: aviso, error: avisoErr } = await supabase
+      .from("sdr_avisos_corretor")
+      .update({ consumido_em: new Date().toISOString() })
+      .eq("token", token)
+      .is("consumido_em", null)
+      .gt("expira_em", new Date().toISOString())
+      .select("lead_id, corretor_id")
+      .maybeSingle();
+    if (avisoErr) return json({ error: "token_check_failed" }, 500);
+    if (!aviso) return json({ error: "unauthorized", motivo: "token_invalido" }, 401);
+    leadId = String((aviso as { lead_id: string }).lead_id);
+    corretorId = String((aviso as { corretor_id: string }).corretor_id);
+    contextoSdr = true;
+  } else {
+    // Caminho por usuário: identidade do chamador, leitura sob a RLS dele.
+    if (!authorization.startsWith("Bearer ")) return json({ error: "unauthorized" }, 401);
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) return json({ error: "unauthorized" }, 401);
 
     const { data: contaAtiva, error: contaError } = await supabase.rpc("conta_atual_ativa");
     if (contaError || !contaAtiva) return json({ error: "account_inactive" }, 403);
   }
+  if (!leadId || !corretorId) return json({ error: "missing_params" }, 400);
 
   const { data: lead, error: leadErr } = await supabase
     .from("leads")
