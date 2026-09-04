@@ -98,8 +98,15 @@ describe("visibilidade por papel", () => {
     expect(ids(admin)).toEqual(SISTEMAS.map((s) => s.id));
   });
 
-  it("SDR (2026-09-04): hub próprio + Docs & Projetos; nada do dia do corretor", () => {
-    expect(ids(sdr)).toEqual(["sdr", "docs-projetos"]);
+  it("SDR (2026-09-04): Prospecção (carteira antiga) + hub próprio + Docs & Projetos", () => {
+    // Prospecção volta para o SDR porque quem virou SDR vindo de corretor
+    // ainda é corretor_id de leads agendados/base — só Modo Foco e Base de
+    // leads, sem as seções de gestão.
+    expect(ids(sdr)).toEqual(["prospeccao", "sdr", "docs-projetos"]);
+    expect(secoesVisiveis(sistema("prospeccao"), sdr).map((s) => s.id)).toEqual([
+      "modo-foco",
+      "base-leads",
+    ]);
     expect(secoesVisiveis(sistema("sdr"), sdr).map((s) => s.id)).toEqual([
       "base",
       "reaquecer",

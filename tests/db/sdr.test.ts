@@ -434,6 +434,56 @@ describe("reaquecer lead parado de corretor", () => {
     expect(res.corretor_id).toBe(corretorA.id);
     await comoSuperuser(c);
   });
+
+  it("carteira antiga: lead em que a própria SDR é corretor_id vai para a roleta, nunca de volta para ela", async () => {
+    // Caso Vanessa (2026-09-04): virou SDR, mas segue como corretor_id de leads
+    // agendados/base da carteira antiga. Sem a guarda `corretor_sem_papel`, a
+    // prioridade do "dono original" entregaria o lead para o próprio SDR.
+    await comoSuperuser(c);
+    const legado = await criarLead(c, {
+      nome: "Legado da Carla",
+      corretorId: sdr.id,
+      status: "em_atendimento",
+    });
+    await c.query(
+      `UPDATE public.leads SET ultima_atividade_em = now() - interval '10 days' WHERE id = $1`,
+      [legado],
+    );
+
+    await comoUsuario(c, sdr.id);
+    // Aparece no Reaquecer como qualquer lead parado de corretor…
+    const r0 = await c.query(`SELECT id FROM public.sdr_leads_reaquecer(50)`);
+    expect(r0.rows.map((x) => x.id)).toContain(legado);
+    await c.query(`SELECT public.sdr_pegar_lead($1)`, [legado]);
+    // …mas na visita a prioridade é recusada (corretor_sem_papel) e cai na roleta.
+    const r = await c.query(
+      `SELECT public.agendar_visita_sdr($1, now() + interval '6 days') AS res`,
+      [legado],
+    );
+    const res = r.rows[0].res as Record<string, unknown>;
+    expect(res.ok).toBe(true);
+    expect(res.regra).toBe("roleta_sdr");
+    expect(res.corretor_id).toBe(corretorA.id);
+    expect(res.corretor_id).not.toBe(sdr.id);
+
+    await comoSuperuser(c);
+    const ctx = await c.query(
+      `SELECT lc.contexto->>'prioridade_recusa' AS recusa
+         FROM public.distribution_log dl
+         JOIN public.distribuicao_log_contexto lc ON lc.log_id = dl.id
+        WHERE dl.lead_id = $1 AND dl.resultado = 'sucesso'
+        ORDER BY dl.created_at DESC
+        LIMIT 1`,
+      [legado],
+    );
+    expect(ctx.rows[0]?.recusa).toBe("corretor_sem_papel");
+    const l = await lead(legado);
+    expect(l.corretor_id).toBe(corretorA.id);
+    expect(l.corretor_anterior_id).toBe(sdr.id);
+    expect(l.sdr_id).toBe(sdr.id);
+    expect(l.sdr_entregue_em).not.toBeNull();
+    expect(l.status).toBe("agendado");
+  });
 });
 
 describe("espelho pelo admin", () => {

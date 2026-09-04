@@ -421,19 +421,30 @@ function AgendaView({ sdrId }: { sdrId: string }) {
   const visitas = useQuery({
     queryKey: ["sdr:visitas", sdrId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("agendamentos")
-        .select(
-          "id, titulo, data_inicio, status, local, lead_id, corretor_id, leads!inner(nome, sdr_id)",
-        )
-        .eq("leads.sdr_id", sdrId)
-        .eq("tipo", "visita")
-        .is("deleted_at", null)
-        .gte("data_inicio", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .order("data_inicio", { ascending: true })
-        .limit(100);
-      if (error) throw error;
-      return data ?? [];
+      const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const colunas =
+        "id, titulo, data_inicio, status, local, lead_id, corretor_id, leads!inner(nome, sdr_id)";
+      const base = () =>
+        supabase
+          .from("agendamentos")
+          .select(colunas)
+          .eq("tipo", "visita")
+          .is("deleted_at", null)
+          .gte("data_inicio", desde)
+          .order("data_inicio", { ascending: true })
+          .limit(100);
+      // Duas origens: visitas dos leads da base de pré-venda (o SDR confirma
+      // D-1/D-0) e visitas legadas no próprio nome do SDR — quem virou SDR
+      // vindo de corretor ainda tem clientes agendados na carteira antiga.
+      const [daBase, legadas] = await Promise.all([
+        base().eq("leads.sdr_id", sdrId),
+        base().eq("corretor_id", sdrId),
+      ]);
+      if (daBase.error) throw daBase.error;
+      if (legadas.error) throw legadas.error;
+      const porId = new Map<string, NonNullable<typeof daBase.data>[number]>();
+      for (const v of [...(daBase.data ?? []), ...(legadas.data ?? [])]) porId.set(v.id, v);
+      return [...porId.values()].sort((a, b) => a.data_inicio.localeCompare(b.data_inicio));
     },
   });
   const nomes = useNomesCorretores((visitas.data ?? []).map((v) => v.corretor_id));
