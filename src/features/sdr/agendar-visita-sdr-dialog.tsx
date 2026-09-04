@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { sdrRegraLabel } from "@/lib/sdr";
-import { agendarVisitaSdr, notificarCorretorSdr, useInvalidarSdr } from "./client";
+import { agendarVisitaSdr, useInvalidarSdr } from "./client";
 
 function toLocal(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -71,21 +71,27 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
       const inicio = new Date(dataInicio);
       if (Number.isNaN(inicio.getTime())) throw new Error("Informe a data e o horário da visita.");
       if (inicio.getTime() <= Date.now()) throw new Error("A visita precisa estar no futuro.");
+      // O corretor recebe a mensagem com endereço e horário — sem endereço não há visita.
+      if (!local.trim()) {
+        throw new Error(
+          "Informe o endereço da visita. O corretor recebe a mensagem com endereço e horário.",
+        );
+      }
       const fim = new Date(inicio.getTime() + 60 * 60 * 1000);
       return agendarVisitaSdr({
         leadId: lead.id,
         dataInicio: inicio.toISOString(),
         dataFim: fim.toISOString(),
         titulo: titulo.trim() || null,
-        local: local.trim() || null,
+        local: local.trim(),
         descricao: descricao.trim() || null,
       });
     },
     onSuccess: async (res) => {
+      // O WhatsApp ao corretor (endereço, horário, resumo) sai do banco.
       toast.success(`Visita marcada com ${res.corretor_nome ?? "o corretor"}`, {
-        description: `${sdrRegraLabel(res.regra)} · você confirma a visita (D-1 e no dia); o corretor atende da visita em diante.`,
+        description: `${sdrRegraLabel(res.regra)} · o corretor recebe o WhatsApp com endereço e horário; você confirma a visita (D-1 e no dia).`,
       });
-      if (res.corretor_id) void notificarCorretorSdr(lead.id, res.corretor_id);
       invalidar(lead.id);
       onOpenChange(false);
       onDone?.();
@@ -157,10 +163,11 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="sdr-visita-local">Local</Label>
+              <Label htmlFor="sdr-visita-local">Local (endereço) *</Label>
               <Input
                 id="sdr-visita-local"
                 value={local}
+                required
                 placeholder="Estande, decorado, endereço…"
                 onChange={(e) => setLocal(e.target.value)}
               />
