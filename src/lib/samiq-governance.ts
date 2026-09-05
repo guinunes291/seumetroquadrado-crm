@@ -77,6 +77,19 @@ export function redactSamiQFreeText(value: string, maxLength = 600): string {
     .slice(0, maxLength);
 }
 
+/**
+ * Nome completo do cliente para campos ESTRUTURADOS (decisão D12): o modelo
+ * precisa distinguir duas "Maria" na carteira e citar o cliente pelo nome.
+ * Telefone, CPF, e-mail, endereço e banco continuam bloqueados por chave e por
+ * padrão; texto livre segue com a camada agressiva (redactSamiQFreeText).
+ */
+export function displayNameForSamiQ(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const nome = value.trim().replace(/\s+/g, " ").slice(0, 80);
+  if (!nome || /\d/.test(nome)) return null;
+  return redactSamiQPii(nome, 80);
+}
+
 export function firstNameForSamiQ(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const first = value.trim().split(/\s+/)[0]?.slice(0, 40) ?? "";

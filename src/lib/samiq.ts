@@ -5,6 +5,10 @@
 //
 // Doutrina: o SamiQ SUGERE, o corretor decide. Nada aqui escreve no banco nem
 // envia mensagem — as sugestões viram texto copiável ou navegação.
+//
+// Onda S1 (docs/samiq/2026-09-05-decisoes-copiloto.md): a pergunta livre ganha
+// ferramentas de LEITURA sobre a carteira (samiq-tools.ts) e a conversa passa
+// a ser persistida (conversaId). Escrita continua fora — é a Onda S2.
 
 import { z } from "zod";
 
@@ -39,6 +43,8 @@ export const SamiQInputSchema = z.object({
     )
     .max(6)
     .optional(),
+  /** Conversa persistida a continuar (samiq_conversas); ausente = nova. */
+  conversaId: z.string().uuid().optional(),
 });
 
 export type SamiQInput = z.infer<typeof SamiQInputSchema>;
@@ -54,6 +60,16 @@ export type SamiQSugestao = {
 export type SamiQResposta = {
   texto: string;
   sugestoes: SamiQSugestao[];
+  /** Execução em samiq_execucoes — alvo do 👍/👎 (samiq_avaliar_execucao). */
+  executionId?: string | null;
+  /** Conversa persistida onde o turno foi gravado; null se a memória falhou. */
+  conversaId?: string | null;
+  /** Ferramentas de leitura consultadas nesta resposta (nomes de samiq-tools). */
+  ferramentas?: string[];
+  /** true quando a Sami não conseguiu responder (métrica de fallback, D17). */
+  fallback?: boolean;
+  /** % do orçamento mensal do papel já usado (D18); null = sem teto. */
+  custoMesPct?: number | null;
 };
 
 type ActionMeta = {

@@ -17,6 +17,7 @@ import { DuplicatasPage } from "@/features/gestao/duplicatas-page";
 import { LixeiraPage } from "@/features/gestao/lixeira-page";
 import { EstoquePage } from "@/features/gestao/estoque-page";
 import { CampanhasPage } from "@/features/gestao/campanhas-page";
+import { SamiQQualidadeCard } from "@/features/samiq/qualidade-card";
 import {
   BellRinging,
   Lock,
@@ -173,6 +174,7 @@ function ConfiguracoesPage() {
           <TemplatesPage />
         </TabsContent>
         <TabsContent value="qualidade" className="space-y-10">
+          <SamiQQualidadeCard />
           <DuplicatasPage />
           <LixeiraPage />
         </TabsContent>

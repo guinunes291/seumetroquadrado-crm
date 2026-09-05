@@ -1,13 +1,19 @@
 // SamiQ server-side: contexto RLS-scoped e minimizado, configuração versionada
-// no banco, quota distribuída e telemetria sem conteúdo/PII. O modelo não
-// recebe ferramentas; a resposta continua limitada a texto para copiar/navegar.
+// no banco, quota distribuída e telemetria sem conteúdo/PII.
+//
+// Onda S1 (docs/samiq/2026-09-05-decisoes-copiloto.md): a pergunta livre roda
+// um loop de FERRAMENTAS DE LEITURA sobre a carteira (samiq-tools.server.ts)
+// quando a versão de prompt ativa autoriza (tools_enabled). O modelo continua
+// sem qualquer ferramenta de escrita; a resposta segue limitada a texto para
+// copiar/navegar. Cada turno é gravado na memória (samiq-memoria.server.ts).
 
 import { createServerFn } from "@tanstack/react-start";
-import { generateText } from "ai";
+import { generateText, stepCountIs, type ModelMessage } from "ai";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { parseAtendimentoInbox } from "@/features/atendimento/inbox";
 import {
+  displayNameForSamiQ,
   estimateSamiQTokens,
   firstNameForSamiQ,
   minimizeSamiQContext,
@@ -19,10 +25,19 @@ import {
   sugestoesPara,
   type SamiQResposta,
 } from "@/lib/samiq";
+import {
+  SAMIQ_TEXTO_SEM_RESPOSTA,
+  contarFerramentasSamiQ,
+  detectarFallbackSamiQ,
+  hojeSaoPaulo,
+} from "@/lib/samiq-tools";
 
 // 24k de contexto + ate 7,2k de historico + prompts cabem com margem.
 // A finalizacao substitui esta reserva conservadora pelo consumo real.
 const RESERVED_INPUT_TOKENS = 10_000;
+// Com ferramentas, cada passo devolve um resultado ao modelo: reserva maior,
+// ainda dentro do teto de 50k da RPC.
+const RESERVED_INPUT_TOKENS_COM_FERRAMENTAS = 24_000;
 const MAX_CONTEXT_CHARS = 24_000;
 
 export const perguntarSamiQ = createServerFn({ method: "POST" })
@@ -39,11 +54,15 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
 
     const { finishSamiQExecution, reserveSamiQExecution } =
       await import("./samiq-governance.server");
+    const podeUsarFerramentas = data.action === "pergunta_livre";
     const reservation = await reserveSamiQExecution({
       userId,
       action: data.action,
-      estimatedInputTokens: RESERVED_INPUT_TOKENS,
+      estimatedInputTokens: podeUsarFerramentas
+        ? RESERVED_INPUT_TOKENS_COM_FERRAMENTAS
+        : RESERVED_INPUT_TOKENS,
     });
+    const usarFerramentas = podeUsarFerramentas && reservation.toolsEnabled;
     const startedAt = Date.now();
     let errorCode = "context_error";
 
@@ -89,7 +108,13 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
         if (leadErr || interactionErr) throw new Error("context_unavailable");
         if (!lead) throw new Error("lead_not_found");
         const { nome: leadName, ...leadWithoutName } = lead;
-        ctx.cliente = { ...leadWithoutName, primeiro_nome: firstNameForSamiQ(leadName) };
+        // Nome completo só quando a versão ativa já é a que sabe lidar com ele
+        // (D12); com a v2 no ar, o comportamento antigo (primeiro nome) fica.
+        ctx.cliente = {
+          ...leadWithoutName,
+          primeiro_nome: firstNameForSamiQ(leadName),
+          ...(reservation.toolsEnabled ? { nome: displayNameForSamiQ(leadName) } : {}),
+        };
         ctx.ultimasInteracoes = (interacoes ?? []).map((interaction) => ({
           em: interaction.ocorreu_em,
           tipo: interaction.tipo,
@@ -169,43 +194,95 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
       }
 
       // ----- Prompt versionado e minimizado -----
-      const safeContext = minimizeSamiQContext(ctx, { maxArray: 40, maxString: 400 });
+      const safeContext = minimizeSamiQContext(ctx, { maxArray: 40, maxString: 400 }) as Record<
+        string,
+        unknown
+      >;
       const contextJson = JSON.stringify(safeContext);
-      const parts: string[] = [`Ação solicitada: ${meta.label}.`, reservation.actionPrompt];
-      if (data.pergunta) {
-        parts.push(`Detalhe do corretor: ${redactSamiQFreeText(data.pergunta, 500)}`);
-      }
-      if (Object.keys(ctx).length > 0) {
-        parts.push(
-          `Contexto minimizado (${reservation.promptVersion}):\n${contextJson.slice(0, MAX_CONTEXT_CHARS)}`,
-        );
-      }
-      if (data.historico?.length) {
-        parts.push(
-          `Conversa recente:\n${data.historico
-            .map(
-              (message) =>
-                `${message.role === "user" ? "Corretor" : "SamiQ"}: ${redactSamiQFreeText(message.content, 600)}`,
-            )
-            .join("\n")}`,
-        );
-      }
-      const prompt = parts.join("\n\n");
+      const perguntaSegura = data.pergunta ? redactSamiQFreeText(data.pergunta, 500) : "";
+      const historicoSeguro = (data.historico ?? []).map((message) => ({
+        role: message.role,
+        content: redactSamiQFreeText(message.content, 600),
+      }));
 
       errorCode = "gateway_error";
       const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
       const gateway = createLovableAiGatewayProvider(apiKey);
       const model = gateway(reservation.modelId);
-      const result = await generateText({
-        model,
-        system: reservation.systemPrompt,
-        prompt,
-        maxOutputTokens: reservation.maxOutputTokens,
-      });
 
-      const inputTokens =
-        result.usage.inputTokens ?? estimateSamiQTokens(reservation.systemPrompt + prompt);
-      const outputTokens = result.usage.outputTokens ?? estimateSamiQTokens(result.text);
+      let texto = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let telemetria = { chamadas: 0, erros: 0, nomes: [] as string[] };
+
+      if (usarFerramentas) {
+        // Loop de ferramentas de LEITURA: o modelo consulta a carteira pelo
+        // supabase do usuário (RLS) até o teto de passos da política.
+        const { criarFerramentasSamiQ } = await import("./samiq-tools.server");
+        const tools = criarFerramentasSamiQ({ supabase, userId });
+        const cabecalho = [
+          `Ação solicitada: ${meta.label}.`,
+          reservation.actionPrompt,
+          `Hoje é ${hojeSaoPaulo()} (fuso de São Paulo).`,
+          data.leadId
+            ? `Cliente em contexto (id ${data.leadId}): ${JSON.stringify(safeContext.cliente ?? {}).slice(0, 2000)}`
+            : "Sem cliente em contexto — use buscar_clientes quando o corretor citar um nome.",
+        ];
+        const messages: ModelMessage[] = [
+          ...historicoSeguro.map((m) => ({ role: m.role, content: m.content })),
+          {
+            role: "user",
+            content: `${cabecalho.join("\n")}\n\nPergunta do corretor: ${perguntaSegura || "(vazia)"}`,
+          },
+        ];
+        const result = await generateText({
+          model,
+          system: reservation.systemPrompt,
+          messages,
+          tools,
+          stopWhen: stepCountIs(reservation.maxToolSteps),
+          maxOutputTokens: reservation.maxOutputTokens,
+        });
+        telemetria = contarFerramentasSamiQ(result.steps);
+        texto = result.text.trim();
+        inputTokens =
+          result.totalUsage.inputTokens ??
+          estimateSamiQTokens(reservation.systemPrompt + JSON.stringify(messages));
+        outputTokens = result.totalUsage.outputTokens ?? estimateSamiQTokens(texto);
+      } else {
+        const parts: string[] = [`Ação solicitada: ${meta.label}.`, reservation.actionPrompt];
+        if (perguntaSegura) parts.push(`Detalhe do corretor: ${perguntaSegura}`);
+        if (Object.keys(ctx).length > 0) {
+          parts.push(
+            `Contexto minimizado (${reservation.promptVersion}):\n${contextJson.slice(0, MAX_CONTEXT_CHARS)}`,
+          );
+        }
+        if (historicoSeguro.length) {
+          parts.push(
+            `Conversa recente:\n${historicoSeguro
+              .map(
+                (message) =>
+                  `${message.role === "user" ? "Corretor" : "SamiQ"}: ${message.content}`,
+              )
+              .join("\n")}`,
+          );
+        }
+        const prompt = parts.join("\n\n");
+        const result = await generateText({
+          model,
+          system: reservation.systemPrompt,
+          prompt,
+          maxOutputTokens: reservation.maxOutputTokens,
+        });
+        texto = result.text.trim();
+        inputTokens =
+          result.usage.inputTokens ?? estimateSamiQTokens(reservation.systemPrompt + prompt);
+        outputTokens = result.usage.outputTokens ?? estimateSamiQTokens(texto);
+      }
+
+      const fallback = detectarFallbackSamiQ(texto);
+      if (!texto) texto = SAMIQ_TEXTO_SEM_RESPOSTA;
+
       const recorded = await finishSamiQExecution({
         userId,
         executionId: reservation.executionId,
@@ -213,14 +290,39 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
         inputTokens,
         outputTokens,
         latencyMs: Date.now() - startedAt,
+        toolCalls: telemetria.chamadas,
+        toolErrors: telemetria.erros,
+        fallback,
       });
       if (!recorded) {
         console.error(JSON.stringify({ event: "samiq_metrics_failed", status: "completed" }));
       }
 
+      // ----- Memória (D11): o turno vai para a conversa, já redigido -----
+      const { gravarTurnoSamiQ } = await import("./samiq-memoria.server");
+      const rotulo = data.pergunta
+        ? data.action === "pergunta_livre"
+          ? data.pergunta
+          : `${meta.label}: ${data.pergunta}`
+        : meta.label;
+      const conversaId = await gravarTurnoSamiQ({
+        userId,
+        conversaId: data.conversaId ?? null,
+        leadId: data.leadId ?? null,
+        pergunta: rotulo,
+        resposta: texto,
+        ferramentas: telemetria.nomes,
+        executionId: reservation.executionId,
+      });
+
       return {
-        texto: result.text.trim(),
-        sugestoes: sugestoesPara(data.action, result.text, data.leadId),
+        texto,
+        sugestoes: sugestoesPara(data.action, texto, data.leadId),
+        executionId: reservation.executionId,
+        conversaId,
+        ferramentas: telemetria.nomes,
+        fallback,
+        custoMesPct: reservation.custoMesPct,
       };
     } catch (error) {
       await recordFailure();
