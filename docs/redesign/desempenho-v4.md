@@ -81,6 +81,12 @@ junho muda** — é o custo de trigger e reconciliação passarem a responder co
 mesma régua (a da pontuação, descrita acima). O cron de conquistas pode
 conceder medalhas com os totais novos.
 
+A migration foi feita para rodar com o sistema vivo: os triggers são trocados
+com `CREATE OR REPLACE TRIGGER` (ShareRowExclusive, nunca bloqueia leitura) em
+vez de `DROP` + `CREATE` (AccessExclusive, que causou deadlock com o discador
+na primeira tentativa em produção), e `lock_timeout` de 10 s faz a transação
+falhar inteira e limpa, para repetir, em vez de enfileirar o app atrás dela.
+
 `ranking_periodo_v2`: contas com `profiles.ativo = false` saem do escopo (mesma
 régua de `gestao_pacing`); "leads recebidos" passa a contar pela data de
 distribuição — a régua da Inteligência (`metrics.performance_corretor_mensal`),
