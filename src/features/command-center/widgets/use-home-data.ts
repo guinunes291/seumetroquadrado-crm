@@ -20,7 +20,7 @@ import {
 } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
-import { dateKey } from "@/lib/periodo";
+import { agoraSaoPaulo, dateKey } from "@/lib/periodo";
 import { useAuth } from "@/hooks/use-auth";
 import { useLeadsSlaPendentes } from "@/features/dashboard/queries";
 import { scoreLead } from "@/lib/priority";
@@ -50,12 +50,14 @@ export type MetaDiaria = {
   meta_vendas: number;
 };
 
-// Dia LOCAL (America/Sao_Paulo na operação) — toISOString viraria o dia em
-// UTC às 21h de Brasília e zerava os cards de "hoje" à noite.
+// Dia de São Paulo (o fuso da operação e dos triggers de pontuação) —
+// toISOString viraria o dia em UTC às 21h de Brasília e zerava os cards de
+// "hoje" à noite; o relógio local do aparelho faria o mesmo para quem está
+// em outro fuso. agoraSaoPaulo() materializa o relógio de SP nos campos
+// locais, e dateKey lê esses campos.
 const toDate = dateKey;
 
-export function intervalo(p: Periodo): { di: string; df: string } {
-  const now = new Date();
+export function intervalo(p: Periodo, now: Date = agoraSaoPaulo()): { di: string; df: string } {
   if (p === "hoje") return { di: toDate(now), df: toDate(now) };
   if (p === "semana") {
     const s = new Date(now);
@@ -107,7 +109,7 @@ export function useStreakAtividade({ scopeIds, scopeKey, scopeReady }: ScopeProp
     queryKey: ["meu-painel:streak", scopeKey],
     enabled: !!user && scopeReady,
     queryFn: async () => {
-      const ini = new Date();
+      const ini = agoraSaoPaulo();
       ini.setDate(ini.getDate() - 35);
       let q = supabase
         .from("atividades_diarias")
@@ -132,7 +134,7 @@ export function useStreakAtividade({ scopeIds, scopeKey, scopeReady }: ScopeProp
             0,
         )
         .map((r) => r.dia);
-      return computeStreak(ativos, toDate(new Date()));
+      return computeStreak(ativos, toDate(agoraSaoPaulo()));
     },
   });
 }

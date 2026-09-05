@@ -134,6 +134,10 @@ export function VisitFeedbackDialog({ lead, onOpenChange, onDone }: Props) {
             status: "agendado",
             data_inicio: inicio.toISOString(),
             data_fim: new Date(inicio.getTime() + 60 * 60 * 1000).toISOString(),
+            // Registro criado só para DATAR uma visita que já aconteceu: conta
+            // como visita realizada, nunca como "agendamento criado" (régua
+            // de datas 20260731121000) — sem isto rendia 100 pts de agenda.
+            auto_gerado: true,
           } as never)
           .select("id")
           .single();

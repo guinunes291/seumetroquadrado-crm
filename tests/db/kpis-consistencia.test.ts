@@ -899,3 +899,93 @@ describe("lixeira e deleted_at ficam fora das contagens ativas", () => {
     expect(await refCount(`${ATIVO}`)).toBe(ATIVOS_TOTAL);
   });
 });
+
+// ---------------------------------------------------------------------------
+// ranking_periodo_v2 (hub de Desempenho) vs metricas_periodo_v2 (dashboard)
+// ---------------------------------------------------------------------------
+// O Real x Meta soma as linhas do ranking; o dashboard/Dinheiro lê
+// metricas_periodo_v2. Mesma população (todas as contas do seed são ativas e
+// com papel corretor/gestor/admin) e mesma janela SP → mesmos números.
+
+async function rankingSomado(userId: string, inicio: string, fim: string) {
+  await comoUsuario(c, userId);
+  const r = await c.query(
+    `SELECT coalesce(sum(vendas), 0)::int AS vendas,
+            coalesce(sum(vgv), 0)::numeric AS vgv,
+            coalesce(sum(pontuacao), 0)::int AS pontuacao,
+            coalesce(sum(ligacoes), 0)::int AS ligacoes,
+            coalesce(sum(whatsapps), 0)::int AS whatsapps,
+            coalesce(sum(agendamentos), 0)::int AS agendamentos,
+            coalesce(sum(visitas), 0)::int AS visitas,
+            coalesce(sum(documentacoes), 0)::int AS documentacoes
+       FROM public.ranking_periodo_v2($1::date, $2::date, 50)`,
+    [inicio, fim],
+  );
+  await comoSuperuser(c);
+  return r.rows[0] as Record<string, number | string>;
+}
+
+const CONTADORES = ["ligacoes", "whatsapps", "agendamentos", "visitas", "documentacoes"] as const;
+
+describe("ranking_periodo_v2 (Desempenho) vs metricas_periodo_v2 (dashboard), mesma janela SP", () => {
+  // O seed acima só tem leads e vendas: sem isto os cinco contadores de
+  // atividade seriam 0 == 0 dos dois lados e a garantia ficaria vazia. É o
+  // último describe do arquivo, então nada aqui altera os números anteriores.
+  beforeAll(async () => {
+    const ativ = async (corretorId: string) => {
+      const lead = await criarLead(c, { corretorId, status: "em_atendimento" });
+      await comoSuperuser(c);
+      await c.query(
+        `INSERT INTO public.interacoes (lead_id, autor_id, tipo, direcao, conteudo)
+         VALUES ($1, $2, 'ligacao'::public.interacao_tipo, 'saida', 'kpi'),
+                ($1, $2, 'whatsapp'::public.interacao_tipo, 'saida', 'kpi')`,
+        [lead, corretorId],
+      );
+      const ag = await c.query(
+        `INSERT INTO public.agendamentos
+           (lead_id, corretor_id, criado_por_id, titulo, tipo, status, data_inicio, data_fim)
+         VALUES ($1, $2, $2, 'kpi', 'visita'::public.agendamento_tipo,
+                 'agendado'::public.agendamento_status, now() + interval '1 day',
+                 now() + interval '1 day 1 hour')
+         RETURNING id`,
+        [lead, corretorId],
+      );
+      // Visita validada hoje (dia da visita em SP dentro da janela).
+      await c.query(
+        `UPDATE public.agendamentos
+            SET status = 'realizado'::public.agendamento_status,
+                data_inicio = now() - interval '2 hours', data_fim = now() - interval '1 hour'
+          WHERE id = $1`,
+        [ag.rows[0].id],
+      );
+      await c.query(
+        `INSERT INTO public.lead_status_transitions (lead_id, corretor_id, de_status, para_status, alterado_por)
+         VALUES ($1, $2, 'em_atendimento'::public.lead_status, 'analise_credito'::public.lead_status, $2)`,
+        [lead, corretorId],
+      );
+    };
+    await ativ(corretor1.id); // equipe A
+    await ativ(corretor3.id); // equipe B — fora do escopo do gestor A
+  });
+
+  it("admin: vendas, VGV, pontos e atividades somados do ranking == totais do dashboard", async () => {
+    const r = await rankingSomado(admin.id, METRICAS_INICIO, METRICAS_FIM);
+    const m = await metricasPeriodo(admin.id, METRICAS_INICIO, METRICAS_FIM);
+    expect(r.vendas).toBe(VENDAS_APROVADAS);
+    expect(r.vendas).toBe(m.vendas);
+    expect(Number(r.vgv)).toBe(Number(m.vgv));
+    expect(r.pontuacao).toBe(m.pontuacao);
+    // A comparação não pode ser vazia: cada contador tem atividade real.
+    for (const k of CONTADORES) expect(r[k]).toBeGreaterThan(0);
+    for (const k of CONTADORES) expect(r[k]).toBe(m[k]);
+  });
+
+  it("gestor: a soma da equipe no ranking == totais do dashboard do mesmo gestor", async () => {
+    const r = await rankingSomado(gestorA.id, METRICAS_INICIO, METRICAS_FIM);
+    const m = await metricasPeriodo(gestorA.id, METRICAS_INICIO, METRICAS_FIM);
+    expect(r.vendas).toBe(m.vendas);
+    expect(Number(r.vgv)).toBe(Number(m.vgv));
+    expect(r.pontuacao).toBe(m.pontuacao);
+    for (const k of CONTADORES) expect(r[k]).toBe(m[k]);
+  });
+});
