@@ -47,7 +47,17 @@
 -- contadores a partir das tabelas-fonte na janela pedida; aqui ela roda UMA
 -- vez sobre todo o histórico desde o início da gamificação (2026-06-16),
 -- depois de guardar um snapshot em metrics.atividades_diarias_snapshot_20260905.
+--
+-- Locks: roda com o sistema vivo (discador, bot, n8n escrevendo em
+-- interacoes/agendamentos). Por isso os triggers são trocados com
+-- CREATE OR REPLACE TRIGGER (ShareRowExclusive: só espera escritores, nunca
+-- bloqueia leitura) em vez de DROP + CREATE (AccessExclusive, que já causou
+-- deadlock com uma transação do app que lia interacoes). E lock_timeout
+-- curto: se uma tabela estiver ocupada, a migration falha inteira e limpa
+-- (é uma transação só, e idempotente) em vez de enfileirar o app atrás dela.
 -- =====================================================================
+
+SET LOCAL lock_timeout = '10s';
 
 -- ---------------------------------------------------------------------
 -- 0) bump_atividade: ignora corretor que já não existe em auth.users (a
@@ -219,8 +229,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.interacao_marcar_mesma_chamada() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_interacao_mesma_chamada ON public.interacoes;
-CREATE TRIGGER trg_interacao_mesma_chamada
+CREATE OR REPLACE TRIGGER trg_interacao_mesma_chamada
   BEFORE INSERT ON public.interacoes
   FOR EACH ROW EXECUTE FUNCTION public.interacao_marcar_mesma_chamada();
 
@@ -264,8 +273,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.pont_after_interacao() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_pont_interacao ON public.interacoes;
-CREATE TRIGGER trg_pont_interacao
+CREATE OR REPLACE TRIGGER trg_pont_interacao
   AFTER INSERT OR UPDATE OF deleted_at, tipo, autor_id, metadata OR DELETE ON public.interacoes
   FOR EACH ROW EXECUTE FUNCTION public.pont_after_interacao();
 
@@ -303,8 +311,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.pont_after_agendamento() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_pont_agendamento ON public.agendamentos;
-CREATE TRIGGER trg_pont_agendamento
+CREATE OR REPLACE TRIGGER trg_pont_agendamento
   AFTER INSERT OR UPDATE OF status, deleted_at, tipo, corretor_id, auto_gerado, criado_por_id OR DELETE ON public.agendamentos
   FOR EACH ROW EXECUTE FUNCTION public.pont_after_agendamento();
 
@@ -340,8 +347,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.pont_after_visita_validada() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_pont_visita_validada ON public.agendamentos;
-CREATE TRIGGER trg_pont_visita_validada
+CREATE OR REPLACE TRIGGER trg_pont_visita_validada
   AFTER INSERT OR UPDATE OF status, deleted_at, data_inicio, tipo, corretor_id OR DELETE ON public.agendamentos
   FOR EACH ROW EXECUTE FUNCTION public.pont_after_visita_validada();
 
@@ -353,10 +359,8 @@ CREATE TRIGGER trg_pont_visita_validada
 -- reentrada no mês (nada), transição retroativa (o ponto vai para ela),
 -- DELETE de uma linha só (a próxima do mês é recreditada) e o DELETE em
 -- cascata quando o lead é apagado em definitivo (estorno) — o trigger por
--- linha antigo só sabia somar no INSERT.
-DROP TRIGGER IF EXISTS trg_pont_transicao ON public.lead_status_transitions;
-DROP FUNCTION IF EXISTS public.pont_after_transicao();
-
+-- linha antigo (trg_pont_transicao, 20260616130000) só sabia somar no INSERT
+-- e é substituído no lugar, sob o mesmo nome, pelo novo por comando.
 CREATE OR REPLACE FUNCTION public.pont_transicao_lote()
 RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
@@ -425,16 +429,16 @@ $$;
 
 REVOKE ALL ON FUNCTION public.pont_transicao_lote() FROM PUBLIC, anon, authenticated;
 
-DROP TRIGGER IF EXISTS trg_pont_transicao_ins ON public.lead_status_transitions;
-CREATE TRIGGER trg_pont_transicao_ins
+CREATE OR REPLACE TRIGGER trg_pont_transicao
   AFTER INSERT ON public.lead_status_transitions
   REFERENCING NEW TABLE AS lote
   FOR EACH STATEMENT EXECUTE FUNCTION public.pont_transicao_lote();
-DROP TRIGGER IF EXISTS trg_pont_transicao_del ON public.lead_status_transitions;
-CREATE TRIGGER trg_pont_transicao_del
+CREATE OR REPLACE TRIGGER trg_pont_transicao_del
   AFTER DELETE ON public.lead_status_transitions
   REFERENCING OLD TABLE AS lote
   FOR EACH STATEMENT EXECUTE FUNCTION public.pont_transicao_lote();
+-- Só agora a função antiga fica sem trigger e pode sair.
+DROP FUNCTION IF EXISTS public.pont_after_transicao();
 
 -- ---------------------------------------------------------------------
 -- 5) Reconciliação: recompõe os quatro contadores a partir das fontes
