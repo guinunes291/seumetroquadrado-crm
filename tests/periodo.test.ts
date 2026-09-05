@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  MAX_DIAS_INTERVALO,
   PERIODO_LABELS,
+  agoraSaoPaulo,
+  diasEntre,
   startOfDay,
   endOfDay,
   startOfWeek,
@@ -155,5 +158,38 @@ describe("periodo — dateKey (timezone-safe)", () => {
   it("23:59 local continua no mesmo dia (sem virada UTC)", () => {
     expect(dateKey(new Date(2026, 6, 15, 23, 59, 59, 999))).toBe("2026-07-15");
     expect(dateKey(new Date(2026, 6, 15, 0, 0, 0, 0))).toBe("2026-07-15");
+  });
+});
+
+describe("periodo — preset 'all' cabe no teto do RPC (730 dias)", () => {
+  it("dois anos-calendário com um 29/02 no meio são grampeados em 730 dias corridos", () => {
+    // 01/03/2028 → 01/03/2026 daria 731 dias (2028 é bissexto).
+    const r = getDateRange("all", new Date(2028, 2, 1, 10));
+    expect(diasEntre(r.from, r.to)).toBe(MAX_DIAS_INTERVALO);
+    expect(dateKey(r.from)).toBe("2026-03-02");
+    expect(dateKey(r.to)).toBe("2028-03-01");
+  });
+
+  it("sem 29/02 no meio, continua começando dois anos atrás no mesmo dia", () => {
+    const r = getDateRange("all", new Date(2026, 8, 5, 10));
+    expect(dateKey(r.from)).toBe("2024-09-05");
+    expect(diasEntre(r.from, r.to)).toBe(730);
+  });
+
+  it("diasEntre conta dias-calendário, ignorando a hora", () => {
+    expect(diasEntre(new Date(2026, 8, 1, 23), new Date(2026, 8, 2, 1))).toBe(1);
+    expect(diasEntre(new Date(2026, 8, 5), new Date(2026, 8, 5))).toBe(0);
+  });
+});
+
+describe("periodo — agoraSaoPaulo", () => {
+  it("materializa o relógio de São Paulo nos campos locais (2026-09-05T02:30Z = 04/09 23:30 SP)", () => {
+    const sp = agoraSaoPaulo(new Date("2026-09-05T02:30:00Z"));
+    expect(dateKey(sp)).toBe("2026-09-04");
+    expect([sp.getHours(), sp.getMinutes()]).toEqual([23, 30]);
+    // Um preset calculado com esse "agora" pede o dia de SP, não o de UTC.
+    const hoje = getDateRange("today", sp);
+    expect(dateKey(hoje.from)).toBe("2026-09-04");
+    expect(dateKey(hoje.to)).toBe("2026-09-04");
   });
 });

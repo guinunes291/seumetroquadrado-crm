@@ -4,8 +4,8 @@ import { Medal, type MedalTier } from "@/features/ranking/medal";
 import { cn } from "@/lib/utils";
 
 /**
- * Pódio hero do Desempenho — top 3 em cards sobre superfície escura (TV do
- * ranking e Copa). O campeão fica ao centro, maior, com anel em gradiente
+ * Pódio hero do Desempenho — top 3 em cards sobre superfície escura (a
+ * moldura navy do ranking). O campeão fica ao centro, maior, com anel em gradiente
  * dourado + glow e o fio de luz beam-border (é O hero da tela — máx. um).
  * Números sempre em font-display com AnimatedNumber (tabular-nums); entrada
  * escalonada via stagger-children (campeão entra primeiro).
@@ -14,10 +14,10 @@ import { cn } from "@/lib/utils";
 export type PodiumEntry = {
   id: string;
   nome: string;
-  /** Linha secundária opcional (ex.: nome do corretor sob a seleção na Copa). */
+  /** Linha secundária opcional (ex.: nome completo sob o primeiro nome). */
   legenda?: string | null;
   foto?: string | null;
-  /** Emblema no lugar da foto (ex.: bandeira da seleção). */
+  /** Emblema no lugar da foto (ex.: emoji de uma equipe). */
   emblema?: string | null;
   valor: number;
   /** Texto já formatado no lugar do número animado (ex.: VGV em R$). */
@@ -26,6 +26,9 @@ export type PodiumEntry = {
   unidade: string;
   /** Linha extra abaixo da unidade (ex.: "3 vendas"). */
   detalhe?: string | null;
+  /** Posição real (dense rank): empatados em 1º levam ouro os dois, mesmo
+   *  ocupando os degraus 1 e 2 do pódio. Ausente = o degrau. */
+  posicao?: 1 | 2 | 3;
 };
 
 const TIER_BY_POS: Record<1 | 2 | 3, MedalTier> = { 1: "ouro", 2: "prata", 3: "bronze" };
@@ -55,6 +58,7 @@ function getInitials(nome: string): string {
 
 function PodiumCard({ entry, pos }: { entry: PodiumEntry; pos: 1 | 2 | 3 }) {
   const first = pos === 1;
+  const medalha = entry.posicao ?? pos;
   return (
     <div
       className={cn(
@@ -77,12 +81,12 @@ function PodiumCard({ entry, pos }: { entry: PodiumEntry; pos: 1 | 2 | 3 }) {
           </Avatar>
         </span>
         <Medal
-          tier={TIER_BY_POS[pos]}
+          tier={TIER_BY_POS[medalha]}
           size={first ? "md" : "sm"}
-          title={`${pos}º lugar`}
+          title={`${medalha}º lugar`}
           className="absolute -right-1 -top-1 z-10"
         >
-          {pos}
+          {medalha}
         </Medal>
       </div>
       <p
@@ -98,8 +102,8 @@ function PodiumCard({ entry, pos }: { entry: PodiumEntry; pos: 1 | 2 | 3 }) {
       )}
       <div
         className={cn(
-          "font-display mt-1 font-semibold tabular-nums text-white",
-          first ? "text-3xl" : "text-xl",
+          "font-display mt-1 whitespace-nowrap font-semibold tabular-nums text-white",
+          first ? "text-xl sm:text-3xl" : "text-base sm:text-xl",
         )}
       >
         {entry.valorTexto ?? <AnimatedNumber value={entry.valor} />}

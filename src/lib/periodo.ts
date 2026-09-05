@@ -2,10 +2,6 @@
 // Regras: semana começa na SEGUNDA-feira; todos os limites são calculados no
 // fuso LOCAL (nunca via toISOString, que vira o dia em UTC); nenhuma função
 // muta o Date recebido.
-//
-// A Copa NÃO usa estes helpers de propósito: o calendário dela é fixo
-// (14 semanas a partir de 03/06/2026, semanas de quarta a terça) e vive em
-// src/lib/copa.ts — implementações divergentes não foram unificadas.
 
 export type PeriodoOption =
   | "today"
@@ -154,12 +150,57 @@ export function getDateRange(p: PeriodoOption, now: Date = new Date()): { from: 
       return { from: startOfMonth(now), to: endOfMonth(now) };
     case "this_year":
       return { from: startOfYear(now), to: endOfYear(now) };
-    case "all":
-      return {
-        from: startOfDay(new Date(now.getFullYear() - 2, now.getMonth(), now.getDate())),
-        to: new Date(now),
-      };
+    case "all": {
+      // "Últimos 2 anos" precisa caber no teto do RPC ranking_periodo_v2
+      // (_fim - _inicio <= 730). Dois anos-calendário com um 29/02 no meio
+      // dão 731 dias e derrubavam a página inteira; o intervalo é grampeado
+      // em 730 dias corridos (o rótulo continua "Últimos 2 anos").
+      const doisAnos = startOfDay(new Date(now.getFullYear() - 2, now.getMonth(), now.getDate()));
+      const teto = startOfDay(now);
+      teto.setDate(teto.getDate() - MAX_DIAS_INTERVALO);
+      return { from: doisAnos < teto ? teto : doisAnos, to: new Date(now) };
+    }
   }
+}
+
+/** Maior intervalo (em dias corridos) aceito pelo RPC ranking_periodo_v2. */
+export const MAX_DIAS_INTERVALO = 730;
+
+/** Dias corridos entre os dias-calendário de `from` e `to` (fuso local). */
+export function diasEntre(from: Date, to: Date): number {
+  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.round((b - a) / 86_400_000);
+}
+
+/**
+ * "Agora" em America/Sao_Paulo (o fuso da operação e do banco), materializado
+ * como um Date cujos campos LOCAIS (getFullYear/getMonth/getDate/getHours)
+ * são os do relógio de São Paulo. Os helpers deste arquivo trabalham no fuso
+ * local do navegador; os RPCs interpretam datas em São Paulo. Passando este
+ * Date como `now`, um gestor com o aparelho em outro fuso vê o mesmo "hoje"
+ * que o banco — e uma TV em UTC não vira o dia às 21h.
+ */
+export function agoraSaoPaulo(now: Date = new Date()): Date {
+  const partes = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (tipo: string) => Number(partes.find((p) => p.type === tipo)?.value ?? 0);
+  return new Date(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second"),
+  );
 }
 
 /** Chave YYYY-MM-DD do dia LOCAL — segura contra viradas de dia em UTC. */
