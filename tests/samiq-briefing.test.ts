@@ -80,12 +80,19 @@ describe("montarBriefingSamiQ", () => {
         ],
       }),
     );
-    expect(b.linhas.map((l) => l.chave)).toEqual(["visitas_hoje", "sem_confirmar"]);
+    expect(b.linhas.map((l) => l.chave)).toEqual([
+      "visitas_hoje",
+      "visitas_amanha",
+      "sem_confirmar",
+    ]);
     expect(b.linhas[0].texto).toBe("1 visita hoje: Ana 10h00");
     expect(b.linhas[0].to).toBe("/agendamentos");
-    expect(b.linhas[1].texto).toBe("1 visita sem confirmar: Bruno amanhã 14h00");
-    expect(b.linhas[1].tom).toBe("warning");
-    expect(b.linhas[1].pergunta).toMatch(/confirmei/);
+    // Onda S5: a véspera já traz o preparador de visita como pergunta pronta.
+    expect(b.linhas[1].texto).toBe("1 visita amanhã: Bruno 14h00");
+    expect(b.linhas[1].pergunta).toBe("Me prepara para a visita de amanhã com Bruno.");
+    expect(b.linhas[2].texto).toBe("1 visita sem confirmar: Bruno amanhã 14h00");
+    expect(b.linhas[2].tom).toBe("warning");
+    expect(b.linhas[2].pergunta).toMatch(/confirmei/);
   });
 
   it("follow-ups vencidos usam o total (não só os listados) e as filas viram linhas na ordem", () => {

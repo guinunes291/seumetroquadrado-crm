@@ -26,6 +26,11 @@ export const SAMIQ_TOOL_NAMES = [
   "minha_fila",
   "documentos_do_cliente",
   "catalogo_projetos",
+  // Onda S5 (D16): skills como ferramentas — determinísticas, só leitura.
+  "pre_analise_mcmv",
+  "avaliar_qualificacao",
+  "curar_estoque",
+  "preparar_visita",
 ] as const;
 
 export type SamiQToolName = (typeof SAMIQ_TOOL_NAMES)[number];
@@ -40,6 +45,10 @@ export const SAMIQ_TOOL_LABELS: Record<SamiQToolName, string> = {
   minha_fila: "fila",
   documentos_do_cliente: "documentos",
   catalogo_projetos: "projetos",
+  pre_analise_mcmv: "pré-análise MCMV",
+  avaliar_qualificacao: "qualificação",
+  curar_estoque: "estoque",
+  preparar_visita: "kit de visita",
 };
 
 export function isSamiQToolName(value: string): value is SamiQToolName {
@@ -140,6 +149,14 @@ export const SAMIQ_TOOL_DESCRIPTIONS: Record<SamiQToolName, string> = {
     "Checklist de documentação de um cliente para o financiamento: cada documento com o status (pendente, recebido, aprovado, reprovado).",
   catalogo_projetos:
     "Empreendimentos ativos da SMQ com região, tipologia, dormitórios, preço a partir de e renda mínima. Filtre por região, dormitórios ou preço máximo.",
+  pre_analise_mcmv:
+    "Pré-análise MCMV determinística (tabela APROVE 2026): faixa, parcela estimada, financiamento máximo, subsídio, teto do imóvel e, se informar preco_imovel, se cabe e quanto parcelar com a construtora. SEMPRE use esta ferramenta para qualquer número de parcela, teto ou faixa — nunca calcule por conta própria.",
+  avaliar_qualificacao:
+    "Scorecard de qualificação do cliente em 7 dimensões (renda, entrada/FGTS, crédito, região, necessidade, urgência, motivação): o que já está no CRM, o que falta e a pergunta certa para cada lacuna. Use antes de sugerir imóvel ou quando o corretor perguntar 'o que falta para qualificar'.",
+  curar_estoque:
+    "Curadoria de empreendimentos com estoque real: unidades disponíveis, campanha vigente e se cabe na renda informada, ordenados por aderência e com o motivo de cada posição. Use quando o corretor pedir opções para um cliente.",
+  preparar_visita:
+    "Kit de preparação para a visita de um cliente: visita agendada, empreendimento com argumentos, documentos pendentes, objeções, simulação rápida e checklist do que confirmar e perguntar. Use na véspera ou quando o corretor disser 'me prepara para a visita'.",
 };
 
 // ---------------------------------------------------------------------------

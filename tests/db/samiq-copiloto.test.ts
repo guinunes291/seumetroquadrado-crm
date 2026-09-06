@@ -119,13 +119,17 @@ describe("reserva com ferramentas de leitura", () => {
   it("devolve a versão ativa com tools_enabled, o teto de passos da política e sem % de custo quando não há teto", async () => {
     const r = await reservar(c, corretorA.id);
     expect(r.allowed).toBe(true);
-    // Versão ativa mais recente (S2 = v4). A v3 continua no banco, inativa.
-    expect(r.prompt_version).toBe("samiq-2026-09-v4");
+    // Versão ativa mais recente (S5 = v5). v3 e v4 continuam no banco, inativas.
+    expect(r.prompt_version).toBe("samiq-2026-09-v5");
     expect(r.tools_enabled).toBe(true);
     expect(r.max_tool_steps).toBe(6);
     expect(r.custo_mes_pct).toBeNull();
     expect(r.system_prompt).toContain("Não consegui");
     expect(r.system_prompt).toContain("NÃO gravam nada");
+    // Onda S5: a v5 apresenta as skills e proíbe aritmética fora da ferramenta.
+    expect(r.system_prompt).toContain("pre_analise_mcmv");
+    expect(r.system_prompt).toMatch(/nunca calcule/);
+    expect(r.action_prompt).toContain("curar_estoque");
   });
 
   it("ação sem prompt versionado continua rejeitada (22023)", async () => {
