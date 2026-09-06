@@ -26,6 +26,13 @@ const s2 = readFileSync(
   "utf8",
 );
 const propostasTools = readFileSync(join(root, "src/lib/samiq-propostas.server.ts"), "utf8");
+const s3 = readFileSync(
+  join(root, "supabase/migrations/20260908100000_samiq_copiloto_s3.sql"),
+  "utf8",
+);
+const briefingFn = readFileSync(join(root, "src/lib/samiq-briefing.functions.ts"), "utf8");
+const painel = readFileSync(join(root, "src/components/samiq/samiq-panel.tsx"), "utf8");
+const launcher = readFileSync(join(root, "src/components/samiq/samiq-launcher.tsx"), "utf8");
 const executor = readFileSync(join(root, "src/lib/samiq-executar.server.ts"), "utf8");
 const confirmar = readFileSync(join(root, "src/lib/samiq-confirmar.functions.ts"), "utf8");
 
@@ -435,5 +442,48 @@ describe("Onda S2 — escrita por proposta confirmada (migration 20260907100000)
     expect(s2).toContain("Elas NÃO gravam nada");
     expect(s2).toContain("nunca afirme que registrou");
     expect(s2).toContain('"Não consegui"');
+  });
+});
+
+describe("Onda S3 — presença (migration 20260908100000)", () => {
+  it("o briefing ao abrir não chama o modelo nem gasta cota: só leitura com a sessão do corretor", () => {
+    expect(briefingFn).toContain("requireSupabaseAuth");
+    expect(briefingFn).not.toContain("generateText");
+    expect(briefingFn).not.toContain("reserveSamiQExecution");
+    expect(briefingFn).not.toContain("supabaseAdmin");
+    expect(briefingFn).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(briefingFn).toContain("montarBriefingSamiQ");
+  });
+
+  it("o painel mostra o briefing, aceita contexto do chip e tem ditado por voz com consentimento", () => {
+    expect(painel).toContain("briefingSamiQ");
+    expect(painel).toContain("seed?.leadId ?? leadRota");
+    expect(painel).toContain("useDitado");
+    expect(painel).toContain("consentiuDitado()");
+    expect(launcher).toContain("lerDetalheAbrirSamiQ");
+    expect(launcher).toContain("SAMIQ_ABRIR_EVENTO");
+  });
+
+  it("alerta diário: um por corretor por dia (fuso de SP), 08:00 seg–sáb, só quando há pauta", () => {
+    expect(s3).toContain("CREATE OR REPLACE FUNCTION public.samiq_gerar_briefing_alertas()");
+    expect(s3).toMatch(
+      /WHERE r\.visitas_hoje > 0 OR r\.sem_confirmar > 0 OR r\.vencidas > 0 OR r\.esfriando > 0/,
+    );
+    expect(s3).toMatch(
+      /a\.titulo LIKE 'Sami: seu dia%'[\s\S]*?AT TIME ZONE 'America\/Sao_Paulo'\)::date = _hoje/,
+    );
+    expect(s3).toContain("'samiq-briefing-diario'");
+    expect(s3).toContain("'0 11 * * 1-6'");
+    expect(s3).toMatch(
+      /REVOKE ALL ON FUNCTION public\.samiq_gerar_briefing_alertas\(\) FROM PUBLIC, anon, authenticated/,
+    );
+  });
+
+  it("crédito reprovado avisa na hora, uma vez por análise, com trigger trocado sem DROP (lição do #173)", () => {
+    expect(s3).toContain("CREATE OR REPLACE TRIGGER trg_samiq_alerta_credito_reprovado");
+    expect(s3).not.toMatch(/^\s*DROP TRIGGER/m);
+    expect(s3).toContain("SET LOCAL lock_timeout = '10s'");
+    expect(s3).toMatch(/WHERE a\.ref_id = NEW\.id AND a\.titulo LIKE 'Crédito reprovado:%'/);
+    expect(s3).toContain("'/leads/' || NEW.lead_id::text");
   });
 });

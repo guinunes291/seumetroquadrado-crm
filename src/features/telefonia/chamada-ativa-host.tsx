@@ -20,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
+import { SamiMark } from "@/components/ui/sami-mark";
+import { abrirSamiQ, textoRegistrarComSami } from "@/components/samiq/abrir-samiq";
 import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
@@ -284,6 +286,23 @@ export function ChamadaAtivaHost() {
                 <>
                   <Button size="sm" onClick={() => setRegistrarAberto(true)}>
                     Registrar resultado
+                  </Button>
+                  {/* Chip contextual (Onda S3): a ligação acabou de encerrar —
+                      conte o que rolou e a Sami prepara contato + follow-up. */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() =>
+                      abrirSamiQ({
+                        leadId: lead.id,
+                        leadNome: lead.nome,
+                        texto: textoRegistrarComSami(lead.nome, "ligacao"),
+                        origem: "pos-chamada",
+                      })
+                    }
+                  >
+                    <SamiMark className="h-4 w-4" /> Registrar com a Sami
                   </Button>
                   <Button size="sm" variant="outline" asChild>
                     <Link to="/leads/$leadId" params={{ leadId: lead.id }}>
