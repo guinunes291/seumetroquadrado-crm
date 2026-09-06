@@ -40,6 +40,14 @@ const s4 = readFileSync(
 const governance = readFileSync(join(root, "src/lib/samiq-governance.server.ts"), "utf8");
 const canalPuro = readFileSync(join(root, "src/lib/samiq-canal.ts"), "utf8");
 const canalServer = readFileSync(join(root, "src/lib/samiq-canal.server.ts"), "utf8");
+const s5 = readFileSync(
+  join(root, "supabase/migrations/20260910100000_samiq_copiloto_s5.sql"),
+  "utf8",
+);
+const skillsPuro = readFileSync(join(root, "src/lib/samiq-skills.ts"), "utf8");
+const catalogo = readFileSync(join(root, "src/lib/samiq-tools.ts"), "utf8");
+const skillsServer = readFileSync(join(root, "src/lib/samiq-skills.server.ts"), "utf8");
+const briefingPuro = readFileSync(join(root, "src/lib/samiq-briefing.ts"), "utf8");
 const rotasSami = ["mensagem", "propostas", "briefing"].map((r) =>
   readFileSync(join(root, `src/routes/api/sami/${r}.ts`), "utf8"),
 );
@@ -608,5 +616,53 @@ describe("Onda S4 — um cérebro, dois canais (migration 20260909100000)", () =
     expect(mensagem).toContain("origemMidia: body.origem_midia");
     expect(mensagem).toContain('action: "pergunta_livre"');
     expect(mensagem).toContain("textoParaWhatsApp(resposta)");
+  });
+});
+
+describe("Onda S5 — skills como ferramentas (migration 20260910100000)", () => {
+  it("a v5 deriva da v4 (mesmo modelo, custos e action_prompts), apresenta as skills e proíbe aritmética fora da ferramenta", () => {
+    expect(s5).toContain("SET LOCAL lock_timeout = '10s'");
+    expect(s5).toMatch(/WHERE version = 'samiq-2026-09-v5'[\s\S]*?RETURN;/);
+    expect(s5).toContain(
+      "SELECT * INTO _v4 FROM public.samiq_prompt_versions WHERE version = 'samiq-2026-09-v4'",
+    );
+    expect(s5).toContain(
+      "UPDATE public.samiq_prompt_versions SET active = false WHERE active = true",
+    );
+    expect(s5).toContain("_v4.action_prompts || jsonb_build_object(");
+    expect(s5).toContain("_v4.model_id");
+    expect(s5).toContain("_v4.input_cost_micros_per_million, _v4.output_cost_micros_per_million");
+    expect(s5).toContain("nunca calcule nem estime por conta própria");
+    expect(s5).toContain("NÃO gravam nada");
+    expect(s5).toContain('"Não consegui"');
+    // a v5 continua não liberando nenhuma ferramenta de escrita
+    expect(s5).not.toMatch(/gravar|inserir|UPDATE public\.leads/i);
+  });
+
+  it("as skills só LEEM com o supabase do usuário e a aritmética fica em código puro (orcamento/mcmv-estimativa)", () => {
+    expect(skillsPuro).toContain('from "@/lib/orcamento"');
+    expect(skillsPuro).toContain('from "@/lib/mcmv-estimativa"');
+    expect(skillsPuro).toContain("calcularOrcamento(");
+    expect(skillsPuro).toContain("avaliarRenda(");
+    expect(skillsPuro).not.toContain("supabase");
+    expect(skillsPuro).toContain("redactSamiQFreeText(");
+    expect(skillsServer).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(skillsServer).not.toContain("supabaseAdmin");
+    expect(skillsServer).toContain('.eq("status", "disponivel")');
+    expect(skillsServer).toContain('from("projeto_foco")');
+    for (const nome of [
+      "pre_analise_mcmv",
+      "avaliar_qualificacao",
+      "curar_estoque",
+      "preparar_visita",
+    ]) {
+      expect(skillsServer).toContain(`${nome}: tool({`);
+      expect(catalogo).toContain(`"${nome}",`);
+    }
+    // o cérebro liga as skills junto com as ferramentas de leitura
+    expect(handler).toContain("criarFerramentasDeSkillsSamiQ({ supabase, userId })");
+    // a véspera da visita já traz o preparador como pergunta pronta (D-1)
+    expect(briefingPuro).toContain('chave: "visitas_amanha"');
+    expect(briefingPuro).toContain("Me prepara para a visita de amanhã com");
   });
 });

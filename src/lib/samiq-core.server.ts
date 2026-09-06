@@ -261,6 +261,9 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       // supabase do usuário (RLS) até o teto de passos da política.
       const { criarFerramentasSamiQ } = await import("./samiq-tools.server");
       const tools = criarFerramentasSamiQ({ supabase, userId });
+      // Onda S5 (D16): skills determinísticas, também só de leitura.
+      const { criarFerramentasDeSkillsSamiQ } = await import("./samiq-skills.server");
+      Object.assign(tools, criarFerramentasDeSkillsSamiQ({ supabase, userId }));
       if (reservation.propostasEnabled) {
         const { criarFerramentasDePropostaSamiQ } = await import("./samiq-propostas.server");
         Object.assign(tools, criarFerramentasDePropostaSamiQ({ supabase, userId, coletor }));

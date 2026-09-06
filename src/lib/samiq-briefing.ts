@@ -93,6 +93,14 @@ function diaSP(iso: string): string {
   return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
+/** AAAA-MM-DD → o dia seguinte (aritmética em UTC sobre a data pura). */
+function diaSeguinte(dia: string): string {
+  const d = new Date(`${dia}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function primeiroNome(nome: string | null): string {
   return nome?.trim().split(/\s+/)[0] || "cliente";
 }
@@ -137,6 +145,29 @@ export function montarBriefingSamiQ(dados: BriefingDados): BriefingSamiQ {
       texto: `${plural(visitasHoje.length, "visita hoje", "visitas hoje")}: ${quem}`,
       to: "/agendamentos",
       pergunta: "Quem tem visita hoje e o que preciso saber de cada um?",
+    });
+  }
+
+  // 1b) Visitas de AMANHÃ (Onda S5, D16/D13): o preparador de visita começa
+  //     na véspera — a linha já vem com a pergunta "me prepara".
+  const amanha = diaSeguinte(dados.hoje);
+  const visitasAmanha = dados.agenda
+    .filter((a) => a.tipo === "visita" && diaSP(a.inicio) === amanha)
+    .sort((a, b) => a.inicio.localeCompare(b.inicio));
+  if (visitasAmanha.length > 0) {
+    const quem = listarNomes(
+      visitasAmanha.map((v) => `${primeiroNome(v.leadNome)} ${horaSP(v.inicio)}`),
+    );
+    const unico = visitasAmanha.length === 1 ? primeiroNome(visitasAmanha[0].leadNome) : null;
+    linhas.push({
+      chave: "visitas_amanha",
+      icone: "agenda",
+      tom: "info",
+      texto: `${plural(visitasAmanha.length, "visita amanhã", "visitas amanhã")}: ${quem}`,
+      to: "/agendamentos",
+      pergunta: unico
+        ? `Me prepara para a visita de amanhã com ${unico}.`
+        : "Me prepara para as visitas de amanhã: o que confirmar, levar e perguntar em cada uma?",
     });
   }
 
