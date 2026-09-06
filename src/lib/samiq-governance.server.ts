@@ -34,6 +34,8 @@ const reservationRowSchema = z.object({
   tools_enabled: z.boolean().nullable().optional(),
   max_tool_steps: z.coerce.number().int().positive().nullable().optional(),
   custo_mes_pct: z.coerce.number().int().nullable().optional(),
+  // Onda S2 (migration 20260907100000): ferramentas de PROPOSTA (propor_*).
+  propostas_enabled: z.boolean().nullable().optional(),
 });
 
 export type SamiQReservation = {
@@ -49,6 +51,8 @@ export type SamiQReservation = {
   maxToolSteps: number;
   /** % do teto mensal do papel já consumido (D18); null = sem teto configurado. */
   custoMesPct: number | null;
+  /** A versão ativa autoriza ferramentas de PROPOSTA de escrita (Onda S2, D1/D2). */
+  propostasEnabled: boolean;
 };
 
 export class SamiQQuotaError extends Error {
@@ -125,6 +129,7 @@ export async function reserveSamiQExecution(args: {
     toolsEnabled: row.tools_enabled === true,
     maxToolSteps: row.max_tool_steps ?? 6,
     custoMesPct: row.custo_mes_pct ?? null,
+    propostasEnabled: row.propostas_enabled === true,
   };
 }
 
@@ -139,6 +144,7 @@ export type GovernedReservation =
       maxOutputTokens: number;
       toolsEnabled: false;
       custoMesPct: null;
+      propostasEnabled: false;
     };
 
 /**
@@ -176,6 +182,7 @@ export async function reserveGovernedAIExecution(args: {
       maxOutputTokens: args.fallback.maxOutputTokens ?? args.requestedOutputTokens ?? 700,
       toolsEnabled: false,
       custoMesPct: null,
+      propostasEnabled: false,
     };
   }
 }

@@ -12,8 +12,10 @@ import {
   SAMIQ_MAX_MENSAGENS_CARREGADAS,
   deveRetomarConversa,
   mapearMensagensPersistidas,
+  mapearPropostasPersistidas,
   type MensagemPersistida,
 } from "@/lib/samiq-memoria";
+import type { PropostaSamiQ } from "@/lib/samiq-propostas";
 
 export type ConversaCarregada = {
   id: string;
@@ -50,19 +52,32 @@ export async function carregarUltimaConversaSamiQ(
       .map((r) => r.execution_id)
       .filter((id): id is string => typeof id === "string");
     let avaliacoes: Array<{ execution_id: string; nota: number }> = [];
+    let propostas: PropostaSamiQ[] = [];
+    const propostaExecucao = new Map<string, string>();
     if (execIds.length > 0) {
-      const { data: avs } = await supabase
-        .from("samiq_avaliacoes")
-        .select("execution_id, nota")
-        .in("execution_id", execIds);
+      const [{ data: avs }, { data: props, error: propsErr }] = await Promise.all([
+        supabase.from("samiq_avaliacoes").select("execution_id, nota").in("execution_id", execIds),
+        supabase
+          .from("samiq_propostas")
+          .select("id, tipo, payload, status, execution_id, lead_nome, desfazer_ate, erro")
+          .in("execution_id", execIds)
+          .order("criado_em", { ascending: true }),
+      ]);
       avaliacoes = avs ?? [];
+      // Migration S2 ausente: sem propostas, sem erro (isMissingBackendObject).
+      if (!propsErr) {
+        propostas = mapearPropostasPersistidas(props ?? [], agora);
+        for (const r of props ?? []) if (r.execution_id) propostaExecucao.set(r.id, r.execution_id);
+      } else if (!isMissingBackendObject(propsErr)) {
+        console.error("[samiq] propostas indisponíveis", propsErr);
+      }
     }
 
     return {
       id: conversa.id,
       leadId: conversa.lead_id,
       atualizadoEm: conversa.atualizado_em,
-      mensagens: mapearMensagensPersistidas(rows ?? [], avaliacoes),
+      mensagens: mapearMensagensPersistidas(rows ?? [], avaliacoes, propostas, propostaExecucao),
     };
   } catch (error) {
     console.error("[samiq] memória indisponível", error);
