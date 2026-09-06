@@ -22,6 +22,8 @@ import {
   avaliarRespostaSamiQ,
   carregarUltimaConversaSamiQ,
 } from "@/components/samiq/samiq-conversas";
+import { SamiQPropostasCard } from "@/components/samiq/samiq-propostas-card";
+import type { PropostaSamiQ } from "@/lib/samiq-propostas";
 import {
   CircleNotch,
   Clipboard,
@@ -53,6 +55,8 @@ type Msg = {
   ferramentas?: string[];
   fallback?: boolean;
   avaliacao?: 1 | -1 | null;
+  /** Propostas de escrita (S2) desta resposta — o card vive na mensagem. */
+  propostas?: PropostaSamiQ[];
 };
 
 const QUICK_ACTIONS: { action: SamiQAction; icon: IconComponent }[] = [
@@ -125,6 +129,7 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
         executionId: m.executionId,
         ferramentas: m.ferramentas,
         avaliacao: m.avaliacao,
+        propostas: m.propostas,
       })),
     );
   }, [memoria.data, memoria.isPending]);
@@ -157,6 +162,7 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
           ferramentas: r.ferramentas ?? [],
           fallback: r.fallback,
           avaliacao: null,
+          propostas: r.propostas ?? [],
         },
       ]);
     },
@@ -354,6 +360,14 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
                       ))}
                     </div>
                   )}
+                  {m.propostas && m.propostas.length > 0 && (
+                    <SamiQPropostasCard
+                      propostas={m.propostas}
+                      onChange={(propostas) =>
+                        setThread((t) => t.map((x, k) => (k === i ? { ...x, propostas } : x)))
+                      }
+                    />
+                  )}
                   {(ferramentas.length > 0 || podeAvaliar) && (
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                       {ferramentas.length > 0 && (
@@ -472,8 +486,8 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          A Sami consulta sua carteira e sugere — você decide. Nada é enviado ao cliente sem sua
-          revisão.
+          A Sami consulta sua carteira e prepara registros — você confirma com um toque. Nada é
+          gravado nem enviado ao cliente sem a sua confirmação.
         </p>
       </div>
     </div>

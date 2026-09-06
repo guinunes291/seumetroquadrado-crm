@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Timeline, type TimelineItem } from "@/components/ui/timeline";
+import { SamiMark } from "@/components/ui/sami-mark";
+import { foiViaSami } from "@/lib/samiq-propostas";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import {
@@ -32,6 +34,8 @@ export type Interacao = {
   titulo: string | null;
   conteudo: string;
   ocorreu_em: string;
+  /** Marca de origem (ex.: registrado pela Sami — Onda S2). */
+  metadata?: unknown;
 };
 
 /**
@@ -87,7 +91,19 @@ export function TimelineTab({ leadId }: { leadId: string }) {
     icon: INTERACAO_ICON[i.tipo],
     iconClassName: INTERACAO_TONE[i.tipo],
     title: i.titulo || describeInteracao(i.tipo, i.direcao),
-    meta: `${INTERACAO_LABEL[i.tipo]} · ${DIRECAO_LABEL[i.direcao]}`,
+    meta: (
+      <>
+        {INTERACAO_LABEL[i.tipo]} · {DIRECAO_LABEL[i.direcao]}
+        {foiViaSami(i.metadata) && (
+          <span
+            className="ml-1.5 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-px text-[10px] font-medium text-primary"
+            title="Registrado pela Sami e confirmado por você"
+          >
+            <SamiMark className="h-3 w-3" /> via Sami
+          </span>
+        )}
+      </>
+    ),
     content: i.conteudo ? <p className="whitespace-pre-wrap">{i.conteudo}</p> : undefined,
     timestamp: i.ocorreu_em,
   }));

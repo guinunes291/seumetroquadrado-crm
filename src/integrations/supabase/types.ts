@@ -4983,8 +4983,88 @@ export type Database = {
         }
         Relationships: []
       }
+      samiq_propostas: {
+        Row: {
+          conversa_id: string | null
+          criado_em: string
+          decidido_em: string | null
+          desfazer_ate: string | null
+          desfeito_em: string | null
+          erro: string | null
+          execution_id: string | null
+          id: string
+          lead_id: string | null
+          lead_nome: string | null
+          payload: Json
+          payload_final: Json | null
+          resultado: Json | null
+          status: string
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          conversa_id?: string | null
+          criado_em?: string
+          decidido_em?: string | null
+          desfazer_ate?: string | null
+          desfeito_em?: string | null
+          erro?: string | null
+          execution_id?: string | null
+          id?: string
+          lead_id?: string | null
+          lead_nome?: string | null
+          payload: Json
+          payload_final?: Json | null
+          resultado?: Json | null
+          status?: string
+          tipo: string
+          user_id: string
+        }
+        Update: {
+          conversa_id?: string | null
+          criado_em?: string
+          decidido_em?: string | null
+          desfazer_ate?: string | null
+          desfeito_em?: string | null
+          erro?: string | null
+          execution_id?: string | null
+          id?: string
+          lead_id?: string | null
+          lead_nome?: string | null
+          payload?: Json
+          payload_final?: Json | null
+          resultado?: Json | null
+          status?: string
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "samiq_propostas_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "samiq_conversas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_propostas_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "samiq_execucoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       samiq_prompt_versions: {
         Row: {
+          propostas_enabled: boolean
           tools_enabled: boolean
           action_prompts: Json
           active: boolean
@@ -5000,6 +5080,7 @@ export type Database = {
           version: string
         }
         Insert: {
+          propostas_enabled?: boolean
           tools_enabled?: boolean
           action_prompts: Json
           active?: boolean
@@ -5015,6 +5096,7 @@ export type Database = {
           version: string
         }
         Update: {
+          propostas_enabled?: boolean
           tools_enabled?: boolean
           action_prompts?: Json
           active?: boolean
@@ -8413,6 +8495,21 @@ export type Database = {
         Args: { _execution_id: string; _motivo?: string | null; _nota: number }
         Returns: boolean
       }
+      samiq_decidir_proposta: {
+        Args: {
+          _erro?: string | null
+          _payload_final?: Json | null
+          _proposta_id: string
+          _resultado?: Json | null
+          _status: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      samiq_desfazer_proposta: {
+        Args: { _proposta_id: string; _user_id: string }
+        Returns: Json
+      }
       samiq_finalizar_execucao: {
         Args: {
           _error_code?: string
@@ -8444,6 +8541,15 @@ export type Database = {
         Args: { _ate: string; _de: string }
         Returns: Json
       }
+      samiq_registrar_propostas: {
+        Args: {
+          _conversa_id: string | null
+          _execution_id: string | null
+          _propostas: Json
+          _user_id: string
+        }
+        Returns: Json
+      }
       samiq_reservar_execucao: {
         Args: {
           _action: string
@@ -8464,6 +8570,7 @@ export type Database = {
           tools_enabled: boolean | null
           max_tool_steps: number | null
           custo_mes_pct: number | null
+          propostas_enabled: boolean | null
         }[]
       }
       sdr_leads_reaquecer: {

@@ -21,6 +21,13 @@ const s1 = readFileSync(
   join(root, "supabase/migrations/20260906100000_samiq_copiloto_s1.sql"),
   "utf8",
 );
+const s2 = readFileSync(
+  join(root, "supabase/migrations/20260907100000_samiq_copiloto_s2.sql"),
+  "utf8",
+);
+const propostasTools = readFileSync(join(root, "src/lib/samiq-propostas.server.ts"), "utf8");
+const executor = readFileSync(join(root, "src/lib/samiq-executar.server.ts"), "utf8");
+const confirmar = readFileSync(join(root, "src/lib/samiq-confirmar.functions.ts"), "utf8");
 
 const ACOES_CHAT = [
   "resumo_cliente",
@@ -337,5 +344,96 @@ describe("Onda S1 — ferramentas de leitura, memória e qualidade (migration 20
     );
     expect(s1).toContain("_prompt.tools_enabled");
     expect(s1).toContain("_policy.max_tool_steps");
+  });
+});
+
+describe("Onda S2 — escrita por proposta confirmada (migration 20260907100000)", () => {
+  it("o handler só liga as ferramentas propor_* quando a versão ativa autoriza, e continua sem escrever", () => {
+    expect(handler).toContain("criarFerramentasDePropostaSamiQ");
+    expect(handler).toMatch(/if \(reservation\.propostasEnabled\)/);
+    expect(handler).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(handler).toContain("registrarPropostasSamiQ");
+  });
+
+  it("as ferramentas propor_* só LEEM o cliente (RLS) e empilham — nunca gravam", () => {
+    expect(propostasTools).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(propostasTools).not.toMatch(/\.rpc\(/);
+    expect(propostasTools).not.toContain("supabaseAdmin");
+    for (const name of [
+      "propor_registro_contato",
+      "propor_anotacao",
+      "propor_tarefa",
+      "propor_qualificacao",
+      "propor_visita",
+      "propor_etapa",
+    ]) {
+      expect(propostasTools).toContain(`${name}: tool({`);
+    }
+    expect(propostasTools).toContain("Nada foi gravado");
+  });
+
+  it("o executor é o único que escreve: com a sessão do corretor, marcando origem samiq, e etapa só pela RPC", () => {
+    expect(executor).not.toContain("supabaseAdmin");
+    expect(executor).not.toContain('from "@/integrations/supabase/client"');
+    // Toda interação criada leva a marca (metadata) para a timeline e o desfazer.
+    const insercoesInteracao =
+      executor.match(/\.from\("interacoes"\)\s*\.insert\(\{[\s\S]*?\}\)/g) ?? [];
+    expect(insercoesInteracao.length).toBeGreaterThanOrEqual(2);
+    for (const bloco of insercoesInteracao) expect(bloco).toContain("metadata");
+    // Etapa do funil nunca por UPDATE direto — sempre a máquina de estados.
+    expect(executor).toContain('supabase.rpc("transicionar_lead"');
+    expect(executor).not.toMatch(/\.from\("leads"\)\s*\.update\(\{[^}]*status/);
+    expect(executor).toContain("Registrado via Sami");
+  });
+
+  it("a confirmação passa pela decisão do banco e não deixa trocar tipo nem cliente na edição", () => {
+    expect(confirmar).toContain("executarPropostaSamiQ");
+    expect(confirmar).toContain('rpc("samiq_decidir_proposta"');
+    expect(confirmar).toContain('rpc("samiq_desfazer_proposta"');
+    expect(confirmar).toContain("Tipo da proposta não pode mudar");
+    expect(confirmar).toContain("Cliente da proposta não pode mudar");
+    expect(confirmar).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+  });
+
+  it("migration S2: propostas com RLS por usuário, escrita só pelo servidor, desfazer em 24 h e etapa irreversível", () => {
+    expect(s2).toContain(
+      "ADD COLUMN IF NOT EXISTS propostas_enabled boolean NOT NULL DEFAULT false",
+    );
+    expect(s2).toContain("CREATE TABLE IF NOT EXISTS public.samiq_propostas");
+    expect(s2).toMatch(/samiq_propostas_select_proprias[\s\S]*?USING \(user_id = auth\.uid\(\)\)/);
+    expect(s2).toContain("GRANT SELECT ON TABLE public.samiq_propostas TO authenticated");
+    expect(s2).not.toMatch(/GRANT[^;]*INSERT[^;]*samiq_propostas[^;]*authenticated/);
+    for (const fn of [
+      "samiq_registrar_propostas",
+      "samiq_decidir_proposta",
+      "samiq_desfazer_proposta",
+    ]) {
+      expect(s2).toMatch(
+        new RegExp(
+          `REVOKE ALL ON FUNCTION public\\.${fn}[\\s\\S]*?FROM PUBLIC, anon, authenticated`,
+        ),
+      );
+      expect(s2).toMatch(
+        new RegExp(`GRANT EXECUTE ON FUNCTION public\\.${fn}[\\s\\S]*?TO service_role`),
+      );
+    }
+    expect(s2).toContain("interval '24 hours'");
+    expect(s2).toContain("mudanca de etapa nao se desfaz pelo botao");
+    expect(s2).toMatch(
+      /max_output_tokens integer,\s*tools_enabled boolean,\s*max_tool_steps integer,\s*custo_mes_pct integer,\s*propostas_enabled boolean\s*\)/,
+    );
+  });
+
+  it("a v4 carrega as 14 ações, autoriza proposta e mantém a proibição de escrita direta", () => {
+    for (const action of [...ACOES_CHAT, ...ACOES_UNIFICADAS]) {
+      expect(s2).toContain(`'${action}'`);
+    }
+    expect(s2).toContain("'samiq-2026-09-v4'");
+    expect(s2).toMatch(
+      /IF NOT EXISTS \(\s*SELECT 1 FROM public\.samiq_prompt_versions WHERE version = 'samiq-2026-09-v4'\s*\)/,
+    );
+    expect(s2).toContain("Elas NÃO gravam nada");
+    expect(s2).toContain("nunca afirme que registrou");
+    expect(s2).toContain('"Não consegui"');
   });
 });

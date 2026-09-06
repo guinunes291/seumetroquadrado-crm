@@ -4,6 +4,11 @@
 // e samiq-memoria.server.ts (servidor).
 
 import { isSamiQToolName } from "@/lib/samiq-tools";
+import {
+  PropostaPayloadSchema,
+  SAMIQ_PROPOSTA_TIPOS,
+  type PropostaSamiQ,
+} from "@/lib/samiq-propostas";
 
 export type MensagemPersistida = {
   role: "user" | "assistant";
@@ -12,7 +17,66 @@ export type MensagemPersistida = {
   executionId: string | null;
   avaliacao: 1 | -1 | null;
   criadoEm: string;
+  /** Propostas (S2) ligadas à execução desta resposta — pendentes ou recém-registradas. */
+  propostas: PropostaSamiQ[];
 };
+
+export type PropostaPersistidaRow = {
+  id: string;
+  tipo: string;
+  payload: unknown;
+  status: string;
+  execution_id: string | null;
+  lead_nome: string | null;
+  desfazer_ate: string | null;
+  erro: string | null;
+};
+
+const STATUS_PROPOSTA = [
+  "pendente",
+  "aceita",
+  "editada",
+  "rejeitada",
+  "desfeita",
+  "falhou",
+] as const;
+
+/**
+ * Quais propostas voltam ao painel ao retomar a conversa: as pendentes (o
+ * corretor ainda decide), as que falharam (pode tentar de novo) e as
+ * registradas que ainda podem ser desfeitas. Rejeitadas, desfeitas e
+ * registros antigos ficam só no banco.
+ */
+export function mapearPropostasPersistidas(
+  rows: PropostaPersistidaRow[],
+  agora: Date = new Date(),
+): PropostaSamiQ[] {
+  const out: PropostaSamiQ[] = [];
+  for (const r of rows) {
+    if (!(SAMIQ_PROPOSTA_TIPOS as readonly string[]).includes(r.tipo)) continue;
+    if (!(STATUS_PROPOSTA as readonly string[]).includes(r.status)) continue;
+    const parsed = PropostaPayloadSchema.safeParse(r.payload);
+    if (!parsed.success || parsed.data.tipo !== r.tipo) continue;
+    const status = r.status as PropostaSamiQ["status"];
+    const registrada = status === "aceita" || status === "editada";
+    if (registrada) {
+      const ate = r.desfazer_ate ? new Date(r.desfazer_ate).getTime() : NaN;
+      if (Number.isNaN(ate) || ate <= agora.getTime()) continue;
+    } else if (status !== "pendente" && status !== "falhou") {
+      continue;
+    }
+    out.push({
+      id: r.id,
+      tipo: parsed.data.tipo,
+      payload: parsed.data,
+      leadNome: r.lead_nome,
+      status,
+      desfazerAte: r.desfazer_ate,
+      erro: r.erro,
+    });
+  }
+  return out;
+}
 
 /** Conversa parada há mais que isto começa do zero (o histórico fica no banco). */
 export const SAMIQ_JANELA_RETOMAR_MS = 12 * 60 * 60 * 1000;
@@ -42,8 +106,16 @@ export function mapearMensagensPersistidas(
     criado_em: string;
   }>,
   avaliacoes: Array<{ execution_id: string; nota: number }>,
+  propostas: PropostaSamiQ[] = [],
+  propostaExecucao: ReadonlyMap<string, string> = new Map(),
 ): MensagemPersistida[] {
   const notaPor = new Map(avaliacoes.map((a) => [a.execution_id, a.nota]));
+  const propostasPor = new Map<string, PropostaSamiQ[]>();
+  for (const p of propostas) {
+    const exec = propostaExecucao.get(p.id);
+    if (!exec) continue;
+    propostasPor.set(exec, [...(propostasPor.get(exec) ?? []), p]);
+  }
   return rows
     .filter((r) => r.papel === "user" || r.papel === "assistant")
     .slice(-SAMIQ_MAX_MENSAGENS_CARREGADAS)
@@ -56,6 +128,7 @@ export function mapearMensagensPersistidas(
         executionId: r.execution_id,
         avaliacao: nota === 1 ? 1 : nota === -1 ? -1 : null,
         criadoEm: r.criado_em,
+        propostas: r.execution_id ? (propostasPor.get(r.execution_id) ?? []) : [],
       };
     });
 }

@@ -116,15 +116,16 @@ afterAll(async () => {
 });
 
 describe("reserva com ferramentas de leitura", () => {
-  it("devolve a v3 com tools_enabled, o teto de passos da política e sem % de custo quando não há teto", async () => {
+  it("devolve a versão ativa com tools_enabled, o teto de passos da política e sem % de custo quando não há teto", async () => {
     const r = await reservar(c, corretorA.id);
     expect(r.allowed).toBe(true);
-    expect(r.prompt_version).toBe("samiq-2026-09-v3");
+    // Versão ativa mais recente (S2 = v4). A v3 continua no banco, inativa.
+    expect(r.prompt_version).toBe("samiq-2026-09-v4");
     expect(r.tools_enabled).toBe(true);
     expect(r.max_tool_steps).toBe(6);
     expect(r.custo_mes_pct).toBeNull();
     expect(r.system_prompt).toContain("Não consegui");
-    expect(r.system_prompt).toContain("NÃO tem ferramentas de escrita");
+    expect(r.system_prompt).toContain("NÃO gravam nada");
   });
 
   it("ação sem prompt versionado continua rejeitada (22023)", async () => {

@@ -11,6 +11,7 @@
 // a ser persistida (conversaId). Escrita continua fora — é a Onda S2.
 
 import { z } from "zod";
+import type { PropostaSamiQ } from "@/lib/samiq-propostas";
 
 export const SAMIQ_ACTIONS = [
   "resumo_cliente",
@@ -70,6 +71,8 @@ export type SamiQResposta = {
   fallback?: boolean;
   /** % do orçamento mensal do papel já usado (D18); null = sem teto. */
   custoMesPct?: number | null;
+  /** Propostas de escrita (Onda S2) aguardando o toque do corretor no card. */
+  propostas?: PropostaSamiQ[];
 };
 
 type ActionMeta = {

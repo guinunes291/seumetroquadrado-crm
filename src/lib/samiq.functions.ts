@@ -31,6 +31,8 @@ import {
   detectarFallbackSamiQ,
   hojeSaoPaulo,
 } from "@/lib/samiq-tools";
+import type { PropostaSamiQ } from "@/lib/samiq-propostas";
+import type { PropostaColetada } from "@/lib/samiq-propostas.server";
 
 // 24k de contexto + ate 7,2k de historico + prompts cabem com margem.
 // A finalizacao substitui esta reserva conservadora pelo consumo real.
@@ -214,12 +216,20 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
       let inputTokens = 0;
       let outputTokens = 0;
       let telemetria = { chamadas: 0, erros: 0, nomes: [] as string[] };
+      // Onda S2: propostas de escrita empilhadas pelas ferramentas propor_*.
+      // Nada aqui grava; viram card no painel e só executam quando o corretor
+      // confirma (samiq-confirmar.functions.ts).
+      const coletor: PropostaColetada[] = [];
 
       if (usarFerramentas) {
         // Loop de ferramentas de LEITURA: o modelo consulta a carteira pelo
         // supabase do usuário (RLS) até o teto de passos da política.
         const { criarFerramentasSamiQ } = await import("./samiq-tools.server");
         const tools = criarFerramentasSamiQ({ supabase, userId });
+        if (reservation.propostasEnabled) {
+          const { criarFerramentasDePropostaSamiQ } = await import("./samiq-propostas.server");
+          Object.assign(tools, criarFerramentasDePropostaSamiQ({ supabase, userId, coletor }));
+        }
         const cabecalho = [
           `Ação solicitada: ${meta.label}.`,
           reservation.actionPrompt,
@@ -315,6 +325,18 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
         executionId: reservation.executionId,
       });
 
+      // ----- Propostas (S2): persistem como 'pendente' até o toque do corretor -----
+      let propostas: PropostaSamiQ[] = [];
+      if (coletor.length > 0) {
+        const { registrarPropostasSamiQ } = await import("./samiq-memoria.server");
+        propostas = await registrarPropostasSamiQ({
+          userId,
+          executionId: reservation.executionId,
+          conversaId,
+          coletadas: coletor,
+        });
+      }
+
       return {
         texto,
         sugestoes: sugestoesPara(data.action, texto, data.leadId),
@@ -323,6 +345,7 @@ export const perguntarSamiQ = createServerFn({ method: "POST" })
         ferramentas: telemetria.nomes,
         fallback,
         custoMesPct: reservation.custoMesPct,
+        propostas,
       };
     } catch (error) {
       await recordFailure();

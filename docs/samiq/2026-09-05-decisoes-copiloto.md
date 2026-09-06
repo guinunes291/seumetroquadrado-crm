@@ -154,3 +154,21 @@ Ordem: S1 → S2 são pré-requisito de tudo. S3 e S5 podem andar em paralelo de
 | Registros via Sami / registros totais    | `interacoes.metadata.origem`                        | crescente; sinal de que a timeline deixou de depender da disciplina |
 | Latência p50 / p95                       | `samiq_execucoes.latency_ms`                        | p95 < 8 s com ferramentas                                           |
 | Custo por corretor por mês vs teto       | `samiq_execucoes.estimated_cost_micros`             | dentro do teto D18                                                  |
+
+---
+
+## 7. Status de entrega
+
+| Onda                          | Estado                                    | Onde                                                                                                                                                                                         |
+| ----------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **S1 — Fundação**             | Entregue e mergeada (PR #174, 06/09/2026) | migration `20260906100000_samiq_copiloto_s1.sql`; `src/lib/samiq-tools*.ts`, `samiq-memoria*.ts`; card em Configurações › Qualidade                                                          |
+| **S2 — Escrita por proposta** | Em PR (06/09/2026)                        | migration `20260907100000_samiq_copiloto_s2.sql`; `src/lib/samiq-propostas*.ts`, `samiq-executar.server.ts`, `samiq-confirmar.functions.ts`; `src/components/samiq/samiq-propostas-card.tsx` |
+| S3 — Presença                 | Pendente                                  | briefing ao abrir, alertas, chips contextuais, microfone                                                                                                                                     |
+| S4 — Um cérebro               | Pendente                                  | `/api/sami` para o n8n, edge functions viram ferramentas                                                                                                                                     |
+| S5 — Skills                   | Pendente                                  | calculadora MCMV em TS, preparador de visita, qualificação 7D, curador                                                                                                                       |
+
+Recortes deliberados da S2 (voltam nas ondas seguintes ou por decisão do dono):
+
+- `mudar_etapa` propõe só etapas sem modal próprio (em atendimento, aguardando retorno, qualificação, qualificado, proposta enviada, perdido). Visita realizada, análise de crédito e fechamento continuam pelos modais obrigatórios.
+- Mudança de etapa não se desfaz pelo botão (máquina de estados); o resto se desfaz em 24 h.
+- Sem fontes automáticas (Sonax, `mensagens`, voz) — decisão D6 mantida.
