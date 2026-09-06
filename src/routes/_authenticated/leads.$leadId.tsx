@@ -26,6 +26,7 @@ import {
   WhatsappLogo,
 } from "@phosphor-icons/react";
 import { SamiMark } from "@/components/ui/sami-mark";
+import { abrirSamiQ } from "@/components/samiq/abrir-samiq";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -404,6 +405,17 @@ function LeadDetailPage() {
         </div>
         {/* Briefing por IA — promovido da aba Timeline para o topo do dossiê. */}
         <div className="border-t border-border-subtle px-4 py-3 md:px-5">
+          <div className="mb-2 flex justify-end">
+            {/* Chip contextual (Onda S3): abre a Sami já com este cliente em foco. */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => abrirSamiQ({ leadId: lead.id, leadNome: lead.nome, origem: "dossie" })}
+            >
+              <SamiMark className="h-4 w-4" /> Perguntar à Sami
+            </Button>
+          </div>
           <ResumoIA leadId={leadId} />
         </div>
       </Card>

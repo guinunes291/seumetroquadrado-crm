@@ -5,6 +5,8 @@ import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { cn } from "@/lib/utils";
 import { leadStatusLabel, type LeadStatus, type StageModal } from "@/lib/leads";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
+import { SamiMark } from "@/components/ui/sami-mark";
+import { abrirSamiQ, textoRegistrarComSami } from "@/components/samiq/abrir-samiq";
 import { TIER_DOT } from "@/lib/priority";
 import {
   CalendarCheck,
@@ -175,6 +177,24 @@ export function QueueSection({
                   onClick={() => onRegistrarContato(item)}
                 >
                   <PhoneCall className="h-4 w-4" />
+                </Button>
+                {/* Chip contextual (Onda S3): conta o que rolou e a Sami prepara
+                    o registro — contato, objeção e follow-up num pacote. */}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7 hover:bg-primary/10"
+                  title="Registrar com a Sami — conte o que rolou e ela prepara o registro"
+                  onClick={() =>
+                    abrirSamiQ({
+                      leadId: l.id,
+                      leadNome: l.nome,
+                      texto: textoRegistrarComSami(l.nome),
+                      origem: "atender",
+                    })
+                  }
+                >
+                  <SamiMark className="h-4 w-4" />
                 </Button>
                 {/* Etapa in-line (auditoria ux-ia-2026-08, item 1.8): agendou ou
                     perdeu na própria ligação, move aqui — sem abrir o peek. Os

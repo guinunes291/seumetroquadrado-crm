@@ -24,20 +24,33 @@ import {
 } from "@/components/samiq/samiq-conversas";
 import { SamiQPropostasCard } from "@/components/samiq/samiq-propostas-card";
 import type { PropostaSamiQ } from "@/lib/samiq-propostas";
+import type { SamiQAbrirDetail } from "@/components/samiq/abrir-samiq";
+import { briefingSamiQ } from "@/lib/samiq-briefing.functions";
+import type { BriefingIcone, BriefingLinha } from "@/lib/samiq-briefing";
+import { useDitado } from "@/hooks/use-ditado";
 import {
+  ArrowRight,
+  CalendarCheck,
+  CalendarDots,
+  ChatCircleDots,
   CircleNotch,
   Clipboard,
   Copy,
   Fire,
+  FolderOpen,
   ListChecks,
   ListNumbers,
+  Microphone,
   PaperPlaneTilt,
   Path as RouteIcon,
   PhoneCall,
   Plus,
   ShieldWarning,
+  Snowflake,
+  Sparkle,
   ThumbsDown,
   ThumbsUp,
+  Timer,
   User,
   Warning,
   WhatsappLogo,
@@ -77,16 +90,46 @@ const UUID_RE = /^\/leads\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 /** % do orçamento mensal a partir do qual o painel avisa (D18: alerta em 80%). */
 const ALERTA_CUSTO_PCT = 80;
 
+const BRIEFING_ICONE: Record<BriefingIcone, IconComponent> = {
+  agenda: CalendarDots,
+  confirmar: CalendarCheck,
+  followup: Timer,
+  responder: ChatCircleDots,
+  esfriando: Snowflake,
+  docs: FolderOpen,
+  novos: Sparkle,
+};
+
+const DITADO_CONSENTIMENTO_CHAVE = "samiq:ditado-consentido";
+
+function consentiuDitado(): boolean {
+  try {
+    return window.localStorage.getItem(DITADO_CONSENTIMENTO_CHAVE) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function registrarConsentimentoDitado(): void {
+  try {
+    window.localStorage.setItem(DITADO_CONSENTIMENTO_CHAVE, "1");
+  } catch {
+    /* sem storage: pede de novo na próxima vez */
+  }
+}
+
 /**
  * Painel do SamiQ: contexto no topo (detecta o lead da rota atual), grade de
  * ações rápidas e um chat com memória (Onda S1). A pergunta livre consulta a
  * carteira por ferramentas de LEITURA no servidor; o SamiQ sugere, o corretor
  * decide — botões de sugestão apenas copiam texto ou navegam.
  */
-export function SamiQPanel({ onClose }: { onClose: () => void }) {
+export function SamiQPanel({ onClose, seed }: { onClose: () => void; seed?: SamiQAbrirDetail }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const leadId = useMemo(() => pathname.match(UUID_RE)?.[1], [pathname]);
+  const leadRota = useMemo(() => pathname.match(UUID_RE)?.[1], [pathname]);
+  // Cliente em foco: o chip que abriu a Sami manda; senão, o dossiê aberto.
+  const leadId = seed?.leadId ?? leadRota;
 
   const [thread, setThread] = useState<Msg[]>([]);
   const [conversaId, setConversaId] = useState<string | null>(null);
@@ -98,14 +141,26 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Nome do lead em contexto (chip do cabeçalho).
-  const { data: leadNome } = useQuery({
+  const { data: leadNomeQuery } = useQuery({
     queryKey: ["samiq:lead-nome", leadId],
-    enabled: !!leadId,
+    enabled: !!leadId && !seed?.leadNome,
     staleTime: 60_000,
     queryFn: async () => {
       const { data } = await supabase.from("leads").select("nome").eq("id", leadId!).maybeSingle();
       return data?.nome ?? null;
     },
+  });
+  const leadNome = seed?.leadNome ?? leadNomeQuery;
+
+  // Briefing ao abrir (S3, D13): agenda, follow-ups vencidos e filas — sem
+  // chamar o modelo. Só enquanto a conversa está vazia.
+  const carregarBriefing = useServerFn(briefingSamiQ);
+  const briefing = useQuery({
+    queryKey: ["samiq:briefing"],
+    staleTime: 60_000,
+    retry: 1,
+    enabled: thread.length === 0,
+    queryFn: () => carregarBriefing(),
   });
 
   // Memória: retoma a última conversa recente (RLS: só a do usuário).
@@ -198,6 +253,54 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [thread.length, mutation.isPending]);
 
+  // Texto vindo do chip: pré-digita (o corretor completa) ou envia na hora.
+  const seedAplicado = useRef(false);
+  useEffect(() => {
+    if (!seed?.texto || seedAplicado.current) return;
+    seedAplicado.current = true;
+    if (seed.autoEnviar) {
+      const q = seed.texto.trim();
+      setThread((t) => [...t, { role: "user", content: q }]);
+      mutation.mutate({ action: "pergunta_livre", pergunta: q });
+    } else {
+      setInput(seed.texto);
+    }
+  }, [seed, mutation]);
+
+  // Ditado por voz (S3, D8): o texto reconhecido entra no campo; o corretor
+  // revisa e envia. O áudio é processado pelo navegador, não pela SMQ.
+  const ditado = useDitado({
+    onTexto: (texto) => setInput((v) => (v.trim() ? `${v.trimEnd()} ${texto}` : texto)),
+    onErro: (mensagem) => toast.error(mensagem),
+  });
+  const alternarDitado = () => {
+    if (ditado.ouvindo) {
+      ditado.parar();
+      return;
+    }
+    if (consentiuDitado()) {
+      ditado.iniciar();
+      return;
+    }
+    toast("Ditado por voz", {
+      description:
+        "O áudio é transcrito pelo motor de voz do seu navegador/celular e vira texto neste campo. Nada é gravado pela SMQ.",
+      action: {
+        label: "Entendi, ativar",
+        onClick: () => {
+          registrarConsentimentoDitado();
+          ditado.iniciar();
+        },
+      },
+    });
+  };
+
+  const perguntarDoBriefing = (linha: BriefingLinha) => {
+    if (!linha.pergunta || mutation.isPending) return;
+    setThread((t) => [...t, { role: "user", content: linha.pergunta! }]);
+    mutation.mutate({ action: "pergunta_livre", pergunta: linha.pergunta });
+  };
+
   const disparar = (action: SamiQAction, pergunta?: string) => {
     const meta = SAMIQ_ACTION_META[action];
     if (meta.precisaLead && !leadId) {
@@ -286,10 +389,74 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
           {thread.length === 0 && (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Sou a <span className="font-medium text-primary">Sami</span>, seu copiloto de
-                vendas. Escolha uma ação ou pergunte sobre a sua carteira — por exemplo:{" "}
-                <em>quem tem visita amanhã?</em> ou <em>o que está parado no funil?</em>
+                {briefing.data?.saudacao ?? "Oi"}! Sou a{" "}
+                <span className="font-medium text-primary">Sami</span>, seu copiloto de vendas.
+                Escolha uma ação, toque numa linha do seu dia ou pergunte sobre a sua carteira.
               </p>
+              {/* Briefing ao abrir (S3): o "quem merece atenção hoje", sem custo de IA. */}
+              <div className="rounded-lg border bg-card p-2.5 shadow-elev-1">
+                <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Seu dia
+                </div>
+                {briefing.isPending ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <CircleNotch className="h-3.5 w-3.5 animate-spin" /> Olhando agenda, tarefas e
+                    filas…
+                  </div>
+                ) : briefing.isError ? (
+                  <p className="text-xs text-muted-foreground">
+                    Não consegui montar o resumo do dia agora.
+                  </p>
+                ) : briefing.data?.vazio ? (
+                  <p className="text-xs text-muted-foreground">
+                    Tudo em dia por aqui: sem visita pendente, follow-up vencido ou cliente
+                    esperando resposta.
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {briefing.data?.linhas.map((linha) => {
+                      const Icone = BRIEFING_ICONE[linha.icone];
+                      return (
+                        <li key={linha.chave} className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            className={cn(
+                              "flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs hover:bg-muted",
+                              linha.tom === "warning" && "text-foreground",
+                              linha.tom !== "warning" && "text-muted-foreground",
+                            )}
+                            title={linha.pergunta ? `Perguntar: ${linha.pergunta}` : linha.texto}
+                            disabled={mutation.isPending}
+                            onClick={() => perguntarDoBriefing(linha)}
+                          >
+                            <Icone
+                              className={cn(
+                                "h-3.5 w-3.5 shrink-0",
+                                linha.tom === "warning" ? "text-warning" : "text-primary",
+                              )}
+                            />
+                            <span className="truncate">{linha.texto}</span>
+                          </button>
+                          {linha.to && (
+                            <button
+                              type="button"
+                              aria-label="Abrir no CRM"
+                              title="Abrir no CRM"
+                              className="rounded p-1 text-muted-foreground hover:text-primary"
+                              onClick={() => {
+                                onClose();
+                                navigate({ to: linha.to! });
+                              }}
+                            >
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-1.5">
                 {QUICK_ACTIONS.map(({ action, icon: Icon }) => {
                   const meta = SAMIQ_ACTION_META[action];
@@ -476,6 +643,20 @@ export function SamiQPanel({ onClose }: { onClose: () => void }) {
             }
             className="min-h-0 resize-none"
           />
+          {ditado.suportado && (
+            <Button
+              size="icon"
+              variant={ditado.ouvindo ? "default" : "outline"}
+              className={cn(ditado.ouvindo && "animate-pulse")}
+              onClick={alternarDitado}
+              disabled={mutation.isPending}
+              aria-label={ditado.ouvindo ? "Parar ditado" : "Ditar por voz"}
+              aria-pressed={ditado.ouvindo}
+              title={ditado.ouvindo ? "Ouvindo… toque para parar" : "Ditar por voz"}
+            >
+              <Microphone className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             size="icon"
             disabled={!input.trim() || mutation.isPending}
