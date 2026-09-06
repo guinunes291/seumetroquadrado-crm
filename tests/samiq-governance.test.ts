@@ -15,6 +15,27 @@ const migration = readFileSync(
   "utf8",
 );
 const handler = readFileSync(join(root, "src/lib/samiq.functions.ts"), "utf8");
+const tools = readFileSync(join(root, "src/lib/samiq-tools.server.ts"), "utf8");
+const memoria = readFileSync(join(root, "src/lib/samiq-memoria.server.ts"), "utf8");
+const s1 = readFileSync(
+  join(root, "supabase/migrations/20260906100000_samiq_copiloto_s1.sql"),
+  "utf8",
+);
+
+const ACOES_CHAT = [
+  "resumo_cliente",
+  "mensagem_sugerida",
+  "responder_objecao",
+  "proximo_passo",
+  "projeto_ideal",
+  "checklist_docs",
+  "recuperar_frio",
+  "script_ligacao",
+  "analise_funil",
+  "prioridade_dia",
+  "pergunta_livre",
+] as const;
+const ACOES_UNIFICADAS = ["match_projetos", "resumo_lead", "mensagem_whatsapp"] as const;
 
 describe("redação/minimização SamiQ", () => {
   it("remove e-mail, CPF, CNPJ, telefone, identificador longo e endereço", () => {
@@ -185,7 +206,7 @@ describe("governança distribuída SamiQ", () => {
     );
   });
 
-  it("o handler usa RPCs compactas, não usa Map local e nunca recebe ferramentas de escrita", () => {
+  it("o handler usa RPCs compactas, não usa Map local e só recebe ferramentas de LEITURA", () => {
     expect(handler).toContain("reserveSamiQExecution");
     expect(handler).toContain("finishSamiQExecution");
     expect(handler).toContain('supabase.rpc("pipeline_snapshot_v2"');
@@ -193,8 +214,12 @@ describe("governança distribuída SamiQ", () => {
     expect(handler).toContain("minimizeSamiQContext");
     expect(handler).not.toContain('from "@/lib/rate-limit"');
     expect(handler).not.toMatch(/\.limit\((1000|300)\)/);
-    expect(handler).not.toMatch(/\.(insert|update|delete)\(/);
-    expect(handler).not.toMatch(/\btools\s*:/);
+    expect(handler).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    // Onda S1 (D9/D10): ferramentas entram SÓ pelo catálogo de leitura, e só
+    // quando a versão de prompt ativa autoriza — a v2 no ar mantém o chat antigo.
+    expect(handler).toContain("criarFerramentasSamiQ");
+    expect(handler).toMatch(/reservation\.toolsEnabled/);
+    expect(handler).toContain("stopWhen: stepCountIs(reservation.maxToolSteps)");
     expect(handler).not.toContain('gateway("google/gemini');
     expect(handler).toContain("redactSamiQFreeText");
     expect(handler).not.toContain('select("tipo, direcao, titulo, conteudo, ocorreu_em")');
@@ -202,10 +227,115 @@ describe("governança distribuída SamiQ", () => {
     expect(handler).not.toContain("lead.observacoes");
   });
 
+  it("o catálogo de ferramentas só LÊ, com o supabase do usuário (RLS) — nunca escreve", () => {
+    expect(tools).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(tools).not.toMatch(
+      /rpc\("(transicionar_lead|marcar_lead_perdido|aprovar_venda|distribuir_|samiq_gravar_turno)/,
+    );
+    expect(tools).not.toContain("supabaseAdmin");
+    expect(tools).not.toContain('from "@/integrations/supabase/client.server"');
+    for (const name of [
+      "buscar_clientes",
+      "detalhe_cliente",
+      "minha_agenda",
+      "minhas_tarefas",
+      "meu_funil",
+      "minha_fila",
+      "documentos_do_cliente",
+      "catalogo_projetos",
+    ]) {
+      expect(tools).toContain(`${name}: tool({`);
+    }
+    // Contato do cliente nunca sai para o modelo, nem pelas ferramentas.
+    expect(tools).not.toMatch(/select\([^)]*\b(telefone|cpf|email)\b/);
+  });
+
+  it("a memória grava só pela RPC do servidor, com PII redigida antes", () => {
+    expect(memoria).toContain('rpc("samiq_gravar_turno"');
+    expect(memoria).toContain("redactSamiQPii(");
+    expect(memoria).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+  });
+
   it("cobra a reserva conservadora quando uma execução expira sem telemetria", () => {
     expect(migration).toMatch(
       /error_code = 'reservation_expired'[\s\S]*input_tokens = reserved_input_tokens|input_tokens = reserved_input_tokens[\s\S]*error_code = 'reservation_expired'/,
     );
     expect(migration).toContain("output_tokens = reserved_output_tokens");
+  });
+});
+
+describe("Onda S1 — ferramentas de leitura, memória e qualidade (migration 20260906100000)", () => {
+  it("a v3 carrega as 14 ações, autoriza consulta e proíbe escrita no system prompt", () => {
+    for (const action of [...ACOES_CHAT, ...ACOES_UNIFICADAS]) {
+      expect(s1).toContain(`'${action}'`);
+    }
+    expect(s1).toContain("'samiq-2026-09-v3'");
+    expect(s1).toContain("ADD COLUMN IF NOT EXISTS tools_enabled boolean NOT NULL DEFAULT false");
+    expect(s1).toContain("ferramentas de LEITURA");
+    expect(s1).toContain("NÃO tem ferramentas de escrita");
+    expect(s1).toContain('"Não consegui"');
+  });
+
+  it("só cria e ativa a v3 se ela não existir (o kill switch por prompt_version não é desfeito)", () => {
+    expect(s1).toMatch(
+      /IF NOT EXISTS \(\s*SELECT 1 FROM public\.samiq_prompt_versions WHERE version = 'samiq-2026-09-v3'\s*\)/,
+    );
+  });
+
+  it("política ganha teto de passos e tetos mensais por papel com percentual de alerta (D18)", () => {
+    for (const col of [
+      "max_tool_steps",
+      "max_cost_corretor_micros_mes",
+      "max_cost_gestor_micros_mes",
+      "max_cost_equipe_micros_mes",
+      "alerta_custo_pct",
+    ]) {
+      expect(s1).toContain(`ADD COLUMN IF NOT EXISTS ${col}`);
+    }
+    expect(s1).toContain("'user_cost_budget_month'");
+    expect(s1).toContain("'team_cost_budget_month'");
+    expect(s1).toMatch(/has_role\(_user_id, 'gestor'\)/);
+  });
+
+  it("execuções ganham métricas de ferramenta e fallback — ainda sem conteúdo nem lead", () => {
+    const bloco = s1.match(/ALTER TABLE public\.samiq_execucoes[\s\S]*?;/)?.[0] ?? "";
+    expect(bloco).toContain("tool_calls");
+    expect(bloco).toContain("tool_errors");
+    expect(bloco).toContain("fallback");
+    expect(bloco).not.toMatch(/lead_id|telefone|conteudo|prompt_text/);
+    expect(s1).toMatch(
+      /_tool_calls integer DEFAULT 0,\s*_tool_errors integer DEFAULT 0,\s*_fallback boolean DEFAULT false/,
+    );
+  });
+
+  it("memória: cada usuário lê/apaga só a sua; escrita só pelo servidor; retenção de 90 dias por cron", () => {
+    expect(s1).toMatch(/samiq_conversas_select_proprias[\s\S]*?USING \(user_id = auth\.uid\(\)\)/);
+    expect(s1).toMatch(
+      /samiq_conversa_mensagens_select_proprias[\s\S]*?USING \(user_id = auth\.uid\(\)\)/,
+    );
+    expect(s1).toContain("GRANT SELECT, DELETE ON TABLE public.samiq_conversas TO authenticated");
+    expect(s1).not.toMatch(/GRANT[^;]*INSERT[^;]*samiq_conversas[^;]*authenticated/);
+    expect(s1).toMatch(
+      /REVOKE ALL ON FUNCTION public\.samiq_gravar_turno[\s\S]*?FROM PUBLIC, anon, authenticated/,
+    );
+    expect(s1).toContain("'samiq-limpar-conversas'");
+    expect(s1).toContain("interval '90 days'");
+  });
+
+  it("avaliação é do próprio usuário (auth.uid) e o painel de métricas exige gestão", () => {
+    expect(s1).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.samiq_avaliar_execucao\(uuid, integer, text\)\s*TO authenticated, service_role/,
+    );
+    expect(s1).toMatch(/samiq_avaliar_execucao[\s\S]*?_uid uuid := auth\.uid\(\)/);
+    expect(s1).toMatch(/samiq_metricas_periodo[\s\S]*?has_role\(_uid, 'admin'\)/);
+    expect(s1).toMatch(/samiq_metricas_periodo[\s\S]*?has_role\(_uid, 'gestor'\)/);
+  });
+
+  it("a reserva devolve tools_enabled, max_tool_steps e custo_mes_pct no final da linha", () => {
+    expect(s1).toMatch(
+      /max_output_tokens integer,\s*tools_enabled boolean,\s*max_tool_steps integer,\s*custo_mes_pct integer\s*\)/,
+    );
+    expect(s1).toContain("_prompt.tools_enabled");
+    expect(s1).toContain("_policy.max_tool_steps");
   });
 });

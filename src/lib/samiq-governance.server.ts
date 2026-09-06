@@ -29,6 +29,11 @@ const reservationRowSchema = z.object({
   system_prompt: z.string().nullable(),
   action_prompt: z.string().nullable(),
   max_output_tokens: z.coerce.number().int().positive().nullable(),
+  // Onda S1 (migration 20260906100000): ausentes enquanto ela não chega —
+  // aí o chat segue sem ferramentas, como antes.
+  tools_enabled: z.boolean().nullable().optional(),
+  max_tool_steps: z.coerce.number().int().positive().nullable().optional(),
+  custo_mes_pct: z.coerce.number().int().nullable().optional(),
 });
 
 export type SamiQReservation = {
@@ -38,6 +43,12 @@ export type SamiQReservation = {
   systemPrompt: string;
   actionPrompt: string;
   maxOutputTokens: number;
+  /** A versão ativa autoriza ferramentas de LEITURA (D9/D10). */
+  toolsEnabled: boolean;
+  /** Teto de passos do loop de ferramentas por chamada (samiq_politica). */
+  maxToolSteps: number;
+  /** % do teto mensal do papel já consumido (D18); null = sem teto configurado. */
+  custoMesPct: number | null;
 };
 
 export class SamiQQuotaError extends Error {
@@ -48,7 +59,9 @@ export class SamiQQuotaError extends Error {
     super(
       reason.includes("rate")
         ? `O SamiQ precisa de uma pausa. Tente novamente em ${retryAfterSeconds}s.`
-        : "O budget do SamiQ para este período foi atingido. Tente novamente após a renovação da cota.",
+        : reason.endsWith("_month")
+          ? "O orçamento mensal de IA do seu papel foi atingido. Fale com o gestor para ampliar."
+          : "O budget do SamiQ para este período foi atingido. Tente novamente após a renovação da cota.",
     );
     this.name = "SamiQQuotaError";
   }
@@ -109,6 +122,9 @@ export async function reserveSamiQExecution(args: {
     systemPrompt: row.system_prompt,
     actionPrompt: row.action_prompt,
     maxOutputTokens: row.max_output_tokens,
+    toolsEnabled: row.tools_enabled === true,
+    maxToolSteps: row.max_tool_steps ?? 6,
+    custoMesPct: row.custo_mes_pct ?? null,
   };
 }
 
@@ -121,6 +137,8 @@ export type GovernedReservation =
       systemPrompt: null;
       actionPrompt: null;
       maxOutputTokens: number;
+      toolsEnabled: false;
+      custoMesPct: null;
     };
 
 /**
@@ -156,6 +174,8 @@ export async function reserveGovernedAIExecution(args: {
       systemPrompt: null,
       actionPrompt: null,
       maxOutputTokens: args.fallback.maxOutputTokens ?? args.requestedOutputTokens ?? 700,
+      toolsEnabled: false,
+      custoMesPct: null,
     };
   }
 }
@@ -168,8 +188,12 @@ export async function finishSamiQExecution(args: {
   outputTokens?: number;
   latencyMs: number;
   errorCode?: string;
+  /** Telemetria do loop de ferramentas (D17). Só o chat com ferramentas envia. */
+  toolCalls?: number;
+  toolErrors?: number;
+  fallback?: boolean;
 }): Promise<boolean> {
-  const { data, error } = await supabaseAdmin.rpc("samiq_finalizar_execucao", {
+  const base = {
     _user_id: args.userId,
     _execution_id: args.executionId,
     _status: args.status,
@@ -177,6 +201,21 @@ export async function finishSamiQExecution(args: {
     _output_tokens: Math.max(0, Math.round(args.outputTokens ?? 0)),
     _latency_ms: Math.max(0, Math.round(args.latencyMs)),
     _error_code: args.errorCode ?? undefined,
-  });
+  };
+  const comFerramentas =
+    args.toolCalls !== undefined || args.toolErrors !== undefined || args.fallback !== undefined;
+  if (comFerramentas) {
+    const { data, error } = await supabaseAdmin.rpc("samiq_finalizar_execucao", {
+      ...base,
+      _tool_calls: Math.min(100, Math.max(0, Math.round(args.toolCalls ?? 0))),
+      _tool_errors: Math.min(100, Math.max(0, Math.round(args.toolErrors ?? 0))),
+      _fallback: args.fallback === true,
+    });
+    if (!error) return data === true;
+    // Assinatura antiga ainda no ar (migration S1 não aplicada): grava sem as
+    // métricas de ferramenta em vez de perder a finalização inteira.
+    if (!isMissingBackendObject(error)) return false;
+  }
+  const { data, error } = await supabaseAdmin.rpc("samiq_finalizar_execucao", base);
   return !error && data === true;
 }
