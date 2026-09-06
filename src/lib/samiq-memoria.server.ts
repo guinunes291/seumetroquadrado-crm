@@ -10,7 +10,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
 import { redactSamiQPii } from "@/lib/samiq-governance";
-import type { PropostaSamiQ } from "@/lib/samiq-propostas";
+import type { SamiQCanal } from "@/lib/samiq";
+import { deveRetomarConversa } from "@/lib/samiq-memoria";
+import { PropostaPayloadSchema, type PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { PropostaColetada } from "@/lib/samiq-propostas.server";
 
 export const SAMIQ_MAX_TURNO_CHARS = 6000;
@@ -23,13 +25,15 @@ export async function gravarTurnoSamiQ(args: {
   resposta: string;
   ferramentas?: string[];
   executionId?: string | null;
+  /** Canal da conversa (Onda S4). Ausente = painel, a assinatura antiga da RPC. */
+  canal?: SamiQCanal;
 }): Promise<string | null> {
   const pergunta = redactSamiQPii(args.pergunta, SAMIQ_MAX_TURNO_CHARS).trim();
   const resposta = redactSamiQPii(args.resposta, SAMIQ_MAX_TURNO_CHARS).trim();
   if (!pergunta || !resposta) return args.conversaId ?? null;
 
   try {
-    const { data, error } = await supabaseAdmin.rpc("samiq_gravar_turno", {
+    const base = {
       _user_id: args.userId,
       _conversa_id: args.conversaId ?? null,
       _lead_id: args.leadId ?? null,
@@ -37,7 +41,17 @@ export async function gravarTurnoSamiQ(args: {
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
       _execution_id: args.executionId ?? null,
-    });
+    };
+    // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
+    // não está no ar, grava sem o canal em vez de perder o turno.
+    const comCanal = args.canal !== undefined && args.canal !== "painel";
+    let { data, error } = await supabaseAdmin.rpc(
+      "samiq_gravar_turno",
+      comCanal ? { ...base, _canal: args.canal } : base,
+    );
+    if (error && comCanal && isMissingBackendObject(error)) {
+      ({ data, error } = await supabaseAdmin.rpc("samiq_gravar_turno", base));
+    }
     if (error) {
       if (!isMissingBackendObject(error)) {
         console.error(JSON.stringify({ event: "samiq_memoria_failed", code: error.code ?? "" }));
@@ -93,6 +107,107 @@ export async function registrarPropostasSamiQ(args: {
     }));
   } catch {
     console.error(JSON.stringify({ event: "samiq_propostas_failed", code: "exception" }));
+    return [];
+  }
+}
+
+/** Máximo de turnos (user+assistant) que o canal WhatsApp reenvia ao modelo. */
+export const SAMIQ_HISTORICO_CANAL = 6;
+
+/**
+ * Onda S4: a conversa "viva" do corretor num canal — a última, se o último
+ * turno foi há menos de 12 h (mesma regra do painel, deveRetomarConversa).
+ * Serve para o WhatsApp continuar o assunto e achar as propostas pendentes.
+ * Migration S4 ausente (coluna canal inexistente) → null: começa outra.
+ */
+export async function conversaAtivaSamiQ(args: {
+  userId: string;
+  canal: SamiQCanal;
+  agora?: Date;
+}): Promise<{ id: string; leadId: string | null } | null> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("samiq_conversas")
+      .select("id, lead_id, atualizado_em")
+      .eq("user_id", args.userId)
+      .eq("canal", args.canal)
+      .order("atualizado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    if (!deveRetomarConversa(data.atualizado_em, args.agora ?? new Date())) return null;
+    return { id: data.id, leadId: data.lead_id };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Últimos turnos de uma conversa, no formato do histórico do painel (cap de 6
+ * mensagens, 1200 chars cada — o mesmo do SamiQInputSchema). Já está redigido
+ * (PII nunca entrou no banco).
+ */
+export async function historicoDaConversaSamiQ(args: {
+  userId: string;
+  conversaId: string;
+  max?: number;
+}): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  const max = Math.min(Math.max(1, args.max ?? SAMIQ_HISTORICO_CANAL), SAMIQ_HISTORICO_CANAL);
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("samiq_conversa_mensagens")
+      .select("papel, conteudo, criado_em")
+      .eq("conversa_id", args.conversaId)
+      .eq("user_id", args.userId)
+      .order("criado_em", { ascending: false })
+      .limit(max);
+    if (error || !data) return [];
+    return data.reverse().map((r) => ({
+      role: r.papel === "user" ? ("user" as const) : ("assistant" as const),
+      content: r.conteudo.slice(0, 1200),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Propostas ainda pendentes do corretor — por ids (botões do WhatsApp) ou da
+ * conversa ativa (resposta "CONFIRMAR"). Nunca de outro corretor: filtra por
+ * user_id antes de qualquer coisa.
+ */
+export async function propostasPendentesSamiQ(args: {
+  userId: string;
+  conversaId?: string | null;
+  ids?: string[];
+}): Promise<PropostaSamiQ[]> {
+  const ids = (args.ids ?? []).slice(0, 10);
+  if (ids.length === 0 && !args.conversaId) return [];
+  try {
+    let query = supabaseAdmin
+      .from("samiq_propostas")
+      .select("id, tipo, payload, lead_nome, status")
+      .eq("user_id", args.userId)
+      .eq("status", "pendente")
+      .order("criado_em", { ascending: true })
+      .limit(10);
+    query = ids.length > 0 ? query.in("id", ids) : query.eq("conversa_id", args.conversaId!);
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data.flatMap((row) => {
+      const parsed = PropostaPayloadSchema.safeParse(row.payload);
+      if (!parsed.success) return [];
+      return [
+        {
+          id: row.id,
+          tipo: parsed.data.tipo,
+          payload: parsed.data,
+          leadNome: row.lead_nome,
+          status: "pendente" as const,
+        },
+      ];
+    });
+  } catch {
     return [];
   }
 }

@@ -4794,6 +4794,7 @@ export type Database = {
       samiq_conversas: {
         Row: {
           atualizado_em: string
+          canal: string
           criado_em: string
           expira_em: string
           id: string
@@ -4803,6 +4804,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          canal?: string
           criado_em?: string
           expira_em?: string
           id?: string
@@ -4812,6 +4814,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          canal?: string
           criado_em?: string
           expira_em?: string
           id?: string
@@ -4831,6 +4834,7 @@ export type Database = {
       }
       samiq_execucoes: {
         Row: {
+          canal: string
           conversa_id: string | null
           fallback: boolean
           tool_calls: number
@@ -4856,6 +4860,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          canal?: string
           conversa_id?: string | null
           fallback?: boolean
           tool_calls?: number
@@ -4881,6 +4886,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          canal?: string
           conversa_id?: string | null
           fallback?: boolean
           tool_calls?: number
@@ -8527,6 +8533,7 @@ export type Database = {
       }
       samiq_gravar_turno: {
         Args: {
+          _canal?: string
           _conversa_id: string | null
           _execution_id?: string | null
           _ferramentas?: string[]
@@ -8553,6 +8560,7 @@ export type Database = {
       samiq_reservar_execucao: {
         Args: {
           _action: string
+          _canal?: string
           _estimated_input_tokens?: number
           _requested_output_tokens?: number
           _user_id: string

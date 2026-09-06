@@ -64,6 +64,9 @@ import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedFinanceiroIndexRouteImport } from './routes/_authenticated/financeiro/index'
+import { Route as ApiSamiPropostasRouteImport } from './routes/api/sami/propostas'
+import { Route as ApiSamiMensagemRouteImport } from './routes/api/sami/mensagem'
+import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
 import { Route as ApiPublicVitrineRouteImport } from './routes/api/public/vitrine'
 import { Route as ApiPublicMetricasRouteImport } from './routes/api/public/metricas'
 import { Route as ApiPublicDocumentosRouteImport } from './routes/api/public/documentos'
@@ -385,6 +388,21 @@ const AuthenticatedFinanceiroIndexRoute =
     path: '/financeiro/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiSamiPropostasRoute = ApiSamiPropostasRouteImport.update({
+  id: '/api/sami/propostas',
+  path: '/api/sami/propostas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSamiMensagemRoute = ApiSamiMensagemRouteImport.update({
+  id: '/api/sami/mensagem',
+  path: '/api/sami/mensagem',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSamiBriefingRoute = ApiSamiBriefingRouteImport.update({
+  id: '/api/sami/briefing',
+  path: '/api/sami/briefing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVitrineRoute = ApiPublicVitrineRouteImport.update({
   id: '/api/public/vitrine',
   path: '/api/public/vitrine',
@@ -615,6 +633,9 @@ export interface FileRoutesByFullPath {
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/sami/briefing': typeof ApiSamiBriefingRoute
+  '/api/sami/mensagem': typeof ApiSamiMensagemRoute
+  '/api/sami/propostas': typeof ApiSamiPropostasRoute
   '/financeiro/': typeof AuthenticatedFinanceiroIndexRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
@@ -702,6 +723,9 @@ export interface FileRoutesByTo {
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/sami/briefing': typeof ApiSamiBriefingRoute
+  '/api/sami/mensagem': typeof ApiSamiMensagemRoute
+  '/api/sami/propostas': typeof ApiSamiPropostasRoute
   '/financeiro': typeof AuthenticatedFinanceiroIndexRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
@@ -791,6 +815,9 @@ export interface FileRoutesById {
   '/api/public/documentos': typeof ApiPublicDocumentosRoute
   '/api/public/metricas': typeof ApiPublicMetricasRoute
   '/api/public/vitrine': typeof ApiPublicVitrineRoute
+  '/api/sami/briefing': typeof ApiSamiBriefingRoute
+  '/api/sami/mensagem': typeof ApiSamiMensagemRoute
+  '/api/sami/propostas': typeof ApiSamiPropostasRoute
   '/_authenticated/financeiro/': typeof AuthenticatedFinanceiroIndexRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
@@ -880,6 +907,9 @@ export interface FileRouteTypes {
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
+    | '/api/sami/briefing'
+    | '/api/sami/mensagem'
+    | '/api/sami/propostas'
     | '/financeiro/'
     | '/leads/'
     | '/oferta-ativa/'
@@ -967,6 +997,9 @@ export interface FileRouteTypes {
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
+    | '/api/sami/briefing'
+    | '/api/sami/mensagem'
+    | '/api/sami/propostas'
     | '/financeiro'
     | '/leads'
     | '/oferta-ativa'
@@ -1055,6 +1088,9 @@ export interface FileRouteTypes {
     | '/api/public/documentos'
     | '/api/public/metricas'
     | '/api/public/vitrine'
+    | '/api/sami/briefing'
+    | '/api/sami/mensagem'
+    | '/api/sami/propostas'
     | '/_authenticated/financeiro/'
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
@@ -1099,6 +1135,9 @@ export interface RootRouteChildren {
   ApiPublicDocumentosRoute: typeof ApiPublicDocumentosRoute
   ApiPublicMetricasRoute: typeof ApiPublicMetricasRoute
   ApiPublicVitrineRoute: typeof ApiPublicVitrineRoute
+  ApiSamiBriefingRoute: typeof ApiSamiBriefingRoute
+  ApiSamiMensagemRoute: typeof ApiSamiMensagemRoute
+  ApiSamiPropostasRoute: typeof ApiSamiPropostasRoute
   ApiGoogleOauthCallbackRoute: typeof ApiGoogleOauthCallbackRoute
   ApiPublicComissoesIdRoute: typeof ApiPublicComissoesIdRoute
   ApiPublicCorretoresIdRoute: typeof ApiPublicCorretoresIdRoute
@@ -1506,6 +1545,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinanceiroIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/sami/propostas': {
+      id: '/api/sami/propostas'
+      path: '/api/sami/propostas'
+      fullPath: '/api/sami/propostas'
+      preLoaderRoute: typeof ApiSamiPropostasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sami/mensagem': {
+      id: '/api/sami/mensagem'
+      path: '/api/sami/mensagem'
+      fullPath: '/api/sami/mensagem'
+      preLoaderRoute: typeof ApiSamiMensagemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/sami/briefing': {
+      id: '/api/sami/briefing'
+      path: '/api/sami/briefing'
+      fullPath: '/api/sami/briefing'
+      preLoaderRoute: typeof ApiSamiBriefingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/vitrine': {
       id: '/api/public/vitrine'
       path: '/api/public/vitrine'
@@ -1867,6 +1927,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicDocumentosRoute: ApiPublicDocumentosRoute,
   ApiPublicMetricasRoute: ApiPublicMetricasRoute,
   ApiPublicVitrineRoute: ApiPublicVitrineRoute,
+  ApiSamiBriefingRoute: ApiSamiBriefingRoute,
+  ApiSamiMensagemRoute: ApiSamiMensagemRoute,
+  ApiSamiPropostasRoute: ApiSamiPropostasRoute,
   ApiGoogleOauthCallbackRoute: ApiGoogleOauthCallbackRoute,
   ApiPublicComissoesIdRoute: ApiPublicComissoesIdRoute,
   ApiPublicCorretoresIdRoute: ApiPublicCorretoresIdRoute,
