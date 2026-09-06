@@ -2,7 +2,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
 import { rateLimit } from "@/lib/rate-limit";
-import type { SamiQAction } from "@/lib/samiq";
+import type { SamiQAction, SamiQCanal } from "@/lib/samiq";
 
 /**
  * Ações de IA fora do chat do SamiQ (item 0.6 da estrategia-2026-08), com
@@ -85,13 +85,26 @@ export async function reserveSamiQExecution(args: {
   estimatedInputTokens?: number;
   /** Baixa o teto de saída DESTA chamada (o LEAST na RPC impede subir). */
   requestedOutputTokens?: number;
+  /** Canal da execução (Onda S4). Ausente = painel, o formato antigo da RPC. */
+  canal?: SamiQCanal;
 }): Promise<SamiQReservation> {
-  const { data, error } = await supabaseAdmin.rpc("samiq_reservar_execucao", {
+  const base = {
     _user_id: args.userId,
     _action: args.action,
     _estimated_input_tokens: args.estimatedInputTokens ?? 10_000,
     ...(args.requestedOutputTokens ? { _requested_output_tokens: args.requestedOutputTokens } : {}),
-  });
+  };
+  // O painel chama a assinatura antiga (sem _canal), válida antes e depois da
+  // migration S4. Só o WhatsApp envia _canal; se a assinatura nova ainda não
+  // está no ar, reserva sem o canal em vez de negar o atendimento.
+  const comCanal = args.canal !== undefined && args.canal !== "painel";
+  let { data, error } = await supabaseAdmin.rpc(
+    "samiq_reservar_execucao",
+    comCanal ? { ...base, _canal: args.canal } : base,
+  );
+  if (error && comCanal && isMissingBackendObject(error)) {
+    ({ data, error } = await supabaseAdmin.rpc("samiq_reservar_execucao", base));
+  }
   if (error) {
     // RPC/versão ausente (PGRST202 etc.) ou "acao sem prompt versionado"
     // (22023): a migration ainda não chegou — sinaliza para o chamador poder

@@ -14,7 +14,8 @@ const migration = readFileSync(
   join(root, "supabase/migrations/20260711131000_samiq_governance.sql"),
   "utf8",
 );
-const handler = readFileSync(join(root, "src/lib/samiq.functions.ts"), "utf8");
+const handler = readFileSync(join(root, "src/lib/samiq-core.server.ts"), "utf8");
+const painelFn = readFileSync(join(root, "src/lib/samiq.functions.ts"), "utf8");
 const tools = readFileSync(join(root, "src/lib/samiq-tools.server.ts"), "utf8");
 const memoria = readFileSync(join(root, "src/lib/samiq-memoria.server.ts"), "utf8");
 const s1 = readFileSync(
@@ -31,10 +32,22 @@ const s3 = readFileSync(
   "utf8",
 );
 const briefingFn = readFileSync(join(root, "src/lib/samiq-briefing.functions.ts"), "utf8");
+const briefingServer = readFileSync(join(root, "src/lib/samiq-briefing.server.ts"), "utf8");
+const s4 = readFileSync(
+  join(root, "supabase/migrations/20260909100000_samiq_copiloto_s4.sql"),
+  "utf8",
+);
+const governance = readFileSync(join(root, "src/lib/samiq-governance.server.ts"), "utf8");
+const canalPuro = readFileSync(join(root, "src/lib/samiq-canal.ts"), "utf8");
+const canalServer = readFileSync(join(root, "src/lib/samiq-canal.server.ts"), "utf8");
+const rotasSami = ["mensagem", "propostas", "briefing"].map((r) =>
+  readFileSync(join(root, `src/routes/api/sami/${r}.ts`), "utf8"),
+);
 const painel = readFileSync(join(root, "src/components/samiq/samiq-panel.tsx"), "utf8");
 const launcher = readFileSync(join(root, "src/components/samiq/samiq-launcher.tsx"), "utf8");
 const executor = readFileSync(join(root, "src/lib/samiq-executar.server.ts"), "utf8");
-const confirmar = readFileSync(join(root, "src/lib/samiq-confirmar.functions.ts"), "utf8");
+const confirmar = readFileSync(join(root, "src/lib/samiq-confirmar.server.ts"), "utf8");
+const confirmarFn = readFileSync(join(root, "src/lib/samiq-confirmar.functions.ts"), "utf8");
 
 const ACOES_CHAT = [
   "resumo_cliente",
@@ -448,11 +461,14 @@ describe("Onda S2 — escrita por proposta confirmada (migration 20260907100000)
 describe("Onda S3 — presença (migration 20260908100000)", () => {
   it("o briefing ao abrir não chama o modelo nem gasta cota: só leitura com a sessão do corretor", () => {
     expect(briefingFn).toContain("requireSupabaseAuth");
-    expect(briefingFn).not.toContain("generateText");
-    expect(briefingFn).not.toContain("reserveSamiQExecution");
-    expect(briefingFn).not.toContain("supabaseAdmin");
-    expect(briefingFn).not.toMatch(/\.(insert|update|delete|upsert)\(/);
-    expect(briefingFn).toContain("montarBriefingSamiQ");
+    expect(briefingFn).toContain("montarBriefingDoCorretor");
+    for (const fonte of [briefingFn, briefingServer]) {
+      expect(fonte).not.toContain("generateText");
+      expect(fonte).not.toContain("reserveSamiQExecution");
+      expect(fonte).not.toContain("supabaseAdmin");
+      expect(fonte).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    }
+    expect(briefingServer).toContain("montarBriefingSamiQ");
   });
 
   it("o painel mostra o briefing, aceita contexto do chip e tem ditado por voz com consentimento", () => {
@@ -485,5 +501,112 @@ describe("Onda S3 — presença (migration 20260908100000)", () => {
     expect(s3).toContain("SET LOCAL lock_timeout = '10s'");
     expect(s3).toMatch(/WHERE a\.ref_id = NEW\.id AND a\.titulo LIKE 'Crédito reprovado:%'/);
     expect(s3).toContain("'/leads/' || NEW.lead_id::text");
+  });
+});
+
+describe("Onda S4 — um cérebro, dois canais (migration 20260909100000)", () => {
+  it("o painel virou casca: autentica, valida e delega ao cérebro único; o cérebro não conhece framework", () => {
+    expect(painelFn).toContain("requireSupabaseAuth");
+    expect(painelFn).toContain("SamiQInputSchema.parse");
+    expect(painelFn).toContain("responderSamiQ");
+    expect(painelFn).toContain('canal: "painel"');
+    expect(painelFn).not.toContain("generateText");
+    expect(painelFn).not.toContain("supabaseAdmin");
+    expect(handler).toContain("export async function responderSamiQ");
+    expect(handler).not.toContain("createServerFn");
+    expect(handler).not.toContain("requireSupabaseAuth");
+    // o canal entra na reserva e na memória — telemetria e retomada por canal
+    expect(handler).toMatch(/reserveSamiQExecution\(\{[\s\S]*?canal,[\s\S]*?\}\)/);
+    expect(handler).toMatch(/gravarTurnoSamiQ\(\{[\s\S]*?canal,[\s\S]*?\}\)/);
+    expect(handler).toContain("instrucoesDoCanal(canal, args.origemMidia)");
+    expect(handler).toContain("Responda em texto corrido, sem markdown");
+    expect(handler).toContain("transcrita automaticamente");
+    // confirmação também virou núcleo compartilhado
+    expect(confirmarFn).toContain("requireSupabaseAuth");
+    expect(confirmarFn).toContain("confirmarPropostas");
+    expect(confirmarFn).not.toContain("executarPropostaSamiQ");
+    expect(confirmarFn).not.toContain("supabaseAdmin");
+  });
+
+  it("migration S4: canal em execuções e conversas, RPCs trocadas sem overload e só para o service_role", () => {
+    expect(s4).toContain("SET LOCAL lock_timeout = '10s'");
+    expect(s4).toMatch(
+      /ALTER TABLE public\.samiq_execucoes\s+ADD COLUMN IF NOT EXISTS canal text NOT NULL DEFAULT 'painel'/,
+    );
+    expect(s4).toMatch(
+      /ALTER TABLE public\.samiq_conversas\s+ADD COLUMN IF NOT EXISTS canal text NOT NULL DEFAULT 'painel'/,
+    );
+    expect(s4).toContain("CHECK (canal IN ('painel', 'whatsapp'))");
+    expect(s4).toContain("samiq_conversas_user_canal_recentes_idx");
+    // assinatura antiga sai antes da nova entrar (PostgREST não aceita overload ambíguo)
+    expect(s4).toContain(
+      "DROP FUNCTION IF EXISTS public.samiq_reservar_execucao(uuid, text, integer, integer);",
+    );
+    expect(s4).toContain(
+      "DROP FUNCTION IF EXISTS public.samiq_gravar_turno(uuid, uuid, uuid, text, text, text[], uuid);",
+    );
+    expect(s4.match(/_canal text DEFAULT 'painel'/g)).toHaveLength(2);
+    expect(s4.match(/RAISE EXCEPTION 'canal invalido' USING ERRCODE = '22023'/g)).toHaveLength(2);
+    expect(s4).toMatch(/estimated_cost_micros, expires_at, canal\s*\)/);
+    expect(s4).toContain("INSERT INTO public.samiq_conversas (user_id, lead_id, titulo, canal)");
+    expect(s4).toMatch(
+      /REVOKE ALL ON FUNCTION public\.samiq_reservar_execucao\(uuid, text, integer, integer, text\)[\s\S]*?TO service_role/,
+    );
+    expect(s4).toMatch(
+      /REVOKE ALL ON FUNCTION public\.samiq_gravar_turno\(uuid, uuid, uuid, text, text, text\[\], uuid, text\)[\s\S]*?TO service_role/,
+    );
+    expect(s4).not.toMatch(/^\s*DROP TRIGGER/m);
+    // nenhum prompt novo: a v4 serve aos dois canais
+    expect(s4).not.toMatch(/INSERT INTO public\.samiq_prompt_versions/);
+  });
+
+  it("deploy × banco: o painel chama a assinatura antiga; só o WhatsApp manda _canal, com retry sem ele", () => {
+    expect(governance).toMatch(/comCanal \? \{ \.\.\.base, _canal: args\.canal \} : base/);
+    expect(governance).toMatch(/error && comCanal && isMissingBackendObject\(error\)/);
+    expect(memoria).toMatch(/comCanal \? \{ \.\.\.base, _canal: args\.canal \} : base/);
+    expect(memoria).toMatch(/error && comCanal && isMissingBackendObject\(error\)/);
+    expect(memoria).toContain('.eq("canal", args.canal)');
+    expect(memoria).toContain("deveRetomarConversa(");
+    expect(memoria).toContain('.eq("status", "pendente")');
+  });
+
+  it("canal WhatsApp: segredo em header (tempo constante), sessão REAL do corretor encerrada no finally, corretor único e ativo", () => {
+    expect(canalPuro).toContain('export const SAMI_CANAL_HEADER = "x-sami-key"');
+    expect(canalPuro).not.toContain("supabase");
+    expect(canalServer).toContain("process.env.SAMI_WRITE_KEY");
+    expect(canalServer).toContain("timingSafeEqual(a, b)");
+    expect(canalServer).not.toMatch(/searchParams|query\.key|\?key=/);
+    expect(canalServer).toContain('.eq("ativo", true)');
+    expect(canalServer).toContain('.eq("status_conta", "ativa")');
+    expect(canalServer).toContain("escolherCorretorUnico(");
+    expect(canalServer).toContain('type: "magiclink"');
+    expect(canalServer).toContain("verif?.user?.id !== corretor.id");
+    expect(canalServer).toMatch(/finally \{\s*await sessao\.encerrar\(\);/);
+    expect(canalServer).toContain('signOut({ scope: "local" })');
+    expect(canalServer).toContain("rateLimit(`samiq-canal:${r.corretor.id}`");
+    // o canal nunca grava por conta própria: confirmar passa pelo mesmo núcleo do card
+    expect(canalServer).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    expect(canalServer).toContain("confirmarPropostas({");
+    expect(canalServer).toContain("rejeitarPropostas({");
+    expect(canalServer).not.toContain("generateText");
+  });
+
+  it("rotas /api/sami/*: só POST, autenticam antes de tudo, sem admin nem modelo no arquivo de rota", () => {
+    expect(rotasSami).toHaveLength(3);
+    for (const rota of rotasSami) {
+      expect(rota).toContain("canal.autenticarCanalSami(request)");
+      expect(rota).toContain('await import("@/lib/samiq-canal.server")');
+      expect(rota).toContain("canal.responderErroCanal(error)");
+      expect(rota).not.toContain("supabaseAdmin");
+      expect(rota).not.toContain("generateText");
+      expect(rota).not.toMatch(/\bGET\b:/);
+      expect(rota).not.toMatch(/\.(insert|update|delete|upsert)\(/);
+    }
+    const [mensagem] = rotasSami;
+    expect(mensagem).toContain("interpretarRespostaCurta(body.texto)");
+    expect(mensagem).toContain('canal: "whatsapp"');
+    expect(mensagem).toContain("origemMidia: body.origem_midia");
+    expect(mensagem).toContain('action: "pergunta_livre"');
+    expect(mensagem).toContain("textoParaWhatsApp(resposta)");
   });
 });

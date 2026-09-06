@@ -160,3 +160,11 @@ export function sugestoesPara(
   if (leadId) s.push({ label: "Abrir dossiê", to: `/leads/${leadId}` });
   return s;
 }
+
+/**
+ * Canais por onde a Sami é acionada (Onda S4, decisão D15 — um cérebro, dois
+ * canais): o painel do CRM e o WhatsApp (n8n → /api/sami). O canal é decidido
+ * pelo SERVIDOR, nunca vem do cliente; serve para memória e telemetria.
+ */
+export const SAMIQ_CANAIS = ["painel", "whatsapp"] as const;
+export type SamiQCanal = (typeof SAMIQ_CANAIS)[number];
