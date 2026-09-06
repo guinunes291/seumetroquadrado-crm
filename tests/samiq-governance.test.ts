@@ -666,3 +666,19 @@ describe("Onda S5 — skills como ferramentas (migration 20260910100000)", () =>
     expect(briefingPuro).toContain("Me prepara para a visita de amanhã com");
   });
 });
+
+describe("Gateway — ferramentas no menor denominador comum e falha diagnosticável", () => {
+  it("o cérebro passa as ferramentas pela camada de compatibilidade e registra status do gateway", () => {
+    expect(handler).toContain('from "@/lib/samiq-ferramentas-compat"');
+    expect(handler).toContain("const ferramentas = compatibilizarFerramentasSamiQ(tools)");
+    expect(handler).toContain("tools: ferramentas,");
+    expect(handler).toContain("APICallError.isInstance(error)");
+    expect(handler).toMatch(/errorCode = status \? `gateway_\$\{status\}` : "gateway_error"/);
+    expect(handler).toContain('event: "samiq_gateway_failed"');
+    // o log leva só o corpo curto do erro do gateway, nunca o prompt
+    expect(handler).toMatch(/corpo: \(error\.responseBody \?\? ""\)\.slice\(0, 300\)/);
+    expect(handler).not.toMatch(
+      /samiq_gateway_failed[\s\S]{0,400}(messages|prompt|perguntaSegura)/,
+    );
+  });
+});

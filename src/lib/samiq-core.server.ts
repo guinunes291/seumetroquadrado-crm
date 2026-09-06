@@ -11,7 +11,7 @@
 // e propõe (propor_* apenas coleta); a escrita continua exigindo o toque do
 // corretor (samiq-confirmar.server.ts). Nada aqui grava.
 
-import { generateText, stepCountIs, type ModelMessage } from "ai";
+import { APICallError, generateText, stepCountIs, type ModelMessage } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
@@ -38,6 +38,7 @@ import {
 } from "@/lib/samiq-tools";
 import type { PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { PropostaColetada } from "@/lib/samiq-propostas.server";
+import { compatibilizarFerramentasSamiQ } from "@/lib/samiq-ferramentas-compat";
 import { finishSamiQExecution, reserveSamiQExecution } from "./samiq-governance.server";
 import { gravarTurnoSamiQ, registrarPropostasSamiQ } from "./samiq-memoria.server";
 
@@ -284,11 +285,14 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
           content: `${cabecalho.join("\n")}\n\nPergunta do corretor: ${perguntaSegura || "(vazia)"}`,
         },
       ];
+      // Schemas no menor denominador comum: o gateway não pode rejeitar a
+      // chamada por "$schema", "format: uuid" ou "additionalProperties".
+      const ferramentas = compatibilizarFerramentasSamiQ(tools);
       const result = await generateText({
         model,
         system: reservation.systemPrompt,
         messages,
-        tools,
+        tools: ferramentas,
         stopWhen: stepCountIs(reservation.maxToolSteps),
         maxOutputTokens: reservation.maxOutputTokens,
       });
@@ -389,6 +393,20 @@ export async function responderSamiQ(args: ResponderSamiQArgs): Promise<SamiQRes
       propostas,
     };
   } catch (error) {
+    if (APICallError.isInstance(error)) {
+      // Sem isto o painel só mostra "indisponível" e ninguém sabe se foi 400
+      // (pedido rejeitado), 429 (cota do gateway) ou 5xx (gateway fora).
+      const status = error.statusCode ?? null;
+      errorCode = status ? `gateway_${status}` : "gateway_error";
+      console.error(
+        JSON.stringify({
+          event: "samiq_gateway_failed",
+          status,
+          comFerramentas: usarFerramentas,
+          corpo: (error.responseBody ?? "").slice(0, 300),
+        }),
+      );
+    }
     await recordFailure();
     if (error instanceof Error && error.message === "lead_not_found") {
       throw new Error("Lead não encontrado.");
