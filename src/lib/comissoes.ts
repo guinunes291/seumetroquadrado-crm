@@ -385,10 +385,12 @@ export async function listVendasPeriodo(
       .from("vendas")
       .select("id, valor_venda, percentual_comissao, distrato")
       .eq("status_venda", "aprovada")
-      .order("aprovado_em", { ascending: false })
+      // Período sempre por data da venda (assinatura), igual a ranking e
+      // métricas — aprovado_em inflava o mês com vendas antigas aprovadas agora.
+      .order("data_assinatura", { ascending: false })
       .order("id")
       .range(from, to);
-    if (mes) q = q.gte("aprovado_em", mes.ini).lt("aprovado_em", mes.fim);
+    if (mes) q = q.gte("data_assinatura", mes.ini).lt("data_assinatura", mes.fim);
     const { data, error } = await q;
     if (error) throw error;
     return data ?? [];
