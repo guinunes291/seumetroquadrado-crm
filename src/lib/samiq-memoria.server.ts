@@ -135,31 +135,22 @@ export async function conversaAtivaSamiQ(args: {
   agora?: Date;
 }): Promise<{ id: string; leadId: string | null } | null> {
   try {
-    const { data, error } = (await (
-      supabaseAdmin
-        .from("samiq_conversas")
-        .select("id, lead_id, atualizado_em")
-        .eq("user_id", args.userId) as unknown as {
-        eq: (col: string, val: string) => PromiseLike<{
-          data: { id: string; lead_id: string | null; atualizado_em: string } | null;
-          error: unknown;
-        }> & {
-          order: (c: string, o: { ascending: boolean }) => typeof chain;
-          limit: (n: number) => typeof chain;
-          maybeSingle: () => PromiseLike<{
-            data: { id: string; lead_id: string | null; atualizado_em: string } | null;
-            error: unknown;
-          }>;
-        };
-      }
-    )
+    type ConversaRow = { id: string; lead_id: string | null; atualizado_em: string };
+    type LooseChain = {
+      eq: (col: string, val: string) => LooseChain;
+      order: (col: string, opts: { ascending: boolean }) => LooseChain;
+      limit: (n: number) => LooseChain;
+      maybeSingle: () => PromiseLike<{ data: ConversaRow | null; error: unknown }>;
+    };
+    const query = supabaseAdmin
+      .from("samiq_conversas")
+      .select("id, lead_id, atualizado_em") as unknown as LooseChain;
+    const { data, error } = await query
+      .eq("user_id", args.userId)
       .eq("canal", args.canal)
       .order("atualizado_em", { ascending: false })
       .limit(1)
-      .maybeSingle()) as {
-      data: { id: string; lead_id: string | null; atualizado_em: string } | null;
-      error: unknown;
-    };
+      .maybeSingle();
     if (error || !data) return null;
     if (!deveRetomarConversa(data.atualizado_em, args.agora ?? new Date())) return null;
     return { id: data.id, leadId: data.lead_id };
