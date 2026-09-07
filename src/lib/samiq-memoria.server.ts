@@ -89,7 +89,12 @@ export async function registrarPropostasSamiQ(args: {
     lead_nome: c.leadNome,
   }));
   try {
-    const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
+    const { data, error } = await (
+      supabaseAdmin.rpc as unknown as (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: { code?: string } | null }>
+    )("samiq_registrar_propostas", {
       _user_id: args.userId,
       _execution_id: args.executionId ?? undefined,
       _conversa_id: args.conversaId ?? undefined,
@@ -130,18 +135,31 @@ export async function conversaAtivaSamiQ(args: {
   agora?: Date;
 }): Promise<{ id: string; leadId: string | null } | null> {
   try {
-    const { data, error } = await (
+    const { data, error } = (await (
       supabaseAdmin
         .from("samiq_conversas")
         .select("id, lead_id, atualizado_em")
         .eq("user_id", args.userId) as unknown as {
-        eq: (col: string, val: string) => typeof base;
+        eq: (col: string, val: string) => PromiseLike<{
+          data: { id: string; lead_id: string | null; atualizado_em: string } | null;
+          error: unknown;
+        }> & {
+          order: (c: string, o: { ascending: boolean }) => typeof chain;
+          limit: (n: number) => typeof chain;
+          maybeSingle: () => PromiseLike<{
+            data: { id: string; lead_id: string | null; atualizado_em: string } | null;
+            error: unknown;
+          }>;
+        };
       }
     )
       .eq("canal", args.canal)
       .order("atualizado_em", { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as {
+      data: { id: string; lead_id: string | null; atualizado_em: string } | null;
+      error: unknown;
+    };
     if (error || !data) return null;
     if (!deveRetomarConversa(data.atualizado_em, args.agora ?? new Date())) return null;
     return { id: data.id, leadId: data.lead_id };
