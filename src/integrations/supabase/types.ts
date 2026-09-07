@@ -4794,7 +4794,6 @@ export type Database = {
       samiq_conversas: {
         Row: {
           atualizado_em: string
-          canal: string
           criado_em: string
           expira_em: string
           id: string
@@ -4804,7 +4803,6 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
-          canal?: string
           criado_em?: string
           expira_em?: string
           id?: string
@@ -4814,7 +4812,6 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
-          canal?: string
           criado_em?: string
           expira_em?: string
           id?: string
@@ -4830,22 +4827,26 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "samiq_conversas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
       }
       samiq_execucoes: {
         Row: {
-          canal: string
-          conversa_id: string | null
-          fallback: boolean
-          tool_calls: number
-          tool_errors: number
           action: string
           completed_at: string | null
+          conversa_id: string | null
           created_at: string
           equipe_id: string | null
           error_code: string | null
           estimated_cost_micros: number | null
           expires_at: string
+          fallback: boolean
           id: string
           input_cost_micros_per_million: number | null
           input_tokens: number | null
@@ -4857,21 +4858,20 @@ export type Database = {
           reserved_input_tokens: number
           reserved_output_tokens: number
           status: string
+          tool_calls: number
+          tool_errors: number
           user_id: string
         }
         Insert: {
-          canal?: string
-          conversa_id?: string | null
-          fallback?: boolean
-          tool_calls?: number
-          tool_errors?: number
           action: string
           completed_at?: string | null
+          conversa_id?: string | null
           created_at?: string
           equipe_id?: string | null
           error_code?: string | null
           estimated_cost_micros?: number | null
           expires_at: string
+          fallback?: boolean
           id?: string
           input_cost_micros_per_million?: number | null
           input_tokens?: number | null
@@ -4883,21 +4883,20 @@ export type Database = {
           reserved_input_tokens: number
           reserved_output_tokens: number
           status?: string
+          tool_calls?: number
+          tool_errors?: number
           user_id: string
         }
         Update: {
-          canal?: string
-          conversa_id?: string | null
-          fallback?: boolean
-          tool_calls?: number
-          tool_errors?: number
           action?: string
           completed_at?: string | null
+          conversa_id?: string | null
           created_at?: string
           equipe_id?: string | null
           error_code?: string | null
           estimated_cost_micros?: number | null
           expires_at?: string
+          fallback?: boolean
           id?: string
           input_cost_micros_per_million?: number | null
           input_tokens?: number | null
@@ -4909,6 +4908,8 @@ export type Database = {
           reserved_input_tokens?: number
           reserved_output_tokens?: number
           status?: string
+          tool_calls?: number
+          tool_errors?: number
           user_id?: string
         }
         Relationships: [
@@ -4938,54 +4939,105 @@ export type Database = {
       samiq_politica: {
         Row: {
           alerta_custo_pct: number
+          id: number
           max_cost_corretor_micros_mes: number | null
           max_cost_equipe_micros_mes: number | null
           max_cost_gestor_micros_mes: number | null
-          max_tool_steps: number
-          id: number
           max_cost_team_micros_day: number | null
           max_cost_user_micros_day: number | null
           max_requests_team_10m: number
           max_requests_user_10m: number
           max_tokens_team_day: number
           max_tokens_user_day: number
+          max_tool_steps: number
           reservation_ttl_seconds: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           alerta_custo_pct?: number
+          id?: number
           max_cost_corretor_micros_mes?: number | null
           max_cost_equipe_micros_mes?: number | null
           max_cost_gestor_micros_mes?: number | null
-          max_tool_steps?: number
-          id?: number
           max_cost_team_micros_day?: number | null
           max_cost_user_micros_day?: number | null
           max_requests_team_10m?: number
           max_requests_user_10m?: number
           max_tokens_team_day?: number
           max_tokens_user_day?: number
+          max_tool_steps?: number
           reservation_ttl_seconds?: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           alerta_custo_pct?: number
+          id?: number
           max_cost_corretor_micros_mes?: number | null
           max_cost_equipe_micros_mes?: number | null
           max_cost_gestor_micros_mes?: number | null
-          max_tool_steps?: number
-          id?: number
           max_cost_team_micros_day?: number | null
           max_cost_user_micros_day?: number | null
           max_requests_team_10m?: number
           max_requests_user_10m?: number
           max_tokens_team_day?: number
           max_tokens_user_day?: number
+          max_tool_steps?: number
           reservation_ttl_seconds?: number
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      samiq_prompt_versions: {
+        Row: {
+          action_prompts: Json
+          active: boolean
+          created_at: string
+          created_by: string | null
+          input_cost_micros_per_million: number | null
+          max_output_tokens: number
+          model_id: string
+          output_cost_micros_per_million: number | null
+          pricing_version: string | null
+          propostas_enabled: boolean
+          system_prompt: string
+          tools_enabled: boolean
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          action_prompts: Json
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          input_cost_micros_per_million?: number | null
+          max_output_tokens?: number
+          model_id: string
+          output_cost_micros_per_million?: number | null
+          pricing_version?: string | null
+          propostas_enabled?: boolean
+          system_prompt: string
+          tools_enabled?: boolean
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          action_prompts?: Json
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          input_cost_micros_per_million?: number | null
+          max_output_tokens?: number
+          model_id?: string
+          output_cost_micros_per_million?: number | null
+          pricing_version?: string | null
+          propostas_enabled?: boolean
+          system_prompt?: string
+          tools_enabled?: boolean
+          updated_at?: string
+          version?: string
         }
         Relationships: []
       }
@@ -5066,58 +5118,14 @@ export type Database = {
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "samiq_propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
         ]
-      }
-      samiq_prompt_versions: {
-        Row: {
-          propostas_enabled: boolean
-          tools_enabled: boolean
-          action_prompts: Json
-          active: boolean
-          created_at: string
-          created_by: string | null
-          input_cost_micros_per_million: number | null
-          max_output_tokens: number
-          model_id: string
-          output_cost_micros_per_million: number | null
-          pricing_version: string | null
-          system_prompt: string
-          updated_at: string
-          version: string
-        }
-        Insert: {
-          propostas_enabled?: boolean
-          tools_enabled?: boolean
-          action_prompts: Json
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          input_cost_micros_per_million?: number | null
-          max_output_tokens?: number
-          model_id: string
-          output_cost_micros_per_million?: number | null
-          pricing_version?: string | null
-          system_prompt: string
-          updated_at?: string
-          version: string
-        }
-        Update: {
-          propostas_enabled?: boolean
-          tools_enabled?: boolean
-          action_prompts?: Json
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          input_cost_micros_per_million?: number | null
-          max_output_tokens?: number
-          model_id?: string
-          output_cost_micros_per_million?: number | null
-          pricing_version?: string | null
-          system_prompt?: string
-          updated_at?: string
-          version?: string
-        }
-        Relationships: []
       }
       scripts_vendas: {
         Row: {
@@ -8305,6 +8313,47 @@ export type Database = {
         Args: { _acao: string; _agente: string }
         Returns: boolean
       }
+      pont_agendamento_conta: {
+        Args: {
+          _auto: boolean
+          _corretor: string
+          _criado_por: string
+          _deleted: string
+          _status: Database["public"]["Enums"]["agendamento_status"]
+          _tipo: Database["public"]["Enums"]["agendamento_tipo"]
+        }
+        Returns: boolean
+      }
+      pont_dia_editavel: { Args: { _dia: string }; Returns: boolean }
+      pont_documentacao_conta: {
+        Args: {
+          _corretor: string
+          _created: string
+          _id: string
+          _lead: string
+          _para: Database["public"]["Enums"]["lead_status"]
+        }
+        Returns: boolean
+      }
+      pont_inicio_janela_editavel: { Args: never; Returns: string }
+      pont_interacao_conta: {
+        Args: {
+          _autor: string
+          _deleted: string
+          _metadata: Json
+          _tipo: Database["public"]["Enums"]["interacao_tipo"]
+        }
+        Returns: boolean
+      }
+      pont_visita_conta: {
+        Args: {
+          _corretor: string
+          _deleted: string
+          _status: Database["public"]["Enums"]["agendamento_status"]
+          _tipo: Database["public"]["Enums"]["agendamento_tipo"]
+        }
+        Returns: boolean
+      }
       pontos_de: { Args: { _chave: string }; Returns: number }
       preview_oferta_ativa: {
         Args: { _corretor?: string; _filtros: Json }
@@ -8356,12 +8405,17 @@ export type Database = {
         Args: { _gatilho?: string }
         Returns: number
       }
+      recalcular_pontuacao_atividades: { Args: never; Returns: number }
       recalcular_temperatura_leads: { Args: never; Returns: number }
       recalcular_tiers_roleta: {
         Args: { _gatilho?: string; _roleta_slug: string }
         Returns: number
       }
       recalcular_tiers_todas: { Args: { _gatilho?: string }; Returns: number }
+      reconciliar_atividades_diarias: {
+        Args: { _desde?: string }
+        Returns: number
+      }
       redistribuir_leads_parados: { Args: never; Returns: number }
       redistribuir_sla_webhook: { Args: never; Returns: number }
       regenerar_webhook_token: {
@@ -8498,15 +8552,15 @@ export type Database = {
         }
       }
       samiq_avaliar_execucao: {
-        Args: { _execution_id: string; _motivo?: string | null; _nota: number }
+        Args: { _execution_id: string; _motivo?: string; _nota: number }
         Returns: boolean
       }
       samiq_decidir_proposta: {
         Args: {
-          _erro?: string | null
-          _payload_final?: Json | null
+          _erro?: string
+          _payload_final?: Json
           _proposta_id: string
-          _resultado?: Json | null
+          _resultado?: Json
           _status: string
           _user_id: string
         }
@@ -8531,13 +8585,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      samiq_gerar_briefing_alertas: { Args: never; Returns: number }
       samiq_gravar_turno: {
         Args: {
-          _canal?: string
-          _conversa_id: string | null
-          _execution_id?: string | null
+          _conversa_id: string
+          _execution_id?: string
           _ferramentas?: string[]
-          _lead_id: string | null
+          _lead_id: string
           _pergunta: string
           _resposta: string
           _user_id: string
@@ -8550,8 +8604,8 @@ export type Database = {
       }
       samiq_registrar_propostas: {
         Args: {
-          _conversa_id: string | null
-          _execution_id: string | null
+          _conversa_id: string
+          _execution_id: string
           _propostas: Json
           _user_id: string
         }
@@ -8560,7 +8614,6 @@ export type Database = {
       samiq_reservar_execucao: {
         Args: {
           _action: string
-          _canal?: string
           _estimated_input_tokens?: number
           _requested_output_tokens?: number
           _user_id: string
@@ -8568,17 +8621,17 @@ export type Database = {
         Returns: {
           action_prompt: string
           allowed: boolean
+          custo_mes_pct: number
           denial_reason: string
           execution_id: string
           max_output_tokens: number
+          max_tool_steps: number
           model_id: string
           prompt_version: string
+          propostas_enabled: boolean
           retry_after_seconds: number
           system_prompt: string
-          tools_enabled: boolean | null
-          max_tool_steps: number | null
-          custo_mes_pct: number | null
-          propostas_enabled: boolean | null
+          tools_enabled: boolean
         }[]
       }
       sdr_leads_reaquecer: {
