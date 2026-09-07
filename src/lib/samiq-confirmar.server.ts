@@ -95,7 +95,7 @@ export async function confirmarPropostas(args: {
         _status: status,
         _payload_final: payloadFinal,
         _resultado: resultado,
-        _erro: null,
+        _erro: undefined,
       });
       if (decErr) {
         console.error(
@@ -139,7 +139,7 @@ export async function rejeitarPropostas(args: { userId: string; ids: string[] })
       _status: "rejeitada",
       _payload_final: null,
       _resultado: null,
-      _erro: null,
+      _erro: undefined,
     });
     if (!error && ok === true) rejeitadas += 1;
   }

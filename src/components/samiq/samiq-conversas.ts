@@ -94,7 +94,7 @@ export async function avaliarRespostaSamiQ(
   const { data, error } = await supabase.rpc("samiq_avaliar_execucao", {
     _execution_id: executionId,
     _nota: nota,
-    _motivo: motivo?.trim() ? motivo.trim().slice(0, 300) : null,
+    _motivo: motivo?.trim() ? motivo.trim().slice(0, 300) : undefined,
   });
   if (error) {
     if (isMissingBackendObject(error)) return false;

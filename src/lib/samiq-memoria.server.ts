@@ -35,13 +35,13 @@ export async function gravarTurnoSamiQ(args: {
   try {
     const base = {
       _user_id: args.userId,
-      _conversa_id: args.conversaId ?? null,
-      _lead_id: args.leadId ?? null,
+      _conversa_id: args.conversaId ?? undefined,
+      _lead_id: args.leadId ?? undefined,
       _pergunta: pergunta,
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
-      _execution_id: args.executionId ?? null,
-    };
+      _execution_id: args.executionId ?? undefined,
+    } as unknown as Parameters<typeof supabaseAdmin.rpc<"samiq_gravar_turno">>[1];
     // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
     // não está no ar, grava sem o canal em vez de perder o turno.
     const comCanal = args.canal !== undefined && args.canal !== "painel";
@@ -87,8 +87,8 @@ export async function registrarPropostasSamiQ(args: {
   try {
     const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
       _user_id: args.userId,
-      _execution_id: args.executionId,
-      _conversa_id: args.conversaId,
+      _execution_id: args.executionId ?? undefined,
+      _conversa_id: args.conversaId ?? undefined,
       _propostas: itens as Json,
     });
     if (error) {
@@ -126,10 +126,14 @@ export async function conversaAtivaSamiQ(args: {
   agora?: Date;
 }): Promise<{ id: string; leadId: string | null } | null> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from("samiq_conversas")
-      .select("id, lead_id, atualizado_em")
-      .eq("user_id", args.userId)
+    const { data, error } = await (
+      supabaseAdmin
+        .from("samiq_conversas")
+        .select("id, lead_id, atualizado_em")
+        .eq("user_id", args.userId) as unknown as {
+        eq: (col: string, val: string) => typeof base;
+      }
+    )
       .eq("canal", args.canal)
       .order("atualizado_em", { ascending: false })
       .limit(1)
