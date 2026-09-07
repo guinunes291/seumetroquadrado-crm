@@ -33,24 +33,28 @@ export async function gravarTurnoSamiQ(args: {
   if (!pergunta || !resposta) return args.conversaId ?? null;
 
   try {
-    const base = {
+    const base: Record<string, unknown> = {
       _user_id: args.userId,
-      _conversa_id: args.conversaId ?? null,
-      _lead_id: args.leadId ?? null,
+      _conversa_id: args.conversaId ?? undefined,
+      _lead_id: args.leadId ?? undefined,
       _pergunta: pergunta,
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
-      _execution_id: args.executionId ?? null,
+      _execution_id: args.executionId ?? undefined,
     };
     // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
     // não está no ar, grava sem o canal em vez de perder o turno.
     const comCanal = args.canal !== undefined && args.canal !== "painel";
-    let { data, error } = await supabaseAdmin.rpc(
-      "samiq_gravar_turno",
-      comCanal ? { ...base, _canal: args.canal } : base,
-    );
+    const rpcTurno = (payload: Record<string, unknown>) =>
+      (
+        supabaseAdmin.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: { code?: string } | null }>
+      )("samiq_gravar_turno", payload);
+    let { data, error } = await rpcTurno(comCanal ? { ...base, _canal: args.canal } : base);
     if (error && comCanal && isMissingBackendObject(error)) {
-      ({ data, error } = await supabaseAdmin.rpc("samiq_gravar_turno", base));
+      ({ data, error } = await rpcTurno(base));
     }
     if (error) {
       if (!isMissingBackendObject(error)) {
@@ -85,10 +89,15 @@ export async function registrarPropostasSamiQ(args: {
     lead_nome: c.leadNome,
   }));
   try {
-    const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
+    const { data, error } = await (
+      supabaseAdmin.rpc as unknown as (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => Promise<{ data: unknown; error: { code?: string } | null }>
+    )("samiq_registrar_propostas", {
       _user_id: args.userId,
-      _execution_id: args.executionId,
-      _conversa_id: args.conversaId,
+      _execution_id: args.executionId ?? undefined,
+      _conversa_id: args.conversaId ?? undefined,
       _propostas: itens as Json,
     });
     if (error) {
@@ -126,9 +135,17 @@ export async function conversaAtivaSamiQ(args: {
   agora?: Date;
 }): Promise<{ id: string; leadId: string | null } | null> {
   try {
-    const { data, error } = await supabaseAdmin
+    type ConversaRow = { id: string; lead_id: string | null; atualizado_em: string };
+    type LooseChain = {
+      eq: (col: string, val: string) => LooseChain;
+      order: (col: string, opts: { ascending: boolean }) => LooseChain;
+      limit: (n: number) => LooseChain;
+      maybeSingle: () => PromiseLike<{ data: ConversaRow | null; error: unknown }>;
+    };
+    const query = supabaseAdmin
       .from("samiq_conversas")
-      .select("id, lead_id, atualizado_em")
+      .select("id, lead_id, atualizado_em") as unknown as LooseChain;
+    const { data, error } = await query
       .eq("user_id", args.userId)
       .eq("canal", args.canal)
       .order("atualizado_em", { ascending: false })
