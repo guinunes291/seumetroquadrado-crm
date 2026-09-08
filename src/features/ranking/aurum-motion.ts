@@ -59,7 +59,7 @@ export function useAurumTilt(root: RefObject<HTMLDivElement | null>, enabled: bo
 }
 
 /** FLIP usa posições relativas à lista; rolar a página não cria falsas ultrapassagens. */
-export function useAurumReorder(root: RefObject<HTMLDivElement | null>, signature: string) {
+export function useAurumReorder(root: RefObject<HTMLElement | null>, signature: string) {
   const previous = useRef(new Map<string, number>());
   useLayoutEffect(() => {
     const rows = root.current?.querySelectorAll<HTMLElement>("[data-ranking-id]");

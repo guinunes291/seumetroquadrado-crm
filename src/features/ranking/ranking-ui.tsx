@@ -10,6 +10,7 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Badge } from "@/components/ui/badge";
 import { celebrate } from "@/components/ui/celebration";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useAurumReorder } from "./aurum-motion";
 import { Medal } from "@/features/ranking/medal";
 import { INTENT_BADGE, type Intent } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,10 @@ export function RelogioAoVivo({ className }: { className?: string }) {
       <div className="font-display text-2xl font-semibold leading-none tabular-nums text-white">
         {agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: FUSO })}
         <span className="text-base text-white/50">
-          :{agora.toLocaleTimeString("pt-BR", { second: "2-digit", timeZone: FUSO })}
+          :
+          {agora
+            .toLocaleTimeString("pt-BR", { second: "2-digit", timeZone: FUSO })
+            .padStart(2, "0")}
         </span>
       </div>
       <div className="mt-1 text-xs text-white/60">
@@ -172,7 +176,7 @@ export function Painel({
   return (
     <section
       className={cn(
-        "rounded-xl border border-border-subtle bg-card p-4 text-card-foreground shadow-elev-1 md:p-5",
+        "smq-panel rounded-xl border border-border-subtle bg-card p-4 text-card-foreground shadow-elev-1 md:p-5",
         className,
       )}
     >
@@ -427,33 +431,45 @@ export function ListaRanking({
   mudancas,
   max = 15,
   vazio,
+  onSelect,
+  userKey,
 }: {
   rows: RankRowPosicionada[];
   criterio: CriterioRanking;
   mudancas?: Map<string, number>;
   max?: number;
   vazio: ReactNode;
+  onSelect?: (id: string) => void;
+  userKey?: string;
 }) {
   const visiveis = rows.slice(0, max);
+  const listRoot = useRef<HTMLOListElement>(null);
+  useAurumReorder(listRoot, visiveis.map((r) => r.corretorId).join("|"));
   if (visiveis.length === 0) return <>{vazio}</>;
   const topo = Math.max(valorDo(visiveis[0], criterio), 1);
   return (
-    <ol className="stagger-children space-y-1" aria-label="Classificação">
+    <ol
+      ref={listRoot}
+      className="smq-ranking-list stagger-children space-y-1"
+      aria-label="Classificação"
+    >
       {visiveis.map((r) => {
         const delta = mudancas?.get(r.corretorId) ?? 0;
-        const largura = Math.max((valorDo(r, criterio) / topo) * 100, 3);
+        const largura = Math.max((valorDo(r, criterio) / topo) * 100, 0);
         const legenda = legendaDo(r, criterio);
         return (
           <li
             key={r.corretorId}
+            data-self={userKey === r.corretorId || undefined}
+            data-ranking-id={r.corretorId}
             className={cn(
               "relative overflow-hidden rounded-lg px-2 py-1.5",
-              r.pos <= 3 ? "bg-primary/5" : "hover:bg-muted/60",
+              r.pos > 0 && r.pos <= 3 ? "bg-primary/5" : "hover:bg-muted/60",
             )}
           >
             <div className="flex items-center gap-2.5">
               <span className="flex w-8 shrink-0 items-center justify-center">
-                {r.pos <= 3 ? (
+                {r.pos > 0 && r.pos <= 3 ? (
                   <Medal
                     tier={r.pos === 1 ? "ouro" : r.pos === 2 ? "prata" : "bronze"}
                     size="sm"
@@ -463,14 +479,22 @@ export function ListaRanking({
                   </Medal>
                 ) : (
                   <span className="text-sm font-semibold text-muted-foreground tabular-nums">
-                    {r.pos}º
+                    {r.pos > 0 ? `${r.pos}º` : "—"}
                   </span>
                 )}
               </span>
               <AvatarCorretor nome={r.nome} foto={r.foto} className="h-8 w-8" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="truncate text-sm font-medium">{r.nome}</span>
+                  <button
+                    type="button"
+                    className="smq-person-link truncate text-sm font-medium"
+                    disabled={!onSelect}
+                    onClick={() => onSelect?.(r.corretorId)}
+                    title={r.nome}
+                  >
+                    {r.nome}
+                  </button>
                   {delta !== 0 && (
                     <span
                       className={cn(
@@ -797,33 +821,35 @@ export function entradasPodio(
   rows: RankRowPosicionada[],
   criterio: CriterioRanking,
 ): PodiumEntry[] {
-  return rows.slice(0, 3).map((r) => ({
-    id: r.corretorId,
-    posicao: (r.pos <= 3 ? r.pos : 3) as 1 | 2 | 3,
-    nome: primeiroNome(r.nome),
-    legenda: r.nome.trim().split(/\s+/).length > 1 ? r.nome : null,
-    foto: r.foto,
-    valor: criterio === "vgv" ? r.vgv : criterio === "vendas" ? r.vendas : r.pontos,
-    valorTexto: criterio === "vgv" ? fmtBRLCompacto(r.vgv) : undefined,
-    unidade:
-      criterio === "vgv"
-        ? "VGV"
-        : criterio === "vendas"
-          ? r.vendas === 1
-            ? "venda"
-            : "vendas"
-          : "pts",
-    detalhe:
-      criterio === "pontos"
-        ? r.vendas > 0
-          ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}`
-          : null
-        : criterio === "vgv"
-          ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}`
-          : r.vgv > 0
-            ? fmtBRLCompacto(r.vgv)
-            : null,
-  }));
+  return rows
+    .filter((r) => r.pos > 0 && r.pos <= 3)
+    .map((r) => ({
+      id: r.corretorId,
+      posicao: (r.pos <= 3 ? r.pos : 3) as 1 | 2 | 3,
+      nome: primeiroNome(r.nome),
+      legenda: r.nome.trim().split(/\s+/).length > 1 ? r.nome : null,
+      foto: r.foto,
+      valor: criterio === "vgv" ? r.vgv : criterio === "vendas" ? r.vendas : r.pontos,
+      valorTexto: criterio === "vgv" ? fmtBRLCompacto(r.vgv) : undefined,
+      unidade:
+        criterio === "vgv"
+          ? "VGV"
+          : criterio === "vendas"
+            ? r.vendas === 1
+              ? "venda"
+              : "vendas"
+            : "pts",
+      detalhe:
+        criterio === "pontos"
+          ? r.vendas > 0
+            ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}`
+            : null
+          : criterio === "vgv"
+            ? `${formatNum(r.vendas)} ${r.vendas === 1 ? "venda" : "vendas"}`
+            : r.vgv > 0
+              ? fmtBRLCompacto(r.vgv)
+              : null,
+    }));
 }
 
 /** Moldura navy do pódio: no tema claro é o bloco escuro da marca; no Modo TV a página já é navy. */

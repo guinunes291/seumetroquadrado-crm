@@ -187,7 +187,7 @@ export function destaques(
 
 export type TelaTV = {
   id: string;
-  tipo: "podio" | "corretores" | "gestores" | "metas" | "produtividade";
+  tipo: "podio" | "corretores" | "gestores" | "metas" | "produtividade" | "produtividade-resumo";
   pagina: number;
 };
 export const LINHAS_TV = 6;
@@ -205,7 +205,11 @@ export function roteiroTV(corretores: number, gestores: number, paginasPodio = 1
   }
   // Começa pelo pódio, mantendo cada página das listas no ciclo.
   const primeiroPodio = telas.splice(1, 1)[0];
-  return [primeiroPodio, ...telas];
+  return [
+    primeiroPodio,
+    { id: "produtividade-resumo", tipo: "produtividade-resumo", pagina: 0 },
+    ...telas,
+  ];
 }
 
 export type Conquista = {

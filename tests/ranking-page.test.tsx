@@ -1,7 +1,34 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render as baseRender,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fixtureRanking } from "./fixtures/ranking";
 import { RankingExperience } from "@/features/ranking/ranking-page";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: null, session: null, loading: false }),
+  useUserRoles: () => ({ roles: [], isAdmin: false, isGestor: false }),
+}));
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return baseRender(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+}
+function aba(nome: string) {
+  fireEvent.mouseDown(screen.getByRole("tab", { name: nome, exact: true }), {
+    button: 0,
+    ctrlKey: false,
+  });
+}
 const HOJE = new Date(2026, 8, 8, 12);
 function props() {
   return {
@@ -49,11 +76,13 @@ describe("RankingExperience", () => {
     );
     expect(screen.getByRole("button", { name: "Seu resultado Ver análise" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sua posição 5º" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Top vendedores do mês" })).toBeNull();
   });
   it("pagina também no desktop quando 30 pessoas compartilham o pódio", () => {
     const p = props();
     p.snapshot.rows = p.snapshot.rows.map((r) => ({ ...r, vgv: 1000000, vendas: 2 }));
     render(<RankingExperience {...p} />);
+    aba("Vendas");
     expect(screen.getAllByRole("button", { name: /Analisar .+empatado/ })).toHaveLength(3);
     expect(screen.getByText("Empates no pódio · 1/10")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Próximos" }));
@@ -61,7 +90,12 @@ describe("RankingExperience", () => {
   });
   it("abre com identidade, fallback de iniciais e análise comercial contextualizada", () => {
     render(<RankingExperience {...props()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Analisar Mariana/ }));
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "Real x Meta",
+      "Vendas",
+      "Produtividade",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Mariana Costa", exact: true }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("VGV aprovado")).toBeInTheDocument();
     expect(within(dialog).getByText(/16,7% de conversão da coorte/)).toBeInTheDocument();
@@ -72,7 +106,7 @@ describe("RankingExperience", () => {
     const p = props();
     const { rerender } = render(<RankingExperience {...p} />);
     rerender(<RankingExperience {...p} error />);
-    expect(screen.getByRole("button", { name: /Analisar Mariana/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mariana Costa", exact: true })).toBeInTheDocument();
     fireEvent.click(screen.getByText("Tentar novamente"));
     expect(p.onRefresh).toHaveBeenCalledOnce();
   });
@@ -93,11 +127,11 @@ describe("RankingExperience", () => {
     expect(screen.getByRole("dialog", { name: "Modo TV do campeonato" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pausar rotação" })).toBeInTheDocument();
     act(() => vi.advanceTimersByTime(25000));
-    expect(screen.getByRole("table", { name: "Classificação dos corretores" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Produtividade por corretor" })).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(7);
     fireEvent.click(screen.getByRole("button", { name: "Pausar rotação" }));
     act(() => vi.advanceTimersByTime(50000));
-    expect(screen.getByRole("table", { name: "Classificação dos corretores" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Produtividade por corretor" })).toBeInTheDocument();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.body.style.overflow).toBe("");
@@ -114,9 +148,11 @@ describe("RankingExperience", () => {
       <RankingExperience {...p} snapshot={{ ...p.snapshot, gerado_em: "2026-09-08T15:00:20Z" }} />,
     );
     act(() => vi.advanceTimersByTime(5000));
-    expect(screen.getByRole("table", { name: "Classificação dos corretores" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Produtividade por corretor" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tela anterior" }));
-    expect(screen.getByRole("heading", { name: "Ranking de vendas" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Meta de vendas — Setembro de 2026" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Intervalo de rotação: 25/ }));
     expect(screen.getByRole("button", { name: /Intervalo de rotação: 40/ })).toBeInTheDocument();
   });
@@ -126,14 +162,15 @@ describe("RankingExperience", () => {
     p.snapshot.metas = [];
     p.snapshot.vendas = [];
     render(<RankingExperience {...p} />);
-    expect(screen.getByText("Pódio em aberto")).toBeInTheDocument();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Corretores" }), {
-      button: 0,
-      ctrlKey: false,
-    });
-    expect(screen.getAllByRole("row")).toHaveLength(31);
+    aba("Vendas");
+    expect(screen.getByText("Nenhuma venda aprovada no período")).toBeInTheDocument();
+    const table = screen.getByRole("table", { name: "VGV por corretor no período" });
+    expect(within(table).getAllByRole("row")).toHaveLength(31);
     expect(
-      screen.getByRole("button", { name: "Ana Paula de Albuquerque e Vasconcelos", exact: true }),
+      within(table).getByRole("button", {
+        name: "Ana Paula de Albuquerque e Vasconcelos",
+        exact: true,
+      }),
     ).toBeInTheDocument();
   });
   it("deduplica aprovação e não dispara quando muda apenas a meta", () => {

@@ -1,0 +1,420 @@
+[
+  {
+    "label": "01 / 22Vendas",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "02 / 22Produtividade",
+    "people": ["c0", "c1", "c2", "c3", "c4"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "03 / 22Corretores",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "04 / 22Gestores",
+    "people": ["g0", "g1", "g2"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "05 / 22Real x Meta",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "06 / 22Produtividade",
+    "people": [],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "07 / 22Corretores",
+    "people": ["c6", "c7", "c8", "c9", "c10", "c11"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "08 / 22Vendas",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "09 / 22Real x Meta",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "10 / 22Produtividade",
+    "people": [],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "11 / 22Corretores",
+    "people": ["c12", "c13", "c14", "c15", "c16", "c17"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "12 / 22Vendas",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "13 / 22Real x Meta",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "14 / 22Produtividade",
+    "people": [],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "15 / 22Corretores",
+    "people": ["c18", "c19", "c20", "c23", "c27", "c29"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "16 / 22Vendas",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "17 / 22Real x Meta",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "18 / 22Produtividade",
+    "people": [],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "19 / 22Corretores",
+    "people": ["c25", "c24", "c22", "c28", "c21", "c26"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "20 / 22Vendas",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "21 / 22Real x Meta",
+    "people": ["c0", "c1", "c2", "c3", "c4", "c5"],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  },
+  {
+    "label": "22 / 22Produtividade",
+    "people": [],
+    "stage": [
+      {
+        "height": 767,
+        "scrollHeight": 767,
+        "scrollWidth": 1920,
+        "width": 1920
+      },
+      {
+        "height": 746,
+        "scrollHeight": 746,
+        "scrollWidth": 1864,
+        "width": 1864
+      }
+    ],
+    "viewport": [1920, 1080]
+  }
+]

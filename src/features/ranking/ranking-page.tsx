@@ -10,6 +10,9 @@ import {
   SpeakerHigh,
   SpeakerSlash,
   Television,
+  Target,
+  Trophy,
+  Pulse,
   X,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
@@ -36,25 +39,23 @@ import {
   type RankingSnapshot,
   type TelaTV,
 } from "./ranking-campeonato";
-import {
-  AnaliseCorretor,
-  Classificacao,
-  Foto,
-  MetasCampeonato,
-  PodioCampeonato,
-  ProdutividadeCampeonato,
-} from "./campeonato-views";
+import { AnaliseCorretor, Classificacao, Foto, ProdutividadeCampeonato } from "./campeonato-views";
 import { useHojeSaoPaulo, useRankingData } from "./use-ranking-data";
+import { RankingRefinado } from "./ranking-refined-views";
+import { RelogioAoVivo } from "./ranking-ui";
 import "./ranking-campeonato.css";
+import "./ranking-refined.css";
 
 const LABELS: Record<TelaTV["tipo"], string> = {
-  podio: "Pódio",
+  podio: "Vendas",
   corretores: "Corretores",
   gestores: "Gestores",
-  metas: "Metas & resultado",
+  metas: "Real x Meta",
+  "produtividade-resumo": "Produtividade",
   produtividade: "Produtividade",
 };
-const VISOES = Object.keys(LABELS) as TelaTV["tipo"][];
+const VISOES = ["metas", "podio", "produtividade"] as const;
+const ICONES = { metas: Target, podio: Trophy, produtividade: Pulse };
 const INTERVALOS = [15, 25, 40, 60];
 
 export function RankingPanel() {
@@ -111,7 +112,7 @@ export function RankingExperience({
   onMonthChange: (ano: number, mes: number) => void;
   preview?: boolean;
 }) {
-  const [visao, setVisao] = useState<TelaTV["tipo"]>("podio");
+  const [visao, setVisao] = useState<TelaTV["tipo"]>("metas");
   const [tv, setTv] = useState(false);
   const [auto, setAuto] = useState(false);
   const [intervalo, setIntervalo] = useState(25);
@@ -176,7 +177,7 @@ export function RankingExperience({
     setSelecionado(null);
     setTv(true);
     setAuto(true);
-    setSlideId("podio-0");
+    setSlideId(visao === "produtividade" ? "produtividade-resumo" : `${visao}-0`);
     setQuieto(false);
     void document.documentElement.requestFullscreen?.().catch(() => {});
   };
@@ -364,31 +365,9 @@ export function RankingExperience({
   );
   const me = corretores.find((r) => r.corretorId === userKey);
   const totalVgv = rows.reduce((sum, r) => sum + r.vgv, 0);
-  const outrasPosicoes = corretores.filter((r) => r.pos === 0 || r.pos > 3);
   const view =
     snapshot &&
-    (tipo === "podio" ? (
-      <div className="aurum-home">
-        <PodioCampeonato
-          rows={corretores}
-          snapshot={snapshot}
-          hoje={hoje}
-          pagina={tv ? slide.pagina : 0}
-          tv={tv}
-          userKey={userKey}
-          onSelect={tv ? undefined : setSelecionado}
-        />
-        {!tv && outrasPosicoes.length > 0 && (
-          <Classificacao
-            rows={outrasPosicoes}
-            embedded
-            userKey={userKey}
-            leaderVgv={Math.max(...corretores.map((r) => r.vgv), 0)}
-            onSelect={setSelecionado}
-          />
-        )}
-      </div>
-    ) : tipo === "corretores" ? (
+    (tipo === "corretores" ? (
       <Classificacao
         rows={corretores}
         individual={snapshot.escopo === "individual"}
@@ -399,26 +378,49 @@ export function RankingExperience({
       />
     ) : tipo === "gestores" ? (
       <Classificacao rows={gestores} gestor tv={tv} pagina={slide.pagina} />
-    ) : tipo === "metas" ? (
-      <MetasCampeonato snapshot={snapshot} hoje={hoje} />
+    ) : tipo === "produtividade" && tv ? (
+      <ProdutividadeCampeonato snapshot={snapshot} tv pagina={slide.pagina} />
     ) : (
-      <ProdutividadeCampeonato
+      <RankingRefinado
         snapshot={snapshot}
+        hoje={hoje}
+        visao={tipo === "produtividade-resumo" ? "produtividade" : tipo}
         tv={tv}
         pagina={slide.pagina}
+        userKey={userKey}
         onSelect={tv ? undefined : setSelecionado}
       />
     ));
+  const aba =
+    tipo === "corretores" || tipo === "gestores"
+      ? "podio"
+      : tipo === "produtividade-resumo"
+        ? "produtividade"
+        : tipo;
   const vencedor = conquista ? rows.find((r) => r.corretorId === conquista.corretorId) : undefined;
   const arena = (
-    <Tabs value={visao} onValueChange={(v) => setVisao(v as TelaTV["tipo"])} asChild>
+    <Tabs
+      value={aba}
+      onValueChange={(v) => {
+        setVisao(v as TelaTV["tipo"]);
+        if (tv) {
+          setSlideId(v === "produtividade" ? "produtividade-resumo" : `${v}-0`);
+          setAuto(false);
+        }
+      }}
+      asChild
+    >
       <div
         ref={root}
         tabIndex={tv ? -1 : undefined}
         role={tv ? "dialog" : undefined}
         aria-modal={tv ? true : undefined}
         aria-label={tv ? "Modo TV do campeonato" : undefined}
-        className={cn("ranking-arena dark", tv && "arena-television", quieto && "arena-quiet")}
+        className={cn(
+          "ranking-arena smq-refined dark",
+          tv && "arena-television",
+          quieto && "arena-quiet",
+        )}
         data-tv={tv || undefined}
         data-sleep={!visivel || undefined}
         onPointerMove={() => {
@@ -436,13 +438,17 @@ export function RankingExperience({
               />
             </div>
             <div>
-              <span>SEU METRO QUADRADO</span>
-              <strong>
-                Arena <em>Aurum</em>
-              </strong>
+              <div className="smq-brand-title">
+                <h1>Seu Metro Quadrado</h1>
+                <span className="smq-live-badge">
+                  <i /> Ao vivo
+                </span>
+              </div>
+              <p>Desempenho do time · {periodo}</p>
             </div>
           </div>
           <div className="arena-header-actions">
+            <RelogioAoVivo className="smq-clock" />
             <div className="arena-live">
               <span className={cn("arena-live-dot", error && "arena-live-error")} />
               <span>
@@ -450,6 +456,16 @@ export function RankingExperience({
                 <strong>{refreshLabel} · São Paulo</strong>
               </span>
             </div>
+            {tv && (
+              <Button
+                variant="outline"
+                className="smq-auto-button"
+                onClick={() => setAuto((a) => !a)}
+                aria-label={auto ? "Pausar apresentação" : "Iniciar apresentação"}
+              >
+                {auto ? <Pause /> : <Play />} Auto
+              </Button>
+            )}
             {!tv && (
               <>
                 {somButton}
@@ -458,6 +474,23 @@ export function RankingExperience({
                 </Button>
               </>
             )}
+          </div>
+          <div className="smq-header-nav">
+            <TabsList className="arena-tabs" aria-label="Visões do campeonato">
+              {VISOES.map((v) => {
+                const Icon = ICONES[v];
+                return (
+                  <TabsTrigger key={v} value={v}>
+                    <Icon />
+                    {LABELS[v]}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+            <span>
+              Atualizado às {refreshLabel}
+              {preview ? " · Prévia com dados fictícios" : ""}
+            </span>
           </div>
         </header>
         <div className="arena-context">
@@ -524,15 +557,6 @@ export function RankingExperience({
             </Button>
           )}
         </div>
-        {!tv && (
-          <TabsList className="arena-tabs" aria-label="Visões do campeonato">
-            {VISOES.map((v) => (
-              <TabsTrigger key={v} value={v}>
-                {LABELS[v]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        )}
         {error && (
           <div className="arena-alert" role="status">
             {snapshot
@@ -548,7 +572,7 @@ export function RankingExperience({
             {avisoSom}
           </div>
         )}
-        <TabsContent value={visao} forceMount asChild>
+        <TabsContent value={aba} forceMount asChild>
           <main className="arena-stage" aria-busy={loading && !snapshot}>
             {loading && !snapshot ? (
               <div className="arena-loading" role="status">
@@ -574,6 +598,17 @@ export function RankingExperience({
         </TabsContent>
         {tv ? (
           <footer className="arena-tv-footer">
+            <div className="smq-ticker" aria-label="Destaques de vendas">
+              {corretores
+                .filter((r) => r.vendas > 0)
+                .slice(0, 3)
+                .map((r) => (
+                  <span key={r.corretorId}>
+                    <Trophy weight="fill" />
+                    {r.nome} · {r.vendas} vendas · {fmtBRLCompacto(r.vgv)}
+                  </span>
+                ))}
+            </div>
             <div className="arena-slide-label">
               <span>
                 {String(indice + 1).padStart(2, "0")} / {String(roteiro.length).padStart(2, "0")}

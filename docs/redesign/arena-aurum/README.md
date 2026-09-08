@@ -1,127 +1,93 @@
-# Arena Aurum — revisão do ranking SMQ
+# Ranking SMQ — refinamento Arena Aurum
 
-A página `/ranking` recebe uma experiência de campeonato com VGV como critério principal, vendas como desempate, pódio em CSS 3D, identidade Aurum e rotação para a TV. A logo enviada pelo usuário e uma adaptação digital do troféu da empresa substituem os elementos provisórios.
+A página `/ranking` preserva a composição familiar do CRM: **Real x Meta, Vendas e Produtividade**, indicadores em cards, fotos circulares, pódio ao lado da classificação e tabelas detalhadas abaixo. O acabamento acrescenta molduras metálicas, relevo em CSS, luz discreta no líder e transições, com a logo e o troféu da empresa. A tipografia acompanha o painel existente: Manrope e Sora.
 
-## Abrir e testar
-
-Prévia isolada, com **30 personagens fictícios** e sem acesso ao CRM:
+## Prévia e integração
 
 ```sh
 npm ci
 npx vite --config e2e/ranking-preview/vite.config.ts
 ```
 
-Abra `http://127.0.0.1:4180/`. `?sem-fullscreen` simula um navegador que recusa a Fullscreen API; o modo de tela inteira por sobreposição continua funcionando. Os controles amarelos simulam carregamento, falha, ausência de vendas/metas, 30 empates e aprovação nova.
+Abra `http://127.0.0.1:4180/?sem-fullscreen`. A prévia usa **30 personagens fictícios**, sem autenticação ou acesso ao CRM. Os controles amarelos permitem simular falha, carregamento, falta de vendas/metas, empate de 30, nova aprovação e cenários adicionais. As imagens com dados reais fornecidas como referência não fazem parte dos arquivos publicados.
 
-Na aplicação integrada, aplique primeiro a migration `20260908202701_ranking_campeonato.sql` no ambiente de revisão, execute `npm run dev` e entre em `/ranking` com a autenticação normal. A nova RPC é necessária. Nenhuma migration foi aplicada em produção nesta entrega.
+A rota integrada requer a migration `supabase/migrations/20260908202701_ranking_campeonato.sql`, aplicada primeiro no ambiente de revisão. Nenhuma migration ou implantação foi executada em produção.
 
-O Modo TV começa em 25 segundos por tela. Controles: anterior, pausar/retomar, próxima, intervalo (15/25/40/60s), áudio e sair. Teclas: setas, espaço e Escape. A rotação pausa com a aba oculta ou durante celebrações e mantém a posição durante atualizações normais.
+O modo TV entra na aba escolhida e intercala resumos e páginas de detalhes. O ciclo padrão contém 22 telas para 30 corretores e três gestores. Anterior, próxima, pausa, intervalos de 15/25/40/60 segundos, áudio e saída ficam acessíveis. Setas, espaço e Escape também funcionam. A rotação pausa com a aba oculta e durante celebrações; uma atualização normal mantém a posição. A sobreposição funciona quando a Fullscreen API é recusada.
 
-## Arquivos completos
+## Apresentação
 
-- `src/features/ranking/ranking-page.tsx`: integração das visões, contexto fixo, análise, fullscreen, rotação, atualização e áudio.
-- `src/features/ranking/campeonato-views.tsx`: pódio, posições, gestores, metas, seis atividades e análise individual.
-- `src/features/ranking/ranking-campeonato.css`: identidade, Montserrat/Inter, materiais, faces 3D, responsividade e movimento reduzido.
-- `src/features/ranking/aurum-motion.ts`: tilt de até 6°, reflexo no ponteiro e reordenação FLIP nativa.
-- `src/features/ranking/ranking-campeonato.ts`: contrato validado, posições, empates, gestores, destaques, coortes e eventos novos.
-- `src/features/ranking/ranking-derive.ts`: desempate comercial usa apenas VGV e vendas; nome/ID só estabilizam a apresentação.
-- `src/features/ranking/use-ranking-data.ts`: snapshot mensal atômico, polling, invalidação por eventos e virada de data em São Paulo.
-- `src/integrations/supabase/types.ts`: contrato da nova RPC.
-- `supabase/migrations/20260908202701_ranking_campeonato.sql`: consulta completa dentro das permissões existentes.
-- `tests/ranking-campeonato.test.ts`, `tests/ranking-page.test.tsx`, `tests/desempenho-hub.test.ts`: verificações de regras e interações.
-- `tests/db/ranking-campeonato.test.ts`: integração para o harness PostgreSQL existente, com mais de 50 profissionais e aprovação/estorno.
-- `tests/fixtures/ranking.ts` e `e2e/ranking-preview/`: dados e servidor de demonstração separados da rota autenticada.
-- `public/images/ranking/`: logo original otimizada e troféu adaptado da fotografia enviada.
-- `public/fonts/aurum/`: Montserrat e Inter, com licenças OFL.
+- **Real x Meta:** barra principal, anel de atingimento, indicadores, vendedores, VGV contra meta e resultado individual.
+- **Vendas:** seis indicadores, pódio com retratos circulares, ranking de VGV, conversão da carteira, tabela completa e gestores em classificação separada.
+- **Produtividade:** oito indicadores, pesos vigentes, pódio por pontos, ranking, composição e tabela com as seis atividades.
+- **Celular:** cards em duas colunas, pódio compacto e detalhes verticais com todos os campos. O contexto permanece acessível ao rolar.
+- **Identidade:** marinho, dourado, prata e bronze; molduras com relevo, reflexo discreto e tilt de até 6° no ponteiro. O troféu real assina o cabeçalho do pódio e as celebrações.
 
-## Decisões comerciais e dados
+Os materiais ficam estáticos com movimento reduzido. Tilt e reordenação usam `transform`/`opacity`, `will-change` temporário e animações nativas. O brilho contínuo é reservado ao líder e desligado em empates. Celebrações usam até 18 partículas. Áudio começa desligado. Nenhuma dependência nova foi adicionada.
 
-O RPC anterior limitava a consulta a 50 pessoas ordenadas por pontos, o que podia excluir alguém com VGV maior. O novo RPC retorna um JSON escalar com todos os participantes e a contagem esperada; o cliente rejeita contagem inconsistente e IDs duplicados. Não há top-N antes da classificação.
+## Regras e integridade dos dados
 
-A fonte do VGV e das vendas continua sendo `atividades_diarias`, alimentada pelo ledger de aprovação. Aprovações pertencem ao dia de `aprovado_em` em São Paulo; o distrato desconta o dia original. Os controles e triggers de aprovação não foram alterados. Os gestores são classificados separadamente, somando uma única vez cada equipe atual vinculada a eles. Vínculos históricos não são inventados.
+O RPC anterior limitava a consulta a 50 pessoas ordenadas por pontos, podendo excluir alguém com VGV maior. A nova consulta retorna um JSON escalar com todos os participantes e a contagem esperada; o cliente rejeita contagens inconsistentes e IDs duplicados. Não há corte antes da classificação.
 
-Empates em VGV e vendas compartilham a posição. Pessoas sem vendas aparecem com “—”. Todos continuam na classificação. Um empate com muitos participantes também pagina o pódio no computador. Uma conta de escopo individual recebe seu resultado, sem uma posição global inferida.
+VGV e vendas continuam vindo de `atividades_diarias`, alimentada pelo ledger de aprovação. Aprovações pertencem ao dia de `aprovado_em` em São Paulo; o distrato desconta o dia original. Triggers e controles de aprovação não foram alterados. A consulta respeita os escopos operação, equipe e individual.
 
-Metas respeitam a hierarquia central do CRM, sem somar níveis. A projeção é uma estimativa linear explícita, disponível somente no mês atual, após três dias úteis e três vendas e com calendário carregado. Os pesos das seis atividades e a pontuação histórica não foram alterados.
+A classificação comercial usa VGV e desempata por vendas. Empates completos compartilham posição; nomes e IDs apenas estabilizam a apresentação. Quem não vendeu permanece na tabela com “—”. O pódio pagina empates extensos. Gestores somam cada equipe atual uma única vez, em classificação separada. Um perfil individual recebe seu resultado sem uma posição global inferida.
 
-Conversão significa a proporção dos mesmos leads criados no mês, ainda atribuídos ao corretor na leitura, com venda aprovada atribuída a ele. É uma coorte dinâmica da carteira atual, com o limite de confiabilidade configurado no CRM. Se a base não é válida, aparece “Conversão ainda não apurada”. Eventos independentes não são divididos entre si.
+Metas respeitam a hierarquia central do CRM, sem somar níveis. A projeção linear do mês atual exige três dias úteis, três vendas e calendário carregado; antes disso informa “Aguardando base”. Pesos e pontuação histórica não foram alterados. Zero realizado é desenhado com barra zero.
 
-Celebrações exigem aprovação nova identificada pelo ledger, posterior à leitura anterior e recente. A primeira leitura estabelece a base; histórico, troca de equipe, cancelamento e alteração isolada de meta não disparam efeitos. Os IDs vistos são persistidos por usuário/mês. A mudança de posição pode entrar no reconhecimento de uma aprovação verificada. O áudio começa desligado e só é criado/resumido por interação explícita.
+Conversão usa os mesmos leads criados no mês, hoje atribuídos ao corretor, com venda aprovada atribuída a ele, respeitando o limite de confiabilidade cadastrado. Se a base não é válida, aparece “Conversão ainda não apurada”. Não se divide a quantidade de eventos independentes para inventar uma taxa.
 
-## Dados ainda indisponíveis
+Celebrações exigem uma aprovação nova identificada no ledger, recente e posterior à leitura anterior. Histórico, recarga inicial, cancelamento, troca de equipe e alteração isolada de meta não disparam efeitos. IDs vistos são persistidos por usuário e mês.
 
-- Comparação histórica de posições: mostra “Sem comparação”; não inventa setas ou deltas.
-- Campanhas e trimestre: o ciclo implementado continua mensal. Não há filtros sem fonte correspondente.
-- Fotos ausentes: iniciais. A integração usa `avatar_url`/`foto_url` reais; nenhuma foto fictícia foi atribuída a um profissional real.
-- Classificação global de perfis individuais: não é deduzida de dados fora da permissão.
+O ciclo de dados desta entrega é **mensal**. Filtros de dia, semana, trimestre e campanhas não são apresentados sem fonte correspondente. A comparação com o mês anterior e mudanças históricas de posição não estão disponíveis no snapshot atual; não são fabricadas. Fotografias ausentes usam iniciais.
 
-## Movimento e desempenho
+## Arquivos principais
 
-Nenhuma dependência de JavaScript foi acrescentada. CSS 3D e Web Animations atendem à cena sem WebGL. Os números completos ficam disponíveis imediatamente; entrada e reordenação animam a apresentação sem contar lentamente até o resultado. Duas famílias de movimento contínuo no pódio: flutuação discreta do líder e reflexo metálico. Empates desligam o movimento de destaque para não favorecer um participante tecnicamente ordenado antes dos outros.
+| Arquivo                                                     | Responsabilidade                                      |
+| ----------------------------------------------------------- | ----------------------------------------------------- |
+| `src/features/ranking/ranking-page.tsx`                     | Três abas, contexto, análise, TV, áudio e celebrações |
+| `src/features/ranking/ranking-refined-views.tsx`            | Adapta o snapshot completo às visões familiares       |
+| `src/features/ranking/ranking-refined.css`                  | Acabamento, escala para TV e responsividade           |
+| `src/features/ranking/podium.tsx`                           | Retratos circulares, relevo, empates e interação      |
+| `src/features/ranking/ranking-real-x-meta.tsx`              | Metas, projeção e indicadores                         |
+| `src/features/ranking/ranking-vendas.tsx`                   | Vendas, pódio e tabela completa                       |
+| `src/features/ranking/ranking-produtividade.tsx`            | Pontuação, pesos, composição e atividades             |
+| `src/features/ranking/ranking-ui.tsx`                       | Medalhas, listas, relógio e gráficos compartilhados   |
+| `src/features/ranking/ranking-campeonato.ts`                | Contrato, classificações, coortes e eventos           |
+| `src/features/ranking/use-ranking-data.ts`                  | Consulta mensal atômica, polling e eventos            |
+| `supabase/migrations/20260908202701_ranking_campeonato.sql` | Consulta completa dentro das permissões existentes    |
 
-Tilt e FLIP animam somente `transform` e `opacity`. `will-change` é temporário. Há uma superfície com `backdrop-filter`, desativada na TV. Celebrações usam 18 partículas por vez. Aba oculta pausa os efeitos; `prefers-reduced-motion` desliga tilt, FLIP, partículas e movimento contínuo, mantendo os materiais estáticos.
+O histórico de criação do troféu e a procedência da logo estão em [ranking-trofeu-prompt.txt](../ranking-trofeu-prompt.txt). O troféu usa adaptação digital da fotografia; a logo mantém o desenho enviado, com compressão e enquadramento por CSS.
 
-A logo é WebP de cerca de 38 KB e o troféu cerca de 59 KB; as duas fontes locais somam cerca de 86 KB. O chunk de JavaScript do ranking fica abaixo de 19 KB gzip, com limite solicitado de 80 KB, fora das bibliotecas já existentes.
+## Validação
 
-## Checklist para revisão antes de publicar
+- **39 testes focados passaram:** página, componentes das três visões, regras do ranking e hub de desempenho.
+- TypeScript e build de produção passaram com Node 24 (`NODE_OPTIONS=--max-old-space-size=4096 npm run build`).
+- Lint dos arquivos alterados: zero erros; três avisos de Fast Refresh em módulos com exportações compartilhadas/entrada da prévia.
+- Orçamento de bundles passou. O chunk cliente do ranking tem aproximadamente **27,4 KB gzip**, abaixo do teto solicitado de 80 KB; CSS aproximadamente 11,8 KB gzip.
+- **22 telas verificadas em 1920 × 1080 e 3840 × 2160**, após as animações, sem excesso na área da cena; 30 corretores e três gestores alcançados. Relatórios: [Full HD](refinado-auditoria-tv.json) e [4K](refinado-auditoria-4k.json).
+- Largura de 390px sem rolagem horizontal; análise individual, retorno ao pódio e todos os campos de produtividade conferidos no navegador.
+- Suíte geral: **1.631 passaram e um teste preexistente falhou**. `tests/samiq-governance.test.ts:289` exige a grafia literal `rpc("samiq_gravar_turno"`, enquanto o código existente usa um wrapper para a mesma RPC. Os arquivos de SamiQ não foram modificados.
 
-- [x] 30 corretores percorrem as 21 telas da rotação padrão, incluindo quem está zerado.
-- [x] Cinco visões verificadas em 1920 × 1080 e 3840 × 2160, sem rolagem na área da cena.
-- [x] Layout de 390px sem rolagem horizontal; produtividade reorganiza as seis atividades verticalmente.
-- [x] Nome longo e análise comercial verificados no celular; faixa de contexto permanece fixa ao rolar.
-- [x] Metas, pesos, empates, snapshots incompletos e eventos repetidos cobertos nos testes.
-- [x] Tela inteira funciona também quando a Fullscreen API é recusada; entrada, saída e controles testados.
-- [x] Identidade usa as cores solicitadas e as fontes Montserrat/Inter locais.
-- [ ] Executar o harness PostgreSQL completo num ambiente com Docker/PostgreSQL antes de aplicar a migration.
-- [ ] Confirmar leitura a três metros na TV física e fluidez num iPhone intermediário. A validação aqui usou viewport em navegador; não afirma medições de 60fps no aparelho.
-- [ ] Conferir a experiência autenticada no ambiente de revisão após aplicar a migration, com os perfis reais autorizados.
+Outros bloqueios globais já existentes na base: `prefer-const` em `src/integrations/supabase/previewAuthStorage.ts:38` e orçamento de escapes de tipo em 147, contra teto de 144. Nenhuma dessas verificações foi afrouxada. Esses bloqueios precisam ser resolvidos antes de um merge que exija CI verde.
 
-## Verificações automatizadas
+A migration também foi executada em PGlite com schema representativo e 63 perfis: ausência de corte top-50, permissões de operação/equipe/indivíduo, conta inativa, mês inválido, coorte e estorno. Isso não substitui o replay completo das migrations e triggers no harness PostgreSQL. O harness completo precisa de Docker/PostgreSQL, indisponível nesta máquina.
 
-31 testes focados passaram. A suíte geral passou em 1.631 testes e falhou em um teste preexistente de SamiQ (`tests/samiq-governance.test.ts:289`). O teste exige a grafia literal `rpc("samiq_gravar_turno"`, enquanto a implementação existente chama a mesma RPC por um wrapper. Essa divergência textual já está em `origin/main`; os arquivos de SamiQ não foram modificados.
+Ainda falta conferir a integração autenticada após a migration no ambiente de revisão, a leitura a três metros em uma TV física e o desempenho em um iPhone intermediário. As verificações de viewport não são medições de FPS em aparelhos físicos.
 
-O lint global tem um erro preexistente `prefer-const` em `src/integrations/supabase/previewAuthStorage.ts:38`. O orçamento global de escapes de tipo já é 147 em `origin/main`, contra o teto de 144; a implementação não adiciona esses escapes. As verificações específicas dos arquivos alterados são executadas separadamente.
+## Capturas da versão refinada
 
-A migration foi executada adicionalmente em PGlite com schema representativo: 63 perfis, ausência de corte top-50, escopos operação/equipe/individual, conta inativa, rejeição de mês inválido, coorte e estorno. Isso verifica a nova consulta, mas não substitui o replay de todas as migrations e triggers do harness PostgreSQL.
+Todas contêm dados fictícios identificados na prévia.
 
-TypeScript (`npm run typecheck`), lint dos arquivos alterados, build de produção com Node 24 (`NODE_OPTIONS=--max-old-space-size=4096 npm run build`), formatação e orçamento de bundles passaram. Nenhum deploy foi feito. A branch é `codex/ranking-campeonato-tv`.
+![Vendas em Full HD](screenshots/refinado-tv-vendas-1920.png)
 
-Contraste dos pares de texto usados: creme sobre azul elevado 12,81:1; apoio sobre azul elevado 7,06:1; dourado sobre azul elevado 5,35:1; bronze sobre fundo profundo 4,73:1; legenda escura sobre dourado 7,16:1. A inspeção de foco e materiais complementa essas relações de cores sólidas.
+| Visão                      | Captura                                                       |
+| -------------------------- | ------------------------------------------------------------- |
+| Real x Meta                | [Full HD](screenshots/refinado-tv-metas-1920.png)             |
+| Produtividade              | [Full HD](screenshots/refinado-tv-produtividade-1920.png)     |
+| Vendas em 4K               | [3840 × 2160](screenshots/refinado-tv-vendas-3840.png)        |
+| Produtividade em 4K        | [3840 × 2160](screenshots/refinado-tv-produtividade-3840.png) |
+| Pódio e ranking no celular | [390px](screenshots/refinado-mobile-podio.png)                |
+| Indicadores no celular     | [390px](screenshots/refinado-mobile-produtividade.png)        |
 
-O histórico de criação do troféu, com os prompts completos e a procedência da logo, está em [ranking-trofeu-prompt.txt](../ranking-trofeu-prompt.txt). O troféu usa uma adaptação digital da foto; a logo mantém o desenho enviado, com compressão e enquadramento por CSS.
-
-## Capturas renderizadas
-
-Todas as capturas usam **dados fictícios identificados na prévia**. Os relatórios [Full HD](aurum-auditoria-tv.json) e [4K](aurum-auditoria-4k.json) registram as medidas da área de cena e a cobertura da rotação.
-
-![Pódio em Full HD](screenshots/aurum-tv-podio-1920.png)
-
-| Visão                                           | Captura                                                |
-| ----------------------------------------------- | ------------------------------------------------------ |
-| Corretores, incluindo zerados durante a rotação | [Full HD](screenshots/aurum-tv-classificacao-1920.png) |
-| Gestores                                        | [Full HD](screenshots/aurum-tv-gestores-1920.png)      |
-| Realizado × meta                                | [Full HD](screenshots/aurum-tv-metas-1920.png)         |
-| Seis atividades de produtividade                | [Full HD](screenshots/aurum-tv-produtividade-1920.png) |
-| Pódio 4K                                        | [3840 × 2160](screenshots/aurum-tv-podio-3840.png)     |
-| Celular                                         | [390px](screenshots/aurum-mobile-390.png)              |
-| Análise com nome longo                          | [Celular](screenshots/aurum-analise-mobile.png)        |
-| Contexto fixo durante a rolagem                 | [Celular](screenshots/aurum-classificacao-mobile.png)  |
-
-## Estados para conferir
-
-Na prévia, use os botões amarelos e o seletor “Cenários adicionais”. “Restaurar” retorna ao cenário inicial.
-
-| Estado               | Comportamento                                                                  | Captura                                               |
-| -------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| Carregando           | Skeleton com três posições e líder mais alto; texto acessível de carregamento. | [Abrir](screenshots/aurum-mobile-carregando.png)      |
-| Nenhum participante  | Mensagem sobre o escopo sem inventar competidores.                             | [Abrir](screenshots/aurum-mobile-vazio.png)           |
-| Sem vendas ou metas  | Pódio em aberto, lista completa com “—” e métricas zeradas.                    | [Abrir](screenshots/aurum-mobile-sem-vendas.png)      |
-| Um vendedor          | Primeiro lugar central; as outras posições ficam vagas.                        | [Abrir](screenshots/aurum-mobile-um-vendedor.png)     |
-| Dois vendedores      | Primeiro ao centro e segundo à esquerda, preservando a posição física.         | [Abrir](screenshots/aurum-mobile-dois-vendedores.png) |
-| 30 empatados         | Posição compartilhada, alturas iguais e paginação para todos.                  | [Abrir](screenshots/aurum-mobile-empate.png)          |
-| Primeiro dia         | Realizado zerado e projeção aguardando base mínima.                            | [Abrir](screenshots/aurum-mobile-primeiro-dia.png)    |
-| Nova aprovação       | Celebração breve com o troféu SMQ; áudio desligado inicialmente.               | [Abrir](screenshots/aurum-mobile-celebracao.png)      |
-| Falha de atualização | Último snapshot continua visível, com aviso e botão para tentar novamente.     | Controle “Simular falha”                              |
-| Sem foto             | Iniciais na moldura metálica; a foto real é usada quando disponível.           | Todas as capturas da prévia                           |
-
-Antes de publicar, ainda devem ser conferidos os itens não marcados no checklist acima. A integração final depende da aplicação da nova migration no ambiente de revisão.
+Branch de trabalho: `codex/ranking-campeonato-tv`. A criação do PR depende de renovar a autenticação GitHub. Nenhum PR, merge ou deploy foi concluído nesta etapa.
