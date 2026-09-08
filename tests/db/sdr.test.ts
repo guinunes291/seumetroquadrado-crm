@@ -896,14 +896,17 @@ describe("espelho pelo admin", () => {
 });
 
 describe("alimentação da base (rodízio entre SDRs)", () => {
-  it("estoque sem dono vai para os SDRs em rodízio, não para o Plantão", async () => {
+  it("lote da rodada alimenta SDRs em rodízio e informa os dois caminhos de distribuição", async () => {
     await comoSuperuser(c);
     const e1 = await criarLead(c, { nome: "Estoque 1", status: "aguardando_corretor" });
     const e2 = await criarLead(c, { nome: "Estoque 2", status: "aguardando_corretor" });
     const r = await c.query(`SELECT public.distribuir_estoque_roleta('plantao', 30) AS res`);
     const res = r.rows[0].res as Record<string, unknown>;
-    expect(res.modelo).toBe("sdr");
-    expect(res.distribuidos).toBe(2);
+    // Desde 20260908195600, SDR e corretores têm resultados separados.
+    // Aqui os dois leads cabem no lote SDR e não há restante para o Plantão.
+    expect(res.sdr).toMatchObject({ ok: true, modelo: "sdr", distribuidos: 2 });
+    expect(res.distribuidos).toBe(0);
+    expect(res.restante_estoque).toBe(0);
     const l1 = await lead(e1);
     const l2 = await lead(e2);
     expect([l1.sdr_id, l2.sdr_id].sort()).toEqual([sdr.id, sdr2.id].sort());

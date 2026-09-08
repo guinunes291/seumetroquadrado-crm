@@ -7,7 +7,7 @@
 //    e `null`, e o painel segue sem conversaId.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import type { Json } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { isMissingBackendObject } from "@/lib/supabase-errors";
 import { redactSamiQPii } from "@/lib/samiq-governance";
 import type { SamiQCanal } from "@/lib/samiq";
@@ -33,10 +33,11 @@ export async function gravarTurnoSamiQ(args: {
   if (!pergunta || !resposta) return args.conversaId ?? null;
 
   try {
-    const base: Record<string, unknown> = {
+    type TurnoArgs = Database["public"]["Functions"]["samiq_gravar_turno"]["Args"];
+    const base: TurnoArgs = {
       _user_id: args.userId,
-      _conversa_id: args.conversaId ?? undefined,
-      _lead_id: args.leadId ?? undefined,
+      _conversa_id: args.conversaId ?? null,
+      _lead_id: args.leadId ?? null,
       _pergunta: pergunta,
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
@@ -45,13 +46,7 @@ export async function gravarTurnoSamiQ(args: {
     // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
     // não está no ar, grava sem o canal em vez de perder o turno.
     const comCanal = args.canal !== undefined && args.canal !== "painel";
-    const rpcTurno = (payload: Record<string, unknown>) =>
-      (
-        supabaseAdmin.rpc as unknown as (
-          fn: string,
-          args: Record<string, unknown>,
-        ) => Promise<{ data: unknown; error: { code?: string } | null }>
-      )("samiq_gravar_turno", payload);
+    const rpcTurno = (payload: TurnoArgs) => supabaseAdmin.rpc("samiq_gravar_turno", payload);
     let { data, error } = await rpcTurno(comCanal ? { ...base, _canal: args.canal } : base);
     if (error && comCanal && isMissingBackendObject(error)) {
       ({ data, error } = await rpcTurno(base));
@@ -89,16 +84,11 @@ export async function registrarPropostasSamiQ(args: {
     lead_nome: c.leadNome,
   }));
   try {
-    const { data, error } = await (
-      supabaseAdmin.rpc as unknown as (
-        fn: string,
-        args: Record<string, unknown>,
-      ) => Promise<{ data: unknown; error: { code?: string } | null }>
-    )("samiq_registrar_propostas", {
+    const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
       _user_id: args.userId,
-      _execution_id: args.executionId ?? undefined,
-      _conversa_id: args.conversaId ?? undefined,
-      _propostas: itens as Json,
+      _execution_id: args.executionId ?? null,
+      _conversa_id: args.conversaId ?? null,
+      _propostas: itens,
     });
     if (error) {
       if (!isMissingBackendObject(error)) {
@@ -135,16 +125,7 @@ export async function conversaAtivaSamiQ(args: {
   agora?: Date;
 }): Promise<{ id: string; leadId: string | null } | null> {
   try {
-    type ConversaRow = { id: string; lead_id: string | null; atualizado_em: string };
-    type LooseChain = {
-      eq: (col: string, val: string) => LooseChain;
-      order: (col: string, opts: { ascending: boolean }) => LooseChain;
-      limit: (n: number) => LooseChain;
-      maybeSingle: () => PromiseLike<{ data: ConversaRow | null; error: unknown }>;
-    };
-    const query = supabaseAdmin
-      .from("samiq_conversas")
-      .select("id, lead_id, atualizado_em") as unknown as LooseChain;
+    const query = supabaseAdmin.from("samiq_conversas").select("id, lead_id, atualizado_em");
     const { data, error } = await query
       .eq("user_id", args.userId)
       .eq("canal", args.canal)

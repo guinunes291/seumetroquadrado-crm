@@ -63,15 +63,15 @@ O histórico de criação do troféu e a procedência da logo estão em [ranking
 
 - **39 testes focados passaram:** página, componentes das três visões, regras do ranking e hub de desempenho.
 - TypeScript e build de produção passaram com Node 24 (`NODE_OPTIONS=--max-old-space-size=4096 npm run build`).
-- Lint dos arquivos alterados: zero erros; três avisos de Fast Refresh em módulos com exportações compartilhadas/entrada da prévia.
+- Lint global de correção, formatação, TypeScript e orçamento de escapes de tipo passaram (144/144, sem alterar o teto).
 - Orçamento de bundles passou. O chunk cliente do ranking tem aproximadamente **27,4 KB gzip**, abaixo do teto solicitado de 80 KB; CSS aproximadamente 11,8 KB gzip.
 - **22 telas verificadas em 1920 × 1080 e 3840 × 2160**, após as animações, sem excesso na área da cena; 30 corretores e três gestores alcançados. Relatórios: [Full HD](refinado-auditoria-tv.json) e [4K](refinado-auditoria-4k.json).
 - Largura de 390px sem rolagem horizontal; análise individual, retorno ao pódio e todos os campos de produtividade conferidos no navegador.
-- Suíte geral: **1.631 passaram e um teste preexistente falhou**. `tests/samiq-governance.test.ts:289` exige a grafia literal `rpc("samiq_gravar_turno"`, enquanto o código existente usa um wrapper para a mesma RPC. Os arquivos de SamiQ não foram modificados.
+- Suíte geral: **1.636 testes passaram**, incluindo quatro novos casos para o contrato de memória do SamiQ.
 
-Outros bloqueios globais já existentes na base: `prefer-const` em `src/integrations/supabase/previewAuthStorage.ts:38` e orçamento de escapes de tipo em 147, contra teto de 144. Nenhuma dessas verificações foi afrouxada. Esses bloqueios precisam ser resolvidos antes de um merge que exija CI verde.
+Para resolver os bloqueios globais encontrados no CI, o timer da autenticação de prévia usa `const` e as chamadas de memória do SamiQ usam os tipos do schema, com IDs obrigatórios enviados como `null` quando ausentes. A consulta mantém os filtros de usuário/canal e o fallback de assinatura WhatsApp. Os testes de banco foram alinhados às migrations já presentes na base: unicidade global de telefone ativo e retorno separado de SDR/corretores na distribuição. A resolução de `js-yaml` foi atualizada de 4.3.1 para 4.3.2 para corrigir a vulnerabilidade alta apontada na auditoria. As regras do banco e os limites do CI não foram afrouxados.
 
-A migration também foi executada em PGlite com schema representativo e 63 perfis: ausência de corte top-50, permissões de operação/equipe/indivíduo, conta inativa, mês inválido, coorte e estorno. Isso não substitui o replay completo das migrations e triggers no harness PostgreSQL. O harness completo precisa de Docker/PostgreSQL, indisponível nesta máquina.
+A migration também foi executada em PGlite com schema representativo e 63 perfis: ausência de corte top-50, permissões de operação/equipe/indivíduo, conta inativa, mês inválido, coorte e estorno. O replay completo das migrations e triggers também foi executado no harness PostgreSQL do GitHub Actions; os quatro testes de banco do ranking passaram. A suíte completa de banco, o build, a auditoria de dependências, a varredura de segredos e o smoke do artefato de produção são gates do CI. Os resultados por commit estão no [PR #181](https://github.com/guinunes291/seumetroquadrado-crm/pull/181).
 
 Ainda falta conferir a integração autenticada após a migration no ambiente de revisão, a leitura a três metros em uma TV física e o desempenho em um iPhone intermediário. As verificações de viewport não são medições de FPS em aparelhos físicos.
 
@@ -90,4 +90,4 @@ Todas contêm dados fictícios identificados na prévia.
 | Pódio e ranking no celular | [390px](screenshots/refinado-mobile-podio.png)                |
 | Indicadores no celular     | [390px](screenshots/refinado-mobile-produtividade.png)        |
 
-Branch de trabalho: `codex/ranking-campeonato-tv`. A criação do PR depende de renovar a autenticação GitHub. Nenhum PR, merge ou deploy foi concluído nesta etapa.
+Revisão: [PR #181](https://github.com/guinunes291/seumetroquadrado-crm/pull/181), branch `codex/ranking-campeonato-tv`. Implantação e aplicação da migration em produção são etapas separadas do merge.
