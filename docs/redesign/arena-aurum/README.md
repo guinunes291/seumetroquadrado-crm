@@ -78,7 +78,7 @@ A logo é WebP de cerca de 38 KB e o troféu cerca de 59 KB; as duas fontes loca
 
 ## Verificações automatizadas
 
-31 testes focados passaram. A suíte geral passou em 1.631 testes e falhou em um teste preexistente de SamiQ (`tests/samiq-governance.test.ts:289`). O teste espera uma RPC ausente também em `origin/main`; os arquivos de SamiQ não foram modificados.
+31 testes focados passaram. A suíte geral passou em 1.631 testes e falhou em um teste preexistente de SamiQ (`tests/samiq-governance.test.ts:289`). O teste exige a grafia literal `rpc("samiq_gravar_turno"`, enquanto a implementação existente chama a mesma RPC por um wrapper. Essa divergência textual já está em `origin/main`; os arquivos de SamiQ não foram modificados.
 
 O lint global tem um erro preexistente `prefer-const` em `src/integrations/supabase/previewAuthStorage.ts:38`. O orçamento global de escapes de tipo já é 147 em `origin/main`, contra o teto de 144; a implementação não adiciona esses escapes. As verificações específicas dos arquivos alterados são executadas separadamente.
 
