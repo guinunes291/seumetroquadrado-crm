@@ -19,6 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
+import { classificacaoCompleta } from "./ranking-campeonato";
 import { Podium } from "@/features/ranking/podium";
 import {
   classificar,
@@ -53,6 +54,10 @@ export function RankingProdutividade({
   mudancas,
   periodoLabel,
   loading,
+  onSelect,
+  userKey,
+  incluirZerados = false,
+  limiteRanking = 15,
 }: {
   ranking: RankRow[];
   totais: Totais;
@@ -60,8 +65,16 @@ export function RankingProdutividade({
   mudancas: Map<string, number>;
   periodoLabel: string;
   loading: boolean;
+  onSelect?: (id: string) => void;
+  userKey?: string;
+  incluirZerados?: boolean;
+  limiteRanking?: number;
 }) {
-  const porPontos = useMemo(() => classificar(ranking, "pontos"), [ranking]);
+  const porPontos = useMemo(
+    () =>
+      incluirZerados ? classificacaoCompleta(ranking, "pontos") : classificar(ranking, "pontos"),
+    [ranking, incluirZerados],
+  );
   const divergem = useMemo(() => pesosDivergem(ranking, pesos), [ranking, pesos]);
 
   const heat = useMemo(() => {
@@ -119,7 +132,14 @@ export function RankingProdutividade({
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <AvatarCorretor nome={row.original.nome} foto={row.original.foto} className="h-7 w-7" />
-            <span className="font-medium">{row.original.nome}</span>
+            <button
+              className="smq-person-link font-medium"
+              type="button"
+              disabled={!onSelect}
+              onClick={() => onSelect?.(row.original.corretorId)}
+            >
+              {row.original.nome}
+            </button>
           </div>
         ),
       },
@@ -140,10 +160,10 @@ export function RankingProdutividade({
         ),
       },
     ];
-  }, [heat]);
+  }, [heat, onSelect]);
 
   return (
-    <div className="stagger-children space-y-5">
+    <div className="smq-productivity-view stagger-children space-y-5">
       <StatGrid className="grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-8">
         <StatTile
           title="Pontos do time"
@@ -225,6 +245,8 @@ export function RankingProdutividade({
           <MolduraPodio>
             <Podium
               entries={entradasPodio(porPontos, "pontos")}
+              onSelect={onSelect}
+              userKey={userKey}
               emptyMessage="Sem atividade no período"
             />
           </MolduraPodio>
@@ -238,7 +260,9 @@ export function RankingProdutividade({
             rows={porPontos}
             criterio="pontos"
             mudancas={mudancas}
-            max={15}
+            max={limiteRanking}
+            onSelect={onSelect}
+            userKey={userKey}
             vazio={
               <VazioRanking
                 icone={Pulse}

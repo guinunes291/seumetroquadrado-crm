@@ -52,6 +52,11 @@ export function RankingRealXMeta({
   metaTotais,
   calendario,
   podeGerirMetas,
+  comparacaoDisponivel = true,
+  exigirBaseProjecao = false,
+  onSelect,
+  limiteRanking = 10,
+  individual = false,
 }: {
   ano: number;
   mes: number;
@@ -64,6 +69,11 @@ export function RankingRealXMeta({
   metaTotais: MetaTotais;
   calendario?: CalendarioPacing;
   podeGerirMetas: boolean;
+  comparacaoDisponivel?: boolean;
+  exigirBaseProjecao?: boolean;
+  onSelect?: (id: string) => void;
+  limiteRanking?: number;
+  individual?: boolean;
 }) {
   // Uma decisão só para anel, barra, gap, projeção (e para a celebração, na
   // página): a meta de vendas quando existe; senão a de VGV — o anel não pode
@@ -75,7 +85,7 @@ export function RankingRealXMeta({
   const fmtPrincipal = usaVgv ? fmtBRLCompacto : formatNum;
   const pctVgv = pctMeta(totaisMes.vgv, metaTotais.vgv);
   const gapVgv = metaTotais.vgv - totaisMes.vgv;
-  const projecao = useMemo(
+  const projecaoCalculada = useMemo(
     () =>
       projetarMes({
         realizado: realizadoPrincipal,
@@ -87,6 +97,14 @@ export function RankingRealXMeta({
       }),
     [realizadoPrincipal, metaPrincipalValor, ano, mes, hoje, calendario],
   );
+  // A estimativa exige amostra mínima; comparação ausente nunca vira delta fictício.
+  const aguardandoBase =
+    exigirBaseProjecao &&
+    projecaoCalculada.posicao === "atual" &&
+    (projecaoCalculada.diasUteisPassados < 3 || totaisMes.vendas < 3 || !calendario);
+  const projecao = aguardandoBase
+    ? { ...projecaoCalculada, valor: null, pctMeta: null }
+    : projecaoCalculada;
   const topVendedores = useMemo(() => classificar(rankingMes, "vendas"), [rankingMes]);
   const rotuloComparacao = janelaAnterior.parcial
     ? `vs. mesmo período de ${MESES_LONGOS[janelaAnterior.mes - 1].toLowerCase()}`
@@ -126,7 +144,7 @@ export function RankingRealXMeta({
   ) : null;
 
   return (
-    <div className="stagger-children space-y-5">
+    <div className="smq-meta-view stagger-children space-y-5">
       <Painel
         titulo={`${usaVgv ? "Meta de VGV" : "Meta de vendas"} — ${nomeMes}`}
         icone={Target}
@@ -155,7 +173,7 @@ export function RankingRealXMeta({
         )}
       </Painel>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className={cn("grid gap-5 lg:grid-cols-3", individual && "smq-meta-individual")}>
         <Painel titulo="Atingimento" icone={ChartBar}>
           <div className="flex flex-col items-center gap-4">
             <AnelMeta
@@ -185,7 +203,9 @@ export function RankingRealXMeta({
                 rotulo={projecao.posicao === "passado" ? "Fechamento" : "Projeção"}
                 valor={
                   projecao.valor === null
-                    ? "—"
+                    ? aguardandoBase
+                      ? "Aguardando base"
+                      : "—"
                     : projecao.pctMeta === null
                       ? fmtPrincipal(Math.round(projecao.valor))
                       : `${projecao.pctMeta.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%`
@@ -200,15 +220,17 @@ export function RankingRealXMeta({
                         : "danger"
                 }
                 ajuda={
-                  projecao.posicao === "atual"
-                    ? `ritmo de ${projecao.diasUteisPassados} de ${projecao.diasUteis} dias úteis${
-                        projecao.valor !== null
-                          ? ` → ${usaVgv ? fmtBRLCompacto(projecao.valor) : `${formatNum(Math.round(projecao.valor))} vendas`}`
-                          : ""
-                      }`
-                    : projecao.posicao === "futuro"
-                      ? "mês ainda não começou"
-                      : "mês encerrado"
+                  aguardandoBase
+                    ? "Após 3 dias úteis e 3 vendas, com calendário carregado."
+                    : projecao.posicao === "atual"
+                      ? `ritmo de ${projecao.diasUteisPassados} de ${projecao.diasUteis} dias úteis${
+                          projecao.valor !== null
+                            ? ` → ${usaVgv ? fmtBRLCompacto(projecao.valor) : `${formatNum(Math.round(projecao.valor))} vendas`}`
+                            : ""
+                        }`
+                      : projecao.posicao === "futuro"
+                        ? "mês ainda não começou"
+                        : "mês encerrado"
                 }
               />
             </dl>
@@ -222,9 +244,17 @@ export function RankingRealXMeta({
               icon={Trophy}
               intent="success"
               value={totaisMes.vendas}
-              delta={variacaoPct(totaisMes.vendas, totaisMesAnterior.vendas)}
+              delta={
+                comparacaoDisponivel
+                  ? variacaoPct(totaisMes.vendas, totaisMesAnterior.vendas)
+                  : undefined
+              }
               deltaLabel={rotuloComparacao}
-              hint={`${formatNum(totaisMesAnterior.vendas)} ${rotuloComparacao}`}
+              hint={
+                comparacaoDisponivel
+                  ? `${formatNum(totaisMesAnterior.vendas)} ${rotuloComparacao}`
+                  : "Aprovações líquidas de estornos"
+              }
             />
             <StatTile
               title="VGV"
@@ -232,7 +262,9 @@ export function RankingRealXMeta({
               intent="success"
               value={totaisMes.vgv}
               formatValue={fmtBRLCompacto}
-              delta={variacaoPct(totaisMes.vgv, totaisMesAnterior.vgv)}
+              delta={
+                comparacaoDisponivel ? variacaoPct(totaisMes.vgv, totaisMesAnterior.vgv) : undefined
+              }
               deltaLabel={rotuloComparacao}
               hint={`ticket médio ${fmtBRLCompacto(totaisMes.ticketMedio)}`}
             />
@@ -241,12 +273,18 @@ export function RankingRealXMeta({
               icon={MapPin}
               intent="warning"
               value={totaisMes.visitas}
-              delta={variacaoPct(totaisMes.visitas, totaisMesAnterior.visitas)}
+              delta={
+                comparacaoDisponivel
+                  ? variacaoPct(totaisMes.visitas, totaisMesAnterior.visitas)
+                  : undefined
+              }
               deltaLabel={rotuloComparacao}
               hint={
                 metaTotais.visitas > 0
                   ? `meta ${formatNum(metaTotais.visitas)} · ${Math.round(pctMeta(totaisMes.visitas, metaTotais.visitas))}%`
-                  : `${formatNum(totaisMesAnterior.visitas)} ${rotuloComparacao}`
+                  : comparacaoDisponivel
+                    ? `${formatNum(totaisMesAnterior.visitas)} ${rotuloComparacao}`
+                    : "Realizado no período"
               }
             />
             <StatTile
@@ -254,45 +292,72 @@ export function RankingRealXMeta({
               icon={CalendarCheck}
               intent="info"
               value={totaisMes.agendamentos}
-              delta={variacaoPct(totaisMes.agendamentos, totaisMesAnterior.agendamentos)}
+              delta={
+                comparacaoDisponivel
+                  ? variacaoPct(totaisMes.agendamentos, totaisMesAnterior.agendamentos)
+                  : undefined
+              }
               deltaLabel={rotuloComparacao}
-              hint={`${formatNum(totaisMesAnterior.agendamentos)} ${rotuloComparacao}`}
+              hint={
+                comparacaoDisponivel
+                  ? `${formatNum(totaisMesAnterior.agendamentos)} ${rotuloComparacao}`
+                  : "Realizado no período"
+              }
             />
             <StatTile
               title="Leads recebidos"
               icon={UsersThree}
               value={totaisMes.leads}
-              delta={variacaoPct(totaisMes.leads, totaisMesAnterior.leads)}
+              delta={
+                comparacaoDisponivel
+                  ? variacaoPct(totaisMes.leads, totaisMesAnterior.leads)
+                  : undefined
+              }
               deltaLabel={rotuloComparacao}
               // Mesma régua da Inteligência: pela data em que o lead chegou ao
               // corretor (distribuição). O dashboard conta pela criação.
-              hint={`${formatNum(totaisMesAnterior.leads)} ${rotuloComparacao} · por data de distribuição`}
+              hint={
+                comparacaoDisponivel
+                  ? `${formatNum(totaisMesAnterior.leads)} ${rotuloComparacao} · por data de distribuição`
+                  : "Por data de distribuição"
+              }
             />
             <StatTile
               title="Documentações"
               icon={FileText}
               value={totaisMes.documentacoes}
-              delta={variacaoPct(totaisMes.documentacoes, totaisMesAnterior.documentacoes)}
+              delta={
+                comparacaoDisponivel
+                  ? variacaoPct(totaisMes.documentacoes, totaisMesAnterior.documentacoes)
+                  : undefined
+              }
               deltaLabel={rotuloComparacao}
-              hint={`${formatNum(totaisMesAnterior.documentacoes)} ${rotuloComparacao}`}
+              hint={
+                comparacaoDisponivel
+                  ? `${formatNum(totaisMesAnterior.documentacoes)} ${rotuloComparacao}`
+                  : "Realizado no período"
+              }
             />
           </StatGrid>
         </Painel>
 
-        <Painel titulo="Top vendedores do mês" icone={Trophy}>
-          <ListaRanking
-            rows={topVendedores}
-            criterio="vendas"
-            max={10}
-            vazio={
-              <VazioRanking
-                icone={Trophy}
-                titulo="Nenhuma venda aprovada no mês."
-                descricao="Vendas entram aqui quando a gestão aprova o fechamento."
-              />
-            }
-          />
-        </Painel>
+        {!individual && (
+          <Painel titulo="Top vendedores do mês" icone={Trophy}>
+            <ListaRanking
+              rows={topVendedores}
+              criterio="vendas"
+              max={limiteRanking}
+              onSelect={onSelect}
+              vazio={
+                <VazioRanking
+                  icone={Trophy}
+                  titulo="Nenhuma venda aprovada no mês."
+                  descricao="Vendas entram aqui quando a gestão aprova o fechamento."
+                />
+              }
+            />
+          </Painel>
+        )}
       </div>
 
       <Painel
@@ -337,7 +402,7 @@ export function RankingRealXMeta({
       </Painel>
 
       <Painel
-        titulo="Vendas por corretor — real × meta"
+        titulo={individual ? "Seu resultado — real × meta" : "Vendas por corretor — real × meta"}
         icone={UsersThree}
         descricao={
           porCorretor.usaTicket
@@ -385,7 +450,7 @@ export function RankingRealXMeta({
                         "h-full rounded-md transition-[width] duration-700 motion-reduce:transition-none",
                         bateu ? "bg-success" : "bg-navy-500 dark:bg-navy-300/60",
                       )}
-                      style={{ width: `${Math.max(largura, 1.5)}%` }}
+                      style={{ width: `${Math.max(largura, 0)}%` }}
                     />
                     {marco > 0 && (
                       <span

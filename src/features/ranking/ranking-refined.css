@@ -1,0 +1,1279 @@
+/* Evolução do painel existente: mesma malha, retratos circulares e marinho SMQ. */
+.smq-refined {
+  --arena-bg: #051220;
+  --arena-surface: #0a1928;
+  --arena-raised: #102337;
+  --arena-cream: #f5f1ea;
+  --arena-muted: #a9b8c9;
+  --arena-display: "Sora Variable", "Manrope Variable", sans-serif;
+  --arena-sans: "Manrope Variable", sans-serif;
+  --color-gold-300: #e2c884;
+  --color-gold-400: #d6b76d;
+  --color-gold-500: #b89968;
+  --color-gold-600: #99743b;
+  font: 400 15px/1.45 var(--arena-sans);
+  border: 1px solid #b8996824;
+  border-radius: 16px;
+  background: radial-gradient(ellipse at 12% 0, #112e454a, transparent 45%), #051220;
+}
+.smq-refined .arena-header {
+  padding: 1.3em 1.6em 1.2em;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1.5em;
+  border-bottom: 1px solid #c5d3e01a;
+  background:
+    radial-gradient(ellipse at 92% -50%, #b899681f, transparent 48%),
+    linear-gradient(110deg, #061b2d, #050e19);
+}
+.smq-refined .arena-brand {
+  gap: 1em;
+  min-width: 0;
+}
+.smq-refined .arena-company-logo {
+  width: 3.7em;
+  height: 3.7em;
+  flex: 0 0 3.7em;
+  border: 1px solid #eee5d1;
+  border-radius: 0.7em;
+  background: #fbfaf6;
+  box-shadow:
+    0 2px 0 #d2c5a5,
+    0 7px 18px #0005;
+  overflow: hidden;
+}
+.smq-refined .arena-company-logo img {
+  width: 11.8em;
+  max-width: none;
+  height: 11.8em;
+  position: absolute;
+  left: -0.95em;
+  top: -3.6em;
+}
+.smq-refined .smq-brand-title {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  flex-wrap: wrap;
+}
+.smq-refined .arena-brand h1 {
+  font: 650 1.6em/1.15 var(--arena-display);
+  letter-spacing: -0.045em;
+  margin: 0;
+  color: var(--arena-cream);
+}
+.smq-refined .arena-brand p {
+  margin: 0.35em 0 0;
+  font-size: 0.86em;
+  color: var(--arena-muted);
+}
+.smq-refined .smq-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.2em 0.6em;
+  font-size: 0.65em;
+  letter-spacing: 0;
+  border: 1px solid #b8996866;
+  border-radius: 2em;
+  color: #e5d1aa;
+}
+.smq-live-badge i {
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background: #d4b16c;
+  box-shadow: 0 0 8px #d4b16c66;
+}
+.smq-refined .arena-live {
+  display: none;
+}
+.smq-refined .arena-header-actions {
+  gap: 0.8em;
+}
+.smq-refined .smq-clock {
+  display: block;
+  margin-right: 0.5em;
+}
+.smq-refined .smq-clock > div:first-child {
+  font-size: 1.65em;
+}
+.smq-refined .smq-clock > div:first-child span {
+  font-size: 0.6em;
+}
+.smq-refined .smq-clock > div:last-child {
+  font-size: 0.7em;
+}
+.smq-refined .arena-header button {
+  border-radius: 0.6em;
+}
+.smq-refined .arena-tv-button,
+.smq-refined .smq-auto-button {
+  background: #f5f1ea08;
+  border: 1px solid #d9e2ee33;
+  color: var(--arena-cream);
+  padding: 0.5em 0.8em;
+  font-size: 0.82em;
+}
+.smq-refined .smq-header-nav {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+}
+.smq-header-nav > span {
+  color: #a9b8c9;
+  font-size: 0.7em;
+}
+.smq-refined .arena-tabs {
+  display: inline-flex;
+  width: auto;
+  border: 1px solid #9fb2cc13;
+  border-radius: 0.75em;
+  padding: 0.3em;
+  gap: 0.25em;
+  height: auto;
+  margin: 0;
+  background: #e6eef014;
+}
+.smq-refined .arena-tabs button {
+  color: #cad3dd;
+  font-size: 0.88em;
+  padding: 0.6em 1em;
+  gap: 0.5em;
+  border: 0;
+  border-radius: 0.55em;
+  min-height: 44px;
+}
+.smq-refined .arena-tabs button svg {
+  width: 1em;
+  height: 1em;
+}
+.smq-refined .arena-tabs button[data-state="active"] {
+  background: linear-gradient(#fffaf1, #ece5d7);
+  color: #0b2035;
+  box-shadow:
+    0 1px 0 #b89968,
+    0 3px 8px #0002;
+  border: 0;
+}
+.smq-refined .arena-context {
+  min-height: 4.6em;
+  padding: 0.8em 1.6em;
+  gap: 1em;
+  background: #061422ed;
+  border: 0;
+  border-bottom: 1px solid #b8996810;
+  z-index: 30;
+}
+.smq-refined .arena-period {
+  gap: 0.7em;
+}
+.smq-refined .arena-period .arena-eyebrow {
+  display: none;
+}
+.smq-refined .arena-period strong {
+  font-size: 0.83em;
+}
+.smq-refined .arena-month-select {
+  border: 1px solid #cad4e033;
+  min-width: 12em;
+  border-radius: 0.65em;
+  background: #020b14;
+  padding: 0.6em 0.9em;
+  font-size: 0.8em;
+}
+.smq-refined .aurum-context-result {
+  margin-left: auto;
+  padding-left: 1em;
+  border-left: 1px solid #ffffff12;
+}
+.smq-refined .aurum-context-result > strong {
+  font-size: 0.95em;
+}
+.smq-refined .aurum-context-result > span {
+  font-size: 0.63em;
+}
+.smq-refined .aurum-self-anchor {
+  border-radius: 0.55em;
+  background: #b8996810;
+  padding: 0.35em 0.9em;
+}
+.smq-refined .aurum-self-anchor span {
+  font-size: 0.62em;
+}
+.smq-refined .aurum-self-anchor strong {
+  font-size: 0.83em;
+}
+.smq-refined .arena-scope {
+  margin-left: 0;
+  font-size: 0.59em;
+}
+.smq-refined .arena-stage {
+  padding: 0.2em 1.6em 1.6em;
+}
+.smq-refined .arena-stage-content {
+  animation: smq-reveal 420ms ease-out both;
+}
+.smq-dashboard > .space-y-5 > :not(:first-child) {
+  margin-top: 1.25em;
+}
+.smq-dashboard .gap-5 {
+  gap: 1.25em;
+}
+.smq-dashboard .gap-4 {
+  gap: 1em;
+}
+.smq-dashboard .gap-3 {
+  gap: 0.75em;
+}
+.smq-refined .smq-panel,
+.smq-dashboard .bg-card {
+  color: var(--arena-cream);
+  background: linear-gradient(135deg, #11263a35, transparent 50%), #081725;
+  border: 1px solid #abc0d11c;
+  border-top-color: #c0cfdf2c;
+  border-radius: 0.9em;
+  box-shadow:
+    inset 0 1px 0 #ffffff04,
+    0 3px 0 #020a1233,
+    0 10px 25px #0000000d;
+}
+.smq-refined .smq-panel {
+  padding: 1.2em;
+  position: relative;
+  min-width: 0;
+}
+.smq-panel > div:first-child {
+  margin-bottom: 1.1em;
+}
+.smq-panel h2 {
+  font-size: 1.05em;
+  letter-spacing: -0.035em;
+  line-height: 1.25;
+}
+.smq-panel .icon-duo {
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 0.65em;
+  background: #b8996815;
+  color: #cfad69;
+}
+.smq-panel .icon-duo svg {
+  width: 1.2em;
+  height: 1.2em;
+}
+.smq-dashboard .bg-card {
+  padding: 1.1em;
+}
+.smq-dashboard .font-display {
+  font-family: var(--arena-display);
+}
+.smq-dashboard .text-3xl {
+  font-size: 2em;
+  letter-spacing: -0.05em;
+}
+.smq-dashboard .text-4xl {
+  font-size: 2.6em;
+  letter-spacing: -0.05em;
+}
+.smq-dashboard .text-2xl {
+  font-size: 1.65em;
+}
+.smq-dashboard .text-base {
+  font-size: 1em;
+}
+.smq-dashboard .text-sm {
+  font-size: 0.86em;
+}
+.smq-dashboard .text-xs {
+  font-size: 0.74em;
+}
+.smq-dashboard .text-\[11px\] {
+  font-size: 0.68em;
+}
+.smq-dashboard .text-muted-foreground {
+  color: #a7b5c6;
+}
+.smq-dashboard .text-foreground,
+.smq-dashboard .text-white,
+.smq-refined .smq-clock .text-white {
+  color: var(--arena-cream);
+}
+.smq-dashboard .bg-muted {
+  background: #193044;
+}
+.smq-dashboard .bg-muted\/50 {
+  background: #13273ad4;
+}
+.smq-dashboard .bg-gradient-gold {
+  background: linear-gradient(105deg, #ad803c, #ddbf74 42%, #b08d47);
+}
+.smq-dashboard .stroke-muted {
+  stroke: #1a3145;
+}
+.smq-dashboard .stroke-gold-500 {
+  stroke: #cfad65;
+  filter: drop-shadow(0 1px 2px #d3b87730);
+}
+.smq-dashboard .text-success {
+  color: #5fce91;
+}
+.smq-dashboard .text-destructive {
+  color: #ff7d82;
+}
+.smq-dashboard .transition-\[width\],
+.smq-dashboard .transition-\[stroke-dasharray\] {
+  transition: none;
+}
+.smq-dashboard .stagger-children > * {
+  animation: smq-reveal 480ms ease-out both;
+  animation-delay: calc(min(var(--index, 0), 5) * 45ms);
+}
+.smq-sales-view > div:first-child {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.smq-productivity-view > div:first-child {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.smq-meta-view > div:nth-child(2) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.smq-meta-view > div:nth-child(2) > section:first-child [role="img"] {
+  width: 13em !important;
+  height: 13em !important;
+}
+.smq-meta-view > div:nth-child(2) .bg-card {
+  padding: 0.9em;
+}
+.smq-meta-view > div:nth-child(2) .text-3xl {
+  font-size: 1.7em;
+}
+.smq-refined .smq-person-link {
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 1.2;
+  text-align: left;
+}
+.smq-person-link:disabled {
+  cursor: default;
+}
+.smq-ranking-list > li {
+  padding: 0.3em 0.5em;
+  border-radius: 0.65em;
+  border: 1px solid transparent;
+}
+.smq-ranking-list > li:hover {
+  background: #b8996810;
+  border-color: #b8996833;
+}
+.smq-ranking-list > li[data-self] {
+  background: #b8996812;
+  border-color: #b8996855;
+}
+.smq-ranking-list > li > div {
+  gap: 0.55em;
+}
+.smq-ranking-list .smq-person-link {
+  font-size: 0.85em;
+}
+.smq-ranking-list .shrink-0.text-right {
+  max-width: 9.5em;
+}
+.smq-ranking-list .font-display {
+  font-size: 0.87em;
+}
+.smq-ranking-list [data-slot="avatar"],
+.smq-ranking-list .rounded-full {
+  flex-shrink: 0;
+}
+.smq-ranking-list .stagger-children {
+  animation: none;
+}
+.smq-refined .smq-podium-wrap {
+  position: relative;
+  padding: 1em 0.4em 0.5em;
+}
+.smq-refined .smq-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 1em;
+  perspective: 60em;
+  min-height: 20em;
+}
+.smq-podium-slot {
+  min-width: 0;
+  position: relative;
+  transform-style: preserve-3d;
+}
+.smq-slot-1 {
+  grid-column: 2;
+  grid-row: 1;
+}
+.smq-slot-2 {
+  grid-column: 1;
+  grid-row: 1;
+}
+.smq-slot-3 {
+  grid-column: 3;
+  grid-row: 1;
+}
+.smq-refined .smq-contender {
+  --metal: #cfb16e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 17em;
+  padding: 1.25em 0.75em 1.35em;
+  border: 1px solid #3b5167;
+  border-radius: 1.05em;
+  background:
+    radial-gradient(ellipse at 50% 0, #1b3a5138, transparent 65%),
+    linear-gradient(150deg, #0c2235, #071b2b 80%);
+  box-shadow:
+    inset 0 1px 0 #bfd0df12,
+    inset 0 -4px 0 #030d1780,
+    3px 6px 0 #020b164d,
+    0 14px 25px #0003;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 220ms ease-out;
+  isolation: isolate;
+  position: relative;
+}
+.smq-refined .smq-contender::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid #ffffff0a;
+  transform: translateZ(-5px) translate(3px, 4px);
+  z-index: -1;
+}
+.smq-refined .smq-medal-1 {
+  min-height: 21em;
+  border-color: #b89968a0;
+  box-shadow:
+    inset 0 1px 0 #f5ddb445,
+    inset 0 -3px 0 #a07a38bb,
+    3px 6px 0 #060e1780,
+    0 0 32px #b8996815,
+    0 18px 30px #0004;
+}
+.smq-refined .smq-medal-2 {
+  --metal: #bfc8d6;
+}
+.smq-refined .smq-medal-3 {
+  --metal: #c18e64;
+}
+.smq-card-reflection {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+.smq-card-reflection::after {
+  content: "";
+  position: absolute;
+  inset: -30% -60%;
+  background: linear-gradient(
+    110deg,
+    transparent 40%,
+    #ffffff0c 49%,
+    #e8ca8720 50%,
+    transparent 59%
+  );
+  transform: translateX(-65%);
+  opacity: 0;
+}
+.smq-medal-1 .smq-card-reflection::after {
+  animation: smq-metal-pass 9s ease-in-out infinite;
+}
+.smq-contender[data-tilting] .smq-card-reflection {
+  background: radial-gradient(
+    circle at calc(50% + var(--light-x, 0px)) calc(50% + var(--light-y, 0px)),
+    #ead9b719,
+    transparent 62%
+  );
+}
+.smq-podium-portrait {
+  position: relative;
+  display: block;
+  margin-bottom: 1em;
+  transform: translateZ(14px);
+}
+.smq-avatar-ring {
+  padding: 3px;
+  border-radius: 50%;
+  display: block;
+  background: linear-gradient(135deg, #fff3c9, var(--metal) 35%, #9c713d 62%, #efd7a0);
+  box-shadow:
+    0 2px 3px #0008,
+    0 0 0 5px #b8996810;
+}
+.smq-medal-2 .smq-avatar-ring {
+  background: linear-gradient(135deg, #f2f4f5, #a4b0c5 45%, #65758b 65%, #dde3ec);
+}
+.smq-medal-3 .smq-avatar-ring {
+  background: linear-gradient(135deg, #f3c49c, #b47a4c 45%, #704327 65%, #dbae86);
+}
+.smq-refined .smq-podium-avatar {
+  width: 5.1em;
+  height: 5.1em;
+  border-radius: 50%;
+}
+.smq-refined .smq-medal-1 .smq-podium-avatar {
+  width: 6.7em;
+  height: 6.7em;
+}
+.smq-refined .smq-podium-avatar > span {
+  background: #112e45;
+  color: #f5f1ea;
+  font: 600 1.25em var(--arena-display);
+}
+.smq-podium-avatar img {
+  object-fit: cover;
+}
+.smq-podium-medal {
+  position: absolute;
+  right: -0.4em;
+  top: -0.3em;
+  filter: drop-shadow(1px 3px 2px #0005);
+}
+.smq-first-name {
+  color: #f5f1ea;
+  font-size: 1.03em;
+  letter-spacing: -0.02em;
+}
+.smq-medal-1 .smq-first-name {
+  color: #e0c389;
+}
+.smq-full-name {
+  color: #a5b5c9;
+  font-size: 0.76em;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.6em;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+.smq-podium-value {
+  font: 650 1.75em/1.2 var(--arena-display);
+  letter-spacing: -0.055em;
+  white-space: nowrap;
+  margin-top: 0.3em;
+}
+.smq-medal-1 .smq-podium-value {
+  font-size: 2.05em;
+}
+.smq-podium-unit {
+  font-size: 0.73em;
+  color: #b4c2d0;
+  margin-top: 0.25em;
+}
+.smq-podium-detail {
+  font-size: 0.72em;
+  color: #9eb0c4;
+}
+.smq-tie-label {
+  margin-top: 0.65em;
+  font-size: 0.65em;
+  color: #dcc291;
+}
+.smq-podium[data-tied] .smq-card-reflection::after {
+  animation: none;
+}
+.smq-podium-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7em;
+  color: #aebed0;
+  font-size: 0.75em;
+  padding-top: 0.8em;
+}
+.smq-podium-pagination button {
+  color: #dec185;
+  min-width: 44px;
+}
+.smq-podium-empty {
+  min-height: 18em;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.smq-cohort > strong {
+  display: block;
+  font: 650 2.5em var(--arena-display);
+  color: #e0c181;
+}
+.smq-cohort p {
+  font-size: 0.82em;
+  color: #a9b8c9;
+  margin: 0.75em 0;
+}
+.smq-cohort p:last-child {
+  font-size: 0.74em;
+  line-height: 1.7;
+}
+.smq-cohort-track {
+  height: 0.65em;
+  border-radius: 1em;
+  overflow: hidden;
+  background: #172e43;
+  margin: 1.2em 0;
+}
+.smq-cohort-track span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  background: linear-gradient(90deg, #a8813d, #dcc18b);
+}
+.smq-dashboard > .smq-panel {
+  margin-top: 1.25em;
+}
+.smq-refined .arena-classification-view {
+  border-radius: 0.9em;
+  padding: 1.15em;
+  background: #081725;
+  border: 1px solid #a7bdcf20;
+}
+.smq-dashboard .arena-classification-view {
+  border: 0;
+  background: none;
+  padding: 0;
+}
+.smq-dashboard .arena-classification-view > .arena-section-heading {
+  display: none;
+}
+.smq-refined .arena-ranking-row {
+  background: #0d2032;
+  border: 1px solid #b8996814;
+  border-radius: 0.6em;
+  margin-bottom: 0.35em;
+}
+.smq-refined .arena-ranking-vgv .arena-numero {
+  font-size: 1em;
+}
+.smq-refined .arena-ranking-position {
+  font-size: 1.1em;
+  color: #dbc28a;
+}
+.smq-refined .arena-foto {
+  border-radius: 50%;
+}
+.smq-refined .arena-section-heading h2 {
+  font-size: 1.35em;
+}
+.smq-refined .arena-eyebrow {
+  font-size: 0.6em;
+  letter-spacing: 0.08em;
+}
+.smq-refined .arena-section-heading {
+  margin-bottom: 1em;
+}
+.smq-refined .arena-footnote {
+  font-size: 0.65em;
+}
+.smq-refined .arena-desktop-footer {
+  border-top: 1px solid #9eb2c21c;
+  font-size: 0.66em;
+  padding: 1.3em 2em;
+  background: #030e19;
+}
+.smq-refined .arena-celebration {
+  background: #03121ef2;
+}
+.smq-refined .arena-celebration-trophy {
+  opacity: 0.17;
+}
+.smq-refined .arena-celebration h2 {
+  font-size: clamp(25px, 3vw, 58px);
+  letter-spacing: -0.045em;
+}
+.smq-refined .arena-celebration .arena-foto {
+  border-radius: 50%;
+}
+.smq-ticker {
+  display: flex;
+  justify-content: space-around;
+  gap: 2em;
+  grid-column: 1/-1;
+  color: #c9d2de;
+  font-size: 0.72em;
+  padding: 0.6em 1em;
+  border-bottom: 1px solid #d3c09018;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.smq-ticker span {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+.smq-ticker svg {
+  color: #c9a863;
+  width: 1em;
+  height: 1em;
+}
+/* A TV mantém a mesma composição, repartindo os detalhes em telas completas. */
+.smq-refined.arena-television {
+  border: 0;
+  border-radius: 0;
+  font-size: clamp(14px, 1.04vw, 40px);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+.smq-refined.arena-television .arena-header {
+  flex: none;
+  padding: 0.85em 1.4em 0.8em;
+  gap: 0.85em;
+}
+.smq-refined.arena-television .arena-brand h1 {
+  font-size: 1.35em;
+}
+.smq-refined.arena-television .arena-company-logo {
+  font-size: 0.85em;
+}
+.smq-refined.arena-television .arena-tabs button {
+  min-height: 2.1em;
+  padding: 0.35em 0.8em;
+  font-size: 0.8em;
+}
+.smq-refined.arena-television .arena-context {
+  flex: none;
+  min-height: 3.1em;
+  padding: 0.55em 1.4em;
+}
+.smq-refined.arena-television .arena-stage {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.25em 1.4em 0.8em;
+  container-type: size;
+}
+.smq-refined.arena-television .arena-stage-content {
+  height: 100%;
+}
+.smq-refined.arena-television .smq-overview-meta,
+.smq-refined.arena-television .smq-overview-sales,
+.smq-refined.arena-television .smq-overview-productivity {
+  height: 100%;
+}
+.smq-refined.arena-television .smq-panel {
+  padding: 1em;
+}
+.smq-refined.arena-television .smq-dashboard .bg-card {
+  padding: 0.85em;
+}
+.smq-refined.arena-television .smq-meta-view > :nth-child(n + 3),
+.smq-refined.arena-television .smq-sales-view > :nth-child(n + 3),
+.smq-refined.arena-television .smq-productivity-view > :nth-child(n + 4) {
+  display: none;
+}
+.smq-refined.arena-television .smq-meta-view,
+.smq-refined.arena-television .smq-sales-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+.smq-refined.arena-television .smq-meta-view > :not(:first-child),
+.smq-refined.arena-television .smq-sales-view > :not(:first-child) {
+  margin: 0;
+}
+.smq-refined.arena-television .smq-meta-view > :nth-child(2),
+.smq-refined.arena-television .smq-sales-view > :nth-child(2) {
+  flex: 1;
+  min-height: 0;
+}
+.smq-refined.arena-television .smq-meta-view > :nth-child(2) .bg-card {
+  padding: 0.65em;
+}
+.smq-refined.arena-television .smq-meta-view > :nth-child(2) .text-3xl {
+  font-size: 1.6em;
+}
+.smq-refined.arena-television .smq-meta-view > :nth-child(2) > section:first-child [role="img"] {
+  width: 11.3em !important;
+  height: 11.3em !important;
+}
+.smq-refined.arena-television .smq-meta-view > :nth-child(2) dl > div {
+  padding: 0.4em;
+}
+.smq-refined.arena-television .smq-sales-view > :first-child .bg-card {
+  padding: 0.65em 0.9em;
+}
+.smq-refined.arena-television .smq-sales-view > :first-child .text-3xl {
+  font-size: 1.65em;
+}
+.smq-refined.arena-television .smq-sales-view > :first-child .mt-1.flex {
+  display: none;
+}
+.smq-refined.arena-television .smq-sales-view .smq-podium {
+  min-height: 0;
+}
+.smq-refined.arena-television .smq-sales-view .smq-contender {
+  min-height: 13em;
+  padding: 0.8em 0.5em;
+}
+.smq-refined.arena-television .smq-sales-view .smq-medal-1 {
+  min-height: 15em;
+}
+.smq-refined.arena-television .smq-podium-wrap {
+  padding: 0.5em 0.2em;
+}
+.smq-refined.arena-television .smq-sales-view .smq-podium-avatar {
+  width: 4.5em;
+  height: 4.5em;
+}
+.smq-refined.arena-television .smq-sales-view .smq-medal-1 .smq-podium-avatar {
+  width: 5.5em;
+  height: 5.5em;
+}
+.smq-refined.arena-television .smq-sales-view .smq-podium-portrait {
+  margin-bottom: 0.6em;
+}
+.smq-refined.arena-television .smq-sales-view .smq-podium-value {
+  font-size: 1.55em;
+}
+.smq-refined.arena-television .smq-sales-view .smq-medal-1 .smq-podium-value {
+  font-size: 1.85em;
+}
+.smq-refined.arena-television .smq-productivity-view {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 0.8em;
+}
+.smq-refined.arena-television .smq-productivity-view > * {
+  margin: 0;
+}
+.smq-refined.arena-television .smq-productivity-view > :first-child .bg-card {
+  padding: 0.5em 0.8em;
+}
+.smq-refined.arena-television .smq-productivity-view > :first-child .text-3xl {
+  font-size: 1.4em;
+}
+.smq-refined.arena-television .smq-productivity-view > :first-child .mt-1.flex {
+  display: none;
+}
+.smq-refined.arena-television .smq-productivity-view > section {
+  padding: 0.6em 0.9em;
+}
+.smq-refined.arena-television .smq-productivity-view > section > div:first-child {
+  margin-bottom: 0.4em;
+}
+.smq-refined.arena-television .smq-productivity-view > section > div:first-child p {
+  display: none;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-podium {
+  min-height: 0;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-contender {
+  min-height: 10.5em;
+  padding: 0.55em 0.5em;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-medal-1 {
+  min-height: 12.5em;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-podium-avatar {
+  width: 3.5em;
+  height: 3.5em;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-medal-1 .smq-podium-avatar {
+  width: 4.5em;
+  height: 4.5em;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-podium-portrait {
+  margin-bottom: 0.45em;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-podium-value {
+  font-size: 1.5em;
+}
+.smq-refined.arena-television .smq-productivity-view .smq-ranking-list > li:nth-child(n + 6) {
+  display: none;
+}
+.smq-refined.arena-television .smq-person-link {
+  min-height: 1.9em;
+}
+.smq-refined.arena-television .arena-tv-footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0 1em;
+  flex: none;
+  min-height: 0;
+  padding: 0 1.4em 0.45em;
+  background: #030d18;
+  border-top: 1px solid #b8996822;
+}
+.smq-refined.arena-television .arena-tv-controls button {
+  min-height: 2em;
+  height: 2em;
+  width: 2em;
+}
+.smq-refined.arena-television .arena-slide-label,
+.smq-refined.arena-television .arena-tv-status {
+  font-size: 0.65em;
+}
+.smq-refined.arena-television .arena-tv-status {
+  text-align: right;
+}
+.smq-refined.arena-television .arena-tv-controls {
+  opacity: 1;
+}
+.smq-refined.arena-television .arena-classification-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.smq-refined.arena-television .arena-ranking-table {
+  flex: 1;
+  min-height: 0;
+}
+.smq-refined.arena-television .arena-ranking-row {
+  flex: 1;
+}
+.smq-refined.arena-television .arena-productivity-view {
+  height: 100%;
+}
+@media (max-width: 1050px) {
+  .smq-refined .smq-clock {
+    display: none;
+  }
+  .smq-refined .arena-header {
+    padding: 1em;
+    gap: 1em;
+  }
+  .smq-refined .arena-brand h1 {
+    font-size: 1.2em;
+  }
+  .smq-refined .smq-meta-view > div:nth-child(2) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .smq-refined .smq-meta-view > div:nth-child(2) > section:last-child {
+    grid-column: 1/-1;
+  }
+  .smq-refined .smq-podium {
+    min-height: 0;
+  }
+}
+@media (max-width: 700px) {
+  .smq-refined {
+    font-size: 14px;
+    border: 0;
+    border-radius: 0;
+  }
+  .smq-refined .arena-header {
+    grid-template-columns: 1fr;
+    gap: 1em;
+    padding: 1.05em;
+  }
+  .smq-refined .arena-brand {
+    gap: 0.85em;
+  }
+  .smq-refined .arena-brand h1 {
+    font-size: 1.3em;
+  }
+  .smq-refined .smq-live-badge {
+    font-size: 0.64em;
+  }
+  .smq-refined .arena-company-logo {
+    font-size: 0.82em;
+  }
+  .smq-refined .arena-header-actions {
+    position: absolute;
+    top: 5.7em;
+    right: 1em;
+  }
+  .smq-refined .arena-header-actions .arena-tv-button {
+    font-size: 0;
+    padding: 0.6rem;
+    min-width: 44px;
+  }
+  .smq-refined .arena-tv-button svg {
+    width: 18px;
+    height: 18px;
+  }
+  .smq-refined .arena-tv-button svg:last-child {
+    display: none;
+  }
+  .smq-refined .smq-header-nav {
+    padding-top: 3.5em;
+  }
+  .smq-refined .smq-header-nav > span {
+    display: none;
+  }
+  .smq-refined .arena-tabs {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .smq-refined .arena-tabs button {
+    flex: 1;
+    padding: 0.5em;
+    font-size: 0.82em;
+  }
+  .smq-refined .arena-context {
+    padding: 0.6em 1em;
+    min-height: 4.8em;
+    gap: 0.5em;
+    flex-wrap: wrap;
+  }
+  .smq-refined .arena-period {
+    max-width: 11em;
+  }
+  .smq-refined .arena-month-select {
+    min-width: 0;
+    width: 11.8em;
+    font-size: 0.75em;
+  }
+  .smq-refined .aurum-context-result {
+    display: none;
+  }
+  .smq-refined .aurum-self-anchor {
+    margin-left: auto;
+  }
+  .smq-refined .arena-scope {
+    flex: 1;
+    font-size: 0.6em;
+  }
+  .smq-refined .arena-stage {
+    padding: 0.5em 0.9em 1.2em;
+  }
+  .smq-refined .smq-panel {
+    padding: 1em;
+    border-radius: 0.9em;
+  }
+  .smq-dashboard .text-3xl {
+    font-size: 1.6em;
+  }
+  .smq-sales-view > div:first-child,
+  .smq-productivity-view > div:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7em;
+  }
+  .smq-dashboard .bg-card {
+    padding: 0.8em;
+  }
+  .smq-dashboard .bg-card > div:first-child > span:first-child {
+    font-size: 0.78em;
+  }
+  .smq-dashboard .bg-card > div:first-child > span:last-child:not(:first-child) {
+    width: 1.8em;
+    height: 1.8em;
+  }
+  .smq-refined .smq-meta-view > div:nth-child(2) {
+    grid-template-columns: 1fr;
+  }
+  .smq-refined .smq-meta-view > div:nth-child(2) > section:last-child {
+    grid-column: auto;
+  }
+  .smq-refined .smq-podium {
+    gap: 0.6em;
+  }
+  .smq-refined .smq-podium-wrap {
+    padding: 0.6em 0;
+  }
+  .smq-refined .smq-contender {
+    min-height: 15.5em;
+    padding: 1em 0.25em;
+    border-radius: 0.8em;
+  }
+  .smq-refined .smq-medal-1 {
+    min-height: 18em;
+  }
+  .smq-refined .smq-podium-avatar {
+    width: 3.6em;
+    height: 3.6em;
+  }
+  .smq-refined .smq-medal-1 .smq-podium-avatar {
+    width: 4.3em;
+    height: 4.3em;
+  }
+  .smq-podium-medal {
+    transform: scale(0.78);
+    transform-origin: top right;
+  }
+  .smq-first-name {
+    font-size: 0.87em;
+  }
+  .smq-full-name {
+    font-size: 0.67em;
+    min-height: 3.9em;
+    -webkit-line-clamp: 3;
+  }
+  .smq-podium-value {
+    font-size: 1.04em;
+    letter-spacing: -0.06em;
+  }
+  .smq-medal-1 .smq-podium-value {
+    font-size: 1.16em;
+  }
+  .smq-podium-unit,
+  .smq-podium-detail {
+    font-size: 0.64em;
+  }
+  .smq-podium-pagination {
+    font-size: 0.7em;
+    gap: 0.4em;
+  }
+  .smq-ranking-list .smq-person-link {
+    font-size: 0.79em;
+  }
+  .smq-refined .smq-person-link {
+    min-height: 44px;
+  }
+  .smq-dashboard .smq-productivity-view > section:nth-last-child(2) li {
+    grid-template-columns: minmax(0, 8em) 1fr auto;
+    gap: 0.6em;
+  }
+  .smq-dashboard .smq-productivity-view > section:nth-last-child(2) li > span:last-child {
+    width: auto;
+  }
+}
+@keyframes smq-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes smq-metal-pass {
+  0%,
+  68%,
+  100% {
+    transform: translateX(-65%);
+    opacity: 0;
+  }
+  73% {
+    opacity: 0.8;
+  }
+  87% {
+    transform: translateX(65%);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .smq-refined .smq-contender {
+    transform: none;
+  }
+  .smq-refined *,
+  .smq-refined *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* O troféu real assina o painel, mantendo o protagonismo dos corretores. */
+.smq-refined .smq-award-mini {
+  width: 2.4em;
+  height: 3.6em;
+  object-fit: contain;
+  position: absolute;
+  right: 1.25em;
+  top: 0.65em;
+  mix-blend-mode: lighten;
+}
+.smq-refined .smq-meta-view > div.smq-meta-individual {
+  grid-template-columns: 1fr 2fr;
+}
+.smq-refined .smq-sales-view > div:nth-child(3) {
+  align-items: start;
+}
+.smq-refined .smq-ranking-list {
+  position: relative;
+}
+@media (max-width: 700px) {
+  .smq-refined .smq-meta-view > div.smq-meta-individual {
+    grid-template-columns: 1fr;
+  }
+}
+
+.smq-refined.arena-television .smq-productivity-view > div:nth-child(3) > section {
+  min-height: 0;
+}
+.smq-refined.arena-television
+  .smq-productivity-view
+  > div:nth-child(3)
+  > section
+  > div:first-child {
+  margin-bottom: 0.6em;
+}
+
+.smq-personal-heading {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin: 1em 0;
+  flex-wrap: wrap;
+}
+.smq-personal-heading button {
+  margin-left: auto;
+  padding: 0.65em 1em;
+  border: 1px solid #b8996866;
+  border-radius: 0.6em;
+  min-height: 44px;
+}
+.arena-detail {
+  --arena-display: "Sora Variable", "Manrope Variable", sans-serif;
+  --arena-sans: "Manrope Variable", sans-serif;
+  background: #081725;
+  border-radius: 1em;
+  border-color: #a9bec933;
+}
+.arena-detail .arena-foto {
+  border-radius: 50%;
+}
+.arena-detail .arena-conversion {
+  border-radius: 0.8em;
+  background: #102337;
+}
+
+/* Medalhas, avatares e controles acompanham a tipografia nas TVs 4K. */
+.smq-refined.arena-television .smq-podium-medal {
+  font-size: 0.75em;
+  width: 2.6em;
+  height: 2.6em;
+}
+.smq-refined.arena-television .smq-ranking-list > li > div > span:first-child {
+  width: 2em;
+}
+.smq-refined.arena-television .smq-ranking-list [role="img"] {
+  font-size: 0.75em;
+  width: 2em;
+  height: 2em;
+}
+.smq-refined.arena-television .smq-ranking-list > li > div > .rounded-full {
+  width: 2em;
+  height: 2em;
+}
+.smq-refined.arena-television .smq-avatar-ring {
+  padding: 0.15em;
+}
+.smq-refined.arena-television .arena-tv-controls button svg,
+.smq-refined.arena-television .smq-auto-button svg {
+  width: 1.05em;
+  height: 1.05em;
+}
+.smq-refined.arena-television .smq-dashboard .bg-card .icon-duo {
+  width: 2em;
+  height: 2em;
+}
+.smq-refined.arena-television .smq-dashboard .bg-card .icon-duo svg {
+  width: 1em;
+  height: 1em;
+}

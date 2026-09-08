@@ -93,7 +93,7 @@ export type CriterioRanking = "pontos" | "vendas" | "vgv";
 const CHAVES: Record<CriterioRanking, (r: RankRow) => number[]> = {
   pontos: (r) => [r.pontos, r.vendas, r.vgv],
   vendas: (r) => [r.vendas, r.vgv, r.pontos],
-  vgv: (r) => [r.vgv, r.vendas, r.pontos],
+  vgv: (r) => [r.vgv, r.vendas],
 };
 
 function comparar(a: number[], b: number[]): number {
@@ -107,7 +107,10 @@ function comparar(a: number[], b: number[]): number {
 export function ordenar(rows: RankRow[], criterio: CriterioRanking): RankRow[] {
   const chave = CHAVES[criterio];
   return [...rows].sort(
-    (a, b) => comparar(chave(a), chave(b)) || a.nome.localeCompare(b.nome, "pt-BR"),
+    (a, b) =>
+      comparar(chave(a), chave(b)) ||
+      a.nome.localeCompare(b.nome, "pt-BR") ||
+      a.corretorId.localeCompare(b.corretorId),
   );
 }
 

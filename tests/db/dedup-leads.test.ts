@@ -1,8 +1,8 @@
 /**
  * Dedup de leads por telefone.
  *
- * Cobre o índice único parcial `uq_leads_projeto_telefone_ativo`
- * (migration 20260710122000), a normalização `telefone_digits()`,
+ * Cobre os índices parciais por projeto e global (migration 20260902151250),
+ * a normalização `telefone_digits()`,
  * as RPCs de busca (`buscar_lead_duplicado`, `buscar_lead_por_telefone`,
  * `buscar_lead_ativo_por_telefone_global`) e a RPC `mesclar_leads`.
  *
@@ -11,6 +11,8 @@
  *       WHERE deleted_at IS NULL AND projeto_id IS NOT NULL
  *         AND length(telefone_digits(telefone)) >= 8
  *   - telefone_digits() só remove não-dígitos (NÃO normaliza E.164/+55).
+ *   - o índice global também impede telefones ativos repetidos entre projetos,
+ *       usando os últimos nove dígitos e excluindo lixeira/soft-delete.
  *   - mesclar_leads(_lead_destino uuid, _lead_origem uuid) RETURNS boolean:
  *       exige caller admin/superintendente/gestor com acesso aos dois leads,
  *       move interacoes/tarefas/agendamentos e soft-deleta a origem.
@@ -129,11 +131,22 @@ describe("índice único uq_leads_projeto_telefone_ativo", () => {
     expect(await errCode(inserirLead({ telefone: "+55 11 99999-0012", projetoId }))).toBe("23505");
   });
 
-  it("mesmo telefone em projetos diferentes NÃO colide (dedup é por projeto)", async () => {
+  it("índice global impede o mesmo telefone ativo também entre projetos diferentes", async () => {
+    await comoSuperuser(c);
+    const index = await c.query(
+      `SELECT indexdef FROM pg_indexes
+       WHERE schemaname = 'public' AND indexname = 'leads_telefone_unico_ativo_uidx'`,
+    );
+    expect(index.rowCount).toBe(1);
+    expect(index.rows[0].indexdef).toContain("UNIQUE");
+    expect(index.rows[0].indexdef).toContain("deleted_at IS NULL");
+    expect(index.rows[0].indexdef).toContain("na_lixeira = false");
     const projetoA = await criarProjetoComSlug();
     const projetoB = await criarProjetoComSlug();
     await criarLead(c, { telefone: "11999990013", projetoId: projetoA });
-    expect(await errCode(inserirLead({ telefone: "11999990013", projetoId: projetoB }))).toBeNull();
+    expect(await errCode(inserirLead({ telefone: "11999990013", projetoId: projetoB }))).toBe(
+      "23505",
+    );
   });
 
   it("telefone curto (<8 dígitos) fica fora do índice parcial e não colide", async () => {
@@ -255,17 +268,17 @@ describe("buscar_lead_duplicado(_projeto_id, _telefone)", () => {
 });
 
 describe("buscar_lead_por_telefone(_telefone)", () => {
-  it("busca GLOBAL (sem projeto) e retorna o lead mais recente por created_at", async () => {
+  it("busca GLOBAL retorna o ativo mesmo com histórico mais recente em outro projeto", async () => {
     const projetoA = await criarProjetoComSlug();
     const projetoB = await criarProjetoComSlug();
     const antigo = await criarLead(c, { telefone: "11999990030", projetoId: projetoA });
+    await c.query(`UPDATE public.leads SET deleted_at = now() WHERE id = $1`, [antigo]);
     const recente = await criarLead(c, { telefone: "11999990030", projetoId: projetoB });
     await comoSuperuser(c);
-    // desambigua created_at (mesma transação/clock pode empatar)
-    await c.query(
-      `UPDATE public.leads SET created_at = created_at - interval '1 hour' WHERE id = $1`,
-      [antigo],
-    );
+    // A exclusão deve prevalecer sobre a ordenação por created_at.
+    await c.query(`UPDATE public.leads SET created_at = now() + interval '1 hour' WHERE id = $1`, [
+      antigo,
+    ]);
     const r = await c.query(`SELECT public.buscar_lead_por_telefone('(11) 99999-0030') AS id`);
     expect(r.rows[0].id).toBe(recente);
   });
@@ -350,16 +363,13 @@ describe("buscar_lead_ativo_por_telefone_global(_telefone)", () => {
     expect(r.rows[0].curto).toBeNull();
   });
 
-  it("com múltiplos ativos, retorna o de updated_at mais recente", async () => {
+  it("retorna o ativo de outro projeto e ignora histórico na lixeira", async () => {
     const projetoA = await criarProjetoComSlug();
     const projetoB = await criarProjetoComSlug();
     const antigo = await criarLead(c, { telefone: "11999990044", projetoId: projetoA });
+    await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [antigo]);
     const recente = await criarLead(c, { telefone: "11999990044", projetoId: projetoB });
     await comoSuperuser(c);
-    await c.query(`UPDATE public.leads SET updated_at = now() - interval '1 hour' WHERE id = $1`, [
-      antigo,
-    ]);
-    await c.query(`UPDATE public.leads SET updated_at = now() WHERE id = $1`, [recente]);
     const r = await c.query(
       `SELECT public.buscar_lead_ativo_por_telefone_global('11999990044') AS id`,
     );
@@ -379,7 +389,7 @@ describe("mesclar_leads(_lead_destino, _lead_origem)", () => {
       corretorId: corretor.id,
     });
     const origem = await criarLead(c, {
-      telefone: "11999990050",
+      telefone: "11999990057",
       projetoId: projetoB,
       corretorId: corretor.id,
     });
@@ -472,19 +482,18 @@ describe("mesclar_leads(_lead_destino, _lead_origem)", () => {
     expect(await errCode(c.query(`SELECT public.mesclar_leads($1, $1)`, [lead]))).toBe("22023");
   });
 
-  it("após a mesclagem, o telefone da origem libera o slot de dedup do projeto dela", async () => {
+  it("mesclagem libera o telefone da origem e mantém o do destino protegido globalmente", async () => {
     const admin = await criarUsuario(c, { papel: "admin" });
     const projetoA = await criarProjetoComSlug();
     const projetoB = await criarProjetoComSlug();
     const destino = await criarLead(c, { telefone: "11999990056", projetoId: projetoA });
-    const origem = await criarLead(c, { telefone: "11999990056", projetoId: projetoB });
+    const origem = await criarLead(c, { telefone: "11999990058", projetoId: projetoB });
     await comoUsuario(c, admin.id);
     await c.query(`SELECT public.mesclar_leads($1, $2)`, [destino, origem]);
     await comoSuperuser(c);
-    // origem soft-deletada sai do índice parcial: telefone volta a ser aceito
-    // no projeto B (o destino continua bloqueando o projeto A).
-    expect(await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoB }))).toBeNull();
-    expect(await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoA }))).toBe(
+    // O telefone da origem pode retornar em outro projeto após o soft-delete.
+    expect(await errCode(inserirLead({ telefone: "11999990058", projetoId: projetoA }))).toBeNull();
+    expect(await errCode(inserirLead({ telefone: "11999990056", projetoId: projetoB }))).toBe(
       "23505",
     );
   });

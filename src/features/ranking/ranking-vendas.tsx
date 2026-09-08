@@ -1,7 +1,7 @@
 // Visão "Vendas" do hub de Desempenho: quem vendeu e quanto vale o que
 // vendeu no período (VGV), com o funil de eventos do período.
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import {
   CalendarCheck,
   ChartLineUp,
@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 import { DataTable, DataTableColumnHeader, type ColumnDef } from "@/components/ui/data-table";
 import { StatGrid, StatTile } from "@/components/ui/stat-tile";
+import { classificacaoCompleta } from "./ranking-campeonato";
 import { Podium } from "@/features/ranking/podium";
 import { Medal } from "@/features/ranking/medal";
 import {
@@ -41,13 +42,28 @@ export function RankingVendas({
   totais,
   periodoLabel,
   loading,
+  onSelect,
+  userKey,
+  incluirZerados = false,
+  limiteRanking = 15,
+  funilConteudo,
+  paginaPodio,
 }: {
   ranking: RankRow[];
   totais: Totais;
   periodoLabel: string;
   loading: boolean;
+  onSelect?: (id: string) => void;
+  userKey?: string;
+  incluirZerados?: boolean;
+  limiteRanking?: number;
+  funilConteudo?: ReactNode;
+  paginaPodio?: number;
 }) {
-  const porVgv = useMemo(() => classificar(ranking, "vgv"), [ranking]);
+  const porVgv = useMemo(
+    () => (incluirZerados ? classificacaoCompleta(ranking) : classificar(ranking, "vgv")),
+    [ranking, incluirZerados],
+  );
   const funil = useMemo(() => funilConversao(totais), [totais]);
 
   const colunas = useMemo<ColumnDef<RankRowPosicionada, unknown>[]>(
@@ -66,7 +82,14 @@ export function RankingVendas({
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <AvatarCorretor nome={row.original.nome} foto={row.original.foto} className="h-7 w-7" />
-            <span className="font-medium">{row.original.nome}</span>
+            <button
+              className="smq-person-link font-medium"
+              type="button"
+              disabled={!onSelect}
+              onClick={() => onSelect?.(row.original.corretorId)}
+            >
+              {row.original.nome}
+            </button>
           </div>
         ),
       },
@@ -124,11 +147,11 @@ export function RankingVendas({
         },
       },
     ],
-    [totais.vgv],
+    [totais.vgv, onSelect],
   );
 
   return (
-    <div className="stagger-children space-y-5">
+    <div className="smq-sales-view stagger-children space-y-5">
       <StatGrid className="grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6">
         <StatTile
           title="Vendas aprovadas"
@@ -178,6 +201,15 @@ export function RankingVendas({
       <div className="grid gap-5 lg:grid-cols-3">
         <Painel
           titulo="Pódio de VGV"
+          acao={
+            <img
+              className="smq-award-mini"
+              src="/images/ranking/trofeu-smq.webp"
+              alt="Troféu Seu Metro Quadrado"
+              width={675}
+              height={1200}
+            />
+          }
           icone={Trophy}
           descricao={periodoLabel}
           className="lg:col-span-2"
@@ -185,6 +217,9 @@ export function RankingVendas({
           <MolduraPodio>
             <Podium
               entries={entradasPodio(porVgv, "vgv")}
+              onSelect={onSelect}
+              pagina={paginaPodio}
+              userKey={userKey}
               emptyMessage="Nenhuma venda aprovada no período"
             />
           </MolduraPodio>
@@ -193,7 +228,9 @@ export function RankingVendas({
           <ListaRanking
             rows={porVgv}
             criterio="vgv"
-            max={15}
+            max={limiteRanking}
+            onSelect={onSelect}
+            userKey={userKey}
             vazio={
               <VazioRanking
                 icone={Trophy}
@@ -207,12 +244,16 @@ export function RankingVendas({
 
       <div className="grid gap-5 lg:grid-cols-5">
         <Painel
-          titulo="Funil de conversão"
+          titulo={funilConteudo ? "Conversão da carteira" : "Funil de conversão"}
           icone={ChartLineUp}
-          descricao={`Eventos de ${periodoLabel.toLowerCase()} · taxa em relação à etapa anterior`}
+          descricao={
+            funilConteudo
+              ? "Mesmos leads criados no mês e atribuídos na leitura"
+              : `Eventos de ${periodoLabel.toLowerCase()} · taxa em relação à etapa anterior`
+          }
           className="lg:col-span-2"
         >
-          <FunilConversao etapas={funil} />
+          {funilConteudo ?? <FunilConversao etapas={funil} />}
         </Painel>
         <Painel
           titulo="VGV por corretor"
@@ -245,7 +286,9 @@ export function RankingVendas({
 }
 
 export function Posicao({ pos }: { pos: number }) {
-  return pos <= 3 ? (
+  return pos <= 0 ? (
+    <span className="text-muted-foreground">—</span>
+  ) : pos <= 3 ? (
     <Medal
       tier={pos === 1 ? "ouro" : pos === 2 ? "prata" : "bronze"}
       size="sm"

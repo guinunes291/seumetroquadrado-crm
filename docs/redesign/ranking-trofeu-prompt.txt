@@ -1,0 +1,16 @@
+Recurso final: public/images/ranking/trofeu-smq.webp
+Modo: image_gen integrado, edição de imagem (não CLI).
+Referência: fotografia do troféu fornecida pelo usuário, codex-clipboard-ce9e3781-4fb2-482a-97bc-1d31aaf1f506.png.
+A inscrição de julho foi removida na adaptação; o período é exibido pela interface. A arte final usa fundo marinho sólido. O PNG intermediário não produziu alfa real; o fundo quadriculado foi substituído no segundo passe. Originais e imagens intermediárias foram preservados fora do repositório.
+
+PROMPT 1
+Edit the supplied photograph of the REAL Seu Metro Quadrado company trophy into a premium transparent-background product cutout for their website. Preserve the real object's design and proportions faithfully: upright rectangular royal-blue acrylic plaque, thick mirrored gold rectangular perimeter, the existing raised house-outline m² logo in gold and dark navy, the exact existing raised gold text SEU METRO QUADRADO in two lines, and the low glossy black rectangular base with thin clear acrylic bottom. Preserve this photographed three-quarter perspective. Do not invent an abstract cup, spires, halo, crown or any new trophy shape. Remove the pale studio room/table background entirely and make actual transparent alpha outside the trophy. Remove ONLY the small white inscription at bottom '1º LUGAR EM VENDAS JULHO DE 2026', leaving that portion clean blue acrylic without text; the app will display the current period separately. Keep all company brand lettering and logo intact and legible. Polish image quality with realistic studio reflections, controlled gold highlights and crisp material edges, still a faithful photographic product image. Soft natural contact shadow immediately under the base, no background gradients, no scenery. Portrait composition, full object completely inside frame with 6 percent padding. Output PNG with real transparent background.
+
+PROMPT 2
+Make exactly one targeted edit to this product image: replace the entire gray-and-white checkerboard background with a completely uniform solid very dark navy background, exact sRGB #070E1C (RGB 7,14,28). The checkerboard currently is painted into the image and must be completely removed, including around the base. No checkerboard anywhere. No gradient, no vignette, no pattern, no room or tabletop. Keep the trophy itself unchanged: same blue rectangular plaque, gold frame, raised black-and-gold house m² emblem, exact SEU METRO QUADRADO gold lettering and black base. Keep the same full object camera angle and framing, including entire base. The only allowed change is the background. This matte navy will match the website's solid navy background. Do not add any text or other objects.
+
+LOGO
+public/images/ranking/logo-smq.webp: logo fornecida pelo usuário em codex-clipboard-d69c0bbc-3646-47f3-8ed7-e43867e17f86.png, convertida para WebP 92 sem redesenho. A interface mostra o símbolo no celular e a composição completa na TV/desktop.
+
+FONTES
+Montserrat e Inter, arquivos Latin de @fontsource-variable, servidos localmente. Licenças OFL incluídas em public/fonts/aurum.

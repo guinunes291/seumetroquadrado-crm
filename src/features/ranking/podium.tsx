@@ -1,141 +1,130 @@
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Medal, type MedalTier } from "@/features/ranking/medal";
 import { cn } from "@/lib/utils";
 
-/**
- * Pódio hero do Desempenho — top 3 em cards sobre superfície escura (a
- * moldura navy do ranking). O campeão fica ao centro, maior, com anel em gradiente
- * dourado + glow e o fio de luz beam-border (é O hero da tela — máx. um).
- * Números sempre em font-display com AnimatedNumber (tabular-nums); entrada
- * escalonada via stagger-children (campeão entra primeiro).
- */
-
 export type PodiumEntry = {
   id: string;
   nome: string;
-  /** Linha secundária opcional (ex.: nome completo sob o primeiro nome). */
   legenda?: string | null;
   foto?: string | null;
-  /** Emblema no lugar da foto (ex.: emoji de uma equipe). */
   emblema?: string | null;
   valor: number;
-  /** Texto já formatado no lugar do número animado (ex.: VGV em R$). */
   valorTexto?: string;
-  /** Sufixo curto do valor: "vendas", "pts"… */
   unidade: string;
-  /** Linha extra abaixo da unidade (ex.: "3 vendas"). */
   detalhe?: string | null;
-  /** Posição real (dense rank): empatados em 1º levam ouro os dois, mesmo
-   *  ocupando os degraus 1 e 2 do pódio. Ausente = o degrau. */
   posicao?: 1 | 2 | 3;
 };
+const TIER: Record<1 | 2 | 3, MedalTier> = { 1: "ouro", 2: "prata", 3: "bronze" };
 
-const TIER_BY_POS: Record<1 | 2 | 3, MedalTier> = { 1: "ouro", 2: "prata", 3: "bronze" };
-
-// Classes estáticas por posição (Tailwind precisa das strings literais).
-const CARD_BY_POS: Record<1 | 2 | 3, string> = {
-  1: "order-2 beam-border border-gold-500/40 bg-navy-900/70 shadow-glow-gold sm:-translate-y-3 sm:p-6",
-  2: "order-1 border-navy-700/60 bg-navy-900/50",
-  3: "order-3 border-navy-700/60 bg-navy-900/50",
-};
-
-const RING_BY_POS: Record<1 | 2 | 3, string> = {
-  1: "bg-gradient-gold p-[3px] shadow-glow-gold",
-  2: "bg-gradient-to-br from-zinc-100 via-zinc-300 to-zinc-500 p-[2px]",
-  3: "bg-gradient-to-br from-amber-500 via-amber-700 to-amber-900 p-[2px]",
-};
-
-function getInitials(nome: string): string {
-  return nome
-    .split(" ")
-    .map((n) => n[0])
-    .filter(Boolean)
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-function PodiumCard({ entry, pos }: { entry: PodiumEntry; pos: 1 | 2 | 3 }) {
-  const first = pos === 1;
-  const medalha = entry.posicao ?? pos;
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col items-center rounded-2xl border p-4 text-center",
-        CARD_BY_POS[pos],
-      )}
-    >
-      <div className="relative mb-2">
-        <span className={cn("inline-flex rounded-full", RING_BY_POS[pos])}>
-          <Avatar className={first ? "h-24 w-24" : "h-16 w-16"}>
-            {entry.foto && <AvatarImage src={entry.foto} />}
-            <AvatarFallback
-              className={cn(
-                "bg-navy-800 text-white",
-                entry.emblema ? (first ? "text-4xl" : "text-2xl") : "font-semibold",
-              )}
-            >
-              {entry.emblema ?? getInitials(entry.nome)}
-            </AvatarFallback>
-          </Avatar>
-        </span>
-        <Medal
-          tier={TIER_BY_POS[medalha]}
-          size={first ? "md" : "sm"}
-          title={`${medalha}º lugar`}
-          className="absolute -right-1 -top-1 z-10"
-        >
-          {medalha}
-        </Medal>
-      </div>
-      <p
-        className={cn(
-          "w-full truncate text-sm font-semibold",
-          first ? "text-gold-300" : "text-white",
-        )}
-      >
-        {entry.nome}
-      </p>
-      {entry.legenda && (
-        <p className="w-full truncate text-[11px] text-navy-300">{entry.legenda}</p>
-      )}
-      <div
-        className={cn(
-          "font-display mt-1 whitespace-nowrap font-semibold tabular-nums text-white",
-          first ? "text-xl sm:text-3xl" : "text-base sm:text-xl",
-        )}
-      >
-        {entry.valorTexto ?? <AnimatedNumber value={entry.valor} />}
-      </div>
-      <div className="text-xs text-navy-300 font-medium">{entry.unidade}</div>
-      {entry.detalhe && <div className="text-[11px] text-navy-400">{entry.detalhe}</div>}
-    </div>
-  );
-}
-
+/** Mantém os retratos circulares do CRM; o relevo fica na moldura e no card. */
 export function Podium({
   entries,
   emptyMessage = "Nenhum corretor no ranking",
   className,
+  onSelect,
+  pagina,
+  userKey,
 }: {
   entries: PodiumEntry[];
   emptyMessage?: string;
   className?: string;
+  onSelect?: (id: string) => void;
+  pagina?: number;
+  userKey?: string;
 }) {
-  const top3 = entries.slice(0, 3);
-  if (top3.length === 0) {
-    return (
-      <div className="flex h-48 items-center justify-center text-sm text-navy-400">
-        {emptyMessage}
-      </div>
-    );
-  }
+  const [manual, setManual] = useState(0);
+  const pages = Math.max(1, Math.ceil(entries.length / 3));
+  const current = (pagina ?? manual) % pages;
+  const visible = entries.slice(current * 3, current * 3 + 3);
+  if (!entries.length)
+    return <div className="smq-podium-empty text-sm text-navy-300">{emptyMessage}</div>;
   return (
-    <div className={cn("stagger-children grid grid-cols-3 items-end gap-3 py-2", className)}>
-      {top3.map((entry, i) => (
-        <PodiumCard key={entry.id} entry={entry} pos={(i + 1) as 1 | 2 | 3} />
-      ))}
+    <div className={cn("smq-podium-wrap", className)}>
+      <div
+        className="smq-podium"
+        role="list"
+        aria-label="Pódio dos corretores"
+        data-tied={
+          visible.some((r, i) => visible.some((o, j) => i !== j && r.posicao === o.posicao)) ||
+          undefined
+        }
+      >
+        {visible.map((entry, index) => {
+          const rank = entry.posicao ?? ((index + 1) as 1 | 2 | 3);
+          const tied = entries.filter((r) => r.posicao === rank).length > 1;
+          const fullName = entry.legenda || entry.nome;
+          const initials = entry.nome
+            .trim()
+            .split(/\s+/)
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
+          return (
+            <div
+              role="listitem"
+              key={entry.id}
+              className={cn("smq-podium-slot", `smq-slot-${index + 1}`)}
+              data-rank={rank}
+            >
+              <button
+                type="button"
+                className={cn("smq-contender", `smq-medal-${rank}`)}
+                data-tilt
+                data-self={entry.id === userKey || undefined}
+                disabled={!onSelect}
+                onClick={() => onSelect?.(entry.id)}
+                aria-label={`Analisar ${fullName}, ${rank}º lugar${tied ? ", empatado" : ""}`}
+              >
+                <span className="smq-card-reflection" aria-hidden="true" />
+                <span className="smq-podium-portrait">
+                  <span className="smq-avatar-ring">
+                    <Avatar className="smq-podium-avatar">
+                      {entry.foto && <AvatarImage src={entry.foto} alt={fullName} />}
+                      <AvatarFallback>{entry.emblema ?? initials}</AvatarFallback>
+                    </Avatar>
+                  </span>
+                  <Medal
+                    tier={TIER[rank]}
+                    size={rank === 1 ? "md" : "sm"}
+                    title={`${rank}º lugar`}
+                    className="smq-podium-medal"
+                  >
+                    {rank}
+                  </Medal>
+                </span>
+                <strong className="smq-first-name">{entry.nome}</strong>
+                {entry.legenda && (
+                  <span className="smq-full-name" title={fullName}>
+                    {entry.legenda}
+                  </span>
+                )}
+                <strong className="smq-podium-value">
+                  {entry.valorTexto ?? <AnimatedNumber value={entry.valor} durationMs={700} />}
+                </strong>
+                <span className="smq-podium-unit">{entry.unidade}</span>
+                {entry.detalhe && <span className="smq-podium-detail">{entry.detalhe}</span>}
+                {tied && <span className="smq-tie-label">Posição compartilhada</span>}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {pages > 1 && pagina === undefined && (
+        <div className="smq-podium-pagination">
+          <button type="button" onClick={() => setManual((p) => (p - 1 + pages) % pages)}>
+            Anterior
+          </button>
+          <span>
+            Empates no pódio · {current + 1}/{pages}
+          </span>
+          <button type="button" onClick={() => setManual((p) => (p + 1) % pages)}>
+            Próximos
+          </button>
+        </div>
+      )}
     </div>
   );
 }

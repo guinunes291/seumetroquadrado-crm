@@ -12,7 +12,8 @@ const ranking = read("src/routes/_authenticated/ranking.tsx");
 const copaRota = read("src/routes/_authenticated/copa.tsx");
 const migration = read("supabase/migrations/20260905120000_pontuacao_recalculo_config.sql");
 const simetria = read("supabase/migrations/20260905130000_pontuacao_simetria_eventos.sql");
-const pagina = read("src/features/ranking/ranking-page.tsx");
+const visoes = read("src/features/ranking/campeonato-views.tsx");
+const campeonato = read("supabase/migrations/20260908202701_ranking_campeonato.sql");
 const dados = read("src/features/ranking/use-ranking-data.ts");
 
 describe("hub de Desempenho — Competição encerrada", () => {
@@ -48,24 +49,25 @@ describe("hub de Desempenho — Competição encerrada", () => {
 });
 
 describe("hub de Desempenho — fontes dos números", () => {
-  it("o ranking continua vindo agregado do RPC (máx. 50 linhas) e as metas do mês", () => {
-    expect(dados).toContain('supabase.rpc("ranking_periodo_v2"');
-    expect(dados).toContain("RANKING_LIMITE = 50");
-    expect(dados).toContain("_limit: RANKING_LIMITE");
-    expect(dados).toContain('.from("metas")');
-    expect(dados).toContain('.from("configuracao_pontuacao")');
+  it("lê um snapshot agregado completo, sem limite por pontuação", () => {
+    expect(dados).toContain('supabase.rpc("ranking_campeonato"');
+    expect(dados).not.toContain("_limit:");
+    expect(dados).toContain("snapshotSchema.parse(data)");
+    expect(campeonato).toContain("'total_participantes'");
+    expect(campeonato).toContain("'metas'");
+    expect(campeonato).toContain("'pesos'");
   });
 
-  it("a página não faz conta própria: agrega metas sem dupla contagem via ranking-derive", () => {
-    expect(pagina).toContain(
-      "agregarMetas(metas, escopoDe(rankingMes, escopoCompleto, escopoDeTime))",
-    );
-    expect(pagina).not.toMatch(/meta_vendas \|\| 0/);
+  it("as metas continuam usando a hierarquia central, sem somar níveis", () => {
+    expect(visoes).toContain("agregarMetas(");
+    expect(visoes).toContain("escopoDe(rows,");
+    expect(visoes).not.toMatch(/meta_vendas \|\| 0/);
   });
 
-  it("hoje é o de São Paulo, não o do aparelho", () => {
+  it("acompanha a data em São Paulo e consulta um único mês", () => {
     expect(dados).toContain("agoraSaoPaulo()");
-    expect(dados).toContain("getDateRange(periodo, hoje)");
+    expect(dados).toContain("dateKey(atual) === dateKey(agora)");
+    expect(dados).toContain("mesRange(args.ano, args.mes)");
   });
 });
 
