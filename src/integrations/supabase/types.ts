@@ -8382,6 +8382,10 @@ export type Database = {
           vendas_total: number
         }[]
       }
+      ranking_campeonato: {
+        Args: { _inicio: string; _fim: string }
+        Returns: Json
+      }
       ranking_periodo_v2: {
         Args: { _fim: string; _inicio: string; _limit?: number }
         Returns: {
