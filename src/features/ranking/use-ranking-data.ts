@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { agoraSaoPaulo, dateKey, mesRange } from "@/lib/periodo";
-import { snapshotSchema } from "./ranking-campeonato";
+import { snapshotSchema, valeTentarDeNovo } from "./ranking-campeonato";
 
 export const RANKING_QUERY_KEY = "ranking-campeonato";
 export function useHojeSaoPaulo() {
@@ -42,7 +42,9 @@ export function useRankingData(args: { ano: number; mes: number }) {
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
-    retry: 2,
+    // Função ausente no banco ou acesso negado não muda de resposta: insistir
+    // só atrasa a mensagem que explica o bloqueio.
+    retry: (tentativas, erro) => valeTentarDeNovo(erro) && tentativas < 2,
   });
   useRealtimeInvalidate(
     [

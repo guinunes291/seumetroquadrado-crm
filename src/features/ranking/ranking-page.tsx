@@ -32,9 +32,11 @@ import { fmtBRLCompacto, MESES_LONGOS, opcoesDeMes } from "./ranking-derive";
 import {
   classificacaoCompleta,
   classificarGestores,
+  mensagemDeFalha,
   novasConquistas,
   participantes,
   roteiroTV,
+  valeTentarDeNovo,
   type Conquista,
   type RankingSnapshot,
   type TelaTV,
@@ -73,7 +75,7 @@ export function RankingPanel() {
       userKey={user?.id ?? "anon"}
       loading={query.isPending}
       fetching={query.isFetching}
-      error={query.isError}
+      error={query.error}
       onRefresh={() => {
         void query.refetch();
       }}
@@ -107,7 +109,7 @@ export function RankingExperience({
   userKey: string;
   loading: boolean;
   fetching: boolean;
-  error: boolean;
+  error?: unknown;
   onRefresh: () => void;
   onMonthChange: (ano: number, mes: number) => void;
   preview?: boolean;
@@ -450,7 +452,7 @@ export function RankingExperience({
           <div className="arena-header-actions">
             <RelogioAoVivo className="smq-clock" />
             <div className="arena-live">
-              <span className={cn("arena-live-dot", error && "arena-live-error")} />
+              <span className={cn("arena-live-dot", !!error && "arena-live-error")} />
               <span>
                 {error ? "Atualização pendente" : fetching ? "Atualizando" : "Última leitura"}
                 <strong>{refreshLabel} · São Paulo</strong>
@@ -557,14 +559,14 @@ export function RankingExperience({
             </Button>
           )}
         </div>
-        {error && (
+        {!!error && (
           <div className="arena-alert" role="status">
-            {snapshot
-              ? "Não foi possível atualizar. A última leitura válida permanece na tela."
-              : "Não foi possível carregar o campeonato. Verifique a conexão e tente novamente."}
-            <button type="button" onClick={onRefresh}>
-              Tentar novamente
-            </button>
+            {mensagemDeFalha(error, !!snapshot)}
+            {(!!snapshot || valeTentarDeNovo(error)) && (
+              <button type="button" onClick={onRefresh}>
+                Tentar novamente
+              </button>
+            )}
           </div>
         )}
         {avisoSom && (

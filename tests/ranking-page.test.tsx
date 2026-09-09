@@ -110,6 +110,19 @@ describe("RankingExperience", () => {
     fireEvent.click(screen.getByText("Tentar novamente"));
     expect(p.onRefresh).toHaveBeenCalledOnce();
   });
+  it("sem snapshot, explica a função ausente no banco e não oferece nova tentativa", () => {
+    const p = props();
+    render(
+      <RankingExperience
+        {...p}
+        snapshot={undefined}
+        error={{ code: "PGRST202", message: "Could not find the function" }}
+      />,
+    );
+    expect(screen.getByText(/ranking_campeonato não existe no banco/)).toBeInTheDocument();
+    expect(screen.queryByText("Verifique a conexão e tente novamente.")).toBeNull();
+    expect(screen.queryByText("Tentar novamente")).toBeNull();
+  });
   it("mês novo sem snapshot mostra carregamento, nunca os valores do mês anterior", () => {
     const p = props();
     const { rerender } = render(<RankingExperience {...p} />);
