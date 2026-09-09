@@ -9,6 +9,8 @@ import {
   participantes,
   roteiroTV,
   snapshotSchema,
+  mensagemDeFalha,
+  valeTentarDeNovo,
   LINHAS_TV,
 } from "@/features/ranking/ranking-campeonato";
 import { agoraSaoPaulo, dateKey } from "@/lib/periodo";
@@ -137,5 +139,35 @@ describe("Campeonato — celebrações verificadas", () => {
     expect(novasConquistas(anterior, atual, new Set())[0].titulo).toBe("Meta conquistada!");
     anterior.metas[1].meta_gmv = 3000000;
     expect(novasConquistas(anterior, atual, new Set())[0].titulo).toBe("Nova venda aprovada!");
+  });
+});
+
+describe("falha do campeonato", () => {
+  it("nomeia a função ausente em vez de culpar a conexão", () => {
+    const erro = {
+      code: "PGRST202",
+      message: "Could not find the function public.ranking_campeonato(_fim, _inicio)",
+    };
+    expect(mensagemDeFalha(erro, false)).toContain("ranking_campeonato não existe no banco");
+    expect(mensagemDeFalha(erro, false)).not.toContain("Verifique a conexão");
+    expect(valeTentarDeNovo(erro)).toBe(false);
+  });
+  it("separa acesso negado de falha de rede", () => {
+    expect(mensagemDeFalha({ code: "42501" }, false)).toContain("não tem acesso");
+    expect(valeTentarDeNovo({ code: "42501" })).toBe(false);
+    expect(mensagemDeFalha(new TypeError("Failed to fetch"), false)).toContain(
+      "Verifique a conexão",
+    );
+    expect(valeTentarDeNovo(new TypeError("Failed to fetch"))).toBe(true);
+  });
+  it("preserva a última leitura quando só a atualização falha", () => {
+    expect(mensagemDeFalha({ code: "PGRST202" }, true)).toContain("última leitura válida");
+  });
+  it("aponta leitura incompleta quando o snapshot não bate com o contrato", () => {
+    const bruto = fixtureRanking();
+    bruto.total_participantes += 1;
+    const parse = snapshotSchema.safeParse(bruto);
+    expect(parse.success).toBe(false);
+    expect(mensagemDeFalha(parse.error, false)).toContain("veio incompleta");
   });
 });

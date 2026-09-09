@@ -1,4 +1,11 @@
 -- Campeonato SMQ: leitura atômica e completa, sem o top-50 por pontos do v2.
+-- Renumerada de 20260908202701 para 20260911100000: o número original era
+-- ANTERIOR ao das migrations samiq_copiloto_s4/s5 (20260909/20260910), que já
+-- constavam no histórico remoto. Migration fora de ordem é recusada em bloco
+-- pelo runner ("insert before the last migration on remote database"), então
+-- ela nunca chegou a rodar e a função não existia — a página do ranking caía
+-- em PGRST202. Reaplicar é seguro: CREATE OR REPLACE + GRANT/REVOKE/COMMENT
+-- são idempotentes e não tocam em dados.
 -- A fonte comercial continua sendo atividades_diarias/ledger de aprovação:
 -- dia = aprovado_em em SP; distratos estornam o dia original. Não repondera
 -- atividades nem reescreve histórico. Equipes refletem o vínculo ATUAL do CRM.

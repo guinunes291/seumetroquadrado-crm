@@ -319,3 +319,34 @@ export function conversaoCorretor(snapshot: RankingSnapshot, id: string) {
     return null;
   return { ...coorte, pct: (coorte.convertidos / coorte.leads) * 100 };
 }
+
+/** Código PostgREST/Postgres da falha do RPC, quando o erro veio do banco. */
+export function codigoDaFalha(erro: unknown): string {
+  return typeof erro === "object" && erro !== null && "code" in erro
+    ? String((erro as { code?: unknown }).code ?? "")
+    : "";
+}
+
+/**
+ * Cada causa pede uma ação diferente, e mandar "verifique a conexão" quando a
+ * função não existe no banco faz o operador procurar no lugar errado — foi o
+ * que aconteceu com a migration do campeonato que não chegou a rodar. Só rede
+ * e indisponibilidade justificam nova tentativa; o resto nomeia o bloqueio.
+ */
+export function mensagemDeFalha(erro: unknown, temSnapshot: boolean): string {
+  if (temSnapshot) return "Não foi possível atualizar. A última leitura válida permanece na tela.";
+  const codigo = codigoDaFalha(erro);
+  if (codigo === "PGRST202")
+    return "O campeonato ainda não está disponível neste ambiente: a função ranking_campeonato não existe no banco. Não é a sua conexão — avise a gestão para aplicar a migration pendente.";
+  if (codigo === "42501" || codigo === "PGRST301")
+    return "Sua conta não tem acesso ao campeonato agora. Se isso é inesperado, fale com a gestão.";
+  if (codigo === "22023") return "Período inválido para o campeonato. Escolha outro mês.";
+  if (erro instanceof z.ZodError)
+    return "A leitura do campeonato veio incompleta. Atualize para tentar novamente.";
+  return "Não foi possível carregar o campeonato. Verifique a conexão e tente novamente.";
+}
+
+/** Função ausente ou acesso negado não muda por insistência: repetir só atrasa a tela. */
+export function valeTentarDeNovo(erro: unknown): boolean {
+  return !["PGRST202", "PGRST301", "42501", "22023"].includes(codigoDaFalha(erro));
+}

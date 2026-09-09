@@ -11,7 +11,7 @@ npx vite --config e2e/ranking-preview/vite.config.ts
 
 Abra `http://127.0.0.1:4180/?sem-fullscreen`. A prévia usa **30 personagens fictícios**, sem autenticação ou acesso ao CRM. Os controles amarelos permitem simular falha, carregamento, falta de vendas/metas, empate de 30, nova aprovação e cenários adicionais. As imagens com dados reais fornecidas como referência não fazem parte dos arquivos publicados.
 
-A rota integrada requer a migration `supabase/migrations/20260908202701_ranking_campeonato.sql`, aplicada primeiro no ambiente de revisão. Nenhuma migration ou implantação foi executada em produção.
+A rota integrada requer a migration `supabase/migrations/20260911100000_ranking_campeonato.sql`. Ela foi renumerada de `20260908202701`: o número original era anterior ao das migrations já aplicadas no remoto (`20260909100000`/`20260910100000`), o runner do Supabase recusa migration fora de ordem e por isso ela nunca rodou — a função `ranking_campeonato` não existia e a página caía em PGRST202. Reaplicar é seguro (`CREATE OR REPLACE` mais GRANT/REVOKE/COMMENT, sem tocar em dados). Enquanto a migration não roda no ambiente, a tela agora diz exatamente isso em vez de sugerir problema de conexão.
 
 O modo TV entra na aba escolhida e intercala resumos e páginas de detalhes. O ciclo padrão contém 22 telas para 30 corretores e três gestores. Anterior, próxima, pausa, intervalos de 15/25/40/60 segundos, áudio e saída ficam acessíveis. Setas, espaço e Escape também funcionam. A rotação pausa com a aba oculta e durante celebrações; uma atualização normal mantém a posição. A sobreposição funciona quando a Fullscreen API é recusada.
 
@@ -55,7 +55,7 @@ O ciclo de dados desta entrega é **mensal**. Filtros de dia, semana, trimestre 
 | `src/features/ranking/ranking-ui.tsx`                       | Medalhas, listas, relógio e gráficos compartilhados   |
 | `src/features/ranking/ranking-campeonato.ts`                | Contrato, classificações, coortes e eventos           |
 | `src/features/ranking/use-ranking-data.ts`                  | Consulta mensal atômica, polling e eventos            |
-| `supabase/migrations/20260908202701_ranking_campeonato.sql` | Consulta completa dentro das permissões existentes    |
+| `supabase/migrations/20260911100000_ranking_campeonato.sql` | Consulta completa dentro das permissões existentes    |
 
 O histórico de criação do troféu e a procedência da logo estão em [ranking-trofeu-prompt.txt](../ranking-trofeu-prompt.txt). O troféu usa adaptação digital da fotografia; a logo mantém o desenho enviado, com compressão e enquadramento por CSS.
 

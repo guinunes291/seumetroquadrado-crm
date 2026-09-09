@@ -13,7 +13,7 @@ const copaRota = read("src/routes/_authenticated/copa.tsx");
 const migration = read("supabase/migrations/20260905120000_pontuacao_recalculo_config.sql");
 const simetria = read("supabase/migrations/20260905130000_pontuacao_simetria_eventos.sql");
 const visoes = read("src/features/ranking/campeonato-views.tsx");
-const campeonato = read("supabase/migrations/20260908202701_ranking_campeonato.sql");
+const campeonato = read("supabase/migrations/20260911100000_ranking_campeonato.sql");
 const dados = read("src/features/ranking/use-ranking-data.ts");
 
 describe("hub de Desempenho — Competição encerrada", () => {
