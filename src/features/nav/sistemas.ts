@@ -4,6 +4,16 @@
 // papel. Consomem este registro: o hub (inicio-page), a sidebar (app-sidebar),
 // o command palette e os testes (tests/sistemas.test.ts).
 //
+// Regra dos 2 menus (decisão do dono, 2026-09-11): dentro de um módulo há no
+// máximo DOIS níveis de menu — (1) a sidebar do módulo, que lista só PÁGINAS,
+// curta e plana, e (2) no máximo uma linha de abas internas da página. Nada de
+// seção de sidebar que só repete uma aba da mesma tela, nem de hub "vitrine"
+// que só reagrupa telas de outro módulo. Efeitos: o hub Comunicações saiu
+// (Discador e Oferta Ativa foram para a Prospecção; Mensagens segue viva pelo
+// ⌘K), a Gestão de Carteira ficou com Base de leads · Kanban · Agenda ·
+// Tarefas, e o Modo Visita virou módulo próprio. Para o corretor, nenhum
+// módulo do dia passa de 4 seções.
+//
 // Este desenho SUPERSEDE a IA da auditoria ux-ia-2026-08 ("teto de 7 botões"
 // num menu global): o teto agora vale por sistema — cada sistema tem ≤6
 // seções planas, e o nível de cima virou o hub de módulos.
@@ -22,7 +32,6 @@ import {
   Fire,
   GearSix,
   Handshake,
-  Headset,
   Hourglass,
   Kanban,
   Layout,
@@ -67,8 +76,8 @@ export type Secao = {
 export type SistemaId =
   | "central-comando"
   | "prospeccao"
-  | "atendimento-central"
   | "carteira"
+  | "visita"
   | "follow-up"
   | "financeiro"
   | "docs-projetos"
@@ -100,8 +109,8 @@ export type Sistema = {
   grupo: "operacao" | "consulta" | "gestao";
   /** Card com acento dourado no grid (mesmo tamanho dos demais). */
   destaque?: boolean;
-  /** Prefixos de rota reivindicados sem seção própria (ex.: /pipeline cru,
-   *  que é o quadro completo e pertence à Carteira). */
+  /** Prefixos de rota reivindicados sem seção própria (ex.: /atendimento e
+   *  /mensagens, que saíram do menu mas pertencem à Carteira). */
   dominioExtra?: string[];
   secoes: Secao[];
 };
@@ -113,10 +122,13 @@ const GESTAO: AppRole[] = ["admin", "gestor", "superintendente"];
 // o resto seria cockpit vazio para ele (RLS não lhe mostra carteira alguma).
 const OPERACAO: AppRole[] = ["admin", "gestor", "corretor", "superintendente"];
 // O papel `sdr` fica fora de OPERACAO de propósito (o dia dele é o hub /sdr),
-// com uma exceção: Prospecção (Modo Foco + Base de leads). Quem virou SDR vindo
-// de corretor ainda é `corretor_id` de leads agendados e de base da carteira
-// antiga e precisa continuar controlando esses atendimentos pelo mesmo lugar
-// (2026-09-04). As seções de gestão de lá seguem só para admin/gestor.
+// com uma exceção: Modo Foco (Prospecção) + Base de leads (hoje na Carteira).
+// Quem virou SDR vindo de corretor ainda é `corretor_id` de leads agendados e
+// de base da carteira antiga e precisa continuar controlando esses
+// atendimentos pelo mesmo lugar (2026-09-04). O resto das seções desses dois
+// módulos (Oferta Ativa, Discador, Kanban, Agenda, Tarefas) e as seções de
+// gestão ficam gated por OPERACAO — a superfície do SDR não cresceu na
+// reorganização de 2026-09-11.
 
 export const SISTEMAS: Sistema[] = [
   {
@@ -134,12 +146,13 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "prospeccao",
     titulo: "Prospecção",
-    descricao: "O volumão do topo do funil: escolha a base do dia e trabalhe um lead por vez.",
+    descricao:
+      "O volumão do topo do funil: Modo Foco, Oferta Ativa e Discador para trabalhar um lead por vez.",
     icon: UsersThree,
     // Abre DIRETO no Modo Foco: o corretor escolhe a base (Aguardando
     // Atendimento / Aguardando Retorno / Em Qualificação), o sistema monta o
-    // lote e o trabalho é um por um. O funil kanban da fase saiu da sidebar
-    // de propósito — o quadro completo vive na Carteira (/pipeline).
+    // lote e o trabalho é um por um. O funil kanban e a base completa vivem
+    // na Gestão de Carteira — aqui é só ferramenta de topo de funil.
     home: { to: "/prospeccao" },
     // nav_pendencias.atendimento conta `aguardando_atendimento` — literalmente
     // uma etapa de Prospecção, por isso o contador vive neste card.
@@ -156,15 +169,22 @@ export const SISTEMAS: Sistema[] = [
         to: "/prospeccao",
         badge: (b) => b.atendimento,
       },
-      // A base completa (kanban/lista, ações em massa, importação) é a mesa de
-      // triagem da entrada; a consulta da carteira segue viva em Carteira via
-      // /atendimento?modo=consulta. A ficha (/leads/$leadId) resolve pela
-      // ETAPA do lead (sistemaAtivoContextual) — o prefixo daqui é só o
-      // fallback enquanto o lead carrega.
-      { id: "base-leads", label: "Base de leads", icon: UsersThree, to: "/leads" },
-      // Para o CORRETOR a sidebar é só Modo Foco + Base de leads (decisão de
-      // 2026-08-27); as seções de gestão continuam role-gated — invisíveis
-      // para o corretor, e o único acesso de navegação da gestão a estas telas.
+      // Regra dos 2 menus (2026-09-11): para o CORRETOR a sidebar é Modo Foco
+      // + Oferta Ativa + Discador — as três ferramentas de topo de funil, e só.
+      // Oferta Ativa (listas segmentadas para campanha) e Discador (PABX) vieram
+      // do extinto hub Comunicações: são prospecção de base, não "comunicação".
+      // Gated por OPERACAO: o SDR segue vendo só o Modo Foco (decisão de
+      // 2026-09-04 preservada).
+      {
+        id: "oferta-ativa",
+        label: "Oferta Ativa",
+        icon: PhoneOutgoing,
+        to: "/oferta-ativa",
+        roles: OPERACAO,
+      },
+      { id: "discador", label: "Discador", icon: Phone, to: "/discador", roles: OPERACAO },
+      // As seções de gestão continuam role-gated — invisíveis para o corretor,
+      // e o único acesso de navegação da gestão a estas telas.
       {
         id: "distribuicao",
         label: "Distribuição",
@@ -182,79 +202,77 @@ export const SISTEMAS: Sistema[] = [
     ],
   },
   {
-    id: "atendimento-central",
-    // "Comunicações" (era "Central de Atendimento"): o nome antigo disputava
-    // com o /atendimento da Carteira e o hub não tinha identidade própria. O
-    // Lote 3 da auditoria deu a ele a identidade mínima que faltava: dono
-    // ÚNICO do contador "aguardando resposta" (nav_pendencias.mensagens_
-    // aguardando, fonte única conversa_aguardando_resposta no banco). A fila
-    // "Responder" do /atendimento lê a MESMA fonte — responder ou marcar
-    // tratada aqui apaga a luz em todo lugar.
-    titulo: "Comunicações",
-    descricao: "Conversas de WhatsApp aguardando resposta, discador e oferta ativa.",
-    icon: Headset,
-    home: { to: "/mensagens" },
-    badge: (b) => b.mensagensAguardando,
-    roles: OPERACAO,
-    cor: "atendimento",
+    id: "carteira",
+    titulo: "Gestão de Carteira",
+    descricao: "Sua carteira num só lugar: base de leads, kanban, agenda e tarefas.",
+    icon: Briefcase,
+    // A porta da Carteira é a Base de leads (decisão 2026-09-11): a lista
+    // completa, com filtros, é a visão mais geral do que o corretor tem em
+    // mãos — o Kanban é a mesma base em colunas, e Agenda/Tarefas são os
+    // compromissos dela. Substitui a "porta única" Atender do item 2.7c.
+    home: { to: "/leads" },
+    badge: (b) => b.tarefasVencidas + b.agendaHoje,
+    // O SDR só enxerga a Base de leads aqui (carteira antiga; ver nota em
+    // OPERACAO) — sem Agenda/Tarefas na sidebar, o badge do card não teria
+    // onde cair, por isso ele também é só da operação.
+    badgeRoles: OPERACAO,
+    roles: [...OPERACAO, "sdr"],
+    cor: "carteira",
     grupo: "operacao",
+    // Rotas vivas SEM seção própria (regra dos 2 menus): /atendimento (as
+    // filas por prioridade — "Trabalhar carteira") e /mensagens (a Central de
+    // Mensagens, herdada do hub Comunicações) saíram da sidebar mas continuam
+    // no ⌘K (ATALHOS_EXTRAS) e na barra mobile (Atender); /match virou ação
+    // dentro da ficha do lead (corte 2026-08-30).
+    dominioExtra: ["/atendimento", "/mensagens", "/match"],
     secoes: [
+      // A base completa (lista, ações em massa, importação). A ficha
+      // (/leads/$leadId) resolve pela ETAPA do lead (sistemaAtivoContextual) —
+      // o prefixo daqui é só o fallback enquanto o lead carrega.
+      { id: "base-leads", label: "Base de leads", icon: UsersThree, to: "/leads" },
+      // O quadro COMPLETO (todas as colunas do funil): a mesma base da lista,
+      // em colunas — um lead que está na Base está no Kanban. A Reta final
+      // segue como aba interna do /pipeline (o 2º menu permitido) e no ⌘K.
+      { id: "kanban", label: "Kanban", icon: Kanban, to: "/pipeline", roles: OPERACAO },
+      // Agenda e Tarefas viraram DUAS seções (antes: "Agenda & Tarefas" +
+      // abas internas repetindo a escolha). A página esconde a própria linha
+      // de abas no desktop — a sidebar é o menu.
       {
-        id: "mensagens",
-        label: "Mensagens",
-        icon: WhatsappLogo,
-        to: "/mensagens",
-        badge: (b) => b.mensagensAguardando,
+        id: "agenda",
+        label: "Agenda",
+        icon: CalendarDots,
+        to: "/agendamentos",
+        roles: OPERACAO,
+        badge: (b) => b.agendaHoje,
       },
-      { id: "discador", label: "Discador", icon: Phone, to: "/discador" },
-      { id: "oferta-ativa", label: "Oferta Ativa", icon: PhoneOutgoing, to: "/oferta-ativa" },
+      {
+        id: "tarefas",
+        label: "Tarefas",
+        icon: ListChecks,
+        to: "/agendamentos",
+        search: { tab: "tarefas" },
+        roles: OPERACAO,
+        badge: (b) => b.tarefasVencidas,
+      },
     ],
   },
   {
-    id: "carteira",
-    titulo: "Gestão de Carteira",
+    // Modo Visita virou MÓDULO (decisão 2026-09-11): é um modo de trabalho
+    // inteiro — em campo, no celular, com o cliente na frente — e não uma
+    // seção escondida dentro da Carteira. Um card no hub, uma tela, sem menu.
+    // Sem badge de propósito: `agenda_hoje` conta TODOS os compromissos do
+    // dia (visitas, reuniões, ligações) e continua da Agenda, na Carteira —
+    // cada contador tem UM dono.
+    id: "visita",
+    titulo: "Modo Visita",
     descricao:
-      "Só quem está avançando: conversas ativas, visitas, análise de crédito e fechamento.",
-    icon: Briefcase,
-    home: { to: "/pipeline", search: { fase: "carteira" } },
-    badge: (b) => b.tarefasVencidas + b.agendaHoje,
+      "Em campo com o cliente: agenda do dia, rota, briefing do lead e o resultado da visita.",
+    icon: MapPinArea,
+    home: { to: "/modo-visita" },
     roles: OPERACAO,
-    cor: "carteira",
+    cor: "visita",
     grupo: "operacao",
-    // Dona do /pipeline cru (bookmark antigo = quadro completo) e do /match:
-    // a Reta final e o Match saíram da sidebar (corte 2026-08-30) mas as
-    // rotas seguem vivas com dono — a Reta final é aba INTERNA do /pipeline
-    // (o alternador da tela preserva a fase sozinho) e o Match virou ação
-    // dentro da ficha do lead; ambos continuam no ⌘K.
-    dominioExtra: ["/pipeline", "/match"],
-    secoes: [
-      {
-        id: "funil-carteira",
-        label: "Funil da carteira",
-        icon: Kanban,
-        to: "/pipeline",
-        search: { fase: "carteira" },
-      },
-      {
-        // "Trabalhar carteira" e não "Atender": a palavra disputava com a
-        // Central de Atendimento. O badge perdeu b.atendimento de propósito —
-        // cada contador tem UM dono, e aguardando_atendimento é da Prospecção
-        // (Modo Foco); aqui fica só o que é da carteira (tarefas vencidas).
-        id: "atender",
-        label: "Trabalhar carteira",
-        icon: Briefcase,
-        to: "/atendimento",
-        badge: (b) => b.tarefasVencidas,
-      },
-      {
-        id: "agenda",
-        label: "Agenda & Tarefas",
-        icon: CalendarDots,
-        to: "/agendamentos",
-        badge: (b) => b.agendaHoje,
-      },
-      { id: "modo-visita", label: "Modo Visita", icon: MapPinArea, to: "/modo-visita" },
-    ],
+    secoes: [{ id: "modo-visita", label: "Modo Visita", icon: MapPinArea, to: "/modo-visita" }],
   },
   {
     id: "follow-up",
@@ -502,10 +520,11 @@ export function homeDoSistema(s: Sistema, ctx: PapelCtx): Destino {
 }
 
 /** Atalhos do ⌘K que as seções não expressam: pulos direto a uma ABA
- *  interna e as portas que saíram da sidebar no corte de 2026-08-30 (Reta
- *  final, Match IA, Links Úteis — rotas vivas via dominioExtra). Moram no
- *  REGISTRO, não na paleta, para o invariante de destino único (tests/
- *  sistemas.test.ts) cobrir seções e atalhos juntos. */
+ *  interna e as portas que saíram da sidebar nos cortes de 2026-08-30 (Reta
+ *  final, Match IA, Links Úteis) e de 2026-09-11 (Trabalhar carteira,
+ *  Mensagens) — rotas vivas via dominioExtra. Moram no REGISTRO, não na
+ *  paleta, para o invariante de destino único (tests/sistemas.test.ts)
+ *  cobrir seções e atalhos juntos. */
 export type AtalhoExtra = {
   label: string;
   icon: IconComponent;
@@ -515,7 +534,6 @@ export type AtalhoExtra = {
 };
 
 export const ATALHOS_EXTRAS: AtalhoExtra[] = [
-  { label: "Tarefas", icon: ListChecks, to: "/agendamentos", search: { tab: "tarefas" } },
   { label: "Comissões", icon: ListChecks, to: "/financeiro", search: { tab: "comissoes" } },
   {
     // "Reta final" é a leitura de fechamento DA CARTEIRA (auditoria
@@ -526,6 +544,17 @@ export const ATALHOS_EXTRAS: AtalhoExtra[] = [
     to: "/pipeline",
     search: { tab: "fechamento", fase: "carteira" },
   },
+  // Portas que saíram da sidebar na regra dos 2 menus (2026-09-11): as filas
+  // por prioridade e a Central de Mensagens seguem vivas (dominioExtra da
+  // Carteira) — sem menu, mas a um ⌘K de distância. Só operação: o SDR nunca
+  // as teve (2026-09-04).
+  {
+    label: "Trabalhar carteira (filas por prioridade)",
+    icon: Briefcase,
+    to: "/atendimento",
+    roles: OPERACAO,
+  },
+  { label: "Mensagens (WhatsApp)", icon: WhatsappLogo, to: "/mensagens", roles: OPERACAO },
   { label: "Match IA", icon: SamiMark, to: "/match" },
   { label: "Links Úteis", icon: Link, to: "/links-uteis" },
   {

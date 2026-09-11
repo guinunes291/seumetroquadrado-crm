@@ -6,8 +6,9 @@ import { SISTEMAS } from "@/features/nav/sistemas";
 const CORES: CorModulo[] = [
   "central",
   "prospeccao",
-  "atendimento",
   "carteira",
+  // 2026-09-11: o teal do extinto hub Comunicações passou ao Modo Visita.
+  "visita",
   "followup",
   "projetos",
   "financeiro",
@@ -26,10 +27,11 @@ describe("cor por módulo (identidade v3)", () => {
   it("todo sistema do registro tem uma cor, e os módulos de trabalho não repetem cor", () => {
     const cores = SISTEMAS.map((s) => s.cor);
     expect(cores).toHaveLength(10);
-    // Dourado é da Central; os 5 módulos do dia + SDR + 3 de consulta são distintos.
+    // Dourado é da Central; os 4 módulos do dia + SDR + 3 de consulta são distintos.
     const operacaoEConsulta = SISTEMAS.filter((s) => s.grupo !== "gestao").map((s) => s.cor);
     expect(new Set(operacaoEConsulta).size).toBe(operacaoEConsulta.length);
     expect(SISTEMAS.find((s) => s.id === "central-comando")?.cor).toBe("central");
     expect(SISTEMAS.find((s) => s.id === "configuracoes")?.cor).toBe("config");
+    expect(SISTEMAS.find((s) => s.id === "visita")?.cor).toBe("visita");
   });
 });

@@ -16,7 +16,9 @@ export type NavBadges = {
    *  antigas do banco (o parser tolera a chave ausente). */
   followups: number;
   /** Conversas aguardando resposta (fonte única conversa_aguardando_resposta,
-   *  v5 da RPC) — dono único: Comunicações; 0 em bancos sem a v5. */
+   *  v5 da RPC); 0 em bancos sem a v5. Sem card desde 2026-09-11 (o hub
+   *  Comunicações saiu na regra dos 2 menus): a contagem aparece in-page, na
+   *  fila Responder do /atendimento e na Central de Mensagens. */
   mensagensAguardando: number;
 };
 

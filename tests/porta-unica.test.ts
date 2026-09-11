@@ -1,7 +1,8 @@
-// Guarda do item 2.7, PR (c): UMA porta para o objeto lead no menu — Atender.
-// O botão "Leads" sai do nível primário (vira subitem "Base de leads"),
-// /blitz vira redirect e as rotas antigas continuam todas vivas (kanban,
-// ações em massa e importação seguem em /leads até a Consulta absorvê-los).
+// Guarda do item 2.7, PR (c), revista na regra dos 2 menus (2026-09-11): a
+// porta do objeto lead no menu é a Base de leads (home da Gestão de Carteira);
+// Atender/Trabalhar carteira segue viva SEM seção (dominioExtra + ⌘K + barra
+// mobile), /blitz vira redirect e as rotas antigas continuam todas vivas
+// (kanban, ações em massa e importação seguem em /leads).
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,22 +17,29 @@ const leadsIndex = read("src/routes/_authenticated/leads.index.tsx");
 const bottomNav = read("src/components/bottom-nav.tsx");
 
 describe("item 2.7c — porta única no menu", () => {
-  it("Trabalhar carteira segue porta única, com badge só do que é da carteira", () => {
-    // Renomeada de "Atender" e badge sem b.atendimento (auditoria 2026-08-27):
-    // a entrada é da Prospecção — cada contador tem UM dono.
-    expect(sistemas).toMatch(
-      /label: "Trabalhar carteira",\s*icon: Briefcase,\s*to: "\/atendimento",\s*badge: \(b\) => b\.tarefasVencidas/,
-    );
-    // "Leads" não é home de sistema algum…
-    expect(sistemas).not.toMatch(/home: \{ to: "\/leads" \}/);
-    // …mas a base completa segue acessível como seção (nenhuma rota morre).
+  it("Base de leads é a porta da Carteira; Trabalhar carteira segue viva sem seção", () => {
+    // 2026-09-11: a Carteira abre na Base de leads e a lista é a 1ª seção.
+    expect(sistemas).toMatch(/home: \{ to: "\/leads" \}/);
     expect(sistemas).toContain('label: "Base de leads", icon: UsersThree, to: "/leads"');
+    // As filas por prioridade não morreram: dominioExtra da Carteira (a
+    // sidebar não salta ao abrir) + atalho do ⌘K, só para a operação.
+    expect(sistemas).toMatch(/dominioExtra: \[[^\]]*"\/atendimento"/);
+    expect(sistemas).toMatch(
+      /label: "Trabalhar carteira \(filas por prioridade\)",\s*icon: Briefcase,\s*to: "\/atendimento",\s*roles: OPERACAO/,
+    );
+    // O badge de tarefas vencidas continua da Carteira — agora na seção Tarefas.
+    expect(sistemas).toMatch(
+      /label: "Tarefas",\s*icon: ListChecks,\s*to: "\/agendamentos",\s*search: \{ tab: "tarefas" \},\s*roles: OPERACAO,\s*badge: \(b\) => b\.tarefasVencidas/,
+    );
   });
 
   it("os antigos filhos de Leads foram realojados, não apagados", () => {
-    expect(sistemas).toContain('to: "/oferta-ativa"');
+    // Oferta Ativa é prospecção de base — seção da Prospecção (2026-09-11).
+    expect(sistemas).toMatch(/titulo: "Prospecção"[\s\S]{0,2000}to: "\/oferta-ativa"/);
     // Captação é gestão de aquisição — vive na Prospecção (gestão do volumão).
-    expect(sistemas).toMatch(/titulo: "Prospecção"[\s\S]{0,2000}to: "\/leads-landing"/);
+    // Janela de 2500: o bloco da Prospecção cresceu com as notas da regra dos
+    // 2 menus; a Carteira (próximo sistema) começa bem depois disso.
+    expect(sistemas).toMatch(/titulo: "Prospecção"[\s\S]{0,2500}to: "\/leads-landing"/);
     // O item de menu do Blitz morreu junto com a rota própria.
     expect(sistemas).not.toContain('to: "/blitz"');
   });

@@ -319,10 +319,13 @@ describe("aba Discador (fiação)", () => {
   const sistemas = readFileSync(join(root, "src/features/nav/sistemas.ts"), "utf8");
   const routeTree = readFileSync(join(root, "src/routeTree.gen.ts"), "utf8");
 
-  it("rota /discador existe, está na árvore gerada e no menu de Comunicações", () => {
+  it("rota /discador existe, está na árvore gerada e no menu da Prospecção", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/discador")');
     expect(routeTree).toContain("discador");
-    expect(sistemas).toMatch(/label: "Discador",\s*icon: Phone,\s*to: "\/discador"/);
+    // 2026-09-11: o Discador é ferramenta de topo de funil — seção da Prospecção.
+    expect(sistemas).toMatch(
+      /titulo: "Prospecção"[\s\S]{0,2500}label: "Discador",\s*icon: Phone,\s*to: "\/discador"/,
+    );
   });
 
   it("página vive de `chamadas` com realtime e rediscagem pelo hook único", () => {

@@ -8,11 +8,15 @@
 //
 // A cor aparece no tile do portal, no cabeçalho da sidebar, no header da página
 // e no badge de pendência. Nunca em texto corrido (regra do dourado, decisão 10).
+//
+// 2026-09-11: o teal que era do hub Comunicações ("atendimento") passou ao
+// Modo Visita, que virou módulo — o hub saiu e a família continua com os
+// mesmos dez tons, sem inventar um décimo primeiro.
 
 export type CorModulo =
   | "central"
   | "prospeccao"
-  | "atendimento"
+  | "visita"
   | "carteira"
   | "followup"
   | "projetos"
@@ -55,11 +59,11 @@ export const CLASSES_MODULO: Record<CorModulo, ClassesModulo> = {
     pill: "bg-modulo-prospeccao/15 text-modulo-prospeccao",
     line: "bg-modulo-prospeccao",
   },
-  atendimento: {
-    tile: "icon-duo bg-modulo-atendimento/13 text-modulo-atendimento [--icon-duo:var(--color-modulo-atendimento)]",
-    text: "text-modulo-atendimento",
-    pill: "bg-modulo-atendimento/15 text-modulo-atendimento",
-    line: "bg-modulo-atendimento",
+  visita: {
+    tile: "icon-duo bg-modulo-visita/13 text-modulo-visita [--icon-duo:var(--color-modulo-visita)]",
+    text: "text-modulo-visita",
+    pill: "bg-modulo-visita/15 text-modulo-visita",
+    line: "bg-modulo-visita",
   },
   carteira: {
     tile: "icon-duo bg-modulo-carteira/13 text-modulo-carteira [--icon-duo:var(--color-modulo-carteira)]",

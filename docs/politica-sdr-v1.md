@@ -27,9 +27,12 @@ atrás da flag `distribuicao_settings.sdr_ativo` (nasce desligada).
    (`prioridade_recusa = corretor_sem_papel` no contexto do log).
    **Carteira antiga do SDR.** Os leads em que o SDR ainda é `corretor_id`
    (agendados e base de quando era corretor) não entram na base de pré-venda:
-   continuam sendo controlados em **Prospecção** (Modo Foco + Base de leads), que
-   voltou a aparecer para o papel `sdr` em 04/09/2026. A aba Agenda do hub também
-   lista as visitas legadas no nome do SDR.
+   continuam sendo controlados em **Prospecção** (Modo Foco) e **Gestão de
+   Carteira** (Base de leads) — os dois cards voltaram a aparecer para o papel
+   `sdr` em 04/09/2026 só com essas seções; em 11/09/2026 a Base de leads mudou
+   de módulo (regra dos 2 menus, `docs/redesign/modulos-2-menus-2026-09.md`) sem
+   ampliar o que o SDR vê. A aba Agenda do hub também lista as visitas legadas no
+   nome do SDR.
 4. **Funil reutilizado.** Etapas do SDR = as do funil: sem contato
    (aguardando atendimento) → em conversa → aguardando retorno → **qualificado**
    → agendado. **Qualificado exige** renda, tipo de renda, quem decide **e** o

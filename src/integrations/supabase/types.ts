@@ -4794,6 +4794,7 @@ export type Database = {
       samiq_conversas: {
         Row: {
           atualizado_em: string
+          canal: string
           criado_em: string
           expira_em: string
           id: string
@@ -4803,6 +4804,7 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          canal?: string
           criado_em?: string
           expira_em?: string
           id?: string
@@ -4812,6 +4814,7 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          canal?: string
           criado_em?: string
           expira_em?: string
           id?: string
@@ -4839,6 +4842,7 @@ export type Database = {
       samiq_execucoes: {
         Row: {
           action: string
+          canal: string
           completed_at: string | null
           conversa_id: string | null
           created_at: string
@@ -4864,6 +4868,7 @@ export type Database = {
         }
         Insert: {
           action: string
+          canal?: string
           completed_at?: string | null
           conversa_id?: string | null
           created_at?: string
@@ -4889,6 +4894,7 @@ export type Database = {
         }
         Update: {
           action?: string
+          canal?: string
           completed_at?: string | null
           conversa_id?: string | null
           created_at?: string
@@ -8592,10 +8598,11 @@ export type Database = {
       samiq_gerar_briefing_alertas: { Args: never; Returns: number }
       samiq_gravar_turno: {
         Args: {
-          _conversa_id: string
-          _execution_id?: string
+          _canal?: "painel" | "whatsapp"
+          _conversa_id: string | null
+          _execution_id?: string | null
           _ferramentas?: string[]
-          _lead_id: string
+          _lead_id: string | null
           _pergunta: string
           _resposta: string
           _user_id: string
@@ -8608,8 +8615,8 @@ export type Database = {
       }
       samiq_registrar_propostas: {
         Args: {
-          _conversa_id: string
-          _execution_id: string
+          _conversa_id: string | null
+          _execution_id: string | null
           _propostas: Json
           _user_id: string
         }
