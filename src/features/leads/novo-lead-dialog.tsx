@@ -169,6 +169,13 @@ function NovoLeadForm({
         }
       }
 
+      // Ação de rua: a descrição é opcional e entra como observação, no topo,
+      // sem substituir o que o corretor escreveu.
+      const acaoRua = form.origem === "acao_rua" ? form.acao_rua.trim() : "";
+      const observacoes = [acaoRua ? `Ação de rua: ${acaoRua}` : "", form.observacoes.trim()]
+        .filter(Boolean)
+        .join("\n");
+
       const payload: Record<string, unknown> = {
         nome: form.nome.trim(),
         telefone: form.telefone.trim(),
@@ -179,7 +186,7 @@ function NovoLeadForm({
         // resolve pelo bairro (tabela zonas_bairros) ou pelo projeto.
         bairro: form.bairro.trim() || null,
         zona: form.zona || null,
-        observacoes: form.observacoes.trim() || null,
+        observacoes: observacoes || null,
       };
       // Corretor: atribui automaticamente a si mesmo e já entra como "aguardando atendimento"
       const atribuicaoManual = mostrarAtribuirA && corretorId !== SEM_CORRETOR;
