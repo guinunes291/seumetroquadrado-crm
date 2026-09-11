@@ -111,6 +111,9 @@ function NovoLeadForm({
     bairro: "",
     zona: "",
     observacoes: "",
+    // Descrição livre da ação de rua (ex.: "Motoboy") — opcional, entra nas
+    // observações do lead.
+    acao_rua: "",
   });
   const [distribuirAuto, setDistribuirAuto] = useState(true);
   // Atribuição manual: default "sem corretor" para o gestor (triagem depois).
