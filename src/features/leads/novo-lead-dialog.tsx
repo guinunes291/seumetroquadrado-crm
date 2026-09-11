@@ -338,6 +338,20 @@ function NovoLeadForm({
             />
           </div>
         </div>
+        {form.origem === "acao_rua" && (
+          <div>
+            <Label>Qual ação de rua?</Label>
+            <Input
+              placeholder="Ex.: Motoboy"
+              maxLength={255}
+              value={form.acao_rua}
+              onChange={(e) => setForm({ ...form, acao_rua: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Opcional — entra nas observações do cliente.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label>Bairro de interesse</Label>
