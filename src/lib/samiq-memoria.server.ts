@@ -36,18 +36,20 @@ export async function gravarTurnoSamiQ(args: {
     type TurnoArgs = Database["public"]["Functions"]["samiq_gravar_turno"]["Args"];
     const base: TurnoArgs = {
       _user_id: args.userId,
-      _conversa_id: args.conversaId ?? null,
-      _lead_id: args.leadId ?? null,
+      _conversa_id: args.conversaId ?? undefined,
+      _lead_id: args.leadId ?? undefined,
       _pergunta: pergunta,
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
       _execution_id: args.executionId ?? undefined,
-    };
+    } as TurnoArgs;
     // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
     // não está no ar, grava sem o canal em vez de perder o turno.
     const comCanal = args.canal !== undefined && args.canal !== "painel";
     const rpcTurno = (payload: TurnoArgs) => supabaseAdmin.rpc("samiq_gravar_turno", payload);
-    let { data, error } = await rpcTurno(comCanal ? { ...base, _canal: args.canal } : base);
+    let { data, error } = await rpcTurno(
+      comCanal ? ({ ...base, _canal: args.canal } as TurnoArgs) : base,
+    );
     if (error && comCanal && isMissingBackendObject(error)) {
       ({ data, error } = await rpcTurno(base));
     }
