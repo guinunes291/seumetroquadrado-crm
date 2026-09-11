@@ -104,7 +104,7 @@
      → bg-modulo-prospeccao/13, text-modulo-followup… */
   --color-modulo-central: var(--modulo-central);
   --color-modulo-prospeccao: var(--modulo-prospeccao);
-  --color-modulo-atendimento: var(--modulo-atendimento);
+  --color-modulo-visita: var(--modulo-visita);
   --color-modulo-carteira: var(--modulo-carteira);
   --color-modulo-followup: var(--modulo-followup);
   --color-modulo-projetos: var(--modulo-projetos);
@@ -204,7 +204,7 @@
   /* Cor por módulo (valores absolutos do tema claro) */
   --modulo-central: oklch(0.72 0.12 85);
   --modulo-prospeccao: oklch(0.55 0.1 240);
-  --modulo-atendimento: oklch(0.58 0.09 195);
+  --modulo-visita: oklch(0.58 0.09 195);
   --modulo-carteira: oklch(0.42 0.09 262);
   --modulo-followup: oklch(0.6 0.11 40);
   --modulo-projetos: oklch(0.5 0.1 320);
@@ -308,7 +308,7 @@
   /* Cor por módulo — mais claras que no tema claro para contraste sobre --card */
   --modulo-central: oklch(0.77 0.11 85);
   --modulo-prospeccao: oklch(0.7 0.1 240);
-  --modulo-atendimento: oklch(0.72 0.09 195);
+  --modulo-visita: oklch(0.72 0.09 195);
   --modulo-carteira: oklch(0.66 0.09 262);
   --modulo-followup: oklch(0.74 0.11 40);
   --modulo-projetos: oklch(0.7 0.1 320);

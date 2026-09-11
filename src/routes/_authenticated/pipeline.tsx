@@ -7,9 +7,11 @@ import { stagesDaFase, type FaseFunil } from "@/lib/leads";
 
 type PipelineTab = "funil" | "fechamento";
 
-// Pipeline comercial: o funil (kanban) e o Modo Fechamento na mesma central.
+// Kanban comercial: o funil (quadro) e o Modo Fechamento na mesma central.
 // /kanban e /radar redirecionam para cá. Com `?fase`, o quadro mostra só as
-// colunas da fase (Prospecção × Carteira) — /pipeline cru segue o quadro completo.
+// colunas da fase (Prospecção × Carteira) — /pipeline cru é o quadro completo,
+// e é ele que a seção "Kanban" da Gestão de Carteira abre (2026-09-11): um
+// lead que está na Base de leads está no Kanban, sem fase escondida.
 export const Route = createFileRoute("/_authenticated/pipeline")({
   validateSearch: (search: Record<string, unknown>): { tab?: PipelineTab; fase?: FaseFunil } => ({
     tab: search.tab === "fechamento" ? "fechamento" : undefined,
@@ -26,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/pipeline")({
       throw redirect({ to: "/pipeline", search: { fase: "prospeccao" }, replace: true });
     }
   },
-  head: () => ({ meta: [{ title: "Pipeline — Seu Metro Quadrado" }] }),
+  head: () => ({ meta: [{ title: "Kanban — Seu Metro Quadrado" }] }),
   component: PipelinePage,
 });
 
@@ -56,7 +58,7 @@ function PipelinePage() {
             description: "Leads em andamento — visitas, análise de crédito e fechamento.",
           }
         : {
-            title: "Pipeline",
+            title: "Kanban",
             description:
               "Do primeiro contato ao contrato — arraste etapas no Funil e feche o mês no Modo Fechamento.",
           };

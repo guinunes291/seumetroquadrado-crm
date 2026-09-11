@@ -89,11 +89,17 @@ describe("agruparConversas (derive puro)", () => {
 });
 
 describe("fiação da Central (7b)", () => {
-  it("a rota /mensagens existe e o menu aponta para ela em Comunicações, com o badge", () => {
+  it("a rota /mensagens existe e segue viva sem menu: dona é a Carteira, acesso pelo ⌘K", () => {
+    // Regra dos 2 menus (2026-09-11): o hub Comunicações saiu. A Central não
+    // ganhou seção na sidebar — é dominioExtra da Gestão de Carteira (a
+    // sidebar não salta ao abrir) e atalho do ⌘K, só para a operação.
     expect(rota).toContain('createFileRoute("/_authenticated/mensagens")');
+    expect(sistemas).toMatch(/dominioExtra: \[[^\]]*"\/mensagens"/);
     expect(sistemas).toMatch(
-      /label: "Mensagens",\s*icon: WhatsappLogo,\s*to: "\/mensagens",\s*badge: \(b\) => b\.mensagensAguardando/,
+      /label: "Mensagens \(WhatsApp\)",\s*icon: WhatsappLogo,\s*to: "\/mensagens",\s*roles: OPERACAO/,
     );
+    // Sem card, sem badge: nenhum sistema lê mensagensAguardando.
+    expect(sistemas).not.toContain("b.mensagensAguardando");
   });
 
   it("modo simulado: envio registra na conversa E abre o wa.me com o texto", () => {

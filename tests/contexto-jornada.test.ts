@@ -75,8 +75,10 @@ describe("sistemaAtivoContextual", () => {
     expect(em("/leads/abc-123", "prospeccao")).toBe("prospeccao");
   });
 
-  it("sem fase (carregando) a ficha cai no comportamento antigo (Prospecção por prefixo)", () => {
-    expect(em("/leads/abc-123", null)).toBe("prospeccao");
+  it("sem fase (carregando) a ficha cai no fallback por prefixo — hoje a Carteira (Base de leads)", () => {
+    // A Base de leads (/leads) mudou da Prospecção para a Gestão de Carteira
+    // na regra dos 2 menus (2026-09-11); o prefixo /leads/ segue a seção.
+    expect(em("/leads/abc-123", null)).toBe("carteira");
     expect(em("/leads/abc-123", null)).toBe(
       sistemaAtivo({ pathname: "/leads/abc-123", search: {} })?.id,
     );
@@ -110,6 +112,8 @@ describe("sistemaAtivoContextual", () => {
   it("rotas não-transversais ignoram o contexto por completo", () => {
     expect(em("/pipeline", "prospeccao", { fase: "carteira" })).toBe("carteira");
     expect(em("/follow-up", "carteira")).toBe("follow-up");
-    expect(em("/mensagens", "carteira")).toBe("atendimento-central");
+    // /mensagens é da Carteira por dominioExtra (o hub Comunicações saiu em
+    // 2026-09-11) — e a fase publicada não muda isso.
+    expect(em("/mensagens", "prospeccao")).toBe("carteira");
   });
 });

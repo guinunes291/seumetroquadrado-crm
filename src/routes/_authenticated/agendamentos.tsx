@@ -62,9 +62,14 @@ export const Route = createFileRoute("/_authenticated/agendamentos")({
   component: CompromissosPage,
 });
 
-// Hub "Agenda & Tarefas": consolida a agenda de compromissos (calendário) e a
-// lista de tarefas/follow-ups em abas internas (Fase 2). Cada aba reaproveita a
-// página existente; /agendamentos e /tarefas seguem válidas para deep-link.
+// Agenda e Tarefas dividem a rota (?tab=), cada uma reaproveitando a página
+// existente; /agendamentos e /tarefas seguem válidas para deep-link.
+//
+// Regra dos 2 menus (2026-09-11): Agenda e Tarefas são DUAS seções da sidebar
+// da Gestão de Carteira. No desktop a linha de abas interna repetiria a
+// escolha que a sidebar acabou de fazer (3º menu) — por isso ela só aparece
+// abaixo de `md`, onde a sidebar vira gaveta e a aba é o jeito rápido de
+// alternar com o polegar.
 function CompromissosPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -74,7 +79,7 @@ function CompromissosPage() {
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
-      <TabsList className="h-auto flex-wrap justify-start">
+      <TabsList className="h-auto flex-wrap justify-start md:hidden">
         <TabsTrigger value="agenda">Agenda</TabsTrigger>
         <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
       </TabsList>
