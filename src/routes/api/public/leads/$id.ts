@@ -108,7 +108,7 @@ const ENUM_VALUES: Record<string, string[]> = {
     "agendamento_self_service",
     "chatbot",
     "impulso_smq",
-  "acao_rua",
+    "acao_rua",
     "outro",
   ],
 };
