@@ -94,6 +94,7 @@ export const ORIGEM_OPTIONS_OA = [
   { value: "telefone", label: "Telefone" },
   { value: "plantao", label: "Plantão" },
   { value: "impulso_smq", label: "Impulso SMQ" },
+  { value: "acao_rua", label: "Ação de Rua" },
   { value: "outro", label: "Outro" },
 ];
 
