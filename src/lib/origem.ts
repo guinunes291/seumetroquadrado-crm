@@ -18,6 +18,7 @@ export const ORIGEM_LABEL: Record<string, string> = {
   agendamento_self_service: "Agendamento self-service",
   importacao: "Importação",
   impulso_smq: "Impulso SMQ",
+  acao_rua: "Ação de Rua",
   outro: "Outro",
 };
 

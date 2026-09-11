@@ -36,18 +36,20 @@ export async function gravarTurnoSamiQ(args: {
     type TurnoArgs = Database["public"]["Functions"]["samiq_gravar_turno"]["Args"];
     const base: TurnoArgs = {
       _user_id: args.userId,
-      _conversa_id: args.conversaId ?? null,
-      _lead_id: args.leadId ?? null,
+      _conversa_id: args.conversaId ?? undefined,
+      _lead_id: args.leadId ?? undefined,
       _pergunta: pergunta,
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
       _execution_id: args.executionId ?? undefined,
-    };
+    } as TurnoArgs;
     // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
     // não está no ar, grava sem o canal em vez de perder o turno.
     const comCanal = args.canal !== undefined && args.canal !== "painel";
     const rpcTurno = (payload: TurnoArgs) => supabaseAdmin.rpc("samiq_gravar_turno", payload);
-    let { data, error } = await rpcTurno(comCanal ? { ...base, _canal: args.canal } : base);
+    let { data, error } = await rpcTurno(
+      comCanal ? ({ ...base, _canal: args.canal } as TurnoArgs) : base,
+    );
     if (error && comCanal && isMissingBackendObject(error)) {
       ({ data, error } = await rpcTurno(base));
     }
@@ -86,10 +88,10 @@ export async function registrarPropostasSamiQ(args: {
   try {
     const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
       _user_id: args.userId,
-      _execution_id: args.executionId ?? null,
-      _conversa_id: args.conversaId ?? null,
+      _execution_id: args.executionId ?? undefined,
+      _conversa_id: args.conversaId ?? undefined,
       _propostas: itens,
-    });
+    } as unknown as Database["public"]["Functions"]["samiq_registrar_propostas"]["Args"]);
     if (error) {
       if (!isMissingBackendObject(error)) {
         console.error(JSON.stringify({ event: "samiq_propostas_failed", code: error.code ?? "" }));
@@ -128,7 +130,7 @@ export async function conversaAtivaSamiQ(args: {
     const query = supabaseAdmin.from("samiq_conversas").select("id, lead_id, atualizado_em");
     const { data, error } = await query
       .eq("user_id", args.userId)
-      .eq("canal", args.canal)
+      .eq("canal" as "titulo", args.canal)
       .order("atualizado_em", { ascending: false })
       .limit(1)
       .maybeSingle();
