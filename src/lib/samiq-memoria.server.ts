@@ -91,7 +91,7 @@ export async function registrarPropostasSamiQ(args: {
       _execution_id: args.executionId ?? undefined,
       _conversa_id: args.conversaId ?? undefined,
       _propostas: itens,
-    });
+    } as unknown as Database["public"]["Functions"]["samiq_registrar_propostas"]["Args"]);
     if (error) {
       if (!isMissingBackendObject(error)) {
         console.error(JSON.stringify({ event: "samiq_propostas_failed", code: error.code ?? "" }));
