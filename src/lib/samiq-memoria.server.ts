@@ -88,8 +88,8 @@ export async function registrarPropostasSamiQ(args: {
   try {
     const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
       _user_id: args.userId,
-      _execution_id: args.executionId ?? null,
-      _conversa_id: args.conversaId ?? null,
+      _execution_id: args.executionId ?? undefined,
+      _conversa_id: args.conversaId ?? undefined,
       _propostas: itens,
     });
     if (error) {
@@ -130,7 +130,7 @@ export async function conversaAtivaSamiQ(args: {
     const query = supabaseAdmin.from("samiq_conversas").select("id, lead_id, atualizado_em");
     const { data, error } = await query
       .eq("user_id", args.userId)
-      .eq("canal", args.canal)
+      .eq("canal" as "titulo", args.canal)
       .order("atualizado_em", { ascending: false })
       .limit(1)
       .maybeSingle();
