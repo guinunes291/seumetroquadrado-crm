@@ -52,8 +52,8 @@ export function useRelogio(intervaloMs = 60_000): Date {
 }
 
 /**
- * Corretores da equipe do gestor (inclui ele mesmo). MESMA queryKey da rota
- * /hoje — o react-query deduplica e as duas telas leem a mesma equipe.
+ * Corretores da equipe do gestor (inclui ele mesmo). A queryKey é a mesma que
+ * a antiga rota /hoje usava — o react-query deduplica entre as telas que a leem.
  */
 function useEquipeDoGestor(enabled: boolean) {
   const { user } = useAuth();
@@ -194,7 +194,7 @@ export function useAgendaDoDia() {
 }
 
 /** Invalidação canônica + as chaves específicas desta tela e das vizinhas
- *  (widget da /hoje, Modo Visita, modal da ficha, badges da sidebar). */
+ *  (hub /inicio, Modo Visita, modal da ficha, badges da sidebar). */
 export function invalidarAgendaDoDia(qc: QueryClient, leadId?: string | null) {
   invalidateAgendamentoQueries(qc, leadId);
   qc.invalidateQueries({ queryKey: [AGENDA_DO_DIA_KEY] });

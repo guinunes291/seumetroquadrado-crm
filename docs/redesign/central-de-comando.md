@@ -1,5 +1,10 @@
 # Central de Comando SMQ — Proposta de redesign completo do CRM
 
+> **Nota (12/09/2026):** a página **Hoje** (`/hoje`) descrita neste documento foi
+> retirada. A porta da Central de Comando é a **Fila Única** (`/fila`), que absorveu o
+> que a Hoje respondia (próxima ação, SLA, follow-ups) e ganhou o funil das etapas.
+> `/hoje` redireciona para `/fila`. Ver `docs/ops/fila-unica-fatia1.md`.
+
 > **Conceito:** o corretor não "abre um CRM". Ele entra na **Central de Comando** da própria
 > operação comercial. Cada tela responde uma pergunta de negócio; cada dado gera uma ação;
 > cada ação está a no máximo um clique. Tema padrão: **Modo Comando** (dark navy premium).

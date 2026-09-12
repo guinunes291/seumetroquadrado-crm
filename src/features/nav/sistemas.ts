@@ -135,20 +135,18 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "central-comando",
     titulo: "Central de Comando",
-    descricao: "Seu dia em ordem de prioridade: próxima melhor ação, agenda e metas num só lugar.",
+    descricao:
+      "Uma lista só, na ordem em que o dinheiro está em risco: o que fazer agora e o funil das etapas.",
     icon: SunHorizon,
-    home: { to: "/hoje" },
+    home: { to: "/fila" },
     roles: OPERACAO,
     cor: "central",
     grupo: "operacao",
     destaque: true,
-    // Fila Única (Fatia 1, 2026-09-12): a lista única do dia ao lado da Hoje.
-    // Entra como seção, não como home — a Hoje continua a porta do módulo até
-    // a fila provar, com número, que absorve o que ela responde.
-    secoes: [
-      { id: "hoje", label: "Hoje", icon: SunHorizon, to: "/hoje" },
-      { id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" },
-    ],
+    // Fila Única é a porta do módulo (2026-09-12): a página Hoje foi retirada
+    // — a fila absorveu o que ela respondia (próxima ação, SLA, follow-ups) e
+    // ganhou o funil das etapas. /hoje redireciona para cá.
+    secoes: [{ id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" }],
   },
   {
     id: "prospeccao",

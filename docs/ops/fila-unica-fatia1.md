@@ -145,6 +145,37 @@ No desktop o mesmo card vira a coluna lateral do mockup: informação à
 esquerda, número e "⋯" em cima à direita, ações embaixo à direita. O placar
 continua sendo os quatro StatTiles.
 
+## Funil das etapas (12/09/2026)
+
+O mockup tinha o funil e a primeira entrega não. Entrou como painel próprio na
+Fila Única, entre o placar e a lista (`fila-funil.tsx`), fechado no celular e
+aberto no desktop:
+
+- **Dados**: RPC nova `fila_funil_v1(_dias, _corretor)` (migration
+  `20260912190000`), que devolve os dois recortes numa chamada — `safra` (leads
+  criados nos últimos N dias) e `base` (carteira inteira) — com leads na etapa
+  e parados há 5+ dias pelo relógio da Higiene. Corretor vê só a própria
+  carteira (o `_corretor` é ignorado); gestão vê o que o papel alcança. Sem a
+  RPC, o painel diz "sem dado" — nunca um funil vazio.
+- **Desenho** (`funil-derive.ts`, puro): oito degraus com largura pela raiz
+  quadrada do volume ("entrada" só aparece com lead sem dono), barra vermelha
+  de parados, um marcador por divisa com a conversão atual → meta da casa
+  (`PASSAGENS`, com a fonte de cada meta no tooltip) e a saída lateral dos
+  perdidos. A conversão é a aproximação do mockup — "chegou à seguinte ou além
+  ÷ chegou a esta ou além" pelo status atual — e o texto do recorte diz isso.
+  A coorte real continua na Inteligência, só para a gestão.
+- **Vazamentos**: as três etapas com mais leads parados, com percentual e a
+  frase do custo de cada uma.
+
+## A página Hoje foi retirada (12/09/2026)
+
+Decisão do dono: a Fila Única é a porta da Central de Comando. `/hoje` vira
+redirecionamento para `/fila` (a antiga aba Analytics segue para os
+relatórios do Painel do Gestor), a seção sai do módulo, o slot da barra do
+polegar vira Fila | Leads | + | Agenda | Buscar, e a pasta
+`src/features/command-center` (widgets, ronda, missões) foi removida com seus
+testes — nada fora dela a importava. Reverter é reverter o commit.
+
 **Como foi conferido.** Sem login de produção neste ambiente, os componentes
 foram renderizados com fixtures em jsdom, envelopados no shell real (header,
 `px-4 pb-24`, BottomNav) com o CSS do build e fotografados no Chromium em

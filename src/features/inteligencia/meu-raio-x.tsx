@@ -338,8 +338,8 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
         {/* Meta/pacing é bloco de gestão — aqui só o caminho até ela. */}
         <p className="text-xs text-muted-foreground">
           Sua meta e o ritmo do mês vivem na{" "}
-          <Link to="/hoje" className="underline underline-offset-2 hover:text-foreground">
-            Central de Comando
+          <Link to="/fila" className="underline underline-offset-2 hover:text-foreground">
+            Fila Única
           </Link>
           .
         </p>

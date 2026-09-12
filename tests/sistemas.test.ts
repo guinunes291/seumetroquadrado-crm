@@ -280,7 +280,7 @@ describe("sistemaAtivo (pathname + search)", () => {
   });
 
   it("rotas dos demais sistemas resolvem para seus donos", () => {
-    expect(em("/hoje")).toBe("central-comando");
+    expect(em("/fila")).toBe("central-comando");
     expect(em("/discador")).toBe("prospeccao");
     expect(em("/oferta-ativa")).toBe("prospeccao");
     expect(em("/oferta-ativa/nova")).toBe("prospeccao");
