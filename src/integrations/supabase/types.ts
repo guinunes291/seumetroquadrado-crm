@@ -93,6 +93,27 @@ export type Database = {
             foreignKeyName: "agendamentos_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "agendamentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -212,6 +233,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "analises_credito_lead_id_fkey"
@@ -524,6 +566,30 @@ export type Database = {
         }
         Relationships: []
       }
+      app_flags: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          descricao: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          descricao?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          descricao?: string | null
+        }
+        Relationships: []
+      }
       atividades_diarias: {
         Row: {
           agendamentos: number
@@ -710,6 +776,27 @@ export type Database = {
             foreignKeyName: "chamadas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chamadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "chamadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "chamadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -847,6 +934,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "comissoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "comissoes_lead_id_fkey"
@@ -1061,6 +1169,27 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversas_tratadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversas_tratadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "conversas_tratadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "conversas_tratadas_lead_id_fkey"
@@ -1484,6 +1613,27 @@ export type Database = {
             foreignKeyName: "copiloto_eventos_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "copiloto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "copiloto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "copiloto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -1580,6 +1730,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "distribuicao_excecoes_lead_id_fkey"
@@ -1686,6 +1857,27 @@ export type Database = {
             foreignKeyName: "distribuicao_sombra_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribuicao_sombra_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "distribuicao_sombra_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "distribuicao_sombra_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -1735,6 +1927,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distribution_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "distribution_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "distribution_log_lead_id_fkey"
@@ -1805,6 +2018,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacao_versoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacao_versoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "documentacao_versoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "documentacao_versoes_lead_id_fkey"
@@ -1883,6 +2117,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "documentacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "documentacoes_lead_id_fkey"
@@ -2431,6 +2686,51 @@ export type Database = {
           },
         ]
       }
+      higiene_config: {
+        Row: {
+          atualizado_em: string
+          dias_parado_min: number
+          id: boolean
+          lote_min_leads: number
+        }
+        Insert: {
+          atualizado_em?: string
+          dias_parado_min?: number
+          id?: boolean
+          lote_min_leads?: number
+        }
+        Update: {
+          atualizado_em?: string
+          dias_parado_min?: number
+          id?: boolean
+          lote_min_leads?: number
+        }
+        Relationships: []
+      }
+      higiene_regra_fase: {
+        Row: {
+          acao_sugerida: string
+          ativa: boolean
+          atualizado_em: string
+          peso: number
+          status: Database["public"]["Enums"]["lead_status"]
+        }
+        Insert: {
+          acao_sugerida: string
+          ativa?: boolean
+          atualizado_em?: string
+          peso: number
+          status: Database["public"]["Enums"]["lead_status"]
+        }
+        Update: {
+          acao_sugerida?: string
+          ativa?: boolean
+          atualizado_em?: string
+          peso?: number
+          status?: Database["public"]["Enums"]["lead_status"]
+        }
+        Relationships: []
+      }
       historico_precos: {
         Row: {
           alterado_em: string
@@ -2516,6 +2816,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "interacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "interacoes_lead_id_fkey"
@@ -2638,6 +2959,27 @@ export type Database = {
             foreignKeyName: "lead_acessos_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_acessos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_acessos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_acessos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -2683,6 +3025,27 @@ export type Database = {
             foreignKeyName: "lead_eventos_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -2723,6 +3086,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_status_transitions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_status_transitions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "lead_status_transitions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "lead_status_transitions_lead_id_fkey"
@@ -3158,6 +3542,27 @@ export type Database = {
             foreignKeyName: "leads_landing_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_landing_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "leads_landing_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "leads_landing_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -3373,6 +3778,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensagens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "mensagens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "mensagens_lead_id_fkey"
@@ -3609,6 +4035,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "oferta_ativa_leads_lead_id_fkey"
@@ -3861,6 +4308,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "projeto_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "projeto_eventos_lead_id_fkey"
@@ -4225,6 +4693,27 @@ export type Database = {
             foreignKeyName: "propostas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -4302,6 +4791,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
+            columns: ["convertido_lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
+            columns: ["convertido_lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
+            columns: ["convertido_lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "propostas_visitantes_convertido_lead_id_fkey"
@@ -4834,6 +5344,27 @@ export type Database = {
             foreignKeyName: "samiq_conversas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_conversas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "samiq_conversas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "samiq_conversas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5128,6 +5659,27 @@ export type Database = {
             foreignKeyName: "samiq_propostas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samiq_propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "samiq_propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "samiq_propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5212,6 +5764,27 @@ export type Database = {
             foreignKeyName: "sdr_avisos_corretor_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sdr_avisos_corretor_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "sdr_avisos_corretor_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "sdr_avisos_corretor_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5286,6 +5859,27 @@ export type Database = {
             foreignKeyName: "sla_estouros_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_estouros_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "sla_estouros_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "sla_estouros_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5353,6 +5947,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "tarefas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "tarefas_lead_id_fkey"
@@ -5585,6 +6200,27 @@ export type Database = {
             foreignKeyName: "venda_integridade_conflitos_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venda_integridade_conflitos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "venda_integridade_conflitos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "venda_integridade_conflitos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5793,6 +6429,27 @@ export type Database = {
             foreignKeyName: "vendas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5916,6 +6573,27 @@ export type Database = {
             foreignKeyName: "visita_execucoes_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visita_execucoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "visita_execucoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "visita_execucoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -5975,6 +6653,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "visitas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
           },
           {
             foreignKeyName: "visitas_lead_id_fkey"
@@ -6176,6 +6875,27 @@ export type Database = {
             foreignKeyName: "vitrine_links_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vitrine_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "vitrine_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "vitrine_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -6280,6 +7000,27 @@ export type Database = {
             foreignKeyName: "vendas_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "vendas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
           },
@@ -6348,6 +7089,103 @@ export type Database = {
           corretor_id: string | null
           nome: string | null
           primeiros_contatos: number | null
+        }
+        Relationships: []
+      }
+      v_higiene_base: {
+        Row: {
+          corretor_id: string | null
+          created_at: string | null
+          dias_parado: number | null
+          escrita_em_lote: boolean | null
+          id: string | null
+          nome: string | null
+          nunca_tocado: boolean | null
+          parado: boolean | null
+          parado_desde: string | null
+          projeto_id: string | null
+          proximo_followup: string | null
+          status: Database["public"]["Enums"]["lead_status"] | null
+          telefone: string | null
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["alternativa_id"]
+          },
+          {
+            foreignKeyName: "leads_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos_alternativa_regiao"
+            referencedColumns: ["projeto_id"]
+          },
+        ]
+      }
+      v_higiene_fila: {
+        Row: {
+          acao_sugerida: string | null
+          corretor_id: string | null
+          corretor_nome: string | null
+          dias_parado: number | null
+          escrita_em_lote: boolean | null
+          lead_id: string | null
+          nome: string | null
+          nunca_tocado: boolean | null
+          parado_desde: string | null
+          peso: number | null
+          prioridade: number | null
+          projeto_nome: string | null
+          proximo_followup: string | null
+          status: Database["public"]["Enums"]["lead_status"] | null
+          telefone: string | null
+          temperatura: Database["public"]["Enums"]["lead_temperatura"] | null
+        }
+        Relationships: []
+      }
+      v_higiene_pastas_travadas: {
+        Row: {
+          corretor_id: string | null
+          corretor_nome: string | null
+          dias_sem_movimento: number | null
+          docs_pendentes: number | null
+          fechado_com_pendencia: boolean | null
+          lead_id: string | null
+          lead_nome: string | null
+          lead_status: Database["public"]["Enums"]["lead_status"] | null
+          o_que_falta: string | null
+          pasta_duplicada: boolean | null
+          sem_corretor: boolean | null
+          telefone: string | null
+          tipos_distintos: number | null
+          ultimo_movimento: string | null
+        }
+        Relationships: []
+      }
+      v_higiene_resumo: {
+        Row: {
+          em_carteira: number | null
+          medido_em: string | null
+          parados: number | null
+          parados_abandonados: number | null
+          parados_em_atendimento: number | null
+          parados_em_carteira: number | null
+          parados_em_lote: number | null
+          parados_nunca_tocados: number | null
+          prazo_dias: number | null
+          sem_corretor: number | null
+          vivos: number | null
         }
         Relationships: []
       }
@@ -7773,6 +8611,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      higiene_dias_parado: {
+        Args: {
+          _created_at: string
+          _ultima_interacao: string
+          _ultimo_contato: string
+        }
+        Returns: number
+      }
       immutable_unaccent: { Args: { "": string }; Returns: string }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
       is_mcp: { Args: never; Returns: boolean }
@@ -8598,11 +9444,11 @@ export type Database = {
       samiq_gerar_briefing_alertas: { Args: never; Returns: number }
       samiq_gravar_turno: {
         Args: {
-          _canal?: "painel" | "whatsapp"
-          _conversa_id: string | null
-          _execution_id?: string | null
+          _canal?: string
+          _conversa_id: string
+          _execution_id?: string
           _ferramentas?: string[]
-          _lead_id: string | null
+          _lead_id: string
           _pergunta: string
           _resposta: string
           _user_id: string
@@ -8615,8 +9461,8 @@ export type Database = {
       }
       samiq_registrar_propostas: {
         Args: {
-          _conversa_id: string | null
-          _execution_id: string | null
+          _conversa_id: string
+          _execution_id: string
           _propostas: Json
           _user_id: string
         }
@@ -8625,6 +9471,7 @@ export type Database = {
       samiq_reservar_execucao: {
         Args: {
           _action: string
+          _canal?: string
           _estimated_input_tokens?: number
           _requested_output_tokens?: number
           _user_id: string
