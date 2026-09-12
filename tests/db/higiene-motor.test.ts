@@ -535,6 +535,32 @@ describe("correções da revisão (20260912120000)", () => {
     expect(doMotor[0].tipo, "mesmo tipo do alerta diário, para deduplicar").toBe("follow_up");
   });
 
+  it("o cron consegue rodar: sem contexto de request, não é barrado", async () => {
+    // O guard original exigia service_role OU papel de gestão. pg_cron executa
+    // SEM contexto: auth.uid() e auth.role() são ambos NULL — então o job das
+    // 4h levantava 42501 toda noite e o motor NUNCA rodava. Era também o erro
+    // que aparecia ao chamar a função pelo SQL editor.
+    await comoSuperuser(c);
+    await c.query(`SELECT set_config('request.jwt.claims', '', false)`);
+
+    const r = await c.query(`SELECT * FROM public.higiene_processar()`);
+    expect(r.rows.length, "sem contexto de request o motor tem que rodar").toBe(1);
+
+    // E a execução conta como execução, mesmo sem candidato nenhum.
+    const v = await c.query(`SELECT motor_atrasado FROM public.v_higiene_motor_status`);
+    expect(v.rows[0].motor_atrasado).toBe(false);
+  });
+
+  it("corretor comum continua barrado", async () => {
+    // A outra metade da correção 6: afrouxar para o cron não pode abrir a
+    // função para qualquer usuário logado — ela tem GRANT para `authenticated`.
+    const corretor = await criarUsuario(c, { papel: "corretor" });
+    await comoUsuario(c, corretor.id);
+    const code = await errCode(c.query(`SELECT public.higiene_processar()`));
+    expect(code).toBe("42501");
+    await comoSuperuser(c);
+  });
+
   it("motor_atrasado é true quando nunca rodou, e a view devolve UMA linha", async () => {
     // Critério de aceite 3(a) do projeto: motor parado não pode parecer "nada
     // a fazer". A view não tinha esta coluna — a tela teria que calcular as

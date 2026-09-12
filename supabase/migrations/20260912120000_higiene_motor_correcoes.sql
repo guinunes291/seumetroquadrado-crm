@@ -101,10 +101,24 @@ DECLARE
   _perdidos integer;
   _ok       boolean;
 BEGIN
-  IF NOT (COALESCE(auth.role() = 'service_role', false)
-       OR public.has_role(auth.uid(), 'admin'::public.app_role)
-       OR public.has_role(auth.uid(), 'gestor'::public.app_role)
-       OR public.has_role(auth.uid(), 'superintendente'::public.app_role)) THEN
+  -- CORRECAO 6 — o guard barrava o proprio cron.
+  -- pg_cron executa SEM contexto de request: auth.role() e auth.uid() sao
+  -- ambos NULL. A checagem original exigia service_role OU um papel de gestao,
+  -- entao o job das 4h levantava 42501 TODA NOITE e o motor nunca rodava.
+  -- Reproduzido no harness com request.jwt.claims vazio, e e o mesmo erro que
+  -- aparece ao chamar a funcao pelo SQL editor.
+  --
+  -- Sem contexto nenhum = chamada server-side (pg_cron, psql, service_role):
+  -- o portao real ali e o GRANT EXECUTE. Com contexto, exige gestao — e a
+  -- funcao tem GRANT para `authenticated`, entao essa parte segue necessaria.
+  -- Mesma forma que disparar_repasse_sla_lead usa: so checa quando HA caller.
+  IF NOT (
+       (auth.uid() IS NULL AND auth.role() IS NULL)
+    OR COALESCE(auth.role() = 'service_role', false)
+    OR public.has_role(auth.uid(), 'admin'::public.app_role)
+    OR public.has_role(auth.uid(), 'gestor'::public.app_role)
+    OR public.has_role(auth.uid(), 'superintendente'::public.app_role)
+  ) THEN
     RAISE EXCEPTION 'sem permissao para rodar a higiene' USING ERRCODE = '42501';
   END IF;
 
