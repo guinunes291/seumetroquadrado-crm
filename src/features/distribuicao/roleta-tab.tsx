@@ -548,12 +548,15 @@ function IncluirParticipanteDialog({
   aberto,
   onFechar,
   participantesAtuais,
+  restritoA = null,
 }: {
   slug: string;
   nome?: string | null;
   aberto: boolean;
   onFechar: () => void;
   participantesAtuais: ElegibilidadeLinha[];
+  /** Quando definido, só estes corretores podem ser incluídos (escopo do gestor). */
+  restritoA?: Set<string> | null;
 }) {
   const corretoresQ = useCorretoresDisponiveis(aberto);
   const vendasQ = useVendasMesAnterior(aberto && slug === "marquinhos");
