@@ -2691,41 +2691,56 @@ export type Database = {
           atualizado_em: string
           dias_parado_min: number
           id: boolean
+          lote_max: number
           lote_min_leads: number
+          modo: string
+          teto_perdidos_dia: number
         }
         Insert: {
           atualizado_em?: string
           dias_parado_min?: number
           id?: boolean
+          lote_max?: number
           lote_min_leads?: number
+          modo?: string
+          teto_perdidos_dia?: number
         }
         Update: {
           atualizado_em?: string
           dias_parado_min?: number
           id?: boolean
+          lote_max?: number
           lote_min_leads?: number
+          modo?: string
+          teto_perdidos_dia?: number
         }
         Relationships: []
       }
       higiene_regra_fase: {
         Row: {
+          acao_automatica: string
           acao_sugerida: string
           ativa: boolean
           atualizado_em: string
+          dias_perda: number | null
           peso: number
           status: Database["public"]["Enums"]["lead_status"]
         }
         Insert: {
+          acao_automatica?: string
           acao_sugerida: string
           ativa?: boolean
           atualizado_em?: string
+          dias_perda?: number | null
           peso: number
           status: Database["public"]["Enums"]["lead_status"]
         }
         Update: {
+          acao_automatica?: string
           acao_sugerida?: string
           ativa?: boolean
           atualizado_em?: string
+          dias_perda?: number | null
           peso?: number
           status?: Database["public"]["Enums"]["lead_status"]
         }
