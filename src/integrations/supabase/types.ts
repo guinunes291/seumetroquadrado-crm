@@ -7241,6 +7241,23 @@ export type Database = {
         }
         Relationships: []
       }
+      v_higiene_motor_status: {
+        Row: {
+          aplicados: number | null
+          avaliados: number | null
+          dias_parado_min: number | null
+          erros: number | null
+          execucao_id: string | null
+          lote_max: number | null
+          lote_min_leads: number | null
+          modo: string | null
+          motivos_pulo: Json | null
+          pulados: number | null
+          teto_perdidos_dia: number | null
+          ultima_execucao: string | null
+        }
+        Relationships: []
+      }
       v_higiene_pastas_travadas: {
         Row: {
           corretor_id: string | null
