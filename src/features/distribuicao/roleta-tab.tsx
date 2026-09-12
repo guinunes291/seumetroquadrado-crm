@@ -217,16 +217,18 @@ function RoletaTabPadrao({
           </p>
           {!somenteLeitura && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={escoar.isPending}
-                title="Envia 30 leads do estoque para cada corretor apto desta fila. A rotina automática já faz isso a cada 10 minutos."
-                onClick={() => escoar.mutate(30)}
-              >
-                <PlayCircle className="mr-1.5 h-4 w-4" />
-                {escoar.isPending ? "Escoando…" : "Escoar estoque"}
-              </Button>
+              {!escopoEquipe && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={escoar.isPending}
+                  title="Envia 30 leads do estoque para cada corretor apto desta fila. A rotina automática já faz isso a cada 10 minutos."
+                  onClick={() => escoar.mutate(30)}
+                >
+                  <PlayCircle className="mr-1.5 h-4 w-4" />
+                  {escoar.isPending ? "Escoando…" : "Escoar estoque"}
+                </Button>
+              )}
               <Button size="sm" onClick={() => setIncluirAberto(true)}>
                 <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
               </Button>
