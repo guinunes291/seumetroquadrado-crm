@@ -145,6 +145,56 @@ No desktop o mesmo card vira a coluna lateral do mockup: informação à
 esquerda, número e "⋯" em cima à direita, ações embaixo à direita. O placar
 continua sendo os quatro StatTiles.
 
+## Funil das etapas (12/09/2026)
+
+O mockup tinha o funil e a primeira entrega não. Entrou como painel próprio na
+Fila Única, entre o placar e a lista (`fila-funil.tsx`), fechado no celular e
+aberto no desktop:
+
+- **Dados**: RPC nova `fila_funil_v1(_dias, _corretor)` (migration
+  `20260912190000`), que devolve os dois recortes numa chamada — `safra` (leads
+  criados nos últimos N dias) e `base` (carteira inteira) — com leads na etapa
+  e parados há 5+ dias pelo relógio da Higiene. Corretor vê só a própria
+  carteira (o `_corretor` é ignorado); gestão vê o que o papel alcança. Sem a
+  RPC, o painel diz "sem dado" — nunca um funil vazio.
+- **Desenho** (`funil-derive.ts`, puro): oito degraus com largura pela raiz
+  quadrada do volume ("entrada" só aparece com lead sem dono), barra vermelha
+  de parados, um marcador por divisa com a conversão atual → meta da casa
+  (`PASSAGENS`, com a fonte de cada meta no tooltip) e a saída lateral dos
+  perdidos. A conversão é a aproximação do mockup — "chegou à seguinte ou além
+  ÷ chegou a esta ou além" pelo status atual — e o texto do recorte diz isso.
+  A coorte real continua na Inteligência, só para a gestão.
+- **Vazamentos**: as três etapas com mais leads parados, com percentual e a
+  frase do custo de cada uma.
+- **No celular** (medido no Chromium a 390 e 360 px): cada etapa tem um
+  rótulo curto (`labelCurto`, "Aguard. atend.", "Qualific. corretor"…) em até
+  duas linhas, sem quebrar palavra; o trilho tem 94 px e o marcador perde a
+  bolinha — o tom (na meta / perto / longe) vai na cor do número atual —
+  porque a casa não renderiza texto auxiliar abaixo de 12 px (piso em
+  `styles.css`) e, a 12 px, "100% → 100%" com bolinha não cabia sem cobrir os
+  dígitos. No desktop o rótulo completo também pode quebrar em duas linhas em
+  vez de cortar com reticências ("Aguardando atendimento" não cabe em 150 px).
+- **Teste de banco** (`tests/db/fila-funil.test.ts`): a fixture de venda
+  antiga entra em `contrato_fechado` por baixo do trigger
+  (`session_replication_role = replica`), como em `higiene-funil.test.ts` — a
+  guarda "só fecha com venda aprovada" segue valendo no caminho real.
+
+## A página Hoje foi retirada (12/09/2026)
+
+Decisão do dono: a Fila Única é a porta da Central de Comando. `/hoje` vira
+redirecionamento para `/fila` (a antiga aba Analytics segue para os
+relatórios do Painel do Gestor), a seção sai do módulo, o slot da barra do
+polegar vira Fila | Leads | + | Agenda | Buscar, e a pasta
+`src/features/command-center` (widgets, ronda, missões) foi removida com seus
+testes — nada fora dela a importava. Reverter é reverter o commit.
+
+Para a **gestão**, a porta do módulo no hub é o cockpit da operação que já
+existe no Painel do Gestor (aba Dia), via `homePorPapel` — a Fila é a carteira
+pessoal até a Fatia 3 trazer a visão por corretor; `/fila` continua acessível
+pela seção e pelo ⌘K. O que a Hoje mostrava ao **corretor** e não tem
+substituto ainda: o widget de meta e ritmo do mês (o Meu Raio-X mostra os KPIs,
+não a meta). Fica anotado para a Fatia 3.
+
 **Como foi conferido.** Sem login de produção neste ambiente, os componentes
 foram renderizados com fixtures em jsdom, envelopados no shell real (header,
 `px-4 pb-24`, BottomNav) com o CSS do build e fotografados no Chromium em

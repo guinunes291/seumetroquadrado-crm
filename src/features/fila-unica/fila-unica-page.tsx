@@ -44,6 +44,8 @@ import {
 } from "@/features/fila-unica/derive";
 import { FilaCard } from "@/features/fila-unica/fila-card";
 import { FilaCockpit } from "@/features/fila-unica/fila-cockpit";
+import { FilaFunil } from "@/features/fila-unica/fila-funil";
+import { FILA_UNICA_FUNIL_KEY } from "@/features/fila-unica/use-fila-funil";
 import { useFilaUnica, FILA_UNICA_SEM_ACAO_KEY } from "@/features/fila-unica/use-fila-unica";
 import {
   CalendarCheck,
@@ -156,6 +158,7 @@ export function FilaUnicaPage() {
     void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
     void qc.invalidateQueries({ queryKey: ["followup:fila"] });
     void qc.invalidateQueries({ queryKey: [FILA_UNICA_SEM_ACAO_KEY] });
+    void qc.invalidateQueries({ queryKey: [FILA_UNICA_FUNIL_KEY] });
     void qc.invalidateQueries({ queryKey: ["nav-badges"] });
   };
 
@@ -167,6 +170,7 @@ export function FilaUnicaPage() {
       ["atendimento:inbox"],
       ["followup:fila"],
       [FILA_UNICA_SEM_ACAO_KEY],
+      [FILA_UNICA_FUNIL_KEY],
       ["leads"],
       ["nav-badges"],
     ],
@@ -253,6 +257,10 @@ export function FilaUnicaPage() {
                 StatTiles. O mesmo dado, dois tamanhos de tela. */}
             <FilaCockpit fila={fila} className="md:hidden" />
             <FilaResumo fila={fila} className="hidden md:grid" />
+
+            {/* O funil das etapas do mockup: leitura própria (fila_funil_v1),
+                fechado no celular para a lista vir primeiro. */}
+            <FilaFunil />
 
             {fila.resumo.slaCorrendo > 0 && (
               <p className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">

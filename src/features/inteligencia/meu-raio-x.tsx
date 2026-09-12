@@ -337,9 +337,9 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
         <SeletorPeriodo periodo={periodo} />
         {/* Meta/pacing é bloco de gestão — aqui só o caminho até ela. */}
         <p className="text-xs text-muted-foreground">
-          Sua meta e o ritmo do mês vivem na{" "}
-          <Link to="/hoje" className="underline underline-offset-2 hover:text-foreground">
-            Central de Comando
+          O seu dia, em ordem de prioridade, está na{" "}
+          <Link to="/fila" className="underline underline-offset-2 hover:text-foreground">
+            Fila Única
           </Link>
           .
         </p>

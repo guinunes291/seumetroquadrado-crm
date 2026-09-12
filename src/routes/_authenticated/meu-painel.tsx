@@ -4,6 +4,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 // não quebrar links/atalhos salvos.
 export const Route = createFileRoute("/_authenticated/meu-painel")({
   beforeLoad: () => {
-    throw redirect({ to: "/hoje" });
+    throw redirect({ to: "/fila" });
   },
 });

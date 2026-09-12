@@ -372,8 +372,8 @@ export function mensagemContato(item: ItemAgendaDia, agora: Date = new Date()): 
 }
 
 // ---------------------------------------------------------------------------
-// Escopo: de quem é a agenda que a home mostra. Mesma regra da Central de
-// Comando (/hoje): admin e superintendente veem a operação inteira, gestor vê
+// Escopo: de quem é a agenda que o hub mostra. Mesma regra da Central de
+// Comando: admin e superintendente veem a operação inteira, gestor vê
 // a própria equipe (e a si), corretor vê só a própria. Um admin sem
 // compromisso no próprio nome via "sem compromissos hoje" com o calendário
 // cheio — a agenda da gestão é a da operação, não a pessoal.
