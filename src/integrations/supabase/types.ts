@@ -2716,6 +2716,36 @@ export type Database = {
         }
         Relationships: []
       }
+      higiene_execucao: {
+        Row: {
+          aplicados: number
+          avaliados: number
+          erros: number
+          execucao_id: string
+          modo: string
+          pulados: number
+          ts: string
+        }
+        Insert: {
+          aplicados?: number
+          avaliados?: number
+          erros?: number
+          execucao_id: string
+          modo: string
+          pulados?: number
+          ts?: string
+        }
+        Update: {
+          aplicados?: number
+          avaliados?: number
+          erros?: number
+          execucao_id?: string
+          modo?: string
+          pulados?: number
+          ts?: string
+        }
+        Relationships: []
+      }
       higiene_execucao_log: {
         Row: {
           acao: string
@@ -7252,6 +7282,7 @@ export type Database = {
           lote_min_leads: number | null
           modo: string | null
           motivos_pulo: Json | null
+          motor_atrasado: boolean | null
           pulados: number | null
           teto_perdidos_dia: number | null
           ultima_execucao: string | null
