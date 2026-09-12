@@ -4,7 +4,7 @@ import {
   Buildings,
   CalendarDots,
   Fire,
-  Headset,
+  ListChecks,
   MagnifyingGlass,
   Plus,
   SunHorizon,
@@ -33,6 +33,10 @@ type Slot = {
 // Os 4 destinos de polegar do corretor. O slot central (dourado) é o botão de
 // AÇÃO: um toque abre o que o corretor cria/dispara em campo.
 //
+// O 3º slot é a FILA ÚNICA (2026-09-12): a lista que absorve as seis filas de
+// Atender — é onde o corretor passa o dia entre visitas, e o mockup aprovado
+// a coloca na barra do polegar. Atender continua no menu lateral e no ⌘K.
+//
 // O 4º slot é a BUSCA, não o Pipeline: achar um lead pelo telefone é o gesto
 // mais repetido do dia e vivia só na lupa do header — alvo pequeno, no topo,
 // longe do polegar. O kanban é revisão de desktop; no celular o avanço de
@@ -41,7 +45,7 @@ const LEFT: Slot[] = [
   { to: "/hoje", label: "Início", icon: SunHorizon },
   { to: "/leads", label: "Leads", icon: UsersThree },
 ];
-const RIGHT: Slot[] = [{ to: "/atendimento", label: "Atender", icon: Headset }];
+const RIGHT: Slot[] = [{ to: "/fila", label: "Fila", icon: ListChecks }];
 
 // SDR (2026-09-04): o dia dele é base → reaquecer → visitas. Mesma barra,
 // destinos do hub próprio.

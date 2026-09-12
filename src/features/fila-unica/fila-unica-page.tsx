@@ -29,6 +29,7 @@ import {
   type StageModalState,
 } from "@/components/lead-stage/lead-stage-modals";
 import type { StageLead } from "@/lib/leads";
+import { cn } from "@/lib/utils";
 import { scriptParaFila } from "@/features/atendimento/derive";
 import {
   BUCKET_HINT,
@@ -42,6 +43,7 @@ import {
   type FilaUnicaItem,
 } from "@/features/fila-unica/derive";
 import { FilaCard } from "@/features/fila-unica/fila-card";
+import { FilaCockpit } from "@/features/fila-unica/fila-cockpit";
 import { useFilaUnica, FILA_UNICA_SEM_ACAO_KEY } from "@/features/fila-unica/use-fila-unica";
 import {
   CalendarCheck,
@@ -94,11 +96,19 @@ function toPeekLead(l: FilaLead): PeekLead {
   };
 }
 
-/** Os três números do dia + o SLA — o placar que a lista responde. */
-export function FilaResumo({ fila }: { fila: FilaUnica }) {
+/** "Sexta, 12 de setembro" — a data por extenso no lugar de um eyebrow em
+ *  caixa alta (identidade v3, decisão 12), como na Home. */
+function dataPorExtenso(agora = new Date()): string {
+  const s = agora.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Os três números do dia + o SLA — o placar que a lista responde (desktop;
+ *  no celular o placar é o FilaCockpit, um card só). */
+export function FilaResumo({ fila, className }: { fila: FilaUnica; className?: string }) {
   const r = fila.resumo;
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className={cn("grid gap-3 sm:grid-cols-2 lg:grid-cols-4", className)}>
       <StatTile
         title="Próximos passos vencidos"
         value={r.vencidos}
@@ -198,16 +208,25 @@ export function FilaUnicaPage() {
     : [];
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Fila Única"
-        description="Uma lista só, na ordem em que o dinheiro está em risco. Cada lead sai daqui com um resultado registrado e um próximo passo com data."
-        actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/atendimento">ver as filas de Atender</Link>
-          </Button>
-        }
-      />
+    <div className="space-y-3 md:space-y-4">
+      {/* No celular o cabeçalho é só data + título, colado no placar. */}
+      <div className="-mb-3 md:mb-0">
+        <p className="mb-1 text-xs text-muted-foreground md:text-sm">{dataPorExtenso()}</p>
+        <PageHeader
+          title="Fila Única"
+          description={
+            <span className="hidden md:inline">
+              Uma lista só, na ordem em que o dinheiro está em risco. Cada lead sai daqui com um
+              resultado registrado e um próximo passo com data.
+            </span>
+          }
+          actions={
+            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+              <Link to="/atendimento">ver as filas de Atender</Link>
+            </Button>
+          }
+        />
+      </div>
 
       <AsyncBoundary
         isLoading={isLoading}
@@ -229,11 +248,14 @@ export function FilaUnicaPage() {
         }
       >
         {fila && (
-          <div className="space-y-4">
-            <FilaResumo fila={fila} />
+          <div className="space-y-3 md:space-y-4">
+            {/* Celular: um card só (anel + três números). Desktop: os quatro
+                StatTiles. O mesmo dado, dois tamanhos de tela. */}
+            <FilaCockpit fila={fila} className="md:hidden" />
+            <FilaResumo fila={fila} className="hidden md:grid" />
 
             {fila.resumo.slaCorrendo > 0 && (
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <p className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
                 <Timer className="h-4 w-4 text-warning" />
                 {fila.resumo.slaCorrendo} lead(s) aguardando o primeiro contato — o SLA está
                 correndo. Estourou, o lead vai para o próximo da roleta.
@@ -253,7 +275,7 @@ export function FilaUnicaPage() {
               />
             ) : (
               <>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="hidden flex-wrap items-baseline justify-between gap-2 md:flex">
                   <h2 className="font-display text-base font-semibold">
                     {fila.total} lead(s) na sua fila agora
                     {fila.resumo.ocultosInbox > 0 && (
@@ -270,11 +292,14 @@ export function FilaUnicaPage() {
 
                 {grupos.map((g) => (
                   <section key={g.bucket} className="space-y-2" aria-label={BUCKET_LABEL[g.bucket]}>
-                    <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                    <h3 className="flex flex-wrap items-center gap-2 px-1 text-[13px] font-semibold md:px-0 md:text-sm">
                       <span className={`h-2 w-2 rounded-full ${BUCKET_DOT[g.bucket]}`} />
                       {BUCKET_LABEL[g.bucket]}
-                      <span className="text-xs font-normal text-muted-foreground">
-                        {fila.porBucket[g.bucket]} · {BUCKET_HINT[g.bucket]}
+                      <span className="font-display text-xs font-semibold text-muted-foreground">
+                        · {fila.porBucket[g.bucket]}
+                      </span>
+                      <span className="hidden text-xs font-normal text-muted-foreground md:inline">
+                        · {BUCKET_HINT[g.bucket]}
                       </span>
                     </h3>
                     <div className="space-y-2">

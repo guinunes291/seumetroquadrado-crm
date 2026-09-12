@@ -13,16 +13,19 @@ https://claude.ai/code/artifact/8ae2448b-90d8-438a-997c-53cc7a7ff45d
 
 ## O que entrou
 
-| Arquivo                                       | Assunto                                                                   | Reversível sozinho |
-| --------------------------------------------- | ------------------------------------------------------------------------- | ------------------ |
-| `src/features/fila-unica/derive.ts`           | lógica PURA: funde as fontes, deduplica, ordena por balde, corta no teto  | sim                |
-| `src/features/fila-unica/use-fila-unica.ts`   | hook: inbox v4 (30/fila) + régua + leads_sem_acao + extras por id         | sim                |
-| `src/features/fila-unica/fila-card.tsx`       | card: projeto de interesse, motivo, próximo passo, Resumo da Sami, ações  | sim                |
-| `src/features/fila-unica/fila-unica-page.tsx` | página: placar, grupos, diálogos de Atender reaproveitados                | sim                |
-| `src/routes/_authenticated/fila.tsx`          | rota `/fila` (SDR vai para `/sdr`, como a Hoje)                           | sim                |
-| `src/features/nav/sistemas.ts`                | seção "Fila Única" na Central de Comando (a Hoje continua a home)         | sim                |
-| `tests/fila-unica-derive.test.ts`             | 25 casos da lógica pura                                                   | —                  |
-| `tests/fila-card.test.tsx`                    | 6 casos do card (projeto, próximo passo, Resumo, peek, travas, callbacks) | —                  |
+| Arquivo                                       | Assunto                                                                                       | Reversível sozinho |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------ |
+| `src/features/fila-unica/derive.ts`           | lógica PURA: funde as fontes, deduplica, ordena por balde, corta no teto                      | sim                |
+| `src/features/fila-unica/use-fila-unica.ts`   | hook: inbox v4 (30/fila) + régua + leads_sem_acao + extras por id                             | sim                |
+| `src/features/fila-unica/fila-card.tsx`       | card: dias parado em destaque, etapa, projeto, motivo, próximo passo, 4 ações de polegar, "⋯" | sim                |
+| `src/features/fila-unica/fila-cockpit.tsx`    | placar do celular: anel "N de 40" + vencidos / vencem hoje / sem passo                        | sim                |
+| `src/features/fila-unica/fila-unica-page.tsx` | página: placar, grupos, diálogos de Atender reaproveitados                                    | sim                |
+| `src/routes/_authenticated/fila.tsx`          | rota `/fila` (SDR vai para `/sdr`, como a Hoje)                                               | sim                |
+| `src/features/nav/sistemas.ts`                | seção "Fila Única" na Central de Comando (a Hoje continua a home)                             | sim                |
+| `src/components/bottom-nav.tsx`               | slot "Fila" na barra do polegar, no lugar de "Atender"                                        | sim                |
+| `tests/fila-unica-derive.test.ts`             | 25 casos da lógica pura                                                                       | —                  |
+| `tests/fila-card.test.tsx`                    | 8 casos do card (projeto, etapa, dias parado, próximo passo, Resumo, peek, travas, ações)     | —                  |
+| `tests/fila-cockpit.test.tsx`                 | 2 casos do placar do celular                                                                  | —                  |
 
 Zero migration. Zero RPC nova. Zero mudança nas telas existentes.
 
@@ -109,6 +112,44 @@ corretor); a confirmação de visita trava só o card em voo.
 **O corpo do card abre o histórico.** Clique fora de botão, link e menu abre o
 peek do lead, como a linha de Atender; o painel do Resumo fica de fora, porque
 é onde o corretor seleciona texto.
+
+## No celular (paridade com o mockup, 12/09/2026)
+
+A primeira entrega usava os componentes de desktop no celular: quatro
+StatTiles empilhados, cabeçalho com descrição de três linhas e sete botões de
+ícone de 28 px por card — o primeiro lead aparecia depois de duas telas de
+rolagem, e nada lembrava o mockup aprovado. O que vale agora, abaixo de `md`:
+
+- **Cabeçalho**: data por extenso + título. A descrição e o atalho "ver as
+  filas de Atender" só aparecem no desktop.
+- **Placar** (`FilaCockpit`): um card só com o anel "N de 40" (quantos dos
+  candidatos cabem no dia; acima do teto o anel enche e o excedente vira uma
+  linha) e os três números da lista — vencidos, vencem hoje, sem próximo passo.
+  O SLA e os ocultos da inbox viram uma linha pequena embaixo. O anel usa a cor
+  do módulo Central de Comando (dourado do tema), não o dourado sólido do FAB.
+- **Grupos**: nome + contagem; a frase explicativa só no desktop.
+- **Card**: nome e temperatura; à direita o número grande — dias sem movimento
+  (a chave de ordem do fundo do funil) ou, no SLA, há quanto tempo o lead
+  chegou; sem data conhecida, "—". O mockup mostrava R$ em risco nesse lugar;
+  sem valor por lead (Fatia 3), os dias são o número honesto. Linha "por quê":
+  chip da etapa (cor por hue de `lib/leads`) · projeto · motivo. Depois o
+  próximo passo com prazo. Quatro botões de 44 px, sem ícone abaixo de `sm`
+  (cabem em 360 px): Ligar, Zap, Resumo, Registrar (primário). Sami e mudar
+  etapa ficam no "⋯" do canto; a visita a confirmar ganha um botão inteiro
+  acima da fila de ações.
+- **Barra do polegar**: o slot "Atender" vira "Fila" (`/fila`). A Fila Única
+  absorve as seis filas; Atender continua no menu lateral e no ⌘K. É a decisão
+  mais visível desta rodada e reverte com uma linha em `bottom-nav.tsx`.
+
+No desktop o mesmo card vira a coluna lateral do mockup: informação à
+esquerda, número e "⋯" em cima à direita, ações embaixo à direita. O placar
+continua sendo os quatro StatTiles.
+
+**Como foi conferido.** Sem login de produção neste ambiente, os componentes
+foram renderizados com fixtures em jsdom, envelopados no shell real (header,
+`px-4 pb-24`, BottomNav) com o CSS do build e fotografados no Chromium em
+390 px e 360 px (claro e escuro) e 1280 px. Os testes unitários não cobrem
+breakpoint; a foto é a prova.
 
 ## Medir ANTES de aplicar
 
