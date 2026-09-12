@@ -135,26 +135,41 @@ export function RoletaTab({
   slug,
   nome,
   somenteLeitura,
+  escopoEquipe = false,
 }: {
   slug: string;
   nome?: string | null;
   somenteLeitura: boolean;
+  /** Gestor: gerencia a fila, mas só os corretores da própria equipe. */
+  escopoEquipe?: boolean;
 }) {
   if (slug === "marquinhos") {
-    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura} />;
+    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura || escopoEquipe} />;
   }
-  return <RoletaTabPadrao slug={slug} nome={nome} somenteLeitura={somenteLeitura} />;
+  return (
+    <RoletaTabPadrao
+      slug={slug}
+      nome={nome}
+      somenteLeitura={somenteLeitura}
+      escopoEquipe={escopoEquipe}
+    />
+  );
 }
 
 function RoletaTabPadrao({
   slug,
   nome,
   somenteLeitura,
+  escopoEquipe = false,
 }: {
   slug: string;
   nome?: string | null;
   somenteLeitura: boolean;
+  escopoEquipe?: boolean;
 }) {
+  const minhaEquipeQ = useCorretoresDaMinhaEquipe(escopoEquipe);
+  const podeGerir = (corretorId: string) =>
+    !escopoEquipe || !!minhaEquipeQ.data?.has(corretorId);
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
