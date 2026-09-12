@@ -167,7 +167,12 @@ export function TabFilas({
           {fila && (
             <>
               <FilaPropriedades roleta={fila} somenteLeitura={somenteLeitura} />
-              <RoletaTab slug={fila.slug} nome={fila.nome} somenteLeitura={somenteLeitura} />
+              <RoletaTab
+                slug={fila.slug}
+                nome={fila.nome}
+                somenteLeitura={somenteLeitura && !escopoEquipe}
+                escopoEquipe={escopoEquipe}
+              />
             </>
           )}
         </>

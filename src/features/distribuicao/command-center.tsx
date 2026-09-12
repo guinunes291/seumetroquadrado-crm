@@ -61,10 +61,12 @@ export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
 ];
 
 export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab; fila?: string }) {
-  const { isAdmin } = useUserRoles();
-  // Distribuição é operação org-wide: só admin opera. Gestor e superintendente
-  // enxergam em modo leitura (decisão de produto — sem recorte por equipe).
+  const { isAdmin, isGestor } = useUserRoles();
+  // Distribuição é operação org-wide: só admin opera tudo. O gestor ganhou
+  // autonomia nas filas (incluir/pausar/remover), limitada aos corretores da
+  // equipe dele — o mesmo recorte é validado no banco. Superintendente lê.
   const somenteLeitura = !isAdmin;
+  const escopoEquipe = !isAdmin && isGestor;
   const navigate = useNavigate();
   const activeTab: DistribuicaoTab = tab ?? "visao";
   const setTab = (v: string) =>
