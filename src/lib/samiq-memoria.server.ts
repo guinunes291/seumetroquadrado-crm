@@ -14,6 +14,11 @@ import type { SamiQCanal } from "@/lib/samiq";
 import { deveRetomarConversa } from "@/lib/samiq-memoria";
 import { PropostaPayloadSchema, type PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { PropostaColetada } from "@/lib/samiq-propostas.server";
+import {
+  argsPropostas,
+  argsTurno,
+  type SamiQGravarTurnoArgs,
+} from "@/lib/samiq-rpc-args";
 
 export const SAMIQ_MAX_TURNO_CHARS = 6000;
 
