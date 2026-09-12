@@ -498,6 +498,7 @@ function RoletaTabPadrao({
           aberto={incluirAberto}
           onFechar={() => setIncluirAberto(false)}
           participantesAtuais={linhas}
+          restritoA={escopoEquipe ? (minhaEquipeQ.data ?? new Set<string>()) : null}
         />
         <PausarDialog slug={slug} alvo={pausarAlvo} onFechar={() => setPausarAlvo(null)} />
         <LimiteDialog slug={slug} alvo={limiteAlvo} onFechar={() => setLimiteAlvo(null)} />
