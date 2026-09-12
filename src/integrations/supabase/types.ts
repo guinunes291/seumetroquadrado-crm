@@ -9444,11 +9444,11 @@ export type Database = {
       samiq_gerar_briefing_alertas: { Args: never; Returns: number }
       samiq_gravar_turno: {
         Args: {
-          _canal?: "painel" | "whatsapp"
-          _conversa_id: string | null
-          _execution_id?: string | null
+          _canal?: string
+          _conversa_id: string
+          _execution_id?: string
           _ferramentas?: string[]
-          _lead_id: string | null
+          _lead_id: string
           _pergunta: string
           _resposta: string
           _user_id: string
@@ -9461,8 +9461,8 @@ export type Database = {
       }
       samiq_registrar_propostas: {
         Args: {
-          _conversa_id: string | null
-          _execution_id: string | null
+          _conversa_id: string
+          _execution_id: string
           _propostas: Json
           _user_id: string
         }
