@@ -1,22 +1,7 @@
-import { supabase } from "@/integrations/supabase/client";
 import type { VitrineLinkSummary } from "@/lib/vitrine-publica";
+import { freshAccessToken } from "@/lib/supabase-access-token";
 
 type ApiErrorPayload = { ok?: false; error?: string };
-
-async function freshAccessToken(): Promise<string> {
-  const current = await supabase.auth.getSession();
-  let session = current.data.session;
-  if (current.error || !session) throw new Error("Sua sessão expirou. Entre novamente.");
-
-  if ((session.expires_at ?? 0) - Math.floor(Date.now() / 1_000) <= 60) {
-    const refreshed = await supabase.auth.refreshSession();
-    if (refreshed.error || !refreshed.data.session) {
-      throw new Error("Sua sessão expirou. Entre novamente.");
-    }
-    session = refreshed.data.session;
-  }
-  return session.access_token;
-}
 
 async function vitrineLinksRequest<T extends object>(path: string, init?: RequestInit): Promise<T> {
   const token = await freshAccessToken();

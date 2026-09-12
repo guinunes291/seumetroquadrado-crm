@@ -34,43 +34,43 @@ import {
 
 // Percentual máximo do imóvel que a CONSTRUTORA parcela (os "20%").
 // Em Interpretação A, os recursos não-construtora precisam cobrir (1 - este valor).
-export const TETO_PARCELAMENTO_CONSTRUTORA = 0.20; // 20%
+export const TETO_PARCELAMENTO_CONSTRUTORA = 0.2; // 20%
 
 // ----------------------------------------------------------------------------
 // Entrada do cálculo: o que sabemos do cliente.
 // ----------------------------------------------------------------------------
 export interface DadosCliente {
-  renda: number;              // renda BRUTA familiar (composição), em R$
+  renda: number; // renda BRUTA familiar (composição), em R$
   tem36MesesRegistro: boolean; // true => usa coluna COM REDUTOR (taxa menor)
-  temDependente: boolean;      // true => subsídio "com dependente" (só F1)
-  fgts?: number;               // saldo de FGTS disponível (opcional)
-  entrada?: number;            // recursos próprios / entrada (opcional)
+  temDependente: boolean; // true => subsídio "com dependente" (só F1)
+  fgts?: number; // saldo de FGTS disponível (opcional)
+  entrada?: number; // recursos próprios / entrada (opcional)
 }
 
 // ----------------------------------------------------------------------------
 // Saída do cálculo: o orçamento pronto pra alimentar o Match e a UI.
 // ----------------------------------------------------------------------------
 export interface ResultadoOrcamento {
-  enquadra: boolean;          // false => renda fora da tabela (abaixo do mínimo)
+  enquadra: boolean; // false => renda fora da tabela (abaixo do mínimo)
   motivoNaoEnquadra?: string;
 
   // Dados da linha consultada
-  rendaConsultada: number;    // o degrau de renda usado (igual ou inferior)
-  faixa: number;              // 1..4 | 5 (SBPE/R2V)
-  segmento: string;           // HIS1 | HIS2 | HMP | R2V
-  parcelaEstimada: number;    // parcela PRICE da Caixa (~30% da renda)
-  taxaEfetiva: string;        // a taxa usada (com ou sem redutor)
+  rendaConsultada: number; // o degrau de renda usado (igual ou inferior)
+  faixa: number; // 1..4 | 5 (SBPE/R2V)
+  segmento: string; // HIS1 | HIS2 | HMP | R2V
+  parcelaEstimada: number; // parcela PRICE da Caixa (~30% da renda)
+  taxaEfetiva: string; // a taxa usada (com ou sem redutor)
 
   // Composição do poder de compra
-  financiamento: number;      // valor de financiamento (com/sem redutor)
-  subsidio: number;           // subsídio aplicado (0 fora da F1)
-  fgts: number;               // FGTS considerado
-  entrada: number;            // entrada considerada
+  financiamento: number; // valor de financiamento (com/sem redutor)
+  subsidio: number; // subsídio aplicado (0 fora da F1)
+  fgts: number; // FGTS considerado
+  entrada: number; // entrada considerada
   recursosNaoConstrutora: number; // financiamento + subsídio + fgts + entrada
 
   // Resultado final
-  tetoAvaliacaoSegmento: number;  // teto duro do programa (avaliação)
-  tetoImovel: number;             // TETO final de compra (já limitado pela avaliação)
+  tetoAvaliacaoSegmento: number; // teto duro do programa (avaliação)
+  tetoImovel: number; // TETO final de compra (já limitado pela avaliação)
   usouRedutor: boolean;
 }
 
@@ -108,9 +108,18 @@ export function calcularOrcamento(dados: DadosCliente): ResultadoOrcamento {
         `Renda de R$ ${dados.renda.toLocaleString("pt-BR")} está abaixo do mínimo ` +
         `da tabela (R$ ${RENDA_MIN_APROVE.toLocaleString("pt-BR")}). ` +
         `Avaliar composição de renda ou outras condições.`,
-      rendaConsultada: 0, faixa: 0, segmento: "-", parcelaEstimada: 0,
-      taxaEfetiva: "-", financiamento: 0, subsidio: 0, fgts: 0, entrada: 0,
-      recursosNaoConstrutora: 0, tetoAvaliacaoSegmento: 0, tetoImovel: 0,
+      rendaConsultada: 0,
+      faixa: 0,
+      segmento: "-",
+      parcelaEstimada: 0,
+      taxaEfetiva: "-",
+      financiamento: 0,
+      subsidio: 0,
+      fgts: 0,
+      entrada: 0,
+      recursosNaoConstrutora: 0,
+      tetoAvaliacaoSegmento: 0,
+      tetoImovel: 0,
       usouRedutor: false,
     };
   }
@@ -159,17 +168,34 @@ export function calcularOrcamento(dados: DadosCliente): ResultadoOrcamento {
 // Retorna a aderência + quanto iria pra construtora (os "20%").
 // ----------------------------------------------------------------------------
 export interface AderenciaImovel {
-  cabe: boolean;                 // imóvel <= teto E <= avaliação do segmento
-  dentroDaAvaliacao: boolean;    // imóvel <= teto duro do segmento
+  cabe: boolean; // imóvel <= teto E <= avaliação do segmento
+  dentroDaAvaliacao: boolean; // imóvel <= teto duro do segmento
   valorParcelarConstrutora: number; // quanto sobra p/ parcelar (pode ser 0)
   percentualConstrutora: number; // % do imóvel que vai pra construtora
-  estouraParcelamento: boolean;  // true se precisaria parcelar > 20%
-  folga: number;                 // teto - preço (negativo = acima do teto)
+  estouraParcelamento: boolean; // true se precisaria parcelar > 20%
+  folga: number; // teto - preço (negativo = acima do teto)
+}
+
+/**
+ * Teto de imóvel do cliente para um dado percentual de parcelamento com a
+ * construtora. Com o padrão (20%) devolve exatamente `orc.tetoImovel`; existe
+ * separado porque o Mapa de Mercado mostra também o cenário otimista de 25%,
+ * em que a construtora banca um pedaço maior da obra.
+ */
+export function tetoParaParcelamento(
+  orc: ResultadoOrcamento,
+  tetoParcelamento: number = TETO_PARCELAMENTO_CONSTRUTORA,
+): number {
+  if (!orc.enquadra) return 0;
+  const teto = orc.recursosNaoConstrutora / (1 - tetoParcelamento);
+  return Math.round(Math.min(teto, orc.tetoAvaliacaoSegmento));
 }
 
 export function avaliarAderencia(
   precoImovel: number,
   orc: ResultadoOrcamento,
+  /** Quanto a construtora aceita parcelar. Padrão: a regra 80/20 do CRM. */
+  tetoParcelamento: number = TETO_PARCELAMENTO_CONSTRUTORA,
 ): AderenciaImovel {
   const dentroDaAvaliacao = precoImovel <= orc.tetoAvaliacaoSegmento;
 
@@ -177,7 +203,7 @@ export function avaliarAderencia(
   // nunca mais que 80% do valor do próprio imóvel. Por isso o financiamento
   // máximo NÃO entra inteiro num imóvel mais barato (ele é um teto, não um aporte
   // fixo). Esse é o ajuste que evita "construtora 0%" indevido.
-  const fatorFinanciamento = 1 - TETO_PARCELAMENTO_CONSTRUTORA; // 0,80
+  const fatorFinanciamento = 1 - tetoParcelamento; // 0,80 na regra padrão
   const financiamentoAplicado = Math.min(orc.financiamento, fatorFinanciamento * precoImovel);
 
   // Recursos próprios do cliente (fora o financiamento): subsídio + FGTS + entrada.
@@ -189,14 +215,11 @@ export function avaliarAderencia(
     0,
     precoImovel - financiamentoAplicado - recursosProprios,
   );
-  const percentualConstrutora = precoImovel > 0
-    ? valorParcelarConstrutora / precoImovel
-    : 0;
+  const percentualConstrutora = precoImovel > 0 ? valorParcelarConstrutora / precoImovel : 0;
 
   // Estoura se precisar parcelar MAIS de 20% (regra do negócio).
   // Tolerância de 0,5 ponto % para não reprovar por arredondamento.
-  const estouraParcelamento =
-    percentualConstrutora > TETO_PARCELAMENTO_CONSTRUTORA + 0.005;
+  const estouraParcelamento = percentualConstrutora > tetoParcelamento + 0.005;
 
   const cabe = dentroDaAvaliacao && !estouraParcelamento;
 
@@ -206,7 +229,7 @@ export function avaliarAderencia(
     valorParcelarConstrutora: Math.round(valorParcelarConstrutora),
     percentualConstrutora: Math.round(percentualConstrutora * 1000) / 10, // 1 casa
     estouraParcelamento,
-    folga: Math.round(orc.tetoImovel - precoImovel),
+    folga: Math.round(tetoParaParcelamento(orc, tetoParcelamento) - precoImovel),
   };
 }
 
