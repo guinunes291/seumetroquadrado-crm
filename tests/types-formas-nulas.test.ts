@@ -1,60 +1,57 @@
 /**
- * GUARDA das formas mantidas À MÃO em src/integrations/supabase/types.ts.
+ * GUARDA das formas NULAS dos argumentos de RPC da SamiQ.
  *
- * types.ts é GERADO. O gerador do Supabase não sabe que certos parâmetros de
- * RPC aceitam NULL, nem que `_canal` é uma união fechada — então toda vez que
- * alguém regenera o arquivo, essas formas somem e o código que passa `null`
- * para de compilar.
+ * Antes elas eram mantidas à mão dentro de src/integrations/supabase/types.ts,
+ * que é GERADO — e sumiam a cada regeneração (PR #177 introduziu, #183 repôs,
+ * o commit 4040159 apagou de novo). Desde que a plataforma passou a bloquear
+ * edição manual de types.ts, elas moram em src/lib/samiq-rpc-args.ts, um
+ * arquivo nosso que nenhuma regeneração toca.
  *
- * Já aconteceu três vezes (PR #177 introduziu as formas, #183 as repôs,
- * o commit 4040159 "Work in progress" as apagou de novo). Sem esta guarda a
- * regressão aparece como um TS2322 em src/lib/samiq-memoria.server.ts — um
- * erro de tipo em OUTRO arquivo, que não diz o que fazer. Com ela, o CI diz
- * exatamente qual forma sumiu e onde repor.
- *
- * A regra, que está comentada em samiq-memoria.server.ts: se um regenerador
- * apagar as formas, repõe-se AQUI (em types.ts) — nunca trocando `null` por
- * `undefined` no código de chamada. `_conversa_id` e `_lead_id` não têm
- * DEFAULT na migration S1/S4: omitir a chave faz o PostgREST não achar a
- * função (PGRST202) e o turno sumir em silêncio.
+ * A regra permanece: `_conversa_id`, `_lead_id` e `_execution_id` não têm
+ * DEFAULT nas migrations S1/S2/S4. Trocar `null` por `undefined` (omitir a
+ * chave) faz o PostgREST devolver PGRST202 e o turno some em silêncio.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const TYPES = readFileSync("src/integrations/supabase/types.ts", "utf8");
-
-/** Corpo do bloco `Args` de uma função dentro de types.ts. */
-function argsDe(fn: string): string {
-  const m = TYPES.match(
-    new RegExp(`      ${fn}: \\{\\n        Args: \\{\\n([\\s\\S]*?)\\n        \\}`),
-  );
-  if (!m) throw new Error(`não achei o bloco Args de ${fn} em types.ts`);
-  return m[1];
-}
+const ARGS = readFileSync("src/lib/samiq-rpc-args.ts", "utf8");
+const CHAMADA = readFileSync("src/lib/samiq-memoria.server.ts", "utf8");
 
 const ESPERADO: Record<string, string[]> = {
-  samiq_gravar_turno: [
-    '_canal?: "painel" | "whatsapp"',
+  SamiQGravarTurnoArgs: [
+    "_canal?: SamiQCanalRpc",
     "_conversa_id: string | null",
     "_execution_id?: string | null",
     "_lead_id: string | null",
   ],
-  samiq_registrar_propostas: ["_conversa_id: string | null", "_execution_id: string | null"],
+  SamiQRegistrarPropostasArgs: ["_conversa_id: string | null", "_execution_id: string | null"],
 };
 
-describe("types.ts — formas mantidas à mão sobrevivem à regeneração", () => {
-  for (const [fn, formas] of Object.entries(ESPERADO)) {
+/** Corpo da interface declarada em samiq-rpc-args.ts. */
+function corpoDe(tipo: string): string {
+  const m = ARGS.match(new RegExp(`export interface ${tipo} \\{\\n([\\s\\S]*?)\\n\\}`));
+  if (!m) throw new Error(`não achei a interface ${tipo} em src/lib/samiq-rpc-args.ts`);
+  return m[1];
+}
+
+describe("formas nulas das RPCs da SamiQ", () => {
+  for (const [tipo, formas] of Object.entries(ESPERADO)) {
     for (const forma of formas) {
-      it(`${fn}: ${forma}`, () => {
+      it(`${tipo}: ${forma}`, () => {
         expect(
-          argsDe(fn),
-          `A forma "${forma}" sumiu de ${fn} em src/integrations/supabase/types.ts — ` +
-            `sinal de que o arquivo foi regenerado. Reponha a forma NO types.ts. ` +
-            `Não troque null por undefined em src/lib/samiq-memoria.server.ts: ` +
+          corpoDe(tipo),
+          `A forma "${forma}" sumiu de ${tipo} em src/lib/samiq-rpc-args.ts. ` +
+            `Reponha ali. Não troque null por undefined em samiq-memoria.server.ts: ` +
             `esses parâmetros não têm DEFAULT na RPC, e omiti-los faz o PostgREST ` +
             `devolver PGRST202 — o turno some em silêncio.`,
         ).toContain(forma);
       });
     }
   }
+
+  it("a chamada envia null, nunca undefined", () => {
+    expect(CHAMADA).not.toMatch(/_conversa_id: [^\n]*undefined/);
+    expect(CHAMADA).not.toMatch(/_lead_id: [^\n]*undefined/);
+    expect(CHAMADA).not.toMatch(/_execution_id: [^\n]*\?\? undefined/);
+  });
 });
