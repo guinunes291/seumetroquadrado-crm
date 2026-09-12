@@ -24,6 +24,7 @@
 import {
   ArrowsClockwise,
   Briefcase,
+  Broom,
   Buildings,
   CalendarDots,
   ChartBar,
@@ -440,6 +441,17 @@ export const SISTEMAS: Sistema[] = [
         label: "Operação",
         icon: ChartBar,
         to: "/painel-gestor",
+        roles: GESTAO,
+      },
+      // Higiene do Funil mora no BI e não na Central de Distribuição porque a
+      // pergunta que ela responde é de diagnóstico ("o que está parado e
+      // custando dinheiro"), não de configuração. GESTAO: ver a carteira
+      // parada dos colegas muda o clima do time, então corretor não alcança.
+      {
+        id: "higiene-funil",
+        label: "Higiene do Funil",
+        icon: Broom,
+        to: "/higiene-funil",
         roles: GESTAO,
       },
     ],
