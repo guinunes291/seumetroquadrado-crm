@@ -42,7 +42,7 @@ describe("useFilaFunil", () => {
     });
     const { result } = renderHook(() => useFilaFunil(30), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(rpc).toHaveBeenCalledWith("fila_funil_v1", { _dias: 30 });
+    expect(rpc).toHaveBeenCalledWith("fila_funil_v1", { _dias: 30, _corretor: null });
     expect(result.current.data).toEqual([
       { recorte: "safra", etapa: "em_atendimento", ordem: 4, quantidade: 3, parados: 1 },
     ]);

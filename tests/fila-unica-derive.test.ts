@@ -224,7 +224,7 @@ describe("buildFilaUnica — a precedência vale para qualquer fonte", () => {
 });
 
 describe("buildFilaUnica — ordem", () => {
-  it("segue a ordem dos baldes: SLA, fundo, responder, follow-up, sem passo, esfriando, docs", () => {
+  it("segue a ordem dos baldes: fundo, SLA, responder, follow-up, sem passo, esfriando, docs", () => {
     const fila = buildFilaUnica({
       inbox: inbox({
         docs: [item(lead({ id: "d", nome: "Doc" }), { docsPendentes: 2 })],
@@ -241,8 +241,8 @@ describe("buildFilaUnica — ordem", () => {
     });
     expect(fila.itens.map((i) => i.bucket)).toEqual(BUCKET_ORDER);
     expect(fila.itens.map((i) => i.lead.nome)).toEqual([
-      "Novo",
       "Fundo",
+      "Novo",
       "Resp",
       "Toque",
       "Sem",
@@ -420,6 +420,7 @@ describe("buildFilaUnica — fontes e resumo", () => {
       fundoParado: 0,
       // 6 novos além do card + 12 esfriando sem card algum.
       ocultosInbox: 18,
+      emJogo: 0,
     });
   });
 
@@ -615,5 +616,39 @@ describe("filaParaScript", () => {
     });
     const por = Object.fromEntries(fila.itens.map((i) => [i.lead.id, filaParaScript(i)]));
     expect(por).toEqual({ f: "confirmar_visita", r: "followups", s: "esfriando" });
+  });
+});
+
+describe("buildFilaUnica — dinheiro em jogo", () => {
+  it("o VGV do card vem do preço de tabela do projeto (extras); sem preço, null; a fila soma", () => {
+    const extras = new Map([
+      ["a", { valor_projeto: 250_000 }],
+      ["b", { valor_projeto: null }],
+    ]);
+    const fila = buildFilaUnica({
+      inbox: inbox({
+        responder: [item(lead({ id: "a", nome: "Com preço" }))],
+        esfriando: [item(lead({ id: "b", nome: "Sem preço", temperatura: "quente" }))],
+      }),
+      regua: null,
+      semAcao: [],
+      extras,
+      agora,
+    });
+    expect(fila.itens.map((i) => i.valorEmJogo)).toEqual([250_000, null]);
+    expect(fila.resumo.emJogo).toBe(250_000);
+  });
+
+  it("no empate entre fontes, o valor não se perde", () => {
+    const extras = new Map([["t", { valor_projeto: 180_000 }]]);
+    const fila = buildFilaUnica({
+      inbox: inbox({ responder: [item(lead({ id: "t", nome: "Dois" }))] }),
+      regua: regua([toque({ id: "t", nome: "Dois", respondeu: true })]),
+      semAcao: [],
+      extras,
+      agora,
+    });
+    expect(fila.itens).toHaveLength(1);
+    expect(fila.itens[0].valorEmJogo).toBe(180_000);
   });
 });

@@ -26,20 +26,23 @@ export function parseFunilRows(input: unknown): FunilRow[] {
 
 export const FILA_UNICA_FUNIL_KEY = "fila-unica:funil";
 
-export function useFilaFunil(dias = 30) {
+export function useFilaFunil(dias = 30, corretorId: string | null = null) {
   const { user } = useAuth();
   // O funil muda quando um lead muda de etapa ou recebe contato — e isso pode
   // acontecer nesta mesma tela. As ações da página invalidam a chave; o
   // realtime cobre o que acontece em outra aba ou no bot.
   useRealtimeInvalidate(["leads", "interacoes"], [[FILA_UNICA_FUNIL_KEY]]);
   return useQuery({
-    queryKey: [FILA_UNICA_FUNIL_KEY, user?.id, dias],
+    queryKey: [FILA_UNICA_FUNIL_KEY, user?.id, dias, corretorId],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: () =>
       rpcWithFallback<FunilRow[] | null>(
         async () => {
-          const { data, error } = await rpc("fila_funil_v1", { _dias: dias });
+          const { data, error } = await rpc("fila_funil_v1", {
+            _dias: dias,
+            _corretor: corretorId,
+          });
           if (error) throw error;
           return parseFunilRows(data);
         },

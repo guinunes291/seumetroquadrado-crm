@@ -10,8 +10,9 @@
 //   - leads_sem_acao (o guardrail da home; sem a migration, cai em lista
 //     vazia — a fila continua de pé, sem o balde "sem próximo passo").
 // Mais um enriquecimento por id em `leads` (created_at, ultimo_contato,
-// projeto_nome, corretor_id): as fontes não trazem tudo que o card e o
-// relógio precisam, e a lógica pura nunca inventa data.
+// projeto_nome, corretor_id, os fatos do Resumo e o preço de tabela do
+// projeto de interesse): as fontes não trazem tudo que o card e o relógio
+// precisam, e a lógica pura nunca inventa data nem valor.
 // Regra que rege o arquivo: falha de leitura NUNCA vira fila vazia. Erro em
 // qualquer fonte é propagado para a tela renderizar QueryErrorState — uma
 // fila zerada é notícia boa, e não pode ser confundida com uma query que
@@ -86,7 +87,24 @@ const extrasRowSchema = z.object({
   ultimo_contato: z.string().nullable(),
   projeto_nome: z.string().nullable(),
   corretor_id: z.string().uuid().nullable(),
+  faixa_mcmv: z.string().nullable().optional(),
+  decisor: z.string().nullable().optional(),
+  tipo_renda: z.string().nullable().optional(),
+  // O projeto de interesse embutido: o preço de tabela vira o "dinheiro em
+  // jogo" do card; sob consulta, não há número honesto.
+  projeto: z
+    .object({ preco_a_partir: z.number().nullable(), sob_consulta: z.boolean().nullable() })
+    .nullable()
+    .optional(),
 });
+
+/** Preço de tabela do projeto → VGV estimado; null quando não há número honesto. */
+export function valorDoProjeto(
+  projeto: { preco_a_partir: number | null; sob_consulta: boolean | null } | null | undefined,
+): number | null {
+  if (!projeto || projeto.sob_consulta) return null;
+  return projeto.preco_a_partir && projeto.preco_a_partir > 0 ? projeto.preco_a_partir : null;
+}
 
 /** Ids por requisição do enriquecimento. O pior caso antes da dedup é
  *  30×6 da inbox + toda a régua + 60 de leads_sem_acao — centenas de UUIDs
@@ -108,7 +126,9 @@ async function carregarExtras(ids: string[]): Promise<Map<string, LeadExtras>> {
     lotes.map(async (lote) => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, created_at, ultimo_contato, projeto_nome, corretor_id")
+        .select(
+          "id, created_at, ultimo_contato, projeto_nome, corretor_id, faixa_mcmv, decisor, tipo_renda, projeto:projetos!leads_projeto_id_fkey(preco_a_partir, sob_consulta)",
+        )
         .in("id", lote);
       if (error) throw error;
       return z.array(extrasRowSchema).parse(data ?? []);
@@ -120,6 +140,10 @@ async function carregarExtras(ids: string[]): Promise<Map<string, LeadExtras>> {
       ultimo_contato: row.ultimo_contato,
       projeto_nome: row.projeto_nome,
       corretor_id: row.corretor_id,
+      faixa_mcmv: row.faixa_mcmv ?? null,
+      decisor: row.decisor ?? null,
+      tipo_renda: row.tipo_renda ?? null,
+      valor_projeto: valorDoProjeto(row.projeto),
     });
   }
   return mapa;
@@ -143,30 +167,32 @@ export const FILA_UNICA_INBOX_KEY = ["atendimento:inbox", "fila-unica"] as const
 export const FILA_UNICA_SEM_ACAO_KEY = "fila-unica:sem-acao";
 export const FILA_UNICA_EXTRAS_KEY = "fila-unica:extras";
 
-export function useFilaUnica() {
+/** A fila de um corretor: a própria (default) ou, para a gestão, a de
+ *  `corretorId` ("Ver a fila" na tabela da equipe). As três fontes aceitam o
+ *  alvo e o banco decide o escopo — fora dele, erro, nunca lista vazia. */
+export function useFilaUnica(opts: { corretorId?: string | null } = {}) {
   const { user } = useAuth();
-  const enabled = !!user;
+  const alvo = opts.corretorId ?? user?.id ?? null;
+  const enabled = !!user && !!alvo;
 
   const inboxQ = useQuery({
-    queryKey: [...FILA_UNICA_INBOX_KEY, user?.id],
+    queryKey: [...FILA_UNICA_INBOX_KEY, alvo],
     enabled,
-    queryFn: () => carregarInbox(user!.id),
+    queryFn: () => carregarInbox(alvo!),
   });
 
   const reguaQ = useQuery({
-    queryKey: ["followup:fila", "fila-unica", user?.id],
+    queryKey: ["followup:fila", "fila-unica", alvo],
     enabled,
     queryFn: () =>
       rpcWithFallback<FilaFollowUp | null>(
-        () => fetchFilaFollowUp(),
+        () => fetchFilaFollowUp(opts.corretorId ?? undefined),
         () => null,
       ),
   });
 
-  // Só a própria carteira (Fatia 1 = "minha fila"). A visão por corretor,
-  // para a gestão, é a Fatia 3 — e vai ler as mesmas fontes com escopo.
   const semAcaoQ = useQuery({
-    queryKey: [FILA_UNICA_SEM_ACAO_KEY, user?.id],
+    queryKey: [FILA_UNICA_SEM_ACAO_KEY, alvo],
     enabled,
     queryFn: () =>
       rpcWithFallback<SemAcaoRow[]>(
@@ -174,7 +200,7 @@ export function useFilaUnica() {
           // A RPC está em types.ts: cliente tipado, sem a ponte solta do
           // dashboard. O parse continua fail-closed (a forma vem do banco).
           const { data, error } = await supabase.rpc("leads_sem_acao", {
-            _corretores: [user!.id],
+            _corretores: [alvo!],
           });
           if (error) throw error;
           return parseSemAcao(data);
@@ -190,7 +216,7 @@ export function useFilaUnica() {
   );
 
   const extrasQ = useQuery({
-    queryKey: [FILA_UNICA_EXTRAS_KEY, user?.id, ids.join(",")],
+    queryKey: [FILA_UNICA_EXTRAS_KEY, alvo, ids.join(",")],
     enabled: enabled && fontesProntas,
     queryFn: () => carregarExtras(ids),
   });

@@ -13,12 +13,14 @@ import { Button } from "@/components/ui/button";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useUserRoles } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import {
   geometriaDoDegrau,
   montarFunil,
   VAZAMENTO_COPY,
+  type EtapaKey,
   type FunilLeitura,
   type FunilPassagem,
   type FunilRecorte,
@@ -105,9 +107,43 @@ function Marcador({ p }: { p: FunilPassagem }) {
   );
 }
 
-function Degraus({ leitura }: { leitura: FunilLeitura }) {
+type Realce = { realce: EtapaKey | null; onRealce: (k: EtapaKey | null) => void };
+
+/** Legenda do mockup (desktop): o que cada cor diz, e o tamanho do recorte. */
+function Legenda({ leitura }: { leitura: FunilLeitura }) {
+  const item = "inline-flex items-center gap-1.5";
+  return (
+    <div className="mb-3 hidden flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground md:flex">
+      <span className={item}>
+        <i aria-hidden="true" className="h-3 w-3 rounded-[3px] bg-info/70" />
+        leads na etapa
+      </span>
+      <span className={item}>
+        <i aria-hidden="true" className="h-3 w-3 rounded-[3px] bg-destructive" />
+        parados 5+ dias
+      </span>
+      <span className={item}>
+        <i aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success" />
+        na meta
+      </span>
+      <span className={item}>
+        <i aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-warning" />
+        perto
+      </span>
+      <span className={item}>
+        <i aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-destructive" />
+        longe da meta
+      </span>
+      <span className="ml-auto">{fmt(leitura.total)} leads no recorte</span>
+    </div>
+  );
+}
+
+function Degraus({ leitura, realce, onRealce }: { leitura: FunilLeitura } & Realce) {
+  const ultimo = leitura.etapas.length - 1;
   return (
     <div>
+      <Legenda leitura={leitura} />
       <div className={cn("grid px-0 pb-1.5 text-xs text-muted-foreground", GRADE)}>
         <span />
         <span />
@@ -122,66 +158,117 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
           const passagem = leitura.passagens.find((p) => p.de === e.key);
           const vaza = e.pctParados !== null && e.pctParados >= 85;
           return (
-            <div
-              key={e.key}
-              data-testid="funil-etapa"
-              className={cn("grid h-11 items-center rounded-md md:h-12", GRADE)}
-            >
-              <div className="min-w-0 text-right">
+            <Tooltip key={e.key}>
+              <TooltipTrigger asChild>
                 <div
+                  data-testid="funil-etapa"
+                  tabIndex={0}
+                  onMouseEnter={() => onRealce(e.key)}
+                  onMouseLeave={() => onRealce(null)}
+                  onFocus={() => onRealce(e.key)}
+                  onBlur={() => onRealce(null)}
                   className={cn(
-                    // Duas linhas também no desktop: "Aguardando atendimento" não
-                    // cabe em 150 px a 13 px, e cortar com reticências esconde a
-                    // etapa mais cheia do funil.
-                    "line-clamp-2 text-xs font-semibold leading-tight md:text-[13px]",
-                    // Etapa com 85%+ parados: o alerta vai no rótulo (um contorno
-                    // no degrau some com o clip-path do trapézio).
-                    vaza && "text-destructive",
+                    "grid h-11 items-center rounded-md outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 md:h-12",
+                    GRADE,
                   )}
                 >
-                  <span className="md:hidden">{e.labelCurto}</span>
-                  <span className="hidden md:inline">{e.label}</span>
-                </div>
-                <div className="hidden truncate text-xs text-muted-foreground md:block">
-                  {e.sub}
-                </div>
-              </div>
-              <div className="flex h-full items-stretch justify-center">
-                <div
-                  className={cn(
-                    "h-full transition-[width,clip-path] duration-700 motion-reduce:transition-none",
-                    RAMPA[Math.min(i, RAMPA.length - 1)],
-                  )}
-                  style={{ width: `${g.caixa * 100}%`, clipPath: g.clipPath }}
-                />
-              </div>
-              <div className="relative h-full">{passagem && <Marcador p={passagem} />}</div>
-              <div className="flex min-w-0 flex-col gap-1">
-                <div className="font-display text-sm font-semibold leading-none tabular-nums md:text-[15px]">
-                  {e.quantidade > 0 ? fmt(e.quantidade) : "—"}
-                </div>
-                {e.pctParados !== null ? (
-                  <>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-destructive/15">
-                      <div
-                        className="h-full rounded-full bg-destructive transition-[width] duration-700 motion-reduce:transition-none"
-                        style={{ width: `${e.pctParados}%` }}
+                  <div className="min-w-0 text-right">
+                    <div
+                      className={cn(
+                        // Duas linhas também no desktop: "Aguardando atendimento" não
+                        // cabe em 150 px a 13 px, e cortar com reticências esconde a
+                        // etapa mais cheia do funil.
+                        "line-clamp-2 text-xs font-semibold leading-tight md:text-[13px]",
+                        // Etapa com 85%+ parados: o alerta vai no rótulo (um contorno
+                        // no degrau some com o clip-path do trapézio).
+                        vaza && "text-destructive",
+                      )}
+                    >
+                      <span className="md:hidden">{e.labelCurto}</span>
+                      <span className="hidden md:inline">{e.label}</span>
+                    </div>
+                    <div className="hidden truncate text-xs text-muted-foreground md:block">
+                      {e.sub}
+                    </div>
+                  </div>
+                  <div className="flex h-full items-stretch justify-center">
+                    <div
+                      className={cn(
+                        "h-full transition-[width,clip-path,filter] duration-700 motion-reduce:transition-none",
+                        RAMPA[Math.min(i, RAMPA.length - 1)],
+                        // O degrau acende quando o cursor está na linha ou no card
+                        // de vazamento correspondente (a ligação visual do mockup).
+                        realce === e.key && "brightness-115 saturate-110",
+                      )}
+                      style={{ width: `${g.caixa * 100}%`, clipPath: g.clipPath }}
+                    />
+                  </div>
+                  <div className="relative h-full">
+                    {/* O trilho: uma linha fina por trás dos marcadores, do centro
+                    da primeira divisa até a última etapa. */}
+                    {i < ultimo && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "absolute left-1/2 w-px bg-border",
+                          i === 0 ? "top-1/2 bottom-0" : "inset-y-0",
+                        )}
                       />
+                    )}
+                    {passagem && <Marcador p={passagem} />}
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="font-display text-sm font-semibold leading-none tabular-nums md:text-[15px]">
+                      {e.quantidade > 0 ? fmt(e.quantidade) : "—"}
                     </div>
-                    <div className="whitespace-nowrap text-xs leading-none text-muted-foreground">
-                      <b className="font-semibold text-destructive">{e.pctParados}%</b>
-                      <span className="hidden md:inline"> parados</span> · {fmt(e.parados)}
-                    </div>
-                  </>
-                ) : (
-                  <div className="whitespace-nowrap text-xs leading-none text-muted-foreground">
-                    {e.key === "venda" && leitura.recorte === "safra"
-                      ? `ciclo > ${leitura.dias} d`
-                      : ""}
+                    {e.pctParados !== null ? (
+                      <>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-destructive/15">
+                          <div
+                            className="h-full rounded-full bg-destructive transition-[width] duration-700 motion-reduce:transition-none"
+                            style={{ width: `${e.pctParados}%` }}
+                          />
+                        </div>
+                        <div className="whitespace-nowrap text-xs leading-none text-muted-foreground">
+                          <b className="font-semibold text-destructive">{e.pctParados}%</b>
+                          <span className="hidden md:inline"> parados</span> · {fmt(e.parados)}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="whitespace-nowrap text-xs leading-none text-muted-foreground">
+                        {e.key === "venda" && leitura.recorte === "safra"
+                          ? `ciclo > ${leitura.dias} d`
+                          : ""}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="center" className="max-w-[260px] space-y-0.5">
+                <div className="font-semibold">{e.label}</div>
+                <div className="flex justify-between gap-4">
+                  <span>leads</span>
+                  <b className="font-display">{e.quantidade > 0 ? fmt(e.quantidade) : "—"}</b>
+                </div>
+                {e.pctParados !== null && (
+                  <div className="flex justify-between gap-4">
+                    <span>parados 5+ dias</span>
+                    <b className="font-display">
+                      {fmt(e.parados)} ({e.pctParados}%)
+                    </b>
                   </div>
                 )}
-              </div>
-            </div>
+                {passagem && (
+                  <div className="flex justify-between gap-4">
+                    <span>{passagem.label}</span>
+                    <b className="font-display">
+                      {passagem.atual === null ? (passagem.nota ?? "—") : `${passagem.atual}%`} →{" "}
+                      {passagem.meta}%
+                    </b>
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
@@ -202,10 +289,14 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
   );
 }
 
-function Vazamentos({ leitura }: { leitura: FunilLeitura }) {
+function Vazamentos({ leitura, realce, onRealce }: { leitura: FunilLeitura } & Realce) {
   return (
     <aside className="flex flex-col gap-2.5">
-      <h3 className="text-sm font-semibold">Os vazamentos mais caros</h3>
+      <h3 className="text-sm font-semibold">
+        {leitura.vazamentos.length === 3
+          ? "Os três vazamentos mais caros"
+          : "Os vazamentos mais caros"}
+      </h3>
       {leitura.vazamentos.length === 0 ? (
         <p className="text-xs text-muted-foreground">
           Nenhum lead parado há 5 dias ou mais neste recorte.
@@ -215,7 +306,13 @@ function Vazamentos({ leitura }: { leitura: FunilLeitura }) {
           <div
             key={v.key}
             data-testid="funil-vazamento"
-            className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 rounded-xl border border-border-subtle bg-muted/30 px-3 py-2.5"
+            data-realce={realce === v.key || undefined}
+            onMouseEnter={() => onRealce(v.key)}
+            onMouseLeave={() => onRealce(null)}
+            className={cn(
+              "grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 rounded-xl border border-border-subtle bg-muted/30 px-3 py-2.5 transition-[transform,border-color,background-color] motion-reduce:transition-none",
+              realce === v.key && "translate-x-0.5 border-destructive/50 bg-destructive/5",
+            )}
           >
             <div className="text-[13px] font-semibold">{v.label}</div>
             <div className="text-right font-display text-xl font-semibold leading-none text-destructive">
@@ -239,35 +336,46 @@ function Vazamentos({ leitura }: { leitura: FunilLeitura }) {
   );
 }
 
-export function FilaFunil({ className }: { className?: string }) {
+export function FilaFunil({
+  className,
+  id,
+  corretorId = null,
+}: {
+  className?: string;
+  id?: string;
+  /** A gestão vendo a fila de um corretor: o funil dele, não o da operação. */
+  corretorId?: string | null;
+}) {
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
   const [recorte, setRecorte] = useState<FunilRecorte>("safra");
   const [aberto, setAberto] = useState(false);
+  const [realce, setRealce] = useState<EtapaKey | null>(null);
   const corpoId = useId();
-  const q = useFilaFunil(DIAS_SAFRA);
+  const q = useFilaFunil(DIAS_SAFRA, corretorId);
 
   const leitura = q.data ? montarFunil(q.data, recorte, { dias: DIAS_SAFRA }) : null;
   const vazio = !!leitura && leitura.total === 0 && leitura.perdidos === 0;
 
   return (
     <section
+      id={id}
       aria-label="Funil das etapas"
       className={cn(
-        "rounded-2xl border border-border-subtle bg-card text-card-foreground shadow-elev-1",
+        "scroll-mt-20 rounded-2xl border border-border-subtle bg-card text-card-foreground shadow-elev-1",
         className,
       )}
     >
       <header className="flex flex-wrap items-center justify-between gap-2 p-3 md:p-4">
         <div className="min-w-0">
           <h2 className="font-display text-base font-semibold">
-            {gestao ? "Onde os clientes somem" : "Onde os seus clientes somem"}
+            {gestao && !corretorId ? "Onde os clientes somem" : "Onde os seus clientes somem"}
           </h2>
           <p className="hidden max-w-[62ch] text-xs text-muted-foreground md:block">
-            {gestao ? "O funil da operação" : "O seu funil"}, pelo status atual. A largura de cada
-            degrau segue a raiz quadrada do número de leads; a barra vermelha mostra quantos estão
-            parados há 5 dias ou mais. No trilho, cada marcador fica na divisa entre duas etapas:
-            conversão atual → meta da casa. Passe o mouse para ver a origem da meta.
+            {gestao && !corretorId ? "O funil da operação" : "O seu funil"}, pelo status atual. A
+            largura de cada degrau segue a raiz quadrada do número de leads; a barra vermelha mostra
+            quantos estão parados há 5 dias ou mais. No trilho, cada marcador fica na divisa entre
+            duas etapas: conversão atual → meta da casa. Passe o mouse para ver a origem da meta.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -331,10 +439,12 @@ export function FilaFunil({ className }: { className?: string }) {
               : "Nenhum lead na carteira ainda."}
           </p>
         ) : (
-          <div className="grid gap-4 p-3 md:grid-cols-[1.55fr_1fr] md:gap-5 md:p-4">
-            <Degraus leitura={leitura} />
-            <Vazamentos leitura={leitura} />
-          </div>
+          <TooltipProvider delayDuration={150}>
+            <div className="grid gap-4 p-3 md:grid-cols-[1.55fr_1fr] md:gap-5 md:p-4">
+              <Degraus leitura={leitura} realce={realce} onRealce={setRealce} />
+              <Vazamentos leitura={leitura} realce={realce} onRealce={setRealce} />
+            </div>
+          </TooltipProvider>
         )}
       </div>
     </section>

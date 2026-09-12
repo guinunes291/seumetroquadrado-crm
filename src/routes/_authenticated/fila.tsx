@@ -3,17 +3,20 @@ import { useUserRoles } from "@/hooks/use-auth";
 import { FilaUnicaPage } from "@/features/fila-unica/fila-unica-page";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Fila Única (Fatia 1): a lista única do corretor. Vive na Central de Comando
-// ao lado da Hoje; não substitui nenhuma rota — /atendimento, /follow-up e a
-// home seguem vivas até a fila provar, com número, que absorve o que elas
-// respondem (docs/ops/fila-unica-fatia1.md).
+// Fila Única: a lista única do corretor e a porta da Central de Comando.
+// `?corretor=<id>` abre a fila de outro corretor para a gestão ("Ver a fila"
+// na tabela da equipe); o banco decide o escopo, a tela só pede.
 export const Route = createFileRoute("/_authenticated/fila")({
   head: () => ({ meta: [{ title: "Fila Única — Seu Metro Quadrado" }] }),
+  validateSearch: (search: Record<string, unknown>): { corretor?: string } => ({
+    corretor: typeof search.corretor === "string" && search.corretor ? search.corretor : undefined,
+  }),
   component: FilaRoute,
 });
 
 function FilaRoute() {
   const { isSdr, isAdmin, loading } = useUserRoles();
+  const { corretor } = Route.useSearch();
 
   // Mesma régua da Hoje: o SDR tem hub próprio — a fila é do corretor e da
   // gestão. O `loading` importa: sem ele o redirect dispara antes do papel.
@@ -29,5 +32,5 @@ function FilaRoute() {
   if (isSdr && !isAdmin) {
     return <Navigate to="/sdr" replace />;
   }
-  return <FilaUnicaPage />;
+  return <FilaUnicaPage corretorId={corretor} />;
 }

@@ -179,6 +179,97 @@ aberto no desktop:
   (`session_replication_role = replica`), como em `higiene-funil.test.ts` — a
   guarda "só fecha com venda aprovada" segue valendo no caminho real.
 
+## Fatia 2 — igual ao mockup (12/09/2026)
+
+Pedido do dono: "quero que esse módulo fique igual o artefato". O que faltava
+entre a Fatia 1 e o mockup aprovado entrou de uma vez. Em ordem de peso:
+
+- **Desfecho de um toque** (`desfecho.ts` puro, `use-desfecho.ts`,
+  `fila-desfecho.tsx`). "Registrar" abre "o que aconteceu?" com 3 a 5
+  respostas por situação — análise de crédito (aprovado, aguardando Caixa,
+  reprovado, não atendeu, perdeu), agendado (foi, no-show, remarcou,
+  desistiu), visita realizada (quer proposta, objeção, não atendeu, perdeu),
+  chegou agora (qualificar, não atendeu, WhatsApp enviado, sem perfil),
+  respondeu (enviei simulação, agendei visita, objeção), pasta travada e o
+  genérico (avançar, pediu retorno, objeção, não atendeu, perdeu). Cada
+  resposta já carrega o próximo passo com data e, quando cabe, a etapa.
+  Confirmar grava, nesta ordem e pelos caminhos das telas donas: a interação
+  (título no vocabulário de `RESULTADOS_CONTATO`, `metadata.origem =
+fila-unica`), a objeção em `leads.objecoes`, a tarefa do próximo passo
+  (`garantirFollowUpAberto`; `leads.proximo_followup` é espelho por trigger)
+  e a etapa por `transicionar_lead` quando a resposta a muda. Respostas com
+  formulário obrigatório (visita realizada, agendar) abrem o modal da casa;
+  "perdeu" abre o diálogo de perda. Uma resposta nunca oferece transição que
+  o funil recusaria (`transicaoLeadPermitida`): ela vira só interação +
+  próximo passo. **Desfazer** (5 s, `useUndoableMutation` em modo
+  compensate) apaga a interação e a tarefa por soft-delete e devolve as
+  objeções — o mesmo que `samiq_desfazer_proposta` faz; a mudança de etapa
+  fica fora do undo por regra de negócio. No desktop o painel abre dentro do
+  card; no celular é a folha que sobe de baixo (vaul), duas colunas de 44 px,
+  "Perdeu" na linha inteira, "ditar" abre a Sami com o lead. O card registrado
+  vira "Registrado ✓ · próximo passo …" por 6 s ou até a fila se atualizar.
+  O registro detalhado (canal, texto livre) continua no "⋯".
+- **Dinheiro em jogo.** O R$ do mockup. Sem valor por lead no banco, o número
+  honesto é o VGV estimado pelo preço de tabela do projeto de interesse
+  (`projetos.preco_a_partir`, a mesma convenção `valor_potencial` das
+  métricas; sob consulta ou sem projeto, null — nunca um chute). O
+  enriquecimento por id embute o projeto; o card mostra "R$ 250 mil · em jogo
+  · 79 d parado" e o hero soma a fila ("Dinheiro em jogo na sua fila"). Não
+  é comissão: o percentual de comissão é interno à gestão (decisão 10 dos
+  projetos) e a comissão do corretor depende do split. A ordem continua por
+  balde e dias parado — VGV de MCMV varia pouco entre projetos e ordenar por
+  ele só adicionaria ruído.
+- **Ordem dos grupos como no mockup**: fundo do funil parado antes de
+  "chegaram agora". O SLA do 1º contato continua contado no placar e o lead
+  novo continua no topo do seu grupo; o mockup e a tese ("um lead em análise
+  parado há 66 dias vale mais do que 200 leads frios novos") põem o fundo
+  primeiro.
+- **Hero do desktop**: data, título, tese com negritos, "Começar pelo mais
+  caro" (âncora na fila) e "Ver onde os clientes somem" (âncora no funil), e o
+  cockpit grande (`FilaCockpit grande`): anel de 150 px "N/40 carteira ativa",
+  três números com o filete colorido e a linha do dinheiro em jogo. Os quatro
+  StatTiles saíram do desktop.
+- **Resumo do card em duas colunas**: Resumo da Sami + fatos (faixa MCMV,
+  FGTS, decisor, renda, entrada, origem) | Histórico recente (as quatro
+  últimas interações, mesma chave do peek) + "Abrir dossiê completo →".
+- **Coluna lateral do desktop** (`fila-lateral.tsx`): Agenda de hoje (a
+  `useAgendaDoDia`, com "confirmada" / "sem confirmação" / "validar" pela
+  régua da Agenda), "Como a fila se mantém finita" (os números reais da
+  semana: desfechos registrados por aqui, perdidos com motivo, reentradas por
+  WhatsApp — e a frase honesta de que a devolução automática à pré-venda é a
+  próxima fatia) e "O que a Sami faz aqui". No celular não aparece: a Agenda
+  tem o próprio slot.
+- **Funil**: legenda (leads na etapa, parados, na meta/perto/longe, total do
+  recorte), tooltip por degrau (leads, parados, a passagem seguinte), o
+  trilho fino por trás dos marcadores, e a ligação visual degrau ↔ card de
+  vazamento ao passar o mouse.
+- **"Entrou agora"**: quem não estava na lista na leitura anterior ganha o
+  chip dourado — é o lead que a fila puxou quando outro saiu.
+- **As cinco regras da página** no pé do desktop, em texto.
+- **A Sami no meio da barra do polegar** (`bottom-nav.tsx`): o slot central
+  deixa de ser o "+" com três ações e passa a abrir a Sami num toque, como o
+  mockup ("a Sami fica no meio da barra"). Novo lead continua na Leads e no
+  ⌘K; Projetos e preços, na bancada e no menu. Reverte com uma linha.
+- **A mesma fila, vista pelo gestor** (`fila-equipe.tsx`, RPC nova
+  `fila_equipe_v1`, migration `20260912230000`): para admin, gestor e
+  superintendente, abaixo da lista, uma linha por corretor do escopo com
+  carteira ativa (leads vivos com dono, contra o teto de 40), próximos passos
+  vencidos, sem próximo passo (a mesma régua de `leads_sem_acao`), fundo do
+  funil parado (5+ dias pelo relógio da Higiene) e o dinheiro em jogo, na
+  ordem de quem precisa de ajuda (fundo parado, depois vencidos). Corretor da
+  equipe sem lead aparece zerado; admin/superintendente ganham a linha "Sem
+  corretor" com o estoque sem dono, que leva à Higiene. "Ver a fila" abre
+  `/fila?corretor=<id>`: a página pede as três fontes com o alvo (a inbox v4
+  já checa `pode_acessar_corretor`, a régua e `leads_sem_acao` aceitam o
+  corretor no escopo) e o funil do corretor (`_corretor` de `fila_funil_v1`),
+  com "Vendo a fila de …" e o caminho de volta. Corretor chamando a RPC
+  recebe 42501, nunca lista vazia. Teste: `tests/db/fila-equipe.test.ts`.
+- **Toque duplo é contado uma vez.** Ligar e WhatsApp já registram o contato
+  (o discador grava `chamadas`, o WhatsApp grava a interação); o desfecho
+  grava a interação com o resultado. `followup_toques_do_lead` colapsa
+  eventos a menos de 10 minutos num toque só — é assim que a régua já lida
+  com discador + registro manual.
+
 ## A página Hoje foi retirada (12/09/2026)
 
 Decisão do dono: a Fila Única é a porta da Central de Comando. `/hoje` vira
@@ -254,17 +345,20 @@ npm run test -- tests/fila-unica-derive.test.ts tests/fila-card.test.tsx tests/s
 
 ## O que NÃO entrou (fatias seguintes)
 
-- **Fatia 2 — desfecho de um toque.** Depois de Ligar/WhatsApp, "o que
-  aconteceu?" com 3 a 5 respostas que gravam interação + próximo passo com
-  data + etapa (via `transicionar_lead`) numa transação. É o que faz o relógio
-  "parado há X dias" dizer a verdade. Reusa `samiq_propostas` para o desfecho
-  ditado.
-- **Fatia 3 — carteira ativa limitada e devolução.** Tabela própria (não coluna
-  em `leads`), teto em `gestao_config`, três tentativas sem resposta devolvem à
-  pré-venda, dois dias sem próximo passo idem. Visão do gestor por corretor.
-- **Comissão em risco.** A ordem "R$ em risco × dias além do prazo" exige valor
-  por lead (tabela do projeto × % de comissão). Sem esse número, a ordem desta
-  fatia é por balde e dias parado — já melhor que seis filas, mas não fala em
-  reais.
-- **Push nos vencidos e no SLA.** A infraestrutura de push existe; nada a
-  dispara para o que importa. Fica para a Fatia 2, com o desfecho.
+- **Carteira ativa limitada e devolução (Fatia 3).** O teto de 40 continua
+  visual: a tela mostra os 40 primeiros e diz quantos ficaram de fora. A regra
+  de banco — tabela própria, teto em `gestao_config`, três tentativas sem
+  resposta devolvem à pré-venda, dois dias sem próximo passo idem — fica para
+  a próxima fatia; o painel "Como a fila se mantém finita" diz isso com todas
+  as letras.
+- **Push no SLA do 1º contato e nos vencidos.** O mockup mostra o push "Carla
+  M. · SLA vence em 4 min". A infraestrutura de push existe; nada a dispara
+  para o que importa. Precisa de um disparador no banco (pg_cron) ou na edge,
+  não de tela.
+- **Comissão em risco em reais.** O card e o hero mostram o VGV pelo preço de
+  tabela, não a comissão: o percentual é interno à gestão e a comissão do
+  corretor depende do split. Ordenar por dinheiro fica para quando houver
+  valor por lead de verdade.
+- **Desfecho por voz de ponta a ponta.** "Ditar" abre a Sami com o lead e o
+  texto de registro; o pacote (interação + objeção + follow-up) continua sendo
+  confirmado no painel da Sami, não no card.
