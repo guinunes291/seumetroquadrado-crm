@@ -8734,6 +8734,10 @@ export type Database = {
           ordem: number
         }[]
       }
+      gestor_gere_corretor: {
+        Args: { _corretor: string; _gestor: string }
+        Returns: boolean
+      }
       get_dist_setting: { Args: { _chave: string }; Returns: Json }
       get_projeto_webhook_token: {
         Args: { _projeto_id: string }
