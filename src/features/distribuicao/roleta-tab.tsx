@@ -75,6 +75,7 @@ import {
   roletaLabel,
 } from "@/lib/distribuicao";
 import {
+  useCorretoresDaMinhaEquipe,
   useCorretoresDisponiveis,
   useElegibilidadeRoleta,
   useEscoarEstoque,
