@@ -2,7 +2,10 @@
  * Blindagem do papel GESTOR (migration 20260720180000): escopo estritamente de equipe.
  *
  * Verifica, por papel, que o gestor:
- *  - LÊ a distribuição mas NÃO opera (RPCs de escrita + RLS de escrita bloqueadas);
+ *  - LÊ a distribuição; na roleta, opera SÓ sobre corretor do próprio time
+ *    (gerenciar_participante_roleta + gestor_gere_corretor, migration
+ *    20260912150728) — as demais RPCs de escrita e a RLS de escrita seguem
+ *    bloqueadas;
  *  - NÃO gerencia config org-wide sem conceito de time (projetos, templates, criar equipe);
  *  - só mexe em METAS do próprio time;
  *  - vê métricas por corretor / ranking só do time.
@@ -52,7 +55,9 @@ beforeAll(async () => {
   // limparDados não limpa dados de config (roletas/projetos/templates/equipes):
   // garante idempotência dos identificadores fixos usados abaixo.
   await comoSuperuser(c);
-  await c.query(`DELETE FROM public.roleta_participantes WHERE roleta_id IN (SELECT id FROM public.roletas WHERE slug = 'hardening-roleta')`);
+  await c.query(
+    `DELETE FROM public.roleta_participantes WHERE roleta_id IN (SELECT id FROM public.roletas WHERE slug = 'hardening-roleta')`,
+  );
   await c.query(`DELETE FROM public.roletas WHERE slug = 'hardening-roleta'`);
   await c.query(`DELETE FROM public.projetos WHERE slug IN ('proj-gestor-x', 'proj-admin-x')`);
   await c.query(`DELETE FROM public.templates_mensagem WHERE nome = 'T'`);
@@ -107,7 +112,7 @@ afterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
-describe("distribuição: gestor LÊ mas NÃO opera", () => {
+describe("distribuição: gestor LÊ; na roleta opera só no próprio time", () => {
   it("gestor consegue LER roletas/participantes/exceções", async () => {
     await comoUsuario(c, gestorA.id);
     const parts = await c.query(`SELECT count(*)::int AS n FROM public.roleta_participantes`);
@@ -117,23 +122,51 @@ describe("distribuição: gestor LÊ mas NÃO opera", () => {
     expect(exc.rows[0].n).toBeGreaterThanOrEqual(1);
   });
 
-  it("gestor NÃO opera: RPCs de escrita da distribuição estouram 'forbidden'", async () => {
+  // 20260912150728 ("Restrincionou ações por gestor"): o gestor passou a ter
+  // autonomia na roleta SOMENTE sobre corretores das equipes que lidera (ou da
+  // própria). Antes, qualquer gestor levava 'forbidden' aqui.
+  it("gestor gerencia participante da roleta do PRÓPRIO time; fora do time, não", async () => {
     await comoUsuario(c, gestorA.id);
     expect(
       await errMsg(
-        c.query(`SELECT public.gerenciar_participante_roleta('hardening-roleta', $1, 'pausar', 'x', NULL, now() + interval '1 day')`, [corretor1.id]),
+        c.query(
+          `SELECT public.gerenciar_participante_roleta('hardening-roleta', $1, 'limite', NULL, 5, NULL)`,
+          [corretor1.id],
+        ),
       ),
+    ).toBeNull();
+    expect(
+      await errMsg(
+        c.query(
+          `SELECT public.gerenciar_participante_roleta('hardening-roleta', $1, 'pausar', 'x', NULL, now() + interval '1 day')`,
+          [corretor2.id],
+        ),
+      ),
+    ).toMatch(/fora da sua equipe/);
+    await comoSuperuser(c);
+  });
+
+  it("gestor NÃO opera as demais RPCs de escrita da distribuição ('forbidden')", async () => {
+    await comoUsuario(c, gestorA.id);
+    expect(
+      await errMsg(c.query(`SELECT public.resolver_excecao($1, 'arquivar')`, [excecaoId])),
     ).toMatch(/forbidden/);
-    expect(await errMsg(c.query(`SELECT public.resolver_excecao($1, 'arquivar')`, [excecaoId]))).toMatch(/forbidden/);
-    expect(await errMsg(c.query(`SELECT public.triar_e_distribuir_lead($1)`, [leadOrfao]))).toMatch(/forbidden/);
-    expect(await errMsg(c.query(`SELECT public.distribuir_lead_v3($1)`, [leadOrfao]))).toMatch(/forbidden/);
+    expect(await errMsg(c.query(`SELECT public.triar_e_distribuir_lead($1)`, [leadOrfao]))).toMatch(
+      /forbidden/,
+    );
+    expect(await errMsg(c.query(`SELECT public.distribuir_lead_v3($1)`, [leadOrfao]))).toMatch(
+      /forbidden/,
+    );
     await comoSuperuser(c);
   });
 
   it("gestor NÃO escreve direto em roleta_participantes (RLS)", async () => {
     await comoUsuario(c, gestorA.id);
     const code = await errCode(
-      c.query(`INSERT INTO public.roleta_participantes (roleta_id, corretor_id, ativo) VALUES ($1, $2, true)`, [roletaId, corretor2.id]),
+      c.query(
+        `INSERT INTO public.roleta_participantes (roleta_id, corretor_id, ativo) VALUES ($1, $2, true)`,
+        [roletaId, corretor2.id],
+      ),
     );
     await comoSuperuser(c);
     expect(code).toBe("42501"); // insufficient_privilege / RLS
@@ -142,7 +175,10 @@ describe("distribuição: gestor LÊ mas NÃO opera", () => {
   it("admin CONTINUA operando (gerenciar participante passa do gate e executa)", async () => {
     await comoUsuario(c, admin.id);
     const msg = await errMsg(
-      c.query(`SELECT public.gerenciar_participante_roleta('hardening-roleta', $1, 'limite', NULL, 5, NULL)`, [corretor1.id]),
+      c.query(
+        `SELECT public.gerenciar_participante_roleta('hardening-roleta', $1, 'limite', NULL, 5, NULL)`,
+        [corretor1.id],
+      ),
     );
     await comoSuperuser(c);
     expect(msg).toBeNull(); // sem erro
@@ -153,24 +189,46 @@ describe("distribuição: gestor LÊ mas NÃO opera", () => {
 describe("config org-wide sem conceito de time: admin-only para gestor", () => {
   it("gestor NÃO cria projeto/template/equipe (RLS)", async () => {
     await comoUsuario(c, gestorA.id);
-    expect(await errCode(c.query(`INSERT INTO public.projetos (nome, slug) VALUES ('P', 'proj-gestor-x')`))).toBe("42501");
-    expect(await errCode(c.query(`INSERT INTO public.templates_mensagem (nome, conteudo) VALUES ('T', 'oi')`))).toBe("42501");
-    expect(await errCode(c.query(`INSERT INTO public.equipes (nome) VALUES ('Nova pelo gestor')`))).toBe("42501");
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.projetos (nome, slug) VALUES ('P', 'proj-gestor-x')`),
+      ),
+    ).toBe("42501");
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.templates_mensagem (nome, conteudo) VALUES ('T', 'oi')`),
+      ),
+    ).toBe("42501");
+    expect(
+      await errCode(c.query(`INSERT INTO public.equipes (nome) VALUES ('Nova pelo gestor')`)),
+    ).toBe("42501");
     await comoSuperuser(c);
   });
 
   it("gestor AINDA edita a PRÓPRIA equipe (inalterado)", async () => {
     await comoUsuario(c, gestorA.id);
-    const code = await errCode(c.query(`UPDATE public.equipes SET descricao = 'x' WHERE id = $1`, [equipeA]));
+    const code = await errCode(
+      c.query(`UPDATE public.equipes SET descricao = 'x' WHERE id = $1`, [equipeA]),
+    );
     await comoSuperuser(c);
     expect(code).toBeNull();
   });
 
   it("admin cria projeto/template/equipe normalmente", async () => {
     await comoUsuario(c, admin.id);
-    expect(await errCode(c.query(`INSERT INTO public.projetos (nome, slug) VALUES ('P', 'proj-admin-x')`))).toBeNull();
-    expect(await errCode(c.query(`INSERT INTO public.templates_mensagem (nome, conteudo) VALUES ('T', 'oi')`))).toBeNull();
-    expect(await errCode(c.query(`INSERT INTO public.equipes (nome) VALUES ('Nova pelo admin')`))).toBeNull();
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.projetos (nome, slug) VALUES ('P', 'proj-admin-x')`),
+      ),
+    ).toBeNull();
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.templates_mensagem (nome, conteudo) VALUES ('T', 'oi')`),
+      ),
+    ).toBeNull();
+    expect(
+      await errCode(c.query(`INSERT INTO public.equipes (nome) VALUES ('Nova pelo admin')`)),
+    ).toBeNull();
     await comoSuperuser(c);
   });
 });
@@ -179,16 +237,38 @@ describe("config org-wide sem conceito de time: admin-only para gestor", () => {
 describe("metas: gestor recortado por time", () => {
   it("gestor cria meta de corretor DO time e da PRÓPRIA equipe", async () => {
     await comoUsuario(c, gestorA.id);
-    expect(await errCode(c.query(`INSERT INTO public.metas (ano, mes, corretor_id) VALUES (2027, 1, $1)`, [corretor1.id]))).toBeNull();
-    expect(await errCode(c.query(`INSERT INTO public.metas (ano, mes, equipe_id) VALUES (2027, 2, $1)`, [equipeA]))).toBeNull();
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.metas (ano, mes, corretor_id) VALUES (2027, 1, $1)`, [
+          corretor1.id,
+        ]),
+      ),
+    ).toBeNull();
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.metas (ano, mes, equipe_id) VALUES (2027, 2, $1)`, [equipeA]),
+      ),
+    ).toBeNull();
     await comoSuperuser(c);
   });
 
   it("gestor NÃO cria meta de corretor de OUTRA equipe, de outra equipe, nem global", async () => {
     await comoUsuario(c, gestorA.id);
-    expect(await errCode(c.query(`INSERT INTO public.metas (ano, mes, corretor_id) VALUES (2027, 3, $1)`, [corretor2.id]))).toBe("42501");
-    expect(await errCode(c.query(`INSERT INTO public.metas (ano, mes, equipe_id) VALUES (2027, 4, $1)`, [equipeB]))).toBe("42501");
-    expect(await errCode(c.query(`INSERT INTO public.metas (ano, mes) VALUES (2027, 5)`))).toBe("42501"); // global
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.metas (ano, mes, corretor_id) VALUES (2027, 3, $1)`, [
+          corretor2.id,
+        ]),
+      ),
+    ).toBe("42501");
+    expect(
+      await errCode(
+        c.query(`INSERT INTO public.metas (ano, mes, equipe_id) VALUES (2027, 4, $1)`, [equipeB]),
+      ),
+    ).toBe("42501");
+    expect(await errCode(c.query(`INSERT INTO public.metas (ano, mes) VALUES (2027, 5)`))).toBe(
+      "42501",
+    ); // global
     await comoSuperuser(c);
   });
 
@@ -227,9 +307,13 @@ describe("métricas por corretor / ranking recortados por time", () => {
 
   it("ranking_atividades: admin vê os dois; gestor só o time", async () => {
     await comoUsuario(c, admin.id);
-    const a = await c.query(`SELECT corretor_id FROM public.ranking_atividades('2026-01-01','2027-06-01')`);
+    const a = await c.query(
+      `SELECT corretor_id FROM public.ranking_atividades('2026-01-01','2027-06-01')`,
+    );
     await comoUsuario(c, gestorA.id);
-    const g = await c.query(`SELECT corretor_id FROM public.ranking_atividades('2026-01-01','2027-06-01')`);
+    const g = await c.query(
+      `SELECT corretor_id FROM public.ranking_atividades('2026-01-01','2027-06-01')`,
+    );
     await comoSuperuser(c);
     const admSet = new Set(a.rows.map((x) => x.corretor_id as string));
     const gesSet = new Set(g.rows.map((x) => x.corretor_id as string));
@@ -240,9 +324,13 @@ describe("métricas por corretor / ranking recortados por time", () => {
 
   it("equipe_metricas_campanha: gestor recebe 'forbidden'; admin executa", async () => {
     await comoUsuario(c, gestorA.id);
-    expect(await errMsg(c.query(`SELECT public.equipe_metricas_campanha($1)`, [roletaId]))).toMatch(/forbidden/);
+    expect(await errMsg(c.query(`SELECT public.equipe_metricas_campanha($1)`, [roletaId]))).toMatch(
+      /forbidden/,
+    );
     await comoUsuario(c, admin.id);
-    expect(await errMsg(c.query(`SELECT public.equipe_metricas_campanha($1)`, [roletaId]))).toBeNull();
+    expect(
+      await errMsg(c.query(`SELECT public.equipe_metricas_campanha($1)`, [roletaId])),
+    ).toBeNull();
     await comoSuperuser(c);
   });
 });
