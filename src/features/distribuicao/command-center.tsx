@@ -263,7 +263,9 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
 
       {somenteLeitura && (
         <p className="mt-4 text-xs text-muted-foreground">
-          Acesso somente leitura — as ações de distribuição são exclusivas de administradores.
+          {escopoEquipe
+            ? "Como gestor, você monta a equipe das filas (incluir, pausar e remover) apenas com corretores do seu time. As demais configurações da distribuição são de administradores."
+            : "Acesso somente leitura — as ações de distribuição são exclusivas de administradores."}
         </p>
       )}
     </div>
