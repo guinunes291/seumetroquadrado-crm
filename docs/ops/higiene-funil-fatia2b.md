@@ -6,17 +6,17 @@ modo atual (`sombra`), **não move nenhum lead**: ele apenas grava em
 
 ## O que existe
 
-| Objeto | Papel |
-| --- | --- |
-| `higiene_config.modo` | `sombra` (só registra) · `ativo_parcial` (só alerta) · `ativo` (régua inteira) |
-| `higiene_config.teto_perdidos_dia` | Teto diário de perdas automáticas (dia em horário de Brasília) |
-| `higiene_config.lote_max` | Quantos leads o motor avalia por execução |
-| `higiene_regra_fase.dias_perda` | Prazo próprio da fase (NULL = `dias_parado_min`) |
-| `higiene_regra_fase.acao_automatica` | `nenhuma` · `alertar` · `devolver_roleta` · `perdido` |
-| `higiene_execucao_log` | Um registro por lead avaliado, com motivo do pulo e carimbo da config |
-| `higiene_processar()` | O motor |
-| `higiene_desfazer_lote(execucao_id)` | Reverte em bloco o que uma execução aplicou (idempotente) |
-| `v_higiene_motor_status` | Batimento cardíaco: sempre uma linha, mesmo sem execução |
+| Objeto                               | Papel                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------ |
+| `higiene_config.modo`                | `sombra` (só registra) · `ativo_parcial` (só alerta) · `ativo` (régua inteira) |
+| `higiene_config.teto_perdidos_dia`   | Teto diário de perdas automáticas (dia em horário de Brasília)                 |
+| `higiene_config.lote_max`            | Quantos leads o motor avalia por execução                                      |
+| `higiene_regra_fase.dias_perda`      | Prazo próprio da fase (NULL = `dias_parado_min`)                               |
+| `higiene_regra_fase.acao_automatica` | `nenhuma` · `alertar` · `devolver_roleta` · `perdido`                          |
+| `higiene_execucao_log`               | Um registro por lead avaliado, com motivo do pulo e carimbo da config          |
+| `higiene_processar()`                | O motor                                                                        |
+| `higiene_desfazer_lote(execucao_id)` | Reverte em bloco o que uma execução aplicou (idempotente)                      |
+| `v_higiene_motor_status`             | Batimento cardíaco: sempre uma linha, mesmo sem execução                       |
 
 ## Travas estruturais (CHECK, não disciplina)
 

@@ -259,9 +259,7 @@ describe("escrita em lote", () => {
          FROM generate_series(1,50) g`,
       [instante, corretor.id],
     );
-    await c.query(
-      `UPDATE public.leads SET na_lixeira = true WHERE nome IN ('imp-1','imp-2')`,
-    );
+    await c.query(`UPDATE public.leads SET na_lixeira = true WHERE nome IN ('imp-1','imp-2')`);
 
     const base = await c.query(
       `SELECT count(*)::int AS n FROM public.v_higiene_base WHERE escrita_em_lote`,
