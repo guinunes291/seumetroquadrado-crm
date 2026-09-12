@@ -279,12 +279,15 @@ polegar vira Fila | Leads | + | Agenda | Buscar, e a pasta
 `src/features/command-center` (widgets, ronda, missões) foi removida com seus
 testes — nada fora dela a importava. Reverter é reverter o commit.
 
-Para a **gestão**, a porta do módulo no hub é o cockpit da operação que já
-existe no Painel do Gestor (aba Dia), via `homePorPapel` — a Fila é a carteira
-pessoal até a Fatia 3 trazer a visão por corretor; `/fila` continua acessível
-pela seção e pelo ⌘K. O que a Hoje mostrava ao **corretor** e não tem
-substituto ainda: o widget de meta e ritmo do mês (o Meu Raio-X mostra os KPIs,
-não a meta). Fica anotado para a Fatia 3.
+Para a **gestão**, a porta do módulo no hub também é a Fila Única (decisão do
+dono, 12/09/2026). No intervalo entre a retirada da Hoje e a Fatia 2 o card
+desviava a gestão para o cockpit do Painel do Gestor (aba Dia) via
+`homePorPapel`, porque a fila era só a carteira pessoal; a Fatia 2 trouxe a
+tabela "a mesma fila, vista pelo gestor" e o `?corretor=` na própria `/fila`,
+e o desvio saiu — o gestor caía no painel e não achava a página nova. O painel
+segue acessível por BI → Painel do Gestor. O que a Hoje mostrava ao
+**corretor** e não tem substituto ainda: o widget de meta e ritmo do mês (o Meu
+Raio-X mostra os KPIs, não a meta). Fica anotado para a Fatia 3.
 
 **Como foi conferido.** Sem login de produção neste ambiente, os componentes
 foram renderizados com fixtures em jsdom, envelopados no shell real (header,
