@@ -535,6 +535,68 @@ describe("correções da revisão (20260912120000)", () => {
     expect(doMotor[0].tipo, "mesmo tipo do alerta diário, para deduplicar").toBe("follow_up");
   });
 
+  it("o desfazer reverte um lead marcado PERDIDO — e é idempotente", async () => {
+    // A funcao fazia `SET motivo_perda = NULL`, coluna que NAO EXISTE em
+    // leads (as certas sao motivo_perdido e motivo_perda_categoria).
+    // PL/pgSQL nao valida nome de coluna na criacao, entao a funcao compilava,
+    // passava no CI, e so quebrava em execucao:
+    //   ERROR: column "motivo_perda" of relation "leads" does not exist
+    //
+    // O desfazer e a rede de seguranca que justifica ligar o motor. Ele
+    // funcionava no caminho 'alertar' (o unico que tinha teste) e falhava no
+    // caminho 'perdido' — o unico caso em que alguem precisa dele.
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.higiene_config SET modo = 'ativo';
+       UPDATE public.higiene_regra_fase
+          SET acao_automatica = 'perdido', dias_perda = 60
+        WHERE status = 'aguardando_retorno'`,
+    );
+    const id = await lead({
+      nome: "desfazer perdido",
+      status: "aguardando_retorno",
+      diasParado: 90,
+    });
+
+    const r = await processar();
+    expect(r.aplicados).toBe(1);
+    await comoSuperuser(c);
+    let l = await c.query(
+      `SELECT status::text AS status, motivo_perda_categoria, data_perda
+         FROM public.leads WHERE id = $1`,
+      [id],
+    );
+    expect(l.rows[0].status).toBe("perdido");
+    expect(l.rows[0].motivo_perda_categoria).toBe("sem_contato");
+
+    const d1 = await c.query(`SELECT public.higiene_desfazer_lote($1) AS n`, [r.execucao_id]);
+    expect(Number(d1.rows[0].n), "o desfazer tem que reverter o lead").toBe(1);
+
+    l = await c.query(
+      `SELECT status::text AS status, motivo_perda_categoria, data_perda
+         FROM public.leads WHERE id = $1`,
+      [id],
+    );
+    expect(l.rows[0].status, "volta ao status anterior").toBe("aguardando_retorno");
+    expect(l.rows[0].motivo_perda_categoria).toBeNull();
+    expect(l.rows[0].data_perda).toBeNull();
+
+    const d2 = await c.query(`SELECT public.higiene_desfazer_lote($1) AS n`, [r.execucao_id]);
+    expect(Number(d2.rows[0].n), "idempotente: nada a reverter na segunda vez").toBe(0);
+  });
+
+  it("corretor comum não consegue desfazer", async () => {
+    // O afrouxamento do guard do desfazer (para o SQL console funcionar numa
+    // emergência) não pode abrir a função para qualquer usuário logado.
+    const corretor = await criarUsuario(c, { papel: "corretor" });
+    await comoUsuario(c, corretor.id);
+    const code = await errCode(
+      c.query(`SELECT public.higiene_desfazer_lote('00000000-0000-0000-0000-000000000000')`),
+    );
+    expect(code).toBe("42501");
+    await comoSuperuser(c);
+  });
+
   it("o cron consegue rodar: sem contexto de request, não é barrado", async () => {
     // O guard original exigia service_role OU papel de gestão. pg_cron executa
     // SEM contexto: auth.uid() e auth.role() são ambos NULL — então o job das
