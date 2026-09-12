@@ -20,8 +20,13 @@ export type ScoreInput = {
 export type ScoreTier = "alta" | "media" | "baixa";
 export type ScoreResult = { score: number; tier: ScoreTier; motivo: string };
 
-/** Peso por etapa — quanto mais perto da venda, mais cara é a oportunidade. */
-const PESO_ETAPA: Record<string, number> = {
+/** Peso por etapa — quanto mais perto da venda, mais cara é a oportunidade.
+ *  Exportado porque a tabela public.higiene_regra_fase (migration
+ *  20260911230100) espelha estes pesos para ordenar a fila de Higiene do
+ *  Funil em SQL. tests/db/higiene-funil.test.ts compara os dois e quebra o CI
+ *  se divergirem — a duplicação existe (a tela precisa somar no banco), mas
+ *  não pode silenciar. */
+export const PESO_ETAPA: Record<string, number> = {
   analise_credito: 25,
   visita_realizada: 22,
   agendado: 16,
