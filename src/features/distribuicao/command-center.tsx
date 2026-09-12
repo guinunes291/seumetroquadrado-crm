@@ -231,7 +231,11 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           <TabVisaoGeral onVerExcecoes={() => setTab("excecoes")} />
         </TabsContent>
         <TabsContent value="filas">
-          <TabFilas somenteLeitura={somenteLeitura} filaInicial={fila} />
+          <TabFilas
+            somenteLeitura={somenteLeitura}
+            filaInicial={fila}
+            escopoEquipe={escopoEquipe}
+          />
         </TabsContent>
         <TabsContent value="corretores">
           <TabCorretores somenteLeitura={somenteLeitura} />
