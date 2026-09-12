@@ -430,7 +430,7 @@ function RoletaTabPadrao({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {ehPlantao && (
+                                {ehPlantao && !escopoEquipe && (
                                   <DropdownMenuItem
                                     onClick={() =>
                                       presencaAdmin.mutate({
