@@ -12,15 +12,14 @@ const IGNORED_FILES = new Set(["src/routeTree.gen.ts"]);
 // do Supabase, dá para baixar de novo: os `as never`/`as any` das RPCs fora
 // dos types (leads_filtered_v2, nav_pendencias, pipeline_snapshot_v3,
 // gestao_metricas, dashboard_*) deixam de ser necessários.
-// 2026-09-12 — teto de 144 para 146. Medido na árvore limpa ANTES desta
-// mudança: já havia 145 (o teto estava estourado em 1 por uma alteração
-// anterior). Desta rodada vem exatamente 1 escape, o boundary
-// src/integrations/supabase/higiene-pendente.ts — o próprio padrão que a
-// mensagem de erro deste script recomenda, usado porque as views de Higiene
-// do Funil (migrations 202609112300*) ainda não estão em types.ts.
+// 2026-09-12 — teto de 144 para 145. O +1 é o boundary
+// src/integrations/supabase/higiene-pendente.ts, o próprio padrão que a
+// mensagem de erro deste script recomenda: as views de Higiene do Funil
+// (migrations 202609112300*) ainda não estão em types.ts, e um boundary único
+// é melhor que `as never` espalhado pelas telas.
 // Ao regenerar os types depois de aplicar as migrations: apagar aquele
-// arquivo, trocar supabaseHigiene por supabase e baixar este teto.
-const MAX_ESCAPES = 146;
+// arquivo, trocar supabaseHigiene por supabase e voltar este teto para 144.
+const MAX_ESCAPES = 145;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {
