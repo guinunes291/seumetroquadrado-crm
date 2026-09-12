@@ -7,12 +7,13 @@
 // diálogos, mesmas invalidações). O "desfecho de um toque" e a carteira ativa
 // limitada são as fatias 2 e 3 — ver docs/ops/fila-unica-fatia1.md.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { PageHeader } from "@/components/page-header";
@@ -37,6 +38,7 @@ import {
   BUCKET_ORDER,
   LIMITE_FILA,
   filaParaScript,
+  formatarEmJogo,
   type FilaBucket,
   type FilaLead,
   type FilaUnica,
@@ -45,6 +47,12 @@ import {
 import { FilaCard } from "@/features/fila-unica/fila-card";
 import { FilaCockpit } from "@/features/fila-unica/fila-cockpit";
 import { FilaFunil } from "@/features/fila-unica/fila-funil";
+import { FilaRegras } from "@/features/fila-unica/fila-regras";
+import { FilaLateral } from "@/features/fila-unica/fila-lateral";
+import { FilaEquipe } from "@/features/fila-unica/fila-equipe";
+import { useFilaEquipe } from "@/features/fila-unica/use-fila-equipe";
+import { desfechoPara, type OpcaoDesfecho } from "@/features/fila-unica/desfecho";
+import { useDesfecho } from "@/features/fila-unica/use-desfecho";
 import { FILA_UNICA_FUNIL_KEY } from "@/features/fila-unica/use-fila-funil";
 import { useFilaUnica, FILA_UNICA_SEM_ACAO_KEY } from "@/features/fila-unica/use-fila-unica";
 import {
@@ -143,16 +151,72 @@ export function FilaResumo({ fila, className }: { fila: FilaUnica; className?: s
   );
 }
 
-export function FilaUnicaPage() {
+export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   const qc = useQueryClient();
   const abrirWhatsApp = useWhatsAppLead();
   const { ligar, discando } = useLigarLead();
-  const { fila, isLoading, isError, error, refetch } = useFilaUnica();
+  const { user } = useAuth();
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const gestao = isAdmin || isGestor || isSuperintendente;
+  // A gestão pode abrir a fila de um corretor ("Ver a fila" na tabela).
+  const outro = !!corretorId && corretorId !== user?.id;
+  const alvo = outro ? corretorId : undefined;
+  const { fila, isLoading, isError, error, refetch } = useFilaUnica({ corretorId: alvo });
+  const equipe = useFilaEquipe(gestao);
+  const nomeDoAlvo = outro
+    ? (equipe.data?.find((r) => r.corretor_id === alvo)?.nome ?? "outro corretor")
+    : null;
 
   const [peek, setPeek] = useState<PeekLead | null>(null);
+
+  // "Entrou agora": quem não estava na lista na leitura anterior ganha o chip
+  // dourado do mockup — é o lead que a fila puxou quando outro saiu.
+  const vistos = useRef<Set<string> | null>(null);
+  const [novos, setNovos] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    if (!fila) return;
+    const ids = new Set(fila.itens.map((i) => i.lead.id));
+    const antes = vistos.current;
+    vistos.current = ids;
+    if (!antes) return;
+    const entraram = new Set([...ids].filter((id) => !antes.has(id)));
+    setNovos(entraram);
+  }, [fila]);
   const [contatoLead, setContatoLead] = useState<FilaLead | null>(null);
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+
+  // Desfecho de um toque: quem gravou vira "Registrado ✓" no card até a fila
+  // se atualizar (o lead sai, ou volta em outro balde e o selo some).
+  const [registrados, setRegistrados] = useState<Map<string, string | null>>(() => new Map());
+  const desfecho = useDesfecho({
+    onRegistrado: (r) => {
+      setRegistrados((m) => new Map(m).set(r.leadId, r.proximoTexto));
+      window.setTimeout(
+        () =>
+          setRegistrados((m) => {
+            if (!m.has(r.leadId)) return m;
+            const n = new Map(m);
+            n.delete(r.leadId);
+            return n;
+          }),
+        6000,
+      );
+    },
+  });
+  const onDesfecho = (item: FilaUnicaItem, opcao: OpcaoDesfecho, texto: string) => {
+    // Respostas com formulário obrigatório vão para o modal da casa; a perda
+    // pede motivo no diálogo. O resto grava aqui.
+    if (opcao.etapa?.kind === "modal") {
+      setModalState({ modal: opcao.etapa.modal, lead: toStageLead(item.lead) });
+      return;
+    }
+    if (opcao.etapa?.kind === "perdido") {
+      setPerdidoLead(toStageLead(item.lead));
+      return;
+    }
+    desfecho.registrar({ item, opcao, texto });
+  };
 
   const invalidarFila = () => {
     void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
@@ -213,23 +277,70 @@ export function FilaUnicaPage() {
 
   return (
     <div className="space-y-3 md:space-y-4">
-      {/* No celular o cabeçalho é só data + título, colado no placar. */}
-      <div className="-mb-3 md:mb-0">
-        <p className="mb-1 text-xs text-muted-foreground md:text-sm">{dataPorExtenso()}</p>
-        <PageHeader
-          title="Fila Única"
-          description={
-            <span className="hidden md:inline">
-              Uma lista só, na ordem em que o dinheiro está em risco. Cada lead sai daqui com um
-              resultado registrado e um próximo passo com data.
-            </span>
-          }
-          actions={
-            <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
-              <Link to="/atendimento">ver as filas de Atender</Link>
+      {/* Hero do mockup: à esquerda data, título, tese e as duas portas da
+          página; à direita o cockpit grande. No celular é só data + título,
+          colado no placar compacto. */}
+      <div className="grid gap-3 md:grid-cols-[1.15fr_1fr] md:items-center md:gap-7 md:py-2">
+        <div className="-mb-3 md:mb-0">
+          <p className="mb-1 text-xs text-muted-foreground md:text-sm">{dataPorExtenso()}</p>
+          {outro && (
+            <p
+              className="mb-1 flex flex-wrap items-center gap-2 text-xs md:text-sm"
+              data-testid="fila-de-outro"
+            >
+              <span>
+                Vendo a fila de <b>{nomeDoAlvo}</b>
+              </span>
+              <Link to="/fila" className="text-primary hover:underline">
+                voltar para a minha
+              </Link>
+            </p>
+          )}
+          <PageHeader
+            title="Fila Única"
+            description={
+              <span className="hidden md:inline">
+                Uma lista só, ordenada por <b className="text-foreground">dinheiro em risco</b>.
+                Cada lead sai daqui com um <b className="text-foreground">resultado registrado</b> e
+                um <b className="text-foreground">próximo passo com data</b>. Nada fica sem dono,
+                sem prazo ou sem desfecho.
+              </span>
+            }
+          />
+          <div className="mt-3 hidden flex-wrap gap-2 md:flex">
+            <Button asChild size="sm">
+              <a href="#fila">Começar pelo mais caro</a>
             </Button>
-          }
-        />
+            <Button asChild size="sm" variant="ghost">
+              <a href="#funil">Ver onde os clientes somem</a>
+            </Button>
+          </div>
+        </div>
+        {fila ? (
+          <FilaCockpit
+            fila={fila}
+            grande
+            className="hidden md:block"
+            rodape={
+              fila.resumo.emJogo > 0 ? (
+                <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-border-subtle pt-2.5 text-xs text-muted-foreground">
+                  <span>
+                    Dinheiro em jogo na sua fila{" "}
+                    <span className="text-muted-foreground/80">(VGV pelo preço de tabela)</span>
+                  </span>
+                  <b
+                    className="font-display text-xl font-semibold text-foreground"
+                    data-testid="fila-em-jogo"
+                  >
+                    {formatarEmJogo(fila.resumo.emJogo)}
+                  </b>
+                </div>
+              ) : undefined
+            }
+          />
+        ) : (
+          <Skeleton className="hidden h-48 md:block" />
+        )}
       </div>
 
       <AsyncBoundary
@@ -253,14 +364,12 @@ export function FilaUnicaPage() {
       >
         {fila && (
           <div className="space-y-3 md:space-y-4">
-            {/* Celular: um card só (anel + três números). Desktop: os quatro
-                StatTiles. O mesmo dado, dois tamanhos de tela. */}
+            {/* Celular: o placar compacto (no desktop ele está no hero). */}
             <FilaCockpit fila={fila} className="md:hidden" />
-            <FilaResumo fila={fila} className="hidden md:grid" />
 
             {/* O funil das etapas do mockup: leitura própria (fila_funil_v1),
                 fechado no celular para a lista vir primeiro. */}
-            <FilaFunil />
+            <FilaFunil id="funil" corretorId={alvo ?? null} />
 
             {fila.resumo.slaCorrendo > 0 && (
               <p className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">
@@ -270,100 +379,128 @@ export function FilaUnicaPage() {
               </p>
             )}
 
-            {fila.total === 0 ? (
-              <EmptyState
-                icon={CheckCircle}
-                title="Fila zerada"
-                description="Ninguém esperando resposta, nenhum follow-up vencido, nenhum lead sem próximo passo. Bom momento para prospectar."
-                action={
-                  <Button asChild size="sm">
-                    <Link to="/prospeccao">Abrir a Prospecção</Link>
-                  </Button>
-                }
-              />
-            ) : (
-              <>
-                <div className="hidden flex-wrap items-baseline justify-between gap-2 md:flex">
-                  <h2 className="font-display text-base font-semibold">
-                    {fila.total} lead(s) na sua fila agora
-                    {fila.resumo.ocultosInbox > 0 && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        + {fila.resumo.ocultosInbox} nas filas de Atender além dos cards carregados
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_300px] md:items-start md:gap-4">
+              <div className="min-w-0 space-y-3 md:space-y-4">
+                {fila.total === 0 ? (
+                  <EmptyState
+                    icon={CheckCircle}
+                    title="Fila zerada"
+                    description="Ninguém esperando resposta, nenhum follow-up vencido, nenhum lead sem próximo passo. Bom momento para prospectar."
+                    action={
+                      <Button asChild size="sm">
+                        <Link to="/prospeccao">Abrir a Prospecção</Link>
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <section
+                    id="fila"
+                    className="scroll-mt-20 space-y-3 md:space-y-4"
+                    aria-label="A sua fila de hoje"
+                  >
+                    <div className="hidden flex-wrap items-baseline justify-between gap-2 md:flex">
+                      <h2 className="font-display text-base font-semibold">
+                        {fila.total} lead(s) pedem ação agora
+                        {outro && ` na fila de ${nomeDoAlvo}`}
+                        {fila.resumo.ocultosInbox > 0 && (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            + {fila.resumo.ocultosInbox} nas filas de Atender além dos cards
+                            carregados
+                          </span>
+                        )}
+                      </h2>
+                      <span className="text-xs text-muted-foreground">
+                        ordem: <b className="font-semibold text-foreground">fundo do funil</b> por
+                        dias parado · chegaram agora · quem respondeu · vencidos · sem próximo passo
+                        · esfriando
                       </span>
-                    )}
-                  </h2>
-                  <span className="text-xs text-muted-foreground">
-                    ordem: SLA · fundo do funil por dias parado · quem respondeu · vencidos · sem
-                    próximo passo · esfriando
-                  </span>
-                </div>
-
-                {grupos.map((g) => (
-                  <section key={g.bucket} className="space-y-2" aria-label={BUCKET_LABEL[g.bucket]}>
-                    <h3 className="flex flex-wrap items-center gap-2 px-1 text-[13px] font-semibold md:px-0 md:text-sm">
-                      <span className={`h-2 w-2 rounded-full ${BUCKET_DOT[g.bucket]}`} />
-                      {BUCKET_LABEL[g.bucket]}
-                      <span className="font-display text-xs font-semibold text-muted-foreground">
-                        · {fila.porBucket[g.bucket]}
-                      </span>
-                      <span className="hidden text-xs font-normal text-muted-foreground md:inline">
-                        · {BUCKET_HINT[g.bucket]}
-                      </span>
-                    </h3>
-                    <div className="space-y-2">
-                      {g.itens.map((item, i) => (
-                        <FilaCard
-                          key={item.lead.id}
-                          item={item}
-                          index={i}
-                          ligando={discando}
-                          confirmando={
-                            confirmarVisita.isPending &&
-                            confirmarVisita.variables === item.agendamentoId
-                          }
-                          onWhatsApp={onWhatsApp}
-                          onLigar={(it) =>
-                            ligar({
-                              id: it.lead.id,
-                              nome: it.lead.nome,
-                              telefone: it.lead.telefone,
-                            })
-                          }
-                          onRegistrarContato={(it) => setContatoLead(it.lead)}
-                          onHistorico={(it) => setPeek(toPeekLead(it.lead))}
-                          onEtapaDirect={(it, target) =>
-                            mudarStatus.mutate({ id: it.lead.id, status: target })
-                          }
-                          onEtapaModal={(it, modal) =>
-                            setModalState({ modal, lead: toStageLead(it.lead) })
-                          }
-                          onEtapaPerdido={(it) => setPerdidoLead(toStageLead(it.lead))}
-                          onConfirmarVisita={(it) =>
-                            it.agendamentoId && confirmarVisita.mutate(it.agendamentoId)
-                          }
-                        />
-                      ))}
                     </div>
-                  </section>
-                ))}
 
-                {fila.total > fila.itens.length && (
-                  <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <ListChecks className="h-4 w-4" />
-                    Mostrando os {LIMITE_FILA} primeiros de {fila.total} recebidos. Os demais entram
-                    conforme estes saem — o dia cabe em {LIMITE_FILA}.
-                  </p>
+                    {grupos.map((g) => (
+                      <section
+                        key={g.bucket}
+                        className="space-y-2"
+                        aria-label={BUCKET_LABEL[g.bucket]}
+                      >
+                        <h3 className="flex flex-wrap items-center gap-2 px-1 text-[13px] font-semibold md:px-0 md:text-sm">
+                          <span className={`h-2 w-2 rounded-full ${BUCKET_DOT[g.bucket]}`} />
+                          {BUCKET_LABEL[g.bucket]}
+                          <span className="font-display text-xs font-semibold text-muted-foreground">
+                            · {fila.porBucket[g.bucket]}
+                          </span>
+                          <span className="hidden text-xs font-normal text-muted-foreground md:inline">
+                            · {BUCKET_HINT[g.bucket]}
+                          </span>
+                        </h3>
+                        <div className="space-y-2">
+                          {g.itens.map((item, i) => (
+                            <FilaCard
+                              key={item.lead.id}
+                              item={item}
+                              index={i}
+                              entrouAgora={novos.has(item.lead.id)}
+                              desfecho={desfechoPara(item, { gestao })}
+                              onDesfecho={onDesfecho}
+                              desfechoPendente={desfecho.pendente === item.lead.id}
+                              registrado={
+                                registrados.has(item.lead.id)
+                                  ? (registrados.get(item.lead.id) ?? null)
+                                  : null
+                              }
+                              ligando={discando}
+                              confirmando={
+                                confirmarVisita.isPending &&
+                                confirmarVisita.variables === item.agendamentoId
+                              }
+                              onWhatsApp={onWhatsApp}
+                              onLigar={(it) =>
+                                ligar({
+                                  id: it.lead.id,
+                                  nome: it.lead.nome,
+                                  telefone: it.lead.telefone,
+                                })
+                              }
+                              onRegistrarContato={(it) => setContatoLead(it.lead)}
+                              onHistorico={(it) => setPeek(toPeekLead(it.lead))}
+                              onEtapaDirect={(it, target) =>
+                                mudarStatus.mutate({ id: it.lead.id, status: target })
+                              }
+                              onEtapaModal={(it, modal) =>
+                                setModalState({ modal, lead: toStageLead(it.lead) })
+                              }
+                              onEtapaPerdido={(it) => setPerdidoLead(toStageLead(it.lead))}
+                              onConfirmarVisita={(it) =>
+                                it.agendamentoId && confirmarVisita.mutate(it.agendamentoId)
+                              }
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+
+                    {fila.total > fila.itens.length && (
+                      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <ListChecks className="h-4 w-4" />… e mais {fila.total - fila.itens.length}{" "}
+                        abaixo destes. Quando a lista zera, a fila puxa os próximos até completar{" "}
+                        {LIMITE_FILA}.
+                      </p>
+                    )}
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CalendarCheck className="h-4 w-4" />
+                      Visitas do dia e tarefas continuam na{" "}
+                      <Link to="/agendamentos" className="text-primary hover:underline">
+                        Agenda
+                      </Link>
+                      .
+                    </p>
+                  </section>
                 )}
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <CalendarCheck className="h-4 w-4" />
-                  Visitas do dia e tarefas continuam na{" "}
-                  <Link to="/agendamentos" className="text-primary hover:underline">
-                    Agenda
-                  </Link>
-                  .
-                </p>
-              </>
-            )}
+                {gestao && <FilaEquipe atual={alvo ?? null} />}
+              </div>
+              <FilaLateral className="hidden md:flex" />
+            </div>
+
+            <FilaRegras className="hidden md:block" />
           </div>
         )}
       </AsyncBoundary>

@@ -25,6 +25,18 @@ vi.mock("@/components/resumo-ia", () => ({
   ),
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: vi.fn() } }));
+vi.mock("@/features/leads/use-lead-detail", () => ({
+  fetchInteracoes: async () => [
+    {
+      id: "i1",
+      tipo: "ligacao",
+      direcao: "saida",
+      titulo: "Contato — não atendeu",
+      conteudo: "caixa postal",
+      ocorreu_em: "2026-07-11T12:00:00Z",
+    },
+  ],
+}));
 
 import { FilaCard } from "@/features/fila-unica/fila-card";
 import type { FilaUnicaItem } from "@/features/fila-unica/derive";
@@ -67,6 +79,7 @@ function itemBase(partial: Partial<FilaUnicaItem> = {}): FilaUnicaItem {
     docsPendentes: 0,
     agendamentoId: null,
     visitaEm: null,
+    valorEmJogo: null,
     ...partial,
   };
 }
@@ -157,7 +170,7 @@ describe("FilaCard", () => {
     fireEvent.click(screen.getByRole("button", { name: /Resumo/ }));
     expect(screen.getByTestId("resumo-ia")).toBeInTheDocument();
     expect(screen.getByText(/Renda: R\$ 4.200/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Ver histórico completo/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Abrir dossiê completo/ }));
     expect(cb.onHistorico).toHaveBeenCalledTimes(1);
   });
 

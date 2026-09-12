@@ -5,10 +5,14 @@
 // é o próximo passo e o prazo dele, e quatro botões de polegar — Ligar,
 // WhatsApp, Resumo e Registrar. O que é raro (Sami, mudar etapa) fica no "⋯"
 // do canto; a visita a confirmar ganha um botão inteiro, porque é o motivo
-// do card.
+// do card. "Registrar" abre o desfecho de um toque (FilaDesfecho); o registro
+// detalhado de contato continua no "⋯".
 
 import { useState, type MouseEvent, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { fetchInteracoes } from "@/features/leads/use-lead-detail";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +26,8 @@ import { SamiMark } from "@/components/ui/sami-mark";
 import { LeadStageMenuItems } from "@/components/lead-stage-menu";
 import { ResumoIA } from "@/components/resumo-ia";
 import { abrirSamiQ, textoRegistrarComSami } from "@/components/samiq/abrir-samiq";
+import { FilaDesfecho } from "@/features/fila-unica/fila-desfecho";
+import type { Desfecho, OpcaoDesfecho } from "@/features/fila-unica/desfecho";
 import { cn } from "@/lib/utils";
 import {
   LEAD_STATUS_BADGE_TONE,
@@ -31,11 +37,12 @@ import {
 } from "@/lib/leads";
 import { TIER_DOT } from "@/lib/priority";
 import { formatDuration } from "@/lib/duracao";
-import { formatRelativeTime } from "@/lib/interacoes";
+import { describeInteracao, formatRelativeTime } from "@/lib/interacoes";
 import {
   Buildings,
   CalendarCheck,
   CaretDown,
+  Check,
   CircleNotch,
   ClockCountdown,
   DotsThree,
@@ -43,7 +50,7 @@ import {
   PhoneCall,
   WhatsappLogo,
 } from "@phosphor-icons/react";
-import type { FilaUnicaItem } from "@/features/fila-unica/derive";
+import { formatarEmJogo, type FilaUnicaItem } from "@/features/fila-unica/derive";
 
 const ACCENT: Record<FilaUnicaItem["bucket"], string> = {
   sla: "border-l-warning",
@@ -59,8 +66,17 @@ export type FilaCardProps = {
   item: FilaUnicaItem;
   onWhatsApp: (item: FilaUnicaItem) => void;
   onLigar: (item: FilaUnicaItem) => void;
+  /** O registro detalhado (diálogo de contato) — fica no "⋯". */
   onRegistrarContato: (item: FilaUnicaItem) => void;
   onHistorico: (item: FilaUnicaItem) => void;
+  /** As respostas do desfecho de um toque para este lead. */
+  desfecho?: Desfecho;
+  /** O corretor confirmou uma resposta (a página grava). */
+  onDesfecho?: (item: FilaUnicaItem, opcao: OpcaoDesfecho, texto: string) => void;
+  /** O desfecho deste card está sendo gravado. */
+  desfechoPendente?: boolean;
+  /** Registrado: o próximo passo que ficou combinado (mostra o "✓"). */
+  registrado?: string | null;
   onEtapaDirect: (item: FilaUnicaItem, target: LeadStatus) => void;
   onEtapaModal: (item: FilaUnicaItem, modal: StageModal, target: LeadStatus) => void;
   onEtapaPerdido: (item: FilaUnicaItem) => void;
@@ -71,6 +87,8 @@ export type FilaCardProps = {
   confirmando?: boolean;
   /** Índice na lista — só para a cascata de entrada. */
   index?: number;
+  /** Entrou na lista nesta leitura (a fila puxou quando outro saiu). */
+  entrouAgora?: boolean;
   /** Relógio injetável (testes). */
   agora?: Date;
 };
@@ -104,10 +122,45 @@ function ProximoPasso({ item }: { item: FilaUnicaItem }): ReactNode {
   );
 }
 
-/** O número grande do card: o que está em jogo. No fundo do funil e nos
- *  demais baldes, dias sem movimento (a chave de ordem); no SLA, há quanto
- *  tempo o lead chegou. Sem data conhecida, diz isso — nunca inventa. */
+/** O número grande do card: o que está em jogo. Com projeto de interesse e
+ *  preço de tabela, o VGV estimado (o R$ do mockup) com os dias parado
+ *  embaixo; sem número honesto, os dias sem movimento (a chave de ordem) ou,
+ *  no SLA, há quanto tempo o lead chegou. Sem data conhecida, diz isso. */
 function EmJogo({ item, agora }: { item: FilaUnicaItem; agora: Date }) {
+  if (item.valorEmJogo !== null && item.valorEmJogo > 0) {
+    const dias = item.diasParado;
+    const chegada = item.lead.created_at ? formatRelativeTime(item.lead.created_at, agora) : null;
+    const sub =
+      item.bucket === "sla"
+        ? chegada
+          ? `${chegada.replace(/^há /, "")} na mesa`
+          : "na mesa"
+        : dias === null
+          ? "sem data"
+          : dias === 0
+            ? "hoje"
+            : `${dias} d parado`;
+    const critico = item.bucket !== "sla" && (dias === null || dias >= 5);
+    return (
+      <div
+        className="shrink-0 text-right"
+        title="VGV estimado pelo preço de tabela do projeto de interesse"
+      >
+        <div className="font-display text-base font-semibold leading-none tabular-nums">
+          {formatarEmJogo(item.valorEmJogo)}
+        </div>
+        <div
+          className={cn(
+            "mt-0.5 text-[10px]",
+            critico ? "font-semibold text-destructive" : "text-muted-foreground",
+          )}
+        >
+          <span className="hidden md:inline">em jogo · </span>
+          {sub}
+        </div>
+      </div>
+    );
+  }
   if (item.bucket === "sla") {
     const chegada = item.lead.created_at ? formatRelativeTime(item.lead.created_at, agora) : null;
     return (
@@ -138,6 +191,65 @@ function EmJogo({ item, agora }: { item: FilaUnicaItem; agora: Date }) {
   );
 }
 
+function dataCurta(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
+function Fato({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-md border border-border-subtle bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+      {children}
+    </span>
+  );
+}
+
+/** Histórico recente do mockup: as últimas interações, sem sair da fila. A
+ *  mesma chave do peek — abrir o dossiê depois não paga a leitura de novo. */
+function HistoricoRecente({ leadId, onAbrir }: { leadId: string; onAbrir: () => void }) {
+  const q = useQuery({
+    queryKey: ["lead-detail:interacoes", leadId],
+    queryFn: () => fetchInteracoes(leadId),
+    staleTime: 15_000,
+  });
+  const itens = (q.data ?? []).slice(0, 4);
+  return (
+    <div className="min-w-0">
+      <h4 className="mb-1.5 text-xs font-semibold text-muted-foreground">Histórico recente</h4>
+      {q.isPending ? (
+        <Skeleton className="h-12" />
+      ) : q.isError ? (
+        <p className="text-xs text-muted-foreground">Não foi possível ler o histórico.</p>
+      ) : itens.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Nenhuma interação registrada ainda.</p>
+      ) : (
+        <ul className="space-y-1" data-testid="historico-recente">
+          {itens.map((i) => (
+            <li key={i.id} className="grid grid-cols-[40px_1fr] gap-2 text-xs">
+              <b className="font-semibold tabular-nums text-muted-foreground">
+                {dataCurta(i.ocorreu_em)}
+              </b>
+              <span className="min-w-0 truncate text-muted-foreground">
+                <span className="font-semibold text-foreground">
+                  {i.titulo || describeInteracao(i.tipo, i.direcao)}
+                </span>
+                {i.conteudo && ` · ${i.conteudo}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Button
+        size="sm"
+        variant="link"
+        className="mt-1 h-auto px-0 text-xs font-semibold text-modulo-central"
+        onClick={onAbrir}
+      >
+        Abrir dossiê completo →
+      </Button>
+    </div>
+  );
+}
+
 export function FilaCard({
   item,
   onWhatsApp,
@@ -148,14 +260,49 @@ export function FilaCard({
   onEtapaModal,
   onEtapaPerdido,
   onConfirmarVisita,
+  desfecho,
+  onDesfecho,
+  desfechoPendente = false,
+  registrado = null,
   ligando = false,
   confirmando = false,
   index = 0,
+  entrouAgora = false,
   agora,
 }: FilaCardProps) {
   const l = item.lead;
   const [resumoAberto, setResumoAberto] = useState(false);
+  const [desfechoAberto, setDesfechoAberto] = useState(false);
   const relogio = agora ?? new Date();
+  const temDesfecho = !!desfecho && !!onDesfecho;
+
+  // O ciclo fechou: o card vira a confirmação do mockup ("Registrado. Próximo
+  // passo …") até a fila se atualizar e o lead sair ou voltar em outro balde.
+  if (registrado !== null) {
+    return (
+      <div
+        data-testid="fila-card"
+        data-registrado
+        className="flex items-center gap-3 rounded-xl border border-success/50 bg-card p-3 shadow-[0_0_0_1px_var(--color-success)]/25 animate-scale-in motion-reduce:animate-none"
+      >
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground">
+          <Check className="h-4 w-4" weight="bold" aria-hidden="true" />
+        </span>
+        <div className="min-w-0 text-sm">
+          <b>Registrado.</b> {l.nome}
+          {registrado ? (
+            <>
+              {" "}
+              · próximo passo <b>{registrado}</b>
+            </>
+          ) : null}
+          <span className="block text-xs text-muted-foreground">
+            Interação gravada e próximo passo com data. Desfazer na notificação.
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   // Clique no corpo do card abre o histórico (peek), como a linha de Atender.
   // Botões, links e menus (o "⋯" é portaled: o alvo nem está dentro do card
@@ -182,6 +329,8 @@ export function FilaCard({
       className={cn(
         "animate-slide-fade motion-reduce:animate-none grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-2 rounded-xl border border-l-4 bg-card p-3 transition-colors hover:bg-accent/40 md:gap-x-4",
         ACCENT[item.bucket],
+        entrouAgora &&
+          "ring-1 ring-modulo-central/40 shadow-[0_0_24px_var(--color-modulo-central)]/20",
       )}
       style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
     >
@@ -196,6 +345,14 @@ export function FilaCard({
           />
           <span className="truncate text-[15px] font-semibold md:text-sm">{l.nome}</span>
           <TemperatureChip temperatura={l.temperatura} size="sm" pulse={false} />
+          {entrouAgora && (
+            <Badge
+              variant="outline"
+              className="border-modulo-central/50 bg-modulo-central/10 px-1.5 py-0 text-[10.5px] font-semibold text-modulo-central"
+            >
+              entrou agora
+            </Badge>
+          )}
         </div>
         <div className="mt-1 text-[13px] leading-snug text-muted-foreground md:text-xs">
           <Badge
@@ -258,6 +415,10 @@ export function FilaCard({
             >
               <SamiMark className="h-4 w-4" />
               Registrar com a Sami
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onRegistrarContato(item)}>
+              <PhoneCall className="h-4 w-4" />
+              Registrar contato detalhado
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <LeadStageMenuItems
@@ -347,35 +508,59 @@ export function FilaCard({
           <Button
             size="sm"
             className={acao}
-            title="Registrar contato e marcar o próximo follow-up"
-            onClick={() => onRegistrarContato(item)}
+            aria-expanded={temDesfecho ? desfechoAberto : undefined}
+            title={
+              temDesfecho
+                ? "Registrar o que aconteceu: resultado, próximo passo e etapa num toque"
+                : "Registrar contato e marcar o próximo follow-up"
+            }
+            onClick={() => (temDesfecho ? setDesfechoAberto((v) => !v) : onRegistrarContato(item))}
           >
             <PhoneCall className={icone} />
-            <span className="truncate">Registrar</span>
+            <span className="truncate">
+              {temDesfecho && desfechoAberto ? "Fechar" : "Registrar"}
+            </span>
           </Button>
         </div>
       </div>
+
+      {/* O desfecho de um toque: painel no desktop, folha no celular. */}
+      {temDesfecho && desfecho && onDesfecho && (
+        <FilaDesfecho
+          item={item}
+          desfecho={desfecho}
+          aberto={desfechoAberto}
+          onFechar={() => setDesfechoAberto(false)}
+          onConfirmar={(opcao, texto) => {
+            setDesfechoAberto(false);
+            onDesfecho(item, opcao, texto);
+          }}
+          pendente={desfechoPendente}
+          agora={agora}
+        />
+      )}
 
       {/* Resumo: a leitura da Sami (gerada sob demanda, cacheada por lead) e a
           porta do histórico completo. Monta só quando aberto — nada custa IA
           nem consulta sem o corretor pedir. */}
       {resumoAberto && (
-        <div className="col-span-2 space-y-2 border-t pt-3" data-peek-ignore>
-          <ResumoIA leadId={l.id} />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {l.renda_informada && <span>Renda: {l.renda_informada}</span>}
-            {l.usa_fgts !== null && <span>· FGTS: {l.usa_fgts ? "sim" : "não"}</span>}
-            {l.entrada_disponivel && <span>· Entrada: {l.entrada_disponivel}</span>}
-            {l.origem && <span>· Origem: {l.origem}</span>}
-            <Button
-              size="sm"
-              variant="link"
-              className="h-auto px-0 text-xs"
-              onClick={() => onHistorico(item)}
-            >
-              Ver histórico completo
-            </Button>
+        <div
+          className="col-span-2 grid gap-3 border-t pt-3 md:grid-cols-[1.2fr_1fr]"
+          data-peek-ignore
+        >
+          <div className="min-w-0">
+            <ResumoIA leadId={l.id} />
+            {/* Os fatos do mockup: faixa, FGTS, decisor, renda, entrada, origem. */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {l.faixa_mcmv && <Fato>Faixa {l.faixa_mcmv}</Fato>}
+              {l.usa_fgts !== null && <Fato>FGTS {l.usa_fgts ? "sim" : "não"}</Fato>}
+              {l.decisor && <Fato>Decisor: {l.decisor}</Fato>}
+              {l.renda_informada && <Fato>Renda: {l.renda_informada}</Fato>}
+              {l.entrada_disponivel && <Fato>Entrada: {l.entrada_disponivel}</Fato>}
+              {l.origem && <Fato>Origem: {l.origem}</Fato>}
+            </div>
           </div>
+          <HistoricoRecente leadId={l.id} onAbrir={() => onHistorico(item)} />
         </div>
       )}
     </div>

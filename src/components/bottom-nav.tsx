@@ -1,23 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowsClockwise,
-  Buildings,
   CalendarDots,
   Fire,
   ListChecks,
   MagnifyingGlass,
-  Plus,
-  UserPlus,
   UsersThree,
 } from "@phosphor-icons/react";
 import { SamiMark } from "@/components/ui/sami-mark";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
+import { abrirSamiQ } from "@/components/samiq/abrir-samiq";
 import { useUserRoles } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +21,10 @@ type Slot = {
 };
 
 // Os 4 destinos de polegar do corretor, na ordem do mockup aprovado
-// (2026-09-12): Fila, Leads, [ação], Agenda, Buscar. O slot central (dourado)
-// é o botão de AÇÃO: um toque abre o que o corretor cria/dispara em campo.
+// (2026-09-12): Fila, Leads, [Sami], Agenda, Buscar. O slot central é a SAMI:
+// "a Sami fica no meio da barra" — um toque abre o copiloto com o lead em
+// contexto; ditar o desfecho, registrar, perguntar. Novo lead e Projetos
+// continuam na Leads, na bancada e no ⌘K.
 //
 // A FILA ÚNICA é o 1º slot: a página Hoje foi retirada e a fila é a porta da
 // Central de Comando — é onde o corretor passa o dia entre visitas. Atender
@@ -112,36 +105,18 @@ export function BottomNav() {
         {left.map((s) => (
           <NavSlot key={s.label} slot={s} active={isActive(loc, s)} />
         ))}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="Ações rápidas"
-              className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full bg-gold-500 text-navy-900 shadow-elev-3 transition-transform active:scale-95"
-            >
-              <Plus className="h-6 w-6" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" side="top" sideOffset={12} className="min-w-52">
-            <DropdownMenuItem onSelect={() => abrirNovoLead()}>
-              <UserPlus className="h-4 w-4" />
-              Novo lead
-            </DropdownMenuItem>
-            {/* Consulta de preço com o cliente na frente: sem isto, Projetos
-                custa hambúrguer > Projetos > card > tabela (4 toques). Aponta
-                para a bancada — lá book e tabela abrem direto da lista. */}
-            <DropdownMenuItem asChild>
-              <Link to="/projetos-foco">
-                <Buildings className="h-4 w-4" />
-                Projetos e preços
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => window.dispatchEvent(new Event("open-samiq"))}>
-              <SamiMark className="h-4 w-4" />
-              Falar com a Sami
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          aria-label="Abrir a Sami"
+          onClick={() => abrirSamiQ({ origem: "bottom-nav" })}
+          className="relative -top-3 mx-1 flex h-12 w-12 shrink-0 items-center justify-center self-start rounded-full border border-gold-500/60 bg-navy-900 text-gold-500 shadow-elev-3 ring-4 ring-gold-500/15 transition-transform active:scale-95"
+        >
+          <SamiMark className="h-7 w-7" />
+          <span
+            aria-hidden="true"
+            className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-gold-500 shadow-[0_0_8px_var(--color-gold-500)]"
+          />
+        </button>
         {right.map((s) => (
           <NavSlot key={s.label} slot={s} active={isActive(loc, s)} />
         ))}

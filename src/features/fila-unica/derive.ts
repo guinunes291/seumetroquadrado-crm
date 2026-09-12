@@ -5,13 +5,15 @@
 // (leads_sem_acao). Cada lead entra em UM balde, o mais urgente, e a tela
 // nunca duplica gente.
 //
-// Ordem dos baldes (decisão de 12/09/2026, medida no banco: a passagem "em
-// atendimento → agendado" está em 7% contra meta de 70%, e 124 dos 134 leads
-// em análise de crédito estão parados numa etapa que converte 39%):
-//   1. sla        — lead novo na mesa; o SLA do 1º contato está correndo e,
+// Ordem dos baldes (mockup aprovado em 12/09/2026, medido no banco: a passagem
+// "em atendimento → agendado" está em 7% contra meta de 70%, e 124 dos 134
+// leads em análise de crédito estão parados numa etapa que converte 39%):
+//   1. fundo      — agendado / visita realizada / análise de crédito parados:
+//                   é onde o dinheiro está, ordenado por dias sem movimento —
+//                   "um lead em análise parado há 66 dias vale mais do que
+//                   200 leads frios novos", por isso vem antes de tudo
+//   2. sla        — lead novo na mesa; o SLA do 1º contato está correndo e,
 //                   estourado, o lead vai para o próximo da roleta
-//   2. fundo      — agendado / visita realizada / análise de crédito parados:
-//                   é onde o dinheiro está, ordenado por dias sem movimento
 //   3. responder  — o cliente falou por último
 //   4. followup   — toque da régua vencido ou de hoje
 //   5. sem_acao   — lead ativo sem tarefa, sem agendamento, sem follow-up
@@ -49,8 +51,8 @@ export type FilaBucket =
   | "docs";
 
 export const BUCKET_ORDER: FilaBucket[] = [
-  "sla",
   "fundo",
+  "sla",
   "responder",
   "followup",
   "sem_acao",
@@ -90,6 +92,10 @@ export const LIMITE_FILA = 40;
 export type FilaLead = AtendimentoLead & {
   /** Texto livre do próximo passo (leads.proxima_acao) — só a régua o traz. */
   proxima_acao?: string | null;
+  /** Os fatos do Resumo (vêm do enriquecimento por id). */
+  faixa_mcmv?: string | null;
+  decisor?: string | null;
+  tipo_renda?: string | null;
 };
 
 /** Linha da RPC leads_sem_acao (7 colunas — não traz created_at, projeto nem
@@ -110,6 +116,11 @@ export type LeadExtras = {
   ultimo_contato?: string | null;
   projeto_nome?: string | null;
   corretor_id?: string | null;
+  faixa_mcmv?: string | null;
+  decisor?: string | null;
+  tipo_renda?: string | null;
+  /** Preço "a partir de" do projeto de interesse (VGV estimado do lead). */
+  valor_projeto?: number | null;
 };
 
 export type FilaFonte = "inbox" | "regua" | "sem_acao";
@@ -137,6 +148,10 @@ export type FilaUnicaItem = {
   docsPendentes: number;
   agendamentoId: string | null;
   visitaEm: string | null;
+  /** Dinheiro em jogo: o VGV estimado pelo preço de tabela do projeto de
+   *  interesse (a convenção `valor_potencial` das métricas). null sem projeto
+   *  ou com preço sob consulta — nunca um chute. */
+  valorEmJogo: number | null;
 };
 
 export type FilaUnica = {
@@ -154,6 +169,8 @@ export type FilaUnica = {
     /** Leads que a inbox conta nas filas dela mas não mandou como card (a RPC
      *  corta em _limit_per_queue). A fila não os vê — a tela precisa dizer. */
     ocultosInbox: number;
+    /** Soma do VGV estimado dos leads na fila (os cards do dia). */
+    emJogo: number;
   };
 };
 
@@ -210,6 +227,9 @@ function aplicarExtras(lead: FilaLead, extra: LeadExtras | undefined): FilaLead 
     created_at: lead.created_at || extra.created_at || "",
     projeto_nome: lead.projeto_nome ?? extra.projeto_nome ?? null,
     corretor_id: lead.corretor_id ?? extra.corretor_id ?? null,
+    faixa_mcmv: lead.faixa_mcmv ?? extra.faixa_mcmv ?? null,
+    decisor: lead.decisor ?? extra.decisor ?? null,
+    tipo_renda: lead.tipo_renda ?? extra.tipo_renda ?? null,
   };
 }
 
@@ -244,6 +264,7 @@ function baseDoItem(
     docsPendentes: 0,
     agendamentoId: null,
     visitaEm: null,
+    valorEmJogo: extra?.valor_projeto ?? null,
   };
 }
 
@@ -425,6 +446,7 @@ function fundirEmpate(vencedor: FilaUnicaItem, outro: FilaUnicaItem): FilaUnicaI
     docsPendentes: Math.max(vencedor.docsPendentes, outro.docsPendentes),
     agendamentoId: vencedor.agendamentoId ?? outro.agendamentoId,
     visitaEm: vencedor.visitaEm ?? outro.visitaEm,
+    valorEmJogo: vencedor.valorEmJogo ?? outro.valorEmJogo,
   };
 }
 
@@ -508,9 +530,10 @@ export function buildFilaUnica(input: {
     number
   >;
   for (const i of todos) porBucket[i.bucket] += 1;
+  const itens = todos.slice(0, limite);
 
   return {
-    itens: todos.slice(0, limite),
+    itens,
     total: todos.length,
     porBucket,
     resumo: {
@@ -521,8 +544,19 @@ export function buildFilaUnica(input: {
       slaCorrendo: input.inbox?.counts.novos ?? porBucket.sla,
       fundoParado: porBucket.fundo,
       ocultosInbox,
+      emJogo: itens.reduce((s, i) => s + (i.valorEmJogo ?? 0), 0),
     },
   };
+}
+
+/** "R$ 250 mil" / "R$ 1,2 mi" — o dinheiro em jogo no espaço de um número. */
+export function formatarEmJogo(n: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+    maximumFractionDigits: n >= 1_000_000 ? 1 : 0,
+  }).format(n);
 }
 
 /** Fila da inbox equivalente ao balde — dá o script certo de WhatsApp
