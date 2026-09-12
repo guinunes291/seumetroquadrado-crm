@@ -254,7 +254,12 @@ export function FilaUnicaPage() {
               <>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="font-display text-base font-semibold">
-                    {fila.total} lead(s) pedem ação agora
+                    {fila.total} lead(s) na sua fila agora
+                    {fila.resumo.ocultosInbox > 0 && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        + {fila.resumo.ocultosInbox} nas filas de Atender além dos cards carregados
+                      </span>
+                    )}
                   </h2>
                   <span className="text-xs text-muted-foreground">
                     ordem: SLA · fundo do funil por dias parado · quem respondeu · vencidos · sem
@@ -306,8 +311,8 @@ export function FilaUnicaPage() {
                 {fila.total > fila.itens.length && (
                   <p className="flex items-center gap-2 text-xs text-muted-foreground">
                     <ListChecks className="h-4 w-4" />
-                    Mostrando os {LIMITE_FILA} primeiros de {fila.total}. Os demais entram conforme
-                    estes saem — o dia cabe em {LIMITE_FILA}.
+                    Mostrando os {LIMITE_FILA} primeiros de {fila.total} recebidos. Os demais entram
+                    conforme estes saem — o dia cabe em {LIMITE_FILA}.
                   </p>
                 )}
                 <p className="flex items-center gap-2 text-xs text-muted-foreground">

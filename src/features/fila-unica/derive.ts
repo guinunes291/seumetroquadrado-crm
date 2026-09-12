@@ -17,10 +17,19 @@
 //   5. sem_acao   — lead ativo sem tarefa, sem agendamento, sem follow-up
 //   6. esfriando  — quente/morno sem contato há 3+ dias
 //   7. docs       — pasta travada fora do fundo do funil
-// Dentro do balde: fundo por dias parado (desc), follow-up por vencimento
-// (desc), os demais pelo Score de prioridade (lib/priority). O teto de itens
-// exibidos (40) é o tamanho de dia de um corretor — a "carteira ativa" como
-// regra de banco fica para a Fatia 2.
+// A precedência vale para QUALQUER fonte: um lead da régua que respondeu vai
+// para "responder"; um lead de leads_sem_acao em aguardando_atendimento vai
+// para "sla". Dentro do balde: fundo por dias sem movimento (desc, sem data =
+// mais parado), follow-up por vencimento (desc) e prazo (asc), os demais pelo
+// Score de prioridade (lib/priority). O teto de itens exibidos (40) é o
+// tamanho de dia de um corretor — a "carteira ativa" como regra de banco
+// fica para a Fatia 2.
+//
+// O relógio "dias sem movimento" é o mesmo da Higiene do Funil:
+// GREATEST(ultima_interacao, ultimo_contato), com created_at de fallback. As
+// fontes não trazem ultimo_contato nem (no caso de leads_sem_acao) created_at,
+// projeto e corretor — o hook enriquece por id (`extras`) e esta função nunca
+// inventa data: sem data conhecida, diasParado é null.
 
 import { diasDesde, scoreLead, type ScoreTier } from "@/lib/priority";
 import { PROXIMA_ACAO } from "@/lib/leads";
@@ -73,6 +82,8 @@ export const BUCKET_HINT: Record<FilaBucket, string> = {
 export const ETAPAS_FUNDO = ["agendado", "visita_realizada", "proposta_enviada", "analise_credito"];
 
 const ETAPAS_ENCERRADAS = ["perdido", "contrato_fechado", "pos_venda"];
+/** Lead ainda sem primeiro atendimento — espelha ETAPAS_PRIMEIRO_CONTATO de Atender. */
+const ETAPAS_PRIMEIRO_CONTATO = ["novo", "aguardando_atendimento"];
 
 export const LIMITE_FILA = 40;
 
@@ -81,7 +92,8 @@ export type FilaLead = AtendimentoLead & {
   proxima_acao?: string | null;
 };
 
-/** Linha da RPC leads_sem_acao (mesmo shape que a home consome). */
+/** Linha da RPC leads_sem_acao (7 colunas — não traz created_at, projeto nem
+ *  corretor; ver `extras`). */
 export type SemAcaoRow = {
   id: string;
   nome: string;
@@ -90,9 +102,14 @@ export type SemAcaoRow = {
   temperatura: string | null;
   proximo_followup: string | null;
   ultima_interacao: string | null;
+};
+
+/** Campos que as fontes não trazem e o hook busca por id em `leads`. */
+export type LeadExtras = {
+  created_at?: string | null;
+  ultimo_contato?: string | null;
   projeto_nome?: string | null;
   corretor_id?: string | null;
-  created_at?: string | null;
 };
 
 export type FilaFonte = "inbox" | "regua" | "sem_acao";
@@ -106,7 +123,8 @@ export type FilaUnicaItem = {
   motivo: string;
   score: number;
   tier: ScoreTier;
-  /** Dias sem movimento (última interação, ou chegada do lead). */
+  /** Dias sem movimento (GREATEST de última interação e último contato, ou
+   *  chegada do lead). null = nenhuma data conhecida. */
   diasParado: number | null;
   /** Próximo passo combinado: texto livre do lead, senão a ação sugerida pela etapa. */
   proximoPasso: string | null;
@@ -114,7 +132,7 @@ export type FilaUnicaItem = {
   prazo: string | null;
   /** Minutos além do prazo (0 = dentro do prazo ou sem prazo). */
   vencidoMin: number;
-  /** true quando o prazo cai hoje e ainda não venceu. */
+  /** true quando há prazo, ele cai hoje e ainda não venceu. */
   venceHoje: boolean;
   docsPendentes: number;
   agendamentoId: string | null;
@@ -124,7 +142,7 @@ export type FilaUnicaItem = {
 export type FilaUnica = {
   /** Itens já ordenados, deduplicados e cortados no teto. */
   itens: FilaUnicaItem[];
-  /** Total antes do corte — o que a fila inteira pede. */
+  /** Total de candidatos distintos recebidos das fontes, antes do teto. */
   total: number;
   porBucket: Record<FilaBucket, number>;
   resumo: {
@@ -133,6 +151,9 @@ export type FilaUnica = {
     semProximoPasso: number;
     slaCorrendo: number;
     fundoParado: number;
+    /** Leads que a inbox conta nas filas dela mas não mandou como card (a RPC
+     *  corta em _limit_per_queue). A fila não os vê — a tela precisa dizer. */
+    ocultosInbox: number;
   };
 };
 
@@ -152,35 +173,70 @@ function minutosVencidos(iso: string | null | undefined, agora: Date): number {
   return Math.max(0, Math.floor((agora.getTime() - t) / 60_000));
 }
 
+function maisRecente(...isos: (string | null | undefined)[]): string | null {
+  let melhor: string | null = null;
+  let melhorT = -Infinity;
+  for (const iso of isos) {
+    if (!iso) continue;
+    const t = Date.parse(iso);
+    if (!Number.isNaN(t) && t > melhorT) {
+      melhorT = t;
+      melhor = iso;
+    }
+  }
+  return melhor;
+}
+
+/** Relógio da Higiene do Funil: o toque mais recente, senão a chegada. */
+function diasSemMovimento(lead: FilaLead, extra: LeadExtras | undefined, agora: Date) {
+  const ult = maisRecente(lead.ultima_interacao, extra?.ultimo_contato);
+  const base = ult ?? maisRecente(extra?.created_at, lead.created_at);
+  return base ? diasDesde(base, agora) : null;
+}
+
 function proximoPassoDe(lead: FilaLead): string | null {
   const livre = lead.proxima_acao?.trim();
   if (livre) return livre;
   return PROXIMA_ACAO[lead.status as keyof typeof PROXIMA_ACAO]?.label ?? null;
 }
 
+const ehFundo = (status: string) => ETAPAS_FUNDO.includes(status);
+const ehPrimeiroContato = (status: string) => ETAPAS_PRIMEIRO_CONTATO.includes(status);
+
+function aplicarExtras(lead: FilaLead, extra: LeadExtras | undefined): FilaLead {
+  if (!extra) return lead;
+  return {
+    ...lead,
+    created_at: lead.created_at || extra.created_at || "",
+    projeto_nome: lead.projeto_nome ?? extra.projeto_nome ?? null,
+    corretor_id: lead.corretor_id ?? extra.corretor_id ?? null,
+  };
+}
+
+type Base = Omit<FilaUnicaItem, "bucket" | "fonte" | "filaInbox" | "motivo">;
+
 function baseDoItem(
-  lead: FilaLead,
+  leadBruto: FilaLead,
+  extra: LeadExtras | undefined,
   agora: Date,
-  extra: Partial<Pick<FilaUnicaItem, "score" | "tier">> = {},
-): Omit<FilaUnicaItem, "bucket" | "fonte" | "filaInbox" | "motivo" | "docsPendentes"> & {
-  docsPendentes: number;
-} {
+  score?: { score: number; tier: ScoreTier },
+): Base {
+  const lead = aplicarExtras(leadBruto, extra);
   const r =
-    extra.score !== undefined && extra.tier !== undefined
-      ? { score: extra.score, tier: extra.tier }
-      : scoreLead({
-          temperatura: lead.temperatura,
-          status: lead.status,
-          ultimaInteracao: lead.ultima_interacao,
-          agora,
-        });
+    score ??
+    scoreLead({
+      temperatura: lead.temperatura,
+      status: lead.status,
+      ultimaInteracao: lead.ultima_interacao,
+      agora,
+    });
   const prazo = lead.proximo_followup ?? null;
   const vencidoMin = minutosVencidos(prazo, agora);
   return {
     lead,
     score: r.score,
     tier: r.tier,
-    diasParado: diasDesde(lead.ultima_interacao ?? lead.created_at, agora),
+    diasParado: diasSemMovimento(lead, extra, agora),
     proximoPasso: proximoPassoDe(lead),
     prazo,
     vencidoMin,
@@ -191,7 +247,11 @@ function baseDoItem(
   };
 }
 
-const ehFundo = (status: string) => ETAPAS_FUNDO.includes(status);
+function motivoChegada(lead: FilaLead, agora: Date): string {
+  return lead.created_at
+    ? `chegou ${formatRelativeTime(lead.created_at, agora)} e aguarda o primeiro contato`
+    : "aguarda o primeiro contato";
+}
 
 /** Fila da inbox → balde da Fila Única. O fundo do funil vence qualquer fila
  *  da inbox que não seja o SLA do 1º contato nem "responder": um lead em
@@ -206,8 +266,13 @@ function bucketDaInbox(fila: QueueKey, lead: AtendimentoLead): FilaBucket {
   return "docs";
 }
 
-function itemDaInbox(fila: QueueKey, q: QueueItem, agora: Date): FilaUnicaItem {
-  const base = baseDoItem(q.lead, agora, { score: q.score, tier: q.tier });
+function itemDaInbox(
+  fila: QueueKey,
+  q: QueueItem,
+  extra: LeadExtras | undefined,
+  agora: Date,
+): FilaUnicaItem {
+  const base = baseDoItem(q.lead, extra, agora, { score: q.score, tier: q.tier });
   return {
     ...base,
     bucket: bucketDaInbox(fila, q.lead),
@@ -220,7 +285,10 @@ function itemDaInbox(fila: QueueKey, q: QueueItem, agora: Date): FilaUnicaItem {
   };
 }
 
-function itemDaRegua(f: FilaItem, agora: Date): FilaUnicaItem {
+/** A fila da régua traz TODO lead ativo sem toque agendado (venc NULL) além
+ *  dos toques de hoje e vencidos. Sem prazo, o lead não "vence hoje" — ele
+ *  está sem próximo passo, e é assim que entra aqui. */
+function itemDaRegua(f: FilaItem, extra: LeadExtras | undefined, agora: Date): FilaUnicaItem {
   const lead: FilaLead = {
     id: f.id,
     nome: f.nome,
@@ -239,21 +307,43 @@ function itemDaRegua(f: FilaItem, agora: Date): FilaUnicaItem {
     usa_fgts: f.usa_fgts,
     proxima_acao: f.proxima_acao,
   };
-  const base = baseDoItem(lead, agora);
+  const base = baseDoItem(lead, extra, agora);
+  const comum = { ...base, fonte: "regua" as const, filaInbox: "followups" as const };
+
+  if (ehPrimeiroContato(f.status)) {
+    return { ...comum, bucket: "sla", filaInbox: "novos", motivo: motivoChegada(base.lead, agora) };
+  }
+  if (f.respondeu) {
+    return {
+      ...comum,
+      bucket: "responder",
+      filaInbox: "responder",
+      motivo: "respondeu e aguarda o seu retorno",
+    };
+  }
+  if (f.proximo_followup === null) {
+    return {
+      ...comum,
+      bucket: ehFundo(f.status) ? "fundo" : "sem_acao",
+      filaInbox: null,
+      motivo: `sem próximo passo definido · toque ${f.tentativas + 1} da régua ainda não agendado`,
+      prazo: null,
+      vencidoMin: 0,
+      venceHoje: false,
+    };
+  }
   return {
-    ...base,
+    ...comum,
     bucket: ehFundo(f.status) ? "fundo" : "followup",
-    fonte: "regua",
-    filaInbox: "followups",
     motivo: motivoDoToque(f),
-    // A régua é a fonte de verdade do vencimento do toque — o espelho
-    // proximo_followup pode estar defasado.
+    // A régua é a fonte de verdade do vencimento do toque; o toque de hoje
+    // (minutos_vencido 0) é, por construção da RPC, de hoje.
     vencidoMin: f.minutos_vencido,
     venceHoje: f.minutos_vencido === 0,
   };
 }
 
-function itemSemAcao(r: SemAcaoRow, agora: Date): FilaUnicaItem {
+function itemSemAcao(r: SemAcaoRow, extra: LeadExtras | undefined, agora: Date): FilaUnicaItem {
   const lead: FilaLead = {
     id: r.id,
     nome: r.nome,
@@ -263,15 +353,25 @@ function itemSemAcao(r: SemAcaoRow, agora: Date): FilaUnicaItem {
     temperatura: r.temperatura,
     ultima_interacao: r.ultima_interacao,
     proximo_followup: r.proximo_followup,
-    projeto_nome: r.projeto_nome ?? null,
-    created_at: r.created_at ?? r.ultima_interacao ?? agora.toISOString(),
-    corretor_id: r.corretor_id ?? null,
+    projeto_nome: null,
+    // Sem created_at na RPC: fica vazio até o hook enriquecer — nunca "agora".
+    created_at: "",
+    corretor_id: null,
     origem: "",
     renda_informada: null,
     entrada_disponivel: null,
     usa_fgts: null,
   };
-  const base = baseDoItem(lead, agora);
+  const base = baseDoItem(lead, extra, agora);
+  if (ehPrimeiroContato(r.status)) {
+    return {
+      ...base,
+      bucket: "sla",
+      fonte: "sem_acao",
+      filaInbox: "novos",
+      motivo: motivoChegada(base.lead, agora),
+    };
+  }
   const desde = r.ultima_interacao
     ? `sem movimento ${formatRelativeTime(r.ultima_interacao, agora)}`
     : "sem contato registrado";
@@ -291,19 +391,29 @@ function itemSemAcao(r: SemAcaoRow, agora: Date): FilaUnicaItem {
 
 const rank = (b: FilaBucket) => BUCKET_ORDER.indexOf(b);
 
+function tempo(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : t;
+}
+
 function compararNoBalde(a: FilaUnicaItem, b: FilaUnicaItem): number {
   if (a.bucket === "fundo") {
-    const d = (b.diasParado ?? -1) - (a.diasParado ?? -1);
-    if (d !== 0) return d;
+    // Sem data conhecida = o mais negligenciado (espelha o NULLS FIRST da RPC).
+    const da = a.diasParado ?? Infinity;
+    const db = b.diasParado ?? Infinity;
+    if (da !== db) return da === Infinity ? -1 : db === Infinity ? 1 : db - da;
   }
   if (a.bucket === "followup") {
     const d = b.vencidoMin - a.vencidoMin;
     if (d !== 0) return d;
-  }
-  if (a.bucket === "sla") {
-    // Quem chegou primeiro está mais perto de estourar o SLA.
-    const d = Date.parse(a.lead.created_at) - Date.parse(b.lead.created_at);
-    if (!Number.isNaN(d) && d !== 0) return d;
+    // Mesma ordem do hub: prazo mais cedo primeiro, depois quem chegou antes.
+    const pa = tempo(a.prazo);
+    const pb = tempo(b.prazo);
+    if (pa !== null && pb !== null && pa !== pb) return pa - pb;
+    const ca = tempo(a.lead.created_at);
+    const cb = tempo(b.lead.created_at);
+    if (ca !== null && cb !== null && ca !== cb) return ca - cb;
   }
   const s = b.score - a.score;
   if (s !== 0) return s;
@@ -314,26 +424,31 @@ export function buildFilaUnica(input: {
   inbox: AtendimentoInbox | null;
   regua: FilaFollowUp | null;
   semAcao: SemAcaoRow[];
+  extras?: Map<string, LeadExtras>;
   agora?: Date;
   limite?: number;
 }): FilaUnica {
   const agora = input.agora ?? new Date();
   const limite = input.limite ?? LIMITE_FILA;
+  const extras = input.extras ?? new Map<string, LeadExtras>();
 
   const candidatos: FilaUnicaItem[] = [];
+  let ocultosInbox = 0;
 
   if (input.inbox) {
     for (const fila of Object.keys(input.inbox.filas) as QueueKey[]) {
       // Com a régua disponível, a fila "followups" da inbox é ignorada —
       // fonte única com o hub Follow-Up (mesma regra de aplicarFilaRegua).
       if (fila === "followups" && input.regua) continue;
-      for (const q of input.inbox.filas[fila]) candidatos.push(itemDaInbox(fila, q, agora));
+      const itens = input.inbox.filas[fila];
+      ocultosInbox += Math.max(0, input.inbox.counts[fila] - itens.length);
+      for (const q of itens) candidatos.push(itemDaInbox(fila, q, extras.get(q.lead.id), agora));
     }
   }
   if (input.regua) {
-    for (const f of input.regua.itens) candidatos.push(itemDaRegua(f, agora));
+    for (const f of input.regua.itens) candidatos.push(itemDaRegua(f, extras.get(f.id), agora));
   }
-  for (const r of input.semAcao) candidatos.push(itemSemAcao(r, agora));
+  for (const r of input.semAcao) candidatos.push(itemSemAcao(r, extras.get(r.id), agora));
 
   // Dedup: um lead, um balde — o mais urgente vence; empate fica com a
   // primeira fonte (a inbox, cujas contagens vêm do banco).
@@ -361,11 +476,12 @@ export function buildFilaUnica(input: {
     porBucket,
     resumo: {
       vencidos: todos.filter((i) => i.vencidoMin > 0).length,
-      hoje: todos.filter((i) => i.venceHoje).length,
+      hoje: todos.filter((i) => i.venceHoje && i.prazo !== null).length,
       semProximoPasso: porBucket.sem_acao,
       // O SLA conta a carteira inteira (contagem do banco), não só os cards.
       slaCorrendo: input.inbox?.counts.novos ?? porBucket.sla,
       fundoParado: porBucket.fundo,
+      ocultosInbox,
     },
   };
 }

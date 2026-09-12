@@ -16,12 +16,12 @@ https://claude.ai/code/artifact/8ae2448b-90d8-438a-997c-53cc7a7ff45d
 | Arquivo                                       | Assunto                                                                  | Reversível sozinho |
 | --------------------------------------------- | ------------------------------------------------------------------------ | ------------------ |
 | `src/features/fila-unica/derive.ts`           | lógica PURA: funde as fontes, deduplica, ordena por balde, corta no teto | sim                |
-| `src/features/fila-unica/use-fila-unica.ts`   | hook: inbox v4 + régua + leads_sem_acao, fail-closed, realtime           | sim                |
+| `src/features/fila-unica/use-fila-unica.ts`   | hook: inbox v4 (30/fila) + régua + leads_sem_acao + extras por id        | sim                |
 | `src/features/fila-unica/fila-card.tsx`       | card: projeto de interesse, motivo, próximo passo, Resumo da Sami, ações | sim                |
 | `src/features/fila-unica/fila-unica-page.tsx` | página: placar, grupos, diálogos de Atender reaproveitados               | sim                |
 | `src/routes/_authenticated/fila.tsx`          | rota `/fila` (SDR vai para `/sdr`, como a Hoje)                          | sim                |
 | `src/features/nav/sistemas.ts`                | seção "Fila Única" na Central de Comando (a Hoje continua a home)        | sim                |
-| `tests/fila-unica-derive.test.ts`             | 13 casos da lógica pura                                                  | —                  |
+| `tests/fila-unica-derive.test.ts`             | 19 casos da lógica pura                                                  | —                  |
 | `tests/fila-card.test.tsx`                    | 4 casos do card (projeto, próximo passo, Resumo, callbacks)              | —                  |
 
 Zero migration. Zero RPC nova. Zero mudança nas telas existentes.
@@ -56,17 +56,40 @@ contagens vêm do banco.
 "followups" da inbox é ignorada, exatamente como `aplicarFilaRegua` faz em
 Atender. Sem a RPC (banco antigo), a fila da inbox volta a valer.
 
-**O cache é compartilhado.** A inbox usa a mesma queryKey de `/atendimento`
-(`["atendimento:inbox", userId]`); a régua usa o prefixo `["followup:fila"]`.
-Toda invalidação das telas donas alcança a Fila Única, e vice-versa.
+**Cache e teto da inbox.** A inbox é pedida com 30 cards por fila (o teto da
+RPC) sob a chave `["atendimento:inbox", "fila-unica", userId]` — chave própria,
+porque o payload não é o de `/atendimento` (15 por fila), mas sob o mesmo
+prefixo, para toda invalidação alcançar as duas telas. A régua usa o prefixo
+`["followup:fila"]`. O que a inbox conta numa fila mas não manda como card é
+somado em `resumo.ocultosInbox` e mostrado no cabeçalho ("+ N nas filas de
+Atender além dos cards carregados"): a fila nunca apresenta os cards recebidos
+como se fossem a carteira inteira.
+
+**A precedência vale para qualquer fonte.** A régua (`followup_fila_v1`) devolve
+TODO lead ativo sem toque agendado, com `proximo_followup` nulo e
+`minutos_vencido` 0. Isso não é "vence hoje": é lead sem próximo passo, e entra
+no balde `sem_acao`. Da mesma forma, `respondeu` na régua manda o lead para
+"responder", e lead em `novo`/`aguardando_atendimento` vindo de qualquer fonte
+vai para o SLA — o corte por fila da inbox não pode rebaixar um lead para o
+balde errado.
+
+**Enriquecimento por id.** `leads_sem_acao` devolve 7 colunas (sem `created_at`,
+projeto nem corretor) e nenhuma fonte traz `ultimo_contato`. O hook lê esses
+campos em `leads` num único `.in(ids)` (RLS da carteira aplica). Com isso o
+relógio "dias sem movimento" é o da Higiene (`GREATEST(ultima_interacao,
+ultimo_contato)`, senão `created_at`), o card mostra o projeto de interesse de
+qualquer fonte e os modais de etapa recebem o `corretor_id` real. A lógica pura
+nunca inventa data: sem data conhecida, `diasParado` é `null` e o lead é
+tratado como o mais negligenciado do fundo do funil.
 
 **Falha de leitura nunca vira fila vazia.** Erro em qualquer fonte propaga para
 `QueryErrorState`. A única degradação silenciosa é `leads_sem_acao` ausente
 (banco antigo): a fila fica de pé sem o balde "sem próximo passo".
 
-**O teto de 40 é visual.** A tela mostra os 40 primeiros e diz quantos ficaram
-de fora. A "carteira ativa" como regra de banco (o lead excedente vai para a
-pré-venda) é a Fatia 3.
+**O teto de 40 é visual.** A tela mostra os 40 primeiros dos candidatos
+recebidos e diz quantos ficaram de fora — e, separadamente, quantos a inbox
+contou sem mandar card. A "carteira ativa" como regra de banco (o lead
+excedente vai para a pré-venda) é a Fatia 3.
 
 **Projeto e Resumo no card.** Pedido do dono: o projeto de interesse aparece
 como chip sempre que existir (todas as fontes o trazem), e o botão Resumo abre,

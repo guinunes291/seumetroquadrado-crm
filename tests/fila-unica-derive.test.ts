@@ -3,6 +3,7 @@ import {
   BUCKET_ORDER,
   buildFilaUnica,
   filaParaScript,
+  type LeadExtras,
   type SemAcaoRow,
 } from "@/features/fila-unica/derive";
 import type { AtendimentoInbox } from "@/features/atendimento/inbox";
@@ -41,7 +42,10 @@ function item(l: AtendimentoLead, extra: Partial<QueueItem> = {}): QueueItem {
   };
 }
 
-function inbox(filas: Partial<Record<QueueKey, QueueItem[]>>, novos = 0): AtendimentoInbox {
+function inbox(
+  filas: Partial<Record<QueueKey, QueueItem[]>>,
+  counts: Partial<Record<QueueKey, number>> = {},
+): AtendimentoInbox {
   const vazio: AtendimentoInbox["filas"] = {
     novos: [],
     responder: [],
@@ -54,12 +58,12 @@ function inbox(filas: Partial<Record<QueueKey, QueueItem[]>>, novos = 0): Atendi
   return {
     filas: f,
     counts: {
-      novos: novos || f.novos.length,
-      responder: f.responder.length,
-      followups: f.followups.length,
-      esfriando: f.esfriando.length,
-      confirmar_visita: f.confirmar_visita.length,
-      docs: f.docs.length,
+      novos: counts.novos ?? f.novos.length,
+      responder: counts.responder ?? f.responder.length,
+      followups: counts.followups ?? f.followups.length,
+      esfriando: counts.esfriando ?? f.esfriando.length,
+      confirmar_visita: counts.confirmar_visita ?? f.confirmar_visita.length,
+      docs: counts.docs ?? f.docs.length,
     },
   };
 }
@@ -103,6 +107,8 @@ function semAcao(partial: Partial<SemAcaoRow> & { id: string; nome: string }): S
     ...partial,
   };
 }
+
+const extras = (m: Record<string, LeadExtras>) => new Map(Object.entries(m));
 
 describe("buildFilaUnica — um lead, um balde", () => {
   // A causa nº 1 de a fila perder credibilidade é a mesma pessoa aparecer
@@ -150,6 +156,73 @@ describe("buildFilaUnica — um lead, um balde", () => {
   });
 });
 
+describe("buildFilaUnica — a precedência vale para qualquer fonte", () => {
+  // followup_fila_v1 devolve TODO lead ativo sem toque agendado (venc NULL,
+  // minutos_vencido 0). Isso não é "vence hoje": é lead sem próximo passo —
+  // e ele não pode roubar a dedup do balde sem_acao.
+  it("régua sem prazo (venc NULL) é 'sem próximo passo', não 'vence hoje'", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: regua([
+        toque({ id: "x", nome: "Xavier", proximo_followup: null, minutos_vencido: 0 }),
+      ]),
+      semAcao: [semAcao({ id: "x", nome: "Xavier" })],
+      agora,
+    });
+    expect(fila.itens).toHaveLength(1);
+    expect(fila.itens[0].bucket).toBe("sem_acao");
+    expect(fila.itens[0].venceHoje).toBe(false);
+    expect(fila.itens[0].prazo).toBeNull();
+    expect(fila.itens[0].motivo).toContain("sem próximo passo definido");
+    expect(fila.resumo).toMatchObject({ hoje: 0, semProximoPasso: 1 });
+    expect(filaParaScript(fila.itens[0])).toBe("esfriando");
+  });
+
+  it("régua com toque de hoje (prazo real) é follow-up e conta em 'hoje'", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: regua([
+        toque({
+          id: "h",
+          nome: "Hoje",
+          proximo_followup: "2026-09-12T18:00:00Z",
+          minutos_vencido: 0,
+        }),
+      ]),
+      semAcao: [],
+      agora,
+    });
+    expect(fila.itens[0].bucket).toBe("followup");
+    expect(fila.itens[0].venceHoje).toBe(true);
+    expect(fila.resumo.hoje).toBe(1);
+  });
+
+  // O 16º lead de "responder" fica fora dos cards da inbox e chega pela
+  // régua com respondeu=true: não pode virar "combinamos de retomar".
+  it("régua com respondeu vai para 'responder' com o script certo", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: regua([toque({ id: "r", nome: "Resp", respondeu: true })]),
+      semAcao: [],
+      agora,
+    });
+    expect(fila.itens[0].bucket).toBe("responder");
+    expect(filaParaScript(fila.itens[0])).toBe("responder");
+  });
+
+  it("lead em primeiro contato vindo da régua ou de leads_sem_acao vai para o SLA", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: regua([toque({ id: "a", nome: "A", status: "aguardando_atendimento" })]),
+      semAcao: [semAcao({ id: "b", nome: "B", status: "novo" })],
+      agora,
+    });
+    expect(fila.itens.map((i) => i.bucket)).toEqual(["sla", "sla"]);
+    expect(filaParaScript(fila.itens[0])).toBe("novos");
+    expect(fila.resumo.semProximoPasso).toBe(0);
+  });
+});
+
 describe("buildFilaUnica — ordem", () => {
   it("segue a ordem dos baldes: SLA, fundo, responder, follow-up, sem passo, esfriando, docs", () => {
     const fila = buildFilaUnica({
@@ -179,8 +252,9 @@ describe("buildFilaUnica — ordem", () => {
   });
 
   // No fundo do funil o critério é dinheiro parado há mais tempo — não o
-  // score, que empata (temperatura derivada da etapa).
-  it("dentro do fundo do funil, mais dias sem movimento primeiro", () => {
+  // score, que empata (temperatura derivada da etapa). Sem data conhecida =
+  // o mais negligenciado (espelha o NULLS FIRST de leads_sem_acao).
+  it("dentro do fundo do funil, mais dias sem movimento primeiro; sem data vem antes de todos", () => {
     const fila = buildFilaUnica({
       inbox: inbox({
         esfriando: [
@@ -205,55 +279,94 @@ describe("buildFilaUnica — ordem", () => {
         ],
       }),
       regua: null,
-      semAcao: [],
+      semAcao: [
+        semAcao({ id: "n", nome: "Nunca", status: "analise_credito", ultima_interacao: null }),
+      ],
       agora,
     });
-    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Antigo", "Recente"]);
-    expect(fila.itens[0].diasParado).toBe(73);
+    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Nunca", "Antigo", "Recente"]);
+    expect(fila.itens[0].diasParado).toBeNull();
+    expect(fila.itens[1].diasParado).toBe(73);
   });
 
-  it("no SLA, quem chegou primeiro vem primeiro (está mais perto de estourar)", () => {
+  // O relógio é o da Higiene: GREATEST(ultima_interacao, ultimo_contato).
+  it("o enriquecimento traz ultimo_contato para o relógio e created_at/projeto/corretor para o card", () => {
     const fila = buildFilaUnica({
       inbox: inbox({
-        novos: [
+        esfriando: [
           item(
             lead({
               id: "a",
-              nome: "Agora",
-              status: "aguardando_atendimento",
-              created_at: "2026-09-12T11:55:00Z",
+              nome: "Contato ontem",
+              status: "agendado",
+              ultima_interacao: "2026-07-01T12:00:00Z",
             }),
-            { score: 80, tier: "alta" },
           ),
-          item(
-            lead({
-              id: "b",
-              nome: "Antes",
-              status: "aguardando_atendimento",
-              created_at: "2026-09-12T11:40:00Z",
-            }),
-            { score: 40, tier: "media" },
-          ),
+        ],
+      }),
+      regua: null,
+      semAcao: [
+        semAcao({ id: "s", nome: "Sem", status: "visita_realizada", ultima_interacao: null }),
+      ],
+      extras: extras({
+        a: { ultimo_contato: "2026-09-11T12:00:00Z" },
+        s: { created_at: "2026-06-01T12:00:00Z", projeto_nome: "Vibra Sabará", corretor_id: "c1" },
+      }),
+      agora,
+    });
+    const a = fila.itens.find((i) => i.lead.id === "a")!;
+    const s = fila.itens.find((i) => i.lead.id === "s")!;
+    expect(a.diasParado).toBe(1);
+    expect(s.diasParado).toBe(103);
+    expect(s.lead.projeto_nome).toBe("Vibra Sabará");
+    expect(s.lead.corretor_id).toBe("c1");
+    expect(s.lead.created_at).toBe("2026-06-01T12:00:00Z");
+    expect(fila.itens.map((i) => i.lead.id)).toEqual(["s", "a"]);
+  });
+
+  it("no SLA vale a ordem da inbox (score), como em Atender", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({
+        novos: [
+          item(lead({ id: "a", nome: "Maior", status: "aguardando_atendimento" }), {
+            score: 80,
+            tier: "alta",
+          }),
+          item(lead({ id: "b", nome: "Menor", status: "aguardando_atendimento" }), {
+            score: 40,
+            tier: "media",
+          }),
         ],
       }),
       regua: null,
       semAcao: [],
       agora,
     });
-    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Antes", "Agora"]);
+    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Maior", "Menor"]);
   });
 
-  it("na régua, o toque mais vencido vem primeiro", () => {
+  it("na régua, o toque mais vencido vem primeiro; empate de hoje segue o prazo, como o hub", () => {
     const fila = buildFilaUnica({
       inbox: inbox({}),
       regua: regua([
-        toque({ id: "a", nome: "Hoje", minutos_vencido: 0 }),
-        toque({ id: "b", nome: "Ontem", minutos_vencido: 1440 }),
+        toque({
+          id: "b",
+          nome: "Tarde",
+          proximo_followup: "2026-09-12T18:00:00Z",
+          minutos_vencido: 0,
+        }),
+        toque({ id: "c", nome: "Ontem", minutos_vencido: 1440 }),
+        toque({
+          id: "a",
+          nome: "Cedo",
+          proximo_followup: "2026-09-12T13:00:00Z",
+          minutos_vencido: 0,
+        }),
       ]),
       semAcao: [],
       agora,
     });
-    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Ontem", "Hoje"]);
+    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Ontem", "Cedo", "Tarde"]);
     expect(fila.itens[0].motivo).toContain("toque 3 da régua");
   });
 });
@@ -281,15 +394,20 @@ describe("buildFilaUnica — fontes e resumo", () => {
     expect(fila.itens.map((i) => i.bucket)).toEqual(["followup"]);
   });
 
-  it("resumo: vencidos, hoje, sem próximo passo e SLA (contagem do banco, não dos cards)", () => {
+  it("resumo: vencidos, hoje, sem próximo passo, SLA (contagem do banco) e ocultos da inbox", () => {
     const fila = buildFilaUnica({
       inbox: inbox(
         { novos: [item(lead({ id: "n", nome: "Novo", status: "aguardando_atendimento" }))] },
-        7,
+        { novos: 7, esfriando: 12 },
       ),
       regua: regua([
         toque({ id: "a", nome: "Vencido", minutos_vencido: 120 }),
-        toque({ id: "b", nome: "Hoje", minutos_vencido: 0 }),
+        toque({
+          id: "b",
+          nome: "Hoje",
+          proximo_followup: "2026-09-12T15:00:00Z",
+          minutos_vencido: 0,
+        }),
       ]),
       semAcao: [semAcao({ id: "s", nome: "Sem" }), semAcao({ id: "t", nome: "Sem2" })],
       agora,
@@ -300,6 +418,8 @@ describe("buildFilaUnica — fontes e resumo", () => {
       semProximoPasso: 2,
       slaCorrendo: 7,
       fundoParado: 0,
+      // 6 novos além do card + 12 esfriando sem card algum.
+      ocultosInbox: 18,
     });
   });
 
@@ -316,7 +436,7 @@ describe("buildFilaUnica — fontes e resumo", () => {
     expect(fila.itens[0].motivo).toContain("sem próximo passo definido");
   });
 
-  it("o teto corta os cards, mas o total conta a fila inteira", () => {
+  it("o teto corta os cards, mas o total conta a fila inteira recebida", () => {
     const rows = Array.from({ length: 6 }, (_, i) => semAcao({ id: `s${i}`, nome: `S${i}` }));
     const fila = buildFilaUnica({ inbox: inbox({}), regua: null, semAcao: rows, agora, limite: 4 });
     expect(fila.itens).toHaveLength(4);
@@ -330,7 +450,8 @@ describe("buildFilaUnica — fontes e resumo", () => {
         responder: [item(lead({ id: "a", nome: "A", projeto_nome: "Vibra Sabará" }))],
       }),
       regua: regua([toque({ id: "b", nome: "B", projeto_nome: "Liber Jaçanã" })]),
-      semAcao: [semAcao({ id: "c", nome: "C", projeto_nome: "Novvo" })],
+      semAcao: [semAcao({ id: "c", nome: "C" })],
+      extras: extras({ c: { projeto_nome: "Novvo" } }),
       agora,
     });
     expect(fila.itens.map((i) => i.lead.projeto_nome)).toEqual([
