@@ -85,12 +85,51 @@ const callbacks = () => ({
 afterEach(() => cleanup());
 
 describe("FilaCard", () => {
-  it("mostra o projeto de interesse, o motivo e o prazo vencido", () => {
+  it("mostra o projeto, a etapa, os dias parado em destaque, o motivo e o prazo vencido", () => {
     render(wrap(<FilaCard item={itemBase()} {...callbacks()} />));
     expect(screen.getByText("Josivana B.")).toBeInTheDocument();
     expect(screen.getByText("Liber Jaçanã")).toBeInTheDocument();
-    expect(screen.getByText(/79 dia\(s\) sem movimento/)).toBeInTheDocument();
+    expect(screen.getByText("Análise de crédito")).toBeInTheDocument();
+    // O número grande à direita é a chave de ordem do fundo do funil.
+    expect(screen.getByText("79 d")).toBeInTheDocument();
+    expect(screen.getByText("parado")).toBeInTheDocument();
+    expect(screen.getByText(/quente sem contato há 79 dia/)).toBeInTheDocument();
     expect(screen.getByText(/venceu há/)).toBeInTheDocument();
+  });
+
+  it("no SLA, o destaque é há quanto tempo o lead chegou; sem data, diz que não sabe", () => {
+    const agora = new Date("2026-09-12T12:00:00Z");
+    const { unmount } = render(
+      wrap(
+        <FilaCard
+          item={itemBase({
+            bucket: "sla",
+            lead: {
+              ...itemBase().lead,
+              status: "aguardando_atendimento",
+              created_at: "2026-09-12T11:54:00Z",
+            },
+          })}
+          {...callbacks()}
+          agora={agora}
+        />,
+      ),
+    );
+    expect(screen.getByText("6 min")).toBeInTheDocument();
+    expect(screen.getByText("na mesa")).toBeInTheDocument();
+    unmount();
+    render(wrap(<FilaCard item={itemBase({ diasParado: null })} {...callbacks()} />));
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getByText("sem data")).toBeInTheDocument();
+  });
+
+  it("as quatro ações de polegar estão no card; Sami e etapa ficam no ⋯", () => {
+    render(wrap(<FilaCard item={itemBase()} {...callbacks()} />));
+    for (const nome of [/Ligar/, /WhatsApp/, /Resumo/, /Registrar/]) {
+      expect(screen.getByRole("button", { name: nome })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("button", { name: /Mais ações/ })).toBeInTheDocument();
+    expect(screen.queryByText("Registrar com a Sami")).toBeNull();
   });
 
   it("sem projeto, o chip não aparece; sem próximo passo, cobra a definição", () => {
