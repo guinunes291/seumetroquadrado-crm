@@ -99,12 +99,15 @@ export async function registrarPropostasSamiQ(args: {
   try {
     // Mesma regra da gravação do turno: _execution_id/_conversa_id vão como
     // null, nunca omitidos (assinatura da S2 sem DEFAULT).
-    const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
-      _user_id: args.userId,
-      _execution_id: args.executionId ?? null,
-      _conversa_id: args.conversaId ?? null,
-      _propostas: itens,
-    });
+    const { data, error } = await supabaseAdmin.rpc(
+      "samiq_registrar_propostas",
+      argsPropostas({
+        _user_id: args.userId,
+        _execution_id: args.executionId ?? null,
+        _conversa_id: args.conversaId ?? null,
+        _propostas: itens,
+      }),
+    );
     if (error) {
       if (!isMissingBackendObject(error)) {
         console.error(JSON.stringify({ event: "samiq_propostas_failed", code: error.code ?? "" }));
