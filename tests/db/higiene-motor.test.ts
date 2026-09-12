@@ -162,6 +162,10 @@ describe("modo sombra", () => {
       [id],
     );
 
+    // Linha de base: a distribuição já cria alerta ao vincular corretor.
+    // O que o teste trava é que o MOTOR não acrescenta nenhum.
+    const alAntes = await c.query(`SELECT count(*)::int AS n FROM public.alertas`);
+
     await processar();
 
     await comoSuperuser(c);
@@ -171,7 +175,7 @@ describe("modo sombra", () => {
     );
     expect(depois.rows[0]).toEqual(antes.rows[0]);
     const al = await c.query(`SELECT count(*)::int AS n FROM public.alertas`);
-    expect(al.rows[0].n).toBe(0);
+    expect(al.rows[0].n).toBe(alAntes.rows[0].n);
   });
 
   it("não lista lead dentro do prazo da fase", async () => {
@@ -291,12 +295,13 @@ describe("modo ativo", () => {
     });
     await comoSuperuser(c);
     await c.query(`UPDATE public.higiene_config SET modo = 'ativo'`);
+    const alAntes = (await c.query(`SELECT count(*)::int AS n FROM public.alertas`)).rows[0].n;
 
     const r = await processar();
     expect(r.aplicados).toBe(1);
     await comoSuperuser(c);
     let al = await c.query(`SELECT count(*)::int AS n FROM public.alertas`);
-    expect(al.rows[0].n).toBe(1);
+    expect(al.rows[0].n).toBe(alAntes + 1);
 
     await c.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
       JSON.stringify({ sub: admin.id, role: "authenticated" }),
@@ -308,7 +313,7 @@ describe("modo ativo", () => {
 
     await comoSuperuser(c);
     al = await c.query(`SELECT count(*)::int AS n FROM public.alertas`);
-    expect(al.rows[0].n).toBe(0);
+    expect(al.rows[0].n).toBe(alAntes);
   });
 
   it("pula lead sem corretor e lead em ressurreição do SDR", async () => {
