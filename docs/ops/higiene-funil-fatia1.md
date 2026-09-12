@@ -130,6 +130,12 @@ npm run db:up && npm run db:apply     # ou Postgres local, ver scripts/db-harnes
 npm run test:db                        # 474 testes, 15 deles em tests/db/higiene-funil.test.ts
 ```
 
+## Leitura relacionada
+
+- `docs/ops/higiene-diagnostico-2026-09.md` — as medições que sustentam este desenho,
+  incluindo duas conclusões desta investigação que se provaram erradas e por quê.
+- `docs/ops/prompt-motor-higiene-fatia2.md` — o prompt da Fatia 2 (motor em sombra).
+
 ## O que NÃO entrou (fatias seguintes)
 
 Cabeçalho do motor, aba Simulação, aba Regras e aba Carteiras dependem de
