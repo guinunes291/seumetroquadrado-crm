@@ -109,7 +109,10 @@ beforeEach(async () => {
     `UPDATE public.higiene_regra_fase
         SET ativa = true, acao_automatica = 'alertar', dias_perda = NULL`,
   );
-  await c.query(`TRUNCATE public.higiene_execucao_log RESTART IDENTITY`);
+  // higiene_execucao (cabeçalho, uma linha por execução) entra aqui junto com o
+  // log: limparDados() não conhece nenhuma das duas, e sem o reset o teste do
+  // batimento cardíaco enxerga a execução do teste anterior.
+  await c.query(`TRUNCATE public.higiene_execucao_log, public.higiene_execucao RESTART IDENTITY`);
   admin = await criarUsuario(c, { papel: "admin", nome: "Admin Higiene" });
 });
 
@@ -415,5 +418,140 @@ describe("batimento cardíaco", () => {
     expect(Number(v.rows[0].pulados)).toBe(1);
     expect(v.rows[0].motivos_pulo).toEqual({ modo_sombra: 1 });
     expect(v.rows[0].ultima_execucao).not.toBeNull();
+  });
+});
+
+/**
+ * REGRESSÕES das quatro correções de 20260912120000_higiene_motor_correcoes.
+ * Cada uma trava um defeito que foi REPRODUZIDO no harness antes do conserto —
+ * não são testes de fachada.
+ */
+describe("correções da revisão (20260912120000)", () => {
+  it("lead nunca tocado nunca vira perdido — a regra é rebaixada para alertar", async () => {
+    // Reproduzido antes do conserto: um lead sem ultima_interacao e sem
+    // ultimo_contato, fora de qualquer lote, era marcado perdido. A única
+    // proteção real vinha de escrita_em_lote, que cobre 99,97% dos nunca
+    // tocados por coincidência (12.714 de 12.718), não por desenho.
+    const corretor = await criarUsuario(c, { papel: "corretor" });
+    await comoSuperuser(c);
+    await c.query(
+      `INSERT INTO public.leads (nome, telefone, status, corretor_id,
+         ultima_interacao, ultimo_contato, created_at)
+       VALUES ('virgem sem lote', '11987650001',
+               'aguardando_retorno'::public.lead_status, $1,
+               NULL, NULL, now() - interval '200 days')`,
+      [corretor.id],
+    );
+    await c.query(
+      `UPDATE public.higiene_config SET modo = 'ativo';
+       UPDATE public.higiene_regra_fase
+          SET acao_automatica = 'perdido', dias_perda = 60
+        WHERE status = 'aguardando_retorno'`,
+    );
+
+    await processar();
+    await comoSuperuser(c);
+
+    const log = await c.query(
+      `SELECT acao_regra, acao, nunca_tocado FROM public.higiene_execucao_log
+        WHERE lead_id = (SELECT id FROM public.leads WHERE nome = 'virgem sem lote')`,
+    );
+    expect(log.rows[0].nunca_tocado).toBe(true);
+    expect(log.rows[0].acao_regra).toBe("perdido");
+    expect(log.rows[0].acao, "a regra mandou perder, a ação tinha que virar alertar").toBe(
+      "alertar",
+    );
+
+    const lead0 = await c.query(
+      `SELECT status::text AS status FROM public.leads WHERE nome = 'virgem sem lote'`,
+    );
+    expect(lead0.rows[0].status, "lead nunca tocado não pode terminar perdido").not.toBe("perdido");
+  });
+
+  it("em sombra, o motivo do pulo é o bloqueio REAL, não 'modo_sombra' para todos", async () => {
+    // Antes do conserto, modo_sombra era a primeira condição da cadeia e
+    // curto-circuitava tudo: 52 candidatos, 100% com motivo_pulo='modo_sombra'.
+    // A sombra dizia quantos candidatos existem, nunca o que aconteceria ao
+    // ligar — que é a única pergunta que ela existe para responder.
+    const corretor = await criarUsuario(c, { papel: "corretor" });
+    await comoSuperuser(c);
+    const instante = new Date(Date.now() - 90 * 86_400_000).toISOString();
+    // 50 no mesmo segundo: bloqueio substantivo (escrita em lote)
+    await c.query(
+      `INSERT INTO public.leads (nome, telefone, status, corretor_id, ultima_interacao, created_at)
+       SELECT 'lote-'||g, '11988'||lpad(g::text,5,'0'),
+              'aguardando_retorno'::public.lead_status, $2, $1::timestamptz,
+              now() - interval '200 days'
+         FROM generate_series(1,50) g`,
+      [instante, corretor.id],
+    );
+    // 1 sem bloqueio nenhum: só a sombra o impede
+    await c.query(
+      `INSERT INTO public.leads (nome, telefone, status, corretor_id, ultima_interacao, created_at)
+       VALUES ('so a sombra impede', '11988999999',
+               'aguardando_retorno'::public.lead_status, $1,
+               now() - interval '80 days', now() - interval '300 days')`,
+      [corretor.id],
+    );
+
+    await processar();
+    await comoSuperuser(c);
+
+    const r = await c.query(
+      `SELECT motivo_pulo, count(*)::int AS n FROM public.higiene_execucao_log
+        GROUP BY 1 ORDER BY 2 DESC`,
+    );
+    const porMotivo = Object.fromEntries(r.rows.map((x) => [x.motivo_pulo, x.n]));
+    expect(porMotivo["escrita_em_lote"], "os 50 de lote têm que aparecer como lote").toBe(50);
+    // A contagem de modo_sombra é a resposta direta: quantos o motor moveria.
+    expect(porMotivo["modo_sombra"], "só o lead sem bloqueio fica em modo_sombra").toBe(1);
+  });
+
+  it("o alerta do motor usa o mesmo tipo do alerta diário, para não duplicar", async () => {
+    // gerar_alertas_leads_parados (11h) deduplica em tipo='follow_up'. Com o
+    // motor inserindo 'sistema', o corretor levava dois alertas por dia do
+    // mesmo lead assim que uma regra 'alertar' fosse ligada.
+    const corretor = await criarUsuario(c, { papel: "corretor" });
+    await comoSuperuser(c);
+    await lead({
+      nome: "alerta tipo",
+      status: "aguardando_retorno",
+      diasParado: 90,
+      corretorId: corretor.id,
+    });
+    await c.query(`UPDATE public.higiene_config SET modo = 'ativo'`);
+
+    await processar();
+    await comoSuperuser(c);
+
+    const a = await c.query(
+      `SELECT tipo::text AS tipo, mensagem FROM public.alertas
+        WHERE ref_id = (SELECT id FROM public.leads WHERE nome = 'alerta tipo')`,
+    );
+    // Filtra pelo alerta DO MOTOR: o lead pode ter outros alertas (ex.: o
+    // gatilho de lead novo), e o que importa aqui é o tipo que o motor usa.
+    const doMotor = a.rows.filter((x) => String(x.mensagem ?? "").includes("Higiene"));
+    expect(doMotor.length, "o motor insere exatamente um alerta").toBe(1);
+    expect(doMotor[0].tipo, "mesmo tipo do alerta diário, para deduplicar").toBe("follow_up");
+  });
+
+  it("motor_atrasado é true quando nunca rodou, e a view devolve UMA linha", async () => {
+    // Critério de aceite 3(a) do projeto: motor parado não pode parecer "nada
+    // a fazer". A view não tinha esta coluna — a tela teria que calcular as
+    // 26h no cliente, recriando a divergência que a Fatia 1 matou.
+    await comoSuperuser(c);
+    await c.query(`TRUNCATE public.higiene_execucao_log, public.higiene_execucao`);
+
+    const v = await c.query(
+      `SELECT modo, ultima_execucao, motor_atrasado FROM public.v_higiene_motor_status`,
+    );
+    expect(v.rows.length, "sem execução a view ainda tem que devolver uma linha").toBe(1);
+    expect(v.rows[0].ultima_execucao).toBeNull();
+    expect(v.rows[0].motor_atrasado, "motor que nunca rodou está atrasado").toBe(true);
+
+    await processar();
+    await comoSuperuser(c);
+    const v2 = await c.query(`SELECT motor_atrasado FROM public.v_higiene_motor_status`);
+    expect(v2.rows[0].motor_atrasado, "logo após rodar, não está atrasado").toBe(false);
   });
 });
