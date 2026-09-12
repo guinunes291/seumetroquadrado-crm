@@ -166,6 +166,18 @@ aberto no desktop:
   A coorte real continua na Inteligência, só para a gestão.
 - **Vazamentos**: as três etapas com mais leads parados, com percentual e a
   frase do custo de cada uma.
+- **No celular** (medido no Chromium a 390 e 360 px): cada etapa tem um
+  rótulo curto (`labelCurto`, "Aguard. atend.", "Qualific. corretor"…) em até
+  duas linhas, sem quebrar palavra; o trilho tem 94 px e o marcador perde a
+  bolinha — o tom (na meta / perto / longe) vai na cor do número atual —
+  porque a casa não renderiza texto auxiliar abaixo de 12 px (piso em
+  `styles.css`) e, a 12 px, "100% → 100%" com bolinha não cabia sem cobrir os
+  dígitos. No desktop o rótulo completo também pode quebrar em duas linhas em
+  vez de cortar com reticências ("Aguardando atendimento" não cabe em 150 px).
+- **Teste de banco** (`tests/db/fila-funil.test.ts`): a fixture de venda
+  antiga entra em `contrato_fechado` por baixo do trigger
+  (`session_replication_role = replica`), como em `higiene-funil.test.ts` — a
+  guarda "só fecha com venda aprovada" segue valendo no caminho real.
 
 ## A página Hoje foi retirada (12/09/2026)
 

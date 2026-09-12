@@ -47,12 +47,20 @@ const TOM_DOT: Record<FunilTom, string> = {
   warn: "bg-warning shadow-[0_0_6px_var(--color-warning)]",
   crit: "bg-destructive shadow-[0_0_6px_var(--color-destructive)]",
 };
+const TOM_TEXTO: Record<FunilTom, string> = {
+  good: "text-success",
+  warn: "text-warning",
+  crit: "text-destructive",
+};
 
-// Celular: rótulo em duas linhas, trilho com a largura que o marcador
-// precisa (medido: até ~80 px) e coluna de números enxuta; a palavra
-// "parados" só entra no desktop.
+// Celular: rótulo curto em até duas linhas (70 px: "Agendado" mede 68 px a
+// 12 px semibold, quebra só entre palavras), trilho de 94 px para o marcador
+// sem a bolinha (medido no Chromium a 390 px: 82 px no caso comum, 98 px em
+// "100% → 100%" — o excedente cabe nos 6 px de vão sem tocar os dígitos) e
+// coluna de números enxuta; a palavra "parados" só entra no desktop. Todo o
+// texto auxiliar é text-xs: o piso de legibilidade da casa é 12 px.
 const GRADE =
-  "grid-cols-[64px_minmax(0,1fr)_96px_64px] gap-1.5 md:grid-cols-[150px_minmax(0,1fr)_132px_118px] md:gap-3";
+  "grid-cols-[70px_minmax(0,1fr)_94px_64px] gap-1.5 md:grid-cols-[150px_minmax(0,1fr)_132px_118px] md:gap-3";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 
@@ -72,18 +80,22 @@ function Marcador({ p }: { p: FunilPassagem }) {
       data-testid="funil-marcador"
       data-tom={p.tom ?? "none"}
       className={cn(
-        "absolute left-1/2 top-full z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground shadow-elev-2 md:px-2 md:text-[11.5px]",
+        "absolute left-1/2 top-full z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center whitespace-nowrap rounded-full border bg-card px-1 py-0.5 text-xs text-muted-foreground shadow-elev-2 md:px-2",
         p.tom === "crit" && "border-destructive/50",
       )}
     >
-      <span aria-hidden="true" className="inline-flex items-center gap-1">
+      <span aria-hidden="true" className="inline-flex items-center gap-0.5 md:gap-1">
+        {/* No celular o tom vai na cor do número (não há largura para a
+            bolinha); no desktop, bolinha e cor. */}
         <i
           className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
+            "hidden h-1.5 w-1.5 shrink-0 rounded-full md:inline-block",
             p.tom ? TOM_DOT[p.tom] : "bg-muted-foreground",
           )}
         />
-        <b className="font-display font-semibold text-foreground">
+        <b
+          className={cn("font-display font-semibold", p.tom ? TOM_TEXTO[p.tom] : "text-foreground")}
+        >
           {p.atual === null ? "—" : `${p.atual}%`}
         </b>
         <span>→</span>
@@ -96,13 +108,13 @@ function Marcador({ p }: { p: FunilPassagem }) {
 function Degraus({ leitura }: { leitura: FunilLeitura }) {
   return (
     <div>
-      <div
-        className={cn("grid px-0 pb-1.5 text-[10.5px] text-muted-foreground md:text-[11px]", GRADE)}
-      >
+      <div className={cn("grid px-0 pb-1.5 text-xs text-muted-foreground", GRADE)}>
         <span />
         <span />
         <span className="whitespace-nowrap">atual → meta</span>
-        <span className="whitespace-nowrap">leads · parados</span>
+        <span className="whitespace-nowrap">
+          leads<span className="hidden md:inline"> · parados</span>
+        </span>
       </div>
       <div className="relative">
         {leitura.etapas.map((e, i) => {
@@ -118,15 +130,19 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
               <div className="min-w-0 text-right">
                 <div
                   className={cn(
-                    "line-clamp-2 break-words text-[10px] font-semibold leading-tight md:line-clamp-none md:truncate md:text-[13px] md:leading-normal",
+                    // Duas linhas também no desktop: "Aguardando atendimento" não
+                    // cabe em 150 px a 13 px, e cortar com reticências esconde a
+                    // etapa mais cheia do funil.
+                    "line-clamp-2 text-xs font-semibold leading-tight md:text-[13px]",
                     // Etapa com 85%+ parados: o alerta vai no rótulo (um contorno
                     // no degrau some com o clip-path do trapézio).
                     vaza && "text-destructive",
                   )}
                 >
-                  {e.label}
+                  <span className="md:hidden">{e.labelCurto}</span>
+                  <span className="hidden md:inline">{e.label}</span>
                 </div>
-                <div className="hidden truncate text-[11px] text-muted-foreground md:block">
+                <div className="hidden truncate text-xs text-muted-foreground md:block">
                   {e.sub}
                 </div>
               </div>
@@ -152,13 +168,13 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
                         style={{ width: `${e.pctParados}%` }}
                       />
                     </div>
-                    <div className="whitespace-nowrap text-[10px] leading-none text-muted-foreground">
+                    <div className="whitespace-nowrap text-xs leading-none text-muted-foreground">
                       <b className="font-semibold text-destructive">{e.pctParados}%</b>
                       <span className="hidden md:inline"> parados</span> · {fmt(e.parados)}
                     </div>
                   </>
                 ) : (
-                  <div className="text-[10px] leading-none text-muted-foreground">
+                  <div className="whitespace-nowrap text-xs leading-none text-muted-foreground">
                     {e.key === "venda" && leitura.recorte === "safra"
                       ? `ciclo > ${leitura.dias} d`
                       : ""}
@@ -181,7 +197,7 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
           marcado(s) como perdido com motivo — a única porta de saída honesta do funil.
         </span>
       </div>
-      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{leitura.nota}</p>
+      <p className="mt-2 text-xs leading-snug text-muted-foreground">{leitura.nota}</p>
     </div>
   );
 }
@@ -204,7 +220,7 @@ function Vazamentos({ leitura }: { leitura: FunilLeitura }) {
             <div className="text-[13px] font-semibold">{v.label}</div>
             <div className="text-right font-display text-xl font-semibold leading-none text-destructive">
               {v.pctParados}%
-              <small className="block font-sans text-[11px] font-normal leading-tight text-muted-foreground">
+              <small className="block font-sans text-xs font-normal leading-tight text-muted-foreground">
                 parados · {fmt(v.parados)} de {fmt(v.quantidade)}
               </small>
             </div>

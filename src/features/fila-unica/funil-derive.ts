@@ -30,34 +30,62 @@ export type EtapaKey =
   | "analise_credito"
   | "venda";
 
-type EtapaDef = { key: EtapaKey; ordem: number; label: string; sub: string };
+type EtapaDef = {
+  key: EtapaKey;
+  ordem: number;
+  label: string;
+  /** Rótulo para o celular: cabe em 66 px, quebra só entre palavras. */
+  labelCurto: string;
+  sub: string;
+};
 
 /** Ordem do funil comercial (a mesma de funil_ordem no banco). */
 export const ETAPAS_FUNIL: EtapaDef[] = [
-  { key: "entrada", ordem: 0, label: "Entrada", sub: "novo, sem corretor" },
+  { key: "entrada", ordem: 0, label: "Entrada", labelCurto: "Entrada", sub: "novo, sem corretor" },
   {
     key: "aguardando_atendimento",
     ordem: 1,
     label: "Aguardando atendimento",
+    labelCurto: "Aguard. atend.",
     sub: "distribuído, sem 1º contato",
   },
   {
     key: "aguardando_retorno",
     ordem: 2,
     label: "Aguardando retorno",
+    labelCurto: "Aguard. retorno",
     sub: "cliente pediu retorno",
   },
   {
     key: "qualificacao_corretor",
     ordem: 3,
     label: "Qualificação corretor",
+    labelCurto: "Qualific. corretor",
     sub: "entregue pelo bot ou SDR",
   },
-  { key: "em_atendimento", ordem: 4, label: "Em atendimento", sub: "conversa em andamento" },
-  { key: "agendado", ordem: 5, label: "Agendado", sub: "visita marcada" },
-  { key: "visita_realizada", ordem: 6, label: "Visita realizada", sub: "validada" },
-  { key: "analise_credito", ordem: 7, label: "Análise de crédito", sub: "pasta na Caixa" },
-  { key: "venda", ordem: 8, label: "Venda", sub: "contrato fechado" },
+  {
+    key: "em_atendimento",
+    ordem: 4,
+    label: "Em atendimento",
+    labelCurto: "Em atend.",
+    sub: "conversa em andamento",
+  },
+  { key: "agendado", ordem: 5, label: "Agendado", labelCurto: "Agendado", sub: "visita marcada" },
+  {
+    key: "visita_realizada",
+    ordem: 6,
+    label: "Visita realizada",
+    labelCurto: "Visita feita",
+    sub: "validada",
+  },
+  {
+    key: "analise_credito",
+    ordem: 7,
+    label: "Análise de crédito",
+    labelCurto: "Análise crédito",
+    sub: "pasta na Caixa",
+  },
+  { key: "venda", ordem: 8, label: "Venda", labelCurto: "Venda", sub: "contrato fechado" },
 ];
 
 type PassagemDef = { de: EtapaKey; para: EtapaKey; label: string; meta: number; fonte: string };
@@ -149,6 +177,7 @@ export type FunilEtapa = {
   key: EtapaKey;
   ordem: number;
   label: string;
+  labelCurto: string;
   sub: string;
   quantidade: number;
   parados: number;
@@ -248,6 +277,7 @@ export function montarFunil(
       key: d.key,
       ordem: d.ordem,
       label: d.label,
+      labelCurto: d.labelCurto,
       sub: d.sub,
       quantidade: v.quantidade,
       parados: comercial ? v.parados : 0,

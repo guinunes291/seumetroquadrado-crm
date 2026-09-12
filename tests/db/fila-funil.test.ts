@@ -95,7 +95,12 @@ beforeAll(async () => {
   const l5 = await criarLead(c, { corretorId: corretor1.id, status: "em_atendimento" });
   await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [l5]);
   // L6 — venda antiga e sem movimento: conta na base, nunca como parada.
+  // contrato_fechado tem guarda de produção (trg_proteger_fechamento_sem_
+  // venda_aprovada: só fecha com venda aprovada). A fixture é um dado
+  // histórico e entra por baixo do trigger, como em higiene-funil.test.ts —
+  // a guarda segue valendo no caminho real (aprovar-venda.test.ts a cobre).
   const l6 = await criarLead(c, { corretorId: corretor1.id, status: "em_atendimento" });
+  await c.query(`SET session_replication_role = replica`);
   await c.query(
     `UPDATE public.leads SET status = 'contrato_fechado'::public.lead_status,
                              created_at = now() - interval '60 days',
@@ -103,6 +108,7 @@ beforeAll(async () => {
       WHERE id = $1`,
     [l6],
   );
+  await c.query(`SET session_replication_role = DEFAULT`);
   // L7 — sem dono, em 'novo': a "entrada" do funil, que só quem vê tudo enxerga.
   await criarLead(c, { corretorId: null, status: "novo" });
 
