@@ -142,7 +142,13 @@ export const SISTEMAS: Sistema[] = [
     cor: "central",
     grupo: "operacao",
     destaque: true,
-    secoes: [{ id: "hoje", label: "Hoje", icon: SunHorizon, to: "/hoje" }],
+    // Fila Única (Fatia 1, 2026-09-12): a lista única do dia ao lado da Hoje.
+    // Entra como seção, não como home — a Hoje continua a porta do módulo até
+    // a fila provar, com número, que absorve o que ela responde.
+    secoes: [
+      { id: "hoje", label: "Hoje", icon: SunHorizon, to: "/hoje" },
+      { id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" },
+    ],
   },
   {
     id: "prospeccao",

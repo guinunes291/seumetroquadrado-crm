@@ -46,6 +46,7 @@ import { Route as AuthenticatedInteligenciaRouteImport } from './routes/_authent
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
 import { Route as AuthenticatedHigieneFunilRouteImport } from './routes/_authenticated/higiene-funil'
 import { Route as AuthenticatedFollowUpRouteImport } from './routes/_authenticated/follow-up'
+import { Route as AuthenticatedFilaRouteImport } from './routes/_authenticated/fila'
 import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticated/equipes'
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
@@ -289,6 +290,11 @@ const AuthenticatedHigieneFunilRoute =
 const AuthenticatedFollowUpRoute = AuthenticatedFollowUpRouteImport.update({
   id: '/follow-up',
   path: '/follow-up',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFilaRoute = AuthenticatedFilaRouteImport.update({
+  id: '/fila',
+  path: '/fila',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEquipesRoute = AuthenticatedEquipesRouteImport.update({
@@ -601,6 +607,7 @@ export interface FileRoutesByFullPath {
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
+  '/fila': typeof AuthenticatedFilaRoute
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/hoje': typeof AuthenticatedHojeRoute
@@ -692,6 +699,7 @@ export interface FileRoutesByTo {
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/equipes': typeof AuthenticatedEquipesRoute
+  '/fila': typeof AuthenticatedFilaRoute
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/hoje': typeof AuthenticatedHojeRoute
@@ -785,6 +793,7 @@ export interface FileRoutesById {
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
   '/_authenticated/equipes': typeof AuthenticatedEquipesRoute
+  '/_authenticated/fila': typeof AuthenticatedFilaRoute
   '/_authenticated/follow-up': typeof AuthenticatedFollowUpRoute
   '/_authenticated/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
@@ -878,6 +887,7 @@ export interface FileRouteTypes {
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
+    | '/fila'
     | '/follow-up'
     | '/higiene-funil'
     | '/hoje'
@@ -969,6 +979,7 @@ export interface FileRouteTypes {
     | '/distribuicao'
     | '/duplicatas'
     | '/equipes'
+    | '/fila'
     | '/follow-up'
     | '/higiene-funil'
     | '/hoje'
@@ -1061,6 +1072,7 @@ export interface FileRouteTypes {
     | '/_authenticated/distribuicao'
     | '/_authenticated/duplicatas'
     | '/_authenticated/equipes'
+    | '/_authenticated/fila'
     | '/_authenticated/follow-up'
     | '/_authenticated/higiene-funil'
     | '/_authenticated/hoje'
@@ -1430,6 +1442,13 @@ declare module '@tanstack/react-router' {
       path: '/follow-up'
       fullPath: '/follow-up'
       preLoaderRoute: typeof AuthenticatedFollowUpRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/fila': {
+      id: '/_authenticated/fila'
+      path: '/fila'
+      fullPath: '/fila'
+      preLoaderRoute: typeof AuthenticatedFilaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/equipes': {
@@ -1820,6 +1839,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
   AuthenticatedEquipesRoute: typeof AuthenticatedEquipesRoute
+  AuthenticatedFilaRoute: typeof AuthenticatedFilaRoute
   AuthenticatedFollowUpRoute: typeof AuthenticatedFollowUpRoute
   AuthenticatedHigieneFunilRoute: typeof AuthenticatedHigieneFunilRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
@@ -1873,6 +1893,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
   AuthenticatedEquipesRoute: AuthenticatedEquipesRoute,
+  AuthenticatedFilaRoute: AuthenticatedFilaRoute,
   AuthenticatedFollowUpRoute: AuthenticatedFollowUpRoute,
   AuthenticatedHigieneFunilRoute: AuthenticatedHigieneFunilRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
