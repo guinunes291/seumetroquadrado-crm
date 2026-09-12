@@ -14,6 +14,7 @@ import type { SamiQCanal } from "@/lib/samiq";
 import { deveRetomarConversa } from "@/lib/samiq-memoria";
 import { PropostaPayloadSchema, type PropostaSamiQ } from "@/lib/samiq-propostas";
 import type { PropostaColetada } from "@/lib/samiq-propostas.server";
+import { argsPropostas, argsTurno, type SamiQGravarTurnoArgs } from "@/lib/samiq-rpc-args";
 
 export const SAMIQ_MAX_TURNO_CHARS = 6000;
 
@@ -36,10 +37,11 @@ export async function gravarTurnoSamiQ(args: {
     // Contrato da RPC (migration S1/S4): _conversa_id e _lead_id NÃO têm
     // DEFAULT — a chave precisa ir no corpo, com null quando não há valor.
     // Omitir (undefined) faz o PostgREST não achar a função (PGRST202) e o
-    // turno some em silêncio. As formas nulas e o _canal vivem em types.ts
-    // por mão (PR #177): se um regenerador apagá-las, é lá que se repõe —
-    // nunca trocando null por undefined aqui.
-    type TurnoArgs = Database["public"]["Functions"]["samiq_gravar_turno"]["Args"];
+    // turno some em silêncio. As formas nulas e o _canal vivem em
+    // src/lib/samiq-rpc-args.ts (types.ts é gerado e não aceita mais edição
+    // manual): se algo divergir, é lá que se repõe — nunca trocando null por
+    // undefined aqui.
+    type TurnoArgs = SamiQGravarTurnoArgs;
     const base: TurnoArgs = {
       _user_id: args.userId,
       _conversa_id: args.conversaId ?? null,
@@ -47,12 +49,13 @@ export async function gravarTurnoSamiQ(args: {
       _pergunta: pergunta,
       _resposta: resposta,
       _ferramentas: (args.ferramentas ?? []).slice(0, 20),
-      _execution_id: args.executionId ?? undefined,
+      _execution_id: args.executionId ?? null,
     };
     // Só o WhatsApp envia _canal; se a assinatura nova (migration S4) ainda
     // não está no ar, grava sem o canal em vez de perder o turno.
     const comCanal = args.canal !== undefined && args.canal !== "painel";
-    const rpcTurno = (payload: TurnoArgs) => supabaseAdmin.rpc("samiq_gravar_turno", payload);
+    const rpcTurno = (payload: TurnoArgs) =>
+      supabaseAdmin.rpc("samiq_gravar_turno", argsTurno(payload));
     let { data, error } = await rpcTurno(comCanal ? { ...base, _canal: args.canal } : base);
     if (error && comCanal && isMissingBackendObject(error)) {
       ({ data, error } = await rpcTurno(base));
@@ -92,12 +95,15 @@ export async function registrarPropostasSamiQ(args: {
   try {
     // Mesma regra da gravação do turno: _execution_id/_conversa_id vão como
     // null, nunca omitidos (assinatura da S2 sem DEFAULT).
-    const { data, error } = await supabaseAdmin.rpc("samiq_registrar_propostas", {
-      _user_id: args.userId,
-      _execution_id: args.executionId ?? null,
-      _conversa_id: args.conversaId ?? null,
-      _propostas: itens,
-    });
+    const { data, error } = await supabaseAdmin.rpc(
+      "samiq_registrar_propostas",
+      argsPropostas({
+        _user_id: args.userId,
+        _execution_id: args.executionId ?? null,
+        _conversa_id: args.conversaId ?? null,
+        _propostas: itens,
+      }),
+    );
     if (error) {
       if (!isMissingBackendObject(error)) {
         console.error(JSON.stringify({ event: "samiq_propostas_failed", code: error.code ?? "" }));

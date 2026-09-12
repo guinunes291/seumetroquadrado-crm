@@ -2691,41 +2691,128 @@ export type Database = {
           atualizado_em: string
           dias_parado_min: number
           id: boolean
+          lote_max: number
           lote_min_leads: number
+          modo: string
+          teto_perdidos_dia: number
         }
         Insert: {
           atualizado_em?: string
           dias_parado_min?: number
           id?: boolean
+          lote_max?: number
           lote_min_leads?: number
+          modo?: string
+          teto_perdidos_dia?: number
         }
         Update: {
           atualizado_em?: string
           dias_parado_min?: number
           id?: boolean
+          lote_max?: number
           lote_min_leads?: number
+          modo?: string
+          teto_perdidos_dia?: number
+        }
+        Relationships: []
+      }
+      higiene_execucao_log: {
+        Row: {
+          acao: string
+          acao_regra: string
+          aplicado: boolean
+          cfg_dias_parado_min: number | null
+          cfg_lote_min_leads: number | null
+          cfg_modo: string | null
+          cfg_teto_perdidos_dia: number | null
+          corretor_id: string | null
+          desfeito_em: string | null
+          dias_parado: number
+          erro: string | null
+          escrita_lote: boolean
+          escrita_lote_global: boolean
+          execucao_id: string
+          id: number
+          lead_id: string
+          motivo_pulo: string | null
+          nunca_tocado: boolean
+          ressurreicao_sdr: boolean
+          status_antes: Database["public"]["Enums"]["lead_status"]
+          ts: string
+        }
+        Insert: {
+          acao: string
+          acao_regra: string
+          aplicado?: boolean
+          cfg_dias_parado_min?: number | null
+          cfg_lote_min_leads?: number | null
+          cfg_modo?: string | null
+          cfg_teto_perdidos_dia?: number | null
+          corretor_id?: string | null
+          desfeito_em?: string | null
+          dias_parado: number
+          erro?: string | null
+          escrita_lote: boolean
+          escrita_lote_global: boolean
+          execucao_id: string
+          id?: number
+          lead_id: string
+          motivo_pulo?: string | null
+          nunca_tocado: boolean
+          ressurreicao_sdr?: boolean
+          status_antes: Database["public"]["Enums"]["lead_status"]
+          ts?: string
+        }
+        Update: {
+          acao?: string
+          acao_regra?: string
+          aplicado?: boolean
+          cfg_dias_parado_min?: number | null
+          cfg_lote_min_leads?: number | null
+          cfg_modo?: string | null
+          cfg_teto_perdidos_dia?: number | null
+          corretor_id?: string | null
+          desfeito_em?: string | null
+          dias_parado?: number
+          erro?: string | null
+          escrita_lote?: boolean
+          escrita_lote_global?: boolean
+          execucao_id?: string
+          id?: number
+          lead_id?: string
+          motivo_pulo?: string | null
+          nunca_tocado?: boolean
+          ressurreicao_sdr?: boolean
+          status_antes?: Database["public"]["Enums"]["lead_status"]
+          ts?: string
         }
         Relationships: []
       }
       higiene_regra_fase: {
         Row: {
+          acao_automatica: string
           acao_sugerida: string
           ativa: boolean
           atualizado_em: string
+          dias_perda: number | null
           peso: number
           status: Database["public"]["Enums"]["lead_status"]
         }
         Insert: {
+          acao_automatica?: string
           acao_sugerida: string
           ativa?: boolean
           atualizado_em?: string
+          dias_perda?: number | null
           peso: number
           status: Database["public"]["Enums"]["lead_status"]
         }
         Update: {
+          acao_automatica?: string
           acao_sugerida?: string
           ativa?: boolean
           atualizado_em?: string
+          dias_perda?: number | null
           peso?: number
           status?: Database["public"]["Enums"]["lead_status"]
         }
@@ -7154,6 +7241,23 @@ export type Database = {
         }
         Relationships: []
       }
+      v_higiene_motor_status: {
+        Row: {
+          aplicados: number | null
+          avaliados: number | null
+          dias_parado_min: number | null
+          erros: number | null
+          execucao_id: string | null
+          lote_max: number | null
+          lote_min_leads: number | null
+          modo: string | null
+          motivos_pulo: Json | null
+          pulados: number | null
+          teto_perdidos_dia: number | null
+          ultima_execucao: string | null
+        }
+        Relationships: []
+      }
       v_higiene_pastas_travadas: {
         Row: {
           corretor_id: string | null
@@ -8611,6 +8715,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      higiene_desfazer_lote: { Args: { _execucao_id: string }; Returns: number }
       higiene_dias_parado: {
         Args: {
           _created_at: string
@@ -8618,6 +8723,16 @@ export type Database = {
           _ultimo_contato: string
         }
         Returns: number
+      }
+      higiene_processar: {
+        Args: never
+        Returns: {
+          aplicados: number
+          avaliados: number
+          erros: number
+          execucao_id: string
+          pulados: number
+        }[]
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
@@ -9444,11 +9559,11 @@ export type Database = {
       samiq_gerar_briefing_alertas: { Args: never; Returns: number }
       samiq_gravar_turno: {
         Args: {
-          _canal?: "painel" | "whatsapp"
-          _conversa_id: string | null
-          _execution_id?: string | null
+          _canal?: string
+          _conversa_id: string
+          _execution_id?: string
           _ferramentas?: string[]
-          _lead_id: string | null
+          _lead_id: string
           _pergunta: string
           _resposta: string
           _user_id: string
@@ -9461,8 +9576,8 @@ export type Database = {
       }
       samiq_registrar_propostas: {
         Args: {
-          _conversa_id: string | null
-          _execution_id: string | null
+          _conversa_id: string
+          _execution_id: string
           _propostas: Json
           _user_id: string
         }
