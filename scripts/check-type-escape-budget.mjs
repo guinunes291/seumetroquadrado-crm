@@ -28,7 +28,12 @@ const IGNORED_FILES = new Set(["src/routeTree.gen.ts"]);
 // regenerar os types com as views de Higiene do Funil, apague
 // src/integrations/supabase/higiene-pendente.ts, troque supabaseHigiene por
 // supabase e baixe este teto.
-const MAX_ESCAPES = 147;
+// 2026-09-12 (2) — de 147 para 145: o total real caiu com o PR #187 e ratchet
+// folgado nao segura nada. Os escapes restantes continuam sendo divida: ao
+// regenerar os types com as views de Higiene do Funil, apague
+// src/integrations/supabase/higiene-pendente.ts, troque supabaseHigiene por
+// supabase e baixe de novo.
+const MAX_ESCAPES = 145;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {
