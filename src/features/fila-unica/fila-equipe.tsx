@@ -31,7 +31,7 @@ function Medidor({ n }: { n: number }) {
       className="inline-flex items-center justify-end gap-2"
       title={acima ? `${n} leads vivos — acima do teto de ${LIMITE_FILA}` : `${n} leads vivos`}
     >
-      <span className={cn("tabular-nums", acima && "font-bold text-destructive")}>
+      <span className={cn("whitespace-nowrap tabular-nums", acima && "font-bold text-destructive")}>
         {mostrado} / {LIMITE_FILA}
       </span>
       <span className="h-1.5 w-[72px] overflow-hidden rounded-full bg-info/15">
