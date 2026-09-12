@@ -168,8 +168,7 @@ function RoletaTabPadrao({
   escopoEquipe?: boolean;
 }) {
   const minhaEquipeQ = useCorretoresDaMinhaEquipe(escopoEquipe);
-  const podeGerir = (corretorId: string) =>
-    !escopoEquipe || !!minhaEquipeQ.data?.has(corretorId);
+  const podeGerir = (corretorId: string) => !escopoEquipe || !!minhaEquipeQ.data?.has(corretorId);
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");

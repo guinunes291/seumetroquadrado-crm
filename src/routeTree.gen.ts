@@ -17,6 +17,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
+import { Route as ApiMercadoPlanilhaRouteImport } from './routes/api/mercado-planilha'
 import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
@@ -138,6 +139,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiVitrineLinksRoute = ApiVitrineLinksRouteImport.update({
   id: '/api/vitrine-links',
   path: '/api/vitrine-links',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMercadoPlanilhaRoute = ApiMercadoPlanilhaRouteImport.update({
+  id: '/api/mercado-planilha',
+  path: '/api/mercado-planilha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDocumentacaoRoute = ApiDocumentacaoRouteImport.update({
@@ -637,6 +643,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
+  '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -729,6 +736,7 @@ export interface FileRoutesByTo {
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
+  '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -823,6 +831,7 @@ export interface FileRoutesById {
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
+  '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -917,6 +926,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/vitrine'
     | '/api/documentacao'
+    | '/api/mercado-planilha'
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -1009,6 +1019,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/vitrine'
     | '/api/documentacao'
+    | '/api/mercado-planilha'
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -1102,6 +1113,7 @@ export interface FileRouteTypes {
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
     | '/api/documentacao'
+    | '/api/mercado-planilha'
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -1154,6 +1166,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiDocumentacaoRoute: typeof ApiDocumentacaoRoute
+  ApiMercadoPlanilhaRoute: typeof ApiMercadoPlanilhaRoute
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -1239,6 +1252,13 @@ declare module '@tanstack/react-router' {
       path: '/api/vitrine-links'
       fullPath: '/api/vitrine-links'
       preLoaderRoute: typeof ApiVitrineLinksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mercado-planilha': {
+      id: '/api/mercado-planilha'
+      path: '/api/mercado-planilha'
+      fullPath: '/api/mercado-planilha'
+      preLoaderRoute: typeof ApiMercadoPlanilhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/documentacao': {
@@ -1964,6 +1984,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiDocumentacaoRoute: ApiDocumentacaoRoute,
+  ApiMercadoPlanilhaRoute: ApiMercadoPlanilhaRoute,
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,

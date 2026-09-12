@@ -8,3 +8,6 @@ bun.lock
 routeTree.gen.ts
 src/integrations/supabase/types.ts
 src/integrations/supabase/previewAuthStorage.ts
+# Asset de dados do Mapa de Mercado: ~2.200 coordenadas geradas, servidas
+# minificadas de propósito. Formatar multiplicaria o arquivo por 10 sem ganho.
+public/mercado-geo.json

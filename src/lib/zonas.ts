@@ -7,9 +7,9 @@
 // deixaria a maior parte do catálogo sem zona. Aqui `zona_smq` manda; `regiao`
 // entra como fallback.
 //
-// A normalização das cinco zonas da capital (acento, "Zona Sul", "Centro-Sul") é
-// a mesma do mapa da Vitrine — uma regra só para as duas telas não discordarem
-// sobre onde fica um projeto.
+// A normalização das cinco zonas da capital (acento, "Zona Sul", "Centro-Sul")
+// mora aqui e é a mesma para todas as telas — Mapa de Mercado incluído —, para
+// que nenhuma delas discorde sobre onde fica um projeto.
 //
 // GRANDE SP (decisão 4 de 2026-09-02, docs/revisao-projetos-foco.md): o estoque
 // de Guarulhos, Osasco e ABC é zona de primeira classe na prateleira — antes
@@ -19,9 +19,41 @@
 // zonas_bairros só conhecem essas), por isso há dois tipos: `Zona` (lead) e
 // `ZonaProjeto` (prateleira).
 
-import { normalizeZona, type MapZona } from "@/lib/vitrine/map-projection";
+/** As cinco zonas da capital, como o CRM as nomeia. */
+export const ZONAS_CAPITAL = ["Norte", "Oeste", "Centro", "Leste", "Sul"] as const;
 
-export type Zona = MapZona;
+export type Zona = (typeof ZONAS_CAPITAL)[number];
+
+const ZONA_ALIASES: Record<string, Zona> = {
+  norte: "Norte",
+  sul: "Sul",
+  leste: "Leste",
+  oeste: "Oeste",
+  centro: "Centro",
+  central: "Centro",
+};
+
+/**
+ * Texto livre de zona ("Zona Sul", "ZS", "Centro-Sul") para uma das cinco zonas
+ * da capital, ou null quando não dá para dizer.
+ */
+export function normalizeZona(zona: string | null | undefined): Zona | null {
+  if (!zona) return null;
+  const k = zona
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  // Correspondência exata primeiro; depois por substring, para casar valores
+  // como "Zona Sul", "Sul (SP)" ou "Centro-Sul" → Centro (checado antes de Sul).
+  if (ZONA_ALIASES[k]) return ZONA_ALIASES[k];
+  if (k.includes("centro") || k.includes("central")) return "Centro";
+  if (k.includes("norte")) return "Norte";
+  if (k.includes("sul")) return "Sul";
+  if (k.includes("leste")) return "Leste";
+  if (k.includes("oeste")) return "Oeste";
+  return null;
+}
 
 /** Ordem de leitura dos chips: os quatro pontos cardeais, Centro por último. */
 export const ZONAS_ORDEM: readonly Zona[] = ["Norte", "Sul", "Leste", "Oeste", "Centro"] as const;
