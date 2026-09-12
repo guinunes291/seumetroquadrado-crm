@@ -2716,6 +2716,78 @@ export type Database = {
         }
         Relationships: []
       }
+      higiene_execucao_log: {
+        Row: {
+          acao: string
+          acao_regra: string
+          aplicado: boolean
+          cfg_dias_parado_min: number | null
+          cfg_lote_min_leads: number | null
+          cfg_modo: string | null
+          cfg_teto_perdidos_dia: number | null
+          corretor_id: string | null
+          desfeito_em: string | null
+          dias_parado: number
+          erro: string | null
+          escrita_lote: boolean
+          escrita_lote_global: boolean
+          execucao_id: string
+          id: number
+          lead_id: string
+          motivo_pulo: string | null
+          nunca_tocado: boolean
+          ressurreicao_sdr: boolean
+          status_antes: Database["public"]["Enums"]["lead_status"]
+          ts: string
+        }
+        Insert: {
+          acao: string
+          acao_regra: string
+          aplicado?: boolean
+          cfg_dias_parado_min?: number | null
+          cfg_lote_min_leads?: number | null
+          cfg_modo?: string | null
+          cfg_teto_perdidos_dia?: number | null
+          corretor_id?: string | null
+          desfeito_em?: string | null
+          dias_parado: number
+          erro?: string | null
+          escrita_lote: boolean
+          escrita_lote_global: boolean
+          execucao_id: string
+          id?: number
+          lead_id: string
+          motivo_pulo?: string | null
+          nunca_tocado: boolean
+          ressurreicao_sdr?: boolean
+          status_antes: Database["public"]["Enums"]["lead_status"]
+          ts?: string
+        }
+        Update: {
+          acao?: string
+          acao_regra?: string
+          aplicado?: boolean
+          cfg_dias_parado_min?: number | null
+          cfg_lote_min_leads?: number | null
+          cfg_modo?: string | null
+          cfg_teto_perdidos_dia?: number | null
+          corretor_id?: string | null
+          desfeito_em?: string | null
+          dias_parado?: number
+          erro?: string | null
+          escrita_lote?: boolean
+          escrita_lote_global?: boolean
+          execucao_id?: string
+          id?: number
+          lead_id?: string
+          motivo_pulo?: string | null
+          nunca_tocado?: boolean
+          ressurreicao_sdr?: boolean
+          status_antes?: Database["public"]["Enums"]["lead_status"]
+          ts?: string
+        }
+        Relationships: []
+      }
       higiene_regra_fase: {
         Row: {
           acao_automatica: string
