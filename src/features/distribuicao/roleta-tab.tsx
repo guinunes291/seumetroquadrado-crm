@@ -567,7 +567,9 @@ function IncluirParticipanteDialog({
   const jaAtivos = new Set(
     participantesAtuais.filter((p) => p.participante_ativo).map((p) => p.corretor_id),
   );
-  const disponiveis = (corretoresQ.data ?? []).filter((c) => !jaAtivos.has(c.id));
+  const disponiveis = (corretoresQ.data ?? []).filter(
+    (c) => !jaAtivos.has(c.id) && (!restritoA || restritoA.has(c.id)),
+  );
   const vendasMap = new Map((vendasQ.data ?? []).map((v) => [v.corretor_id, v]));
   const vendaSelecionado = corretorId ? vendasMap.get(corretorId) : undefined;
 
