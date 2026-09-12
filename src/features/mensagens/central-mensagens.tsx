@@ -1,4 +1,5 @@
-// Central de Mensagens (Fase 7b, agora casa do hub Comunicações) — inbox
+// Central de Mensagens (Fase 7b; rota viva sob a Gestão de Carteira, acesso
+// pelo ⌘K desde a regra dos 2 menus de 2026-09-11) — inbox
 // unificada de conversas WhatsApp sobre a tabela `mensagens` da 7a, em MODO
 // SIMULADO até a decisão D1 ligar o provedor (7c): a entrada chega pelo
 // webhook n8n; a saída registra a mensagem na conversa E abre o wa.me com o

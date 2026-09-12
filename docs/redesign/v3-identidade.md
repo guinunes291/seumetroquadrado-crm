@@ -50,17 +50,20 @@ Valores em oklch como em `src/styles.css`; hex aproximado ao lado.
 
 ### Cores por módulo (mesma saturação)
 
-| Módulo             | Token                  | Valor                            | Nome      |
-| ------------------ | ---------------------- | -------------------------------- | --------- |
-| Central de Comando | `--modulo-central`     | `oklch(0.72 0.12 85)` · #c79e41  | dourado   |
-| Prospecção         | `--modulo-prospeccao`  | `oklch(0.55 0.10 240)` · #3179a6 | azul-aço  |
-| Atendimento        | `--modulo-atendimento` | `oklch(0.58 0.09 195)` · #238b8b | teal      |
-| Carteira           | `--modulo-carteira`    | `oklch(0.42 0.09 262)` · #314c7e | navy      |
-| Follow-up          | `--modulo-followup`    | `oklch(0.60 0.11 40)` · #b7684c  | terracota |
-| Projetos           | `--modulo-projetos`    | `oklch(0.50 0.10 320)` · #7c4f86 | ameixa    |
-| Financeiro         | `--modulo-financeiro`  | `oklch(0.58 0.09 150)` · #51895e | sálvia    |
-| Inteligência (BI)  | `--modulo-bi`          | `oklch(0.50 0.03 250)` · #576574 | grafite   |
-| Configurações      | `--modulo-config`      | `oklch(0.55 0.01 250)` · #6d7277 | cinza     |
+| Módulo             | Token                 | Valor                            | Nome      |
+| ------------------ | --------------------- | -------------------------------- | --------- |
+| Central de Comando | `--modulo-central`    | `oklch(0.72 0.12 85)` · #c79e41  | dourado   |
+| Prospecção         | `--modulo-prospeccao` | `oklch(0.55 0.10 240)` · #3179a6 | azul-aço  |
+| Modo Visita        | `--modulo-visita`     | `oklch(0.58 0.09 195)` · #238b8b | teal      |
+| Carteira           | `--modulo-carteira`   | `oklch(0.42 0.09 262)` · #314c7e | navy      |
+| Follow-up          | `--modulo-followup`   | `oklch(0.60 0.11 40)` · #b7684c  | terracota |
+| Projetos           | `--modulo-projetos`   | `oklch(0.50 0.10 320)` · #7c4f86 | ameixa    |
+| Financeiro         | `--modulo-financeiro` | `oklch(0.58 0.09 150)` · #51895e | sálvia    |
+| Inteligência (BI)  | `--modulo-bi`         | `oklch(0.50 0.03 250)` · #576574 | grafite   |
+| Configurações      | `--modulo-config`     | `oklch(0.55 0.01 250)` · #6d7277 | cinza     |
+
+(O teal era do hub Comunicações/Atendimento; passou ao Modo Visita quando ele
+virou módulo e o hub saiu — `docs/redesign/modulos-2-menus-2026-09.md`.)
 
 No escuro, as seis cores cromáticas sobem ~0,14 de luminosidade (ex.: azul-aço
 `oklch(0.70 0.10 240)`) para manter contraste sobre `--card` escuro.
