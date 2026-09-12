@@ -463,6 +463,40 @@ export function useCorretoresDisponiveis(enabled = true) {
   });
 }
 
+/**
+ * Corretores das equipes que o usuário logado gerencia (gestor).
+ * Base do escopo de autonomia do gestor nas filas: ele só inclui/remove gente
+ * do próprio time — o mesmo recorte é validado no banco.
+ */
+export function useCorretoresDaMinhaEquipe(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:corretores-minha-equipe"],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const meuId = auth.user?.id;
+      if (!meuId) return new Set<string>();
+
+      const [{ data: equipesGeridas }, { data: meuPerfil }] = await Promise.all([
+        supabase.from("equipes").select("id").eq("gestor_id", meuId),
+        supabase.from("profiles").select("equipe_id").eq("id", meuId).maybeSingle(),
+      ]);
+
+      const equipeIds = new Set<string>((equipesGeridas ?? []).map((e) => e.id));
+      if (meuPerfil?.equipe_id) equipeIds.add(meuPerfil.equipe_id);
+      if (equipeIds.size === 0) return new Set<string>();
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("equipe_id", [...equipeIds]);
+      if (error) throw error;
+      return new Set<string>((data ?? []).map((p) => p.id));
+    },
+  });
+}
+
 /** Nomes dos corretores/gestores (mapa id → nome) para logs e tabelas. */
 export function useNomesPerfis(enabled = true) {
   return useQuery({

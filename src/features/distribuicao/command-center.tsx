@@ -61,10 +61,12 @@ export const DISTRIBUICAO_TABS: DistribuicaoTab[] = [
 ];
 
 export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab; fila?: string }) {
-  const { isAdmin } = useUserRoles();
-  // Distribuição é operação org-wide: só admin opera. Gestor e superintendente
-  // enxergam em modo leitura (decisão de produto — sem recorte por equipe).
+  const { isAdmin, isGestor } = useUserRoles();
+  // Distribuição é operação org-wide: só admin opera tudo. O gestor ganhou
+  // autonomia nas filas (incluir/pausar/remover), limitada aos corretores da
+  // equipe dele — o mesmo recorte é validado no banco. Superintendente lê.
   const somenteLeitura = !isAdmin;
+  const escopoEquipe = !isAdmin && isGestor;
   const navigate = useNavigate();
   const activeTab: DistribuicaoTab = tab ?? "visao";
   const setTab = (v: string) =>
@@ -229,7 +231,11 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
           <TabVisaoGeral onVerExcecoes={() => setTab("excecoes")} />
         </TabsContent>
         <TabsContent value="filas">
-          <TabFilas somenteLeitura={somenteLeitura} filaInicial={fila} />
+          <TabFilas
+            somenteLeitura={somenteLeitura}
+            filaInicial={fila}
+            escopoEquipe={escopoEquipe}
+          />
         </TabsContent>
         <TabsContent value="corretores">
           <TabCorretores somenteLeitura={somenteLeitura} />
@@ -257,7 +263,9 @@ export function DistribuicaoCommandCenter({ tab, fila }: { tab?: DistribuicaoTab
 
       {somenteLeitura && (
         <p className="mt-4 text-xs text-muted-foreground">
-          Acesso somente leitura — as ações de distribuição são exclusivas de administradores.
+          {escopoEquipe
+            ? "Como gestor, você monta a equipe das filas (incluir, pausar e remover) apenas com corretores do seu time. As demais configurações da distribuição são de administradores."
+            : "Acesso somente leitura — as ações de distribuição são exclusivas de administradores."}
         </p>
       )}
     </div>

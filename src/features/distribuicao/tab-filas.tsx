@@ -58,9 +58,12 @@ function grupoDe(r: RoletaRow): Grupo {
 export function TabFilas({
   somenteLeitura,
   filaInicial,
+  escopoEquipe = false,
 }: {
   somenteLeitura: boolean;
   filaInicial?: string;
+  /** Gestor: monta a equipe das filas, mas só com corretores do próprio time. */
+  escopoEquipe?: boolean;
 }) {
   const roletasQ = useRoletas();
   const [novaCampanhaAberta, setNovaCampanhaAberta] = useState(false);
@@ -164,7 +167,12 @@ export function TabFilas({
           {fila && (
             <>
               <FilaPropriedades roleta={fila} somenteLeitura={somenteLeitura} />
-              <RoletaTab slug={fila.slug} nome={fila.nome} somenteLeitura={somenteLeitura} />
+              <RoletaTab
+                slug={fila.slug}
+                nome={fila.nome}
+                somenteLeitura={somenteLeitura && !escopoEquipe}
+                escopoEquipe={escopoEquipe}
+              />
             </>
           )}
         </>

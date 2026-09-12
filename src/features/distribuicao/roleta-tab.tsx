@@ -75,6 +75,7 @@ import {
   roletaLabel,
 } from "@/lib/distribuicao";
 import {
+  useCorretoresDaMinhaEquipe,
   useCorretoresDisponiveis,
   useElegibilidadeRoleta,
   useEscoarEstoque,
@@ -134,26 +135,41 @@ export function RoletaTab({
   slug,
   nome,
   somenteLeitura,
+  escopoEquipe = false,
 }: {
   slug: string;
   nome?: string | null;
   somenteLeitura: boolean;
+  /** Gestor: gerencia a fila, mas só os corretores da própria equipe. */
+  escopoEquipe?: boolean;
 }) {
   if (slug === "marquinhos") {
-    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura} />;
+    return <MarquinhosSimpleTab somenteLeitura={somenteLeitura || escopoEquipe} />;
   }
-  return <RoletaTabPadrao slug={slug} nome={nome} somenteLeitura={somenteLeitura} />;
+  return (
+    <RoletaTabPadrao
+      slug={slug}
+      nome={nome}
+      somenteLeitura={somenteLeitura}
+      escopoEquipe={escopoEquipe}
+    />
+  );
 }
 
 function RoletaTabPadrao({
   slug,
   nome,
   somenteLeitura,
+  escopoEquipe = false,
 }: {
   slug: string;
   nome?: string | null;
   somenteLeitura: boolean;
+  escopoEquipe?: boolean;
 }) {
+  const minhaEquipeQ = useCorretoresDaMinhaEquipe(escopoEquipe);
+  const podeGerir = (corretorId: string) =>
+    !escopoEquipe || !!minhaEquipeQ.data?.has(corretorId);
   const q = useElegibilidadeRoleta(slug);
   const vendasQ = useVendasMesAnterior(slug === "marquinhos");
   const semanaQ = useRecebidosSemana(slug, slug === "landing");
@@ -201,16 +217,18 @@ function RoletaTabPadrao({
           </p>
           {!somenteLeitura && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={escoar.isPending}
-                title="Envia 30 leads do estoque para cada corretor apto desta fila. A rotina automática já faz isso a cada 10 minutos."
-                onClick={() => escoar.mutate(30)}
-              >
-                <PlayCircle className="mr-1.5 h-4 w-4" />
-                {escoar.isPending ? "Escoando…" : "Escoar estoque"}
-              </Button>
+              {!escopoEquipe && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={escoar.isPending}
+                  title="Envia 30 leads do estoque para cada corretor apto desta fila. A rotina automática já faz isso a cada 10 minutos."
+                  onClick={() => escoar.mutate(30)}
+                >
+                  <PlayCircle className="mr-1.5 h-4 w-4" />
+                  {escoar.isPending ? "Escoando…" : "Escoar estoque"}
+                </Button>
+              )}
               <Button size="sm" onClick={() => setIncluirAberto(true)}>
                 <Plus className="mr-1.5 h-4 w-4" /> Incluir corretor
               </Button>
@@ -397,7 +415,8 @@ function RoletaTabPadrao({
                         <TableCell className="text-xs text-muted-foreground tabular-nums">
                           {fmtDataHora(l.ultimo_lead_em)}
                         </TableCell>
-                        {!somenteLeitura && (
+                        {!somenteLeitura && !podeGerir(l.corretor_id) && <TableCell />}
+                        {!somenteLeitura && podeGerir(l.corretor_id) && (
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -411,7 +430,7 @@ function RoletaTabPadrao({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {ehPlantao && (
+                                {ehPlantao && !escopoEquipe && (
                                   <DropdownMenuItem
                                     onClick={() =>
                                       presencaAdmin.mutate({
@@ -479,6 +498,7 @@ function RoletaTabPadrao({
           aberto={incluirAberto}
           onFechar={() => setIncluirAberto(false)}
           participantesAtuais={linhas}
+          restritoA={escopoEquipe ? (minhaEquipeQ.data ?? new Set<string>()) : null}
         />
         <PausarDialog slug={slug} alvo={pausarAlvo} onFechar={() => setPausarAlvo(null)} />
         <LimiteDialog slug={slug} alvo={limiteAlvo} onFechar={() => setLimiteAlvo(null)} />
@@ -528,12 +548,15 @@ function IncluirParticipanteDialog({
   aberto,
   onFechar,
   participantesAtuais,
+  restritoA = null,
 }: {
   slug: string;
   nome?: string | null;
   aberto: boolean;
   onFechar: () => void;
   participantesAtuais: ElegibilidadeLinha[];
+  /** Quando definido, só estes corretores podem ser incluídos (escopo do gestor). */
+  restritoA?: Set<string> | null;
 }) {
   const corretoresQ = useCorretoresDisponiveis(aberto);
   const vendasQ = useVendasMesAnterior(aberto && slug === "marquinhos");
@@ -544,7 +567,9 @@ function IncluirParticipanteDialog({
   const jaAtivos = new Set(
     participantesAtuais.filter((p) => p.participante_ativo).map((p) => p.corretor_id),
   );
-  const disponiveis = (corretoresQ.data ?? []).filter((c) => !jaAtivos.has(c.id));
+  const disponiveis = (corretoresQ.data ?? []).filter(
+    (c) => !jaAtivos.has(c.id) && (!restritoA || restritoA.has(c.id)),
+  );
   const vendasMap = new Map((vendasQ.data ?? []).map((v) => [v.corretor_id, v]));
   const vendaSelecionado = corretorId ? vendasMap.get(corretorId) : undefined;
 
