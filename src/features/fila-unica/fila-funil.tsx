@@ -7,8 +7,8 @@
 // No celular o painel abre fechado: a fila vem primeiro, o funil é leitura.
 // No desktop está sempre aberto.
 
-import { useState } from "react";
-import { CaretDown, Info } from "@phosphor-icons/react";
+import { useId, useState } from "react";
+import { CaretDown, Info, Tray } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,10 +48,11 @@ const TOM_DOT: Record<FunilTom, string> = {
   crit: "bg-destructive shadow-[0_0_6px_var(--color-destructive)]",
 };
 
-// Celular: rótulo em duas linhas, trilho e coluna de números enxutos; a
-// palavra "parados" só entra no desktop.
+// Celular: rótulo em duas linhas, trilho com a largura que o marcador
+// precisa (medido: até ~80 px) e coluna de números enxuta; a palavra
+// "parados" só entra no desktop.
 const GRADE =
-  "grid-cols-[76px_minmax(0,1fr)_72px_72px] gap-1.5 md:grid-cols-[150px_minmax(0,1fr)_132px_118px] md:gap-3";
+  "grid-cols-[64px_minmax(0,1fr)_96px_64px] gap-1.5 md:grid-cols-[150px_minmax(0,1fr)_132px_118px] md:gap-3";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 
@@ -60,30 +61,33 @@ function Marcador({ p }: { p: FunilPassagem }) {
     `${p.label}: ` +
     (p.atual === null ? (p.nota ?? "sem dado") : `${p.atual}% agora`) +
     ` · meta ${p.meta}% · ${p.fonte}`;
+  // Um único texto acessível (com a origem da meta), focável pelo teclado; o
+  // conteúdo visual fica fora da árvore de acessibilidade para não ler em dobro.
   return (
     <span
+      role="img"
+      aria-label={titulo}
       title={titulo}
+      tabIndex={0}
       data-testid="funil-marcador"
       data-tom={p.tom ?? "none"}
       className={cn(
-        "absolute left-1/2 top-full z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-1.5 py-0.5 text-[10.5px] text-muted-foreground shadow-elev-2 md:px-2 md:text-[11.5px]",
+        "absolute left-1/2 top-full z-10 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-full border bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground shadow-elev-2 md:px-2 md:text-[11.5px]",
         p.tom === "crit" && "border-destructive/50",
       )}
     >
-      <i
-        aria-hidden="true"
-        className={cn(
-          "h-1.5 w-1.5 shrink-0 rounded-full",
-          p.tom ? TOM_DOT[p.tom] : "bg-muted-foreground",
-        )}
-      />
-      <b className="font-display font-semibold text-foreground">
-        {p.atual === null ? "—" : `${p.atual}%`}
-      </b>
-      <span aria-hidden="true">→</span>
-      <b className="font-display font-semibold text-foreground">{p.meta}%</b>
-      <span className="sr-only">
-        {p.label}: {p.atual === null ? "sem dado" : `${p.atual}% agora`}, meta {p.meta}%
+      <span aria-hidden="true" className="inline-flex items-center gap-1">
+        <i
+          className={cn(
+            "h-1.5 w-1.5 shrink-0 rounded-full",
+            p.tom ? TOM_DOT[p.tom] : "bg-muted-foreground",
+          )}
+        />
+        <b className="font-display font-semibold text-foreground">
+          {p.atual === null ? "—" : `${p.atual}%`}
+        </b>
+        <span>→</span>
+        <b className="font-display font-semibold text-foreground">{p.meta}%</b>
       </span>
     </span>
   );
@@ -112,7 +116,14 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
               className={cn("grid h-11 items-center rounded-md md:h-12", GRADE)}
             >
               <div className="min-w-0 text-right">
-                <div className="line-clamp-2 break-words text-[10px] font-semibold leading-tight md:line-clamp-none md:truncate md:text-[13px] md:leading-normal">
+                <div
+                  className={cn(
+                    "line-clamp-2 break-words text-[10px] font-semibold leading-tight md:line-clamp-none md:truncate md:text-[13px] md:leading-normal",
+                    // Etapa com 85%+ parados: o alerta vai no rótulo (um contorno
+                    // no degrau some com o clip-path do trapézio).
+                    vaza && "text-destructive",
+                  )}
+                >
                   {e.label}
                 </div>
                 <div className="hidden truncate text-[11px] text-muted-foreground md:block">
@@ -124,7 +135,6 @@ function Degraus({ leitura }: { leitura: FunilLeitura }) {
                   className={cn(
                     "h-full transition-[width,clip-path] duration-700 motion-reduce:transition-none",
                     RAMPA[Math.min(i, RAMPA.length - 1)],
-                    vaza && "ring-1 ring-inset ring-destructive/40",
                   )}
                   style={{ width: `${g.caixa * 100}%`, clipPath: g.clipPath }}
                 />
@@ -218,9 +228,11 @@ export function FilaFunil({ className }: { className?: string }) {
   const gestao = isAdmin || isGestor || isSuperintendente;
   const [recorte, setRecorte] = useState<FunilRecorte>("safra");
   const [aberto, setAberto] = useState(false);
+  const corpoId = useId();
   const q = useFilaFunil(DIAS_SAFRA);
 
   const leitura = q.data ? montarFunil(q.data, recorte, { dias: DIAS_SAFRA }) : null;
+  const vazio = !!leitura && leitura.total === 0 && leitura.perdidos === 0;
 
   return (
     <section
@@ -243,21 +255,27 @@ export function FilaFunil({ className }: { className?: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Tabs value={recorte} onValueChange={(v) => setRecorte(v as FunilRecorte)}>
-            <TabsList className="h-8">
-              <TabsTrigger value="safra" className="h-7 text-xs">
-                Safra {DIAS_SAFRA} dias
-              </TabsTrigger>
-              <TabsTrigger value="base" className="h-7 text-xs">
-                Base inteira
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {/* No celular as abas só aparecem com o painel aberto — trocar o
+              recorte com o funil fechado não mudaria nada na tela. Alvos de
+              44 px abaixo de md (identidade v3, decisão 16). */}
+          <div className={cn(!aberto && "hidden md:block")}>
+            <Tabs value={recorte} onValueChange={(v) => setRecorte(v as FunilRecorte)}>
+              <TabsList aria-label="Recorte do funil" className="h-11 md:h-8">
+                <TabsTrigger value="safra" className="h-9 text-xs md:h-7">
+                  Safra {DIAS_SAFRA} dias
+                </TabsTrigger>
+                <TabsTrigger value="base" className="h-9 text-xs md:h-7">
+                  Base inteira
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 gap-1 px-2 text-xs md:hidden"
+            className="h-11 gap-1 px-3 text-sm md:hidden"
             aria-expanded={aberto}
+            aria-controls={corpoId}
             onClick={() => setAberto((v) => !v)}
           >
             {aberto ? "Ocultar" : "Ver funil"}
@@ -266,7 +284,7 @@ export function FilaFunil({ className }: { className?: string }) {
         </div>
       </header>
 
-      <div className={cn("border-t", aberto ? "block" : "hidden md:block")}>
+      <div id={corpoId} className={cn("border-t", aberto ? "block" : "hidden md:block")}>
         {q.isPending ? (
           <div className="space-y-2 p-3 md:p-4">
             <Skeleton className="h-11 w-full" />
@@ -284,8 +302,17 @@ export function FilaFunil({ className }: { className?: string }) {
         ) : !leitura ? (
           <p className="flex items-center gap-2 p-3 text-xs text-muted-foreground md:p-4">
             <Info className="h-4 w-4 shrink-0" />
-            Sem dado: a leitura do funil depende da RPC fila_funil_v1, ainda não aplicada neste
-            ambiente.
+            Sem dado: o funil ainda não está disponível neste ambiente.
+          </p>
+        ) : vazio ? (
+          <p
+            data-testid="funil-vazio"
+            className="flex items-center gap-2 p-3 text-xs text-muted-foreground md:p-4"
+          >
+            <Tray className="h-4 w-4 shrink-0" />
+            {leitura.recorte === "safra"
+              ? `Nenhum lead criado nos últimos ${leitura.dias} dias. A base inteira está na outra aba.`
+              : "Nenhum lead na carteira ainda."}
           </p>
         ) : (
           <div className="grid gap-4 p-3 md:grid-cols-[1.55fr_1fr] md:gap-5 md:p-4">

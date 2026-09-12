@@ -7,6 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { rpc } from "@/features/dashboard/queries";
 import type { FunilRow } from "@/features/fila-unica/funil-derive";
@@ -27,6 +28,10 @@ export const FILA_UNICA_FUNIL_KEY = "fila-unica:funil";
 
 export function useFilaFunil(dias = 30) {
   const { user } = useAuth();
+  // O funil muda quando um lead muda de etapa ou recebe contato — e isso pode
+  // acontecer nesta mesma tela. As ações da página invalidam a chave; o
+  // realtime cobre o que acontece em outra aba ou no bot.
+  useRealtimeInvalidate(["leads", "interacoes"], [[FILA_UNICA_FUNIL_KEY]]);
   return useQuery({
     queryKey: [FILA_UNICA_FUNIL_KEY, user?.id, dias],
     enabled: !!user,

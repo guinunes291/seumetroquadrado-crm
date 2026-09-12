@@ -139,6 +139,10 @@ export const SISTEMAS: Sistema[] = [
       "Uma lista só, na ordem em que o dinheiro está em risco: o que fazer agora e o funil das etapas.",
     icon: SunHorizon,
     home: { to: "/fila" },
+    // A Fila é a carteira PESSOAL (Fatia 3 traz a visão por corretor). A
+    // gestão entra pelo cockpit da operação, que já existe no Painel do
+    // Gestor (aba Dia) — era o que o hero de gestão da Hoje mostrava.
+    homePorPapel: (ctx) => (temPapel(GESTAO, ctx) ? { to: "/painel-gestor" } : { to: "/fila" }),
     roles: OPERACAO,
     cor: "central",
     grupo: "operacao",

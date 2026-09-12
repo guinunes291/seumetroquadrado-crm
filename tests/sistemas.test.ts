@@ -194,6 +194,11 @@ describe("home do BI por papel", () => {
   it("corretor cai no Meu Raio-X; gestão cai no painel", () => {
     expect(homeDoSistema(sistema("bi"), corretor)).toEqual({ to: "/meu-raio-x" });
     expect(homeDoSistema(sistema("bi"), gestor)).toEqual({ to: "/painel-gestor" });
+    // Central de Comando (2026-09-12, Hoje retirada): a Fila é carteira
+    // pessoal; a gestão entra pelo cockpit da operação no Painel do Gestor.
+    expect(homeDoSistema(sistema("central-comando"), corretor)).toEqual({ to: "/fila" });
+    expect(homeDoSistema(sistema("central-comando"), gestor)).toEqual({ to: "/painel-gestor" });
+    expect(homeDoSistema(sistema("central-comando"), admin)).toEqual({ to: "/painel-gestor" });
     expect(homeDoSistema(sistema("bi"), superintendente)).toEqual({ to: "/painel-gestor" });
     expect(homeDoSistema(sistema("bi"), admin)).toEqual({ to: "/painel-gestor" });
   });

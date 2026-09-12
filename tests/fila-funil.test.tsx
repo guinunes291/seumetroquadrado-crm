@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { FunilRow } from "@/features/fila-unica/funil-derive";
 
 const roles = {
@@ -80,7 +80,10 @@ describe("FilaFunil", () => {
     // Safra é o recorte inicial: a venda fica sem dado (ciclo > 30 dias).
     expect(marcadores[6]).toHaveAttribute("data-tom", "none");
     expect(marcadores[6]).toHaveTextContent("—");
-    expect(screen.getByText("3")).toBeInTheDocument(); // perdidos da safra
+    // A origem da meta chega ao leitor de tela e ao teclado, não só ao hover.
+    expect(marcadores[0]).toHaveAttribute("aria-label", expect.stringContaining("meta 50%"));
+    expect(marcadores[0]).toHaveAttribute("tabindex", "0");
+    expect(within(screen.getByText(/Saída lateral/)).getByText("3")).toBeInTheDocument();
     expect(screen.getAllByTestId("funil-vazamento")).toHaveLength(2);
   });
 
@@ -93,7 +96,7 @@ describe("FilaFunil", () => {
     // analise_credito → venda: 5 de 13 = 38% contra 30% → na meta.
     expect(marcadores[6]).toHaveAttribute("data-tom", "good");
     expect(marcadores[6]).toHaveTextContent("38%");
-    expect(screen.getByText("30")).toBeInTheDocument(); // perdidos da base
+    expect(within(screen.getByText(/Saída lateral/)).getByText("30")).toBeInTheDocument();
     expect(screen.getAllByTestId("funil-vazamento")).toHaveLength(3);
   });
 
@@ -109,11 +112,21 @@ describe("FilaFunil", () => {
     expect(screen.getByText("Não foi possível montar o funil.")).toBeInTheDocument();
   });
 
+  it("carteira zerada não desenha um funil de zeros", () => {
+    estado.data = [];
+    render(<FilaFunil />);
+    expect(screen.getByTestId("funil-vazio")).toHaveTextContent(
+      /Nenhum lead criado nos últimos 30 dias/,
+    );
+    expect(screen.queryAllByTestId("funil-etapa")).toHaveLength(0);
+  });
+
   it("no celular o painel abre fechado e o botão 'Ver funil' o abre", () => {
     estado.data = ROWS;
     render(<FilaFunil />);
     const botao = screen.getByRole("button", { name: /Ver funil/ });
     expect(botao).toHaveAttribute("aria-expanded", "false");
+    expect(botao).toHaveAttribute("aria-controls");
     fireEvent.click(botao);
     expect(screen.getByRole("button", { name: /Ocultar/ })).toHaveAttribute(
       "aria-expanded",

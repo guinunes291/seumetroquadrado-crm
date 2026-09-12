@@ -94,6 +94,17 @@ beforeAll(async () => {
   // L5 — na lixeira: nunca entra.
   const l5 = await criarLead(c, { corretorId: corretor1.id, status: "em_atendimento" });
   await c.query(`UPDATE public.leads SET na_lixeira = true WHERE id = $1`, [l5]);
+  // L6 — venda antiga e sem movimento: conta na base, nunca como parada.
+  const l6 = await criarLead(c, { corretorId: corretor1.id, status: "em_atendimento" });
+  await c.query(
+    `UPDATE public.leads SET status = 'contrato_fechado'::public.lead_status,
+                             created_at = now() - interval '60 days',
+                             ultima_interacao = now() - interval '40 days'
+      WHERE id = $1`,
+    [l6],
+  );
+  // L7 — sem dono, em 'novo': a "entrada" do funil, que só quem vê tudo enxerga.
+  await criarLead(c, { corretorId: null, status: "novo" });
 
   // corretor2 (outra equipe): um lead em atendimento, chegou agora.
   await criarLead(c, { corretorId: corretor2.id, status: "em_atendimento" });
@@ -129,11 +140,14 @@ describe("fila_funil_v1 — corretor vê a própria carteira nos dois recortes",
       parados: 0,
     });
     expect(linha(rows, "base", "perdido")).toMatchObject({ ordem: 99, quantidade: 1, parados: 0 });
-    // lixeira fora; nada do corretor2.
+    // venda: 40 dias sem interação e mesmo assim parados = 0 (etapa terminal).
+    expect(linha(rows, "base", "venda")).toMatchObject({ ordem: 8, quantidade: 1, parados: 0 });
+    // lead sem dono não é do corretor; lixeira fora; nada do corretor2.
+    expect(linha(rows, "base", "entrada")).toBeUndefined();
     const totalBase = rows
       .filter((r) => r.recorte === "base")
       .reduce((s, r) => s + r.quantidade, 0);
-    expect(totalBase).toBe(4);
+    expect(totalBase).toBe(5);
   });
 
   it("safra: só quem foi criado na janela; a janela é parametrizável", async () => {
@@ -146,6 +160,7 @@ describe("fila_funil_v1 — corretor vê a própria carteira nos dois recortes",
     expect(linha(rows30, "safra", "aguardando_atendimento")).toMatchObject({ quantidade: 1 });
     expect(linha(rows30, "safra", "em_atendimento")).toMatchObject({ quantidade: 1, parados: 1 });
     expect(linha(rows30, "safra", "analise_credito")).toBeUndefined();
+    expect(linha(rows30, "safra", "venda")).toBeUndefined();
     expect(linha(rows30, "safra", "perdido")).toMatchObject({ quantidade: 1 });
     // 7 dias: L2 (20 dias) também sai.
     expect(linha(rows7, "safra", "em_atendimento")).toBeUndefined();
@@ -180,5 +195,14 @@ describe("fila_funil_v1 — escopo da gestão", () => {
     await comoSuperuser(c);
     // em_atendimento: L2 (corretor1, parado) + o do corretor2 (não parado).
     expect(linha(rows, "base", "em_atendimento")).toMatchObject({ quantidade: 2, parados: 1 });
+    // O lead sem dono é a "entrada" — só aparece para quem vê a carteira inteira.
+    expect(linha(rows, "base", "entrada")).toMatchObject({ ordem: 0, quantidade: 1, parados: 0 });
+  });
+
+  it("gestor não vê a entrada (lead sem dono não é da equipe)", async () => {
+    await comoUsuario(c, gestorA.id);
+    const rows = await funil(30);
+    await comoSuperuser(c);
+    expect(linha(rows, "base", "entrada")).toBeUndefined();
   });
 });

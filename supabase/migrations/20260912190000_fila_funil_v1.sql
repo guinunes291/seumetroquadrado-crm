@@ -102,4 +102,9 @@ $$;
 COMMENT ON FUNCTION public.fila_funil_v1(integer, uuid) IS
   'Fila Única: funil das etapas em dois recortes (safra de N dias e base inteira), com leads na etapa e parados há 5+ dias pelo relógio da Higiene. Corretor vê só a própria carteira; gestão escolhe corretor do escopo ou NULL.';
 
-GRANT EXECUTE ON FUNCTION public.fila_funil_v1(integer, uuid) TO authenticated, service_role;
+-- Convenção da casa (leads_sem_acao, higiene_*): nada de EXECUTE herdado de
+-- PUBLIC nem anon numa SECURITY DEFINER — só quem tem sessão.
+REVOKE ALL ON FUNCTION public.fila_funil_v1(integer, uuid)
+  FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.fila_funil_v1(integer, uuid)
+  TO authenticated;

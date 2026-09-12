@@ -45,6 +45,7 @@ import {
 import { FilaCard } from "@/features/fila-unica/fila-card";
 import { FilaCockpit } from "@/features/fila-unica/fila-cockpit";
 import { FilaFunil } from "@/features/fila-unica/fila-funil";
+import { FILA_UNICA_FUNIL_KEY } from "@/features/fila-unica/use-fila-funil";
 import { useFilaUnica, FILA_UNICA_SEM_ACAO_KEY } from "@/features/fila-unica/use-fila-unica";
 import {
   CalendarCheck,
@@ -157,6 +158,7 @@ export function FilaUnicaPage() {
     void qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
     void qc.invalidateQueries({ queryKey: ["followup:fila"] });
     void qc.invalidateQueries({ queryKey: [FILA_UNICA_SEM_ACAO_KEY] });
+    void qc.invalidateQueries({ queryKey: [FILA_UNICA_FUNIL_KEY] });
     void qc.invalidateQueries({ queryKey: ["nav-badges"] });
   };
 
@@ -168,6 +170,7 @@ export function FilaUnicaPage() {
       ["atendimento:inbox"],
       ["followup:fila"],
       [FILA_UNICA_SEM_ACAO_KEY],
+      [FILA_UNICA_FUNIL_KEY],
       ["leads"],
       ["nav-badges"],
     ],

@@ -176,6 +176,13 @@ polegar vira Fila | Leads | + | Agenda | Buscar, e a pasta
 `src/features/command-center` (widgets, ronda, missões) foi removida com seus
 testes — nada fora dela a importava. Reverter é reverter o commit.
 
+Para a **gestão**, a porta do módulo no hub é o cockpit da operação que já
+existe no Painel do Gestor (aba Dia), via `homePorPapel` — a Fila é a carteira
+pessoal até a Fatia 3 trazer a visão por corretor; `/fila` continua acessível
+pela seção e pelo ⌘K. O que a Hoje mostrava ao **corretor** e não tem
+substituto ainda: o widget de meta e ritmo do mês (o Meu Raio-X mostra os KPIs,
+não a meta). Fica anotado para a Fatia 3.
+
 **Como foi conferido.** Sem login de produção neste ambiente, os componentes
 foram renderizados com fixtures em jsdom, envelopados no shell real (header,
 `px-4 pb-24`, BottomNav) com o CSS do build e fotografados no Chromium em
