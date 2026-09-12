@@ -8698,6 +8698,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      higiene_desfazer_lote: { Args: { _execucao_id: string }; Returns: number }
       higiene_dias_parado: {
         Args: {
           _created_at: string
@@ -8705,6 +8706,16 @@ export type Database = {
           _ultimo_contato: string
         }
         Returns: number
+      }
+      higiene_processar: {
+        Args: never
+        Returns: {
+          aplicados: number
+          avaliados: number
+          erros: number
+          execucao_id: string
+          pulados: number
+        }[]
       }
       immutable_unaccent: { Args: { "": string }; Returns: string }
       is_active_member: { Args: { _user_id?: string }; Returns: boolean }
