@@ -462,7 +462,146 @@ describe("buildFilaUnica — fontes e resumo", () => {
   });
 });
 
+describe("buildFilaUnica — prazo e próximo passo dos itens da inbox", () => {
+  // A inbox não traz minutos_vencido: o prazo é o proximo_followup do lead e
+  // o vencimento é calculado aqui, no fuso de São Paulo.
+  it("prazo passado vira vencido e o próximo passo cai na ação sugerida pela etapa", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({
+        esfriando: [
+          item(
+            lead({
+              id: "v",
+              nome: "Vencido",
+              status: "em_atendimento",
+              proximo_followup: "2026-09-11T12:00:00Z",
+            }),
+          ),
+        ],
+      }),
+      regua: null,
+      semAcao: [],
+      agora,
+    });
+    const [i] = fila.itens;
+    expect(i.bucket).toBe("esfriando");
+    expect(i.vencidoMin).toBe(24 * 60);
+    expect(i.venceHoje).toBe(false);
+    expect(i.proximoPasso).toBe("Agendar visita");
+    expect(fila.resumo).toMatchObject({ vencidos: 1, hoje: 0 });
+  });
+
+  it("'vence hoje' é o dia de São Paulo, não o dia UTC", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({
+        esfriando: [
+          // 22h de 12/09 em São Paulo (01h de 13/09 em UTC): ainda é hoje.
+          item(lead({ id: "h", nome: "Hoje", proximo_followup: "2026-09-13T01:00:00Z" })),
+          // 01h de 13/09 em São Paulo: amanhã.
+          item(lead({ id: "a", nome: "Amanha", proximo_followup: "2026-09-13T04:00:00Z" })),
+        ],
+      }),
+      regua: null,
+      semAcao: [],
+      agora,
+    });
+    const por = Object.fromEntries(fila.itens.map((i) => [i.lead.id, i]));
+    expect(por.h.venceHoje).toBe(true);
+    expect(por.h.vencidoMin).toBe(0);
+    expect(por.a.venceHoje).toBe(false);
+    expect(por.a.vencidoMin).toBe(0);
+    expect(fila.resumo).toMatchObject({ vencidos: 0, hoje: 1 });
+  });
+
+  it("etapa encerrada vinda da régua também fica de fora", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: regua([toque({ id: "f", nome: "Fechado", status: "contrato_fechado" })]),
+      semAcao: [],
+      agora,
+    });
+    expect(fila.total).toBe(0);
+    expect(fila.resumo.vencidos).toBe(0);
+  });
+});
+
+describe("buildFilaUnica — empate no mesmo balde", () => {
+  // O mesmo lead em análise de crédito chega pela inbox (esfriando) e pela
+  // régua (toque vencido): os dois caem em "fundo". A inbox fica com o card,
+  // mas o texto livre do próximo passo, o projeto e o vencimento medido pela
+  // RPC são dela — não podem se perder na dedup.
+  it("a inbox fica com o card, completado com o que só a régua sabe", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({
+        esfriando: [
+          item(
+            lead({
+              id: "e",
+              nome: "Empate",
+              status: "analise_credito",
+              temperatura: "quente",
+              proximo_followup: "2026-09-11T12:00:00Z",
+            }),
+            { motivo: "quente sem contato há 3 dia(s)" },
+          ),
+        ],
+      }),
+      regua: regua([
+        toque({
+          id: "e",
+          nome: "Empate",
+          status: "analise_credito",
+          projeto_nome: "Liber Jaçanã",
+          proxima_acao: "mandar a simulação da Caixa",
+          proximo_followup: "2026-09-11T12:00:00Z",
+          minutos_vencido: 1500,
+          tentativas: 4,
+        }),
+      ]),
+      semAcao: [],
+      agora,
+    });
+    expect(fila.itens).toHaveLength(1);
+    const [i] = fila.itens;
+    expect(i).toMatchObject({
+      bucket: "fundo",
+      fonte: "inbox",
+      motivo: "quente sem contato há 3 dia(s)",
+      proximoPasso: "mandar a simulação da Caixa",
+      vencidoMin: 1500,
+      venceHoje: false,
+    });
+    expect(i.lead.projeto_nome).toBe("Liber Jaçanã");
+    expect(fila.resumo).toMatchObject({ fundoParado: 1, vencidos: 1 });
+  });
+
+  it("o texto livre do card vencedor não é sobrescrito pelo da outra fonte", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: regua([
+        toque({ id: "s", nome: "Sla", status: "aguardando_atendimento", proxima_acao: "ligar" }),
+      ]),
+      semAcao: [semAcao({ id: "s", nome: "Sla", status: "aguardando_atendimento" })],
+      agora,
+    });
+    expect(fila.itens).toHaveLength(1);
+    expect(fila.itens[0]).toMatchObject({ bucket: "sla", fonte: "regua", proximoPasso: "ligar" });
+  });
+});
+
 describe("filaParaScript", () => {
+  it("fundo do funil sem fila de origem cai no script de follow-up", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({}),
+      regua: null,
+      semAcao: [semAcao({ id: "f", nome: "Fundo", status: "analise_credito" })],
+      agora,
+    });
+    expect(fila.itens[0].bucket).toBe("fundo");
+    expect(fila.itens[0].filaInbox).toBeNull();
+    expect(filaParaScript(fila.itens[0])).toBe("followups");
+  });
+
   it("usa a fila de origem da inbox e cai num script coerente para as demais fontes", () => {
     const fila = buildFilaUnica({
       inbox: inbox({

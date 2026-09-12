@@ -45,6 +45,7 @@ import { FilaCard } from "@/features/fila-unica/fila-card";
 import { useFilaUnica, FILA_UNICA_SEM_ACAO_KEY } from "@/features/fila-unica/use-fila-unica";
 import {
   CalendarCheck,
+  CalendarX,
   CheckCircle,
   ClockCountdown,
   Fire,
@@ -115,7 +116,7 @@ export function FilaResumo({ fila }: { fila: FilaUnica }) {
       <StatTile
         title="Sem próximo passo"
         value={r.semProximoPasso}
-        icon={CheckCircle}
+        icon={CalendarX}
         intent={r.semProximoPasso > 0 ? "danger" : "success"}
         hint="nenhuma tarefa, agenda ou follow-up aberto"
       />
@@ -133,7 +134,7 @@ export function FilaResumo({ fila }: { fila: FilaUnica }) {
 export function FilaUnicaPage() {
   const qc = useQueryClient();
   const abrirWhatsApp = useWhatsAppLead();
-  const { ligar } = useLigarLead();
+  const { ligar, discando } = useLigarLead();
   const { fila, isLoading, isError, error, refetch } = useFilaUnica();
 
   const [peek, setPeek] = useState<PeekLead | null>(null);
@@ -282,6 +283,11 @@ export function FilaUnicaPage() {
                           key={item.lead.id}
                           item={item}
                           index={i}
+                          ligando={discando}
+                          confirmando={
+                            confirmarVisita.isPending &&
+                            confirmarVisita.variables === item.agendamentoId
+                          }
                           onWhatsApp={onWhatsApp}
                           onLigar={(it) =>
                             ligar({

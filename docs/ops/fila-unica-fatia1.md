@@ -13,16 +13,16 @@ https://claude.ai/code/artifact/8ae2448b-90d8-438a-997c-53cc7a7ff45d
 
 ## O que entrou
 
-| Arquivo                                       | Assunto                                                                  | Reversível sozinho |
-| --------------------------------------------- | ------------------------------------------------------------------------ | ------------------ |
-| `src/features/fila-unica/derive.ts`           | lógica PURA: funde as fontes, deduplica, ordena por balde, corta no teto | sim                |
-| `src/features/fila-unica/use-fila-unica.ts`   | hook: inbox v4 (30/fila) + régua + leads_sem_acao + extras por id        | sim                |
-| `src/features/fila-unica/fila-card.tsx`       | card: projeto de interesse, motivo, próximo passo, Resumo da Sami, ações | sim                |
-| `src/features/fila-unica/fila-unica-page.tsx` | página: placar, grupos, diálogos de Atender reaproveitados               | sim                |
-| `src/routes/_authenticated/fila.tsx`          | rota `/fila` (SDR vai para `/sdr`, como a Hoje)                          | sim                |
-| `src/features/nav/sistemas.ts`                | seção "Fila Única" na Central de Comando (a Hoje continua a home)        | sim                |
-| `tests/fila-unica-derive.test.ts`             | 19 casos da lógica pura                                                  | —                  |
-| `tests/fila-card.test.tsx`                    | 4 casos do card (projeto, próximo passo, Resumo, callbacks)              | —                  |
+| Arquivo                                       | Assunto                                                                   | Reversível sozinho |
+| --------------------------------------------- | ------------------------------------------------------------------------- | ------------------ |
+| `src/features/fila-unica/derive.ts`           | lógica PURA: funde as fontes, deduplica, ordena por balde, corta no teto  | sim                |
+| `src/features/fila-unica/use-fila-unica.ts`   | hook: inbox v4 (30/fila) + régua + leads_sem_acao + extras por id         | sim                |
+| `src/features/fila-unica/fila-card.tsx`       | card: projeto de interesse, motivo, próximo passo, Resumo da Sami, ações  | sim                |
+| `src/features/fila-unica/fila-unica-page.tsx` | página: placar, grupos, diálogos de Atender reaproveitados                | sim                |
+| `src/routes/_authenticated/fila.tsx`          | rota `/fila` (SDR vai para `/sdr`, como a Hoje)                           | sim                |
+| `src/features/nav/sistemas.ts`                | seção "Fila Única" na Central de Comando (a Hoje continua a home)         | sim                |
+| `tests/fila-unica-derive.test.ts`             | 25 casos da lógica pura                                                   | —                  |
+| `tests/fila-card.test.tsx`                    | 6 casos do card (projeto, próximo passo, Resumo, peek, travas, callbacks) | —                  |
 
 Zero migration. Zero RPC nova. Zero mudança nas telas existentes.
 
@@ -49,8 +49,10 @@ Dentro dos demais baldes vale o Score de prioridade (`lib/priority.ts`), o
 mesmo das filas de Atender.
 
 **Um lead, um balde.** A inbox e a régua podem trazer a mesma pessoa; a fila
-deduplica e fica com o balde mais urgente. Empate fica com a inbox, cujas
-contagens vêm do banco.
+deduplica e fica com o balde mais urgente. Empate no mesmo balde fica com a
+inbox, cujas contagens vêm do banco — completada com o que só a outra fonte
+trouxe (texto livre do próximo passo, projeto, visita a confirmar, pasta) e,
+quando a outra é a régua com toque marcado, com o vencimento medido pela RPC.
 
 **Fonte única com o Follow-Up.** Com `followup_fila_v1` disponível, a fila
 "followups" da inbox é ignorada, exatamente como `aplicarFilaRegua` faz em
@@ -75,7 +77,10 @@ balde errado.
 
 **Enriquecimento por id.** `leads_sem_acao` devolve 7 colunas (sem `created_at`,
 projeto nem corretor) e nenhuma fonte traz `ultimo_contato`. O hook lê esses
-campos em `leads` num único `.in(ids)` (RLS da carteira aplica). Com isso o
+campos em `leads` por `.in(ids)` em lotes de 100 ids em paralelo (RLS da
+carteira aplica; centenas de UUIDs numa query string só estouram o limite de
+URL de proxy e PostgREST). Qualquer lote com erro derruba a query inteira: um
+enriquecimento parcial mentiria no relógio. Com isso o
 relógio "dias sem movimento" é o da Higiene (`GREATEST(ultima_interacao,
 ultimo_contato)`, senão `created_at`), o card mostra o projeto de interesse de
 qualquer fonte e os modais de etapa recebem o `corretor_id` real. A lógica pura
@@ -97,7 +102,13 @@ sem sair da fila, o Resumo da Sami (gerado sob demanda, cacheado por lead) com
 renda, FGTS, entrada e origem, mais a porta do histórico completo (peek).
 
 **Ligar usa o click-to-call.** `useLigarLead` (Sonax com fallback `tel:`),
-como a fila do Follow-Up faz — não o `tel:` puro do card de Atender.
+como a fila do Follow-Up faz — não o `tel:` puro do card de Atender. Enquanto
+o discador está em chamada, o Ligar de todos os cards trava (é um discador por
+corretor); a confirmação de visita trava só o card em voo.
+
+**O corpo do card abre o histórico.** Clique fora de botão, link e menu abre o
+peek do lead, como a linha de Atender; o painel do Resumo fica de fora, porque
+é onde o corretor seleciona texto.
 
 ## Medir ANTES de aplicar
 

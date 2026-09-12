@@ -26,7 +26,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcWithFallback } from "@/lib/supabase-errors";
-import { rpc } from "@/features/dashboard/queries";
 import { parseAtendimentoInbox, type AtendimentoInbox } from "@/features/atendimento/inbox";
 import { rpcAtendimentoInbox } from "@/features/atendimento/atendimento-rpc";
 import { fetchFilaFollowUp, type FilaFollowUp } from "@/features/followup/fila-client";
@@ -89,18 +88,33 @@ const extrasRowSchema = z.object({
   corretor_id: z.string().uuid().nullable(),
 });
 
+/** Ids por requisição do enriquecimento. O pior caso antes da dedup é
+ *  30×6 da inbox + toda a régua + 60 de leads_sem_acao — centenas de UUIDs
+ *  num `.in` viram uma query string longa demais para proxies e para o
+ *  PostgREST. 100 ids ≈ 3,7 KB de URL; os lotes vão em paralelo. */
+export const EXTRAS_POR_LOTE = 100;
+
 /** Campos que as fontes não trazem, lidos por id em `leads` (RLS da carteira
- *  aplica). Lote único, no máximo ~150 ids (30×6 + 200 da régua cortados pela
- *  dedup no cliente); o `.in` é index-scan por chave primária. */
+ *  aplica); o `.in` é index-scan por chave primária. Qualquer lote com erro
+ *  derruba a query inteira — enriquecimento parcial mentiria no relógio. */
 async function carregarExtras(ids: string[]): Promise<Map<string, LeadExtras>> {
   const mapa = new Map<string, LeadExtras>();
   if (ids.length === 0) return mapa;
-  const { data, error } = await supabase
-    .from("leads")
-    .select("id, created_at, ultimo_contato, projeto_nome, corretor_id")
-    .in("id", ids);
-  if (error) throw error;
-  for (const row of z.array(extrasRowSchema).parse(data ?? [])) {
+  const lotes: string[][] = [];
+  for (let i = 0; i < ids.length; i += EXTRAS_POR_LOTE) {
+    lotes.push(ids.slice(i, i + EXTRAS_POR_LOTE));
+  }
+  const respostas = await Promise.all(
+    lotes.map(async (lote) => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, created_at, ultimo_contato, projeto_nome, corretor_id")
+        .in("id", lote);
+      if (error) throw error;
+      return z.array(extrasRowSchema).parse(data ?? []);
+    }),
+  );
+  for (const row of respostas.flat()) {
     mapa.set(row.id, {
       created_at: row.created_at,
       ultimo_contato: row.ultimo_contato,
@@ -157,7 +171,11 @@ export function useFilaUnica() {
     queryFn: () =>
       rpcWithFallback<SemAcaoRow[]>(
         async () => {
-          const { data, error } = await rpc("leads_sem_acao", { _corretores: [user!.id] });
+          // A RPC está em types.ts: cliente tipado, sem a ponte solta do
+          // dashboard. O parse continua fail-closed (a forma vem do banco).
+          const { data, error } = await supabase.rpc("leads_sem_acao", {
+            _corretores: [user!.id],
+          });
           if (error) throw error;
           return parseSemAcao(data);
         },

@@ -122,6 +122,34 @@ describe("FilaCard", () => {
     expect(cb.onHistorico).toHaveBeenCalledTimes(1);
   });
 
+  it("clicar no corpo do card abre o histórico; clicar numa ação, não", () => {
+    const cb = callbacks();
+    render(wrap(<FilaCard item={itemBase()} {...cb} />));
+    fireEvent.click(screen.getByText("Josivana B."));
+    expect(cb.onHistorico).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTitle(/WhatsApp/));
+    expect(cb.onHistorico).toHaveBeenCalledTimes(1);
+    expect(cb.onWhatsApp).toHaveBeenCalledTimes(1);
+    // O painel do Resumo é onde o corretor seleciona texto: não abre o peek.
+    fireEvent.click(screen.getByRole("button", { name: /Resumo/ }));
+    fireEvent.click(screen.getByText(/Renda: R\$ 4.200/));
+    expect(cb.onHistorico).toHaveBeenCalledTimes(1);
+  });
+
+  it("com o discador em chamada e a confirmação em voo, os botões travam", () => {
+    const cb = callbacks();
+    render(
+      wrap(<FilaCard item={itemBase({ agendamentoId: "ag-1" })} {...cb} ligando confirmando />),
+    );
+    const ligar = screen.getByTitle("Discando…");
+    expect(ligar).toBeDisabled();
+    fireEvent.click(ligar);
+    expect(cb.onLigar).not.toHaveBeenCalled();
+    const confirmar = screen.getByRole("button", { name: /Confirmar/ });
+    expect(confirmar).toBeDisabled();
+    expect(confirmar).toHaveAttribute("aria-busy", "true");
+  });
+
   it("as ações chamam os callbacks certos (WhatsApp, ligar, registrar, confirmar visita)", () => {
     const cb = callbacks();
     render(wrap(<FilaCard item={itemBase({ agendamentoId: "ag-1" })} {...cb} />));

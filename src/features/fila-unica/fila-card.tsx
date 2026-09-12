@@ -5,7 +5,7 @@
 // script da fila, ligar, registrar contato, Sami, etapa in-line) mais o
 // "Resumo": a leitura da Sami e o atalho para o histórico, sem sair da fila.
 
-import { useState, type ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
@@ -21,6 +21,7 @@ import {
   Buildings,
   CalendarCheck,
   CaretDown,
+  CircleNotch,
   ClockCountdown,
   Phone,
   PhoneCall,
@@ -48,6 +49,10 @@ export type FilaCardProps = {
   onEtapaModal: (item: FilaUnicaItem, modal: StageModal, target: LeadStatus) => void;
   onEtapaPerdido: (item: FilaUnicaItem) => void;
   onConfirmarVisita: (item: FilaUnicaItem) => void;
+  /** O discador está em chamada (é um por corretor: trava o Ligar de todos). */
+  ligando?: boolean;
+  /** A confirmação DESTA visita está em voo. */
+  confirmando?: boolean;
   /** Índice na lista — só para a cascata de entrada. */
   index?: number;
 };
@@ -91,16 +96,30 @@ export function FilaCard({
   onEtapaModal,
   onEtapaPerdido,
   onConfirmarVisita,
+  ligando = false,
+  confirmando = false,
   index = 0,
 }: FilaCardProps) {
   const l = item.lead;
   const [resumoAberto, setResumoAberto] = useState(false);
 
+  // Clique no corpo do card abre o histórico (peek), como a linha de Atender.
+  // Botões, links e menus (o de etapa é portaled: o alvo nem está dentro do
+  // card no DOM) e o painel do Resumo — onde o corretor seleciona texto —
+  // ficam de fora.
+  const abrirPeek = (e: MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (!e.currentTarget.contains(target)) return;
+    if (target.closest("a,button,input,[data-peek-ignore]")) return;
+    onHistorico(item);
+  };
+
   return (
     <div
       data-testid="fila-card"
+      onClick={abrirPeek}
       className={cn(
-        "animate-slide-fade motion-reduce:animate-none rounded-lg border border-l-4 bg-card p-3 transition-shadow hover:shadow-elev-2",
+        "animate-slide-fade motion-reduce:animate-none cursor-pointer rounded-lg border border-l-4 bg-card p-3 transition-colors hover:bg-accent/40",
         ACCENT[item.bucket],
       )}
       style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
@@ -147,6 +166,7 @@ export function FilaCard({
               variant="ghost"
               className="h-7 gap-1 px-2 text-success hover:bg-success/10"
               title="Confirmar a visita agendada"
+              loading={confirmando}
               onClick={() => onConfirmarVisita(item)}
             >
               <CalendarCheck className="h-4 w-4" />
@@ -180,10 +200,16 @@ export function FilaCard({
             size="icon"
             variant="ghost"
             className="h-7 w-7 text-info hover:bg-info/10"
-            title="Ligar"
+            title={ligando ? "Discando…" : "Ligar"}
+            disabled={ligando}
+            aria-busy={ligando || undefined}
             onClick={() => onLigar(item)}
           >
-            <Phone className="h-4 w-4" />
+            {ligando ? (
+              <CircleNotch aria-hidden="true" className="h-4 w-4 animate-spin" />
+            ) : (
+              <Phone className="h-4 w-4" />
+            )}
           </Button>
           <Button
             size="icon"
@@ -224,7 +250,7 @@ export function FilaCard({
           porta do histórico completo. Monta só quando aberto — nada custa IA
           nem consulta sem o corretor pedir. */}
       {resumoAberto && (
-        <div className="mt-3 space-y-2 border-t pt-3">
+        <div className="mt-3 space-y-2 border-t pt-3" data-peek-ignore>
           <ResumoIA leadId={l.id} />
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {l.renda_informada && <span>Renda: {l.renda_informada}</span>}

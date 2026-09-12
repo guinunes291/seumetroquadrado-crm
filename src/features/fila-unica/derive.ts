@@ -391,6 +391,43 @@ function itemSemAcao(r: SemAcaoRow, extra: LeadExtras | undefined, agora: Date):
 
 const rank = (b: FilaBucket) => BUCKET_ORDER.indexOf(b);
 
+const temTexto = (s: string | null | undefined) => !!s?.trim();
+
+/** Empate no mesmo balde: a primeira fonte fica com o card (inbox, cujas
+ *  contagens vêm do banco), mas o que só a outra fonte sabe não se perde — o
+ *  texto livre do próximo passo, o projeto, a visita a confirmar, a pasta. Se
+ *  a outra é a régua com toque marcado, o vencimento é dela: a RPC é a fonte
+ *  de verdade de "quanto venceu". */
+function fundirEmpate(vencedor: FilaUnicaItem, outro: FilaUnicaItem): FilaUnicaItem {
+  const proximaAcao = temTexto(vencedor.lead.proxima_acao)
+    ? vencedor.lead.proxima_acao
+    : temTexto(outro.lead.proxima_acao)
+      ? outro.lead.proxima_acao
+      : (vencedor.lead.proxima_acao ?? outro.lead.proxima_acao ?? null);
+  const proximoPasso = temTexto(vencedor.lead.proxima_acao)
+    ? vencedor.proximoPasso
+    : temTexto(outro.lead.proxima_acao)
+      ? outro.proximoPasso
+      : (vencedor.proximoPasso ?? outro.proximoPasso);
+  const vencimentoDaRegua = outro.fonte === "regua" && outro.prazo !== null;
+  return {
+    ...vencedor,
+    lead: {
+      ...vencedor.lead,
+      proxima_acao: proximaAcao,
+      projeto_nome: vencedor.lead.projeto_nome ?? outro.lead.projeto_nome ?? null,
+      corretor_id: vencedor.lead.corretor_id ?? outro.lead.corretor_id ?? null,
+    },
+    proximoPasso,
+    prazo: vencimentoDaRegua ? outro.prazo : vencedor.prazo,
+    vencidoMin: vencimentoDaRegua ? outro.vencidoMin : vencedor.vencidoMin,
+    venceHoje: vencimentoDaRegua ? outro.venceHoje : vencedor.venceHoje,
+    docsPendentes: Math.max(vencedor.docsPendentes, outro.docsPendentes),
+    agendamentoId: vencedor.agendamentoId ?? outro.agendamentoId,
+    visitaEm: vencedor.visitaEm ?? outro.visitaEm,
+  };
+}
+
 function tempo(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const t = Date.parse(iso);
@@ -451,12 +488,14 @@ export function buildFilaUnica(input: {
   for (const r of input.semAcao) candidatos.push(itemSemAcao(r, extras.get(r.id), agora));
 
   // Dedup: um lead, um balde — o mais urgente vence; empate fica com a
-  // primeira fonte (a inbox, cujas contagens vêm do banco).
+  // primeira fonte (a inbox, cujas contagens vêm do banco), completada com o
+  // que só a outra fonte trouxe.
   const porLead = new Map<string, FilaUnicaItem>();
   for (const c of candidatos) {
     if (ETAPAS_ENCERRADAS.includes(c.lead.status)) continue;
     const atual = porLead.get(c.lead.id);
     if (!atual || rank(c.bucket) < rank(atual.bucket)) porLead.set(c.lead.id, c);
+    else if (rank(c.bucket) === rank(atual.bucket)) porLead.set(c.lead.id, fundirEmpate(atual, c));
   }
 
   const todos = Array.from(porLead.values()).sort((a, b) => {
