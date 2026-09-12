@@ -415,7 +415,8 @@ function RoletaTabPadrao({
                         <TableCell className="text-xs text-muted-foreground tabular-nums">
                           {fmtDataHora(l.ultimo_lead_em)}
                         </TableCell>
-                        {!somenteLeitura && (
+                        {!somenteLeitura && !podeGerir(l.corretor_id) && <TableCell />}
+                        {!somenteLeitura && podeGerir(l.corretor_id) && (
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
