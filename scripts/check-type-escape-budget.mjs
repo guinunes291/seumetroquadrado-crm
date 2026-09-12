@@ -12,14 +12,23 @@ const IGNORED_FILES = new Set(["src/routeTree.gen.ts"]);
 // do Supabase, dá para baixar de novo: os `as never`/`as any` das RPCs fora
 // dos types (leads_filtered_v2, nav_pendencias, pipeline_snapshot_v3,
 // gestao_metricas, dashboard_*) deixam de ser necessários.
-// 2026-09-12 — teto de 144 para 145. O +1 é o boundary
-// src/integrations/supabase/higiene-pendente.ts, o próprio padrão que a
-// mensagem de erro deste script recomenda: as views de Higiene do Funil
-// (migrations 202609112300*) ainda não estão em types.ts, e um boundary único
-// é melhor que `as never` espalhado pelas telas.
-// Ao regenerar os types depois de aplicar as migrations: apagar aquele
-// arquivo, trocar supabaseHigiene por supabase e voltar este teto para 144.
-const MAX_ESCAPES = 145;
+// 2026-09-12 — teto de 145 para 147.
+// Os +2 sao os dois `as unknown as` de src/lib/samiq-rpc-args.ts, criado pela
+// Fatia 2b. Vale a pena: a plataforma passou a BLOQUEAR edicao manual de
+// types.ts, entao as formas nulas dos argumentos de RPC da SamiQ (que o
+// gerador nao sabe declarar) nao podiam mais viver la. Passaram a morar num
+// arquivo nosso, que regeneracao nenhuma apaga.
+//
+// Isso encerra um pingue-pongue que ja custou tres consertos: #177 introduziu
+// as formas em types.ts, #183 as repos, o commit 4040159 as apagou, #185 as
+// repos de novo. Dois escapes num boundary unico e documentado sao mais
+// baratos que uma regressao por semana.
+//
+// Os outros escapes contados aqui continuam sendo divida a pagar: ao
+// regenerar os types com as views de Higiene do Funil, apague
+// src/integrations/supabase/higiene-pendente.ts, troque supabaseHigiene por
+// supabase e baixe este teto.
+const MAX_ESCAPES = 147;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {
