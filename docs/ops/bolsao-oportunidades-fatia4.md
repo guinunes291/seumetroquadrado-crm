@@ -284,8 +284,12 @@ agir.
 2. **Quantos dos 12.686 de estoque têm telefone válido.** O Bolsão só vale o que
    o discador consegue discar. Se metade não tem telefone, ele é bem menor do
    que os 50 mil aparentes.
-3. **Distribuição de `ultima_interacao` dentro dos 2.304 com 3+ toques**, para
-   calibrar `puxar_frio_dias` com dado em vez de palpite.
+3. ~~Distribuição de `ultima_interacao` dentro dos 2.304 com 3+ toques~~ —
+   **dispensada**. Ela existia para calibrar `puxar_frio_dias`, e a diretoria
+   fixou o prazo em 7 dias (§5.1). Medição que não decide nada não se faz.
+
+As duas primeiras são respondidas por `bolsao_diagnostico_v1()` (§11), que é
+repetível: roda de novo no dia de virar e depois, para comparar.
 
 ## 9. Ordem de implantação
 
@@ -317,3 +321,64 @@ Tudo em `gestao_config`, chave `bolsao`, seguindo o padrão da Fatia 3:
   "devolver_estoque_dias": 30
 }
 ```
+
+## 11. O que foi construído — passo 1 (migration `20260914120000_bolsao_v1.sql`)
+
+Só leitura. Nada aqui muda o dono de lead nenhum, e uma guarda de sanidade no
+fim da migration falha o deploy se alguma dessas funções virar `VOLATILE` —
+o dia em que alguém começar a escrever, o passo 1 deixa de ser só leitura e
+a migration avisa em vez de deixar passar.
+
+| Objeto                             | Papel                                         |
+| ---------------------------------- | --------------------------------------------- |
+| `_lead_venda_viva(uuid)`           | congelamento por venda (§4.1)                 |
+| `telefone_discavel(text)`          | 10–13 dígitos: o piso do que o discador disca |
+| `telefone_mascarado(text)`         | `(11) •••••0001`                              |
+| `bolsao_v1(busca, limite, offset)` | a base sem dono, anonimizada                  |
+| `bolsao_diagnostico_v1()`          | as medições 1 e 2 do §8                       |
+
+### 11.1 Três decisões que valem registro
+
+**Venda viva reusa o recorte que o banco já protege.** O índice
+`uq_vendas_lead_ativa` já garante no máximo uma venda `rascunho`/`pendente`/
+`aprovada` por lead. Congelar por esse mesmo conjunto (em vez de inventar
+outro) faz o congelamento e a unicidade de venda falarem da mesma coisa — e o
+índice parcial responde a consulta sem varrer `vendas`. Distrato é a exceção da
+exceção: a venda caiu, o lead volta a ser lead.
+
+**O telefone sai mascarado, e isso não é cosmético.** Sem máscara, "puxar" vira
+opcional: bastaria copiar o número da tela e ligar por fora do CRM — que é
+exatamente como uma carteira deixa de ser auditável. A máscara mantém o
+reconhecimento (quem já falou com o cliente identifica o número) sem entregar a
+discagem.
+
+**`_lead_venda_viva` não tem grant para `authenticated`.** Exposta como função
+pública, ela viraria uma sonda: qualquer corretor poderia varrer uuids
+perguntando "esse tem venda?" sobre leads que não enxerga. Quem chama são as
+RPCs `SECURITY DEFINER`, que devolvem o congelamento como **coluna**. Mesmo
+padrão de `_carteira_classificar` na Fatia 3.
+
+### 11.2 O Bolsão já existia no schema
+
+`leads.classe_lead` vale `'quente' | 'base'` desde `20260826120000`, e o motor
+de SDR, a régua de follow-up e a distribuição v2 já devolvem lead para a base
+exatamente como a virada vai fazer: `corretor_anterior_id := corretor_id`,
+`corretor_id := NULL`, `classe_lead := 'base'`. E `corretor_anterior_id` já é
+coluna de `leads`.
+
+A Fatia 4 não inventa um conceito — ela nomeia o trilho que já estava lá e o
+torna consultável. Isso encurta os passos 5 e 6 do §9 de forma material: a
+virada é um UPDATE no trilho existente, não uma migração de modelo.
+
+### 11.3 Provas
+
+16 testes em `tests/db/bolsao.test.ts`, verificados por mutação — tirar o
+congelamento de venda, o opt-out ou a máscara de telefone faz o teste
+correspondente quebrar, um a um. Suíte de banco inteira em 540 testes verdes,
+com replay das 366 migrations do zero.
+
+### 11.4 O que o passo 1 deliberadamente não faz
+
+Não tem tela. A busca no Bolsão é o passo 2 do §9, e ela vem sem botão de
+puxar — primeiro se mede quem busca e o quê. `bolsao_v1` já nasce com busca,
+paginação e ordenação para a tela não precisar de RPC nova.
