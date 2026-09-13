@@ -1,7 +1,12 @@
-// Guarda do item 2.7 (estrategia-2026-08): Atender reúne os 3 modos
-// (Prioridade/Volume/Consulta) numa porta só. Desde o PR (c), /blitz é
-// redirect para o modo Volume; /leads continua rota viva (kanban, ações em
-// massa, importação) fora do nível primário do menu. Fonte lida como texto.
+// Guarda do item 2.7 (estrategia-2026-08), atualizada pela Fatia 3 da carteira
+// ativa (2026-09-13): Atender reunia TRÊS modos numa porta só; o Prioridade
+// foi aposentado porque suas seis filas são os baldes que a Fila Única
+// absorveu — com o teto de 40 valendo no banco, as duas telas dariam números
+// diferentes para a mesma pergunta. Restam Volume (o antigo Blitz, destino do
+// redirect de /blitz) e Consulta (busca e filtros), que não têm equivalente na
+// Fila Única e por isso NÃO foram retirados junto.
+// /leads continua rota viva (kanban, ações em massa, importação) fora do nível
+// primário do menu. Fonte lida como texto.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,20 +20,25 @@ const leadsQuery = read("src/features/leads/leads-query.ts");
 const consulta = read("src/features/atendimento/consulta-view.tsx");
 const volume = read("src/features/atendimento/volume-view.tsx");
 
-describe("item 2.7a — três modos, uma porta", () => {
-  it("o modo viaja na URL com whitelist — valor desconhecido cai em Prioridade", () => {
+describe("item 2.7a — os modos que sobraram, uma porta", () => {
+  it("o modo viaja na URL com whitelist", () => {
     expect(atendimento).toContain(
       'search.modo === "volume" || search.modo === "consulta" ? search.modo : undefined',
     );
-    expect(atendimento).toContain('modoParam ?? "prioridade"');
   });
 
-  it("Volume e Consulta montam dentro de Atender; Prioridade segue sendo o padrão", () => {
+  it("Volume e Consulta montam dentro de Atender", () => {
     expect(atendimento).toContain('{modo === "volume" && <VolumeView />}');
     expect(atendimento).toContain('{modo === "consulta" && <ConsultaView />}');
-    expect(atendimento).toMatch(/\{modo === "prioridade" && \(\s*<AsyncBoundary/);
-    // A inbox só roda no modo que a consome.
-    expect(atendimento).toContain('modo === "prioridade"');
+  });
+
+  it("o modo Prioridade foi aposentado: /atendimento sem modo válido cai na Fila Única", () => {
+    // A razão está no cabeçalho do arquivo: duas telas com o mesmo escopo e
+    // réguas diferentes (uma com o teto de 40, outra sem) divergem.
+    expect(atendimento).toMatch(/beforeLoad:[\s\S]*redirect\(\{ to: "\/fila" \}\)/);
+    expect(atendimento).not.toContain('modo === "prioridade"');
+    // E a inbox das seis filas não é mais consumida aqui.
+    expect(atendimento).not.toContain("atendimento:inbox");
   });
 
   it("URL nenhuma morre: /blitz redireciona para Atender em modo Volume (PR c)", () => {

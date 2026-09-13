@@ -22,6 +22,7 @@
 // ativo são funções puras testáveis.
 
 import {
+  Archive,
   ArrowsClockwise,
   Briefcase,
   Broom,
@@ -152,8 +153,22 @@ export const SISTEMAS: Sistema[] = [
     destaque: true,
     // Fila Única é a porta do módulo (2026-09-12): a página Hoje foi retirada
     // — a fila absorveu o que ela respondia (próxima ação, SLA, follow-ups) e
-    // ganhou o funil das etapas. /hoje redireciona para cá.
-    secoes: [{ id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" }],
+    // ganhou o funil das etapas. /hoje redireciona para cá, e /atendimento
+    // também desde a Fatia 3 (as seis filas de Atender são os baldes que esta
+    // tela absorveu; mantê-las vivas daria dois números para a mesma
+    // pergunta, um com o teto de 40 e outro sem).
+    //
+    // A Reserva entrou na Fatia 3 como o PAR da Fila Única: lá está o que eu
+    // trabalho agora (as 40 vagas), aqui o que ficou guardado esperando vaga.
+    // São duas seções num módulo que permite seis — a regra dos 2 menus segue
+    // valendo. Ela não é aba da Fila (a Fila é lista de ação com desfecho de
+    // um toque; a Reserva é busca e resgate) nem filtro da Base de leads (a
+    // Base acha qualquer um; a Reserva responde "o que saiu de mim e por
+    // quê"). Ver docs/ops/carteira-ativa-40-fatia3.md §8.2.
+    secoes: [
+      { id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" },
+      { id: "reserva", label: "Reserva", icon: Archive, to: "/reserva" },
+    ],
   },
   {
     id: "prospeccao",
@@ -567,14 +582,20 @@ export const ATALHOS_EXTRAS: AtalhoExtra[] = [
     to: "/pipeline",
     search: { tab: "fechamento", fase: "carteira" },
   },
-  // Portas que saíram da sidebar na regra dos 2 menus (2026-09-11): as filas
-  // por prioridade e a Central de Mensagens seguem vivas (dominioExtra da
+  // Portas que saíram da sidebar na regra dos 2 menus (2026-09-11): o modo
+  // Volume de Atender e a Central de Mensagens seguem vivos (dominioExtra da
   // Carteira) — sem menu, mas a um ⌘K de distância. Só operação: o SDR nunca
-  // as teve (2026-09-04).
+  // os teve (2026-09-04).
+  //
+  // O atalho apontava para as "filas por prioridade" (/atendimento sem modo).
+  // Esse modo foi aposentado na Fatia 3 e a rota agora redireciona para a Fila
+  // Única — o atalho viraria um caminho duplicado para a seção que já está no
+  // menu. Passa a apontar o que de fato só existe ali: o trabalho em volume.
   {
-    label: "Trabalhar carteira (filas por prioridade)",
+    label: "Trabalhar carteira (um lead por vez)",
     icon: Briefcase,
     to: "/atendimento",
+    search: { modo: "volume" },
     roles: OPERACAO,
   },
   { label: "Mensagens (WhatsApp)", icon: WhatsappLogo, to: "/mensagens", roles: OPERACAO },

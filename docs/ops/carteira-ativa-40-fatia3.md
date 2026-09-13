@@ -478,6 +478,105 @@ A regra dos 2 menus continua valendo: nenhum módulo novo, e a Central de
 Comando vai de uma para duas seções.
 
 
+## 9. O que foi construído (13/09/2026) — modo sombra
+
+Entrou a Fatia 3 em **modo sombra**: o banco passa a saber quem são os 40 e
+por que cada um dos outros ficou de fora. **Nada é devolvido automaticamente**
+— a devolução é a fatia seguinte (§7 passo 5).
+
+### 9.1 Banco
+
+| Objeto | O que faz |
+| ------ | --------- |
+| `gestao_config.carteira_ativa` | Caps de faixa e gatilhos. O **teto** continua em `capacidade_leads_ativos_por_corretor` — uma chave só para o mesmo número |
+| `_carteira_classificar(corretor)` | A regra ÚNICA: faixa, ordem, caps, teto e o motivo de quem ficou fora |
+| `carteira_ativa_v1(corretor?)` | Quem ocupa vaga, na precedência das faixas |
+| `carteira_reserva_v1(corretor?, busca?, limit, offset)` | O complemento exato, com motivo, busca e paginação |
+| `carteira_vagas_v1(corretor)` | Vagas livres (teto − ocupadas) |
+| `carteira_vagas_entrada_v1(corretor)` | Quantos leads NOVOS cabem agora — ver §9.3 |
+| `carteira_resgates` + `carteira_resgatar` / `carteira_soltar` | A faixa B na mão do corretor |
+| `carteira_sombra_v1()` | A linha do gestor: quem estouraria e o que sairia |
+| `distribuir_estoque_roleta` | O lote de cada corretor passa a respeitar a vaga de entrada |
+
+### 9.2 Telas
+
+- **`/reserva`** (novo), segunda seção da Central de Comando.
+- **Fila Única**: o anel "N de 40" deixa de contar os candidatos carregados e
+  passa a mostrar a carteira ativa do banco. Estourado, o texto diz a verdade
+  (*"você não recebe lead novo até desovar"*), não "entram conforme saem".
+- **`/atendimento`**: só o modo **Prioridade** foi aposentado (redireciona para
+  `/fila`) — ver §9.5.
+
+### 9.3 🔴 Correção de desenho: vaga de ENTRADA ≠ vaga global
+
+O §3.1 dizia "lote = min(lote, vagas livres)". Escrito assim, a regra
+**fabricaria Reserva**: um lead distribuído nasce em `aguardando_atendimento`,
+ou seja, na faixa SLA, que tem cap próprio de 12. Um corretor com a carteira
+vazia tem 40 vagas globais — despejar 40 leads novos jogaria 28 na Reserva no
+mesmo instante, com "faixa cheia (sla)". O CRM teria criado o problema que a
+regra existe para resolver.
+
+O limite correto é o **menor entre a vaga global e a vaga da faixa de
+entrada**, e é o que `carteira_vagas_entrada_v1` calcula. Travado em
+`tests/db/distribuicao-por-vaga.test.ts`.
+
+### 9.4 🔴 Correção de desenho: o fundo nunca é o excedente
+
+O primeiro corte do classificador devolvia à Reserva os leads do fundo que não
+coubessem no teto — e, pela ordem "mais parado primeiro", eram os **mais
+recentes**: exatamente os recém-agendados. Isso contradiz o §4.1.
+
+Regra final: **todo lead do fundo segue na carteira, mesmo acima do teto**.
+Quem estoura para de RECEBER (`carteira_vagas_*` vai a zero); nenhum negócio
+avançado sai. Medido no caso real (45 no fundo, teto 40): 45 ativos, 0 na
+Reserva, 0 vagas.
+
+### 9.5 Ajuste de escopo: só o modo Prioridade de `/atendimento` saiu
+
+O §8.5 propunha aposentar `/atendimento` inteiro. Ao implementar apareceu o que
+aquela análise não tinha visto: a rota hospeda **três** modos, não um.
+
+- **Prioridade** — as seis filas. Aposentado: é o que duplica a Fila Única e
+  divergiria no teto. `/atendimento` sem modo válido redireciona para `/fila`.
+- **Volume** — um lead por vez sobre a carteira inteira (o antigo Modo Blitz,
+  destino do redirect de `/blitz`). **Mantido**: não é fila priorizada e não
+  tem equivalente na Fila Única.
+- **Consulta** — buscar e filtrar como em Meus Leads. **Mantido**, mesma razão.
+
+Retirar os três teria removido ferramenta sem substituto. O atalho do ⌘K
+("Trabalhar carteira") passou a apontar o modo Volume. `queue-section.tsx`
+ficou órfã e foi removida; as guardas de contrato da inbox (v4→v3→v2, fonte
+única com o hub Follow-Up, botão [Confirmar]) foram reapontadas para a Fila
+Única, que é o dono atual dessas regras.
+
+### 9.6 🟡 Bug pré-existente encontrado (NÃO corrigido aqui)
+
+**O botão "escoar estoque" da Central de Distribuição está quebrado** para lead
+em `aguardando_corretor` — que é todo o estoque de 8.425 leads medido no §1.1.
+
+Chamada por um admin autenticado, `distribuir_estoque_roleta` estoura em
+`status do lead só pode ser alterado por transicionar_lead`:
+`_distribuir_lead_v3` só promove o status quando ele era `novo`, e o `UPDATE`
+seguinte já encontra `corretor_id` preenchido, o que derruba a exceção
+`_atribuicao_inicial` do guard de transição.
+
+**Reproduzido contra a função original** (`20260908195600`), antes de qualquer
+mudança desta fatia — não é regressão. O cron (`distribuir-estoque-plantao`)
+não é afetado: roda fora do papel `authenticated` e o guard o libera, o que
+explica por que a esteira automática flui 4.320/dia enquanto o botão manual
+falha. Anotado em `tests/db/distribuicao-por-vaga.test.ts`; a correção precisa
+de decisão sobre qual caminho legitimar e fica fora do escopo desta fatia.
+
+### 9.7 Como foi conferido
+
+Postgres 16 real com as **206 migrations aplicadas do zero** (harness sem
+Docker): `npm run test:db` → 33 arquivos, 521 testes. Unitários:
+`npm run test` → 179 arquivos, 1.770 testes. `npm run lint:ci` e
+`npm run typecheck` limpos. As telas não foram fotografadas nesta rodada — a
+Reserva usa componentes já responsivos da casa, mas a prova visual a 360 px
+fica pendente.
+
+
 ## Leitura relacionada
 
 - `docs/ops/fila-unica-fatia1.md` — a Fila Única e o teto de 40 visual que

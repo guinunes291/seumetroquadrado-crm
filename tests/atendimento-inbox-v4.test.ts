@@ -13,9 +13,15 @@ const sql = readFileSync(
   "utf8",
 );
 const codigo = sql.replace(/--[^\n]*/g, "");
-const route = readFileSync(join(root, "src/routes/_authenticated/atendimento.tsx"), "utf8");
+// A fiação da inbox saiu da rota /atendimento e passou para a Fila Única na
+// Fatia 3 da carteira ativa (2026-09-13): o modo Prioridade foi aposentado
+// porque duplicava a mesma carteira sem o teto de 40. A cadeia v4 → v3 → v2 e
+// o botão [Confirmar] são os MESMOS — mudaram de arquivo, não de regra —, e
+// por isso as asserções abaixo continuam valendo, agora sobre o dono atual.
+const hook = readFileSync(join(root, "src/features/fila-unica/use-fila-unica.ts"), "utf8");
+const page = readFileSync(join(root, "src/features/fila-unica/fila-unica-page.tsx"), "utf8");
 const rpcBoundary = readFileSync(join(root, "src/features/atendimento/atendimento-rpc.ts"), "utf8");
-const section = readFileSync(join(root, "src/features/atendimento/queue-section.tsx"), "utf8");
+const card = readFileSync(join(root, "src/features/fila-unica/fila-card.tsx"), "utf8");
 
 describe("atendimento_inbox_v4 (migration)", () => {
   it("a fila nova é um ramo do MESMO CASE, entre esfriando e docs — nunca UNION", () => {
@@ -53,22 +59,22 @@ describe("atendimento_inbox_v4 (migration)", () => {
 });
 
 describe("fiação v4 → v3 → v2", () => {
-  it("a rota tenta a v4 e cada degrau preenche a fila que a versão antiga não tem", () => {
+  it("a Fila Única tenta a v4 e cada degrau preenche a fila que a versão antiga não tem", () => {
     expect(rpcBoundary).toContain('"atendimento_inbox_v4"');
-    expect(route).toContain('rpcAtendimentoInbox("v4"');
-    expect(route).toContain('rpcAtendimentoInbox("v3"');
-    expect(route).toContain('{ fila: "confirmar_visita", total_count: 0, items: [] }');
+    expect(hook).toContain('rpcAtendimentoInbox("v4"');
+    expect(hook).toContain('rpcAtendimentoInbox("v3"');
+    expect(hook).toContain('{ fila: "confirmar_visita", total_count: 0, items: [] }');
   });
 
   it("o botão [Confirmar] só existe com agendamentoId e confirma sem abrir formulário", () => {
-    expect(section).toContain("item.agendamentoId && (");
-    expect(section).toContain("onConfirmarVisita(item)");
-    expect(route).toMatch(
+    expect(card).toContain("item.agendamentoId && (");
+    expect(card).toContain("onConfirmarVisita(item)");
+    expect(page).toMatch(
       /from\("agendamentos"\)[\s\S]{0,80}\.update\(\{ status: "confirmado" \}\)/,
     );
     // Confirmou → inbox, agenda e badges atualizam juntos.
-    expect(route).toContain('["atendimento:inbox"]');
-    expect(route).toContain('["nav-badges"]');
+    expect(page).toContain('["atendimento:inbox"]');
+    expect(page).toContain('["nav-badges"]');
   });
 });
 

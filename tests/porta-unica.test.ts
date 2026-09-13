@@ -21,11 +21,15 @@ describe("item 2.7c — porta única no menu", () => {
     // 2026-09-11: a Carteira abre na Base de leads e a lista é a 1ª seção.
     expect(sistemas).toMatch(/home: \{ to: "\/leads" \}/);
     expect(sistemas).toContain('label: "Base de leads", icon: UsersThree, to: "/leads"');
-    // As filas por prioridade não morreram: dominioExtra da Carteira (a
-    // sidebar não salta ao abrir) + atalho do ⌘K, só para a operação.
+    // /atendimento segue viva: dominioExtra da Carteira (a sidebar não salta
+    // ao abrir) + atalho do ⌘K, só para a operação.
     expect(sistemas).toMatch(/dominioExtra: \[[^\]]*"\/atendimento"/);
+    // Desde a Fatia 3 da carteira ativa (2026-09-13) o modo Prioridade foi
+    // aposentado — suas filas são os baldes da Fila Única, que já tem seção
+    // própria no menu. O atalho aponta o que só existe em /atendimento: o
+    // trabalho em VOLUME (um lead por vez sobre a carteira inteira).
     expect(sistemas).toMatch(
-      /label: "Trabalhar carteira \(filas por prioridade\)",\s*icon: Briefcase,\s*to: "\/atendimento",\s*roles: OPERACAO/,
+      /label: "Trabalhar carteira \(um lead por vez\)",\s*icon: Briefcase,\s*to: "\/atendimento",\s*search: \{ modo: "volume" \},\s*roles: OPERACAO/,
     );
     // O badge de tarefas vencidas continua da Carteira — agora na seção Tarefas.
     expect(sistemas).toMatch(

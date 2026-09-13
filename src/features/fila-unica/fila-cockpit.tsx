@@ -141,13 +141,22 @@ function Numero({
   );
 }
 
+/** A carteira ativa medida no banco (carteira_ativa_v1 + config). Quando
+ *  presente, o anel para de contar candidatos recebidos e passa a mostrar a
+ *  carteira de verdade — é a diferença entre "40 cards nesta tela" e "40
+ *  clientes sob sua responsabilidade". Ausente (banco antigo, sem a migration
+ *  da Fatia 3), o anel volta a contar o que a fila carregou. */
+export type CarteiraNoCockpit = { ocupadas: number; teto: number; estourou: boolean };
+
 export function FilaCockpit({
   fila,
+  carteira,
   className,
   grande = false,
   rodape,
 }: {
   fila: FilaUnica;
+  carteira?: CarteiraNoCockpit | null;
   className?: string;
   /** O painel do hero (desktop): anel de 150 px e números maiores. */
   grande?: boolean;
@@ -155,8 +164,11 @@ export function FilaCockpit({
   rodape?: ReactNode;
 }) {
   const r = fila.resumo;
-  const noDia = Math.min(fila.total, LIMITE_FILA);
-  const excedente = fila.total - noDia;
+  const teto = carteira?.teto ?? LIMITE_FILA;
+  // Com a carteira ativa disponível, o anel é ela. Estourado, o anel enche e o
+  // excedente vira texto — nunca uma fração maior que 1, que leria como erro.
+  const noDia = carteira ? Math.min(carteira.ocupadas, teto) : Math.min(fila.total, LIMITE_FILA);
+  const excedente = carteira ? Math.max(0, carteira.ocupadas - teto) : fila.total - noDia;
   return (
     <section
       aria-label="Placar do dia"
@@ -173,9 +185,9 @@ export function FilaCockpit({
         )}
       >
         {grande ? (
-          <AnelDoDia valor={noDia} teto={LIMITE_FILA} tamanho={150} traco={9} grande />
+          <AnelDoDia valor={noDia} teto={teto} tamanho={150} traco={9} grande />
         ) : (
-          <AnelDoDia valor={noDia} teto={LIMITE_FILA} />
+          <AnelDoDia valor={noDia} teto={teto} />
         )}
         <div className={cn("grid grid-cols-3", grande ? "gap-2.5" : "gap-1.5")}>
           <Numero
@@ -207,7 +219,17 @@ export function FilaCockpit({
               {r.slaCorrendo} no SLA do 1º contato
             </span>
           )}
-          {excedente > 0 && <span>+{excedente} entram conforme estes saem</span>}
+          {excedente > 0 &&
+            (carteira?.estourou ? (
+              // Estourar o teto só acontece pelo fundo do funil, que nunca é
+              // devolvido. Dizer "entram conforme saem" aqui seria mentira: o
+              // que está travado é a ENTRADA, não a carteira.
+              <span className="text-warning">
+                +{excedente} acima do teto — você não recebe lead novo até desovar
+              </span>
+            ) : (
+              <span>+{excedente} entram conforme estes saem</span>
+            ))}
           {r.ocultosInbox > 0 && <span>+{r.ocultosInbox} nas filas de Atender</span>}
         </div>
       )}
