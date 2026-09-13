@@ -16,6 +16,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { jsonResponse, corsPreflight } from "@/lib/public-api-auth";
 import { apiClientAgent, requireApiClientScope } from "@/lib/api-client-auth.server";
 import { apenasDigitos, resolverLeadPorTelefone } from "@/lib/lead-busca-telefone";
+import {
+  buscarPorMessageId,
+  ehColisaoMessageId,
+  respostaDuplicado,
+} from "@/lib/documentos-duplicado";
 
 const BUCKET = "documentacao";
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -186,26 +191,12 @@ export const Route = createFileRoute("/api/public/documentos")({
         const db = supabaseAdmin as any;
 
         // 1) Idempotência por messageId — devolve o registro existente.
+        //    Esta é a via feliz. A via de corrida (dois POSTs concorrentes que
+        //    passam os dois por aqui antes de qualquer um gravar) cai na
+        //    constraint lá embaixo e é tratada com a MESMA resposta — ver F-083.
         if (parsed.messageId) {
-          const { data: dup } = await db
-            .from("documentacoes")
-            .select("id, lead_id, tipo, arquivo_path, arquivo_nome")
-            .eq("message_id", parsed.messageId)
-            .maybeSingle();
-          if (dup) {
-            const signed = dup.arquivo_path ? await assinar(supabaseAdmin, dup.arquivo_path) : null;
-            return jsonResponse({
-              ok: true,
-              duplicado: true,
-              ambiguo: false,
-              documento_id: dup.id,
-              lead_id: dup.lead_id,
-              tipo: dup.tipo,
-              nome_arquivo: dup.arquivo_nome,
-              url: signed,
-              arquivo_path: dup.arquivo_path,
-            });
-          }
+          const dup = await buscarPorMessageId(db, parsed.messageId);
+          if (dup) return jsonResponse(await respostaDuplicado(supabaseAdmin, dup, assinar));
         }
 
         // 2) Resolve lead pelo telefone (últimos 8-9 dígitos).
@@ -275,6 +266,14 @@ export const Route = createFileRoute("/api/public/documentos")({
             .update(patch)
             .eq("id", existente.id);
           if (updErr) {
+            const corrida = await tratarCorridaMessageId(
+              db,
+              supabaseAdmin,
+              updErr,
+              parsed.messageId,
+              objectPath,
+            );
+            if (corrida) return corrida;
             // best-effort rollback
             await db.storage.from(BUCKET).remove([objectPath]);
             return jsonResponse(
@@ -286,6 +285,14 @@ export const Route = createFileRoute("/api/public/documentos")({
         } else {
           const { error: insErr } = await db.from("documentacoes").insert({ id: docId, ...patch });
           if (insErr) {
+            const corrida = await tratarCorridaMessageId(
+              db,
+              supabaseAdmin,
+              insErr,
+              parsed.messageId,
+              objectPath,
+            );
+            if (corrida) return corrida;
             await db.storage.from(BUCKET).remove([objectPath]);
             return jsonResponse(
               { ok: false, erro: "gravacao_falhou", detalhe: insErr.message },
@@ -331,6 +338,36 @@ export const Route = createFileRoute("/api/public/documentos")({
 });
 
 // ------------------------------------------------------------------- helpers
+
+/**
+ * F-083 — a idempotência do `messageId` estava só na pré-checagem, que é uma
+ * leitura: dois POSTs concorrentes passam os dois por ela e o segundo morre na
+ * constraint. O CRM devolvia HTTP 500 com o texto cru do Postgres, o drenador
+ * lia "transitório" e reescrevia `drenagem_estado='erro'` numa linha já
+ * resolvida e anexada. A constraint é a garantia; o que faltava era traduzi-la
+ * para o contrato. Devolve a resposta de duplicata (ou null, se não for o caso).
+ */
+async function tratarCorridaMessageId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  erro: unknown,
+  messageId: string | null,
+  objectPath: string,
+): Promise<Response | null> {
+  if (!messageId || !ehColisaoMessageId(erro)) return null;
+
+  const dup = await buscarPorMessageId(db, messageId);
+  // Sem a linha vencedora não dá para afirmar "já está gravado": deixa o erro
+  // seguir como 500 em vez de mentir para o outro lado.
+  if (!dup) return null;
+
+  // O binário desta corrida perdeu: a linha aponta para o path da vencedora, e
+  // este objeto ficaria órfão no bucket para sempre.
+  await db.storage.from(BUCKET).remove([objectPath]);
+  return jsonResponse(await respostaDuplicado(supabase, dup, assinar));
+}
 
 async function parseBody(req: Request): Promise<ParsedFile> {
   const ct = req.headers.get("content-type") ?? "";
