@@ -428,8 +428,29 @@ horas depois: 58.168 e 18.100. O crescimento é quase todo em leads **com
 dono** (+2.451), enquanto os sem dono ficaram parados (+22).
 
 Distribuição da roleta não explica — ela moveria leads de "sem dono" para "com
-dono", e o total ficaria igual. Entrada de 2.451 leads já com corretor em
-quatro horas é possível (uma importação atribuída), mas não está confirmada.
+dono", e o total ficaria igual. A hipótese seguinte era importação atribuída,
+e **a medição a rejeitou**: nas últimas 12 horas entraram **15 leads**, em
+nenhum lote de importação.
+
+Então não foi entrada. Sobra o que já existia mudando de estado — leads saindo
+da lixeira ou de `deleted_at` — ou, mais provável, as duas consultas não
+estarem medindo a mesma população: os números do §3 vieram de uma consulta
+minha com recortes próprios, e um filtro de status a mais explicaria os 2.451
+(há candidato óbvio: `perdido` com dono, que o motor de SDR recicla depois de
+30 dias e que o §4 nunca tratou explicitamente na virada).
+
+A reconciliação é uma consulta:
+
+```sql
+SELECT status, count(*) AS com_dono
+  FROM public.leads
+ WHERE deleted_at IS NULL AND NOT na_lixeira AND corretor_id IS NOT NULL
+ GROUP BY 1 ORDER BY 2 DESC;
+```
+
+Se `perdido` vier perto de 2.451, o §4 ganha uma decisão que falta: **lead
+perdido com dono entra na virada?** A resposta provável é sim — foi o próprio
+corretor que o deu por perdido — mas é decisão, não dedução.
 
 Enquanto não estiver, os números do §4 (a conta da virada) ficam com a ressalva
 de terem sido calculados sobre a foto das 15h. Antes de virar, roda-se
@@ -466,3 +487,67 @@ cujo status mente sobre a realidade. É número para a gestão zerar, não para 
 código conviver com ele.
 
 Migration: `20260914130000_bolsao_congelamento_por_status.sql`.
+
+## 14. O buraco do §13 tem tamanho zero — e a guarda fica
+
+Medido logo depois da correção:
+
+|                                       | leads |
+| ------------------------------------- | ----- |
+| status `contrato_fechado`/`pos_venda` | 114   |
+| desses, **sem venda viva por trás**   | **0** |
+| que iriam para o discador             | **0** |
+
+**Nenhum lead tem status mentindo hoje.** A correção do §13 conserta um furo
+vazio, e isso merece ser dito sem maquiagem: não houve dano evitado, houve
+estado futuro fechado.
+
+A guarda fica, por duas razões. A primeira é que o estado é alcançável a
+qualquer momento — basta uma venda ser cancelada ou distratada, e nada no
+sistema reverte o status do lead. A segunda é que o custo é uma linha de
+`WHERE` num filtro que já roda.
+
+E os 114 fecham a conta dos 116 congelados do §12: dois leads têm venda em
+`rascunho`/`pendente` enquanto ainda estão em fase anterior do funil. O
+congelamento por venda viva está fazendo exatamente o que deve.
+
+## 15. Passo 2 — a tela de consulta (`/bolsao`)
+
+Terceira seção da Central de Comando: Fila Única (trabalho agora) → Reserva
+(meu, esperando vaga) → Bolsão (da casa, sem dono).
+
+**Sem botão de puxar, de propósito**, e a tela diz isso em texto. Uma tela que
+só lista sem explicar a ausência do botão lê como funcionalidade quebrada, e
+alguém "conserta" adicionando o botão — antes de a regra de comissão estar
+publicada.
+
+### 15.1 O que a tela deliberadamente não mostra
+
+| não mostra                  | por quê                                                                 |
+| --------------------------- | ----------------------------------------------------------------------- |
+| de quem o lead era          | a briga por lead começa quando se sabe de quem ele era (§5.2)           |
+| o telefone inteiro          | sem máscara, puxar vira opcional: copia o número e liga por fora do CRM |
+| autor ou texto do histórico | é por aí que o nome do corretor anterior vaza                           |
+
+No lugar do histórico, dois rótulos agregados: o **sinal** (nunca tocado /
+tentaram sem resposta / já houve conversa) e a **frieza** (tocado esta semana /
+parado há semanas / há meses / há mais de 6 meses). A frieza usa os mesmos 7
+dias da régua de posse do §5.1 — tela e banco não podem contar tempo de
+formas diferentes.
+
+### 15.2 Sem régua de papel
+
+`/fila` e `/reserva` mandam o SDR para `/sdr`: ele não tem carteira de
+corretor. `/bolsao` não faz isso, e é o ponto — o Bolsão é a base que o SDR
+trabalha tanto quanto o corretor. O escopo real é decidido no banco
+(`is_active_member`), e o que sai é anonimizado para todos igualmente.
+
+### 15.3 Provas
+
+9 testes de lógica pura e 6 guardas de fonte, verificadas por mutação: pôr o
+telefone cru na tela ou importar um `useMutation` derruba a guarda
+correspondente. As guardas leem o **código**, não os comentários — a prosa
+desta feature fala justamente de autor e dono anterior, e uma guarda ingênua
+acusaria a própria documentação.
+
+1.785 testes de unidade, 542 de banco, bundle em 230,6 KB.

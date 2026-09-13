@@ -59,6 +59,7 @@ import { Route as AuthenticatedCopaRouteImport } from './routes/_authenticated/c
 import { Route as AuthenticatedConquistasRouteImport } from './routes/_authenticated/conquistas'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedComissoesRouteImport } from './routes/_authenticated/comissoes'
+import { Route as AuthenticatedBolsaoRouteImport } from './routes/_authenticated/bolsao'
 import { Route as AuthenticatedBlitzRouteImport } from './routes/_authenticated/blitz'
 import { Route as AuthenticatedAtendimentoRouteImport } from './routes/_authenticated/atendimento'
 import { Route as AuthenticatedAgendamentosRouteImport } from './routes/_authenticated/agendamentos'
@@ -361,6 +362,11 @@ const AuthenticatedComissoesRoute = AuthenticatedComissoesRouteImport.update({
   path: '/comissoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBolsaoRoute = AuthenticatedBolsaoRouteImport.update({
+  id: '/bolsao',
+  path: '/bolsao',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBlitzRoute = AuthenticatedBlitzRouteImport.update({
   id: '/blitz',
   path: '/blitz',
@@ -609,6 +615,7 @@ export interface FileRoutesByFullPath {
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/blitz': typeof AuthenticatedBlitzRoute
+  '/bolsao': typeof AuthenticatedBolsaoRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conquistas': typeof AuthenticatedConquistasRoute
@@ -703,6 +710,7 @@ export interface FileRoutesByTo {
   '/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/blitz': typeof AuthenticatedBlitzRoute
+  '/bolsao': typeof AuthenticatedBolsaoRoute
   '/comissoes': typeof AuthenticatedComissoesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/conquistas': typeof AuthenticatedConquistasRoute
@@ -799,6 +807,7 @@ export interface FileRoutesById {
   '/_authenticated/agendamentos': typeof AuthenticatedAgendamentosRoute
   '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
   '/_authenticated/blitz': typeof AuthenticatedBlitzRoute
+  '/_authenticated/bolsao': typeof AuthenticatedBolsaoRoute
   '/_authenticated/comissoes': typeof AuthenticatedComissoesRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/conquistas': typeof AuthenticatedConquistasRoute
@@ -895,6 +904,7 @@ export interface FileRouteTypes {
     | '/agendamentos'
     | '/atendimento'
     | '/blitz'
+    | '/bolsao'
     | '/comissoes'
     | '/configuracoes'
     | '/conquistas'
@@ -989,6 +999,7 @@ export interface FileRouteTypes {
     | '/agendamentos'
     | '/atendimento'
     | '/blitz'
+    | '/bolsao'
     | '/comissoes'
     | '/configuracoes'
     | '/conquistas'
@@ -1084,6 +1095,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agendamentos'
     | '/_authenticated/atendimento'
     | '/_authenticated/blitz'
+    | '/_authenticated/bolsao'
     | '/_authenticated/comissoes'
     | '/_authenticated/configuracoes'
     | '/_authenticated/conquistas'
@@ -1560,6 +1572,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedComissoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bolsao': {
+      id: '/_authenticated/bolsao'
+      path: '/bolsao'
+      fullPath: '/bolsao'
+      preLoaderRoute: typeof AuthenticatedBolsaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/blitz': {
       id: '/_authenticated/blitz'
       path: '/blitz'
@@ -1868,6 +1887,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendamentosRoute: typeof AuthenticatedAgendamentosRoute
   AuthenticatedAtendimentoRoute: typeof AuthenticatedAtendimentoRoute
   AuthenticatedBlitzRoute: typeof AuthenticatedBlitzRoute
+  AuthenticatedBolsaoRoute: typeof AuthenticatedBolsaoRoute
   AuthenticatedComissoesRoute: typeof AuthenticatedComissoesRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedConquistasRoute: typeof AuthenticatedConquistasRoute
@@ -1923,6 +1943,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendamentosRoute: AuthenticatedAgendamentosRoute,
   AuthenticatedAtendimentoRoute: AuthenticatedAtendimentoRoute,
   AuthenticatedBlitzRoute: AuthenticatedBlitzRoute,
+  AuthenticatedBolsaoRoute: AuthenticatedBolsaoRoute,
   AuthenticatedComissoesRoute: AuthenticatedComissoesRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedConquistasRoute: AuthenticatedConquistasRoute,
