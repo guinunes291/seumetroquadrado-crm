@@ -352,6 +352,132 @@ SELECT date_trunc('day', created_at) AS dia, tipo, count(*)
 5. **Ligar a devolução** pelos gatilhos de §3.2, com o fundo isento.
 6. **Escada de escalada do fundo** (§4.2) no painel do gestor.
 
+## 8. Onde os 40 moram, e o que acontece com os outros módulos
+
+### 8.1 A página dos 40 já existe: `/fila`
+
+A Fila Única **já é** a página da carteira ativa. O anel do cockpit já diz
+"N de 40" (`FilaCockpit`), a Central de Comando já é a porta de todo papel
+(decisão de 12/09), `/hoje` já redireciona para lá e a barra do polegar já
+tem o slot "Fila". O teto já está desenhado na tela — só é visual.
+
+**A Fatia 3 não cria a página dos 40. Ela torna verdadeiro o número que a
+página já mostra.** O que muda em `/fila`:
+
+- O anel passa a ler a tabela de carteira ativa, não a contagem de candidatos
+  recebidos.
+- O painel "Como a fila se mantém finita" deixa de dizer que a devolução
+  automática é a próxima fatia e passa a mostrar as devoluções reais da semana.
+- A tabela do gestor (`fila_equipe_v1`) já tem a coluna "carteira ativa contra
+  o teto de 40": vira medição, não estimativa.
+
+### 8.2 A única página nova: a Reserva
+
+Lead fora dos 40 não pode sumir (§3.4). **Recomendação: `/reserva` como a
+segunda seção da Central de Comando.**
+
+Por que ali e não em outro lugar:
+
+- **Não como aba da Fila Única.** A tese da Fila é "uma lista só, na ordem em
+  que o dinheiro está em risco", com desfecho de um toque. A Reserva é busca e
+  resgate — outro verbo. Uma aba quebraria a página que acabou de ser
+  simplificada.
+- **Não como filtro da Base de leads (`/leads`).** A Base é a lista completa
+  com filtros: serve para "achar qualquer um". A Reserva responde outra
+  pergunta: *"o que saiu de mim, por qual gatilho, e o que eu quero de volta"*.
+  É um estado com regra, não um recorte de busca.
+- **Sim na Central de Comando.** O módulo tem hoje **uma** seção só e a regra
+  dos 2 menus permite até seis. Fila Única e Reserva são o par conceitual
+  exato: o que eu trabalho agora / o que está guardado esperando vaga.
+
+Alternativa mais barata, se o custo pesar: aba "Reserva" dentro de `/leads`.
+Entrega 80% do valor por 30% do trabalho, mas mistura consulta com estado —
+e é a porta para o corretor não achar e concluir que perdeu o cliente.
+
+### 8.3 Módulo a módulo
+
+O teto não adiciona telas: ele **redefine o que as telas existentes têm
+direito de mostrar**. Hoje toda tela que diz "meus leads" mostra 1.566 para a
+graziele.
+
+| Módulo | O que acontece |
+| ------ | -------------- |
+| **Central de Comando** (`/fila`) | Vira o dono do teto. Ganha a seção Reserva. De 1 para 2 seções. |
+| **Prospecção** (`/prospeccao`) | **O mais afetado** — ver §8.4. |
+| **Gestão de Carteira** → Base (`/leads`) | Intacta: é o lugar certo para ver tudo. Ganha filtro "ativa / reserva". |
+| **Gestão de Carteira** → Kanban (`/pipeline`) | Passa a abrir **só a carteira ativa** por padrão. Com 1.095 leads em `em_atendimento`, a coluna é ilegível hoje; com 40 cards o quadro funciona pela primeira vez. Toggle para "tudo". |
+| **Gestão de Carteira** → Agenda e Tarefas | Não mudam. São compromissos, não carteira. Ganham garantia: como o fundo nunca sai por robô, não existe tarefa órfã de lead que deixou de ser seu. |
+| **Atender** (`/atendimento`) | **Candidato a aposentadoria** — ver §8.5. |
+| **Follow-Up** (`/follow-up`) | A régua só roda para a carteira ativa. Muda a semântica de "esgotados 13/13": hoje significa parar, passa a significar **devolver à Reserva**. A "Cobertura do time" fica honesta — hoje mede cobertura sobre uma base impossível. |
+| **Modo Visita** (`/modo-visita`) | Nada. Visita é fundo do funil, sempre blindado. |
+| **Pré-venda SDR** (`/sdr`) | **O que mais cresce** — ver §8.6. |
+| **BI** → Higiene do Funil | Finalmente mede algo. Hoje são 32.627 parados sobre 55.435 vivos no mesmo balde, e por isso o número nunca cai. Passa a ser duas perguntas: higiene da carteira ativa (meta ~0) e saúde da Reserva (outra régua). |
+| **BI** → Meu Raio-X | "Minha carteira agora" passa a ser 40, não 1.566. O gráfico vira legível. |
+| **BI** → Painel do Gestor / Ranking | `capacidade_pct` = carga ÷ 40 hoje devolve **3.915%** para a graziele. Passa a ser comparável entre corretores. |
+| **Metas / Copa / Conquistas** | ⚠️ Auditar: se alguma métrica premia volume de leads na carteira, ela passa a brigar com a regra. Incentivo e política têm de apontar para o mesmo lado. |
+| **Financeiro** | Sem mudança de tela. Pode precisar de campo para o split do co-atendimento (§4.3). |
+| **Docs & Projetos** | Nada. |
+| **Configurações** | Ganha tela para o teto e os gatilhos. `capacidade_leads_ativos_por_corretor` já existe em `gestao_config` — hoje sem interface. |
+| **Distribuição** (`/distribuicao`) | Muda de "roleta por limite diário" para **"roleta por vaga livre"**. Hoje os 49 corretores têm `limite_diario_leads = 50`: podem receber 50 por dia mas só conseguem trabalhar 40 no total. Os dois números brigam; o limite diário vira secundário ao teto de carteira. |
+
+### 8.4 Prospecção: o módulo que precisa de decisão do dono
+
+O Modo Foco hoje monta um lote de **até 200 leads** de
+`aguardando_atendimento` / `aguardando_retorno` / `qualificacao_corretor` da
+carteira do corretor. É literalmente o comportamento que o teto de 40 proíbe.
+
+Não é para matar a ferramenta — é boa e o trabalho um-a-um é o certo. Muda o
+**material** que ela consome: em vez de puxar 200 leads frios da carteira
+nominal, o Modo Foco passa a trabalhar a **Reserva** em lote, e quem responde
+sobe para a Fila Única ocupando uma vaga.
+
+Ou seja, o Modo Foco deixa de ser ferramenta de carteira e vira **a
+ferramenta de pré-venda do corretor** — o que o SDR faz, em self-service.
+O badge do card (`nav_pendencias.atendimento`, que hoje conta
+`aguardando_atendimento`) passa a contar a Reserva dele.
+
+É a decisão que precisa ser sua, porque hoje Prospecção e Fila Única disputam
+a mesma pergunta ("quem eu trabalho agora?") com respostas diferentes.
+
+### 8.5 Atender: aposentar junto
+
+As seis filas de `/atendimento` (novos, responder, followups, esfriando,
+confirmar visita, docs) são exatamente os baldes que a Fila Única absorveu.
+A tela já saiu da sidebar na reorganização de 11/09 — sobrevive no ⌘K e na
+barra mobile.
+
+Com o teto ligado, ela vira um segundo lugar que mostra a mesma carteira com
+regra diferente, e as duas **vão divergir** — a Fila respeitando o teto, o
+Atender não. Dois números para a mesma pergunta é como se perde a confiança na
+tela nova.
+
+**Recomendação: `/atendimento` redireciona para `/fila`**, como `/hoje` já faz.
+Mesma fatia, uma linha de rota.
+
+### 8.6 SDR: o módulo que herda 46 mil leads
+
+Os 46.140 leads de estoque bruto (§3.1) viram trabalho da pré-venda. O módulo
+já tem a forma certa — "Minha base", "Reaquecer (parados)", "Entregues",
+"Visitas & confirmações". A Reserva do time inteiro é exatamente isso.
+
+A mudança de regra: **a entrega pela roleta passa a respeitar vaga.** Hoje o
+SDR entrega e pronto. Passa a entregar só para corretor com slot livre — e é
+isso que faz o teto se sustentar sem que ninguém fique sem lead.
+
+### 8.7 O saldo
+
+- **1 página nova**: `/reserva`
+- **1 página aposentada**: `/atendimento` → `/fila`
+- **1 módulo repropositado**: Prospecção (carteira → pré-venda do corretor)
+- **1 módulo que cresce**: SDR
+- **3 telas que ficam honestas**: Higiene do Funil, Meu Raio-X, Painel do Gestor
+- **1 regra que muda**: Distribuição (limite diário → vaga livre)
+- **Todo o resto**: intacto
+
+A regra dos 2 menus continua valendo: nenhum módulo novo, e a Central de
+Comando vai de uma para duas seções.
+
+
 ## Leitura relacionada
 
 - `docs/ops/fila-unica-fatia1.md` — a Fila Única e o teto de 40 visual que
