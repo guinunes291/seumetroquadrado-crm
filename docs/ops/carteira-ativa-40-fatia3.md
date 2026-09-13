@@ -19,18 +19,18 @@ pelas ferramentas do CRM MCP. Onde o número é incerto, está dito.
 
 ### 1.1 A base inteira (58.153 leads)
 
-| Status                                     |  Leads |     % |
-| ------------------------------------------ | -----: | ----: |
-| `aguardando_atendimento`                   | 37.715 | 64,9% |
-| `aguardando_corretor` (estoque sem dono)   |  8.425 | 14,5% |
-| `em_atendimento`                           |  8.009 | 13,8% |
-| `perdido`                                  |  2.457 |  4,2% |
-| `aguardando_retorno`                       |    699 |  1,2% |
-| `qualificacao_corretor` + `qualificado`    |    476 |  0,8% |
-| `analise_credito`                          |    137 |  0,2% |
-| `contrato_fechado` + `pos_venda`           |    114 |  0,2% |
-| `agendado`+`visita_realizada`+`proposta`   |    103 |  0,2% |
-| `novo`                                     |     18 |     — |
+| Status                                   |  Leads |     % |
+| ---------------------------------------- | -----: | ----: |
+| `aguardando_atendimento`                 | 37.715 | 64,9% |
+| `aguardando_corretor` (estoque sem dono) |  8.425 | 14,5% |
+| `em_atendimento`                         |  8.009 | 13,8% |
+| `perdido`                                |  2.457 |  4,2% |
+| `aguardando_retorno`                     |    699 |  1,2% |
+| `qualificacao_corretor` + `qualificado`  |    476 |  0,8% |
+| `analise_credito`                        |    137 |  0,2% |
+| `contrato_fechado` + `pos_venda`         |    114 |  0,2% |
+| `agendado`+`visita_realizada`+`proposta` |    103 |  0,2% |
+| `novo`                                   |     18 |     — |
 
 A soma fecha exata em 58.153. Temperatura: **frio 43.656 (75%)**, morno 9.374,
 quente 5.057.
@@ -44,12 +44,12 @@ Os oito status em que existe trabalho de corretor (`em_atendimento`,
 `aguardando_retorno`, `qualificacao_corretor`, `qualificado`, `agendado`,
 `visita_realizada`, `proposta_enviada`, `analise_credito`), com dono:
 
-| Corte pelo relógio de movimento | Leads |     % |
-| ------------------------------- | ----: | ----: |
-| Total                           | 9.424 |  100% |
-| Parados 7+ dias                 | 8.662 | 91,9% |
-| Parados 30+ dias                | 6.147 | 65,2% |
-| **Com movimento nos últimos 7d**|**762**|**8,1%** |
+| Corte pelo relógio de movimento  |   Leads |        % |
+| -------------------------------- | ------: | -------: |
+| Total                            |   9.424 |     100% |
+| Parados 7+ dias                  |   8.662 |    91,9% |
+| Parados 30+ dias                 |   6.147 |    65,2% |
+| **Com movimento nos últimos 7d** | **762** | **8,1%** |
 
 **762 é o número que decide tudo neste documento.** É a casa inteira — 49
 corretores ativos — tocando 762 leads em uma semana. Dá **~16 leads por
@@ -134,12 +134,12 @@ causa do teto — vão perder o depósito que fingia ser carteira.
 São **40 vagas, no total**. Não existe "40 + o fundo à parte": um número só,
 preenchido nesta ordem de precedência.
 
-| Faixa | Quem                                                                                     | Vagas hoje |
-| ----- | ---------------------------------------------------------------------------------------- | ---------: |
+| Faixa | Quem                                                                                      |                 Vagas hoje |
+| ----- | ----------------------------------------------------------------------------------------- | -------------------------: |
 | **A** | **Fundo do funil**: `agendado`, `visita_realizada`, `proposta_enviada`, `analise_credito` | o que precisar (mediana 4) |
-| **B** | **Conversa viva**: respondeu nos últimos 7 dias, ou follow-up combinado com data          | até 14 |
-| **C** | **Novos do SLA**: chegaram há ≤72 h e ainda não levaram 3 tentativas                      | até 12 |
-| **D** | **Resgate escolhido**: o corretor puxa da Reserva quem ele quer trabalhar                 | até 8 |
+| **B** | **Conversa viva**: respondeu nos últimos 7 dias, ou follow-up combinado com data          |                     até 14 |
+| **C** | **Novos do SLA**: chegaram há ≤72 h e ainda não levaram 3 tentativas                      |                     até 12 |
+| **D** | **Resgate escolhido**: o corretor puxa da Reserva quem ele quer trabalhar                 |                      até 8 |
 
 Com a mediana de 4 no fundo, sobram 36 vagas para B+C+D — cabe folgado nos
 14+12+8 = 34 acima, com 2 de folga. As vagas de B, C e D são **tetos, não
@@ -184,7 +184,7 @@ diferentes, com donos, réguas e ferramentas diferentes.
 
 **Regra: não é carteira de ninguém e não vai para corretor.** Vai para a
 pré-venda — bot, SDR e o reativador de leads — trabalhado em lote com uma
-pergunta só: *"ainda quer comprar?"*. Só quem **responde** vira candidato a
+pergunta só: _"ainda quer comprar?"_. Só quem **responde** vira candidato a
 uma vaga de faixa B ou D na carteira de alguém.
 
 **Ação imediata e inegociável: estrangular `distribuir-estoque-plantao`.**
@@ -206,12 +206,12 @@ lápide no nome dela.
 
 Gatilhos de devolução automática (Fatia 3):
 
-| Gatilho                                    | Destino |
-| ------------------------------------------ | ------- |
-| 3 tentativas sem resposta em 7 dias        | Reserva |
-| 2 dias sem próximo passo definido          | Reserva |
-| Excedente do teto de 40                    | Reserva — o mais frio devolve primeiro |
-| 30 dias sem movimento, qualquer etapa      | Reserva |
+| Gatilho                               | Destino                                |
+| ------------------------------------- | -------------------------------------- |
+| 3 tentativas sem resposta em 7 dias   | Reserva                                |
+| 2 dias sem próximo passo definido     | Reserva                                |
+| Excedente do teto de 40               | Reserva — o mais frio devolve primeiro |
+| 30 dias sem movimento, qualquer etapa | Reserva                                |
 
 **Exceção única: nada do fundo do funil devolve por robô** (§4).
 
@@ -254,12 +254,12 @@ Blindado não é esquecido. Fase avançada parada é o pior ativo da casa: hoje 
 leads quentes em análise de crédito parados há 80 dias. A proteção vem com
 uma escada de escalada que **tira "deixar quieto" do cardápio**:
 
-| Sem movimento | O que acontece |
-| ------------- | -------------- |
-| **D+3**  | Topo da Fila Única do corretor, com o dinheiro em jogo no card |
-| **D+5**  | Entra na linha do gestor (`fila_equipe_v1` já mostra "fundo do funil parado") |
-| **D+10** | O **gestor é obrigado a dar um desfecho**: cobrar junto, colocar um par em co-atendimento com split definido, ou marcar perdido com motivo |
-| **D+15** | Sobe para a superintendência como pendência nominal |
+| Sem movimento | O que acontece                                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **D+3**       | Topo da Fila Única do corretor, com o dinheiro em jogo no card                                                                             |
+| **D+5**       | Entra na linha do gestor (`fila_equipe_v1` já mostra "fundo do funil parado")                                                              |
+| **D+10**      | O **gestor é obrigado a dar um desfecho**: cobrar junto, colocar um par em co-atendimento com split definido, ou marcar perdido com motivo |
+| **D+15**      | Sobe para a superintendência como pendência nominal                                                                                        |
 
 A escada é do **gestor**, não do robô. O robô mostra e cobra; a decisão de
 mexer num negócio avançado é humana e fica registrada.
@@ -301,16 +301,15 @@ como bronca. Se chegar como punição, o time aprende a não avançar lead.
 
 ### 5.4 🟡 A segurança inteira depende de uma linha de config
 
-`capacidade_leads_ativos_por_corretor` já existe em `gestao_config` (default
-40) e é lida por `gestao_performance_corretores_janela`. Um `UPDATE` muda a
+`capacidade_leads_ativos_por_corretor` já existe em `gestao_config` (default 40) e é lida por `gestao_performance_corretores_janela`. Um `UPDATE` muda a
 regra para toda a casa sem rastro. **O log de execução da devolução tem de
 carimbar a config usada** — mesma exigência já feita ao motor de Higiene.
 
 ### 5.5 🟡 "40" é um chute calibrado, não uma constante física
 
 A conta de §2.1 sustenta a ordem de grandeza, não o dígito. A régua de revisão
-é uma só: *o corretor consegue dar um toque de qualidade em cada lead da
-carteira a cada 48 h?* Se o p50 de tempo entre toques passar de 48 h com a
+é uma só: _o corretor consegue dar um toque de qualidade em cada lead da
+carteira a cada 48 h?_ Se o p50 de tempo entre toques passar de 48 h com a
 carteira cheia, o teto está alto. Se a carteira viver com folga e a taxa de
 resposta não cair, dá para subir. Medir antes de mexer.
 
@@ -389,7 +388,7 @@ Por que ali e não em outro lugar:
   simplificada.
 - **Não como filtro da Base de leads (`/leads`).** A Base é a lista completa
   com filtros: serve para "achar qualquer um". A Reserva responde outra
-  pergunta: *"o que saiu de mim, por qual gatilho, e o que eu quero de volta"*.
+  pergunta: _"o que saiu de mim, por qual gatilho, e o que eu quero de volta"_.
   É um estado com regra, não um recorte de busca.
 - **Sim na Central de Comando.** O módulo tem hoje **uma** seção só e a regra
   dos 2 menus permite até seis. Fila Única e Reserva são o par conceitual
@@ -405,25 +404,25 @@ O teto não adiciona telas: ele **redefine o que as telas existentes têm
 direito de mostrar**. Hoje toda tela que diz "meus leads" mostra 1.566 para a
 graziele.
 
-| Módulo | O que acontece |
-| ------ | -------------- |
-| **Central de Comando** (`/fila`) | Vira o dono do teto. Ganha a seção Reserva. De 1 para 2 seções. |
-| **Prospecção** (`/prospeccao`) | **O mais afetado** — ver §8.4. |
-| **Gestão de Carteira** → Base (`/leads`) | Intacta: é o lugar certo para ver tudo. Ganha filtro "ativa / reserva". |
-| **Gestão de Carteira** → Kanban (`/pipeline`) | Passa a abrir **só a carteira ativa** por padrão. Com 1.095 leads em `em_atendimento`, a coluna é ilegível hoje; com 40 cards o quadro funciona pela primeira vez. Toggle para "tudo". |
-| **Gestão de Carteira** → Agenda e Tarefas | Não mudam. São compromissos, não carteira. Ganham garantia: como o fundo nunca sai por robô, não existe tarefa órfã de lead que deixou de ser seu. |
-| **Atender** (`/atendimento`) | **Candidato a aposentadoria** — ver §8.5. |
-| **Follow-Up** (`/follow-up`) | A régua só roda para a carteira ativa. Muda a semântica de "esgotados 13/13": hoje significa parar, passa a significar **devolver à Reserva**. A "Cobertura do time" fica honesta — hoje mede cobertura sobre uma base impossível. |
-| **Modo Visita** (`/modo-visita`) | Nada. Visita é fundo do funil, sempre blindado. |
-| **Pré-venda SDR** (`/sdr`) | **O que mais cresce** — ver §8.6. |
-| **BI** → Higiene do Funil | Finalmente mede algo. Hoje são 32.627 parados sobre 55.435 vivos no mesmo balde, e por isso o número nunca cai. Passa a ser duas perguntas: higiene da carteira ativa (meta ~0) e saúde da Reserva (outra régua). |
-| **BI** → Meu Raio-X | "Minha carteira agora" passa a ser 40, não 1.566. O gráfico vira legível. |
-| **BI** → Painel do Gestor / Ranking | `capacidade_pct` = carga ÷ 40 hoje devolve **3.915%** para a graziele. Passa a ser comparável entre corretores. |
-| **Metas / Copa / Conquistas** | ⚠️ Auditar: se alguma métrica premia volume de leads na carteira, ela passa a brigar com a regra. Incentivo e política têm de apontar para o mesmo lado. |
-| **Financeiro** | Sem mudança de tela. Pode precisar de campo para o split do co-atendimento (§4.3). |
-| **Docs & Projetos** | Nada. |
-| **Configurações** | Ganha tela para o teto e os gatilhos. `capacidade_leads_ativos_por_corretor` já existe em `gestao_config` — hoje sem interface. |
-| **Distribuição** (`/distribuicao`) | Muda de "roleta por limite diário" para **"roleta por vaga livre"**. Hoje os 49 corretores têm `limite_diario_leads = 50`: podem receber 50 por dia mas só conseguem trabalhar 40 no total. Os dois números brigam; o limite diário vira secundário ao teto de carteira. |
+| Módulo                                        | O que acontece                                                                                                                                                                                                                                                           |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Central de Comando** (`/fila`)              | Vira o dono do teto. Ganha a seção Reserva. De 1 para 2 seções.                                                                                                                                                                                                          |
+| **Prospecção** (`/prospeccao`)                | **O mais afetado** — ver §8.4.                                                                                                                                                                                                                                           |
+| **Gestão de Carteira** → Base (`/leads`)      | Intacta: é o lugar certo para ver tudo. Ganha filtro "ativa / reserva".                                                                                                                                                                                                  |
+| **Gestão de Carteira** → Kanban (`/pipeline`) | Passa a abrir **só a carteira ativa** por padrão. Com 1.095 leads em `em_atendimento`, a coluna é ilegível hoje; com 40 cards o quadro funciona pela primeira vez. Toggle para "tudo".                                                                                   |
+| **Gestão de Carteira** → Agenda e Tarefas     | Não mudam. São compromissos, não carteira. Ganham garantia: como o fundo nunca sai por robô, não existe tarefa órfã de lead que deixou de ser seu.                                                                                                                       |
+| **Atender** (`/atendimento`)                  | **Candidato a aposentadoria** — ver §8.5.                                                                                                                                                                                                                                |
+| **Follow-Up** (`/follow-up`)                  | A régua só roda para a carteira ativa. Muda a semântica de "esgotados 13/13": hoje significa parar, passa a significar **devolver à Reserva**. A "Cobertura do time" fica honesta — hoje mede cobertura sobre uma base impossível.                                       |
+| **Modo Visita** (`/modo-visita`)              | Nada. Visita é fundo do funil, sempre blindado.                                                                                                                                                                                                                          |
+| **Pré-venda SDR** (`/sdr`)                    | **O que mais cresce** — ver §8.6.                                                                                                                                                                                                                                        |
+| **BI** → Higiene do Funil                     | Finalmente mede algo. Hoje são 32.627 parados sobre 55.435 vivos no mesmo balde, e por isso o número nunca cai. Passa a ser duas perguntas: higiene da carteira ativa (meta ~0) e saúde da Reserva (outra régua).                                                        |
+| **BI** → Meu Raio-X                           | "Minha carteira agora" passa a ser 40, não 1.566. O gráfico vira legível.                                                                                                                                                                                                |
+| **BI** → Painel do Gestor / Ranking           | `capacidade_pct` = carga ÷ 40 hoje devolve **3.915%** para a graziele. Passa a ser comparável entre corretores.                                                                                                                                                          |
+| **Metas / Copa / Conquistas**                 | ⚠️ Auditar: se alguma métrica premia volume de leads na carteira, ela passa a brigar com a regra. Incentivo e política têm de apontar para o mesmo lado.                                                                                                                 |
+| **Financeiro**                                | Sem mudança de tela. Pode precisar de campo para o split do co-atendimento (§4.3).                                                                                                                                                                                       |
+| **Docs & Projetos**                           | Nada.                                                                                                                                                                                                                                                                    |
+| **Configurações**                             | Ganha tela para o teto e os gatilhos. `capacidade_leads_ativos_por_corretor` já existe em `gestao_config` — hoje sem interface.                                                                                                                                          |
+| **Distribuição** (`/distribuicao`)            | Muda de "roleta por limite diário" para **"roleta por vaga livre"**. Hoje os 49 corretores têm `limite_diario_leads = 50`: podem receber 50 por dia mas só conseguem trabalhar 40 no total. Os dois números brigam; o limite diário vira secundário ao teto de carteira. |
 
 ### 8.4 Prospecção: o módulo que precisa de decisão do dono
 
@@ -482,7 +481,6 @@ isso que faz o teto se sustentar sem que ninguém fique sem lead.
 A regra dos 2 menus continua valendo: nenhum módulo novo, e a Central de
 Comando vai de uma para duas seções.
 
-
 ## 9. O que foi construído (13/09/2026) — modo sombra
 
 Entrou a Fatia 3 em **modo sombra**: o banco passa a saber quem são os 40 e
@@ -491,24 +489,24 @@ por que cada um dos outros ficou de fora. **Nada é devolvido automaticamente**
 
 ### 9.1 Banco
 
-| Objeto | O que faz |
-| ------ | --------- |
-| `gestao_config.carteira_ativa` | Caps de faixa e gatilhos. O **teto** continua em `capacidade_leads_ativos_por_corretor` — uma chave só para o mesmo número |
-| `_carteira_classificar(corretor)` | A regra ÚNICA: faixa, ordem, caps, teto e o motivo de quem ficou fora |
-| `carteira_ativa_v1(corretor?)` | Quem ocupa vaga, na precedência das faixas |
-| `carteira_reserva_v1(corretor?, busca?, limit, offset)` | O complemento exato, com motivo, busca e paginação |
-| `carteira_vagas_v1(corretor)` | Vagas livres (teto − ocupadas) |
-| `carteira_vagas_entrada_v1(corretor)` | Quantos leads NOVOS cabem agora — ver §9.3 |
-| `carteira_resgates` + `carteira_resgatar` / `carteira_soltar` | A faixa B na mão do corretor |
-| `carteira_sombra_v1()` | A linha do gestor: quem estouraria e o que sairia |
-| `distribuir_estoque_roleta` | O lote de cada corretor passa a respeitar a vaga de entrada |
+| Objeto                                                        | O que faz                                                                                                                  |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `gestao_config.carteira_ativa`                                | Caps de faixa e gatilhos. O **teto** continua em `capacidade_leads_ativos_por_corretor` — uma chave só para o mesmo número |
+| `_carteira_classificar(corretor)`                             | A regra ÚNICA: faixa, ordem, caps, teto e o motivo de quem ficou fora                                                      |
+| `carteira_ativa_v1(corretor?)`                                | Quem ocupa vaga, na precedência das faixas                                                                                 |
+| `carteira_reserva_v1(corretor?, busca?, limit, offset)`       | O complemento exato, com motivo, busca e paginação                                                                         |
+| `carteira_vagas_v1(corretor)`                                 | Vagas livres (teto − ocupadas)                                                                                             |
+| `carteira_vagas_entrada_v1(corretor)`                         | Quantos leads NOVOS cabem agora — ver §9.3                                                                                 |
+| `carteira_resgates` + `carteira_resgatar` / `carteira_soltar` | A faixa B na mão do corretor                                                                                               |
+| `carteira_sombra_v1()`                                        | A linha do gestor: quem estouraria e o que sairia                                                                          |
+| `distribuir_estoque_roleta`                                   | O lote de cada corretor passa a respeitar a vaga de entrada                                                                |
 
 ### 9.2 Telas
 
 - **`/reserva`** (novo), segunda seção da Central de Comando.
 - **Fila Única**: o anel "N de 40" deixa de contar os candidatos carregados e
   passa a mostrar a carteira ativa do banco. Estourado, o texto diz a verdade
-  (*"você não recebe lead novo até desovar"*), não "entram conforme saem".
+  (_"você não recebe lead novo até desovar"_), não "entram conforme saem".
 - **`/atendimento`**: só o modo **Prioridade** foi aposentado (redireciona para
   `/fila`) — ver §9.5.
 
@@ -581,7 +579,6 @@ Docker): `npm run test:db` → 33 arquivos, 521 testes. Unitários:
 Reserva usa componentes já responsivos da casa, mas a prova visual a 360 px
 fica pendente.
 
-
 ## 10. O teto subiu para 65 (13/09/2026)
 
 Decisão do dono, no mesmo dia. O documento acima foi escrito para 40 e o
@@ -595,12 +592,12 @@ Subir só o teto quase não apareceria na operação: os caps somavam 34
 fundo do funil pequeno — a mediana medida é 4 — pararia em ~38 leads mesmo com
 o teto em 65.
 
-| Chave          | 40 | 65 |
-| -------------- | -: | -: |
-| `cap_conversa` | 14 | 23 |
-| `cap_sla`      | 12 | 20 |
-| `cap_resgate`  |  8 | 13 |
-| **soma**       | 34 | 56 |
+| Chave          |  40 |  65 |
+| -------------- | --: | --: |
+| `cap_conversa` |  14 |  23 |
+| `cap_sla`      |  12 |  20 |
+| `cap_resgate`  |   8 |  13 |
+| **soma**       |  34 |  56 |
 
 Escala por 65/40 = 1,625, preservando a folga relativa para o fundo (a soma
 era 85% do teto, agora é 86%).
@@ -618,8 +615,8 @@ com 65 leads precisa de ~33 toques/dia, o que são 6,5 a 8 horas só de contato.
 **Na prática isso não aperta ninguém hoje.** Medido em 13/09/2026, a casa
 inteira tocou 762 leads em 7 dias — ~16 por corretor. O teto é ceiling, não
 cota: a 65 ele apenas devolve menos gente à Reserva. A régua de revisão do
-§5.5 continua sendo a mesma pergunta: *o p50 de tempo entre toques na carteira
-cheia passou de 48 h?*
+§5.5 continua sendo a mesma pergunta: _o p50 de tempo entre toques na carteira
+cheia passou de 48 h?_
 
 ### 10.3 Efeito colateral: o estouro vira caso teórico
 
@@ -637,7 +634,7 @@ chegar a vez, não só enquanto os números ajudam.
   rodou e nada mudou". Traz um guard que aborta o deploy se os caps passarem a
   somar mais que o teto (o fundo ficaria sem folga e o corretor pararia de
   receber sem motivo visível).
-- **`20260913120000`** teve os *defaults* em SQL alinhados (65/23/20/13). Ela
+- **`20260913120000`** teve os _defaults_ em SQL alinhados (65/23/20/13). Ela
   nunca foi para produção, então foi editada no lugar: deixar a rede de
   segurança em 40 significaria que apagar uma linha de config devolveria a
   casa ao teto antigo em silêncio.
@@ -654,7 +651,6 @@ chegar a vez, não só enquanto os números ajudam.
 Conferido do zero: 207 migrations aplicadas num Postgres 16 real,
 `test:db` 33 arquivos / 521 testes, `test` 179 arquivos / 1.770 testes,
 `lint:ci` e `typecheck` limpos.
-
 
 ## Leitura relacionada
 
