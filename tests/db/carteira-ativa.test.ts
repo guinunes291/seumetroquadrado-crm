@@ -17,6 +17,11 @@
  *  - A busca da Reserva acha o lead pelo telefone como o CLIENTE o manda,
  *    não como está no cadastro (a base tem o mesmo número em várias
  *    formatações).
+ *  - O SLA mede desde a ENTREGA, não desde o nascimento do lead. Medido em
+ *    produção em 13/09/2026: dos 142 leads entregues a corretores em 72 h,
+ *    só 23 tinham nascido nesse período — 84% vêm do estoque de julho que a
+ *    roleta escoa. Com o relógio errado, a faixa SLA ficava travada em zero
+ *    e a trava por vaga da roleta nunca apertava.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -119,6 +124,68 @@ beforeAll(async () => {
 afterAll(async () => {
   await limparDados(c);
   await c.end();
+});
+
+describe("carteira ativa — o SLA mede a entrega, não o nascimento", () => {
+  it("lead nascido há 50 dias e entregue agora é SLA, não Reserva", async () => {
+    const dono = await criarUsuario(c, { nome: "Corretor Estoque", papel: "corretor" });
+    await comoSuperuser(c);
+    const l = await criarLead(c, { corretorId: dono.id, status: "aguardando_atendimento" });
+    // O caso real: veio da importação de julho, chegou na mesa há 2 horas.
+    await c.query(
+      `UPDATE public.leads
+          SET created_at = now() - interval '50 days',
+              data_distribuicao = now() - interval '2 hours'
+        WHERE id = $1`,
+      [l],
+    );
+
+    const linhas = await classificar(dono.id);
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0].faixa).toBe("sla");
+    expect(linhas[0].ativa).toBe(true);
+  });
+
+  it("entregue há 5 dias já saiu da janela do SLA e cai na Reserva", async () => {
+    const dono = await criarUsuario(c, { nome: "Corretor Estoque Velho", papel: "corretor" });
+    await comoSuperuser(c);
+    const l = await criarLead(c, { corretorId: dono.id, status: "aguardando_atendimento" });
+    await c.query(
+      `UPDATE public.leads
+          SET created_at = now() - interval '50 days',
+              data_distribuicao = now() - interval '5 days'
+        WHERE id = $1`,
+      [l],
+    );
+
+    const linhas = await classificar(dono.id);
+    expect(linhas[0].faixa).toBe("reserva");
+    expect(linhas[0].ativa).toBe(false);
+  });
+
+  it("a vaga de ENTRADA volta a apertar: enche a faixa SLA e ela fecha", async () => {
+    const dono = await criarUsuario(c, { nome: "Corretor SLA Cheio", papel: "corretor" });
+    await comoSuperuser(c);
+    // cap_sla = 20. Vinte e cinco leads do estoque entregues agora.
+    for (let i = 1; i <= 25; i++) {
+      const l = await criarLead(c, { corretorId: dono.id, status: "aguardando_atendimento" });
+      await c.query(
+        `UPDATE public.leads
+            SET created_at = now() - interval '50 days',
+                data_distribuicao = now() - make_interval(mins => $2)
+          WHERE id = $1`,
+        [l, i],
+      );
+    }
+
+    const vagas = await c.query(`SELECT public.carteira_vagas_entrada_v1($1)::int AS v`, [dono.id]);
+    // Antes da correção isto devolvia 20 para sempre — a roleta nunca parava.
+    expect(vagas.rows[0].v).toBe(0);
+
+    const linhas = await classificar(dono.id);
+    expect(linhas.filter((l) => l.faixa === "sla" && l.ativa)).toHaveLength(20);
+    expect(linhas.filter((l) => !l.ativa && l.motivo === "faixa cheia (sla)")).toHaveLength(5);
+  });
 });
 
 describe("carteira ativa — faixas e precedência", () => {
