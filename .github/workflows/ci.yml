@@ -13,6 +13,19 @@ jobs:
   # Varredura de segredos — independente do registro de pacotes, roda sempre.
   secret-scan:
     runs-on: ubuntu-latest
+    # O `permissions` do topo deste arquivo vale `contents: read` e SUBSTITUI
+    # os defaults do repositório — o token não recebe mais nada. Em evento
+    # `pull_request`, o gitleaks lista os commits do PR pela API
+    # (`GET /repos/.../pulls/{n}/commits`) e sem este escopo morre com 403
+    # "Resource not accessible by integration", antes de varrer um byte.
+    #
+    # O efeito é traiçoeiro: o job falha VERMELHO sem ter escaneado nada, que
+    # é o pior estado possível para uma varredura de segredos — parece que
+    # achou algo e não chegou a olhar. Declarar o escopo aqui, no job, mantém
+    # o resto do arquivo com o mínimo.
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@v4
         with:
