@@ -8,12 +8,14 @@
 //   2. trocar `supabasePendente` por `supabase` nos consumidores;
 //   3. baixar o teto do type-escape budget.
 //
-// Objetos cobertos (migration 20260902120000_prateleira_projetos.sql e
-// 20260805160000_construtoras_parceiras.sql):
+// Objetos cobertos (migration 20260902120000_prateleira_projetos.sql,
+// 20260805160000_construtoras_parceiras.sql e
+// 20260913190000_portal_projeto_materiais.sql):
 //   • projetos.preco_atualizado_em / tabela_atualizada_em
 //   • projeto_foco.arte_url
 //   • construtoras_parceiras (+ logo_url)
-//   • projeto_eventos
+//   • projeto_eventos (+ tipo material_abrir)
+//   • projeto_materiais
 //   • rpc projetos_demanda_v1()
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -30,7 +32,8 @@ export type ProjetoEventoTipo =
   | "enviar_lead"
   | "sacola_add"
   | "ficha_abrir"
-  | "reportar_erro";
+  | "reportar_erro"
+  | "material_abrir";
 
 export type ProjetoEventoRow = {
   id: string;
@@ -78,6 +81,46 @@ export type ConstrutoraParceiraInsert = {
   updated_at?: string;
 };
 
+/** Tipos fechados pelo CHECK da tabela; rótulos em lib/projeto-materiais. */
+export type ProjetoMaterialTipo =
+  | "book"
+  | "tabela"
+  | "planta"
+  | "video"
+  | "tour"
+  | "memorial"
+  | "apresentacao"
+  | "arte"
+  | "outro";
+
+export type ProjetoMaterialRow = {
+  id: string;
+  projeto_id: string;
+  tipo: ProjetoMaterialTipo;
+  titulo: string;
+  url: string;
+  descricao: string | null;
+  ordem: number;
+  ativo: boolean;
+  criado_por: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjetoMaterialInsert = {
+  id?: string;
+  projeto_id: string;
+  tipo: ProjetoMaterialTipo;
+  titulo: string;
+  url: string;
+  descricao?: string | null;
+  ordem?: number;
+  ativo?: boolean;
+  criado_por?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export type DemandaRow = {
   projeto_id: string;
   leads_30d: number;
@@ -120,6 +163,12 @@ export type DatabasePendente = Omit<Database, "public"> & {
         Row: ProjetoEventoRow;
         Insert: ProjetoEventoInsert;
         Update: Partial<ProjetoEventoInsert>;
+        Relationships: [];
+      };
+      projeto_materiais: {
+        Row: ProjetoMaterialRow;
+        Insert: ProjetoMaterialInsert;
+        Update: Partial<ProjetoMaterialInsert>;
         Relationships: [];
       };
     };

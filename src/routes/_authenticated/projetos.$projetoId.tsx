@@ -1,18 +1,40 @@
+// Ficha do empreendimento = PÁGINA DE PRODUTO do corretor (portal, 2026-09-13,
+// docs/portal-empreendimento.md). O mesmo endereço serve dois usos, nesta ordem:
+//
+//   1. O corretor, com o cliente na frente ou no WhatsApp: hero com preço e
+//      "Enviar ao cliente", galeria, ficha técnica, munição comercial,
+//      disponibilidade por tipologia, localização com mapa — e, na coluna ao
+//      lado, TODOS os materiais de venda (book, tabela, plantas, vídeo, tour…).
+//   2. A gestão, mais abaixo: espelho de unidades (CRUD), histórico de preços
+//      e campanha "em foco" — o que já existia, sem perder nada.
+//
+// Com ?leadId a visita é passo de uma jornada (vindo do Match/Vitrine/
+// prateleira): a sidebar mantém o hub da fase do lead e o "Enviar" dispara
+// direto no WhatsApp desse lead, registrando a interação.
+
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { isMissingColumn } from "@/lib/supabase-errors";
 import { focoVigente } from "@/lib/prateleira";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
+import {
+  materiaisDoProjeto,
+  eventoDeAbertura,
+  type MaterialProjeto,
+} from "@/lib/projeto-materiais";
+import { mensagemEmpreendimento, WHATSAPP_TITULO_EMPREENDIMENTO } from "@/lib/whatsapp";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { usePreference } from "@/hooks/use-preference";
+import { useWhatsAppLead } from "@/hooks/use-whatsapp-lead";
 import { PageHeader } from "@/components/page-header";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeader } from "@/components/ui/section-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -23,11 +45,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Buildings, Plus, SquaresFour, Table } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  Buildings,
+  Heart,
+  PaperPlaneTilt,
+  Plus,
+  SquaresFour,
+  Table,
+} from "@phosphor-icons/react";
 import { UNIDADE_STATUS_LABEL, type UnidadeStatus, formatBRL, calcStats } from "@/lib/unidades";
 import { ProjetoComercial } from "@/components/projeto-comercial";
+import type { ProjetoRow } from "@/components/projeto-card";
+import { EnviarVitrineDialog } from "@/components/vitrine/enviar-vitrine-dialog";
 import { ProjetoHero } from "@/features/projetos/projeto-hero";
 import { ProjetoFichaTecnica } from "@/features/projetos/projeto-ficha-tecnica";
+import { ProjetoGaleria } from "@/features/projetos/projeto-galeria";
+import { ProjetoDisponibilidade } from "@/features/projetos/projeto-disponibilidade";
+import { ProjetoLocalizacao } from "@/features/projetos/projeto-localizacao";
+import { ProjetoMateriaisSection } from "@/features/projetos/projeto-materiais-section";
+import { ProjetoMateriaisDialog } from "@/features/projetos/projeto-materiais-dialog";
+import {
+  useAlternarMaterialAtivo,
+  useProjetoMateriais,
+  useRemoverMaterial,
+  useReordenarMateriais,
+  useSalvarMaterial,
+} from "@/features/projetos/use-projeto-materiais";
+import { useRegistrarEventoProjeto } from "@/features/projetos/use-projeto-eventos";
 import {
   UnidadesGrid,
   UNIDADE_STATUS_OPCOES,
@@ -38,6 +83,7 @@ import { UnidadeFormDialog, type UnidadePayload } from "@/features/projetos/unid
 import { HistoricoPrecos } from "@/features/projetos/historico-precos";
 import { ProjetoFocoPanel, type FocoPayload } from "@/features/projetos/projeto-foco-panel";
 import { usePublicarFaseDoLeadPorId } from "@/features/nav/contexto-jornada";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
   // ?leadId marca a visita como passo de uma jornada (vindo do Match/Vitrine):
@@ -45,9 +91,13 @@ export const Route = createFileRoute("/_authenticated/projetos/$projetoId")({
   validateSearch: (search: Record<string, unknown>): { leadId?: string } => ({
     leadId: typeof search.leadId === "string" && search.leadId ? search.leadId : undefined,
   }),
-  head: () => ({ meta: [{ title: "Detalhe do projeto — Seu Metro Quadrado" }] }),
+  head: () => ({ meta: [{ title: "Empreendimento — Seu Metro Quadrado" }] }),
   component: ProjetoDetalhePage,
 });
+
+type LeadContexto = { id: string; nome: string; telefone: string | null };
+
+const HERO_BTN = "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white";
 
 function ProjetoDetalhePage() {
   const { projetoId } = Route.useParams();
@@ -55,11 +105,19 @@ function ProjetoDetalhePage() {
   usePublicarFaseDoLeadPorId(leadId);
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
+  // Espelho de unidades e campanha seguem só do admin (como sempre); materiais
+  // acompanham o recorte do Materiais em massa (admin | gestor) — é a mesma RLS.
   const canManage = isAdmin;
+  const podeGerirMateriais = isAdmin || isGestor;
   const qc = useQueryClient();
+  const registrarEvento = useRegistrarEventoProjeto();
+  const abrirWhatsApp = useWhatsAppLead();
+
   const [unidadeOpen, setUnidadeOpen] = useState(false);
   const [editing, setEditing] = useState<UnidadeRow | null>(null);
   const [focoOpen, setFocoOpen] = useState(false);
+  const [materiaisOpen, setMateriaisOpen] = useState(false);
+  const [enviarAberto, setEnviarAberto] = useState(false);
   const [unidadeBusca, setUnidadeBusca] = useState("");
   const [unidadeStatusFiltro, setUnidadeStatusFiltro] = useState<string>("todos");
   // Sub-visão das unidades (grade de disponibilidade OU tabela) — por usuário.
@@ -67,6 +125,9 @@ function ProjetoDetalhePage() {
     "projetos:unidades-view",
     "grade",
   );
+  // A MESMA lista de favoritos da prateleira: coração aqui acende lá.
+  const [favoritos, setFavoritos] = usePreference<string[]>("prateleira:favoritos", []);
+  const favorito = favoritos.includes(projetoId);
 
   const projetoQ = useQuery({
     queryKey: ["projeto", projetoId],
@@ -122,6 +183,28 @@ function ProjetoDetalhePage() {
       return data ?? [];
     },
   });
+
+  const materiaisQ = useProjetoMateriais(projetoId);
+  const salvarMaterial = useSalvarMaterial(projetoId);
+  const alternarMaterial = useAlternarMaterialAtivo(projetoId);
+  const removerMaterial = useRemoverMaterial(projetoId);
+  const reordenarMateriais = useReordenarMateriais(projetoId);
+
+  // Lead em contexto (?leadId): o "Enviar ao cliente" dispara direto para ele.
+  const leadQ = useQuery({
+    queryKey: ["ficha-projeto-lead", leadId],
+    enabled: !!leadId,
+    queryFn: async (): Promise<LeadContexto | null> => {
+      const { data, error } = await supabase
+        .from("leads")
+        .select("id, nome, telefone")
+        .eq("id", leadId!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as LeadContexto | null) ?? null;
+    },
+  });
+  const lead = leadQ.data ?? null;
 
   // Vigente = ativo, já iniciado e não encerrado. Campanha programada (início
   // no futuro, decisão 22 de 2026-09-02) não acende o hero antes da hora.
@@ -241,17 +324,87 @@ function ProjetoDetalhePage() {
   const stats = calcStats(unidades);
   const projeto = projetoQ.data;
 
-  const voltar = (
-    <Button
-      variant="outline"
-      size="sm"
-      className={
-        projeto
-          ? "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-          : undefined
-      }
-      asChild
-    >
+  const materiais = useMemo(
+    () => materiaisDoProjeto(projeto ?? {}, materiaisQ.data?.itens ?? []),
+    [projeto, materiaisQ.data],
+  );
+  const materiaisDisponiveis = materiaisQ.data?.disponivel ?? false;
+
+  // ----- gestos do corretor ---------------------------------------------------
+
+  const favoritar = () => {
+    setFavoritos((atual) =>
+      atual.includes(projetoId) ? atual.filter((id) => id !== projetoId) : [...atual, projetoId],
+    );
+    toast.success(favorito ? "Removido dos favoritos" : "Salvo nos favoritos da prateleira");
+  };
+
+  const abrirMaterial = (m: MaterialProjeto) =>
+    registrarEvento({
+      tipo: eventoDeAbertura(m.tipo),
+      projetoId,
+      leadId,
+      origem: "ficha",
+      detalhe: m.titulo,
+    });
+
+  const enviar = () => {
+    if (!projeto) return;
+    if (lead?.telefone) {
+      const precoLabel =
+        projeto.sob_consulta || projeto.preco_a_partir == null
+          ? "Sob consulta"
+          : formatBRL(projeto.preco_a_partir);
+      abrirWhatsApp(
+        { id: lead.id, nome: lead.nome, telefone: lead.telefone },
+        {
+          mensagem: mensagemEmpreendimento(lead.nome, {
+            nome: projeto.nome,
+            bairro: projeto.bairro,
+            zona: projeto.zona_smq,
+            precoLabel,
+            bookUrl: projeto.book_url,
+          }),
+          titulo: `${WHATSAPP_TITULO_EMPREENDIMENTO}: ${projeto.nome}`,
+        },
+      );
+      registrarEvento({ tipo: "enviar_lead", projetoId, leadId: lead.id, origem: "ficha" });
+      return;
+    }
+    setEnviarAberto(true);
+  };
+
+  const heroActions = (
+    <>
+      <Button variant="outline" size="sm" className={HERO_BTN} asChild>
+        <Link to="/projetos-foco">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Prateleira
+        </Link>
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className={HERO_BTN}
+        onClick={favoritar}
+        aria-pressed={favorito}
+        aria-label={favorito ? "Remover dos favoritos" : "Salvar nos favoritos"}
+        title={favorito ? "Remover dos favoritos" : "Salvar nos favoritos"}
+      >
+        <Heart
+          className={cn("h-4 w-4", favorito && "fill-gold-400 text-gold-400")}
+          weight={favorito ? "fill" : "duotone"}
+        />
+      </Button>
+      <Button size="sm" className="press-scale" onClick={enviar}>
+        <PaperPlaneTilt className="mr-1 h-4 w-4" />
+        {lead ? `Enviar para ${lead.nome.split(" ")[0]}` : "Enviar ao cliente"}
+      </Button>
+    </>
+  );
+
+  const voltarSemProjeto = (
+    <Button variant="outline" size="sm" asChild>
       <Link to="/projetos">
         <ArrowLeft className="mr-1 h-4 w-4" />
         Projetos
@@ -278,161 +431,227 @@ function ProjetoDetalhePage() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       {projeto ? (
         <ProjetoHero
           projeto={projeto}
           emFoco={!!focoAtivo}
           focoMotivo={focoAtivo?.motivo}
-          actions={voltar}
+          actions={heroActions}
         />
       ) : (
         <PageHeader
-          title="Projeto"
-          description="Gestão completa do empreendimento"
-          actions={voltar}
+          title="Empreendimento"
+          description={projetoQ.isLoading ? "Carregando…" : "Página do empreendimento"}
+          actions={voltarSemProjeto}
         />
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatTile title="Total" value={stats.total} loading={unidadesQ.isLoading} />
-        <StatTile title="Disponíveis" value={stats.disponivel} loading={unidadesQ.isLoading} />
-        <StatTile title="Reservadas" value={stats.reservada} loading={unidadesQ.isLoading} />
-        <StatTile title="Vendidas" value={stats.vendida} loading={unidadesQ.isLoading} />
-        <StatTile
-          title="VGV disponível"
-          // Moeda em text-2xl para caber na malha de 5 colunas sem quebrar.
-          value={
-            <AnimatedNumber value={stats.vgvDisponivel} format={formatBRL} className="text-2xl" />
-          }
-          loading={unidadesQ.isLoading}
-          className="col-span-2 md:col-span-1"
+      {projeto && (
+        <ProjetoGaleria
+          nome={projeto.nome}
+          capaUrl={projeto.capa_url}
+          galeriaUrls={projeto.galeria_urls ?? []}
         />
-      </div>
+      )}
 
-      {projeto && <ProjetoFichaTecnica projeto={projeto} />}
+      {projeto && (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          {/* No celular os materiais vêm PRIMEIRO (é o que o corretor abre com o
+              cliente do lado); no desktop ficam na coluna da direita, fixos. */}
+          <aside className="order-first space-y-6 self-start lg:order-last lg:sticky lg:top-20">
+            <ProjetoMateriaisSection
+              nomeProjeto={projeto.nome}
+              materiais={materiais}
+              loading={materiaisQ.isLoading}
+              podeGerir={podeGerirMateriais && materiaisDisponiveis}
+              gestaoIndisponivel={podeGerirMateriais && !materiaisDisponiveis}
+              onAbrir={abrirMaterial}
+              onGerir={() => setMateriaisOpen(true)}
+            />
+          </aside>
 
-      <Tabs defaultValue="unidades" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="unidades">Unidades</TabsTrigger>
-          <TabsTrigger value="comercial">Comercial</TabsTrigger>
-          <TabsTrigger value="historico">Histórico de preços</TabsTrigger>
-          <TabsTrigger value="foco">Projeto em foco</TabsTrigger>
-        </TabsList>
+          <div className="min-w-0 space-y-6">
+            <ProjetoFichaTecnica projeto={projeto} />
+            <ProjetoComercial projetoId={projetoId} projeto={projeto} canManage={canManage} />
+            <ProjetoDisponibilidade
+              unidades={unidades}
+              loading={unidadesQ.isLoading}
+              resumoTexto={projeto.disponibilidade_resumo}
+            />
+            <ProjetoLocalizacao projeto={projeto} />
+          </div>
+        </div>
+      )}
 
-        <TabsContent value="unidades" className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-md border bg-card p-0.5">
-              <Button
-                size="sm"
-                variant={unidadesView === "grade" ? "default" : "ghost"}
-                onClick={() => setUnidadesView("grade")}
-              >
-                <SquaresFour className="mr-1 h-4 w-4" /> Grade
-              </Button>
-              <Button
-                size="sm"
-                variant={unidadesView === "tabela" ? "default" : "ghost"}
-                onClick={() => setUnidadesView("tabela")}
-              >
-                <Table className="mr-1 h-4 w-4" /> Tabela
-              </Button>
-            </div>
-
-            {unidades.length > 0 && (
-              <>
-                <Input
-                  placeholder="Buscar unidade (identificador, bloco, tipologia)…"
-                  value={unidadeBusca}
-                  onChange={(e) => setUnidadeBusca(e.target.value)}
-                  className="max-w-xs"
-                />
-                <Select value={unidadeStatusFiltro} onValueChange={setUnidadeStatusFiltro}>
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os status</SelectItem>
-                    {UNIDADE_STATUS_OPCOES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {UNIDADE_STATUS_LABEL[s]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-
-            {canManage && (
-              <Button size="sm" className="ml-auto" onClick={() => setUnidadeOpen(true)}>
+      <section aria-label="Espelho de vendas e gestão do empreendimento" className="space-y-4">
+        <SectionHeader
+          eyebrow="Espelho de vendas"
+          title="Unidades, histórico de preços e campanha"
+          action={
+            canManage ? (
+              <Button size="sm" onClick={() => setUnidadeOpen(true)}>
                 <Plus className="mr-1 h-4 w-4" />
                 Nova unidade
               </Button>
-            )}
-          </div>
+            ) : undefined
+          }
+        />
 
-          {unidadesView === "grade" ? (
-            <UnidadesGrid
-              unidades={unidadesFiltradas}
-              loading={unidadesQ.isLoading}
-              canManage={canManage}
-              onChangeStatus={(id, status) => updateStatus.mutate({ id, status })}
-              empty={unidadesEmpty}
-            />
-          ) : (
-            <UnidadesTable
-              unidades={unidadesFiltradas}
-              loading={unidadesQ.isLoading}
-              canManage={canManage}
-              onChangeStatus={(id, status) => updateStatus.mutate({ id, status })}
-              onEdit={(u) => {
-                setEditing(u);
-                setUnidadeOpen(true);
-              }}
-              onDelete={(u) => {
-                if (confirm("Remover unidade?")) deleteUnidade.mutate(u.id);
-              }}
-              empty={unidadesEmpty}
-            />
-          )}
-
-          {canManage && (
-            <UnidadeFormDialog
-              open={unidadeOpen}
-              onOpenChange={(o) => {
-                setUnidadeOpen(o);
-                if (!o) setEditing(null);
-              }}
-              editing={editing}
-              pending={saveUnidade.isPending}
-              onSubmit={(payload) => saveUnidade.mutate(payload)}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="comercial">
-          {projeto && (
-            <ProjetoComercial projetoId={projetoId} projeto={projeto} canManage={canManage} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="historico">
-          <HistoricoPrecos historico={historicoQ.data ?? []} loading={historicoQ.isLoading} />
-        </TabsContent>
-
-        <TabsContent value="foco">
-          <ProjetoFocoPanel
-            focos={focoQ.data ?? []}
-            loading={focoQ.isLoading}
-            canManage={canManage}
-            open={focoOpen}
-            onOpenChange={setFocoOpen}
-            onAtivar={(payload) => ativarFoco.mutate(payload)}
-            ativarPending={ativarFoco.isPending}
-            onDesativar={(id) => desativarFoco.mutate(id)}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <StatTile title="Total" value={stats.total} loading={unidadesQ.isLoading} />
+          <StatTile title="Disponíveis" value={stats.disponivel} loading={unidadesQ.isLoading} />
+          <StatTile title="Reservadas" value={stats.reservada} loading={unidadesQ.isLoading} />
+          <StatTile title="Vendidas" value={stats.vendida} loading={unidadesQ.isLoading} />
+          <StatTile
+            title="VGV disponível"
+            // Moeda em text-2xl para caber na malha de 5 colunas sem quebrar.
+            value={
+              <AnimatedNumber value={stats.vgvDisponivel} format={formatBRL} className="text-2xl" />
+            }
+            loading={unidadesQ.isLoading}
+            className="col-span-2 md:col-span-1"
           />
-        </TabsContent>
-      </Tabs>
+        </div>
+
+        <Tabs defaultValue="unidades" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="unidades">Unidades</TabsTrigger>
+            <TabsTrigger value="historico">Histórico de preços</TabsTrigger>
+            <TabsTrigger value="foco">Projeto em foco</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="unidades" className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-md border bg-card p-0.5">
+                <Button
+                  size="sm"
+                  variant={unidadesView === "grade" ? "default" : "ghost"}
+                  onClick={() => setUnidadesView("grade")}
+                >
+                  <SquaresFour className="mr-1 h-4 w-4" /> Grade
+                </Button>
+                <Button
+                  size="sm"
+                  variant={unidadesView === "tabela" ? "default" : "ghost"}
+                  onClick={() => setUnidadesView("tabela")}
+                >
+                  <Table className="mr-1 h-4 w-4" /> Tabela
+                </Button>
+              </div>
+
+              {unidades.length > 0 && (
+                <>
+                  <Input
+                    placeholder="Buscar unidade (identificador, bloco, tipologia)…"
+                    value={unidadeBusca}
+                    onChange={(e) => setUnidadeBusca(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Select value={unidadeStatusFiltro} onValueChange={setUnidadeStatusFiltro}>
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos os status</SelectItem>
+                      {UNIDADE_STATUS_OPCOES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {UNIDADE_STATUS_LABEL[s]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+            </div>
+
+            {unidadesView === "grade" ? (
+              <UnidadesGrid
+                unidades={unidadesFiltradas}
+                loading={unidadesQ.isLoading}
+                canManage={canManage}
+                onChangeStatus={(id, status) => updateStatus.mutate({ id, status })}
+                empty={unidadesEmpty}
+              />
+            ) : (
+              <UnidadesTable
+                unidades={unidadesFiltradas}
+                loading={unidadesQ.isLoading}
+                canManage={canManage}
+                onChangeStatus={(id, status) => updateStatus.mutate({ id, status })}
+                onEdit={(u) => {
+                  setEditing(u);
+                  setUnidadeOpen(true);
+                }}
+                onDelete={(u) => {
+                  if (confirm("Remover unidade?")) deleteUnidade.mutate(u.id);
+                }}
+                empty={unidadesEmpty}
+              />
+            )}
+
+            {canManage && (
+              <UnidadeFormDialog
+                open={unidadeOpen}
+                onOpenChange={(o) => {
+                  setUnidadeOpen(o);
+                  if (!o) setEditing(null);
+                }}
+                editing={editing}
+                pending={saveUnidade.isPending}
+                onSubmit={(payload) => saveUnidade.mutate(payload)}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="historico">
+            <HistoricoPrecos historico={historicoQ.data ?? []} loading={historicoQ.isLoading} />
+          </TabsContent>
+
+          <TabsContent value="foco">
+            <ProjetoFocoPanel
+              focos={focoQ.data ?? []}
+              loading={focoQ.isLoading}
+              canManage={canManage}
+              open={focoOpen}
+              onOpenChange={setFocoOpen}
+              onAtivar={(payload) => ativarFoco.mutate(payload)}
+              ativarPending={ativarFoco.isPending}
+              onDesativar={(id) => desativarFoco.mutate(id)}
+            />
+          </TabsContent>
+        </Tabs>
+      </section>
+
+      {projeto && (
+        <>
+          <EnviarVitrineDialog
+            projeto={enviarAberto ? (projeto as ProjetoRow) : null}
+            onClose={() => setEnviarAberto(false)}
+            onEnviado={(l) =>
+              registrarEvento({ tipo: "enviar_lead", projetoId, leadId: l.id, origem: "ficha" })
+            }
+          />
+          {podeGerirMateriais && (
+            <ProjetoMateriaisDialog
+              open={materiaisOpen}
+              onOpenChange={setMateriaisOpen}
+              nomeProjeto={projeto.nome}
+              itens={materiaisQ.data?.itens ?? []}
+              pending={
+                salvarMaterial.isPending ||
+                alternarMaterial.isPending ||
+                removerMaterial.isPending ||
+                reordenarMateriais.isPending
+              }
+              onSalvar={(input) => salvarMaterial.mutate(input)}
+              onAlternarAtivo={(id, ativo) => alternarMaterial.mutate({ id, ativo })}
+              onRemover={(id) => removerMaterial.mutate(id)}
+              onReordenar={(mudancas) => reordenarMateriais.mutate(mudancas)}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }
