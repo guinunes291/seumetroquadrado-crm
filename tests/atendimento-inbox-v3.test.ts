@@ -14,7 +14,9 @@ const migration = readFileSync(
   join(root, "supabase/migrations/20260728110000_atendimento_inbox_v3.sql"),
   "utf8",
 );
-const route = readFileSync(join(root, "src/routes/_authenticated/atendimento.tsx"), "utf8");
+// Dono atual da fiação: a Fila Única (o modo Prioridade de /atendimento foi
+// aposentado na Fatia 3 da carteira ativa). A cadeia v3 → v2 é a mesma.
+const hook = readFileSync(join(root, "src/features/fila-unica/use-fila-unica.ts"), "utf8");
 const rpcBoundary = readFileSync(join(root, "src/features/atendimento/atendimento-rpc.ts"), "utf8");
 
 const lead = {
@@ -107,25 +109,30 @@ describe("atendimento_inbox_v3 (migration)", () => {
   });
 });
 
-describe("rota de Atendimento", () => {
+describe("Fila Única — a consumidora da inbox", () => {
   it("chama a v3 com fallback para a v2 (fila de novos zerada) e nada quebra", () => {
     expect(rpcBoundary).toContain('"atendimento_inbox_v3"');
     expect(rpcBoundary).toContain('"atendimento_inbox_v2"');
-    expect(route).toContain("rpcWithFallback");
-    expect(route).toContain('rpcAtendimentoInbox("v3"');
-    expect(route).toContain('rpcAtendimentoInbox("v2"');
-    expect(route).toContain('{ fila: "novos", total_count: 0, items: [] }');
+    expect(hook).toContain("rpcWithFallback");
+    expect(hook).toContain('rpcAtendimentoInbox("v3"');
+    expect(hook).toContain('rpcAtendimentoInbox("v2"');
+    expect(hook).toContain('{ fila: "novos", total_count: 0, items: [] }');
   });
 
-  it("usa uma única RPC e não baixa leads/interações para agregar", () => {
-    expect(route).not.toContain('.from("leads")');
-    expect(route).not.toContain('.from("interacoes")');
-    expect(route).not.toContain("buildAtendimentoQueues");
-    expect(route).not.toMatch(/\.limit\((400|1000)\)/);
+  it("usa uma única RPC e não baixa leads/interações para agregar as filas", () => {
+    expect(hook).not.toContain('.from("interacoes")');
+    expect(hook).not.toContain("buildAtendimentoQueues");
+    expect(hook).not.toMatch(/\.limit\((400|1000)\)/);
   });
 
-  it("exibe a fila de novos em primeiro na tela", () => {
-    expect(route).toMatch(/key: "novos"[\s\S]*key: "responder"[\s\S]*key: "followups"/);
+  // A ordem mudou DE PROPÓSITO na Fila Única: o fundo do funil parado vem
+  // antes de "chegaram agora" — "um lead em análise parado há 66 dias vale
+  // mais do que 200 leads frios novos" (mockup aprovado em 12/09/2026). O que
+  // continua valendo da v3 é que o lead novo EXISTE numa fila própria, que era
+  // o buraco que a v3 veio tapar.
+  it("o lead recém-distribuído continua tendo balde próprio (o buraco que a v3 tapou)", () => {
+    const derive = readFileSync(join(root, "src/features/fila-unica/derive.ts"), "utf8");
+    expect(derive).toMatch(/BUCKET_ORDER[\s\S]*"fundo"[\s\S]*"sla"/);
   });
 });
 

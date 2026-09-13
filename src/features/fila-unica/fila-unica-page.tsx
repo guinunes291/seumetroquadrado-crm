@@ -46,6 +46,12 @@ import {
 } from "@/features/fila-unica/derive";
 import { FilaCard } from "@/features/fila-unica/fila-card";
 import { FilaCockpit } from "@/features/fila-unica/fila-cockpit";
+import { resumoCarteira } from "@/features/carteira-ativa/derive";
+import {
+  TETO_PADRAO,
+  useCarteiraAtiva,
+  useCarteiraConfig,
+} from "@/features/carteira-ativa/use-carteira";
 import { FilaFunil } from "@/features/fila-unica/fila-funil";
 import { FilaRegras } from "@/features/fila-unica/fila-regras";
 import { FilaLateral } from "@/features/fila-unica/fila-lateral";
@@ -163,6 +169,20 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   const alvo = outro ? corretorId : undefined;
   const { fila, isLoading, isError, error, refetch } = useFilaUnica({ corretorId: alvo });
   const equipe = useFilaEquipe(gestao);
+
+  // O anel "N de 40" deixa de contar os candidatos que ESTA TELA carregou e
+  // passa a mostrar a carteira ativa medida no banco (Fatia 3). São coisas
+  // diferentes: a fila mostra o que fazer agora, a carteira é de quem o
+  // corretor é responsável. Banco antigo (sem a migration) devolve null e o
+  // anel volta ao comportamento anterior — nunca um zero inventado.
+  const carteiraQ = useCarteiraAtiva(alvo);
+  const configQ = useCarteiraConfig();
+  const carteira = carteiraQ.data
+    ? (() => {
+        const r = resumoCarteira(carteiraQ.data, configQ.data?.teto ?? TETO_PADRAO);
+        return { ocupadas: r.ocupadas, teto: r.teto, estourou: r.estourou };
+      })()
+    : null;
   const nomeDoAlvo = outro
     ? (equipe.data?.find((r) => r.corretor_id === alvo)?.nome ?? "outro corretor")
     : null;
@@ -319,6 +339,7 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
         {fila ? (
           <FilaCockpit
             fila={fila}
+            carteira={carteira}
             grande
             className="hidden md:block"
             rodape={
@@ -365,7 +386,7 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
         {fila && (
           <div className="space-y-3 md:space-y-4">
             {/* Celular: o placar compacto (no desktop ele está no hero). */}
-            <FilaCockpit fila={fila} className="md:hidden" />
+            <FilaCockpit fila={fila} carteira={carteira} className="md:hidden" />
 
             {/* O funil das etapas do mockup: leitura própria (fila_funil_v1),
                 fechado no celular para a lista vir primeiro. */}

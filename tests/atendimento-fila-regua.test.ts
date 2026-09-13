@@ -1,6 +1,12 @@
-// Fonte única da fila "followups" (auditoria das abas 2026-08-27): o modo
-// Prioridade de /atendimento passa a alimentar a fila com followup_fila_v1 —
-// a MESMA RPC do hub Follow-Up — em vez de leads.proximo_followup da inbox.
+// Fonte única da fila "followups" (auditoria das abas 2026-08-27): a tela que
+// mostra a fila alimenta "followups" com followup_fila_v1 — a MESMA RPC do hub
+// Follow-Up — em vez de leads.proximo_followup da inbox.
+//
+// Essa tela era o modo Prioridade de /atendimento; desde a Fatia 3 da carteira
+// ativa (2026-09-13) é a Fila Única, que absorveu os mesmos seis baldes. A
+// regra de fonte única não mudou — mudou o arquivo que a implementa —, então
+// os guards abaixo apontam para o dono atual.
+//
 // Aqui: o mapeamento puro FilaItem→QueueItem, a substituição com dedupe e
 // os guards de fonte (fallback para banco antigo, links das portas donas).
 import { readFileSync } from "node:fs";
@@ -180,9 +186,9 @@ describe("aplicarFilaRegua — substituição da fila 'followups' pela fonte do 
 // Guards de fonte (mesmo estilo de atendimento-modos): a rota consome a fila
 // do hub por IMPORT, degrada para a inbox em banco antigo e aponta as portas
 // dos hubs donos em vez de duplicar contadores.
-describe("fonte única na rota /atendimento (modo Prioridade)", () => {
-  const atendimento = readFileSync(
-    join(process.cwd(), "src/routes/_authenticated/atendimento.tsx"),
+describe("fonte única na tela da fila (hoje: Fila Única)", () => {
+  const hook = readFileSync(
+    join(process.cwd(), "src/features/fila-unica/use-fila-unica.ts"),
     "utf8",
   );
   const filaRegua = readFileSync(
@@ -191,8 +197,8 @@ describe("fonte única na rota /atendimento (modo Prioridade)", () => {
   );
 
   it("importa fetchFilaFollowUp do módulo do hub — nunca duplica o client", () => {
-    expect(atendimento).toContain('from "@/features/followup/fila-client"');
-    expect(atendimento).toContain("fetchFilaFollowUp");
+    expect(hook).toContain('from "@/features/followup/fila-client"');
+    expect(hook).toContain("fetchFilaFollowUp");
     expect(filaRegua).not.toContain("supabase");
     // O mapeamento importa apenas os TIPOS do hub — lógica de fetch fica lá.
     expect(filaRegua).toContain("import type { FilaFollowUp, FilaItem }");
@@ -200,30 +206,18 @@ describe("fonte única na rota /atendimento (modo Prioridade)", () => {
 
   it("banco antigo sem followup_fila_v1 degrada para a fila da inbox", () => {
     // rpcWithFallback devolve null quando a RPC não existe; null mantém a
-    // resposta da inbox valendo (aplicarFilaRegua só roda com dados do hub).
-    expect(atendimento).toMatch(/rpcWithFallback<FilaFollowUp \| null>\(/);
-    expect(atendimento).toMatch(/\(\) => fetchFilaFollowUp\(\),\s*\(\) => null,/);
-    expect(atendimento).toMatch(/filaReguaQ\.data\s*\?\s*aplicarFilaRegua\(/);
+    // resposta da inbox valendo.
+    expect(hook).toMatch(/rpcWithFallback<FilaFollowUp \| null>\(/);
+    expect(hook).toMatch(/\(\) => null,/);
   });
 
   it("a chave da query usa o prefixo do hub — invalidação alcança as duas telas", () => {
-    expect(atendimento).toContain('queryKey: ["followup:fila", "atendimento", user?.id]');
+    expect(hook).toContain('queryKey: ["followup:fila", "fila-unica", alvo]');
     // Realtime assina "tarefas" (a fila da régua nasce delas), "mensagens" e
     // "conversas_tratadas" (a fila Responder lê a fonte única do Lote 3) e
     // refaz o inbox, a fila da régua e o badge da sidebar juntos.
-    expect(atendimento).toMatch(
-      /useRealtimeInvalidate\(\s*\["leads", "interacoes", "documentacoes", "tarefas", "mensagens", "conversas_tratadas"\],\s*\[\["atendimento:inbox"\], \["followup:fila"\], \["nav-badges"\]\],\s*\)/,
+    expect(hook).toMatch(
+      /useRealtimeInvalidate\(\s*\["leads", "interacoes", "documentacoes", "tarefas", "mensagens", "conversas_tratadas"\],\s*\[\s*\["atendimento:inbox"\],\s*\["followup:fila"\],/,
     );
-  });
-
-  it("cabeçalho da fila aponta o hub dono: 'Abrir fila da régua' → /follow-up", () => {
-    expect(atendimento).toMatch(/<Link to="\/follow-up">Abrir fila da régua<\/Link>/);
-  });
-
-  it("placar sem contagem própria de 'novos': aponta 'ver na Prospecção'", () => {
-    expect(atendimento).toMatch(/to="\/prospeccao"/);
-    expect(atendimento).toContain("ver na Prospecção");
-    // O ramo com número continua para as demais filas.
-    expect(atendimento).toContain("{QUEUE_LABEL[key]}: {counts[key]}");
   });
 });

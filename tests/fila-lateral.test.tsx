@@ -23,6 +23,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 import { FilaLateral } from "@/features/fila-unica/fila-lateral";
+import { LIMITE_FILA } from "@/features/fila-unica/derive";
 
 const visita = (id: string, hora: string, status: string, nome: string, projeto: string) => ({
   id,
@@ -73,7 +74,7 @@ describe("FilaLateral", () => {
     expect(s).toHaveTextContent(/14 desfecho/);
     expect(s).toHaveTextContent(/5 perdido/);
     expect(s).toHaveTextContent(/2 reentraram/);
-    expect(screen.getByText("Fila (máx. 40)")).toBeInTheDocument();
+    expect(screen.getByText(`Fila (máx. ${LIMITE_FILA})`)).toBeInTheDocument();
     expect(screen.getByText("O que a Sami faz aqui")).toBeInTheDocument();
   });
 });
