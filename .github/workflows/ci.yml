@@ -9,6 +9,21 @@ on:
 permissions:
   contents: read
 
+# O `vite build` deste app passou do teto de heap padrao do Node no runner
+# (~2 GB) e passou a morrer com "JavaScript heap out of memory", exit 134,
+# durante o bundling do rollup. Medido em 13/09/2026: com
+# --max-old-space-size=2048 o build aborta TAMBEM em `main`, sem nenhuma
+# mudanca deste repo; com 4096 passa nos dois. Ou seja, o build cruzou o
+# limite por crescimento proprio, nao por um PR especifico.
+#
+# O runner tem 16 GB de RAM, entao 4 GB de heap e folgado. Fica no nivel do
+# workflow porque tres jobs constroem o app (build-test, smoke e o
+# bundle-budget dentro do build-test) e deixar de fora justo um deles daria o
+# mesmo OOM num lugar so, que e o tipo de falha que custa um ciclo inteiro
+# para diagnosticar de novo.
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+
 jobs:
   # Varredura de segredos — independente do registro de pacotes, roda sempre.
   secret-scan:
