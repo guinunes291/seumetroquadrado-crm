@@ -1,7 +1,7 @@
 // Guarda do item 2.7 (estrategia-2026-08), atualizada pela Fatia 3 da carteira
 // ativa (2026-09-13): Atender reunia TRÊS modos numa porta só; o Prioridade
 // foi aposentado porque suas seis filas são os baldes que a Fila Única
-// absorveu — com o teto de 40 valendo no banco, as duas telas dariam números
+// absorveu — com o teto da carteira valendo no banco, as duas telas dariam números
 // diferentes para a mesma pergunta. Restam Volume (o antigo Blitz, destino do
 // redirect de /blitz) e Consulta (busca e filtros), que não têm equivalente na
 // Fila Única e por isso NÃO foram retirados junto.
@@ -34,7 +34,7 @@ describe("item 2.7a — os modos que sobraram, uma porta", () => {
 
   it("o modo Prioridade foi aposentado: /atendimento sem modo válido cai na Fila Única", () => {
     // A razão está no cabeçalho do arquivo: duas telas com o mesmo escopo e
-    // réguas diferentes (uma com o teto de 40, outra sem) divergem.
+    // réguas diferentes (uma com o teto da carteira, outra sem) divergem.
     expect(atendimento).toMatch(/beforeLoad:[\s\S]*redirect\(\{ to: "\/fila" \}\)/);
     expect(atendimento).not.toContain('modo === "prioridade"');
     // E a inbox das seis filas não é mais consumida aqui.

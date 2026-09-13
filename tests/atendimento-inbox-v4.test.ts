@@ -15,7 +15,8 @@ const sql = readFileSync(
 const codigo = sql.replace(/--[^\n]*/g, "");
 // A fiação da inbox saiu da rota /atendimento e passou para a Fila Única na
 // Fatia 3 da carteira ativa (2026-09-13): o modo Prioridade foi aposentado
-// porque duplicava a mesma carteira sem o teto de 40. A cadeia v4 → v3 → v2 e
+// porque duplicava a mesma carteira sem o teto da carteira ativa. A cadeia
+// v4 → v3 → v2 e
 // o botão [Confirmar] são os MESMOS — mudaram de arquivo, não de regra —, e
 // por isso as asserções abaixo continuam valendo, agora sobre o dono atual.
 const hook = readFileSync(join(root, "src/features/fila-unica/use-fila-unica.ts"), "utf8");

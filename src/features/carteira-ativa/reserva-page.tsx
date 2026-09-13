@@ -1,7 +1,7 @@
 // A Reserva — a segunda seção da Central de Comando.
 //
-// O par conceitual da Fila Única: lá está o que eu trabalho agora (as 40
-// vagas), aqui está o que ficou guardado esperando vaga. A página existe por
+// O par conceitual da Fila Única: lá está o que eu trabalho agora (as vagas
+// da carteira ativa), aqui está o que ficou guardado esperando vaga. A página existe por
 // uma razão de comportamento, não de dado: lead fora da carteira não pode
 // SUMIR. Sem um lugar com nome onde o corretor busque pelo cliente e o traga
 // de volta, a devolução lê como perda, e o corretor passa a esconder lead do
@@ -43,6 +43,7 @@ import {
   type LinhaReserva,
 } from "@/features/carteira-ativa/derive";
 import {
+  CAP_RESGATE_PADRAO,
   TETO_PADRAO,
   useCarteiraAtiva,
   useCarteiraConfig,
@@ -162,7 +163,7 @@ export function ReservaPage({ corretorId }: { corretorId?: string }) {
         }
         toast.error(
           r.motivo === "cap_resgate_atingido"
-            ? `Você já tem ${r.cap ?? 8} resgates na carteira. Solte um para trazer outro.`
+            ? `Você já tem ${r.cap ?? CAP_RESGATE_PADRAO} resgates na carteira. Solte um para trazer outro.`
             : "Não foi possível trazer este cliente.",
         );
       },

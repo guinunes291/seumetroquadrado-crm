@@ -24,9 +24,10 @@ export const CARTEIRA_ATIVA_KEY = "carteira-ativa";
 export const CARTEIRA_RESERVA_KEY = "carteira-reserva";
 export const CARTEIRA_CONFIG_KEY = "carteira-config";
 
-/** Teto padrão — o mesmo `capacidade_leads_ativos_por_corretor` do banco.
- *  Só vale enquanto a config não chega; nunca substitui o valor real. */
-export const TETO_PADRAO = 40;
+/** Reexportado do módulo puro para quem já importava daqui — a definição (e
+ *  a razão de ser única) está em `carteira-ativa/derive`. */
+export { TETO_PADRAO, CAP_RESGATE_PADRAO } from "@/features/carteira-ativa/derive";
+import { CAP_RESGATE_PADRAO } from "@/features/carteira-ativa/derive";
 
 const linhaCarteiraSchema = z.object({
   lead_id: z.string().uuid(),
@@ -84,7 +85,7 @@ export function useCarteiraConfig() {
             .object({ teto: z.number().int().positive(), cap_resgate: z.number().int() })
             .partial({ cap_resgate: true })
             .parse(data ?? {});
-          return { teto: parsed.teto, cap_resgate: parsed.cap_resgate ?? 8 };
+          return { teto: parsed.teto, cap_resgate: parsed.cap_resgate ?? CAP_RESGATE_PADRAO };
         },
         () => null,
       ),

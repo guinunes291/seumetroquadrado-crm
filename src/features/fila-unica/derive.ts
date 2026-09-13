@@ -34,6 +34,7 @@
 // inventa data: sem data conhecida, diasParado é null.
 
 import { diasDesde, scoreLead, type ScoreTier } from "@/lib/priority";
+import { TETO_PADRAO } from "@/features/carteira-ativa/derive";
 import { PROXIMA_ACAO } from "@/lib/leads";
 import { formatRelativeTime } from "@/lib/interacoes";
 import type { AtendimentoLead, QueueItem, QueueKey } from "@/features/atendimento/derive";
@@ -87,7 +88,11 @@ const ETAPAS_ENCERRADAS = ["perdido", "contrato_fechado", "pos_venda"];
 /** Lead ainda sem primeiro atendimento — espelha ETAPAS_PRIMEIRO_CONTATO de Atender. */
 const ETAPAS_PRIMEIRO_CONTATO = ["novo", "aguardando_atendimento"];
 
-export const LIMITE_FILA = 40;
+/** O teto da fila é o teto da CARTEIRA ATIVA — são o mesmo número desde a
+ *  Fatia 3, e manter duas constantes era garantia de divergência. A fonte de
+ *  verdade em produção é `gestao_config.capacidade_leads_ativos_por_corretor`;
+ *  isto é o fallback para quando a config ainda não chegou. */
+export const LIMITE_FILA = TETO_PADRAO;
 
 export type FilaLead = AtendimentoLead & {
   /** Texto livre do próximo passo (leads.proxima_acao) — só a régua o traz. */

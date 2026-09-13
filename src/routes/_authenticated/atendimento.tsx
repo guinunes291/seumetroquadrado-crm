@@ -8,7 +8,7 @@ import { Lightning, ListChecks, MagnifyingGlass } from "@phosphor-icons/react";
 // Atender — o modo PRIORIDADE foi aposentado na Fatia 3 da carteira ativa
 // (2026-09-13). Suas seis filas (novos, responder, followups, esfriando,
 // confirmar visita, docs) são exatamente os baldes que a Fila Única absorveu;
-// com o teto de 40 valendo no banco, manter as duas telas daria DOIS números
+// com o teto da carteira valendo no banco, manter as duas telas daria DOIS números
 // para a mesma pergunta — a Fila respeitando a carteira ativa, o Atender não —
 // e é assim que se perde a confiança na tela nova. `/atendimento` e
 // `?modo=prioridade` redirecionam para `/fila`, como `/hoje` já faz.

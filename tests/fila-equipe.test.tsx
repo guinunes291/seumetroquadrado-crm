@@ -28,6 +28,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 import { FilaEquipe } from "@/features/fila-unica/fila-equipe";
+import { LIMITE_FILA } from "@/features/fila-unica/derive";
 
 const row = (p: Partial<FilaEquipeRow> & { nome: string }): FilaEquipeRow => ({
   corretor_id: "11111111-1111-4111-8111-111111111111",
@@ -51,7 +52,10 @@ describe("FilaEquipe", () => {
     estado.data = [
       row({
         nome: "Leticia Castro",
-        carteira_ativa: 57,
+        // ACIMA do teto (o medidor só fica vermelho no estouro: `n > teto`),
+        // e relativo à constante — escrever 57 aqui amarrava o teste ao teto de
+        // 40 e ele quebrou quando o teto virou 65 (13/09/2026).
+        carteira_ativa: LIMITE_FILA + 17,
         vencidos: 14,
         sem_proximo_passo: 6,
         fundo_parado: 5,
@@ -70,7 +74,7 @@ describe("FilaEquipe", () => {
     expect(linhas).toHaveLength(3);
 
     const leticia = within(linhas[0]);
-    expect(leticia.getByText("40 / 40")).toHaveClass("text-destructive");
+    expect(leticia.getByText(`${LIMITE_FILA} / ${LIMITE_FILA}`)).toHaveClass("text-destructive");
     expect(leticia.getByText("14")).toHaveClass("text-destructive");
     expect(leticia.getByText("5")).toHaveClass("text-destructive");
     expect(leticia.getByText(/R\$\s?3,1\s?mi/)).toBeInTheDocument();
@@ -80,7 +84,7 @@ describe("FilaEquipe", () => {
     );
 
     const jessica = within(linhas[1]);
-    expect(jessica.getByText("31 / 40")).not.toHaveClass("text-destructive");
+    expect(jessica.getByText(`31 / ${LIMITE_FILA}`)).not.toHaveClass("text-destructive");
     expect(linhas[1]).toHaveAttribute("data-atual");
 
     const semDono = within(linhas[2]);

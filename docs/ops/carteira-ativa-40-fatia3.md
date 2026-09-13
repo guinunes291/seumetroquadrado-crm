@@ -1,4 +1,9 @@
-# Carteira ativa de 40 — quem entra, o que acontece com o resto
+# Carteira ativa — quem entra, o que acontece com o resto
+
+> **Teto: 65 desde 13/09/2026** (era 40 quando este documento foi escrito). O
+> raciocínio das seções abaixo continua valendo; o que mudou está no §10. O
+> nome do arquivo fica como está para não quebrar os links já citados no
+> código e nos commits.
 
 Desenho da **Fatia 3** da Fila Única: o teto de 40 deixa de ser visual e vira
 regra. Este documento responde três perguntas do dono (13/09/2026):
@@ -575,6 +580,80 @@ Docker): `npm run test:db` → 33 arquivos, 521 testes. Unitários:
 `npm run typecheck` limpos. As telas não foram fotografadas nesta rodada — a
 Reserva usa componentes já responsivos da casa, mas a prova visual a 360 px
 fica pendente.
+
+
+## 10. O teto subiu para 65 (13/09/2026)
+
+Decisão do dono, no mesmo dia. O documento acima foi escrito para 40 e o
+raciocínio continua valendo; o que muda é o número e o que ele passa a
+significar.
+
+### 10.1 Os caps de faixa sobem junto — senão a mudança é inerte
+
+Subir só o teto quase não apareceria na operação: os caps somavam 34
+(conversa 14 + SLA 12 + resgate 8) e travam ANTES do teto. Um corretor com
+fundo do funil pequeno — a mediana medida é 4 — pararia em ~38 leads mesmo com
+o teto em 65.
+
+| Chave          | 40 | 65 |
+| -------------- | -: | -: |
+| `cap_conversa` | 14 | 23 |
+| `cap_sla`      | 12 | 20 |
+| `cap_resgate`  |  8 | 13 |
+| **soma**       | 34 | 56 |
+
+Escala por 65/40 = 1,625, preservando a folga relativa para o fundo (a soma
+era 85% do teto, agora é 86%).
+
+### 10.2 O que isso custa — a conta de cadência do §2.1 muda
+
+O "40" saía de uma conta, não de opinião: 40 leads ÷ toque a cada 48 h = 20
+toques/dia ≈ 4 a 5 horas, a jornada útil de contato de um corretor.
+
+A 65, a mesma jornada de 20 toques/dia estica a cadência para **~78 h (3,25
+dias)** entre toques. O teto deixa de ser "o que cabe numa cadência de 48 h" e
+passa a ser um limite de responsabilidade mais largo. Quem quiser manter 48 h
+com 65 leads precisa de ~33 toques/dia, o que são 6,5 a 8 horas só de contato.
+
+**Na prática isso não aperta ninguém hoje.** Medido em 13/09/2026, a casa
+inteira tocou 762 leads em 7 dias — ~16 por corretor. O teto é ceiling, não
+cota: a 65 ele apenas devolve menos gente à Reserva. A régua de revisão do
+§5.5 continua sendo a mesma pergunta: *o p50 de tempo entre toques na carteira
+cheia passou de 48 h?*
+
+### 10.3 Efeito colateral: o estouro vira caso teórico
+
+Com o teto em 65, **nenhum corretor real estoura hoje pelo fundo do funil** — o
+maior medido é a graziele, com 53. O exemplo do §2.3 deixa de acontecer na
+prática, mas a regra continua valendo e continua testada: as fixtures de banco
+passaram de 45 para 70 leads no fundo, porque a regra tem de valer quando
+chegar a vez, não só enquanto os números ajudam.
+
+### 10.4 O que mudou no código
+
+- **`20260913140000_carteira_teto_65.sql`**: UPDATE (não INSERT) das duas
+  chaves de `gestao_config` — elas já existem em produção, e um
+  `ON CONFLICT DO NOTHING` aqui seria a armadilha clássica de "a migration
+  rodou e nada mudou". Traz um guard que aborta o deploy se os caps passarem a
+  somar mais que o teto (o fundo ficaria sem folga e o corretor pararia de
+  receber sem motivo visível).
+- **`20260913120000`** teve os *defaults* em SQL alinhados (65/23/20/13). Ela
+  nunca foi para produção, então foi editada no lugar: deixar a rede de
+  segurança em 40 significaria que apagar uma linha de config devolveria a
+  casa ao teto antigo em silêncio.
+- **Uma constante só no front.** O mesmo número vivia como `LIMITE_FILA` na
+  Fila Única e `TETO_PADRAO` na carteira. Subir de 40 para 65 deixou claro que
+  duas constantes para um número são duas chances de esquecer uma:
+  `TETO_PADRAO` passou a ser a definição (em `carteira-ativa/derive`) e
+  `LIMITE_FILA` importa dela.
+- **Três testes de tela** fixavam "40" no texto esperado e quebraram. Passaram
+  a ler a constante e a montar as fixtures relativas a ela (`LIMITE_FILA + 17`
+  em vez de `57`), que é o que impede a próxima mudança de teto de quebrá-los
+  de novo.
+
+Conferido do zero: 207 migrations aplicadas num Postgres 16 real,
+`test:db` 33 arquivos / 521 testes, `test` 179 arquivos / 1.770 testes,
+`lint:ci` e `typecheck` limpos.
 
 
 ## Leitura relacionada

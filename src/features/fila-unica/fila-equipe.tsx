@@ -1,5 +1,5 @@
 // "A mesma fila, vista pelo gestor" — a tabela do mockup: por corretor,
-// carteira ativa (contra o teto de 40), próximos passos vencidos, sem próximo
+// carteira ativa (contra o teto vigente), próximos passos vencidos, sem próximo
 // passo, fundo do funil parado e o dinheiro em jogo, com "Ver a fila" abrindo
 // a Fila Única daquele corretor. A linha "Sem corretor" (admin) leva à
 // Higiene, porque estoque sem dono é assunto de lá. Quem precisa de ajuda

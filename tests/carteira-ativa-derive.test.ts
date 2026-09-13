@@ -111,7 +111,7 @@ describe("categoriaDoMotivo", () => {
     expect(categoriaDoMotivo("sem próximo passo definido")).toBe("sem_passo");
     expect(categoriaDoMotivo("nunca respondeu ao primeiro contato")).toBe("sem_conversa");
     expect(categoriaDoMotivo("sem conversa viva")).toBe("sem_conversa");
-    expect(categoriaDoMotivo("acima do teto de 40")).toBe("sem_vaga");
+    expect(categoriaDoMotivo("acima do teto de 65")).toBe("sem_vaga");
     expect(categoriaDoMotivo("faixa cheia (sla)")).toBe("sem_vaga");
   });
 
@@ -124,7 +124,7 @@ describe("agrupamentos", () => {
   it("a Reserva agrupa por motivo, na ordem em que custa dinheiro", () => {
     const g = agruparReservaPorMotivo([
       reserva("sem movimento há 60 dias"),
-      reserva("acima do teto de 40"),
+      reserva("acima do teto de 65"),
       reserva("sem próximo passo definido"),
       reserva("sem movimento há 31 dias"),
     ]);

@@ -1,11 +1,11 @@
 -- ============================================================================
--- Carteira ativa de 40 — Fatia 3, MODO SOMBRA (leitura)
+-- Carteira ativa — Fatia 3, MODO SOMBRA (leitura)
 -- ============================================================================
 -- Desenho e medições: docs/ops/carteira-ativa-40-fatia3.md.
 --
--- O teto de 40 da Fila Única é visual desde a Fatia 1: a tela mostra os 40
--- primeiros dos candidatos recebidos. Esta migration dá ao banco a regra que
--- a tela finge ter — QUEM são os 40 e por que cada um dos outros ficou de
+-- O teto da Fila Única é visual desde a Fatia 1: a tela mostra os primeiros
+-- candidatos recebidos, até o limite. Esta migration dá ao banco a regra que
+-- a tela finge ter — QUEM ocupa vaga e por que cada um dos outros ficou de
 -- fora — sem devolver lead nenhum. Nada aqui escreve em `leads`; a devolução
 -- automática é a fatia seguinte.
 --
@@ -31,14 +31,14 @@
 -- ---------------------------------------------------------------------------
 -- 1) Config
 -- ---------------------------------------------------------------------------
--- O TETO continua sendo `capacidade_leads_ativos_por_corretor` (default 40),
--- que já existe desde 20260727100000 e é lido por
+-- O TETO continua sendo `capacidade_leads_ativos_por_corretor` (65 desde
+-- 20260913140000), que já existe desde 20260727100000 e é lido por
 -- gestao_performance_corretores_janela. Criar uma segunda chave para o mesmo
 -- número seria a divergência que este repo documenta contra — a chave nova
 -- carrega só o que ainda não tinha dono: os caps de faixa e os gatilhos.
 INSERT INTO public.gestao_config (chave, valor, descricao) VALUES
   ('carteira_ativa',
-   '{"cap_conversa": 14, "cap_sla": 12, "cap_resgate": 8,
+   '{"cap_conversa": 23, "cap_sla": 20, "cap_resgate": 13,
      "conversa_dias": 7, "sla_horas": 72,
      "devolver_sem_movimento_dias": 30, "devolver_sem_proximo_passo_dias": 2}',
    'Carteira ativa (Fila Unica, Fatia 3): caps por faixa e gatilhos de devolucao. O TETO fica em capacidade_leads_ativos_por_corretor — uma chave so para o mesmo numero.')
@@ -59,7 +59,7 @@ AS $$
       || jsonb_build_object(
            'teto',
            GREATEST(
-             COALESCE((public.gestao_config_valor('capacidade_leads_ativos_por_corretor'))::int, 40),
+             COALESCE((public.gestao_config_valor('capacidade_leads_ativos_por_corretor'))::int, 65),
              1));
 $$;
 
@@ -67,7 +67,7 @@ REVOKE ALL ON FUNCTION public.carteira_ativa_config() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.carteira_ativa_config() TO authenticated, service_role;
 
 COMMENT ON FUNCTION public.carteira_ativa_config() IS
-  'Config vigente da carteira ativa: os caps de faixa e gatilhos de gestao_config.carteira_ativa, com o teto vindo de capacidade_leads_ativos_por_corretor (fonte unica do 40).';
+  'Config vigente da carteira ativa: os caps de faixa e gatilhos de gestao_config.carteira_ativa, com o teto vindo de capacidade_leads_ativos_por_corretor (a fonte unica do teto).';
 
 -- ---------------------------------------------------------------------------
 -- 2) Resgates — a faixa B, escolhida a dedo pelo corretor
@@ -133,10 +133,10 @@ SET search_path = pg_catalog, public
 AS $$
   WITH cfg AS (
     SELECT
-      COALESCE((c.v ->> 'teto')::int, 40)                            AS teto,
-      COALESCE((c.v ->> 'cap_conversa')::int, 14)                    AS cap_conversa,
-      COALESCE((c.v ->> 'cap_sla')::int, 12)                         AS cap_sla,
-      COALESCE((c.v ->> 'cap_resgate')::int, 8)                      AS cap_resgate,
+      COALESCE((c.v ->> 'teto')::int, 65)                            AS teto,
+      COALESCE((c.v ->> 'cap_conversa')::int, 23)                    AS cap_conversa,
+      COALESCE((c.v ->> 'cap_sla')::int, 20)                         AS cap_sla,
+      COALESCE((c.v ->> 'cap_resgate')::int, 13)                     AS cap_resgate,
       COALESCE((c.v ->> 'conversa_dias')::int, 7)                    AS conversa_dias,
       COALESCE((c.v ->> 'sla_horas')::int, 72)                       AS sla_horas,
       COALESCE((c.v ->> 'devolver_sem_movimento_dias')::int, 30)     AS sem_movimento_dias,
@@ -467,7 +467,7 @@ SET search_path = pg_catalog, public
 AS $$
   SELECT GREATEST(
     0,
-    COALESCE((public.carteira_ativa_config() ->> 'teto')::int, 40)
+    COALESCE((public.carteira_ativa_config() ->> 'teto')::int, 65)
       - (SELECT count(*)::int FROM public._carteira_classificar(_corretor) AS c WHERE c.ativa)
   );
 $$;
@@ -483,10 +483,11 @@ COMMENT ON FUNCTION public.carteira_vagas_v1(uuid) IS
 -- Não é a mesma conta de carteira_vagas_v1, e confundir as duas fabricaria
 -- Reserva: um lead recém-distribuído entra em `aguardando_atendimento`, ou
 -- seja, na faixa SLA, que tem cap próprio (12). Um corretor com a carteira
--- vazia tem 40 vagas globais, mas se a roleta despejar 40 leads novos, 28
--- deles caem na Reserva no mesmo instante com "faixa cheia (sla)" — o CRM
--- teria criado o problema que a regra existe para resolver. O limite certo é
--- o MENOR entre a vaga global e a vaga da faixa de entrada.
+-- vazia tem o teto inteiro de vagas globais (65), mas a faixa SLA aceita só
+-- `cap_sla` (20): despejar 65 leads novos jogaria 45 deles na Reserva no mesmo
+-- instante, com "faixa cheia (sla)" — o CRM teria criado o problema que a
+-- regra existe para resolver. O limite certo é o MENOR entre a vaga global e a
+-- vaga da faixa de entrada.
 CREATE OR REPLACE FUNCTION public.carteira_vagas_entrada_v1(_corretor uuid)
 RETURNS integer
 LANGUAGE sql
@@ -497,9 +498,9 @@ AS $$
   WITH cfg AS (SELECT public.carteira_ativa_config() AS v),
   atual AS (SELECT c.ativa, c.faixa FROM public._carteira_classificar(_corretor) AS c)
   SELECT GREATEST(0, LEAST(
-    COALESCE((SELECT (cfg.v ->> 'teto')::int FROM cfg), 40)
+    COALESCE((SELECT (cfg.v ->> 'teto')::int FROM cfg), 65)
       - (SELECT count(*)::int FROM atual WHERE atual.ativa),
-    COALESCE((SELECT (cfg.v ->> 'cap_sla')::int FROM cfg), 12)
+    COALESCE((SELECT (cfg.v ->> 'cap_sla')::int FROM cfg), 20)
       - (SELECT count(*)::int FROM atual WHERE atual.ativa AND atual.faixa = 'sla')
   ));
 $$;
@@ -547,7 +548,7 @@ BEGIN
     RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
   END IF;
 
-  _cap := COALESCE((public.carteira_ativa_config() ->> 'cap_resgate')::int, 8);
+  _cap := COALESCE((public.carteira_ativa_config() ->> 'cap_resgate')::int, 13);
   SELECT count(*)::int INTO _usados
   FROM public.carteira_resgates AS r WHERE r.corretor_id = _caller;
 
@@ -648,7 +649,7 @@ BEGIN
     RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
   END IF;
 
-  _teto := COALESCE((public.carteira_ativa_config() ->> 'teto')::int, 40);
+  _teto := COALESCE((public.carteira_ativa_config() ->> 'teto')::int, 65);
 
   RETURN QUERY
   WITH corretores AS (
@@ -693,4 +694,4 @@ REVOKE ALL ON FUNCTION public.carteira_sombra_v1() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.carteira_sombra_v1() TO authenticated, service_role;
 
 COMMENT ON FUNCTION public.carteira_sombra_v1() IS
-  'Modo sombra do teto de 40: por corretor do escopo, quantos ocupam vaga, quantos ficariam na Reserva e por qual gatilho — sem devolver nada. So gestao (corretor recebe 42501).';
+  'Modo sombra do teto da carteira ativa: por corretor do escopo, quantos ocupam vaga, quantos ficariam na Reserva e por qual gatilho — sem devolver nada. So gestao (corretor recebe 42501).';

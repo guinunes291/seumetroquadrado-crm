@@ -34,10 +34,12 @@ describe("FilaCockpit — o placar do celular", () => {
     expect(screen.queryByText(/no SLA/)).toBeNull();
   });
 
-  it("acima do teto, o anel enche em 40 e o excedente vira uma linha; SLA e ocultos também", () => {
-    render(<FilaCockpit fila={fila({ slaCorrendo: 2, ocultosInbox: 12 }, 57)} />);
+  it("acima do teto, o anel enche no teto e o excedente vira uma linha; SLA e ocultos também", () => {
+    // A fixture é RELATIVA ao teto: escrever 57 aqui amarrava o teste ao teto
+    // de 40 e ele quebrou quando o teto virou 65 (13/09/2026).
+    render(<FilaCockpit fila={fila({ slaCorrendo: 2, ocultosInbox: 12 }, LIMITE_FILA + 17)} />);
     expect(
-      screen.getByRole("img", { name: `40 de ${LIMITE_FILA} leads no dia` }),
+      screen.getByRole("img", { name: `${LIMITE_FILA} de ${LIMITE_FILA} leads no dia` }),
     ).toBeInTheDocument();
     expect(screen.getByText(/\+17 entram conforme estes saem/)).toBeInTheDocument();
     expect(screen.getByText(/2 no SLA do 1º contato/)).toBeInTheDocument();

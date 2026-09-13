@@ -156,10 +156,10 @@ export const SISTEMAS: Sistema[] = [
     // ganhou o funil das etapas. /hoje redireciona para cá, e /atendimento
     // também desde a Fatia 3 (as seis filas de Atender são os baldes que esta
     // tela absorveu; mantê-las vivas daria dois números para a mesma
-    // pergunta, um com o teto de 40 e outro sem).
+    // pergunta, um com o teto da carteira ativa e outro sem).
     //
     // A Reserva entrou na Fatia 3 como o PAR da Fila Única: lá está o que eu
-    // trabalho agora (as 40 vagas), aqui o que ficou guardado esperando vaga.
+    // trabalho agora (as vagas da carteira), aqui o que ficou guardado esperando vaga.
     // São duas seções num módulo que permite seis — a regra dos 2 menus segue
     // valendo. Ela não é aba da Fila (a Fila é lista de ação com desfecho de
     // um toque; a Reserva é busca e resgate) nem filtro da Base de leads (a

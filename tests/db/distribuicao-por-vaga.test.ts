@@ -2,7 +2,7 @@
  * distribuir_estoque_roleta com limite por VAGA (migration 20260913120100).
  *
  * Medido em 13/09/2026: todos os 49 corretores têm `limite_diario_leads = 50`
- * e o teto de carteira é 40 — os dois números brigam, e enquanto a roleta
+ * e o teto de carteira é 65 — os dois números brigam, e enquanto a roleta
  * olhar só a cota diária o teto de carteira é decorativo.
  *
  * Por que a distribuição é chamada como SUPERUSER e não como admin: em
@@ -20,7 +20,7 @@
  * O caso que este arquivo existe para travar: **corretor sem vaga é PULADO,
  * não encerra a rodada.** O laço original sai com `EXIT WHEN _entregues = 0`
  * para detectar estoque vazio; se a carteira cheia caísse nesse mesmo EXIT,
- * um corretor com 45 leads no fundo — que aparece cedo na ordem da roleta,
+ * um corretor com 70 leads no fundo — que aparece cedo na ordem da roleta,
  * porque está há mais tempo sem receber — travaria a distribuição de todo
  * mundo depois dele.
  */
@@ -93,8 +93,8 @@ beforeAll(async () => {
     [cheio.id],
   );
 
-  // Carteira estourada: 45 leads no fundo do funil, teto 40.
-  for (let i = 1; i <= 45; i++) {
+  // Carteira estourada: 70 leads no fundo do funil, teto 65.
+  for (let i = 1; i <= 70; i++) {
     const l = await criarLead(c, { corretorId: cheio.id, status: "analise_credito" });
     await c.query(
       `UPDATE public.leads SET ultima_interacao = now() - make_interval(days => $2) WHERE id = $1`,
@@ -120,7 +120,7 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
   it("não entrega para quem está sem vaga, e não trava a rodada para os demais", async () => {
     const antesCheio = await carteira(cheio.id);
     const antesVazio = await carteira(vazio.id);
-    expect(antesCheio).toBe(45);
+    expect(antesCheio).toBe(70);
     expect(antesVazio).toBe(0);
 
     // Como o cron roda (ver o cabeçalho): sessão não-authenticated.
@@ -133,14 +133,14 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     // A prova de que o EXIT não matou a rodada: quem vinha DEPOIS do
     // corretor cheio recebeu o estoque inteiro.
     expect(out.distribuidos).toBe(8);
-    expect(await carteira(cheio.id)).toBe(45);
+    expect(await carteira(cheio.id)).toBe(70);
     expect(await carteira(vazio.id)).toBe(8);
   });
 
   it("a roleta para no cap da faixa de ENTRADA, não no teto — nunca despeja lead que já nasce na Reserva", async () => {
-    // `novato` tem a carteira zerada: 40 vagas globais, mas só 12 na faixa de
+    // `novato` tem a carteira zerada: 65 vagas globais, mas só 20 na faixa de
     // entrada (cap_sla). Com 100 leads de estoque e lote de 200, entregar as
-    // 40 vagas globais criaria 28 leads na Reserva no mesmo instante, com
+    // 65 vagas globais criaria 45 leads na Reserva no mesmo instante, com
     // "faixa cheia (sla)" — o CRM fabricando o problema que a regra existe
     // para resolver.
     await comoSuperuser(c);
@@ -152,11 +152,11 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     const antes = await c.query(`SELECT public.carteira_vagas_entrada_v1($1)::int AS v`, [
       novato.id,
     ]);
-    expect(antes.rows[0].v).toBe(12);
+    expect(antes.rows[0].v).toBe(20);
 
     await c.query(`SELECT public.distribuir_estoque_roleta('plantao', 200)`);
 
-    expect(await carteira(novato.id)).toBe(12);
+    expect(await carteira(novato.id)).toBe(20);
 
     const entrada = await c.query(`SELECT public.carteira_vagas_entrada_v1($1)::int AS v`, [
       novato.id,
@@ -164,9 +164,9 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     expect(entrada.rows[0].v).toBe(0);
 
     // A carteira global ainda tem folga: o que fechou foi o cap da faixa, não
-    // o teto de 40. Os dois números são diferentes de propósito.
+    // o teto de 65. Os dois números são diferentes de propósito.
     const global = await c.query(`SELECT public.carteira_vagas_v1($1)::int AS v`, [novato.id]);
-    expect(global.rows[0].v).toBe(28);
+    expect(global.rows[0].v).toBe(45);
 
     // E nenhum dos leads entregues caiu na Reserva.
     const reserva = await c.query(

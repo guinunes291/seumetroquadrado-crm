@@ -1,5 +1,6 @@
 /**
- * Carteira ativa de 40 (migration 20260913120000) — o modo sombra da Fatia 3.
+ * Carteira ativa (migration 20260913120000; teto 65 desde 20260913140000) —
+ * o modo sombra da Fatia 3.
  *
  * O que está em jogo, na ordem em que quebraria a operação:
  *  - O FUNDO DO FUNIL NUNCA CAI NA RESERVA. É a regra §4.1 do documento e a
@@ -92,9 +93,12 @@ beforeAll(async () => {
     [leadFrio],
   );
 
-  // O caso medido em produção: 45 leads no fundo (a graziele tem 53) e 10
-  // leads novos que não têm onde entrar.
-  for (let i = 1; i <= 45; i++) {
+  // O estouro do teto. Com o teto em 65 (13/09/2026) nenhum corretor REAL
+  // estoura hoje pelo fundo — o maior medido é a graziele, com 53 —, então a
+  // fixture usa 70 para continuar exercitando a regra: ela tem de valer
+  // quando chegar a vez, não só enquanto os números ajudam. Mais 10 leads
+  // novos que não têm onde entrar.
+  for (let i = 1; i <= 70; i++) {
     const l = await criarLead(c, { corretorId: cheio.id, status: "analise_credito" });
     await c.query(
       `UPDATE public.leads SET created_at = now() - make_interval(days => $2),
@@ -154,10 +158,10 @@ describe("carteira ativa — faixas e precedência", () => {
 });
 
 describe("carteira ativa — o fundo nunca é o excedente", () => {
-  it("45 leads no fundo com teto 40: todos os 45 seguem na carteira", async () => {
+  it("70 leads no fundo com teto 65: todos os 70 seguem na carteira", async () => {
     const linhas = await classificar(cheio.id);
     const fundo = linhas.filter((l) => l.faixa === "fundo");
-    expect(fundo).toHaveLength(45);
+    expect(fundo).toHaveLength(70);
     expect(fundo.filter((l) => !l.ativa)).toHaveLength(0);
   });
 
@@ -170,7 +174,7 @@ describe("carteira ativa — o fundo nunca é o excedente", () => {
     const sla = linhas.filter((l) => l.faixa === "sla");
     expect(sla).toHaveLength(10);
     expect(sla.every((l) => !l.ativa)).toBe(true);
-    expect(sla.every((l) => l.motivo === "acima do teto de 40")).toBe(true);
+    expect(sla.every((l) => l.motivo === "acima do teto de 65")).toBe(true);
   });
 });
 
@@ -249,9 +253,9 @@ describe("carteira ativa — sombra do gestor", () => {
     await comoSuperuser(c);
     const linha = r.rows.find((l) => l.corretor_id === cheio.id);
     expect(linha).toBeDefined();
-    expect(linha.teto).toBe(40);
-    expect(linha.fundo).toBe(45);
-    expect(linha.ativa).toBe(45); // o fundo inteiro segue na carteira
+    expect(linha.teto).toBe(65);
+    expect(linha.fundo).toBe(70);
+    expect(linha.ativa).toBe(70); // o fundo inteiro segue na carteira
     expect(linha.reserva).toBe(10); // os novos que não couberam
   });
 });

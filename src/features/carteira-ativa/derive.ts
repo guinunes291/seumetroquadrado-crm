@@ -1,4 +1,4 @@
-// Carteira ativa de 40 — lógica PURA da leitura.
+// Carteira ativa — lógica PURA da leitura.
 //
 // A classificação (quem ocupa vaga, em qual faixa, e por que quem ficou de
 // fora ficou) é do BANCO: `_carteira_classificar`, chamada por
@@ -15,7 +15,25 @@
 //
 // Desenho e medições: docs/ops/carteira-ativa-40-fatia3.md.
 
-/** As faixas, na ordem de precedência com que enchem as 40 vagas. */
+/**
+ * Teto padrão da carteira ativa — o espelho de
+ * `gestao_config.capacidade_leads_ativos_por_corretor`, que é a FONTE DE
+ * VERDADE. Este valor só vale enquanto a config não chega do banco (e no
+ * banco antigo, sem a Fatia 3); nunca substitui o valor real.
+ *
+ * Vive aqui, e não em dois arquivos, de propósito: o mesmo número era
+ * `LIMITE_FILA` na Fila Única e `TETO_PADRAO` na carteira, e ao subir de 40
+ * para 65 em 13/09/2026 ficou claro que duas constantes para um número são
+ * duas chances de esquecer uma. `LIMITE_FILA` passou a importar daqui.
+ */
+export const TETO_PADRAO = 65;
+
+/** Espelho de `gestao_config.carteira_ativa.cap_resgate` — quantos leads o
+ *  corretor pode puxar da Reserva a dedo. Mesma regra do teto: o banco manda,
+ *  isto é o fallback. Escala com o teto (8 quando o teto era 40). */
+export const CAP_RESGATE_PADRAO = 13;
+
+/** As faixas, na ordem de precedência com que enchem as vagas. */
 export const FAIXAS = ["fundo", "resgate", "conversa", "sla"] as const;
 export type Faixa = (typeof FAIXAS)[number];
 
@@ -89,7 +107,7 @@ export function categoriaDoMotivo(motivo: string): CategoriaMotivo {
 }
 
 export type ResumoCarteira = {
-  /** Quantas das 40 vagas estão ocupadas. */
+  /** Quantas das vagas do teto estão ocupadas. */
   ocupadas: number;
   teto: number;
   /** Vagas livres, nunca negativo. */
