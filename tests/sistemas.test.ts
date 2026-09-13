@@ -194,13 +194,21 @@ describe("home do BI por papel", () => {
   it("corretor cai no Meu Raio-X; gestão cai no painel", () => {
     expect(homeDoSistema(sistema("bi"), corretor)).toEqual({ to: "/meu-raio-x" });
     expect(homeDoSistema(sistema("bi"), gestor)).toEqual({ to: "/painel-gestor" });
-    // Central de Comando (2026-09-12, Hoje retirada): a Fila é carteira
-    // pessoal; a gestão entra pelo cockpit da operação no Painel do Gestor.
-    expect(homeDoSistema(sistema("central-comando"), corretor)).toEqual({ to: "/fila" });
-    expect(homeDoSistema(sistema("central-comando"), gestor)).toEqual({ to: "/painel-gestor" });
-    expect(homeDoSistema(sistema("central-comando"), admin)).toEqual({ to: "/painel-gestor" });
     expect(homeDoSistema(sistema("bi"), superintendente)).toEqual({ to: "/painel-gestor" });
     expect(homeDoSistema(sistema("bi"), admin)).toEqual({ to: "/painel-gestor" });
+  });
+});
+
+describe("home da Central de Comando", () => {
+  it("a Fila Única é a porta para todo papel — a gestão NÃO desvia para o Painel do Gestor", () => {
+    // 2026-09-12: com a visão por corretor dentro da própria /fila (tabela da
+    // equipe + ?corretor=), o desvio da gestão para /painel-gestor saiu.
+    // Regressão real: o card do hub levava o gestor ao painel e ele não
+    // achava a página nova.
+    for (const ctx of [corretor, gestor, superintendente, admin]) {
+      expect(homeDoSistema(sistema("central-comando"), ctx)).toEqual({ to: "/fila" });
+    }
+    expect(sistema("central-comando").homePorPapel).toBeUndefined();
   });
 });
 

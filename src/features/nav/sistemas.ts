@@ -138,11 +138,14 @@ export const SISTEMAS: Sistema[] = [
     descricao:
       "Uma lista só, na ordem em que o dinheiro está em risco: o que fazer agora e o funil das etapas.",
     icon: SunHorizon,
+    // A Fila Única é a porta para TODO papel (2026-09-12). Entre a retirada
+    // da Hoje e a Fatia 2 a gestão caía no Painel do Gestor (aba Dia) porque
+    // a fila era só a carteira pessoal; a Fatia 2 trouxe a tabela "a mesma
+    // fila, vista pelo gestor" e o `?corretor=` na própria /fila, então não
+    // há mais motivo para desviar — e o dono pediu que o card abra a página
+    // nova. Sem homePorPapel aqui de propósito: quem precisar do painel
+    // continua chegando por BI → Painel do Gestor.
     home: { to: "/fila" },
-    // A Fila é a carteira PESSOAL (Fatia 3 traz a visão por corretor). A
-    // gestão entra pelo cockpit da operação, que já existe no Painel do
-    // Gestor (aba Dia) — era o que o hero de gestão da Hoje mostrava.
-    homePorPapel: (ctx) => (temPapel(GESTAO, ctx) ? { to: "/painel-gestor" } : { to: "/fila" }),
     roles: OPERACAO,
     cor: "central",
     grupo: "operacao",
