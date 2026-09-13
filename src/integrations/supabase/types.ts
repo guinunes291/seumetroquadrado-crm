@@ -695,6 +695,74 @@ export type Database = {
         }
         Relationships: []
       }
+      carteira_resgates: {
+        Row: {
+          corretor_id: string
+          criado_em: string
+          lead_id: string
+        }
+        Insert: {
+          corretor_id: string
+          criado_em?: string
+          lead_id: string
+        }
+        Update: {
+          corretor_id?: string
+          criado_em?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carteira_resgates_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carteira_resgates_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "carteira_resgates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carteira_resgates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "carteira_resgates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "carteira_resgates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "carteira_resgates_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       chamadas: {
         Row: {
           atualizado_em: string
@@ -7427,6 +7495,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      _carteira_classificar: {
+        Args: { _corretor: string }
+        Returns: {
+          ativa: boolean
+          created_at: string
+          dias_parado: number
+          faixa: string
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+          valor: number
+        }[]
+      }
       _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
       _devolver_lead_ao_sdr: {
         Args: { _gatilho: string; _lead_id: string; _motivo: string }
@@ -8030,6 +8118,68 @@ export type Database = {
         Returns: string
       }
       buscar_lead_por_telefone: { Args: { _telefone: string }; Returns: string }
+      carteira_ativa_config: { Args: never; Returns: Json }
+      carteira_ativa_v1: {
+        Args: { _corretor?: string }
+        Returns: {
+          created_at: string
+          dias_parado: number
+          faixa: string
+          lead_id: string
+          movimento: string
+          nome: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+          valor: number
+        }[]
+      }
+      carteira_reserva_v1: {
+        Args: {
+          _busca?: string
+          _corretor?: string
+          _limit?: number
+          _offset?: number
+        }
+        Returns: {
+          created_at: string
+          dias_parado: number
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          projeto_nome: string
+          status: string
+          telefone: string
+          temperatura: string
+          total: number
+          valor: number
+        }[]
+      }
+      carteira_resgatar: { Args: { _lead: string }; Returns: Json }
+      carteira_soltar: { Args: { _lead: string }; Returns: Json }
+      carteira_sombra_v1: {
+        Args: never
+        Returns: {
+          ativa: number
+          corretor_id: string
+          em_jogo: number
+          fundo: number
+          nome: string
+          reserva: number
+          sem_movimento: number
+          sem_proximo_passo: number
+          teto: number
+        }[]
+      }
+      carteira_vagas_entrada_v1: {
+        Args: { _corretor: string }
+        Returns: number
+      }
+      carteira_vagas_v1: { Args: { _corretor: string }; Returns: number }
       claim_push_outbox: {
         Args: { _lease_seconds?: number; _limit?: number }
         Returns: {
