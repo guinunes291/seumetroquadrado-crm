@@ -101,24 +101,67 @@ para isso e a régua do §6 a drena.
 
 ## 5. As duas portas de volta
 
-### 5.1 Puxar (auto-serviço, anônimo) — antes de `agendado`
+O gate que decide qual porta é o **status do lead**, e o gate que decide se a
+porta abre é o **relógio de 7 dias**.
 
-`carteira_puxar(_lead uuid)`. Todas as condições são obrigatórias:
+### 5.1 O relógio de 7 dias (vale para as duas portas)
+
+> **Lead com toque nos últimos 7 dias não sai do dono.** Nem por puxão, nem por
+> transferência.
+
+Toque = `COALESCE(GREATEST(ultima_interacao, ultimo_contato), created_at)` — o
+mesmo relógio que a higiene, a `fila_funil_v1` e a `fila_equipe_v1` já usam. Um
+relógio só em toda a operação; nada de régua nova.
+
+Sete dias é o prazo em que um corretor ou está trabalhando o lead ou não está.
+Abaixo disso é roubo; acima disso é abandono.
+
+#### A exceção: quem avançou de fase leva
+
+O bloqueio de 7 dias cai quando **outro corretor avançou de fase com o mesmo
+cliente** (`agendado` para a frente). Atividade não é posse; progresso é.
+
+Isso é detectável no banco, e por um motivo específico: o índice de dedup é
+`uq_leads_projeto_telefone_ativo` — único por **projeto**, não global. O mesmo
+`telefone_e164` existe legitimamente em dois leads quando são projetos
+diferentes. É exatamente o caso real: o cliente falou com o corretor A sobre um
+empreendimento e o corretor B o levou a agendado em outro.
+
+```sql
+EXISTS (
+  SELECT 1 FROM public.leads AS outro
+  WHERE outro.telefone_e164 = alvo.telefone_e164
+    AND outro.id <> alvo.id
+    AND outro.deleted_at IS NULL AND NOT outro.na_lixeira
+    AND outro.corretor_id = _solicitante
+    AND outro.status IN ('agendado','visita_realizada',
+                         'proposta_enviada','analise_credito')
+)
+```
+
+**Essa exceção nunca é auto-serviço.** Ela vai para a fila da gestão com a
+evidência na tela ("o solicitante já tem este telefone em `agendado` no projeto
+Y desde 03/09"), e um humano decide. Auto-aprovar seria um convite para criar
+lead de fachada e marcá-lo agendado.
+
+### 5.2 Puxar (auto-serviço, anônimo) — antes de `agendado`
+
+`carteira_puxar(_lead uuid)`. Condições, todas obrigatórias:
 
 1. **Status anterior a `agendado`**: `novo`, `aguardando_atendimento`,
    `em_atendimento`, `qualificado`, `aguardando_retorno`, `aguardando_corretor`,
-   `qualificacao_corretor`. `perdido` é permitido — é onde mora valor reciclável
-   — mas com carência dobrada.
+   `qualificacao_corretor`, `perdido`.
 2. **Sem venda registrada** (exceção 1 do §4).
-3. **Lead frio**: `COALESCE(GREATEST(ultima_interacao, ultimo_contato),
-created_at) <= now() - puxar_frio_dias`. Proposta: **15 dias** (30 para
-   `perdido`). Se o dono falou com o cliente ontem, ninguém puxa.
+3. **Frio há 7 dias** (§5.1).
 4. **Tem vaga**: `carteira_vagas_v1(caller) > 0` **e** a faixa `resgate` não
    está cheia (cap 13). Reaproveita o mecanismo da Fatia 3 — nada novo.
 5. **Cota diária**: `puxar_por_dia`, proposta **10**. Impede varredura da base.
 6. **Anti-ioiô**: não pode puxar lead que ele mesmo soltou nos últimos 30 dias.
-7. **Registro obrigatório** em `carteira_resgates`, agora com `dono_anterior_id`
-   e `origem_do_puxao` — invisível para o corretor, obrigatório para a gestão.
+7. **Registro obrigatório** em `carteira_resgates`, com `dono_anterior_id` —
+   invisível para o corretor, obrigatório para a gestão.
+
+**Comissão: 100% do puxador.** Antes de `agendado` não há trabalho avançado a
+proteger, e o relógio de 7 dias já provou o abandono.
 
 #### Anonimização de verdade
 
@@ -129,20 +172,19 @@ puxar, o histórico completo abre: aí ele é o dono e precisa do contexto.
 
 Sem essa segunda metade, a anonimização é decorativa.
 
-### 5.2 Transferência (pela gestão) — de `agendado` em diante
+### 5.3 Transferência (pela gestão) — de `agendado` em diante
+
+De `agendado` para a frente **sempre** passa pela gestão, com ou sem os 7 dias.
 
 Tabela `transferencias_pedidos`: `lead_id`, `solicitante_id`, `motivo`,
 `status` (`pendente`/`aprovado`/`negado`/`expirado`), `decidido_por`,
-`decidido_em`, `comissao_regra`.
+`decidido_em`, `comissao_regra`, `evidencia` (jsonb — o lead duplicado do §5.1
+quando houver).
 
 A aprovação chama `transferir_leads([lead], solicitante)`, que **já existe** e já
 tem o gate forte (admin/superintendente/gestor + `pode_atribuir_lead` +
 `pode_acessar_lead` por lead, restaurado em `20260711210000`). Não se cria
 função nova de transferência.
-
-O campo `comissao_regra` é **obrigatório no formulário de aprovação**:
-`100% novo dono` | `50/50` | `100% dono anterior`. Decidir na hora da aprovação,
-por escrito, é o que evita a briga depois da venda.
 
 Pedido sem decisão **expira em 7 dias**, para a fila não virar cemitério.
 
@@ -163,32 +205,77 @@ A distinção entre as duas primeiras linhas é o que honra "impulso_smq é cust
 pela empresa": lead que a casa pagou nunca vira estoque de discador — ele merece
 atenção humana e volta para a fila de um corretor.
 
-## 7. A regra de comissão do puxar — a decisão bloqueante
+## 7. A escada de comissão
 
-**Isto precisa estar escrito e comunicado antes do primeiro puxão.** Se não
-estiver, vira o maior gerador de conflito da operação.
+Decidida pela diretoria. Deixa de ser bloqueante.
 
-**Proposta:**
+| Status na hora da transferência        | Janela    | Comissão                 |
+| -------------------------------------- | --------- | ------------------------ |
+| antes de `agendado` (puxão)            | —         | **100% do puxador**      |
+| `agendado`, `visita_realizada`         | ≤ 15 dias | **50/50**                |
+| `proposta_enviada`, `analise_credito`  | ≤ 30 dias | **50/50**                |
+| qualquer um dos quatro, fora da janela | —         | **100% do puxador**      |
+| com venda registrada                   | —         | congelado, não transfere |
 
-> Lead sem toque há mais de `puxar_frio_dias` é considerado **abandonado**.
-> Quem puxa assume **100%** da comissão. Não há direito retroativo do dono
-> anterior.
+> A diretoria fixou dois pontos: `agendado` em 15 dias e `analise_credito` em 30.
+> `visita_realizada` e `proposta_enviada` ficaram sem prazo declarado e estão
+> preenchidos por herança — `visita_realizada` é a continuação natural de
+> `agendado`, e `proposta_enviada` carrega o mesmo peso de trabalho de
+> `analise_credito`. É uma linha de configuração; se a leitura for outra, muda
+> em um lugar só.
 
-Racional: se o corretor não falou com o cliente em 15 dias, ele não está
-trabalhando o lead; e a regra tem que ser automática, senão toda venda vira
-arbitragem da gestão.
+### 7.1 De quando conta a janela
 
-O contraponto honesto: um corretor que deu 4 toques e viu o cliente sumir perde
-o trabalho. Duas mitigações já embutidas: a carência de 15 dias e a quarta
-exceção do §4 (3+ toques mantém dono na virada). E o log de `carteira_resgates`
-permite a gestão reverter caso a caso.
+Da **entrada no status**, não do último toque. O lead chegou a `agendado` há 12
+dias → 50/50. Chegou há 40 e parou ali → 100% do puxador: o corretor teve seis
+semanas e não converteu.
 
-**Alternativa** se a diretoria não aceitar 100%: **70/30 nos primeiros 60 dias**
-após o puxão, 100% depois. Mais justo e mais caro de operar — precisa entrar no
-cálculo que hoje vive em `vendas.percentual_corretor`.
+A fonte é `lead_eventos` (`tipo = 'transicao_lead'`,
+`payload ->> 'para_status'`), pegando a ocorrência mais recente. **Essa fonte é
+confiável por construção**: o banco bloqueia qualquer UPDATE de `status` fora de
+`transicionar_lead`, e `transicionar_lead` sempre grava o evento. É a mesma
+trava que derrubou o botão "escoar estoque" na Fatia 3 (§9.6 daquele documento)
+— ali ela atrapalhou, aqui ela é a garantia.
 
-A tela de confirmação do puxão deve exibir a regra vigente em texto. O corretor
-clica sabendo.
+### 7.2 Onde o 50/50 mora
+
+`leads.corretor_anterior_id` **já existe** na tabela. Faltam dois campos,
+carimbados no momento da transferência:
+
+- `comissao_anterior_id uuid` — quem divide
+- `comissao_anterior_pct numeric` — quanto (50)
+
+**50/50 de quê:** da parte do corretor (`vendas.percentual_corretor`), não do
+bruto. Sem essa frase explícita, a divisão come silenciosamente a parte do
+gerente e do superintendente.
+
+### 7.3 Três casos que a regra não cobriu
+
+1. **A divisão expira?** Proposta: **não**. Ela é carimbada no ato e vale quando
+   a venda fechar, seja em dois ou em oito meses. A janela de 15/30 dias já
+   respondeu a única pergunta que importa — o lead estava quente quando trocou
+   de mão. Se estava, o dono anterior ganhou a metade.
+2. **Transferência em cadeia (A→B→C).** Proposta: só o **dono imediatamente
+   anterior** participa; uma nova transferência substitui o carimbo. A
+   alternativa é uma árvore de comissão que ninguém consegue calcular nem
+   auditar.
+3. **Dono anterior inativo** (saiu da casa). Não há 50/50: **100% do puxador**.
+
+### 7.4 O que isso faz com a exceção nº 5 da virada
+
+O relógio de 7 dias é bem mais apertado do que os 15 que eu havia proposto. Na
+prática, os 2.304 leads com 3+ toques ficam com o dono na virada — e viram
+puxáveis uma semana depois, se ele não os tocar.
+
+A exceção continua valendo a pena, e o argumento não é aritmético, é político:
+**muda quem age.** Na virada, quem tira é o sistema, por decreto, e o corretor
+lê como confisco. Com o relógio de 7 dias, quem tira é um colega, depois de o
+dono ter demonstrado abandono, e o corretor lê como consequência. Os mesmos
+leads, leituras opostas.
+
+E há uma diferença operacional real: solto no Bolsão, o lead é discado por um
+robô. Mantido com o dono, um humano que conhece o histórico tem sete dias para
+agir.
 
 ## 8. Medições que faltam antes de virar
 
@@ -208,7 +295,7 @@ tirar lead do corretor sem dar nada em troca — queima a mudança politicamente
 1. `bolsao_v1` + congelamento de venda. **Só leitura, ninguém muda de dono.**
 2. Tela de busca no Bolsão, anonimizada, **sem** botão puxar. Mede quem busca e
    o que busca.
-3. `carteira_puxar` com cota baixa (3/dia) + regra de comissão publicada.
+3. `carteira_puxar` com cota baixa (3/dia) e a escada de comissão publicada.
 4. Fila de transferência pela gestão.
 5. **Só então** a virada: libera os ~10,3 mil de estoque sem toque.
 6. **Por último** a régua de devolução automática, ligada grupo a grupo,
@@ -220,11 +307,12 @@ Tudo em `gestao_config`, chave `bolsao`, seguindo o padrão da Fatia 3:
 
 ```json
 {
-  "puxar_frio_dias": 15,
-  "puxar_frio_dias_perdido": 30,
+  "puxar_frio_dias": 7,
   "puxar_por_dia": 10,
   "puxar_anti_ioio_dias": 30,
   "transferencia_expira_dias": 7,
+  "comissao_5050_dias_agendado": 15,
+  "comissao_5050_dias_analise": 30,
   "devolver_pago_dias": 15,
   "devolver_estoque_dias": 30
 }
