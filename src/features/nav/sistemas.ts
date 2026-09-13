@@ -23,6 +23,7 @@
 
 import {
   Archive,
+  Stack,
   ArrowsClockwise,
   Briefcase,
   Broom,
@@ -168,6 +169,10 @@ export const SISTEMAS: Sistema[] = [
     secoes: [
       { id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" },
       { id: "reserva", label: "Reserva", icon: Archive, to: "/reserva" },
+      // O terceiro nível: o que não é de ninguém. Fila = trabalho agora;
+      // Reserva = meu, esperando vaga; Bolsão = da casa, sem dono. Ver
+      // docs/ops/bolsao-oportunidades-fatia4.md §1.
+      { id: "bolsao", label: "Bolsão", icon: Stack, to: "/bolsao" },
     ],
   },
   {
