@@ -595,12 +595,34 @@ comprar apartamento, nosso ou do concorrente, queima a marca.
 alternativa seria discador e SDR trabalharem populações diferentes por
 acidente de escrita.
 
-**Dívida declarada:** o motor de SDR carrega a lista inline e esta migration a
-coloca numa função. Enquanto as duas existirem, são duas fontes para a mesma
-regra. Unificar o motor sobre a função é o passo seguinte, e ficou fora desta
-fatia porque mexer no motor de SDR pede a suíte dele junto.
-
 Migration: `20260914140000_bolsao_nao_disca_quem_ja_comprou.sql`.
+
+### 16.1 Dívida quitada: a fonte é uma só
+
+Por um commit, a regra existiu em dois lugares — inline em
+`alimentar_base_sdr_perdidos` e na função nova. Duas cópias da mesma regra não
+divergem por descuido; divergem por trabalho normal. Alguém acrescenta um
+motivo numa delas, a suíte passa, e a partir daí o discador e o SDR trabalham
+populações diferentes sem que nada acuse. É divergência que não dá erro: dá
+número errado, meses depois.
+
+`20260914150000_motivo_perda_uma_fonte_so.sql` põe o motor de SDR sobre a
+função. É refatoração pura — o corpo da migration é o corpo **vivo** da função
+(`pg_get_functiondef`, não o texto do arquivo: se alguma migration a tivesse
+redefinido, é a versão viva que vale), com exatamente uma linha trocada. O
+diff do corpo antes/depois tem uma linha, e só.
+
+Duas coisas sustentam a palavra "equivalente", em vez de ela ser só promessa
+de cabeçalho:
+
+- **Equivalência sobre todo o domínio.** `tests/db/motivo-perda.test.ts`
+  compara as duas formas nos 11 valores do CHECK mais NULL. Um caso feliz não
+  provaria nada sobre `NULL`, que é justamente onde as duas poderiam divergir
+  — a função faz `COALESCE(_motivo, 'outro')` por dentro, e lead sem categoria
+  de perda continua reciclável, como sempre foi.
+- **Uma guarda no fim da migration** falha o deploy se qualquer outra função do
+  schema voltar a carregar os três literais. A próxima cópia não chega em
+  produção.
 
 ## 17. A conta da virada, refeita sobre a base de 18.100
 
