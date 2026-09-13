@@ -75,6 +75,8 @@ const diagnosticoSchema = z.object({
   congelados_por_venda: z.coerce.number().int(),
   status_de_venda: z.coerce.number().int(),
   status_de_venda_sem_venda_viva: z.coerce.number().int(),
+  perdidos_com_dono: z.coerce.number().int(),
+  perdidos_sem_retrabalho: z.coerce.number().int(),
   bolsao_elegivel: z.coerce.number().int(),
   sem_dono_sem_telefone: z.coerce.number().int(),
   sem_dono_opt_out: z.coerce.number().int(),

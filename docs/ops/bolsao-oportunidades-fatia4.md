@@ -427,35 +427,58 @@ A medição de §3 (mesma manhã) somava 55.695 vivos e 15.649 com dono. Quatro
 horas depois: 58.168 e 18.100. O crescimento é quase todo em leads **com
 dono** (+2.451), enquanto os sem dono ficaram parados (+22).
 
-Distribuição da roleta não explica — ela moveria leads de "sem dono" para "com
-dono", e o total ficaria igual. A hipótese seguinte era importação atribuída,
-e **a medição a rejeitou**: nas últimas 12 horas entraram **15 leads**, em
-nenhum lote de importação.
+**A conta fechou, e a causa era minha.** As duas medições não mediam a mesma
+população: a consulta do §3 não contava `perdido` nem `contrato_fechado` entre
+os leads com dono.
 
-Então não foi entrada. Sobra o que já existia mudando de estado — leads saindo
-da lixeira ou de `deleted_at` — ou, mais provável, as duas consultas não
-estarem medindo a mesma população: os números do §3 vieram de uma consulta
-minha com recortes próprios, e um filtro de status a mais explicaria os 2.451
-(há candidato óbvio: `perdido` com dono, que o motor de SDR recicla depois de
-30 dias e que o §4 nunca tratou explicitamente na virada).
+| status excluído no §3 | com dono  |
+| --------------------- | --------- |
+| `perdido`             | 2.354     |
+| `contrato_fechado`    | 94        |
+| **soma**              | **2.448** |
 
-A reconciliação é uma consulta:
+Contra uma diferença de 2.452. Os 4 que sobram são o movimento normal de
+quatro horas — a medição de entrada confirmou 15 leads em 12 horas, em nenhum
+lote de importação. Não houve crescimento anômalo da base; houve um filtro meu
+não declarado.
 
-```sql
-SELECT status, count(*) AS com_dono
-  FROM public.leads
- WHERE deleted_at IS NULL AND NOT na_lixeira AND corretor_id IS NOT NULL
- GROUP BY 1 ORDER BY 2 DESC;
-```
+### 12.5 A forma do funil, e o que ela diz do teto
 
-Se `perdido` vier perto de 2.451, o §4 ganha uma decisão que falta: **lead
-perdido com dono entra na virada?** A resposta provável é sim — foi o próprio
-corretor que o deu por perdido — mas é decisão, não dedução.
+Com dono, por status (13/09/2026):
 
-Enquanto não estiver, os números do §4 (a conta da virada) ficam com a ressalva
-de terem sido calculados sobre a foto das 15h. Antes de virar, roda-se
-`bolsao_diagnostico_v1()` de novo e refaz-se a conta sobre a foto do dia — é
-para isso que ela é repetível.
+| status                   | com dono |     | status             | com dono |
+| ------------------------ | -------- | --- | ------------------ | -------- |
+| `em_atendimento`         | 8.034    |     | `analise_credito`  | 136      |
+| `aguardando_atendimento` | 6.186    |     | `contrato_fechado` | 94       |
+| `perdido`                | 2.354    |     | `agendado`         | 66       |
+| `aguardando_retorno`     | 700      |     | `visita_realizada` | 37       |
+| `qualificacao_corretor`  | 476      |     | `novo`             | 18       |
+
+Dois números carregam o resto:
+
+**14.220 leads — 78,6% de tudo que tem dono — estão em `em_atendimento` ou
+`aguardando_atendimento`.** É a boca do funil inteira parada na mão de alguém.
+
+**O fundo do funil inteiro são 239 leads.** Agendado (66) + visita realizada
+(37) + proposta enviada (0) + análise de crédito (136), numa casa com 18.100
+leads com dono. **1,3%.**
+
+Dividido pelos 41 corretores com carteira real: **441 leads por corretor, dos
+quais 6 no fundo do funil.** É a justificativa inteira do teto de 65 num par de
+números — a carteira média não é um portfólio, é um cemitério com seis pessoas
+vivas dentro. Nenhum corretor trabalha 441 leads; ele trabalha os que lembra,
+e os outros 435 existem só para impedir que a roleta entregue leads novos.
+
+### 12.6 `proposta_enviada` = 0, e isso mexe na escada de comissão
+
+Nenhum lead em `proposta_enviada`. Ou o status não é usado, ou a proposta não é
+registrada no CRM.
+
+Isso torna acadêmica metade do §7: a janela de 30 dias que herdei para
+`proposta_enviada` não governa lead nenhum hoje. A escada continua certa como
+regra escrita, mas na prática ela opera em `agendado` (66 leads) e
+`analise_credito` (136). O 50/50 é regra de justiça, não de volume — e vale
+saber disso antes de gastar reunião com ela.
 
 ## 13. Correção do passo 1: posse e discagem são perguntas diferentes
 
@@ -551,3 +574,53 @@ desta feature fala justamente de autor e dono anterior, e uma guarda ingênua
 acusaria a própria documentação.
 
 1.785 testes de unidade, 542 de banco, bundle em 230,6 KB.
+
+## 16. Perdido entra no Bolsão, menos três motivos
+
+A reconciliação do §12.4 trouxe à tona um grupo que o desenho nunca tratou:
+**2.354 leads `perdido` com dono.**
+
+Eles vão para o Bolsão na virada. Foi o próprio corretor que os deu por
+perdidos — soltá-los não é confisco, é coerência. E o motor de SDR já os
+recicla depois de 30 dias, então incluí-los não inaugura política nenhuma:
+alinha a virada com o que o sistema já faz.
+
+Mas nem todo perdido é material de discador. O motor de SDR resolveu isso em
+setembro e a resposta está no código: ao reciclar, ele pula
+`ja_possui_imovel`, `comprou_concorrente` e `sem_perfil`. São os três motivos
+em que reabordar não é oportunidade, é incômodo — ligar para quem acabou de
+comprar apartamento, nosso ou do concorrente, queima a marca.
+
+`bolsao_v1` reusa a mesma lista, via `motivo_perda_sem_retrabalho(text)`. A
+alternativa seria discador e SDR trabalharem populações diferentes por
+acidente de escrita.
+
+**Dívida declarada:** o motor de SDR carrega a lista inline e esta migration a
+coloca numa função. Enquanto as duas existirem, são duas fontes para a mesma
+regra. Unificar o motor sobre a função é o passo seguinte, e ficou fora desta
+fatia porque mexer no motor de SDR pede a suíte dele junto.
+
+Migration: `20260914140000_bolsao_nao_disca_quem_ja_comprou.sql`.
+
+## 17. A conta da virada, refeita sobre a base de 18.100
+
+|                                                               | leads       |
+| ------------------------------------------------------------- | ----------- |
+| com dono                                                      | 18.100      |
+| congelados (venda viva ou status de venda)                    | ~96         |
+| fundo do funil                                                | 239         |
+| origem paga/qualificada (facebook, chatbot, impulso_smq, SDR) | ~2.754      |
+| origem conquistada pelo corretor                              | ~212        |
+| 3+ toques reais                                               | ~2.400      |
+| **liberados para o Bolsão**                                   | **~12.400** |
+
+Os grupos se sobrepõem (um lead de fundo pode ser do Facebook), então o número
+real de protegidos é menor e o de liberados, maior. O intervalo honesto é
+12,4–13,0 mil.
+
+A diferença para os ~10,3 mil do §4 é quase inteira os 2.354 perdidos mais os
+94 fechados que a conta antiga não enxergava.
+
+Isso não se recalcula por estimativa no dia de virar: roda-se
+`bolsao_diagnostico_v1()` e uma consulta de exceções sobre a foto do dia. É
+para isso que o diagnóstico é repetível.

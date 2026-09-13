@@ -20,6 +20,11 @@
  *    carteira deixa de ser auditável.
  *  - ANONIMATO: nenhuma coluna do retorno diz de quem o lead era. É o que o
  *    §5.2 do documento pede, e vale para o contrato da RPC, não só para a tela.
+ *  - PERDIDO ENTRA, MENOS TRÊS MOTIVOS. Quem já tem imóvel, comprou do
+ *    concorrente ou nunca teve perfil não é material de discador — reabordar
+ *    é incômodo, não oportunidade. É a mesma lista que o motor de SDR aplica
+ *    desde 20260904102000, e reusá-la evita discador e SDR trabalharem
+ *    populações diferentes por acidente de escrita.
  *  - Passo 1 é SÓ LEITURA: nada aqui muda dono de lead nenhum.
  */
 import { beforeAll, describe, expect, it } from "vitest";
@@ -59,6 +64,8 @@ let semTelefone: string;
 let comSdr: string;
 let contratoFechadoSemVenda: string;
 let posVendaSemVenda: string;
+let perdidoRetrabalhavel: string;
+let perdidoJaComprou: string;
 
 async function bolsao(quem: UsuarioTeste, busca?: string): Promise<LinhaBolsao[]> {
   await comoUsuario(c, quem.id);
@@ -107,8 +114,32 @@ beforeAll(async () => {
     telefone: "11999990007",
   });
   posVendaSemVenda = await criarLead(c, { nome: "Pós-venda", telefone: "11999990008" });
+  // Perdido: entra no Bolsão por padrão, sai só pelos três motivos.
+  perdidoRetrabalhavel = await criarLead(c, {
+    nome: "Sumiu",
+    telefone: "11999990009",
+  });
+  perdidoJaComprou = await criarLead(c, {
+    nome: "Já Tem Imóvel",
+    telefone: "11999990010",
+  });
+
   await comoSuperuser(c);
   await c.query(`SET session_replication_role = replica`);
+  await c.query(
+    `UPDATE public.leads
+        SET status = 'perdido'::public.lead_status,
+            motivo_perda_categoria = 'sem_contato'
+      WHERE id = $1`,
+    [perdidoRetrabalhavel],
+  );
+  await c.query(
+    `UPDATE public.leads
+        SET status = 'perdido'::public.lead_status,
+            motivo_perda_categoria = 'ja_possui_imovel'
+      WHERE id = $1`,
+    [perdidoJaComprou],
+  );
   await c.query(
     `UPDATE public.leads SET status = 'contrato_fechado'::public.lead_status
       WHERE id = $1`,
@@ -172,6 +203,16 @@ describe("bolsao_v1 — quem entra", () => {
     expect(ids).not.toContain(posVendaSemVenda);
   });
 
+  it("perdido entra no Bolsão — foi o corretor que desistiu, não o cliente", async () => {
+    const ids = (await bolsao(corretor)).map((l) => l.lead_id);
+    expect(ids).toContain(perdidoRetrabalhavel);
+  });
+
+  it("quem já tem imóvel NÃO entra — reabordar é incômodo, não oportunidade", async () => {
+    const ids = (await bolsao(corretor)).map((l) => l.lead_id);
+    expect(ids).not.toContain(perdidoJaComprou);
+  });
+
   it("lead em triagem de SDR entra, mas vem marcado", async () => {
     const linha = (await bolsao(corretor)).find((l) => l.lead_id === comSdr);
     expect(linha?.em_triagem_sdr).toBe(true);
@@ -212,9 +253,10 @@ describe("bolsao_diagnostico_v1", () => {
     await comoUsuario(c, gestor.id);
     const r = await c.query(`SELECT * FROM public.bolsao_diagnostico_v1()`);
     const d = r.rows[0];
-    expect(Number(d.base_viva)).toBe(9);
+    expect(Number(d.base_viva)).toBe(11);
     expect(Number(d.com_dono)).toBe(1);
-    expect(Number(d.sem_dono)).toBe(8);
+    expect(Number(d.sem_dono)).toBe(10);
+    expect(Number(d.perdidos_sem_retrabalho)).toBe(1);
     // Posse: só `comVenda` congela — o distratado voltou a ser lead.
     expect(Number(d.congelados_por_venda)).toBe(1);
     // Discagem: dois leads cujo status diz fechado sem venda viva por trás.
@@ -222,8 +264,9 @@ describe("bolsao_diagnostico_v1", () => {
     expect(Number(d.status_de_venda_sem_venda_viva)).toBe(2);
     expect(Number(d.sem_dono_sem_telefone)).toBe(1);
     expect(Number(d.sem_dono_opt_out)).toBe(1);
-    // 8 sem dono − 1 sem telefone − 1 opt-out − 1 com venda − 2 "fechados" = 3.
-    expect(Number(d.bolsao_elegivel)).toBe(3);
+    // 10 sem dono − 1 sem telefone − 1 opt-out − 1 com venda − 2 "fechados"
+    // − 1 já tem imóvel = 4 (o perdido retrabalhável entra).
+    expect(Number(d.bolsao_elegivel)).toBe(4);
   });
 
   it("fora da gestão devolve zeros — é painel, não gate", async () => {
