@@ -6,6 +6,12 @@
  *    precedência do §4 do documento. Venda viva é o mesmo recorte que o índice
  *    `uq_vendas_lead_ativa` protege (rascunho/pendente/aprovada); distrato é a
  *    exceção da exceção — a venda caiu, o lead volta a ser lead.
+ *  - POSSE E DISCAGEM SÃO PERGUNTAS DIFERENTES. `_lead_venda_viva` decide
+ *    POSSE e respeita o distrato — negócio que caiu devolve o lead. Mas venda
+ *    cancelada não reverte o status: o lead fica parado em `contrato_fechado`
+ *    sem venda viva, e aí ele NÃO pode ir para o discador — quem olha a tela
+ *    não sabe que a venda caiu. Congelar por status resolveria a lista e
+ *    quebraria o distrato; por isso são duas regras, não uma.
  *  - OPT-OUT É EXCLUSÃO DURA. O Bolsão alimenta discador e SDR. Lead que pediu
  *    para não ser contatado entrar nessa fila é incidente de LGPD, não bug de
  *    listagem.
@@ -51,6 +57,8 @@ let comVendaDistratada: string;
 let optOut: string;
 let semTelefone: string;
 let comSdr: string;
+let contratoFechadoSemVenda: string;
+let posVendaSemVenda: string;
 
 async function bolsao(quem: UsuarioTeste, busca?: string): Promise<LinhaBolsao[]> {
   await comoUsuario(c, quem.id);
@@ -90,6 +98,26 @@ beforeAll(async () => {
   optOut = await criarLead(c, { nome: "Pediu Silêncio", telefone: "11999990005" });
   semTelefone = await criarLead(c, { nome: "Sem Telefone", telefone: "123" });
   comSdr = await criarLead(c, { nome: "Em Triagem", telefone: "11999990006" });
+  // O status que mente: a venda foi cancelada ou distratada depois do
+  // fechamento e ninguém reverteu o status do lead. O app chega aqui de
+  // verdade; a criação direta é barrada por `trg_proteger_fechamento_insert`,
+  // então o fixture desliga os triggers para reproduzir o estado final.
+  contratoFechadoSemVenda = await criarLead(c, {
+    nome: "Já Assinou",
+    telefone: "11999990007",
+  });
+  posVendaSemVenda = await criarLead(c, { nome: "Pós-venda", telefone: "11999990008" });
+  await comoSuperuser(c);
+  await c.query(`SET session_replication_role = replica`);
+  await c.query(
+    `UPDATE public.leads SET status = 'contrato_fechado'::public.lead_status
+      WHERE id = $1`,
+    [contratoFechadoSemVenda],
+  );
+  await c.query(`UPDATE public.leads SET status = 'pos_venda'::public.lead_status WHERE id = $1`, [
+    posVendaSemVenda,
+  ]);
+  await c.query(`SET session_replication_role = DEFAULT`);
 
   await criarVenda(comVenda);
   await criarVenda(comVendaDistratada, true);
@@ -134,6 +162,16 @@ describe("bolsao_v1 — quem entra", () => {
     expect(ids).not.toContain(semTelefone);
   });
 
+  it("contrato fechado NÃO entra, mesmo sem venda viva por trás", async () => {
+    const ids = (await bolsao(corretor)).map((l) => l.lead_id);
+    expect(ids).not.toContain(contratoFechadoSemVenda);
+  });
+
+  it("pós-venda NÃO entra, mesmo sem venda viva por trás", async () => {
+    const ids = (await bolsao(corretor)).map((l) => l.lead_id);
+    expect(ids).not.toContain(posVendaSemVenda);
+  });
+
   it("lead em triagem de SDR entra, mas vem marcado", async () => {
     const linha = (await bolsao(corretor)).find((l) => l.lead_id === comSdr);
     expect(linha?.em_triagem_sdr).toBe(true);
@@ -174,14 +212,17 @@ describe("bolsao_diagnostico_v1", () => {
     await comoUsuario(c, gestor.id);
     const r = await c.query(`SELECT * FROM public.bolsao_diagnostico_v1()`);
     const d = r.rows[0];
-    expect(Number(d.base_viva)).toBe(7);
+    expect(Number(d.base_viva)).toBe(9);
     expect(Number(d.com_dono)).toBe(1);
-    expect(Number(d.sem_dono)).toBe(6);
-    // Só `comVenda` congela: o distratado voltou a ser lead.
+    expect(Number(d.sem_dono)).toBe(8);
+    // Posse: só `comVenda` congela — o distratado voltou a ser lead.
     expect(Number(d.congelados_por_venda)).toBe(1);
+    // Discagem: dois leads cujo status diz fechado sem venda viva por trás.
+    expect(Number(d.status_de_venda)).toBe(2);
+    expect(Number(d.status_de_venda_sem_venda_viva)).toBe(2);
     expect(Number(d.sem_dono_sem_telefone)).toBe(1);
     expect(Number(d.sem_dono_opt_out)).toBe(1);
-    // 6 sem dono − 1 sem telefone − 1 opt-out − 1 congelado = 3.
+    // 8 sem dono − 1 sem telefone − 1 opt-out − 1 com venda − 2 "fechados" = 3.
     expect(Number(d.bolsao_elegivel)).toBe(3);
   });
 

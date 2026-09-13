@@ -382,3 +382,87 @@ com replay das 366 migrations do zero.
 Não tem tela. A busca no Bolsão é o passo 2 do §9, e ela vem sem botão de
 puxar — primeiro se mede quem busca e o quê. `bolsao_v1` já nasce com busca,
 paginação e ordenação para a tela não precisar de RPC nova.
+
+## 12. Primeira medição depois do passo 1 (13/09/2026, produção)
+
+|                                            | leads            |
+| ------------------------------------------ | ---------------- |
+| base viva                                  | 58.168           |
+| com dono                                   | 18.100           |
+| sem dono                                   | 40.068           |
+| **congelados por venda**                   | **116**          |
+| **sem dono, sem telefone discável**        | **1.473** (3,7%) |
+| sem dono com opt-out                       | 0                |
+| Bolsão elegível hoje                       | 38.575           |
+| estoque com dono (importacao/sheets/outro) | 14.841           |
+| estoque com dono congelado por venda       | 35               |
+
+### 12.1 O Bolsão não é ficção
+
+A medição 2 do §8 existia para saber se os 40 mil sem dono eram material real
+ou lixo sem telefone. **Só 3,7% não tem telefone discável.** O discador tem
+38.575 números para trabalhar, e o passo 2 continua valendo a pena.
+
+### 12.2 O grupo intocável custa quase nada
+
+116 leads com venda viva, dos quais 35 dentro do estoque com dono. A regra
+"não se mexe em lead com venda" tira 35 leads da virada — 0,2% dela. Era o
+maior risco de a restrição inviabilizar o desenho; não é.
+
+### 12.3 Zero opt-out em 40 mil é um alerta, não um resultado
+
+Numa base desse tamanho, ninguém nunca ter pedido para não ser contatado é
+implausível. A leitura mais provável é que `leads.opt_out` não esteja sendo
+escrito por nenhum fluxo — nem pelo WhatsApp, nem pelo SDR, nem pela mão.
+
+O Bolsão alimenta discador e SDR. Antes de apontar um robô para 38.575
+pessoas, é preciso saber onde o pedido de descadastro é registrado hoje — e se
+a resposta for "em lugar nenhum", isso é bloqueante para o passo 3, não item
+de backlog. A guarda de `opt_out` no código está certa e é inútil se ninguém
+preenche a coluna.
+
+### 12.4 A base cresceu 2.473 entre duas medições e isso não fecha
+
+A medição de §3 (mesma manhã) somava 55.695 vivos e 15.649 com dono. Quatro
+horas depois: 58.168 e 18.100. O crescimento é quase todo em leads **com
+dono** (+2.451), enquanto os sem dono ficaram parados (+22).
+
+Distribuição da roleta não explica — ela moveria leads de "sem dono" para "com
+dono", e o total ficaria igual. Entrada de 2.451 leads já com corretor em
+quatro horas é possível (uma importação atribuída), mas não está confirmada.
+
+Enquanto não estiver, os números do §4 (a conta da virada) ficam com a ressalva
+de terem sido calculados sobre a foto das 15h. Antes de virar, roda-se
+`bolsao_diagnostico_v1()` de novo e refaz-se a conta sobre a foto do dia — é
+para isso que ela é repetível.
+
+## 13. Correção do passo 1: posse e discagem são perguntas diferentes
+
+`congelados_por_venda = 116` pareceu baixo, e a primeira hipótese foi venda
+legada sem `vendas.lead_id`. **A hipótese está errada**, e o registro importa:
+as duas portas de entrada em `contrato_fechado`/`pos_venda` já exigem venda
+aprovada apontando para o lead — o trigger `trg_proteger_fechamento_insert`
+(20260719120000) no INSERT, e `transicionar_lead` na transição, que é o único
+caminho para mudar status no banco. Os 116 são provavelmente o número real.
+
+O furo que sobra é estreito e real: **venda cancelada, rejeitada ou distratada
+não reverte o status do lead.** Ele fica parado em `contrato_fechado` sem venda
+viva, e `_lead_venda_viva` — correta em respeitar o distrato — deixa de
+congelá-lo. No passo 1, ele entraria na lista do discador.
+
+E a resposta certa não é congelar por status. Congelar por status desfaria a
+regra do distrato: negócio que caiu devolve o lead à operação, e essa é a
+intenção. São duas perguntas:
+
+| pergunta                     | regra                           | respeita distrato?  |
+| ---------------------------- | ------------------------------- | ------------------- |
+| **posse** — de quem é o lead | `_lead_venda_viva(id)`          | sim                 |
+| **discagem** — pode ligar    | filtro de status em `bolsao_v1` | não, e é proposital |
+
+Uma função só respondendo as duas acertaria a lista e erraria a virada.
+
+`status_de_venda_sem_venda_viva` no diagnóstico mede esse descasamento — leads
+cujo status mente sobre a realidade. É número para a gestão zerar, não para o
+código conviver com ele.
+
+Migration: `20260914130000_bolsao_congelamento_por_status.sql`.
