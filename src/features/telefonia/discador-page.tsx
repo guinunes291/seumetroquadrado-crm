@@ -463,7 +463,7 @@ export function DiscadorCentral() {
               description={
                 busca || direcao !== "todas" || status !== "todos"
                   ? "Ajuste os filtros ou limpe a busca."
-                  : 'As ligações entram aqui pelo botão "Ligar" do lead (click-to-call) e pelos eventos do 3C Plus (receptivo e campanhas do discador), com qualificação e gravação.'
+                  : 'As ligações entram aqui pelo botão "Ligar" do lead (click-to-call) e pelos eventos do 3C Plus (receptivo e o discador sobre o Bolsão), com qualificação e gravação.'
               }
             />
           }

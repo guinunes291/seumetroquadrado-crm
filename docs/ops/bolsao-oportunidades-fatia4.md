@@ -714,3 +714,43 @@ para drenar.
 Antes de subir esse teto, a pergunta a medir é outra: **o lead devolvido volta
 a ser trabalhado por quem recebe?** Se morrer também na mão do próximo,
 acelerar só espalha o problema mais rápido.
+
+## 17. O discador disca o Bolsão (2026-09-15)
+
+Decisão do dono: **"a base que o discador deve gerar é tudo que está fora da
+carteira ativa dos corretores."** No vocabulário deste documento, isso é o
+Bolsão — a camada sem dono do §1 — e não a Reserva: a Reserva ainda tem dono,
+e o §6 já diz por qual porta um lead com dono chega ao discador (a régua de
+devolução), nunca por um robô discando a carteira alheia.
+
+O que mudou no código (desenho completo em
+`docs/integracoes/3cplus-discador.md`, item 6):
+
+- **Uma regra só para "quem está no Bolsão".** O predicado de `bolsao_v1` foi
+  fatorado em `_bolsao_elegivel(leads)`; `bolsao_v1` e a reserva do discador
+  leem a mesma função. As guardas deste documento (venda viva, opt-out,
+  fechado sem venda, perdido sem retrabalho) valem para o discador por
+  construção, não por cópia.
+- **A fila é reservada no servidor**, não montada no navegador: a RLS esconde
+  (e deve esconder) o telefone de lead que não é do corretor. A tabela
+  `bolsao_discagem` registra qual corretor está discando qual lead, e a RPC
+  `discador_bolsao_reservar_v1` (service_role só — devolve o telefone
+  inteiro) pega os mais frios primeiro, pulando quem está com o SDR, quem
+  foi discado há pouco, quem está reservado e quem o próprio corretor devolveu
+  há pouco (anti-ioiô do §5.2). O corretor vê a própria sessão mascarada
+  (`bolsao_discagem_minha_v1`) — a máscara do §11.1 continua valendo.
+- **Quem atende entra na carteira de quem falou** (`discador_bolsao_assumir_v1`,
+  chamada pelo webhook no primeiro atendimento real): só lead sem dono, fora
+  do SDR e sem venda viva. Discar sem atender não dá posse. É a única escrita
+  que o discador faz em `leads`, e fica em `distribution_log` (regra
+  `discador_bolsao`). Não é o "puxar" do §5.2: puxar é escolher um lead
+  específico; aqui é o robô conectando o corretor a um lead frio que ninguém
+  tinha — sem dono anterior a proteger e sem cota, porque não há como
+  garimpar a base pelo discador (a ordem é a frieza, não a escolha).
+- As funções que escrevem chamam-se `discador_bolsao_*`, não `bolsao_*`: a
+  guarda de `tests/db/bolsao.test.ts` ("nenhuma função do Bolsão é VOLATILE")
+  continua verdadeira — o Bolsão em si segue só leitura.
+
+Configuração em `gestao_config.bolsao`: `discador_lote` (200),
+`discador_rediscagem_dias` (7), `discador_reserva_horas` (24),
+`discador_anti_ioio_dias` (30), `discador_assume_ao_atender` (true).

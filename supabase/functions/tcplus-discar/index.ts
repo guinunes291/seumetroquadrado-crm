@@ -20,8 +20,12 @@
 // Requer JWT (verify_jwt = true). A leitura do lead e os inserts passam pela
 // RLS do usuário — só é possível discar para leads da própria carteira
 // (chamadas_insert_saida exige corretor_id = auth.uid()). A service_role
-// entra SÓ para ler o token do agente em telefonia_agentes (coluna sem
-// SELECT para authenticated, por desenho).
+// entra para ler o token do agente em telefonia_agentes (coluna sem SELECT
+// para authenticated, por desenho) e para UM segundo caso: o lead do BOLSÃO
+// que a tcplus-campanha reservou para este corretor (modo um a um). Esse
+// lead não é dele — a RLS o esconde, e deve —, mas a reserva em
+// bolsao_discagem autoriza a discagem pelo CRM (auditável, sem o telefone
+// passar pelo navegador). Se o cliente atender, o webhook o põe na carteira.
 //
 // Secrets (Supabase -> Edge Functions -> Secrets):
 //   TCPLUS_BASE_URL     (opcional) — default https://app.3c.plus/api/v1
@@ -97,20 +101,54 @@ async function handleRequest(req: Request): Promise<Response> {
   if (contaError || !contaAtiva) return json({ error: "account_inactive" }, 403);
 
   // Lead fora da carteira volta vazio pela RLS — indistinguível de inexistente.
-  const { data: lead, error: leadErr } = await supabase
+  const { data: leadCarteira, error: leadErr } = await supabase
     .from("leads")
     .select("id, nome, telefone, opt_out")
     .eq("id", leadId)
     .maybeSingle();
-  if (leadErr || !lead) return json({ error: "lead_not_found" }, 404);
+  if (leadErr) return json({ error: "lead_not_found" }, 404);
+
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  // Lead do Bolsão reservado para este corretor (tcplus-campanha, modo um a
+  // um): lido pela service_role SÓ quando a reserva existe e está viva, e só
+  // se o lead continua sem dono (ou já é dele).
+  type LeadDiscavel = { id: string; nome: string; telefone: string | null; opt_out: boolean };
+  let lead: LeadDiscavel | null = (leadCarteira as LeadDiscavel | null) ?? null;
+  let viaBolsao = false;
+  if (!lead) {
+    const { data: reserva } = await admin
+      .from("bolsao_discagem")
+      .select("lead_id")
+      .eq("lead_id", leadId)
+      .eq("corretor_id", uid)
+      .gt("expira_em", new Date().toISOString())
+      .maybeSingle();
+    if (reserva) {
+      const { data: l } = await admin
+        .from("leads")
+        .select("id, nome, telefone, opt_out, corretor_id, deleted_at, na_lixeira")
+        .eq("id", leadId)
+        .maybeSingle();
+      if (
+        l &&
+        !l.deleted_at &&
+        !l.na_lixeira &&
+        ((l.corretor_id as string | null) === null || l.corretor_id === uid)
+      ) {
+        lead = l as LeadDiscavel;
+        viaBolsao = true;
+      }
+    }
+  }
+  if (!lead) return json({ error: "lead_not_found" }, 404);
   if (lead.opt_out) return json({ error: "lead_opt_out" }, 409);
 
-  const numero = toTcplusNumero(lead.telefone as string | null);
+  const numero = toTcplusNumero(lead.telefone);
   if (!numero) return json({ error: "lead_sem_telefone" }, 422);
 
   // Token do agente: coluna write-only para o app — só a service_role lê, e
   // SÓ a linha do próprio usuário autenticado.
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: agente } = await admin
     .from("telefonia_agentes")
     .select("api_token, campaign_id, agent_id")
@@ -162,9 +200,11 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   // Registro da chamada (JWT do corretor: RLS exige saída, em nome próprio,
-  // lead da carteira). Sem provider_call_id ainda — o 3C Plus responde 204
-  // sem id; o webhook casa esta linha por número + corretor e grava o sid.
-  const { data: chamada, error: chamadaErr } = await supabase
+  // lead da carteira; lead do Bolsão reservado passa pela service_role). Sem
+  // provider_call_id ainda — o 3C Plus responde 204 sem id; o webhook casa
+  // esta linha por número + corretor e grava o sid.
+  const escritor = viaBolsao ? admin : supabase;
+  const { data: chamada, error: chamadaErr } = await escritor
     .from("chamadas")
     .insert({
       lead_id: lead.id,
@@ -177,7 +217,7 @@ async function handleRequest(req: Request): Promise<Response> {
       // traz `agent.extension_number`; o ID do agente não é ramal.
       ramal: null,
       status: "chamando",
-      payload: { tcplus: auditoria, phone_discado: phone },
+      payload: { tcplus: auditoria, phone_discado: phone, bolsao: viaBolsao },
     })
     .select("id")
     .maybeSingle();
@@ -185,15 +225,18 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // Eco na timeline do dossiê. A discagem já foi disparada — falha aqui não
   // desfaz a chamada, então reporta em vez de erro.
-  const { error: ecoErr } = await supabase.from("interacoes").insert({
+  const { error: ecoErr } = await escritor.from("interacoes").insert({
     lead_id: lead.id,
     autor_id: uid,
     tipo: "ligacao",
     direcao: "saida",
-    titulo: "Ligação via discador (click-to-call)",
+    titulo: viaBolsao
+      ? "Ligação via discador (Bolsão, click-to-call)"
+      : "Ligação via discador (click-to-call)",
     conteudo: `Chamada para ${numero} enviada ao seu agente no 3C Plus.`,
     metadata: {
       fonte: "tcplus_click2call",
+      bolsao: viaBolsao,
       ...(chamada?.id ? { chamada_id: chamada.id } : {}),
     },
   });
@@ -202,6 +245,7 @@ async function handleRequest(req: Request): Promise<Response> {
   return json({
     ok: true,
     chamada_id: chamada?.id ?? null,
+    bolsao: viaBolsao,
     timeline: ecoErr ? "falhou" : "ok",
   });
 }

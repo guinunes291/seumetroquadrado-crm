@@ -109,15 +109,28 @@ describe("a fonte é única", () => {
   });
 
   it("o motor de SDR e o Bolsão chamam a mesma função", async () => {
+    // Desde 20260915130000 o predicado do Bolsão vive em `_bolsao_elegivel`
+    // (usado por bolsao_v1 E pela reserva do discador) — é ela quem chama
+    // motivo_perda_sem_retrabalho; bolsao_v1 precisa chamá-la.
     const r = await c.query(`
       SELECT p.proname
         FROM pg_proc AS p
         JOIN pg_namespace AS n ON n.oid = p.pronamespace
        WHERE n.nspname = 'public'
-         AND p.proname IN ('alimentar_base_sdr_perdidos', 'bolsao_v1')
+         AND p.proname IN ('alimentar_base_sdr_perdidos', '_bolsao_elegivel')
          AND p.prosrc LIKE '%motivo_perda_sem_retrabalho%'
        ORDER BY p.proname
     `);
-    expect(r.rows.map((x) => x.proname)).toEqual(["alimentar_base_sdr_perdidos", "bolsao_v1"]);
+    expect(r.rows.map((x) => x.proname)).toEqual([
+      "_bolsao_elegivel",
+      "alimentar_base_sdr_perdidos",
+    ]);
+    const bolsao = await c.query(`
+      SELECT p.prosrc LIKE '%_bolsao_elegivel(l)%' AS usa
+        FROM pg_proc AS p
+        JOIN pg_namespace AS n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND p.proname = 'bolsao_v1'
+    `);
+    expect(bolsao.rows[0]?.usa).toBe(true);
   });
 });

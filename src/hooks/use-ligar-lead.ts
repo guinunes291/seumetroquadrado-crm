@@ -43,7 +43,7 @@ const MENSAGENS: Record<string, string> = {
   tcplus_indisponivel: "O 3C Plus não respondeu.",
   lead_opt_out: "Este lead pediu para não ser contatado (opt-out).",
   lead_sem_telefone: "O lead não tem um telefone válido.",
-  lead_not_found: "Lead não encontrado na sua carteira.",
+  lead_not_found: "Lead não encontrado na sua carteira nem na sua fila do Bolsão.",
   account_inactive: "Sua conta está inativa.",
 };
 

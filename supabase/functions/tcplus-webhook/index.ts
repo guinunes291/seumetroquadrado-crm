@@ -12,9 +12,12 @@
 // linha do click-to-call pendente); grava/atualiza `chamadas` (idempotente
 // por sid; a linha que a tcplus-discar criou SEM sid é adotada por número +
 // corretor) e ecoa uma interação `ligacao` na timeline no primeiro evento de
-// atendimento real. A qualificação move o lead de etapa na hora, pela RPC
-// oficial transicionar_lead, conforme o mapeamento em gestao_config
-// (telefonia_tabulacao_status) — sem polling de arquivo.
+// atendimento real. Lead do BOLSÃO (sem dono) que ATENDEU entra na carteira
+// de quem falou (RPC discador_bolsao_assumir_v1; ligável em
+// gestao_config.bolsao.discador_assume_ao_atender) — sem posse o corretor
+// não consegue registrar nem trabalhar o lead. A qualificação move o lead de
+// etapa na hora, pela RPC oficial transicionar_lead, conforme o mapeamento em
+// gestao_config (telefonia_tabulacao_status) — sem polling de arquivo.
 //
 // Autenticação: header x-webhook-secret, Authorization: Bearer <secret> OU
 // ?secret= na query. A exceção ao P-3 ("nunca secret em query") é
@@ -284,6 +287,41 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
     return "nao_atendida";
   }
 
+  // ---- Posse: lead do Bolsão (sem dono) que ATENDEU entra na carteira de
+  // quem falou. Discar sem atender não dá posse — senão o discador esvaziaria
+  // o Bolsão para dentro das carteiras sem ninguém falar com ninguém. A RPC
+  // recusa lead com dono, em triagem de SDR ou com venda viva.
+  async function assumirSeBolsao(leadAlvo: string | null): Promise<string> {
+    if (!leadAlvo || !corretorId) return "nao_aplicavel";
+    const { data: cfg } = await supabase
+      .from("gestao_config")
+      .select("valor")
+      .eq("chave", "bolsao")
+      .maybeSingle();
+    const ligado = (cfg?.valor as { discador_assume_ao_atender?: unknown } | null)
+      ?.discador_assume_ao_atender;
+    if (ligado === false) return "desligado";
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("corretor_id")
+      .eq("id", leadAlvo)
+      .maybeSingle();
+    if (!lead) return "lead_nao_encontrado";
+    if (lead.corretor_id === corretorId) return "ja_e_seu";
+    if (lead.corretor_id) return "tem_dono";
+    const { data, error } = await supabase.rpc("discador_bolsao_assumir_v1", {
+      _lead: leadAlvo,
+      _corretor: corretorId,
+      _motivo: `Discador 3C Plus: cliente atendeu (${c.evento})`,
+    });
+    if (error) {
+      console.error("tcplus-webhook assumir_failed:", error);
+      return `falhou: ${error.message}`;
+    }
+    const r = (data ?? {}) as { ok?: boolean; motivo?: string };
+    return r.motivo ?? (r.ok ? "assumido" : "recusado");
+  }
+
   // A timeline só ganha a ligação quando o agente ATENDEU de fato — no
   // primeiro evento de atendimento. Chamada que ninguém atendeu fica só no
   // histórico do Discador. Dedupe por chamada_id cobre o eco que a
@@ -366,6 +404,11 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
       console.error("tcplus-webhook update_failed:", updErr);
     }
     const atendeuAgora = !jaAtendidaAntes && (conexao || desfecho === "atendida");
+    // Posse antes da qualificação: a etapa nova precisa de um dono.
+    const posse =
+      conexao || desfecho === "atendida"
+        ? await assumirSeBolsao(leadId ?? linha.lead_id)
+        : "nao_aplicavel";
     const timeline = atendeuAgora
       ? await ecoarInteracao(linha, leadId ?? linha.lead_id)
       : "nao_aplicavel";
@@ -378,6 +421,7 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
       status: novoStatus,
       lead: leadId ?? linha.lead_id ?? "nao_encontrado",
       corretor: corretorId ?? "nao_encontrado",
+      posse,
       timeline,
       funil,
     };
@@ -426,9 +470,7 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
       !!lead.proximo_followup && new Date(lead.proximo_followup as string) > new Date();
     const precisaFollowup = alvo === "aguardando_retorno" && !temFollowupFuturo;
     const precisaAcao = !lead.proxima_acao && !temFollowupFuturo && !precisaFollowup;
-    const { error } = await supabase.rpc("transicionar_lead", {
-      p_lead_id: leadAlvo,
-      p_novo_status: alvo,
+    const args = {
       p_motivo: `Qualificação do discador (3C Plus): ${nome}`,
       ...(precisaAcao
         ? { p_proxima_acao: `Retomar contato após qualificação "${nome}" no discador` }
@@ -436,7 +478,25 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
       ...(precisaFollowup
         ? { p_proximo_followup: new Date(Date.now() + horas * 3_600_000).toISOString() }
         : {}),
-    });
+    };
+    const transicionar = async (para: string) =>
+      (
+        await supabase.rpc("transicionar_lead", {
+          p_lead_id: leadAlvo,
+          p_novo_status: para,
+          ...args,
+        })
+      ).error;
+    let error = await transicionar(alvo);
+    // A máquina de estados não liga toda etapa a toda etapa (ex.: aguardando
+    // atendimento -> agendado, perdido -> agendado). Um lead que o discador
+    // acabou de reativar do Bolsão está justamente nessas etapas; a escala
+    // natural passa por "em atendimento" (o corretor falou com o cliente) e
+    // de lá para a etapa que a qualificação pede.
+    if (error && /n[aã]o permitida/i.test(error.message) && alvo !== "em_atendimento") {
+      const viaAtendimento = await transicionar("em_atendimento");
+      if (!viaAtendimento) error = await transicionar(alvo);
+    }
     if (error) {
       console.error("tcplus-webhook transicao_failed:", error);
       return `falhou: ${error.message}`;
@@ -482,8 +542,9 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
   }
 
   const linha = { id: nova!.id as string, direcao, origem };
-  const timeline =
-    conexao || desfecho === "atendida" ? await ecoarInteracao(linha, leadId) : "nao_aplicavel";
+  const atendeu = conexao || desfecho === "atendida";
+  const posse = atendeu ? await assumirSeBolsao(leadId) : "nao_aplicavel";
+  const timeline = atendeu ? await ecoarInteracao(linha, leadId) : "nao_aplicavel";
   const funil = await aplicarQualificacao(leadId, tabulacao, null);
   return {
     evento: c.evento,
@@ -491,6 +552,7 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
     status,
     lead: leadId ?? "nao_encontrado",
     corretor: corretorId ?? "nao_encontrado",
+    posse,
     timeline,
     funil,
   };

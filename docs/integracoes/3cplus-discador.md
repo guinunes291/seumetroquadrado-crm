@@ -89,36 +89,58 @@ teste real.
    da gravação, rediscagem em um clique. Corretor vê as chamadas da própria
    carteira/agente; gestão vê a operação inteira (RLS). Atualiza ao vivo.
 
-6. **Sessão de discagem ("Iniciar agora") — discador automático** — a fila é
-   SEMPRE a base do próprio corretor com a régua fixa da operação (leads em
-   Aguardando atendimento OU com follow-up vencido, sem contato há mais tempo
-   primeiro; nunca opt-out, lixeira ou sem telefone; base completa, paginada
-   até o fim) e vai ao 3C Plus em lotes de 100 pela `tcplus-campanha`:
-   - `iniciar`: **higiene** (logout do agente + apaga as listas que o CRM
-     subiu antes nesta campanha, reconhecidas pelo marcador `[crm:<uid>]` no
-     nome — listas subidas pela gestão no painel não são tocadas), cria uma
-     **lista nova** na campanha (`POST /campaigns/{id}/lists`), sobe o lote
-     (`POST .../lists/{list}/mailing_sync.json` com `{phone, identifier:
-<uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1** (lista com
-     peso 0 não é discada) e faz o **login do agente na campanha**
-     (`POST /agent/login {campaign}` com o token do agente). Devolve
-     `list_id`.
-   - `adicionar`: sobe mais um lote na **mesma** lista (`list_id`) — repetir
-     a higiene apagaria o lote anterior.
-   - `parar`: logout do agente (+ apaga as listas do CRM se `limpar`).
-     Tolera agente já deslogado — o cockpit sempre fecha.
+6. **Sessão de discagem — a fila é o Bolsão** (decisão 2026-09-15: "a base
+   que o discador deve gerar é tudo que está fora da carteira ativa dos
+   corretores"). No modelo em três camadas do CRM (carteira ativa → Reserva →
+   Bolsão, `docs/ops/bolsao-oportunidades-fatia4.md` §1) isso é o **Bolsão**:
+   a base **sem dono**, a mesma população de `bolsao_v1`. A Reserva fica de
+   fora de propósito: ainda tem dono, e lead com dono só chega ao discador
+   pela régua de devolução, nunca por um robô discando a carteira alheia.
 
-   O discador do 3C Plus liga a lista sozinho e **só entrega ao agente quem
-   atende**; cada conexão chega pelo webhook (origem `campanha`). Importados
-   vs. **filtrados** pelo 3C Plus (número inválido, blacklist, duplicado) são
-   reportados — filtrado não é erro nosso. Login do agente não confirmado é
-   **avisado**, não engolido (sem login, a lista sobe mas ninguém recebe).
+   A fila **não nasce no navegador**. O corretor não enxerga (nem deve) o
+   telefone de um lead que não é dele, então a `tcplus-campanha` reserva o
+   lote no servidor, com service_role, pela RPC
+   `discador_bolsao_reservar_v1`: os mais frios primeiro, pulando quem está
+   com o SDR (`sdr_id`), quem foi discado há menos de `discador_rediscagem_dias`
+   (qualquer corretor, atendido ou não), quem está reservado por outra sessão
+   e quem o próprio corretor devolveu há menos de `discador_anti_ioio_dias`
+   (anti-ioiô, mesma régua do puxar). A reserva vive em `bolsao_discagem`
+   (validade `discador_reserva_horas`) e é o que impede dois corretores
+   discarem o mesmo cliente ao mesmo tempo (`FOR UPDATE SKIP LOCKED`). O
+   corretor lê só a própria sessão, **anonimizada**
+   (`bolsao_discagem_minha_v1`: telefone mascarado, sem dono anterior) — e por
+   isso a sessão sobrevive a recarregar a página.
+
+   - `iniciar`: **higiene** (logout do agente, apaga as listas do CRM na
+     campanha, reconhecidas pelo marcador `[crm:<uid>]`, solta as reservas
+     anteriores), reserva `discador_lote` leads (default 200), cria uma
+     **lista nova** na campanha, sobe o mailing em fatias (`{phone,
+identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
+     e faz o **login do agente na campanha**. Devolve `list_id`.
+   - `adicionar`: reserva mais um lote e sobe na **mesma** lista ("Mais
+     leads" no card).
+   - `reservar`: modo **um a um** — reserva um lote pequeno (20) sem mailing
+     nem login; o cockpit disca um por vez pelo click-to-call (a
+     `tcplus-discar` aceita o lead reservado, lendo-o pela service_role).
+   - `parar` / `liberar`: logout + apaga as listas do CRM + solta as reservas
+     (o que sobrou volta ao Bolsão) / só solta as reservas.
+
+   **Quem atende entra na carteira de quem falou.** No primeiro atendimento
+   real (`call-was-connected` ou histórico com desfecho atendida) o webhook
+   chama `discador_bolsao_assumir_v1`: só lead **sem dono**, fora da triagem
+   do SDR e sem venda viva (lead com dono nunca troca de mão por aqui — isso
+   é transferência, e passa pela gestão). Discar **sem** atender não dá posse;
+   senão o discador esvaziaria o Bolsão para dentro das carteiras sem ninguém
+   falar com ninguém. Sem a posse o corretor não conseguiria registrar o
+   resultado nem trabalhar o lead (RLS); com ela, `novo`/`aguardando_corretor`
+   vira `aguardando_atendimento` (caixa de entrada) e a qualificação move a
+   etapa. Fica em `distribution_log` (regra `discador_bolsao`) e é ligável em
+   `gestao_config.bolsao.discador_assume_ao_atender`.
 
    **Uma campanha por corretor (obrigatório)**: o discador entrega as
    chamadas a QUALQUER agente logado na campanha — dois corretores na mesma
    campanha trocariam leads entre si e a higiene de um apagaria a lista do
-   outro. `iniciar` recusa com `campanha_compartilhada` (409) quando detecta o
-   mesmo `campaign_id` em outro vínculo.
+   outro. `iniciar` recusa com `campanha_compartilhada` (409).
 
 7. **Pop-up de chamada ativa (screen pop)** e **modo um a um** — inalterados
    no desenho (ver `sonax-discador.md`, itens 6 e 7): o pop-up acorda com o
@@ -182,8 +204,10 @@ teste real.
 8. Testar: abrir um lead → "Ligar" (o webphone do 3C Plus disca; linha em
    `chamadas` e na timeline). Encerrar e qualificar no 3C Plus → o webhook
    preenche status/duração/gravação e move o lead de etapa. Depois, aba
-   Discador → "Iniciar agora": a lista sobe e o discador passa a entregar
-   chamadas ao webphone.
+   Discador → "Iniciar agora": o lote do Bolsão é reservado, a lista sobe e o
+   discador passa a entregar chamadas ao webphone; quem atende entra na
+   carteira. Ajustes de lote/rediscagem/validade ficam em
+   `gestao_config.bolsao` (`discador_*`).
 
 ### Nota de segurança — dois segredos, dois lugares
 
@@ -213,6 +237,20 @@ teste real.
 RLS: SELECT (colunas liberadas) para o próprio corretor e gestão
 (admin/gestor/superintendente); INSERT/UPDATE para o próprio e admin; DELETE
 só admin.
+
+### `public.bolsao_discagem`
+
+| Coluna                       | Uso                                                             |
+| ---------------------------- | --------------------------------------------------------------- |
+| `lead_id`                    | PK → `leads.id` (CASCADE); um lead está em no máximo uma sessão |
+| `corretor_id`                | Quem reservou                                                   |
+| `modo`                       | `campanha` (lista no 3C Plus) ou `um_a_um` (click-to-call)      |
+| `campaign_id` / `list_id`    | Onde a lista subiu                                              |
+| `reservado_em` / `expira_em` | Validade da reserva (`discador_reserva_horas`)                  |
+| `assumido_em`                | Quando o lead entrou na carteira do corretor (atendeu)          |
+
+Só a service_role toca na tabela (sem GRANT para `authenticated`); o corretor
+lê a própria sessão, mascarada, por `bolsao_discagem_minha_v1`.
 
 ### `public.chamadas` (inalterada)
 

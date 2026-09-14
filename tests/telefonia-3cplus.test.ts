@@ -370,6 +370,56 @@ describe("migration telefonia_agentes (vínculo com o 3C Plus)", () => {
   });
 });
 
+describe("migration discador sobre o Bolsão (bolsao_discagem + RPCs)", () => {
+  const sqlBolsao = ler("supabase/migrations/20260915130000_discador_bolsao.sql").replace(
+    /--[^\n]*/g,
+    "",
+  );
+
+  it("o predicado do Bolsão é UMA função, usada por bolsao_v1 e pelo discador", () => {
+    expect(sqlBolsao).toContain(
+      "CREATE OR REPLACE FUNCTION public._bolsao_elegivel(l public.leads)",
+    );
+    expect(sqlBolsao).toMatch(/FUNCTION public\.bolsao_v1\([\s\S]*?public\._bolsao_elegivel\(l\)/);
+    expect(sqlBolsao).toMatch(/discador_bolsao_reservar_v1[\s\S]*?public\._bolsao_elegivel\(l\)/);
+    // Reserva: fora quem está com o SDR, discado há pouco, reservado, anti-ioiô.
+    expect(sqlBolsao).toMatch(/reservar_v1[\s\S]*?l\.sdr_id IS NULL/);
+    expect(sqlBolsao).toMatch(
+      /reservar_v1[\s\S]*?FROM public\.chamadas AS c[\s\S]*?_rediscagem_dias/,
+    );
+    expect(sqlBolsao).toMatch(
+      /reservar_v1[\s\S]*?FROM public\.devolucao_log AS dl[\s\S]*?_anti_ioio_dias/,
+    );
+    expect(sqlBolsao).toMatch(/FOR UPDATE OF l SKIP LOCKED/);
+  });
+
+  it("telefone inteiro só sai para a service_role; a sessão do corretor é mascarada", () => {
+    expect(sqlBolsao).toMatch(
+      /REVOKE ALL ON FUNCTION public\.discador_bolsao_reservar_v1[^;]*FROM PUBLIC, anon, authenticated/,
+    );
+    expect(sqlBolsao).toMatch(
+      /REVOKE ALL ON FUNCTION public\.discador_bolsao_assumir_v1[^;]*FROM PUBLIC, anon, authenticated/,
+    );
+    expect(sqlBolsao).toContain(
+      "REVOKE ALL ON TABLE public.bolsao_discagem FROM PUBLIC, anon, authenticated",
+    );
+    expect(sqlBolsao).toMatch(
+      /bolsao_discagem_minha_v1\(\)[\s\S]*?public\.telefone_mascarado\(l\.telefone\)[\s\S]*?d\.corretor_id = auth\.uid\(\)/,
+    );
+  });
+
+  it("assumir: só lead sem dono, fora do SDR e sem venda viva; log e caixa de entrada", () => {
+    expect(sqlBolsao).toMatch(
+      /assumir_v1[\s\S]*?'tem_dono'[\s\S]*?'em_triagem_sdr'[\s\S]*?'venda_viva'/,
+    );
+    expect(sqlBolsao).toMatch(/assumir_v1[\s\S]*?'discador_bolsao'/);
+    expect(sqlBolsao).toMatch(
+      /assumir_v1[\s\S]*?transicionar_lead\([\s\S]*?'aguardando_atendimento'/,
+    );
+    expect(sqlBolsao).toMatch(/discador_assume_ao_atender/);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Guarda: fiação das functions
 // ---------------------------------------------------------------------------
@@ -388,8 +438,12 @@ describe("tcplus-discar (click-to-call pelo agente)", () => {
     expect(fnDiscar).toContain("conta_atual_ativa");
     expect(fnDiscar).toMatch(/await supabase\s*\.from\("leads"\)/);
     expect(fnDiscar).toMatch(/admin\s*\.from\("telefonia_agentes"\)[\s\S]*?\.eq\("user_id", uid\)/);
-    expect(fnDiscar).not.toMatch(/admin\s*\.from\("leads"\)/);
-    expect(fnDiscar).not.toMatch(/admin\s*\.from\("chamadas"\)/);
+    // A service_role lê `leads` SÓ depois de achar a reserva do Bolsão para
+    // este corretor (bolsao_discagem) — nunca como atalho da RLS.
+    expect(fnDiscar).toMatch(
+      /admin\s*\.from\("bolsao_discagem"\)[\s\S]*?\.eq\("corretor_id", uid\)[\s\S]*?admin\s*\.from\("leads"\)/,
+    );
+    expect(fnDiscar).toMatch(/const escritor = viaBolsao \? admin : supabase/);
     // O token do GESTOR não disca: ação de agente usa o token do agente.
     expect(fnDiscar).not.toContain("TCPLUS_API_TOKEN");
   });
@@ -427,19 +481,26 @@ describe("tcplus-campanha (discador automático por lista de mailing)", () => {
     expect(fnCampanha).toMatch(/tcplusRequest\(agenteCfg, "POST", "\/agent\/login"/);
     expect(fnCampanha).toMatch(/tcplusRequest\(agenteCfg, "POST", "\/agent\/logout"/);
     expect(fnCampanha).toMatch(
-      /tcplusRequest\(gestor, "POST", `\$\{base\}\/lists\/\$\{listId\}\/mailing_sync\.json`/,
+      /tcplusRequest\(\s*gestor,\s*"POST",\s*`\$\{base\}\/lists\/\$\{listId\}\/mailing_sync\.json`/,
     );
   });
 
-  it("fila lida com a RLS do corretor, com as exclusões de compliance; identifier = UUID do lead", () => {
+  it("a fila é o BOLSÃO, reservada no servidor pela RPC — nunca lida de `leads` com o JWT", () => {
     expect(fnCampanha).toContain("SUPABASE_ANON_KEY");
     expect(fnCampanha).toContain("conta_atual_ativa");
-    expect(fnCampanha).toMatch(/await supabase\s*\.from\("leads"\)/);
-    expect(fnCampanha).toContain('.eq("opt_out", false)');
-    expect(fnCampanha).toContain('.eq("na_lixeira", false)');
-    expect(fnCampanha).toContain('.is("deleted_at", null)');
-    expect(fnCampanha).toContain("identifier: l.id as string");
-    expect(fnCampanha).toContain("MAX_LEADS_POR_LOTE");
+    // O corretor não enxerga (nem deve) o telefone de lead que não é dele: a
+    // function não consulta `leads` — a reserva (service_role) devolve o lote.
+    expect(fnCampanha).not.toMatch(/\.from\("leads"\)/);
+    expect(fnCampanha).toMatch(/admin\.rpc\("discador_bolsao_reservar_v1"/);
+    expect(fnCampanha).toMatch(/admin\.rpc\("discador_bolsao_liberar_v1"/);
+    // O que volta para o navegador é a sessão anonimizada (JWT do corretor).
+    expect(fnCampanha).toMatch(/supabase\.rpc\("bolsao_discagem_minha_v1"\)/);
+    expect(fnCampanha).toContain("identifier: l.lead_id");
+    expect(fnCampanha).toContain("MAX_RESERVA");
+    expect(fnCampanha).toContain("LOTE_UM_A_UM");
+    expect(fnCampanha).toContain('"reservar"');
+    expect(fnCampanha).toContain('"liberar"');
+    expect(fnCampanha).toContain("bolsao_vazio");
   });
 
   it("campanha compartilhada entre corretores é recusada (409) antes de mexer na lista", () => {
@@ -450,15 +511,19 @@ describe("tcplus-campanha (discador automático por lista de mailing)", () => {
     );
   });
 
-  it("higiene só no iniciar (logout + apaga listas do CRM); adicionar exige list_id e só sobe", () => {
+  it("higiene só no iniciar (logout + apaga listas + solta reservas); adicionar exige list_id e só sobe", () => {
     expect(fnCampanha).toContain("[crm:");
     expect(fnCampanha).toContain("missing_list_id");
     const higiene = fnCampanha.indexOf("listasApagadas = await apagarListasDoCrm()");
     expect(higiene).toBeGreaterThan(fnCampanha.indexOf("if (adicionar) {"));
-    expect(fnCampanha).toMatch(/\} else \{[\s\S]*?apagarListasDoCrm\(\)/);
+    expect(fnCampanha).toMatch(
+      /\} else \{[\s\S]*?apagarListasDoCrm\(\)[\s\S]*?reservasLiberadas = await liberar\(\)/,
+    );
     // Peso >= 1 senão a lista não é discada; login do agente fecha o ciclo.
     expect(fnCampanha).toMatch(/weight: 1/);
     expect(fnCampanha).toMatch(/if \(!adicionar\) \{[\s\S]*"\/agent\/login"/);
+    // Parar também devolve a fila ao Bolsão.
+    expect(fnCampanha).toMatch(/acao === "parar"[\s\S]*?const liberadas = await liberar\(\)/);
   });
 
   it("parar tolera agente já deslogado — o cockpit sempre fecha", () => {
@@ -509,6 +574,18 @@ describe("tcplus-webhook (eventos do 3C Plus)", () => {
     expect(fnWebhook).toContain('fonte: "tcplus_webhook"');
   });
 
+  it("lead do Bolsão que ATENDEU entra na carteira de quem falou (posse antes da qualificação)", () => {
+    expect(fnWebhook).toContain('rpc("discador_bolsao_assumir_v1"');
+    expect(fnWebhook).toContain("discador_assume_ao_atender");
+    // Discar sem atender não dá posse: só conexão ou desfecho atendida.
+    expect(fnWebhook).toMatch(/conexao \|\| desfecho === "atendida"\s*\? await assumirSeBolsao/);
+    expect(fnWebhook.indexOf("await assumirSeBolsao(leadId ?? linha.lead_id)")).toBeLessThan(
+      fnWebhook.indexOf("await aplicarQualificacao(leadId ?? linha.lead_id"),
+    );
+    // Lead com dono nunca troca de mão por aqui.
+    expect(fnWebhook).toMatch(/if \(lead\.corretor_id\) return "tem_dono"/);
+  });
+
   it("qualificação -> etapa em tempo de evento, pela RPC oficial, idempotente e sem fechar venda", () => {
     expect(fnWebhook).toContain('rpc("transicionar_lead"');
     expect(fnWebhook).toContain("telefonia_tabulacao_status");
@@ -524,6 +601,9 @@ describe("tcplus-webhook (eventos do 3C Plus)", () => {
     // Ação/follow-up do corretor não são sobrescritos: só preenche o que falta.
     expect(fnWebhook).toContain("precisaAcao");
     expect(fnWebhook).toContain("precisaFollowup");
+    // A máquina de estados não liga toda etapa a toda etapa: transição
+    // recusada tenta a escada por "em atendimento" antes de desistir.
+    expect(fnWebhook).toMatch(/n\[a\u00e3\]o permitida[\s\S]*?transicionar\("em_atendimento"\)/);
   });
 });
 
@@ -552,25 +632,35 @@ describe("aba Discador (fiação 3C Plus)", () => {
     expect(hook).toMatch(/window\.location\.href = href/);
   });
 
-  it("sessão de discagem: base completa em lotes na MESMA lista (list_id), fila só da carteira", () => {
+  it("sessão de discagem: a fila é o Bolsão, reservada no servidor — o navegador não lê leads", () => {
+    const clienteSessao = ler("src/features/telefonia/bolsao-discagem-client.ts");
     expect(sessao).toContain('invoke("tcplus-campanha"');
     expect(sessao).not.toContain("sonax");
-    expect(sessao).toContain('"adicionar"');
-    expect(sessao).toContain("list_id: listId");
-    expect(sessao).toContain("LOTE_CAMPANHA");
+    expect(sessao).toContain('acao: "iniciar"');
+    expect(sessao).toContain('acao: "adicionar"');
+    expect(sessao).toContain('acao: "reservar"');
+    expect(sessao).toContain('acao: "liberar"');
+    expect(sessao).toContain('acao: "parar", limpar: true');
     expect(sessao).toContain("campanha_compartilhada:");
     expect(sessao).toContain("token_nao_configurado:");
-    expect(sessao).toContain('.eq("corretor_id", user.id)');
-    expect(sessao).toContain('.eq("opt_out", false)');
-    expect(sessao).toContain('.eq("na_lixeira", false)');
-    expect(sessao).toContain('.is("deleted_at", null)');
-    expect(sessao).toContain("status.eq.aguardando_atendimento");
-    expect(sessao).toContain("proximo_followup.lt.");
-    expect(sessao).toContain(".range(de, de + PAGINA - 1)");
+    expect(sessao).toContain("bolsao_vazio:");
+    // Nada de montar fila com o JWT do corretor: a RLS esconde (e deve) o
+    // telefone de lead que não é dele.
+    expect(sessao).not.toMatch(/from\("leads"\)/);
+    expect(sessao).toContain("useMinhaDiscagem");
+    expect(sessao).toContain("telefone_mascarado");
+    expect(clienteSessao).toContain('rpc("bolsao_discagem_minha_v1"');
+    // Registrar resultado só quando o lead entrou na carteira (RLS).
+    expect(sessao).toMatch(/const naCarteira = !!leadAtual\.assumido_em/);
+    expect(sessao).toMatch(/disabled=\{!naCarteira\}/);
+    // Ligar no um a um nunca leva telefone (não há fallback tel: para o Bolsão).
+    expect(sessao).toMatch(
+      /ligar\(\{ id: leadAtual\.lead_id, nome: leadAtual\.nome, telefone: null \}\)/,
+    );
     expect(sessao).toContain("useLigarLead");
     expect(sessao).toContain("RegistrarContatoDialog");
     // Login do agente não confirmado é avisado, não engolido.
-    expect(sessao).toContain("loginDetalhe");
+    expect(sessao).toMatch(/r\.login !== "ok"/);
   });
 
   it("página: sem sync por polling (a qualificação chega pelo webhook), status do 3C Plus e gravação", () => {
