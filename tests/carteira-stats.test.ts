@@ -21,6 +21,7 @@ import {
   pctParada,
   parseCarteiraStats,
   prazosDaCasa,
+  semPassoVivo,
   textoTratativa,
   tomDaCarteira,
   type CarteiraStats,
@@ -76,6 +77,13 @@ describe("teto", () => {
     );
   });
 
+  it("sem próximo passo: ausente é null, não zero", () => {
+    // "Não sei" e "ninguém está parado" levam a decisões opostas.
+    expect(semPassoVivo(stats({ ativa: 30 }))).toBeNull();
+    expect(semPassoVivo(stats({ ativa: 30, sem_passo_vivo: 0 }))).toBe(0);
+    expect(semPassoVivo(stats({ ativa: 30, sem_passo_vivo: 28 }))).toBe(28);
+  });
+
   it("o teto vem do servidor, não de um 65 fixo no cliente", () => {
     // Se a gestão baixar a capacidade, a tela acompanha sozinha.
     expect(textoTratativa(stats({ ativa: 12, teto: 40 }))).toBe("12 de 40 em tratativa");
@@ -106,6 +114,17 @@ describe("fraseDaCarteira", () => {
     expect(fraseDaCarteira(stats({ ativa: 65, teto: 65, acima_do_teto: 25, parada: 40 }))).toBe(
       "65 de 65 em tratativa · +25 acima do teto · 40 parados",
     );
+  });
+
+  it("o sem próximo passo entra na frase, e some quando é zero ou desconhecido", () => {
+    // O caso da casa em 14/09/2026: parece carteira cheia, é fila parada.
+    expect(
+      fraseDaCarteira(stats({ ativa: 65, teto: 65, acima_do_teto: 63, sem_passo_vivo: 103 })),
+    ).toBe("65 de 65 em tratativa · +63 acima do teto · 103 sem próximo passo");
+    expect(fraseDaCarteira(stats({ ativa: 12, teto: 65, sem_passo_vivo: 0 }))).toBe(
+      "12 de 65 em tratativa",
+    );
+    expect(fraseDaCarteira(stats({ ativa: 12, teto: 65 }))).toBe("12 de 65 em tratativa");
   });
 });
 

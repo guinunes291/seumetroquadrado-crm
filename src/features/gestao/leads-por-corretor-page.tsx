@@ -41,6 +41,7 @@ import {
   indexarPorCorretor,
   pctParada,
   prazosDaCasa,
+  semPassoVivo,
   textoTratativa,
   tomDaCarteira,
   useCarteiraStats,
@@ -687,6 +688,19 @@ function CorretorCard({
               >
                 <ArrowsLeftRight className="h-3.5 w-3.5" />
                 <span>+{excedente(carteira)} acima do teto</span>
+              </div>
+            )}
+            {/* Subconjunto da tratativa: está em tratativa pelo relógio do
+                último toque, mas não tem nada marcado adiante. Medido em
+                14/09/2026, eram 365 de 444 nos quatro corretores mais cheios —
+                e a tela dizia que estava tudo em dia. */}
+            {(semPassoVivo(carteira) ?? 0) > 0 && (
+              <div
+                className="flex items-center gap-2 text-warning"
+                title="Sem tarefa nem agendamento no futuro — tarefa vencida não conta como próximo passo"
+              >
+                <UserCheck className="h-3.5 w-3.5" />
+                <span>{semPassoVivo(carteira)} sem próximo passo</span>
               </div>
             )}
             {carteira.parada > 0 && (
