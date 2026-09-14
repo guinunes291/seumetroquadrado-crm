@@ -1707,6 +1707,107 @@ export type Database = {
           },
         ]
       }
+      devolucao_log: {
+        Row: {
+          aplicado: boolean
+          corretor_anterior_id: string | null
+          corte_dias: number | null
+          created_at: string
+          destino: string
+          dias_parado: number | null
+          erro: string | null
+          grupo: string
+          id: string
+          lead_id: string
+          lote_id: string
+          modo: string
+          origem: string | null
+          status_no_momento: string | null
+        }
+        Insert: {
+          aplicado?: boolean
+          corretor_anterior_id?: string | null
+          corte_dias?: number | null
+          created_at?: string
+          destino: string
+          dias_parado?: number | null
+          erro?: string | null
+          grupo: string
+          id?: string
+          lead_id: string
+          lote_id: string
+          modo: string
+          origem?: string | null
+          status_no_momento?: string | null
+        }
+        Update: {
+          aplicado?: boolean
+          corretor_anterior_id?: string | null
+          corte_dias?: number | null
+          created_at?: string
+          destino?: string
+          dias_parado?: number | null
+          erro?: string | null
+          grupo?: string
+          id?: string
+          lead_id?: string
+          lote_id?: string
+          modo?: string
+          origem?: string | null
+          status_no_momento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devolucao_log_corretor_anterior_id_fkey"
+            columns: ["corretor_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolucao_log_corretor_anterior_id_fkey"
+            columns: ["corretor_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "devolucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devolucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "devolucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "devolucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       distribuicao_config: {
         Row: {
           origem: Database["public"]["Enums"]["lead_origem"]
@@ -9645,6 +9746,30 @@ export type Database = {
           _token_hash: string
         }
         Returns: boolean
+      }
+      regua_devolucao_candidatos_v1: {
+        Args: never
+        Returns: {
+          corretor_id: string
+          corte_dias: number
+          destino: string
+          dias_parado: number
+          grupo: string
+          lead_id: string
+          origem: string
+          status: string
+        }[]
+      }
+      regua_devolucao_desfazer: { Args: { _lote: string }; Returns: number }
+      regua_devolucao_processar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          destino: string
+          lote_id: string
+          modo: string
+        }[]
       }
       regua_followup_atual: { Args: never; Returns: Json }
       rel_conversao_por_corretor: {
