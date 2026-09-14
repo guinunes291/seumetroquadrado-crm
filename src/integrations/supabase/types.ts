@@ -695,6 +695,89 @@ export type Database = {
         }
         Relationships: []
       }
+      bolsao_discagem: {
+        Row: {
+          assumido_em: string | null
+          campaign_id: string | null
+          corretor_id: string
+          expira_em: string
+          lead_id: string
+          list_id: string | null
+          modo: string
+          reservado_em: string
+        }
+        Insert: {
+          assumido_em?: string | null
+          campaign_id?: string | null
+          corretor_id: string
+          expira_em: string
+          lead_id: string
+          list_id?: string | null
+          modo: string
+          reservado_em?: string
+        }
+        Update: {
+          assumido_em?: string | null
+          campaign_id?: string | null
+          corretor_id?: string
+          expira_em?: string
+          lead_id?: string
+          list_id?: string | null
+          modo?: string
+          reservado_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bolsao_discagem_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bolsao_discagem_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "bolsao_discagem_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bolsao_discagem_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bolsao_discagem_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "bolsao_discagem_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "bolsao_discagem_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       carteira_resgates: {
         Row: {
           corretor_id: string
@@ -1805,6 +1888,96 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_leads_parados"
             referencedColumns: ["lead_id"]
+          },
+        ]
+      }
+      discador_atendimentos: {
+        Row: {
+          atendimentos: number
+          corretor_id: string
+          encerrado_em: string | null
+          encerrado_motivo: string | null
+          lead_id: string
+          primeiro_atendimento_em: string
+          ultima_chamada_id: string | null
+          ultimo_atendimento_em: string
+        }
+        Insert: {
+          atendimentos?: number
+          corretor_id: string
+          encerrado_em?: string | null
+          encerrado_motivo?: string | null
+          lead_id: string
+          primeiro_atendimento_em?: string
+          ultima_chamada_id?: string | null
+          ultimo_atendimento_em?: string
+        }
+        Update: {
+          atendimentos?: number
+          corretor_id?: string
+          encerrado_em?: string | null
+          encerrado_motivo?: string | null
+          lead_id?: string
+          primeiro_atendimento_em?: string
+          ultima_chamada_id?: string | null
+          ultimo_atendimento_em?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discador_atendimentos_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "discador_atendimentos_ultima_chamada_id_fkey"
+            columns: ["ultima_chamada_id"]
+            isOneToOne: false
+            referencedRelation: "chamadas"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -6264,6 +6437,54 @@ export type Database = {
           },
         ]
       }
+      telefonia_agentes: {
+        Row: {
+          agent_id: string | null
+          api_token: string | null
+          atualizado_em: string
+          campaign_id: string | null
+          criado_em: string
+          provider: string
+          token_atualizado_em: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          api_token?: string | null
+          atualizado_em?: string
+          campaign_id?: string | null
+          criado_em?: string
+          provider?: string
+          token_atualizado_em?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          api_token?: string | null
+          atualizado_em?: string
+          campaign_id?: string | null
+          criado_em?: string
+          provider?: string
+          token_atualizado_em?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telefonia_agentes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telefonia_agentes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       templates_mensagem: {
         Row: {
           assunto: string | null
@@ -7596,6 +7817,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _bolsao_elegivel: {
+        Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: boolean
+      }
       _carteira_classificar: {
         Args: { _corretor: string }
         Returns: {
@@ -8216,6 +8441,24 @@ export type Database = {
           status_de_venda_sem_venda_viva: number
         }[]
       }
+      bolsao_discagem_minha_v1: {
+        Args: never
+        Returns: {
+          assumido_em: string
+          atendido: boolean
+          dias_parado: number
+          discado: boolean
+          expira_em: string
+          lead_id: string
+          list_id: string
+          modo: string
+          nome: string
+          projeto_nome: string
+          reservado_em: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone_mascarado: string
+        }[]
+      }
       bolsao_v1: {
         Args: { _busca?: string; _limite?: number; _offset?: number }
         Returns: {
@@ -8650,6 +8893,60 @@ export type Database = {
       devolver_leads_followup_vencido: { Args: never; Returns: number }
       devolver_leads_posse_expirada: { Args: never; Returns: number }
       devolver_leads_sdr_parados: { Args: never; Returns: number }
+      discador_atendido_assumir_v1: { Args: { _lead: string }; Returns: Json }
+      discador_atendido_nota_v1: {
+        Args: { _conteudo: string; _lead: string; _tipo?: string }
+        Returns: Json
+      }
+      discador_atendidos_meus_v1: {
+        Args: never
+        Returns: {
+          ainda_no_bolsao: boolean
+          atendimentos: number
+          dias_parado: number
+          dono_sou_eu: boolean
+          encerrado_em: string
+          encerrado_motivo: string
+          lead_id: string
+          nome: string
+          outros_corretores: number
+          primeiro_atendimento_em: string
+          projeto_nome: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone_mascarado: string
+          tem_dono: boolean
+          ultimo_atendimento_em: string
+        }[]
+      }
+      discador_bolsao_assumir_v1: {
+        Args: { _corretor: string; _lead: string; _motivo?: string }
+        Returns: Json
+      }
+      discador_bolsao_atender_v1: {
+        Args: { _chamada?: string; _corretor: string; _lead: string }
+        Returns: Json
+      }
+      discador_bolsao_liberar_v1: {
+        Args: { _corretor: string; _list_id?: string }
+        Returns: number
+      }
+      discador_bolsao_reservar_v1: {
+        Args: {
+          _campaign_id?: string
+          _corretor: string
+          _list_id?: string
+          _modo?: string
+          _quantidade?: number
+        }
+        Returns: {
+          dias_parado: number
+          lead_id: string
+          nome: string
+          projeto_nome: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone: string
+        }[]
+      }
       disparar_repasse_sla_lead: {
         Args: { _lead_id: string }
         Returns: boolean
