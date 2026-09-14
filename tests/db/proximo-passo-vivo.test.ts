@@ -91,7 +91,11 @@ beforeAll(async () => {
   );
   // Todo mundo com toque recente: o recorte de "em tratativa" não é o que
   // está em teste aqui.
-  await c.query(`UPDATE public.leads SET ultima_interacao = now() - interval '5 days'`);
+  // 10 dias: passa do gatilho de "sem próximo passo" tanto no default (2)
+  // quanto no valor que a régua grava na config de produção
+  // (devolver_sem_proximo_passo_dias = 7, migration 20260914200848), e não
+  // chega nos 30 de "sem movimento".
+  await c.query(`UPDATE public.leads SET ultima_interacao = now() - interval '10 days'`);
 });
 
 describe("tarefa vencida é dívida, não próximo passo", () => {
@@ -134,8 +138,8 @@ describe("os consumidores usam a regra nova", () => {
       `SELECT motivo FROM public._carteira_classificar($1) WHERE lead_id = $2`,
       [corretor.id, leads.vencida],
     );
-    // Parado há 5 dias: passa do gatilho de 2 e não chega nos 30 de "sem
-    // movimento" — o motivo tem de ser o do próximo passo.
+    // Parado há 10 dias: passa do gatilho (2 default / 7 na config) e não
+    // chega nos 30 de "sem movimento" — o motivo tem de ser o do próximo passo.
     expect(r.rows[0]?.motivo).toBe("sem próximo passo definido");
   });
 
