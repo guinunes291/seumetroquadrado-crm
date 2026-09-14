@@ -901,3 +901,59 @@ tarefa pendente" sem olhar a data, ou se qualquer uma das três funções deixar
 de chamar `lead_sem_proximo_passo(`. O parêntese na guarda não é enfeite: a
 primeira versão procurava só o nome, e um comentário citando a função
 satisfazia a checagem sem que a chamada existisse — pego por teste de mutação.
+
+## 23. A faixa `conversa` lia o espelho, não a regra (`20260915140000`)
+
+A §22 consertou o "sem próximo passo" e criou `lead_sem_proximo_passo` como
+fonte única — mas consertou **metade** de `_carteira_classificar`. O motivo
+passou a usar a regra nova; a **faixa** continuou perguntando
+`proximo_followup > now()`.
+
+Medido no harness, sobre a definição viva, antes do conserto:
+
+```
+A_so_tarefa_futura   faixa=conversa  ativa=true
+B_vencida_e_futura   faixa=reserva   ativa=false  motivo='sem conversa viva'
+```
+
+O lead B tem tarefa marcada para daqui a 3 dias e uma dívida de 40 dias. Como
+o espelho é `min(data_vencimento)`, ele aponta para a dívida, a faixa dá falso
+e o lead cai na **Reserva** — de onde a régua de devolução tira lead. A
+varredura devolveria um lead que o corretor acabou de agendar.
+
+O motivo denunciava a inconsistência: saía `'sem conversa viva'`, não
+`'sem próximo passo definido'`. Dentro da mesma função, a dois blocos de
+distância, a regra nova reconhecia o passo e a faixa não.
+
+Em produção isso atingia até 56 leads (a coluna `passo_futuro_com_divida` da
+medição de 14/09/2026, concentrada na corretora com mais carteira). Quem mais
+trabalha é quem mais acumula dívida — era esse o padrão punido. O impacto real
+é menor que 56 quando o cliente respondeu por último, porque aí o lead entra em
+`conversa` pelo outro caminho (`respondeu`).
+
+### 23.1 A primeira tentativa quebrou um caso legítimo
+
+Trocar a expressão por `NOT m.sem_proximo_passo` e parar aí faz a suíte cair em
+`tests/db/carteira-ativa.test.ts`: **`transicionar_lead` (20260811151000, entre
+outras) escreve `leads.proximo_followup` direto, sem tarefa correspondente.**
+Esse lead tem próximo passo de verdade e nenhuma tarefa.
+
+A assimetria que resolve: **`proximo_followup > now()` é condição SUFICIENTE
+para existir próximo passo, nunca NECESSÁRIA.** Se o espelho está no futuro, o
+`min` está no futuro, logo toda tarefa aberta está no futuro. O espelho só mente
+na direção negativa — estar no passado não prova ausência de passo.
+
+Por isso o espelho entrou na regra como **terceiro sinal positivo**, dentro da
+função única, em vez de voltar a ser o único teste. Para os espelhos mantidos
+pelo trigger isso é no-op; só recupera o followup escrito à mão.
+
+### 23.2 O que ficou travado
+
+Uma guarda `DO $guard$` reprova o deploy se a faixa parar de decidir por
+`NOT m.sem_proximo_passo`, se `lead_sem_proximo_passo` sumir do classificador,
+se o relógio da entrega na faixa SLA se perder, ou se a regra única voltar a
+aceitar tarefa vencida (`t.data_vencimento > now()` fora do corpo).
+
+Quatro mutantes, quatro mortos: helper sem o espelho (só os testes pegam),
+helper aceitando tarefa vencida, faixa de volta ao espelho puro, e faixa
+decidindo só por `respondeu`.

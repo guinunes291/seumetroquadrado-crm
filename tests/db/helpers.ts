@@ -176,6 +176,41 @@ export async function limparDados(c: Client): Promise<void> {
   await c.query(`DELETE FROM auth.users`);
 }
 
+/**
+ * Roda `fn` com chaves de `gestao_config` trocadas e restaura no `finally`.
+ *
+ * Teste que depende de um corte NÃO pode herdar o valor de produção: ele muda
+ * por decisão de operação e o teste passa a falhar sem nenhum defeito no
+ * código. Aconteceu em 15/09/2026 — `devolver_sem_proximo_passo_dias` foi de 2
+ * para 7 e dois testes de motivo caíram no CI, sem uma linha de produção ter
+ * mudado. Quem depende do corte declara o corte.
+ */
+export async function comGestaoConfig<T>(
+  c: Client,
+  chave: string,
+  patch: Record<string, unknown>,
+  fn: () => Promise<T>,
+): Promise<T> {
+  await comoSuperuser(c);
+  const antes = (await c.query(`SELECT valor FROM public.gestao_config WHERE chave = $1`, [chave]))
+    .rows[0]?.valor;
+  await c.query(`UPDATE public.gestao_config SET valor = valor || $1::jsonb WHERE chave = $2`, [
+    JSON.stringify(patch),
+    chave,
+  ]);
+  try {
+    return await fn();
+  } finally {
+    await comoSuperuser(c);
+    if (antes !== undefined) {
+      await c.query(`UPDATE public.gestao_config SET valor = $1::jsonb WHERE chave = $2`, [
+        JSON.stringify(antes),
+        chave,
+      ]);
+    }
+  }
+}
+
 /** ErrCode Postgres de uma promise rejeitada (ou null se resolveu). */
 export async function errCode(p: Promise<unknown>): Promise<string | null> {
   try {
