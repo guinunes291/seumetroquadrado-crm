@@ -646,3 +646,71 @@ A diferença para os ~10,3 mil do §4 é quase inteira os 2.354 perdidos mais os
 Isso não se recalcula por estimativa no dia de virar: roda-se
 `bolsao_diagnostico_v1()` e uma consulta de exceções sobre a foto do dia. É
 para isso que o diagnóstico é repetível.
+
+## 18. Destino por origem, implementado (`20260914160000`)
+
+A régua do §6 saiu do papel. `devolver_leads_posse_expirada` mandava **todo**
+lead de posse expirada para a base — inclusive o de Facebook, que custou
+mídia. O problema é de dinheiro, não de arquitetura: mandar um lead pago para
+a fila do discador quando um corretor o abandona é jogar fora o que a casa
+pagou.
+
+| origem                                     | destino            | como                                  |
+| ------------------------------------------ | ------------------ | ------------------------------------- |
+| paga (facebook, chatbot, impulso_smq, SDR) | **outro corretor** | `classe_lead='quente'`, `sdr_id=NULL` |
+| conquistada pelo corretor                  | **não sai**        | excluída dos candidatos               |
+| estoque (importacao, sheets, outro)        | base               | como antes                            |
+
+**Não se chama o distribuidor aqui dentro.** Basta deixar o lead no estado que
+o cron de distribuição já consome — `corretor_id IS NULL`, `sdr_id IS NULL`,
+status `aguardando_atendimento` — e ele é redistribuído em até um minuto, com
+`corretores_que_tentaram` impedindo que volte para quem o abandonou. Esta
+função roda dentro de um cron; chamar o distribuidor em loop seria a forma
+mais fácil de criar uma tempestade de escrita difícil de auditar.
+
+Fecha também uma brecha: lead com **venda viva** não sai, mesmo em status
+anterior ao fechamento. O filtro antigo só olhava `contrato_fechado`/
+`pos_venda`, que são consequência da venda, não a venda.
+
+## 19. A medição que mudou o desenho da carteira ativa (14/09/2026)
+
+| corte, dentro de `em_atendimento` (8.057)  | leads     | %        |
+| ------------------------------------------ | --------- | -------- |
+| tocado nos últimos 7 dias                  | 599       | **7,4%** |
+| com `proximo_followup` nos próximos 7 dias | **7.395** | **92%**  |
+
+### 19.1 O "ou tarefa futura" está morto
+
+A proposta de definir a carteira ativa como "fase avançada **e** atualizado
+**ou** com tarefa futura" não sobrevive a esses números. `proximo_followup`
+está preenchido em 92% dos leads em atendimento porque **o sistema o preenche
+sozinho**, pela régua automática de 13 toques. O campo não significa "o
+corretor se comprometeu"; significa "a régua calculou uma data".
+
+| definição da carteira ativa                      | por corretor (41) |
+| ------------------------------------------------ | ----------------- |
+| qualificação + fundo + em atendimento **tocado** | **32**            |
+| idem, aceitando `proximo_followup` como prova    | ≈ 198             |
+
+O "ou" traria de volta o cemitério de hoje, agora carimbado como legítimo pelo
+próprio sistema. Se a intenção for preservar o corretor que combinou de voltar
+em 10 dias, o critério certo é **tarefa ou agendamento criados por ele** — que
+é outra coisa, e o sistema já distingue.
+
+### 19.2 O cemitério não é a importação
+
+A releitura que os números impõem: **7.458 leads em `em_atendimento` não são
+tocados há mais de uma semana** — 182 por corretor. Não são leads que ninguém
+abriu; são leads que alguém começou a atender e abandonou. É pior que estoque
+frio, porque o cliente foi contatado e criou expectativa.
+
+### 19.3 O freio existente leva 5 meses
+
+Com a régua de posse ligada, 7.458 leads sairiam. O freio de
+`devolver_leads_posse_expirada` é `rn <= 10` por corretor **e `LIMIT 50` por
+execução**, uma vez ao dia: **50/dia na casa inteira**, ou cerca de 5 meses
+para drenar.
+
+Antes de subir esse teto, a pergunta a medir é outra: **o lead devolvido volta
+a ser trabalhado por quem recebe?** Se morrer também na mão do próximo,
+acelerar só espalha o problema mais rápido.
