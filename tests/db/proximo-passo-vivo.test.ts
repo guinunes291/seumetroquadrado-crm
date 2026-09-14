@@ -15,7 +15,7 @@
  * `min(data_vencimento)` das tarefas pendentes, ou seja, aponta para a dívida
  * mais velha. Usá-lo aqui seria herdar o mesmo defeito por outra porta.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   comoSuperuser,
   comoUsuario,
@@ -30,6 +30,8 @@ const c = novoClient();
 
 let admin: UsuarioTeste;
 let corretor: UsuarioTeste;
+// Config de carteira_ativa como estava antes do teste (restaurada no fim).
+let cfgCarteiraAntes: unknown = null;
 const leads: Record<string, string> = {};
 
 async function semPasso(id: string): Promise<boolean> {
@@ -57,6 +59,20 @@ async function tarefa(
 beforeAll(async () => {
   await c.connect();
   await limparDados(c);
+  // O gatilho de "sem próximo passo" vem da config (default 2). A régua de
+  // devolução (20260914200848) grava devolver_sem_proximo_passo_dias = 7 na
+  // mesma chave que _carteira_classificar lê; os fixtures abaixo ficam
+  // parados há 5 dias, então o teste pina o gatilho em 2 para valer nos dois
+  // cenários (config vazia e config de produção). A suíte roda sequencial.
+  await comoSuperuser(c);
+  cfgCarteiraAntes =
+    (await c.query(`SELECT valor FROM public.gestao_config WHERE chave = 'carteira_ativa'`)).rows[0]
+      ?.valor ?? null;
+  await c.query(
+    `UPDATE public.gestao_config
+        SET valor = jsonb_set(COALESCE(valor, '{}'::jsonb), '{devolver_sem_proximo_passo_dias}', '2'::jsonb, true)
+      WHERE chave = 'carteira_ativa'`,
+  );
   admin = await criarUsuario(c, { nome: "Admin Passo", papel: "admin" });
   corretor = await criarUsuario(c, { nome: "Corretor Passo", papel: "corretor" });
 
@@ -91,11 +107,18 @@ beforeAll(async () => {
   );
   // Todo mundo com toque recente: o recorte de "em tratativa" não é o que
   // está em teste aqui.
-  // 10 dias: passa do gatilho de "sem próximo passo" tanto no default (2)
-  // quanto no valor que a régua grava na config de produção
-  // (devolver_sem_proximo_passo_dias = 7, migration 20260914200848), e não
-  // chega nos 30 de "sem movimento".
-  await c.query(`UPDATE public.leads SET ultima_interacao = now() - interval '10 days'`);
+  await c.query(`UPDATE public.leads SET ultima_interacao = now() - interval '5 days'`);
+});
+
+afterAll(async () => {
+  await comoSuperuser(c);
+  if (cfgCarteiraAntes !== null) {
+    await c.query(
+      `UPDATE public.gestao_config SET valor = $1::jsonb WHERE chave = 'carteira_ativa'`,
+      [JSON.stringify(cfgCarteiraAntes)],
+    );
+  }
+  await c.end();
 });
 
 describe("tarefa vencida é dívida, não próximo passo", () => {
@@ -138,7 +161,7 @@ describe("os consumidores usam a regra nova", () => {
       `SELECT motivo FROM public._carteira_classificar($1) WHERE lead_id = $2`,
       [corretor.id, leads.vencida],
     );
-    // Parado há 10 dias: passa do gatilho (2 default / 7 na config) e não
+    // Parado há 5 dias: passa do gatilho de 2 (pinado no beforeAll) e não
     // chega nos 30 de "sem movimento" — o motivo tem de ser o do próximo passo.
     expect(r.rows[0]?.motivo).toBe("sem próximo passo definido");
   });
