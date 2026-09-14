@@ -715,7 +715,67 @@ Antes de subir esse teto, a pergunta a medir é outra: **o lead devolvido volta
 a ser trabalhado por quem recebe?** Se morrer também na mão do próximo,
 acelerar só espalha o problema mais rápido.
 
-## 17. O discador disca o Bolsão (2026-09-15)
+## 20. O teto de 65 chega na gestão de carteira (`20260914180000`)
+
+A Fatia 3 já tinha o teto: `carteira_ativa_v1` entrega no máximo
+`capacidade_leads_ativos_por_corretor` (65) leads por corretor na Fila Única. A
+tela de **gestão de carteira** não sabia disso — `carteira_stats_por_corretor_v1`
+(§19, migration `20260914170000`) contava como "ativa" tudo que estava em
+tratativa com sinal de vida, sem teto nenhum. Resultado: o corretor via 65 na
+sua fila e o gestor via 90 no card do mesmo corretor. Dois números para o mesmo
+nome, na mesma casa.
+
+### 20.1 O que muda na RPC
+
+| coluna                               | antes             | agora                               |
+| ------------------------------------ | ----------------- | ----------------------------------- |
+| `ativa`                              | tudo em tratativa | `LEAST(em tratativa, teto)`         |
+| `acima_do_teto`                      | —                 | o excedente, como número próprio    |
+| `teto`                               | —                 | o valor vigente da config           |
+| `dias_atendimento` / `dias_avancado` | —                 | 7 e 30, para a tela filtrar a lista |
+
+O excedente **não some da tela**. Um corretor com 90 em tratativa num teto de 65
+é informação de gestão; mostrar 65 e calar os 25 seria o card mentindo por
+omissão. Ele aparece como uma linha própria, em vermelho: `+25 acima do teto`.
+
+O teto sai de `gestao_config_valor('capacidade_leads_ativos_por_corretor')`, a
+**mesma** fonte da Fila Única, e volta na resposta para a tela não guardar uma
+segunda cópia de 65. Uma guarda `DO $guard$` na migration reprova o deploy se
+alguém fixar o número (ou os prazos) dentro da função — o modo de falhar que
+importa aqui não é erro de cálculo, é divergência silenciosa entre duas telas.
+
+### 20.2 O teto é por corretor, não do balcão
+
+A linha de `corretor_id IS NULL` (leads sem dono) **não** é limitada. Ela não é
+a carteira de ninguém; cortar o balcão em 65 seria inventar um número que não
+existe em lugar nenhum. Há teste para isso, e o mutante que aplica o teto a todo
+mundo morre nele.
+
+### 20.3 A lista também para de mostrar o que não é carteira
+
+Os cards contavam certo e a **lista** continuava mostrando a base inteira — ou
+seja, continuava dominada por "Aguardando Atendimento", que é prospecção e tem
+tela própria. A lista agora abre em **Em tratativa**, com um seletor de escopo
+de três posições: `Em tratativa` (padrão) · `Parados` · `Todos`.
+
+Duas decisões deliberadas:
+
+- **`Todos` continua a um clique.** Esconder linhas de uma tela de gestão tem
+  custo real: é justamente nela que o gestor seleciona e transfere em lote os
+  leads que estouram o teto. Filtrar por padrão resolve a leitura; remover a
+  saída resolveria a leitura e quebraria a ação.
+- **A tela diz que está filtrando.** Ao lado da contagem, em letra pequena:
+  "só o que está em tratativa (prospecção fica em Prospecção)". Uma lista
+  filtrada que não avisa que está filtrada é pior que a lista cheia.
+
+O escopo usa a mesma classificação da RPC, lead a lead, com o mesmo relógio
+(`COALESCE(GREATEST(ultima_interacao, ultimo_contato), created_at)`) e os
+prazos vindos da resposta — nunca fixados no cliente. Sem os prazos na resposta
+(banco com a migration anterior e não esta), o seletor não aparece e a lista
+volta a mostrar tudo: melhor o comportamento antigo do que um recorte feito com
+prazo chutado.
+
+## 21. O discador disca o Bolsão (2026-09-15)
 
 Decisão do dono: **"a base que o discador deve gerar é tudo que está fora da
 carteira ativa dos corretores."** No vocabulário deste documento, isso é o
