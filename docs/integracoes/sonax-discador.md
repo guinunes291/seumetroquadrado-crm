@@ -1,4 +1,10 @@
-# Telefonia — Discador Sonax PABX Virtual
+# Telefonia — Discador Sonax PABX Virtual (LEGADO)
+
+> **Substituído pelo 3C Plus em 2026-09-15** — ver `3cplus-discador.md`. O app
+> não chama mais as functions `sonax-*` (mantidas no repo como referência e
+> rollback); o histórico `chamadas` e o mapeamento qualificação → etapa
+> (`gestao_config.telefonia_tabulacao_status`) continuam vivos e são usados
+> pelo 3C Plus. Itens 6 (pop-up) e 7 (modo um a um) seguem válidos.
 
 Integração do CRM com o Sonax PABX Virtual (discador/telefonia em nuvem).
 Fonte da API: documentação oficial Postman ("Documentação de API Sonax Pabx

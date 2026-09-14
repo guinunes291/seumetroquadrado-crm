@@ -2,15 +2,16 @@
 // corretor com a régua fixa da operação — leads em AGUARDANDO ATENDIMENTO ou
 // com FOLLOW-UP VENCIDO (proximo_followup no passado, status ativo) — sem
 // contato há mais tempo primeiro, nunca opt-out/lixeira/sem telefone — e
-// entrega ao DISCADOR AUTOMÁTICO do Sonax (edge function sonax-campanha): o
-// PABX disca a fila sozinho, descarta caixa postal e SÓ conecta ao ramal quem
-// atende — o fluxo segue até a fila acabar ou o corretor parar. As chamadas
+// entrega ao DISCADOR AUTOMÁTICO do 3C Plus (edge function tcplus-campanha):
+// a fila vira uma lista de mailing na campanha do corretor e o agente dele é
+// logado nela; o discador liga sozinho e SÓ entrega ao agente quem atende —
+// o fluxo segue até a lista acabar ou o corretor parar. As chamadas
 // conectadas chegam pelo webhook (origem campanha) e aparecem no
 // histórico/timeline em tempo real.
 //
 // Alternativa "um a um" (click-to-call sequencial) para quem ainda não tem
-// campanha/atendente configurados no PABX: disca cada lead no ramal e o
-// próprio corretor avança — nada de discagem em massa paralela.
+// campanha configurada no 3C Plus: disca cada lead pelo agente e o próprio
+// corretor avança — nada de discagem em massa paralela.
 
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
@@ -31,7 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
+import { erroDaFunction, useLigarLead } from "@/hooks/use-ligar-lead";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
@@ -53,14 +54,19 @@ const ETAPAS_FORA_DA_FILA = "(perdido,contrato_fechado,pos_venda)";
 
 const ERRO_CAMPANHA: Record<string, string> = {
   campanha_nao_configurada:
-    "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → PABX). Enquanto isso, use o modo um a um.",
+    "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → Discador). Enquanto isso, use o modo um a um.",
   campanha_compartilhada:
-    "Esta campanha do Sonax está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no painel do Sonax e ajuste em Gestão → Corretores → PABX).",
-  ramal_nao_configurado:
-    "Seu ramal não está cadastrado (Gestão → Corretores → PABX) — sem ele o discador não tem para onde entregar as chamadas.",
-  sonax_nao_configurado: "A integração com o Sonax ainda não foi configurada (secrets).",
+    "Esta campanha do 3C Plus está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no 3C Plus e ajuste em Gestão → Corretores → Discador).",
+  token_nao_configurado:
+    "Seu 3C Plus ainda não está conectado — cole seu token de agente no card 'Meu 3C Plus' desta aba.",
+  tcplus_token_invalido:
+    "O 3C Plus recusou seu token de agente — gere um novo no 3C Plus e cole no card 'Meu 3C Plus'.",
+  tcplus_token_gestor_invalido:
+    "O 3C Plus recusou o token do gestor (secret TCPLUS_API_TOKEN) — avise o admin.",
+  tcplus_nao_configurado: "A integração com o 3C Plus ainda não foi configurada (secrets).",
+  tcplus_indisponivel: "O 3C Plus não respondeu — tente de novo em instantes.",
   nenhum_lead_discavel: "Nenhum lead da fila tem telefone válido para discar.",
-  sonax_recusou: "O Sonax recusou a fila — confira a campanha no painel do PABX.",
+  tcplus_recusou: "O 3C Plus recusou a fila — confira a campanha no painel do 3C Plus.",
   account_inactive: "Sua conta está inativa.",
 };
 
@@ -68,10 +74,14 @@ export function SessaoDiscagem() {
   const { user } = useAuth();
   const { ligar, discando } = useLigarLead();
 
-  // Modo automático (campanha do discador) em andamento.
-  const [campanhaAtiva, setCampanhaAtiva] = useState<{ enviados: number; falhas: number } | null>(
-    null,
-  );
+  // Modo automático (campanha do discador) em andamento. `listId` é a lista
+  // de mailing desta sessão no 3C Plus — os lotes seguintes e o "parar"
+  // precisam dela.
+  const [campanhaAtiva, setCampanhaAtiva] = useState<{
+    enviados: number;
+    falhas: number;
+    listId: string | null;
+  } | null>(null);
   // Progresso do enfileiramento em lotes (base grande = vários lotes de 100).
   const [progresso, setProgresso] = useState<{ feito: number; total: number } | null>(null);
   // Modo um a um (click-to-call sequencial).
@@ -115,9 +125,10 @@ export function SessaoDiscagem() {
   }
 
   // ---- Modo automático: campanha do discador --------------------------------
-  // A base completa vai ao PABX em LOTES de 100: o primeiro com acao=iniciar
-  // (higiene + login + play), os seguintes com acao=adicionar (só enfileiram —
-  // repetir a higiene apagaria o lote anterior da campanha).
+  // A base completa vai ao 3C Plus em LOTES de 100: o primeiro com
+  // acao=iniciar (higiene + lista nova + upload + login do agente), os
+  // seguintes com acao=adicionar na MESMA lista (list_id) — repetir a higiene
+  // apagaria o lote anterior.
   const LOTE_CAMPANHA = 100;
   const iniciarDiscador = useMutation({
     mutationFn: async () => {
@@ -127,78 +138,95 @@ export function SessaoDiscagem() {
       const ids = leads.map((l) => l.id);
       let enviados = 0;
       let falhas = 0;
-      let playDetalhe: string | null = null;
+      let listId: string | null = null;
+      let loginDetalhe: string | null = null;
       setProgresso({ feito: 0, total: ids.length });
       try {
         for (let i = 0; i < ids.length; i += LOTE_CAMPANHA) {
           const lote = ids.slice(i, i + LOTE_CAMPANHA);
-          const { data, error } = await supabase.functions.invoke("sonax-campanha", {
-            body: { acao: i === 0 ? "iniciar" : "adicionar", lead_ids: lote },
+          const { data, error } = await supabase.functions.invoke("tcplus-campanha", {
+            body:
+              i === 0
+                ? { acao: "iniciar", lead_ids: lote }
+                : { acao: "adicionar", lead_ids: lote, list_id: listId },
           });
           if (error) {
-            const codigo = await codigoDoErro(error);
+            const { codigo, detalhe } = await erroDaFunction(error);
             // Falha no 1º lote = nada começou (erro de verdade). Nos
             // seguintes, o que já entrou continua discando — conta como
             // falha e segue para o próximo lote.
-            if (i === 0) throw Object.assign(new Error(codigo ?? error.message), { codigo });
+            if (i === 0) {
+              throw Object.assign(new Error(codigo ?? error.message), { codigo, detalhe });
+            }
             falhas += lote.length;
             continue;
           }
-          const r = data as { enviados?: number; falhas?: number; play?: string };
+          const r = data as {
+            enviados?: number;
+            filtrados?: number;
+            list_id?: string;
+            login?: string | null;
+          };
           enviados += r.enviados ?? 0;
-          falhas += r.falhas ?? 0;
-          // O play do 1º lote é o que LIGA o discador de fato: falha aqui
-          // significa "enfileirou mas não está discando" — engolir isso
-          // deixaria o corretor esperando um PABX mudo.
-          if (i === 0 && typeof r.play === "string" && r.play !== "ok") playDetalhe = r.play;
+          falhas += r.filtrados ?? 0;
+          if (i === 0) {
+            listId = r.list_id ?? null;
+            // O login do agente no 1º lote é o que LIGA o discador de fato:
+            // falha aqui significa "a lista subiu mas ninguém vai receber"
+            // — engolir isso deixaria o corretor esperando um discador mudo.
+            if (typeof r.login === "string" && r.login !== "ok") loginDetalhe = r.login;
+          }
           setProgresso({ feito: Math.min(i + lote.length, ids.length), total: ids.length });
         }
       } finally {
         setProgresso(null);
       }
-      return { enviados, falhas, playDetalhe };
+      return { enviados, falhas, listId, loginDetalhe };
     },
     onSuccess: (r) => {
-      setCampanhaAtiva({ enviados: r.enviados, falhas: r.falhas ?? 0 });
-      if (r.playDetalhe) {
+      setCampanhaAtiva({ enviados: r.enviados, falhas: r.falhas ?? 0, listId: r.listId });
+      if (r.loginDetalhe) {
         toast.warning(
-          `A fila entrou na campanha (${r.enviados} lead${r.enviados > 1 ? "s" : ""}), mas o Sonax não confirmou o play (${r.playDetalhe}). Sem o play o PABX não disca — confira a campanha no painel do Sonax.`,
+          `A fila subiu para a campanha (${r.enviados} lead${r.enviados > 1 ? "s" : ""}), mas o 3C Plus não confirmou o login do seu agente (${r.loginDetalhe}). Sem o login o discador não entrega chamadas — entre na campanha pelo webphone do 3C Plus.`,
           { duration: 15_000 },
         );
         return;
       }
       toast.success(
-        `Discador rodando: ${r.enviados} lead${r.enviados > 1 ? "s" : ""} na fila. Quem atender toca no seu ramal.`,
+        `Discador rodando: ${r.enviados} lead${r.enviados > 1 ? "s" : ""} na fila. Quem atender cai no seu webphone.`,
       );
     },
     onError: (e) => {
-      const codigo = (e as { codigo?: string | null }).codigo ?? null;
+      const { codigo = null, detalhe = null } = e as {
+        codigo?: string | null;
+        detalhe?: string | null;
+      };
       if (codigo === "fila_vazia") {
         toast.info("Nenhum lead da sua carteira para discar com esses critérios.");
         return;
       }
-      toast.error(
-        (codigo && ERRO_CAMPANHA[codigo]) || `Não foi possível iniciar o discador (${e.message}).`,
-      );
+      const base =
+        (codigo && ERRO_CAMPANHA[codigo]) || `Não foi possível iniciar o discador (${e.message}).`;
+      toast.error(detalhe ? `${base} (${detalhe})` : base);
     },
   });
 
   const pararDiscador = useMutation({
     mutationFn: async () => {
-      // limpar=true: além de pausar, esvazia o que sobrou da fila — a próxima
-      // sessão começa do zero, sem restos da anterior.
-      const { data, error } = await supabase.functions.invoke("sonax-campanha", {
-        body: { acao: "parar", limpar: true },
+      // limpar=true: além de deslogar o agente, apaga as listas que o CRM
+      // subiu nesta campanha — a próxima sessão começa do zero, sem restos.
+      const { data, error } = await supabase.functions.invoke("tcplus-campanha", {
+        body: { acao: "parar", limpar: true, list_id: campanhaAtiva?.listId ?? null },
       });
       if (error) {
-        const codigo = await codigoDoErro(error);
-        throw Object.assign(new Error(codigo ?? error.message), { codigo });
+        const { codigo, detalhe } = await erroDaFunction(error);
+        throw Object.assign(new Error(codigo ?? error.message), { codigo, detalhe });
       }
       return data;
     },
     onSuccess: () => {
       setCampanhaAtiva(null);
-      toast.success("Discador parado — a fila restante foi limpa.");
+      toast.success("Discador parado — seu agente foi deslogado e a fila restante foi limpa.");
     },
     onError: (e) => {
       const codigo = (e as { codigo?: string | null }).codigo ?? null;
@@ -255,7 +283,7 @@ export function SessaoDiscagem() {
               </span>
               Discador rodando — {campanhaAtiva.enviados} lead
               {campanhaAtiva.enviados > 1 ? "s" : ""} na fila
-              {campanhaAtiva.falhas > 0 ? ` (${campanhaAtiva.falhas} recusados)` : ""}
+              {campanhaAtiva.falhas > 0 ? ` (${campanhaAtiva.falhas} filtrados pelo 3C Plus)` : ""}
             </span>
             <Button
               size="sm"
@@ -270,13 +298,14 @@ export function SessaoDiscagem() {
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-muted-foreground">
           <p>
-            O PABX está ligando para a fila sozinho e descartando caixa postal —{" "}
-            <strong className="text-foreground">só quem atende toca no seu ramal</strong>, um de
-            cada vez, até a fila acabar.
+            O 3C Plus está ligando para a fila sozinho —{" "}
+            <strong className="text-foreground">só quem atende cai no seu webphone</strong>, um de
+            cada vez, até a lista acabar. Qualifique cada chamada no 3C Plus: a qualificação move o
+            lead de etapa aqui.
           </p>
           <p>
-            Cada conexão aparece no histórico abaixo e na timeline do lead em tempo real. Deixe seu
-            ramal livre para receber.
+            Cada conexão aparece no histórico abaixo e na timeline do lead em tempo real. Deixe o
+            webphone do 3C Plus aberto e logado para receber.
           </p>
         </CardContent>
       </Card>
@@ -348,7 +377,7 @@ export function SessaoDiscagem() {
 
           <p className="text-xs text-muted-foreground">
             {autoDiscar
-              ? "Ao avançar, o próximo lead é discado automaticamente no seu ramal."
+              ? "Ao avançar, o próximo lead é discado automaticamente pelo seu agente no 3C Plus."
               : "Ao avançar, use o botão Ligar para discar o próximo lead."}
           </p>
         </CardContent>
@@ -398,7 +427,7 @@ export function SessaoDiscagem() {
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
           <span className="text-xs text-muted-foreground">
-            Sem campanha configurada no PABX? Disque a mesma fila um a um pelo seu ramal:
+            Sem campanha configurada no 3C Plus? Disque a mesma fila um a um pelo seu agente:
           </span>
           <Button
             size="sm"

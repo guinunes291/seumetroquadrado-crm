@@ -104,7 +104,7 @@ como chip sempre que existir (todas as fontes o trazem), e o botão Resumo abre,
 sem sair da fila, o Resumo da Sami (gerado sob demanda, cacheado por lead) com
 renda, FGTS, entrada e origem, mais a porta do histórico completo (peek).
 
-**Ligar usa o click-to-call.** `useLigarLead` (Sonax com fallback `tel:`),
+**Ligar usa o click-to-call.** `useLigarLead` (3C Plus com fallback `tel:`),
 como a fila do Follow-Up faz — não o `tel:` puro do card de Atender. Enquanto
 o discador está em chamada, o Ligar de todos os cards trava (é um discador por
 corretor); a confirmação de visita trava só o card em voo.

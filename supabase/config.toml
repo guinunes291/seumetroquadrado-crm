@@ -33,8 +33,9 @@ verify_jwt = true
 [functions.notify-lead-transfer]
 verify_jwt = false
 
-# Telefonia Sonax — click-to-call chamado do app com o JWT do corretor (RLS
-# decide o que ele pode discar/registrar).
+# Telefonia Sonax (LEGADO desde 2026-09-15 — o app usa as tcplus-* abaixo; as
+# entradas ficam para o caso de rollback). Click-to-call chamado do app com o
+# JWT do corretor (RLS decide o que ele pode discar/registrar).
 [functions.sonax-discar]
 verify_jwt = true
 
@@ -52,4 +53,21 @@ verify_jwt = true
 # Autenticação via SONAX_WEBHOOK_SECRET (?secret= ou x-webhook-secret), não por
 # JWT do Supabase.
 [functions.sonax-webhook]
+verify_jwt = false
+
+# Telefonia 3C Plus (discador atual; as sonax-* acima são legado) —
+# click-to-call chamado do app com o JWT do corretor (RLS decide o que ele
+# pode discar/registrar; o token do agente é lido pela service_role).
+[functions.tcplus-discar]
+verify_jwt = true
+
+# Telefonia 3C Plus — discador automático por campanha (lista de mailing +
+# login do agente), chamado do app com o JWT do corretor.
+[functions.tcplus-campanha]
+verify_jwt = true
+
+# Telefonia 3C Plus — webhook de eventos (Configurações → Integrações no 3C
+# Plus). Autenticação via TCPLUS_WEBHOOK_SECRET (x-webhook-secret, Bearer ou
+# ?secret=), não por JWT do Supabase.
+[functions.tcplus-webhook]
 verify_jwt = false

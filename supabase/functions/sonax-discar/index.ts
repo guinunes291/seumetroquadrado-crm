@@ -1,3 +1,7 @@
+// LEGADO — substituído pelo discador 3C Plus em 2026-09-15 (functions tcplus-*,
+// docs/integracoes/3cplus-discador.md). Mantido só como referência/rollback:
+// o app não chama mais esta function e ela não precisa de deploy.
+//
 // Click-to-call via Sonax PABX Virtual: o corretor clica "Ligar" no CRM, o
 // PABX toca primeiro no ramal dele e, ao atender, disca para o lead.
 // Docs da API: docs/integracoes/sonax-discador.md (fonte: Postman oficial Sonax).

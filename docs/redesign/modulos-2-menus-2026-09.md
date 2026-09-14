@@ -86,10 +86,10 @@ dez tons.
 
 ## Onde está no código
 
-| Peça                                 | Arquivo                                                                                                                                                                                   |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Registro dos módulos (fonte única)   | `src/features/nav/sistemas.ts`                                                                                                                                                            |
-| Cor por módulo                       | `src/features/nav/cores-modulo.ts`, `src/styles.css`                                                                                                                                      |
-| Agenda/Tarefas sem abas no desktop   | `src/routes/_authenticated/agendamentos.tsx`                                                                                                                                              |
-| Kanban (quadro completo) como título | `src/routes/_authenticated/pipeline.tsx`                                                                                                                                                  |
-| Guardas                              | `tests/sistemas.test.ts`, `tests/cores-modulo.test.ts`, `tests/porta-unica.test.ts`, `tests/mensagens-central.test.ts`, `tests/telefonia-sonax.test.ts`, `tests/contexto-jornada.test.ts` |
+| Peça                                 | Arquivo                                                                                                                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Registro dos módulos (fonte única)   | `src/features/nav/sistemas.ts`                                                                                                                                                             |
+| Cor por módulo                       | `src/features/nav/cores-modulo.ts`, `src/styles.css`                                                                                                                                       |
+| Agenda/Tarefas sem abas no desktop   | `src/routes/_authenticated/agendamentos.tsx`                                                                                                                                               |
+| Kanban (quadro completo) como título | `src/routes/_authenticated/pipeline.tsx`                                                                                                                                                   |
+| Guardas                              | `tests/sistemas.test.ts`, `tests/cores-modulo.test.ts`, `tests/porta-unica.test.ts`, `tests/mensagens-central.test.ts`, `tests/telefonia-3cplus.test.ts`, `tests/contexto-jornada.test.ts` |

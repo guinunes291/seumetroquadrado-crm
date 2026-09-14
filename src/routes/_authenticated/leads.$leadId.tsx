@@ -302,8 +302,9 @@ function LeadDetailPage() {
           // dados não têm outro caminho, então aparecem em qualquer tamanho de
           // tela (antes o bloco inteiro era `hidden md:flex` e sumiam).
           <div className="flex flex-wrap gap-2">
-            {/* Click-to-call Sonax: o PABX toca no ramal do corretor e disca o
-                lead; sem telefonia configurada o hook degrada para o tel:. */}
+            {/* Click-to-call 3C Plus: o agente do corretor disca o lead (a voz
+                toca no webphone); sem telefonia configurada o hook degrada
+                para o tel:. */}
             <Button
               variant="outline"
               className="hidden md:inline-flex"

@@ -42,8 +42,9 @@ const KeyboardShortcutsHelp = lazy(() =>
     default: KeyboardShortcutsHelp,
   })),
 );
-// Pop-up global de chamada ativa do discador Sonax: quando o PABX conecta um
-// cliente, a ficha do lead aparece em qualquer tela do CRM, com som.
+// Pop-up global de chamada ativa do discador (3C Plus): quando o discador
+// conecta um cliente ao agente, a ficha do lead aparece em qualquer tela do
+// CRM, com som.
 const ChamadaAtivaHost = lazy(() =>
   import("@/features/telefonia/chamada-ativa-host").then(({ ChamadaAtivaHost }) => ({
     default: ChamadaAtivaHost,

@@ -1,3 +1,7 @@
+// LEGADO — substituído pelo discador 3C Plus em 2026-09-15 (functions tcplus-*,
+// docs/integracoes/3cplus-discador.md). Mantido só como referência/rollback:
+// o app não chama mais esta function e ela não precisa de deploy.
+//
 // Webhook de eventos de chamada do Sonax PABX Virtual ("URL de integração").
 // O PABX chama esta URL nos eventos de chamada com variáveis de template
 // (<ID_CHAMADA>, <NUMERO>, <RAMAL>, <ID_FILA>, <ID_CAMPANHA>, ...):

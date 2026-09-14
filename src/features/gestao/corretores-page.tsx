@@ -31,10 +31,10 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CrmInviteDialog } from "@/components/crm-invite-dialog";
 import {
-  listarTelefoniaSonax,
-  salvarTelefoniaSonax,
-  type TelefoniaSonax,
-} from "./ramal-sonax-client";
+  listarAgentesTcplus,
+  salvarAgenteTcplus,
+  type AgenteTcplus,
+} from "@/features/telefonia/telefonia-3cplus-client";
 import { toast } from "sonner";
 import {
   Check,
@@ -52,7 +52,7 @@ type CorretorRow = {
   nome: string;
   email: string;
   telefone: string | null;
-  telefonia: TelefoniaSonax;
+  telefonia: AgenteTcplus | null;
   cargo: string | null;
   ativo: boolean;
   status_conta: "pendente" | "ativa" | "bloqueada";
@@ -135,19 +135,15 @@ export function CorretoresPage() {
           return acc;
         }, {});
       }
-      // Colunas novas (telefonia Sonax) vivem fora dos types gerados — vêm
-      // pela fronteira tipada de ramal-sonax-client, que tolera migration
-      // pendente.
-      const telefonia = await listarTelefoniaSonax(ids);
+      // Vínculo com o discador 3C Plus vive em telefonia_agentes (fora dos
+      // types gerados) — vem pela fronteira tipada, que tolera migration
+      // pendente e nunca lê o token (coluna sem SELECT para o app).
+      const telefonia = await listarAgentesTcplus(ids);
 
       return (profiles ?? []).map((p) => ({
         ...p,
         equipe: Array.isArray(p.equipe) ? (p.equipe[0] ?? null) : p.equipe,
-        telefonia: telefonia[p.id] ?? {
-          ramal_sonax: null,
-          sonax_id_atendente: null,
-          sonax_id_campanha: null,
-        },
+        telefonia: telefonia[p.id] ?? null,
         roles: rolesByUser[p.id] ?? [],
       })) as CorretorRow[];
     },
@@ -214,25 +210,28 @@ export function CorretoresPage() {
   });
 
   const updateTelefonia = useMutation({
-    mutationFn: async ({ id, campos }: { id: string; campos: TelefoniaSonax }) => {
-      const limpar = (v: string | null) => (v ?? "").trim() || null;
-      const ramal = limpar(campos.ramal_sonax);
-      const atendente = limpar(campos.sonax_id_atendente);
-      const campanha = limpar(campos.sonax_id_campanha);
+    mutationFn: async ({ id, campos }: { id: string; campos: CamposTelefoniaForm }) => {
+      const limpar = (v: string) => v.trim() || null;
+      const agente = limpar(campos.agent_id);
+      const campanha = limpar(campos.campaign_id);
+      const token = campos.api_token.trim();
       const soDigitos = /^\d{1,12}$/;
-      if (ramal && !soDigitos.test(ramal)) {
-        throw new Error("Ramal inválido. Use apenas números (ex.: 122).");
-      }
-      if (atendente && !soDigitos.test(atendente)) {
-        throw new Error("ID do atendente inválido. Use apenas números (ex.: 10260).");
+      if (agente && !soDigitos.test(agente)) {
+        throw new Error("ID do agente inválido. Use apenas números (ex.: 1042).");
       }
       if (campanha && !soDigitos.test(campanha)) {
-        throw new Error("ID da campanha inválido. Use apenas números (ex.: 612413).");
+        throw new Error("ID da campanha inválido. Use apenas números (ex.: 318).");
       }
-      await salvarTelefoniaSonax(id, {
-        ramal_sonax: ramal,
-        sonax_id_atendente: atendente,
-        sonax_id_campanha: campanha,
+      // Token em branco = manter o atual (o admin raramente tem o token do
+      // agente — ele costuma ser colado pelo próprio corretor na aba
+      // Discador). Um valor curto é quase certamente um paste errado.
+      if (token && token.length < 20) {
+        throw new Error("Esse não parece um token do 3C Plus. Cole o token de API completo.");
+      }
+      await salvarAgenteTcplus(id, {
+        agent_id: agente,
+        campaign_id: campanha,
+        ...(token ? { api_token: token } : {}),
       });
     },
     onSuccess: () => {
@@ -313,22 +312,22 @@ export function CorretoresPage() {
           ),
       },
       {
-        id: "pabx",
+        id: "discador",
         header: () => (
-          <span title="Telefonia Sonax: ramal, ID do atendente e campanha do discador">PABX</span>
+          <span title="3C Plus: ID do agente, campanha do discador e token de agente">
+            Discador
+          </span>
         ),
         enableSorting: false,
-        meta: { label: "PABX", hideBelow: "lg" },
+        meta: { label: "Discador", hideBelow: "lg" },
         cell: ({ row }) =>
           isAdmin ? (
-            <TelefoniaSonaxCell
+            <TelefoniaTcplusCell
               telefonia={row.original.telefonia}
               onSave={(campos) => mutateTelefonia({ id: row.original.id, campos })}
             />
           ) : (
-            <span className="text-muted-foreground">
-              {row.original.telefonia.ramal_sonax ?? "—"}
-            </span>
+            <span className="text-muted-foreground">{resumoTelefonia(row.original.telefonia)}</span>
           ),
       },
       {
@@ -676,24 +675,39 @@ function TelefoneCell({
   );
 }
 
-/** Telefonia Sonax do corretor: ramal (click-to-call), ID do atendente e
- *  campanha do discador automático — os três num popover só. Vazio limpa. */
-function TelefoniaSonaxCell({
+type CamposTelefoniaForm = { agent_id: string; campaign_id: string; api_token: string };
+
+function resumoTelefonia(t: AgenteTcplus | null): string {
+  if (!t) return "—";
+  const partes = [
+    t.agent_id ? `Agente #${t.agent_id}` : null,
+    t.campaign_id ? `camp. #${t.campaign_id}` : null,
+    t.token_atualizado_em ? "token ok" : "sem token",
+  ].filter(Boolean);
+  return partes.join(" · ");
+}
+
+/** Vínculo do corretor com o 3C Plus: ID do agente (casa os eventos do
+ *  webhook), campanha do discador (onde o agente loga) e, opcionalmente, o
+ *  token de agente — em branco mantém o atual; o valor nunca é lido de volta
+ *  (a coluna não tem SELECT para o app). Vazio nos IDs limpa. */
+function TelefoniaTcplusCell({
   telefonia,
   onSave,
 }: {
-  telefonia: TelefoniaSonax;
-  onSave: (campos: TelefoniaSonax) => Promise<unknown>;
+  telefonia: AgenteTcplus | null;
+  onSave: (campos: CamposTelefoniaForm) => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
-  const [ramal, setRamal] = useState(telefonia.ramal_sonax ?? "");
-  const [atendente, setAtendente] = useState(telefonia.sonax_id_atendente ?? "");
-  const [campanha, setCampanha] = useState(telefonia.sonax_id_campanha ?? "");
+  const [agente, setAgente] = useState(telefonia?.agent_id ?? "");
+  const [campanha, setCampanha] = useState(telefonia?.campaign_id ?? "");
+  const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const resumo = telefonia.ramal_sonax
-    ? `Ramal ${telefonia.ramal_sonax}${telefonia.sonax_id_campanha ? " · discador" : ""}`
-    : null;
+  const resumo =
+    telefonia && (telefonia.agent_id || telefonia.campaign_id || telefonia.token_atualizado_em)
+      ? resumoTelefonia(telefonia)
+      : null;
 
   return (
     <Popover
@@ -701,9 +715,9 @@ function TelefoniaSonaxCell({
       onOpenChange={(o) => {
         setOpen(o);
         if (o) {
-          setRamal(telefonia.ramal_sonax ?? "");
-          setAtendente(telefonia.sonax_id_atendente ?? "");
-          setCampanha(telefonia.sonax_id_campanha ?? "");
+          setAgente(telefonia?.agent_id ?? "");
+          setCampanha(telefonia?.campaign_id ?? "");
+          setToken("");
         }
       }}
     >
@@ -717,26 +731,17 @@ function TelefoniaSonaxCell({
           <PencilSimple className="ml-auto h-3 w-3 shrink-0 opacity-60" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 space-y-3 p-3">
+      <PopoverContent align="start" className="w-72 space-y-3 p-3">
         <p className="text-xs text-muted-foreground">
-          Dados do corretor no PABX Sonax. Sem ramal não há click-to-call; sem atendente e campanha
-          não há discador automático.
+          Dados do corretor no 3C Plus. Sem campanha não há discador nem click-to-call; o token de
+          agente costuma ser colado pelo próprio corretor na aba Discador.
         </p>
         <div className="space-y-1">
-          <Label className="text-xs">Ramal</Label>
+          <Label className="text-xs">ID do agente (usuário no 3C Plus)</Label>
           <Input
-            value={ramal}
-            onChange={(e) => setRamal(e.target.value)}
-            placeholder="122"
-            className="h-8"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">ID do atendente</Label>
-          <Input
-            value={atendente}
-            onChange={(e) => setAtendente(e.target.value)}
-            placeholder="10260"
+            value={agente}
+            onChange={(e) => setAgente(e.target.value)}
+            placeholder="1042"
             className="h-8"
           />
         </div>
@@ -745,7 +750,23 @@ function TelefoniaSonaxCell({
           <Input
             value={campanha}
             onChange={(e) => setCampanha(e.target.value)}
-            placeholder="612413"
+            placeholder="318"
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">
+            Token de agente{" "}
+            <span className="text-muted-foreground">
+              ({telefonia?.token_atualizado_em ? "em branco = manter" : "opcional"})
+            </span>
+          </Label>
+          <Input
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Token de API do agente"
             className="h-8"
           />
         </div>
@@ -759,11 +780,7 @@ function TelefoniaSonaxCell({
             onClick={async () => {
               setSaving(true);
               try {
-                await onSave({
-                  ramal_sonax: ramal,
-                  sonax_id_atendente: atendente,
-                  sonax_id_campanha: campanha,
-                });
+                await onSave({ agent_id: agente, campaign_id: campanha, api_token: token });
                 setOpen(false);
               } catch {
                 // toast já é exibido pela mutation

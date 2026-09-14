@@ -203,7 +203,7 @@ export const SISTEMAS: Sistema[] = [
       },
       // Regra dos 2 menus (2026-09-11): para o CORRETOR a sidebar é Modo Foco
       // + Oferta Ativa + Discador — as três ferramentas de topo de funil, e só.
-      // Oferta Ativa (listas segmentadas para campanha) e Discador (PABX) vieram
+      // Oferta Ativa (listas segmentadas para campanha) e Discador (3C Plus) vieram
       // do extinto hub Comunicações: são prospecção de base, não "comunicação".
       // Gated por OPERACAO: o SDR segue vendo só o Modo Foco (decisão de
       // 2026-09-04 preservada).

@@ -1,3 +1,7 @@
+// LEGADO — substituído pelo discador 3C Plus em 2026-09-15 (functions tcplus-*,
+// docs/integracoes/3cplus-discador.md). Mantido só como referência/rollback:
+// o app não chama mais esta function e ela não precisa de deploy.
+//
 // Sincroniza as TABULAÇÕES do discador Sonax com o funil do CRM: baixa o
 // arquivo de contatos da campanha do corretor (acao=download_arquivo_contato
 // — o id_contato de cada linha é o UUID do lead, gravado pela sonax-campanha
