@@ -16,6 +16,12 @@
  * O fundo do funil usa 30 dias e o resto usa 7 — os mesmos prazos da régua de
  * posse. Tela e régua contando tempo de formas diferentes é o pior dos dois
  * mundos: o gestor vê um número e a operação executa outro.
+ *
+ * A partir de 20260914180000 a coluna `ativa` respeita o TETO
+ * (`capacidade_leads_ativos_por_corretor`, 65): o corretor tem no máximo esse
+ * tanto em tratativa, e o que passa disso sai em `acima_do_teto` — visível,
+ * não escondido. O teto e os prazos vêm na própria resposta para a tela não
+ * guardar uma segunda cópia deles.
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import {
@@ -35,12 +41,40 @@ type Linha = {
   corretor_id: string | null;
   total: string;
   ativa: string;
+  acima_do_teto: string;
   prospeccao: string;
   parada: string;
   fundo: string;
   ganhos: string;
   perdidos: string;
+  teto: number;
+  dias_atendimento: number;
+  dias_avancado: number;
 };
+
+const CHAVE_TETO = "capacidade_leads_ativos_por_corretor";
+
+/** Roda `fn` com o teto da casa trocado e devolve a config ao valor original.
+ *  É assim que se prova que o teto SAI da config: baixando-o, o corte muda. */
+async function comTeto<T>(n: number, fn: () => Promise<T>): Promise<T> {
+  await comoSuperuser(c);
+  const antes = (
+    await c.query(`SELECT valor FROM public.gestao_config WHERE chave = $1`, [CHAVE_TETO])
+  ).rows[0]?.valor;
+  await c.query(`UPDATE public.gestao_config SET valor = $1::jsonb WHERE chave = $2`, [
+    JSON.stringify(n),
+    CHAVE_TETO,
+  ]);
+  try {
+    return await fn();
+  } finally {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.gestao_config SET valor = $1::jsonb WHERE chave = $2`, [
+      JSON.stringify(antes),
+      CHAVE_TETO,
+    ]);
+  }
+}
 
 let admin: UsuarioTeste;
 let corretor: UsuarioTeste;
@@ -98,6 +132,12 @@ beforeAll(async () => {
     corretorId: corretor.id,
     status: "aguardando_atendimento",
   });
+  // Balcão: leads em tratativa SEM dono. O teto é por corretor — a linha do
+  // balcão não é a carteira de ninguém e não pode ser cortada em 65.
+  const semDono: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    semDono.push(await criarLead(c, { nome: `Balcao ${i}`, status: "em_atendimento" }));
+  }
   // O banco exige `motivo_perda_categoria` para nascer perdido; cria vivo e
   // transiciona com os triggers desligados, como a suíte já faz em outros casos.
   const perdido = await criarLead(c, {
@@ -117,7 +157,7 @@ beforeAll(async () => {
   );
   await c.query(`SET session_replication_role = DEFAULT`);
   await c.query(`UPDATE public.leads SET ultima_interacao = now() WHERE id = ANY($1::uuid[])`, [
-    [emTratativa, fundoRecente],
+    [emTratativa, fundoRecente, ...semDono],
   ]);
   // 20 dias: passa dos 7 do atendimento, mas NÃO dos 30 do fundo.
   await c.query(
@@ -180,5 +220,47 @@ describe("escopo", () => {
     expect(await errCode(c.query(`SELECT * FROM public.carteira_stats_por_corretor_v1()`))).toBe(
       "42501",
     );
+  });
+});
+
+describe("o teto", () => {
+  it("corta a carteira ativa e mostra o excedente em vez de escondê-lo", async () => {
+    // O corretor tem 3 em tratativa. Com teto 2, a tela deve dizer 2 ativos e
+    // 1 acima do teto — nunca 2 e silêncio sobre o terceiro.
+    const s = await comTeto(2, () => stats(admin, corretor.id));
+    expect(Number(s?.ativa)).toBe(2);
+    expect(Number(s?.acima_do_teto)).toBe(1);
+    expect(Number(s?.teto)).toBe(2);
+    // A soma continua fechando com o que está em tratativa de verdade.
+    expect(Number(s?.ativa) + Number(s?.acima_do_teto)).toBe(3);
+  });
+
+  it("sai de gestao_config, não de um 65 fixo no código", async () => {
+    // Mesma base, teto maior: nada é cortado. Se o 65 estivesse fixo na
+    // função, este teste e o anterior não poderiam passar os dois.
+    const s = await comTeto(10, () => stats(admin, corretor.id));
+    expect(Number(s?.ativa)).toBe(3);
+    expect(Number(s?.acima_do_teto)).toBe(0);
+    expect(Number(s?.teto)).toBe(10);
+  });
+
+  it("não corta o balcão: lead sem dono não é carteira de ninguém", async () => {
+    const s = await comTeto(2, async () => {
+      await comoUsuario(c, admin.id);
+      const r = await c.query(`SELECT * FROM public.carteira_stats_por_corretor_v1()`);
+      return (r.rows as Linha[]).find((l) => l.corretor_id === null);
+    });
+    expect(Number(s?.ativa)).toBe(3);
+    expect(Number(s?.acima_do_teto)).toBe(0);
+  });
+});
+
+describe("os prazos saem na resposta", () => {
+  it("a lista da tela filtra com os mesmos 7/30 que a contagem usou", async () => {
+    // Sem isso a tela fixaria 7/30 no cliente e passaria a existir um segundo
+    // lugar guardando o prazo — a divergência que este repo documenta contra.
+    const s = await stats(admin, corretor.id);
+    expect(Number(s?.dias_atendimento)).toBe(7);
+    expect(Number(s?.dias_avancado)).toBe(30);
   });
 });
