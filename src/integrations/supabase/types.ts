@@ -8314,6 +8314,24 @@ export type Database = {
           teto: number
         }[]
       }
+      carteira_stats_por_corretor_v1: {
+        Args: never
+        Returns: {
+          acima_do_teto: number
+          ativa: number
+          corretor_id: string
+          dias_atendimento: number
+          dias_avancado: number
+          fundo: number
+          ganhos: number
+          parada: number
+          perdidos: number
+          prospeccao: number
+          sem_passo_vivo: number
+          teto: number
+          total: number
+        }[]
+      }
       carteira_vagas_entrada_v1: {
         Args: { _corretor: string }
         Returns: number
@@ -8811,6 +8829,18 @@ export type Database = {
       expirar_lixeira_antiga: { Args: never; Returns: undefined }
       faixa_mcmv_norm: { Args: { _v: string }; Returns: string }
       fechamento_sinais_v1: { Args: { _limit?: number }; Returns: Json }
+      fila_equipe_v1: {
+        Args: never
+        Returns: {
+          carteira_ativa: number
+          corretor_id: string
+          em_jogo: number
+          fundo_parado: number
+          nome: string
+          sem_proximo_passo: number
+          vencidos: number
+        }[]
+      }
       followup_fila_v1: {
         Args: { _corretor?: string; _take?: number }
         Returns: Json
@@ -9075,7 +9105,19 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
+      lead_origem_conquistada: {
+        Args: { _origem: Database["public"]["Enums"]["lead_origem"] }
+        Returns: boolean
+      }
+      lead_origem_paga: {
+        Args: {
+          _origem: Database["public"]["Enums"]["lead_origem"]
+          _sdr_entregue_em?: string
+        }
+        Returns: boolean
+      }
       lead_reaquecivel_sdr: { Args: { _lead_id: string }; Returns: boolean }
+      lead_sem_proximo_passo: { Args: { _lead: string }; Returns: boolean }
       lead_ultima_atividade: {
         Args: {
           _ultima_interacao: string
