@@ -63,6 +63,7 @@ import { QualificacaoTab } from "@/features/leads/dossie/qualificacao-tab";
 import { TarefasTab, useTarefasLead } from "@/features/leads/dossie/tarefas-tab";
 import { AgendamentosTab, useAgendamentosLead } from "@/features/leads/dossie/agendamentos-tab";
 import { LeadStatusCards } from "@/features/leads/dossie/lead-status-cards";
+import { HistoricoResponsaveisCard } from "@/features/leads/dossie/historico-responsaveis-card";
 import { AnaliseCreditoCard } from "@/components/lead-stage/analise-resultado";
 import { WhatsappLeadDialog } from "@/features/leads/dossie/whatsapp-dialog";
 import { WhatsappTab } from "@/features/leads/dossie/whatsapp-tab";
