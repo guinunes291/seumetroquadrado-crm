@@ -7633,6 +7633,7 @@ export type Database = {
         Returns: undefined
       }
       _gestao_escopo: { Args: never; Returns: Record<string, unknown> }
+      _lead_venda_viva: { Args: { _lead: string }; Returns: boolean }
       _minutos_uteis_entre: {
         Args: { _ate: string; _de: string }
         Returns: number
@@ -8093,6 +8094,43 @@ export type Database = {
           response_body: Json
           response_status: number
           retry_after_seconds: number
+        }[]
+      }
+      bolsao_diagnostico_v1: {
+        Args: never
+        Returns: {
+          base_viva: number
+          bolsao_elegivel: number
+          com_dono: number
+          congelados_por_venda: number
+          estoque_com_dono: number
+          estoque_com_dono_congelado: number
+          estoque_com_dono_no_fundo: number
+          perdidos_com_dono: number
+          perdidos_sem_retrabalho: number
+          sem_dono: number
+          sem_dono_opt_out: number
+          sem_dono_sem_telefone: number
+          status_de_venda: number
+          status_de_venda_sem_venda_viva: number
+        }[]
+      }
+      bolsao_v1: {
+        Args: { _busca?: string; _limite?: number; _offset?: number }
+        Returns: {
+          bairro: string
+          dias_parado: number
+          em_triagem_sdr: boolean
+          lead_id: string
+          nome: string
+          origem: Database["public"]["Enums"]["lead_origem"]
+          parado_desde: string
+          projeto_nome: string
+          status: Database["public"]["Enums"]["lead_status"]
+          telefone_mascarado: string
+          tem_contato: boolean
+          tem_interacao: boolean
+          zona: string
         }[]
       }
       bump_atividade: {
@@ -9406,6 +9444,10 @@ export type Database = {
         }[]
       }
       minha_elegibilidade: { Args: never; Returns: Json }
+      motivo_perda_sem_retrabalho: {
+        Args: { _motivo: string }
+        Returns: boolean
+      }
       nav_pendencias: { Args: never; Returns: Json }
       normalize_phone_smq: { Args: { _raw: string }; Returns: string }
       obter_vitrine_publica: {
@@ -9917,6 +9959,8 @@ export type Database = {
       set_metric_webhook_token: { Args: { _token: string }; Returns: undefined }
       sync_proximo_followup: { Args: { _lead_id: string }; Returns: undefined }
       telefone_digits: { Args: { _telefone: string }; Returns: string }
+      telefone_discavel: { Args: { _telefone: string }; Returns: boolean }
+      telefone_mascarado: { Args: { _telefone: string }; Returns: string }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
