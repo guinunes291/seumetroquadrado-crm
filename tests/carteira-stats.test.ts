@@ -13,12 +13,18 @@
 import { describe, expect, it } from "vitest";
 import {
   SEM_DONO,
+  excedente,
+  filtrarPorEscopo,
   fraseDaCarteira,
+  grupoDoLead,
   indexarPorCorretor,
   pctParada,
   parseCarteiraStats,
+  prazosDaCasa,
+  textoTratativa,
   tomDaCarteira,
   type CarteiraStats,
+  type LeadParaEscopo,
 } from "@/features/gestao/carteira-stats";
 
 function stats(p: Partial<CarteiraStats> = {}): CarteiraStats {
@@ -49,6 +55,31 @@ describe("pctParada", () => {
   it("tudo parado é 100%", () => {
     expect(pctParada(stats({ ativa: 0, parada: 40 }))).toBe(100);
   });
+
+  it("o excedente do teto entra no denominador", () => {
+    // 90 em tratativa (65 dentro do teto + 25 acima) e 10 parados: 10%, não
+    // os 13% que sairiam se o excedente ficasse de fora da conta.
+    expect(pctParada(stats({ ativa: 65, acima_do_teto: 25, parada: 10 }))).toBe(10);
+  });
+});
+
+describe("teto", () => {
+  it("sem teto na resposta, a frase não inventa denominador", () => {
+    expect(textoTratativa(stats({ ativa: 32 }))).toBe("32 em tratativa");
+    expect(excedente(stats({ ativa: 32 }))).toBe(0);
+  });
+
+  it("com teto, o card mostra quanto cabe", () => {
+    expect(textoTratativa(stats({ ativa: 32, teto: 65 }))).toBe("32 de 65 em tratativa");
+    expect(textoTratativa(stats({ ativa: 65, teto: 65, acima_do_teto: 25 }))).toBe(
+      "65 de 65 em tratativa",
+    );
+  });
+
+  it("o teto vem do servidor, não de um 65 fixo no cliente", () => {
+    // Se a gestão baixar a capacidade, a tela acompanha sozinha.
+    expect(textoTratativa(stats({ ativa: 12, teto: 40 }))).toBe("12 de 40 em tratativa");
+  });
 });
 
 describe("tomDaCarteira", () => {
@@ -69,6 +100,12 @@ describe("fraseDaCarteira", () => {
       "12 em tratativa · 40 parados · 300 em prospecção",
     );
     expect(fraseDaCarteira(stats({ ativa: 12 }))).toBe("12 em tratativa");
+  });
+
+  it("quem estoura o teto aparece, não some", () => {
+    expect(fraseDaCarteira(stats({ ativa: 65, teto: 65, acima_do_teto: 25, parada: 40 }))).toBe(
+      "65 de 65 em tratativa · +25 acima do teto · 40 parados",
+    );
   });
 });
 
@@ -103,5 +140,167 @@ describe("parseCarteiraStats", () => {
 
   it("derruba linha malformada em vez de renderizar carteira errada", () => {
     expect(() => parseCarteiraStats([{ corretor_id: null }])).toThrow();
+  });
+
+  it("aceita a linha do banco sem as colunas de teto (migration não aplicada)", () => {
+    // Ausente ≠ zero: a tela some com a leitura de teto em vez de afirmar que
+    // o teto é zero ou que ninguém está acima dele.
+    const [linha] = parseCarteiraStats([
+      {
+        corretor_id: null,
+        total: "10",
+        ativa: "4",
+        prospeccao: "3",
+        parada: "2",
+        fundo: "0",
+        ganhos: "1",
+        perdidos: "0",
+      },
+    ]);
+    expect(linha.teto).toBeUndefined();
+    expect(linha.acima_do_teto).toBeUndefined();
+    expect(textoTratativa(linha)).toBe("4 em tratativa");
+  });
+
+  it("lê teto e prazos como string, do jeito que o PostgREST manda", () => {
+    const [linha] = parseCarteiraStats([
+      {
+        corretor_id: null,
+        total: "10",
+        ativa: "4",
+        prospeccao: "3",
+        parada: "2",
+        fundo: "0",
+        ganhos: "1",
+        perdidos: "0",
+        acima_do_teto: "25",
+        teto: "65",
+        dias_atendimento: "7",
+        dias_avancado: "30",
+      },
+    ]);
+    expect(linha.teto).toBe(65);
+    expect(linha.acima_do_teto).toBe(25);
+    expect(prazosDaCasa([linha])).toEqual({ atendimento: 7, avancado: 30 });
+  });
+});
+
+describe("prazosDaCasa", () => {
+  it("sem prazos na resposta, não há escopo", () => {
+    expect(prazosDaCasa([stats(), stats()])).toBeNull();
+  });
+
+  it("qualquer linha serve — o prazo é da casa, não do corretor", () => {
+    expect(prazosDaCasa([stats(), stats({ dias_atendimento: 7, dias_avancado: 30 })])).toEqual({
+      atendimento: 7,
+      avancado: 30,
+    });
+  });
+});
+
+describe("grupoDoLead", () => {
+  const prazos = { atendimento: 7, avancado: 30 };
+  const agora = Date.parse("2026-09-14T12:00:00Z");
+  const diasAtras = (n: number) => new Date(agora - n * 86_400_000).toISOString();
+
+  function lead(p: Partial<LeadParaEscopo> = {}): LeadParaEscopo {
+    return {
+      status: "em_atendimento",
+      created_at: diasAtras(120),
+      ultima_interacao: null,
+      ultimo_contato: null,
+      ...p,
+    };
+  }
+
+  it("o prazo depende da fase: agendado tem 30 dias, atendimento tem 7", () => {
+    // O mesmo lead, parado há 20 dias, cai em grupos diferentes conforme a
+    // fase. É a regra da régua de posse, e a lista não pode discordar dela.
+    expect(grupoDoLead(lead({ ultima_interacao: diasAtras(20) }), prazos, agora)).toBe("parado");
+    expect(
+      grupoDoLead(lead({ status: "agendado", ultima_interacao: diasAtras(20) }), prazos, agora),
+    ).toBe("tratativa");
+    expect(
+      grupoDoLead(lead({ status: "agendado", ultima_interacao: diasAtras(40) }), prazos, agora),
+    ).toBe("parado");
+  });
+
+  it("prospecção velha é prospecção, não carteira parada", () => {
+    expect(grupoDoLead(lead({ status: "aguardando_atendimento" }), prazos, agora)).toBe(
+      "prospeccao",
+    );
+    expect(grupoDoLead(lead({ status: "novo" }), prazos, agora)).toBe("prospeccao");
+  });
+
+  it("ganho e perdido saem da carteira", () => {
+    expect(grupoDoLead(lead({ status: "contrato_fechado" }), prazos, agora)).toBe("fechado");
+    expect(grupoDoLead(lead({ status: "perdido" }), prazos, agora)).toBe("fechado");
+  });
+
+  it("o relógio é o mais recente entre interação e contato, e cai em created_at", () => {
+    // Mesmo relógio da higiene, da Fila Única e do Bolsão.
+    expect(
+      grupoDoLead(
+        lead({ ultima_interacao: diasAtras(30), ultimo_contato: diasAtras(2) }),
+        prazos,
+        agora,
+      ),
+    ).toBe("tratativa");
+    expect(grupoDoLead(lead({ created_at: diasAtras(2) }), prazos, agora)).toBe("tratativa");
+    expect(grupoDoLead(lead({ created_at: diasAtras(30) }), prazos, agora)).toBe("parado");
+  });
+});
+
+describe("filtrarPorEscopo", () => {
+  const prazos = { atendimento: 7, avancado: 30 };
+  const agora = Date.parse("2026-09-14T12:00:00Z");
+  const diasAtras = (n: number) => new Date(agora - n * 86_400_000).toISOString();
+
+  const base = [
+    {
+      id: "vivo",
+      status: "em_atendimento",
+      created_at: diasAtras(1),
+      ultima_interacao: null,
+      ultimo_contato: null,
+    },
+    {
+      id: "parado",
+      status: "em_atendimento",
+      created_at: diasAtras(40),
+      ultima_interacao: null,
+      ultimo_contato: null,
+    },
+    {
+      id: "prospec",
+      status: "aguardando_atendimento",
+      created_at: diasAtras(40),
+      ultima_interacao: null,
+      ultimo_contato: null,
+    },
+    {
+      id: "perdido",
+      status: "perdido",
+      created_at: diasAtras(40),
+      ultima_interacao: null,
+      ultimo_contato: null,
+    },
+  ];
+
+  it("em tratativa deixa de fora prospecção, parados e fechados", () => {
+    // É o ponto da mudança: a lista era dominada por "Aguardando Atendimento".
+    expect(filtrarPorEscopo(base, "tratativa", prazos, agora).map((l) => l.id)).toEqual(["vivo"]);
+  });
+
+  it("parados mostra só o que a régua de devolução leva", () => {
+    expect(filtrarPorEscopo(base, "parados", prazos, agora).map((l) => l.id)).toEqual(["parado"]);
+  });
+
+  it("todos não filtra nada — é a saída de emergência do gestor", () => {
+    expect(filtrarPorEscopo(base, "todos", prazos, agora)).toHaveLength(4);
+  });
+
+  it("sem prazos do servidor, mostra tudo em vez de filtrar por prazo chutado", () => {
+    expect(filtrarPorEscopo(base, "tratativa", null, agora)).toHaveLength(4);
   });
 });

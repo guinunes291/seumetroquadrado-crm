@@ -36,11 +36,16 @@ import {
 } from "@phosphor-icons/react";
 import {
   SEM_DONO,
+  excedente,
+  filtrarPorEscopo,
   indexarPorCorretor,
   pctParada,
+  prazosDaCasa,
+  textoTratativa,
   tomDaCarteira,
   useCarteiraStats,
   type CarteiraStats,
+  type EscopoCarteira,
 } from "@/features/gestao/carteira-stats";
 import {
   LEAD_STATUS_LABEL,
@@ -59,6 +64,10 @@ type Lead = {
   status: string;
   corretor_id: string | null;
   created_at: string;
+  // Relógio da higiene: é o que separa "em tratativa" de "parado" na lista,
+  // com os mesmos campos que a RPC usa para contar.
+  ultima_interacao: string | null;
+  ultimo_contato: string | null;
 };
 
 type Stats = {
@@ -82,6 +91,15 @@ type StatsRow = {
 /** Limite de leads baixados para a LISTAGEM (a agregação dos cards é no servidor). */
 const LIMITE_LEADS = 2000;
 
+const LEAD_COLUNAS =
+  "id, nome, email, telefone, status, corretor_id, created_at, ultima_interacao, ultimo_contato";
+
+const ESCOPO_LABEL: Record<EscopoCarteira, string> = {
+  tratativa: "Em tratativa",
+  parados: "Parados",
+  todos: "Todos",
+};
+
 export function LeadsPorCorretorPage() {
   const { isAdmin, isGestor } = useUserRoles();
   const canManage = isAdmin || isGestor;
@@ -90,6 +108,9 @@ export function LeadsPorCorretorPage() {
   const [selectedCorretor, setSelectedCorretor] = useState<string | "unassigned" | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  // A lista abre no que está em tratativa. Sem isso ela é dominada por
+  // "Aguardando Atendimento" — prospecção, que tem tela própria.
+  const [escopo, setEscopo] = useState<EscopoCarteira>("tratativa");
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
   const [targetCorretor, setTargetCorretor] = useState<string>("");
@@ -134,6 +155,11 @@ export function LeadsPorCorretorPage() {
     () => (carteiraRows ?? []).reduce((soma, r) => soma + r.prospeccao, 0),
     [carteiraRows],
   );
+  // Os prazos vêm da RPC (que os lê de distribuicao_settings). Sem eles não
+  // há como classificar a lista sem chutar um prazo, então o filtro some e a
+  // tela volta a mostrar tudo — comportamento antigo, nunca um recorte errado.
+  const prazos = useMemo(() => prazosDaCasa(carteiraRows ?? []), [carteiraRows]);
+  const escopoEfetivo: EscopoCarteira = prazos ? escopo : "todos";
 
   const {
     data: leads,
@@ -146,7 +172,7 @@ export function LeadsPorCorretorPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("leads")
-        .select("id, nome, email, telefone, status, corretor_id, created_at")
+        .select(LEAD_COLUNAS)
         .eq("na_lixeira", false)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -166,7 +192,7 @@ export function LeadsPorCorretorPage() {
     queryFn: async () => {
       let q = supabase
         .from("leads")
-        .select("id, nome, email, telefone, status, corretor_id, created_at")
+        .select(LEAD_COLUNAS)
         .eq("na_lixeira", false)
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
@@ -245,6 +271,7 @@ export function LeadsPorCorretorPage() {
     // Com corretor selecionado a base vem do servidor (carteira completa até o
     // limite); sem seleção, é o recorte dos mais recentes.
     let list = selectedCorretor ? (leadsDoCorretor ?? []) : (leads ?? []);
+    list = filtrarPorEscopo(list, escopoEfetivo, prazos);
     if (statusFilter !== "all") list = list.filter((l) => l.status === statusFilter);
     const s = search.trim().toLowerCase();
     if (s) {
@@ -256,7 +283,7 @@ export function LeadsPorCorretorPage() {
       );
     }
     return list;
-  }, [leads, leadsDoCorretor, selectedCorretor, statusFilter, search]);
+  }, [leads, leadsDoCorretor, selectedCorretor, escopoEfetivo, prazos, statusFilter, search]);
 
   const transferMutation = useMutation({
     mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
@@ -482,6 +509,15 @@ export function LeadsPorCorretorPage() {
               <span className="ml-2 text-sm font-normal text-muted-foreground">
                 ({filteredLeads.length})
               </span>
+              {/* O gestor precisa saber que está vendo um recorte. Uma lista
+                  filtrada sem dizer que está filtrada é pior que a lista cheia. */}
+              {escopoEfetivo !== "todos" && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {escopoEfetivo === "tratativa"
+                    ? "· só o que está em tratativa (prospecção fica em Prospecção)"
+                    : "· só o que está parado no prazo da fase"}
+                </span>
+              )}
             </CardTitle>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
@@ -493,6 +529,18 @@ export function LeadsPorCorretorPage() {
                   className="pl-9 w-64"
                 />
               </div>
+              {prazos && (
+                <Select value={escopo} onValueChange={(v) => setEscopo(v as EscopoCarteira)}>
+                  <SelectTrigger className="w-48" aria-label="Escopo da carteira">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tratativa">{ESCOPO_LABEL.tratativa}</SelectItem>
+                    <SelectItem value="parados">{ESCOPO_LABEL.parados}</SelectItem>
+                    <SelectItem value="todos">{ESCOPO_LABEL.todos}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Status" />
@@ -624,11 +672,23 @@ function CorretorCard({
           <>
             <div className="flex items-center gap-2">
               <UsersThree className="h-3.5 w-3.5 text-blue-600" />
-              <span>{carteira.ativa} em tratativa</span>
+              <span>{textoTratativa(carteira)}</span>
               {carteira.fundo > 0 && (
                 <span className="text-xs text-muted-foreground">({carteira.fundo} no fundo)</span>
               )}
             </div>
+            {/* O excedente NÃO some da tela. Um corretor com 90 em tratativa
+                num teto de 65 é informação de gestão; mostrar só 65 e calar
+                os 25 seria o card mentindo por omissão. */}
+            {excedente(carteira) > 0 && (
+              <div
+                className="flex items-center gap-2 text-destructive"
+                title="Passa do teto de leads em tratativa — precisa devolver ou fechar antes de receber mais"
+              >
+                <ArrowsLeftRight className="h-3.5 w-3.5" />
+                <span>+{excedente(carteira)} acima do teto</span>
+              </div>
+            )}
             {carteira.parada > 0 && (
               <div
                 className="flex items-center gap-2"
