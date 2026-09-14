@@ -17,6 +17,7 @@
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  comGestaoConfig,
   comoSuperuser,
   criarLead,
   criarUsuario,
@@ -120,7 +121,16 @@ describe("a faixa conversa", () => {
     const f = await faixas();
     expect(f.get("so_vencida")?.faixa).toBe("reserva");
     expect(f.get("nada")?.faixa).toBe("reserva");
-    expect(f.get("so_vencida")?.motivo).toBe("sem próximo passo definido");
+    // O motivo depende do corte `devolver_sem_proximo_passo_dias`, que a
+    // operação move (foi de 2 para 7 em 15/09/2026). O teste declara o corte
+    // que está exercitando em vez de herdar o de produção.
+    const motivo = await comGestaoConfig(
+      c,
+      "carteira_ativa",
+      { devolver_sem_proximo_passo_dias: 1 },
+      async () => (await faixas()).get("so_vencida")?.motivo,
+    );
+    expect(motivo).toBe("sem próximo passo definido");
   });
 });
 

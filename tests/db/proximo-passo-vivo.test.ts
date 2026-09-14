@@ -17,6 +17,7 @@
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  comGestaoConfig,
   comoSuperuser,
   comoUsuario,
   criarLead,
@@ -129,14 +130,24 @@ describe("tarefa vencida é dívida, não próximo passo", () => {
 
 describe("os consumidores usam a regra nova", () => {
   it("a Reserva passa a dizer 'sem próximo passo definido'", async () => {
-    await comoSuperuser(c);
-    const r = await c.query(
-      `SELECT motivo FROM public._carteira_classificar($1) WHERE lead_id = $2`,
-      [corretor.id, leads.vencida],
+    // Parado há 5 dias, com o corte em 2: passa do gatilho do próximo passo e
+    // não chega nos 30 de "sem movimento". O corte é declarado aqui porque a
+    // operação o move (foi para 7 em 15/09/2026) — herdar o valor de produção
+    // faz o teste falhar por decisão de negócio, não por defeito.
+    const motivo = await comGestaoConfig(
+      c,
+      "carteira_ativa",
+      { devolver_sem_proximo_passo_dias: 2 },
+      async () => {
+        await comoSuperuser(c);
+        const r = await c.query(
+          `SELECT motivo FROM public._carteira_classificar($1) WHERE lead_id = $2`,
+          [corretor.id, leads.vencida],
+        );
+        return r.rows[0]?.motivo as string | undefined;
+      },
     );
-    // Parado há 5 dias: passa do gatilho de 2 e não chega nos 30 de "sem
-    // movimento" — o motivo tem de ser o do próximo passo.
-    expect(r.rows[0]?.motivo).toBe("sem próximo passo definido");
+    expect(motivo).toBe("sem próximo passo definido");
   });
 
   it("o lead com passo vivo NÃO recebe esse motivo", async () => {
