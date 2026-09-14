@@ -63,11 +63,16 @@ export async function tcplusRequest(
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
       signal: AbortSignal.timeout(opts.timeoutMs ?? cfg.timeoutMs ?? 15_000),
     });
-    const texto = (await resp.text()).slice(0, 1000);
+    // O corpo inteiro vira JSON; só a PRÉVIA de texto é truncada (auditoria e
+    // mensagens de erro). Truncar antes do parse quebrava respostas grandes
+    // (ex.: a lista criada em POST /lists tem mais de 1000 caracteres) — o id
+    // sumia e a function tratava um 200 como recusa.
+    const completo = await resp.text();
+    const texto = completo.slice(0, 1000);
     let body: unknown = null;
-    if (texto) {
+    if (completo) {
       try {
-        body = JSON.parse(texto);
+        body = JSON.parse(completo);
       } catch {
         body = texto;
       }

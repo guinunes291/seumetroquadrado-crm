@@ -149,6 +149,38 @@ describe("_shared/tcplus — cliente HTTP", () => {
     expect(mensagemDeErroTcplus(r2)).toBe("inválido — phone: obrigatório");
   });
 
+  it("resposta grande (> 1000 chars) é parseada inteira; só a prévia de texto é truncada", async () => {
+    // Regressão real (2026-09-14): POST /lists devolveu 200 com a lista
+    // criada num JSON longo; o corte antes do parse sumia com o id e a
+    // sessão de discagem acusava "o 3C Plus recusou a lista".
+    const lista = {
+      status: 200,
+      title: "OK",
+      detail: "A requisição foi processada com sucesso.",
+      data: {
+        id: 4790453,
+        name: "CRM Corretor [crm:48a2040a]",
+        headers: [],
+        dial: 0,
+        campos: "x".repeat(1500),
+      },
+    };
+    const r = await tcplusRequest(
+      {
+        baseUrl: "https://x",
+        token: "t",
+        authMode: "bearer",
+        fetchImpl: fetchFake(200, JSON.stringify(lista)),
+      },
+      "POST",
+      "/lists",
+      { body: { name: "CRM Corretor [crm:48a2040a]" } },
+    );
+    expect(r.ok).toBe(true);
+    expect((r.body as { data: { id: number } }).data.id).toBe(4790453);
+    expect(r.texto.length).toBe(1000);
+  });
+
   it("falha de rede vira status 0 (quem chama decide), sem exceção", async () => {
     const f = vi.fn(async () => {
       throw new Error("ECONNRESET");
