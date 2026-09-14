@@ -894,4 +894,3 @@ tarefa pendente" sem olhar a data, ou se qualquer uma das três funções deixar
 de chamar `lead_sem_proximo_passo(`. O parêntese na guarda não é enfeite: a
 primeira versão procurava só o nome, e um comentário citando a função
 satisfazia a checagem sem que a chamada existisse — pego por teste de mutação.
-
