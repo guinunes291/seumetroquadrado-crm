@@ -179,8 +179,10 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
 1. **Aplicar a migration** no projeto Supabase (fluxo normal de deploy).
 2. **Secrets** em _Supabase → Edge Functions → Secrets_:
    - `TCPLUS_API_TOKEN` — token de API do **gestor** no 3C Plus (fixo, não
-     expira; aparece em `GET /me` do usuário gestor). Usado só pela
-     `tcplus-campanha` (listas/mailing).
+     expira; só um gestor troca). Onde ver: painel do 3C Plus →
+     **Configurações → Usuários** → o usuário gestor → opções avançadas.
+     `GET /me` com ele confirma a credencial. Usado só pela `tcplus-campanha`
+     (listas/mailing).
    - `TCPLUS_WEBHOOK_SECRET` — segredo longo e aleatório, exclusivo do
      webhook (ex.: `openssl rand -hex 32`).
    - Opcionais: `TCPLUS_BASE_URL` (instância white-label; default
@@ -208,9 +210,13 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
    `TCPLUS_ALLOW_QUERY_SECRET=false`.
 
 6. **Cadastrar o vínculo dos corretores** em **Gestão → Corretores →
-   Discador**: ID do agente e ID da campanha (o token pode ficar em branco).
-7. **Cada corretor** abre a aba Discador → card "Meu 3C Plus" → cola o token
-   de agente (no 3C Plus: perfil do usuário → token de API).
+   Discador**: ID do agente, ID da campanha e, se quiser fechar tudo de uma
+   vez, o token de agente. O token de cada agente está em **Configurações →
+   Usuários** → o usuário do corretor → opções avançadas — tela de gestor; o
+   agente não a vê. O ID do agente é o ID desse mesmo usuário.
+7. Alternativa: o gestor passa o token ao corretor, que abre a aba Discador →
+   card "Meu 3C Plus" e cola. Os dois caminhos gravam o mesmo campo
+   (`telefonia_agentes.api_token`, write-only para o app).
 8. Testar: abrir um lead → "Ligar" (o webphone do 3C Plus disca; linha em
    `chamadas` e na timeline). Encerrar e qualificar no 3C Plus → o webhook
    preenche status/duração/gravação e move o lead de etapa. Depois, aba

@@ -733,8 +733,9 @@ function TelefoniaTcplusCell({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 space-y-3 p-3">
         <p className="text-xs text-muted-foreground">
-          Dados do corretor no 3C Plus. Sem campanha não há discador nem click-to-call; o token de
-          agente costuma ser colado pelo próprio corretor na aba Discador.
+          Dados do corretor no 3C Plus. Sem campanha não há discador nem click-to-call. O token de
+          agente está no cadastro do usuário no 3C Plus (Configurações → Usuários → opções
+          avançadas, só o gestor vê): cole aqui ou passe ao corretor para colar na aba Discador.
         </p>
         <div className="space-y-1">
           <Label className="text-xs">ID do agente (usuário no 3C Plus)</Label>

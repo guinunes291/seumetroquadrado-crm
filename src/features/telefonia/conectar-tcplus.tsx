@@ -107,6 +107,11 @@ export function ConectarTcplus() {
             <Label htmlFor="tcplus-token" className="text-xs">
               {conectado ? "Novo token de agente" : "Cole seu token de agente do 3C Plus"}
             </Label>
+            <p className="text-xs text-muted-foreground">
+              O token fica no seu cadastro de usuário no 3C Plus (Configurações → Usuários → opções
+              avançadas), tela que só o gestor vê: peça a ele, ou ele cadastra por você em Gestão →
+              Corretores → Discador.
+            </p>
             <div className="flex flex-wrap gap-2">
               <Input
                 id="tcplus-token"
@@ -114,7 +119,7 @@ export function ConectarTcplus() {
                 autoComplete="off"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
-                placeholder="Token de API (Perfil → API no 3C Plus)"
+                placeholder="Token de API do seu usuário no 3C Plus"
                 className="h-8 min-w-[240px] flex-1"
               />
               <Button
