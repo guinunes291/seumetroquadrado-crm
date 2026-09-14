@@ -23,3 +23,15 @@ export function safeSameOriginPath(next: string, origin: string): string {
     return "/";
   }
 }
+
+/**
+ * Destino após autenticação. Nunca devolve o usuário à própria tela de login,
+ * inclusive quando um `next` antigo contém outro `/auth?next=...` aninhado.
+ */
+export function safePostLoginPath(next: string, origin: string): string {
+  const path = safeSameOriginPath(next, origin);
+  if (path === "/" || path === "/auth" || path.startsWith("/auth?")) {
+    return "/inicio";
+  }
+  return path;
+}

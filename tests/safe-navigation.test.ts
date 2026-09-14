@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { safeSameOriginPath } from "@/lib/safe-navigation";
+import { safePostLoginPath, safeSameOriginPath } from "@/lib/safe-navigation";
 
 const ORIGIN = "https://crm.seumetroquadrado.com.br";
 
@@ -20,5 +20,16 @@ describe("retorno seguro pós-login", () => {
     "javascript:alert(1)",
   ])("rejeita destino externo ou ambíguo: %s", (value) => {
     expect(safeSameOriginPath(value, ORIGIN)).toBe("/");
+  });
+
+  it.each(["", "/", "/auth", "/auth?next=%2Fauth%3Fnext%3D%252Finicio"])(
+    "impede retorno pós-login para a própria tela de entrada: %s",
+    (value) => {
+      expect(safePostLoginPath(value, ORIGIN)).toBe("/inicio");
+    },
+  );
+
+  it("preserva um destino interno válido após o login", () => {
+    expect(safePostLoginPath("/sdr?tab=fila", ORIGIN)).toBe("/sdr?tab=fila");
   });
 });

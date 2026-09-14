@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       const nextUserId = next?.user.id ?? null;
       const previousUserId = currentUserId.current;
+      const identityChanged = previousUserId !== nextUserId;
 
       if (previousUserId && previousUserId !== nextUserId) {
         queryClient.clear();
@@ -56,10 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentUserId.current = nextUserId;
       setSession(next);
       setLoading(false);
-      void router.invalidate();
+      if (identityChanged) void router.invalidate();
     };
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       applySession(next);
     });
 
