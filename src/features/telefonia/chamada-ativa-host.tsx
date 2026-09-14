@@ -1,12 +1,13 @@
 // Pop-up global de CHAMADA ATIVA (screen pop do discador): montado no layout
 // autenticado, observa `chamadas` do próprio corretor via realtime e, quando
-// o PABX conecta um cliente (webhook marca atendida/falando), abre um card
-// fixo com a ficha do lead + som de campainha — em QUALQUER tela do CRM.
+// o 3C Plus conecta um cliente (webhook call-was-connected marca atendida),
+// abre um card fixo com a ficha do lead + som de campainha — em QUALQUER
+// tela do CRM.
 //
-// O áudio da ligação vive no ramal do corretor (fone/softphone) — o PABX
-// entrega a voz lá; o CRM entrega o contexto: quem é o cliente, etapa,
-// projeto, último contato, atalho para o dossiê e registro do resultado.
-// Quando a chamada encerra, o card vira "registrar resultado".
+// O áudio da ligação vive no webphone/ramal do 3C Plus — o discador entrega
+// a voz lá; o CRM entrega o contexto: quem é o cliente, etapa, projeto,
+// último contato, atalho para o dossiê e registro do resultado. Quando a
+// chamada encerra, o card vira "registrar resultado".
 //
 // Som: campainha sintetizada via Web Audio (sem asset externo), com toggle
 // persistido em localStorage. Navegador pode bloquear áudio antes da primeira
@@ -265,7 +266,7 @@ export function ChamadaAtivaHost() {
 
           {emAndamento && (
             <p className="text-xs text-muted-foreground">
-              O áudio está no seu ramal — atenda por lá. Aqui fica a ficha do cliente.
+              O áudio está no seu webphone do 3C Plus — atenda por lá. Aqui fica a ficha do cliente.
             </p>
           )}
 

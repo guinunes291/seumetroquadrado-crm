@@ -1,20 +1,25 @@
-// Sessão de discagem: "Iniciar agora" monta a fila SEMPRE da base do próprio
-// corretor com a régua fixa da operação — leads em AGUARDANDO ATENDIMENTO ou
-// com FOLLOW-UP VENCIDO (proximo_followup no passado, status ativo) — sem
-// contato há mais tempo primeiro, nunca opt-out/lixeira/sem telefone — e
-// entrega ao DISCADOR AUTOMÁTICO do Sonax (edge function sonax-campanha): o
-// PABX disca a fila sozinho, descarta caixa postal e SÓ conecta ao ramal quem
-// atende — o fluxo segue até a fila acabar ou o corretor parar. As chamadas
-// conectadas chegam pelo webhook (origem campanha) e aparecem no
-// histórico/timeline em tempo real.
+// Sessão de discagem sobre o BOLSÃO: a fila do discador é tudo que está fora
+// da carteira ativa dos corretores — a base SEM dono (modelo em três camadas:
+// carteira ativa → Reserva → Bolsão, docs/ops/bolsao-oportunidades-fatia4.md).
+// Os mais frios primeiro, sem opt-out, sem quem está com o SDR, sem quem foi
+// discado há pouco e sem quem o próprio corretor devolveu há pouco.
 //
-// Alternativa "um a um" (click-to-call sequencial) para quem ainda não tem
-// campanha/atendente configurados no PABX: disca cada lead no ramal e o
-// próprio corretor avança — nada de discagem em massa paralela.
+// A fila NÃO nasce aqui. O navegador não lê (nem deve ler) o telefone de um
+// lead que não é do corretor: a edge function tcplus-campanha reserva o lote
+// no servidor (RPC discador_bolsao_reservar_v1), sobe a lista para a campanha
+// do 3C Plus e loga o agente; esta tela só lê a própria sessão, anonimizada
+// (bolsao_discagem_minha_v1: telefone mascarado). Quem ATENDE entra na
+// carteira de quem falou (webhook → discador_bolsao_assumir_v1) — só então o
+// registro de resultado libera, porque só então a RLS deixa.
+//
+// Dois modos, uma fila: "Iniciar agora" (o 3C Plus disca a lista sozinho e
+// entrega ao webphone quem atende) e "um a um" (click-to-call sequencial,
+// para quem prefere ouvir chamando). Os dois sobrevivem a recarregar a
+// página: a sessão vive no banco, não no estado do React.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   CaretRight,
@@ -23,6 +28,7 @@ import {
   Phone,
   PhoneTransfer,
   Play,
+  Plus,
   Square,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
@@ -31,219 +37,215 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { useAuth } from "@/hooks/use-auth";
-import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
+import { erroDaFunction, useLigarLead } from "@/hooks/use-ligar-lead";
+import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
-import { formatRelativeTime } from "@/lib/interacoes";
 import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
-import { formatPhoneBR } from "@/lib/masks";
-
-type LeadFila = {
-  id: string;
-  nome: string;
-  telefone: string;
-  status: LeadStatus;
-  corretor_id: string | null;
-  projeto_nome: string | null;
-  ultima_interacao: string | null;
-  proximo_followup: string | null;
-};
-
-// Etapas que não fazem sentido numa fila de discagem ativa.
-const ETAPAS_FORA_DA_FILA = "(perdido,contrato_fechado,pos_venda)";
+import {
+  DISCAGEM_KEY,
+  indiceInicial,
+  resumoDiscagem,
+  useMinhaDiscagem,
+  type LinhaDiscagem,
+} from "./bolsao-discagem-client";
 
 const ERRO_CAMPANHA: Record<string, string> = {
   campanha_nao_configurada:
-    "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → PABX). Enquanto isso, use o modo um a um.",
+    "Sua campanha do discador ainda não foi configurada (Gestão → Corretores → Discador).",
   campanha_compartilhada:
-    "Esta campanha do Sonax está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no painel do Sonax e ajuste em Gestão → Corretores → PABX).",
-  ramal_nao_configurado:
-    "Seu ramal não está cadastrado (Gestão → Corretores → PABX) — sem ele o discador não tem para onde entregar as chamadas.",
-  sonax_nao_configurado: "A integração com o Sonax ainda não foi configurada (secrets).",
-  nenhum_lead_discavel: "Nenhum lead da fila tem telefone válido para discar.",
-  sonax_recusou: "O Sonax recusou a fila — confira a campanha no painel do PABX.",
+    "Esta campanha do 3C Plus está cadastrada para mais de um corretor — cada corretor precisa da própria campanha (crie no 3C Plus e ajuste em Gestão → Corretores → Discador).",
+  token_nao_configurado:
+    "Seu 3C Plus ainda não está conectado — cole seu token de agente no card 'Meu 3C Plus' desta aba.",
+  tcplus_token_invalido:
+    "O 3C Plus recusou seu token de agente — gere um novo no 3C Plus e cole no card 'Meu 3C Plus'.",
+  tcplus_token_gestor_invalido:
+    "O 3C Plus recusou o token do gestor (secret TCPLUS_API_TOKEN) — avise o admin.",
+  tcplus_nao_configurado: "A integração com o 3C Plus ainda não foi configurada (secrets).",
+  tcplus_indisponivel: "O 3C Plus não respondeu — tente de novo em instantes.",
+  bolsao_vazio:
+    "O Bolsão não tem lead discável agora: tudo que está sem dono foi discado há pouco, está com o SDR ou está reservado por outro corretor.",
+  reserva_falhou: "Não foi possível reservar a fila no Bolsão.",
+  tcplus_recusou: "O 3C Plus recusou a lista — confira a campanha no painel do 3C Plus.",
   account_inactive: "Sua conta está inativa.",
 };
 
+type RespostaCampanha = {
+  list_id?: string;
+  reservados?: number;
+  enviados?: number;
+  filtrados?: number;
+  login?: string | null;
+};
+
+async function invocarCampanha(body: Record<string, unknown>): Promise<RespostaCampanha> {
+  const { data, error } = await supabase.functions.invoke("tcplus-campanha", { body });
+  if (error) {
+    const { codigo, detalhe } = await erroDaFunction(error);
+    throw Object.assign(new Error(codigo ?? error.message), { codigo, detalhe });
+  }
+  return (data ?? {}) as RespostaCampanha;
+}
+
+function mensagemDeErro(e: unknown, prefixo: string): string {
+  const { codigo = null, detalhe = null } = e as {
+    codigo?: string | null;
+    detalhe?: string | null;
+  };
+  const base =
+    (codigo && ERRO_CAMPANHA[codigo]) || `${prefixo} (${(e as Error).message ?? "erro"}).`;
+  return detalhe ? `${base} (${detalhe})` : base;
+}
+
 export function SessaoDiscagem() {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const { ligar, discando } = useLigarLead();
 
-  // Modo automático (campanha do discador) em andamento.
-  const [campanhaAtiva, setCampanhaAtiva] = useState<{ enviados: number; falhas: number } | null>(
-    null,
-  );
-  // Progresso do enfileiramento em lotes (base grande = vários lotes de 100).
-  const [progresso, setProgresso] = useState<{ feito: number; total: number } | null>(null);
-  // Modo um a um (click-to-call sequencial).
-  const [autoDiscar, setAutoDiscar] = useState(true);
-  const [fila, setFila] = useState<LeadFila[] | null>(null);
-  const [indice, setIndice] = useState(0);
-  const [registrarAberto, setRegistrarAberto] = useState(false);
+  // A sessão vive no banco: reservas de campanha OU de um a um, anonimizadas.
+  const sessaoQ = useMinhaDiscagem();
+  useRealtimeInvalidate("chamadas", [[DISCAGEM_KEY]], {
+    enabled: !!user,
+    filter: user ? `corretor_id=eq.${user.id}` : undefined,
+    debounceMs: 500,
+  });
+  const linhas = sessaoQ.data ?? [];
+  const campanha = linhas.filter((l) => l.modo === "campanha");
+  const umAUm = linhas.filter((l) => l.modo === "um_a_um");
+  const indisponivel = sessaoQ.data === null;
 
-  // Fila única para os dois modos, com a régua fixa da operação: a BASE
-  // COMPLETA do PRÓPRIO corretor que precisa de ligação agora — status
-  // "Aguardando atendimento" (fila de entrada) OU follow-up vencido
-  // (proximo_followup no passado, em etapa ativa). Sem teto de quantidade:
-  // pagina o banco até o fim (PostgREST devolve no máx. 1000 por request).
-  // Sem opt-out, sem lixeira, telefone válido; quem está há mais tempo sem
-  // contato primeiro.
-  const PAGINA = 1000;
-  async function montarFila(): Promise<LeadFila[]> {
-    if (!user) throw new Error("Sessão expirada — entre de novo.");
-    const agora = new Date().toISOString();
-    const todos: LeadFila[] = [];
-    for (let de = 0; ; de += PAGINA) {
-      const { data, error } = await supabase
-        .from("leads")
-        .select(
-          "id, nome, telefone, status, corretor_id, projeto_nome, ultima_interacao, proximo_followup",
-        )
-        .eq("corretor_id", user.id)
-        .eq("na_lixeira", false)
-        .is("deleted_at", null)
-        .eq("opt_out", false)
-        .or(
-          `status.eq.aguardando_atendimento,and(proximo_followup.lt.${agora},status.not.in.${ETAPAS_FORA_DA_FILA})`,
-        )
-        .order("ultima_interacao", { ascending: true, nullsFirst: true })
-        .range(de, de + PAGINA - 1);
-      if (error) throw error;
-      todos.push(...((data ?? []) as LeadFila[]));
-      if ((data ?? []).length < PAGINA) break;
-    }
-    return todos.filter((l) => (l.telefone ?? "").replace(/\D/g, "").length >= 10);
-  }
+  const invalidar = () => {
+    qc.invalidateQueries({ queryKey: [DISCAGEM_KEY] });
+    qc.invalidateQueries({ queryKey: ["chamadas:discador"] });
+    qc.invalidateQueries({ queryKey: ["leads"] });
+  };
 
   // ---- Modo automático: campanha do discador --------------------------------
-  // A base completa vai ao PABX em LOTES de 100: o primeiro com acao=iniciar
-  // (higiene + login + play), os seguintes com acao=adicionar (só enfileiram —
-  // repetir a higiene apagaria o lote anterior da campanha).
-  const LOTE_CAMPANHA = 100;
   const iniciarDiscador = useMutation({
-    mutationFn: async () => {
-      const leads = await montarFila();
-      if (leads.length === 0)
-        throw Object.assign(new Error("fila_vazia"), { codigo: "fila_vazia" });
-      const ids = leads.map((l) => l.id);
-      let enviados = 0;
-      let falhas = 0;
-      let playDetalhe: string | null = null;
-      setProgresso({ feito: 0, total: ids.length });
-      try {
-        for (let i = 0; i < ids.length; i += LOTE_CAMPANHA) {
-          const lote = ids.slice(i, i + LOTE_CAMPANHA);
-          const { data, error } = await supabase.functions.invoke("sonax-campanha", {
-            body: { acao: i === 0 ? "iniciar" : "adicionar", lead_ids: lote },
-          });
-          if (error) {
-            const codigo = await codigoDoErro(error);
-            // Falha no 1º lote = nada começou (erro de verdade). Nos
-            // seguintes, o que já entrou continua discando — conta como
-            // falha e segue para o próximo lote.
-            if (i === 0) throw Object.assign(new Error(codigo ?? error.message), { codigo });
-            falhas += lote.length;
-            continue;
-          }
-          const r = data as { enviados?: number; falhas?: number; play?: string };
-          enviados += r.enviados ?? 0;
-          falhas += r.falhas ?? 0;
-          // O play do 1º lote é o que LIGA o discador de fato: falha aqui
-          // significa "enfileirou mas não está discando" — engolir isso
-          // deixaria o corretor esperando um PABX mudo.
-          if (i === 0 && typeof r.play === "string" && r.play !== "ok") playDetalhe = r.play;
-          setProgresso({ feito: Math.min(i + lote.length, ids.length), total: ids.length });
-        }
-      } finally {
-        setProgresso(null);
-      }
-      return { enviados, falhas, playDetalhe };
-    },
+    mutationFn: () => invocarCampanha({ acao: "iniciar" }),
     onSuccess: (r) => {
-      setCampanhaAtiva({ enviados: r.enviados, falhas: r.falhas ?? 0 });
-      if (r.playDetalhe) {
+      invalidar();
+      const n = r.enviados ?? r.reservados ?? 0;
+      if (typeof r.login === "string" && r.login !== "ok") {
+        // O login do agente é o que LIGA o discador de fato: falha aqui
+        // significa "a lista subiu mas ninguém vai receber" — engolir isso
+        // deixaria o corretor esperando um discador mudo.
         toast.warning(
-          `A fila entrou na campanha (${r.enviados} lead${r.enviados > 1 ? "s" : ""}), mas o Sonax não confirmou o play (${r.playDetalhe}). Sem o play o PABX não disca — confira a campanha no painel do Sonax.`,
+          `A fila do Bolsão subiu para a campanha (${n} lead${n === 1 ? "" : "s"}), mas o 3C Plus não confirmou o login do seu agente (${r.login}). Sem o login o discador não entrega chamadas — entre na campanha pelo webphone do 3C Plus.`,
           { duration: 15_000 },
         );
         return;
       }
       toast.success(
-        `Discador rodando: ${r.enviados} lead${r.enviados > 1 ? "s" : ""} na fila. Quem atender toca no seu ramal.`,
+        `Discador rodando: ${n} lead${n === 1 ? "" : "s"} do Bolsão na fila${
+          (r.filtrados ?? 0) > 0 ? ` (${r.filtrados} filtrados pelo 3C Plus)` : ""
+        }. Quem atender cai no seu webphone e entra na sua carteira.`,
       );
     },
-    onError: (e) => {
-      const codigo = (e as { codigo?: string | null }).codigo ?? null;
-      if (codigo === "fila_vazia") {
-        toast.info("Nenhum lead da sua carteira para discar com esses critérios.");
-        return;
-      }
-      toast.error(
-        (codigo && ERRO_CAMPANHA[codigo]) || `Não foi possível iniciar o discador (${e.message}).`,
-      );
+    onError: (e) => toast.error(mensagemDeErro(e, "Não foi possível iniciar o discador")),
+  });
+
+  const adicionarMais = useMutation({
+    mutationFn: (listId: string) => invocarCampanha({ acao: "adicionar", list_id: listId }),
+    onSuccess: (r) => {
+      invalidar();
+      toast.success(`Mais ${r.enviados ?? r.reservados ?? 0} leads do Bolsão entraram na fila.`);
     },
+    onError: (e) => toast.error(mensagemDeErro(e, "Não foi possível adicionar leads")),
   });
 
   const pararDiscador = useMutation({
-    mutationFn: async () => {
-      // limpar=true: além de pausar, esvazia o que sobrou da fila — a próxima
-      // sessão começa do zero, sem restos da anterior.
-      const { data, error } = await supabase.functions.invoke("sonax-campanha", {
-        body: { acao: "parar", limpar: true },
-      });
-      if (error) {
-        const codigo = await codigoDoErro(error);
-        throw Object.assign(new Error(codigo ?? error.message), { codigo });
-      }
-      return data;
-    },
+    // limpar=true: além de deslogar o agente, apaga as listas que o CRM subiu
+    // nesta campanha e solta as reservas — a próxima sessão começa do zero.
+    mutationFn: () => invocarCampanha({ acao: "parar", limpar: true }),
     onSuccess: () => {
-      setCampanhaAtiva(null);
-      toast.success("Discador parado — a fila restante foi limpa.");
-    },
-    onError: (e) => {
-      const codigo = (e as { codigo?: string | null }).codigo ?? null;
-      toast.error(
-        (codigo && ERRO_CAMPANHA[codigo]) || `Não foi possível parar o discador (${e.message}).`,
+      invalidar();
+      toast.success(
+        "Discador parado — seu agente foi deslogado e a fila restante voltou ao Bolsão.",
       );
     },
+    onError: (e) => toast.error(mensagemDeErro(e, "Não foi possível parar o discador")),
   });
 
   // ---- Modo um a um ---------------------------------------------------------
-  const iniciarManual = useMutation({
-    mutationFn: montarFila,
-    onSuccess: (leads) => {
-      if (leads.length === 0) {
-        toast.info("Nenhum lead da sua carteira para discar com esses critérios.");
-        return;
-      }
-      setFila(leads);
+  const [autoDiscar, setAutoDiscar] = useState(true);
+  const [discarAoMontar, setDiscarAoMontar] = useState(false);
+  const [indice, setIndice] = useState(0);
+  const [registrarAberto, setRegistrarAberto] = useState(false);
+
+  const iniciarUmAUm = useMutation({
+    mutationFn: () => invocarCampanha({ acao: "reservar" }),
+    onSuccess: async (r) => {
+      await qc.invalidateQueries({ queryKey: [DISCAGEM_KEY] });
       setIndice(0);
-      toast.success(`Sessão iniciada: ${leads.length} lead${leads.length > 1 ? "s" : ""} na fila.`);
-      if (autoDiscar) ligar(leads[0]);
+      toast.success(
+        `Sessão iniciada: ${r.reservados ?? 0} lead${(r.reservados ?? 0) === 1 ? "" : "s"} do Bolsão reservados para você.`,
+      );
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e) => {
+      // Reserva falhou: a flag de "discar ao montar" não pode sobreviver
+      // para a próxima sessão.
+      setDiscarAoMontar(false);
+      toast.error(mensagemDeErro(e, "Não foi possível montar a fila"));
+    },
   });
 
-  const leadAtual = fila?.[indice] ?? null;
-  const encerrarManual = () => {
-    setFila(null);
-    setIndice(0);
-    setRegistrarAberto(false);
-  };
+  const encerrarUmAUm = useMutation({
+    mutationFn: () => invocarCampanha({ acao: "liberar" }),
+    onSuccess: () => {
+      setRegistrarAberto(false);
+      setIndice(0);
+      invalidar();
+    },
+    onError: (e) => toast.error(mensagemDeErro(e, "Não foi possível encerrar a sessão")),
+  });
+
+  // Ao (re)carregar a sessão, o cockpit aponta para o primeiro lead ainda não
+  // discado — não para o começo da lista.
+  const chaveSessao = umAUm.map((l) => l.lead_id).join(",");
+  useEffect(() => {
+    if (umAUm.length === 0) return;
+    setIndice((atual) => (atual < umAUm.length ? atual : indiceInicial(umAUm)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveSessao]);
+
+  // O 1º disco automático do um a um: quando a sessão acabou de ser montada.
+  useEffect(() => {
+    if (!discarAoMontar || umAUm.length === 0) return;
+    setDiscarAoMontar(false);
+    const primeiro = umAUm[indiceInicial(umAUm)];
+    if (primeiro) ligar({ id: primeiro.lead_id, nome: primeiro.nome, telefone: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discarAoMontar, chaveSessao]);
+
+  const leadAtual: LinhaDiscagem | null = umAUm[indice] ?? null;
   const avancar = () => {
-    if (!fila) return;
     const prox = indice + 1;
-    if (prox >= fila.length) {
+    if (prox >= umAUm.length) {
       toast.success("Fila concluída — todos os leads da sessão foram trabalhados. 🎉");
-      encerrarManual();
+      encerrarUmAUm.mutate();
       return;
     }
     setIndice(prox);
-    if (autoDiscar) ligar(fila[prox]);
+    const prox_lead = umAUm[prox];
+    if (autoDiscar && prox_lead)
+      ligar({ id: prox_lead.lead_id, nome: prox_lead.nome, telefone: null });
   };
 
+  if (indisponivel) {
+    return (
+      <Card className="border-warning/40 bg-warning/5">
+        <CardContent className="p-4 text-sm">
+          A sessão de discagem depende da migration do discador sobre o Bolsão (
+          <code>bolsao_discagem</code>), ainda não aplicada neste ambiente.
+        </CardContent>
+      </Card>
+    );
+  }
+
   // ---- Discador automático rodando ------------------------------------------
-  if (campanhaAtiva) {
+  if (campanha.length > 0) {
+    const r = resumoDiscagem(campanha);
+    const listId = campanha[0]?.list_id ?? null;
     return (
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
@@ -253,30 +255,46 @@ export function SessaoDiscagem() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
                 <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
               </span>
-              Discador rodando — {campanhaAtiva.enviados} lead
-              {campanhaAtiva.enviados > 1 ? "s" : ""} na fila
-              {campanhaAtiva.falhas > 0 ? ` (${campanhaAtiva.falhas} recusados)` : ""}
+              Discador rodando no Bolsão —{" "}
+              <span className="tabular-nums">
+                {r.total} na fila · {r.discados} discados · {r.atendidos} atenderam · {r.naCarteira}{" "}
+                na sua carteira
+              </span>
             </span>
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={pararDiscador.isPending}
-              onClick={() => pararDiscador.mutate()}
-            >
-              <Square className="h-3.5 w-3.5 mr-1.5" />
-              {pararDiscador.isPending ? "Parando…" : "Parar discador"}
-            </Button>
+            <span className="flex flex-wrap gap-2">
+              {listId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={adicionarMais.isPending}
+                  onClick={() => adicionarMais.mutate(listId)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  {adicionarMais.isPending ? "Reservando…" : "Mais leads"}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={pararDiscador.isPending}
+                onClick={() => pararDiscador.mutate()}
+              >
+                <Square className="h-3.5 w-3.5 mr-1.5" />
+                {pararDiscador.isPending ? "Parando…" : "Parar discador"}
+              </Button>
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-muted-foreground">
           <p>
-            O PABX está ligando para a fila sozinho e descartando caixa postal —{" "}
-            <strong className="text-foreground">só quem atende toca no seu ramal</strong>, um de
-            cada vez, até a fila acabar.
+            O 3C Plus está ligando para leads sem dono, os mais frios primeiro —{" "}
+            <strong className="text-foreground">só quem atende cai no seu webphone</strong>, e quem
+            atende entra na sua carteira. Qualifique cada chamada no 3C Plus: a qualificação move o
+            lead de etapa aqui.
           </p>
           <p>
-            Cada conexão aparece no histórico abaixo e na timeline do lead em tempo real. Deixe seu
-            ramal livre para receber.
+            Cada conexão aparece no histórico abaixo e na timeline do lead em tempo real. Deixe o
+            webphone do 3C Plus aberto e logado para receber.
           </p>
         </CardContent>
       </Card>
@@ -284,57 +302,85 @@ export function SessaoDiscagem() {
   }
 
   // ---- Sessão um a um ativa: cockpit do lead atual --------------------------
-  if (fila && leadAtual) {
+  if (leadAtual) {
+    const naCarteira = !!leadAtual.assumido_em;
     return (
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
           <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-primary" /> Discagem um a um —{" "}
+              <Phone className="h-4 w-4 text-primary" /> Discagem um a um (Bolsão) —{" "}
               <span className="tabular-nums">
-                lead {indice + 1} de {fila.length}
+                lead {indice + 1} de {umAUm.length}
               </span>
             </span>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={encerrarManual}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              disabled={encerrarUmAUm.isPending}
+              onClick={() => encerrarUmAUm.mutate()}
+            >
               <Square className="h-3.5 w-3.5 mr-1.5" /> Encerrar
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <Link
-              to="/leads/$leadId"
-              params={{ leadId: leadAtual.id }}
-              className="font-display text-lg font-semibold text-primary hover:underline"
-            >
-              {leadAtual.nome}
-            </Link>
-            <span className="tabular-nums text-muted-foreground">
-              {formatPhoneBR(leadAtual.telefone)}
-            </span>
-            <Badge variant="secondary">{LEAD_STATUS_LABEL[leadAtual.status]}</Badge>
-            {leadAtual.proximo_followup && new Date(leadAtual.proximo_followup) < new Date() && (
-              <Badge variant="destructive">Follow-up vencido</Badge>
+            {naCarteira ? (
+              <Link
+                to="/leads/$leadId"
+                params={{ leadId: leadAtual.lead_id }}
+                className="font-display text-lg font-semibold text-primary hover:underline"
+              >
+                {leadAtual.nome}
+              </Link>
+            ) : (
+              <span className="font-display text-lg font-semibold">{leadAtual.nome}</span>
             )}
+            {/* Telefone mascarado por desenho: a discagem passa pelo CRM. */}
+            <span className="tabular-nums text-muted-foreground">
+              {leadAtual.telefone_mascarado ?? "—"}
+            </span>
+            <Badge variant="secondary">
+              {LEAD_STATUS_LABEL[leadAtual.status as LeadStatus] ?? leadAtual.status}
+            </Badge>
             {leadAtual.projeto_nome && (
               <span className="text-sm text-muted-foreground">{leadAtual.projeto_nome}</span>
             )}
             <span className="text-xs text-muted-foreground">
-              {leadAtual.ultima_interacao
-                ? `Último contato ${formatRelativeTime(leadAtual.ultima_interacao)}`
-                : "Nunca contatado"}
+              {leadAtual.dias_parado > 0
+                ? `Parado há ${leadAtual.dias_parado} dia${leadAtual.dias_parado === 1 ? "" : "s"}`
+                : "Tocado hoje"}
             </span>
+            {leadAtual.atendido && <Badge variant="default">Atendeu</Badge>}
+            {naCarteira && <Badge variant="outline">Na sua carteira</Badge>}
+            {!leadAtual.atendido && leadAtual.discado && (
+              <Badge variant="outline">Já discado</Badge>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button disabled={discando} onClick={() => ligar(leadAtual)}>
-              <Phone className="h-4 w-4 mr-2" /> {autoDiscar ? "Ligar de novo" : "Ligar"}
+            <Button
+              disabled={discando}
+              onClick={() => ligar({ id: leadAtual.lead_id, nome: leadAtual.nome, telefone: null })}
+            >
+              <Phone className="h-4 w-4 mr-2" /> {leadAtual.discado ? "Ligar de novo" : "Ligar"}
             </Button>
-            <Button variant="outline" onClick={() => setRegistrarAberto(true)}>
+            <Button
+              variant="outline"
+              disabled={!naCarteira}
+              title={
+                naCarteira
+                  ? undefined
+                  : "Libera quando o cliente atender — aí o lead entra na sua carteira."
+              }
+              onClick={() => setRegistrarAberto(true)}
+            >
               <PencilSimple className="h-4 w-4 mr-2" /> Registrar resultado
             </Button>
             <Button variant="outline" onClick={avancar}>
-              {indice + 1 >= fila.length ? (
+              {indice + 1 >= umAUm.length ? (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" /> Concluir sessão
                 </>
@@ -347,26 +393,32 @@ export function SessaoDiscagem() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            {autoDiscar
-              ? "Ao avançar, o próximo lead é discado automaticamente no seu ramal."
-              : "Ao avançar, use o botão Ligar para discar o próximo lead."}
+            {naCarteira
+              ? "O cliente atendeu: o lead já é seu. Registre o resultado e siga."
+              : autoDiscar
+                ? "Ao avançar, o próximo lead é discado automaticamente pelo seu agente no 3C Plus. Quem não atende volta ao Bolsão."
+                : "Ao avançar, use o botão Ligar para discar o próximo lead. Quem não atende volta ao Bolsão."}
           </p>
         </CardContent>
 
         {/* Registrar resultado reaproveita o fluxo padrão (interação +
-            follow-up) e, ao concluir, já avança a fila — menos cliques. */}
-        <RegistrarContatoDialog
-          open={registrarAberto}
-          onOpenChange={setRegistrarAberto}
-          lead={{ id: leadAtual.id, nome: leadAtual.nome, corretor_id: leadAtual.corretor_id }}
-          defaultTipo="ligacao"
-          onDone={avancar}
-        />
+            follow-up) e, ao concluir, já avança a fila — menos cliques. Só
+            abre quando o lead entrou na carteira (RLS). */}
+        {naCarteira && user && (
+          <RegistrarContatoDialog
+            open={registrarAberto}
+            onOpenChange={setRegistrarAberto}
+            lead={{ id: leadAtual.lead_id, nome: leadAtual.nome, corretor_id: user.id }}
+            defaultTipo="ligacao"
+            onDone={avancar}
+          />
+        )}
       </Card>
     );
   }
 
-  // ---- Estado parado: configuração + Iniciar agora --------------------------
+  // ---- Estado parado: explicação + Iniciar agora ----------------------------
+  const ocupado = iniciarDiscador.isPending || iniciarUmAUm.isPending || sessaoQ.isLoading;
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -376,38 +428,33 @@ export function SessaoDiscagem() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          A fila é sempre a <strong>sua base completa</strong> que precisa de ligação agora:{" "}
-          <strong>leads em Aguardando atendimento</strong> e{" "}
-          <strong>leads com follow-up vencido</strong> — sem limite de quantidade, quem está há mais
-          tempo sem contato entra primeiro. O discador liga sozinho e{" "}
-          <strong>conecta você só com quem atende</strong>. Leads com opt-out ficam de fora
-          automaticamente.
+          A fila do discador é o <strong>Bolsão</strong>: tudo que está fora da carteira ativa dos
+          corretores — leads sem dono, os mais frios primeiro. Ficam de fora quem pediu para não ser
+          contatado, quem está com o SDR, quem foi discado há pouco e quem você mesmo devolveu há
+          pouco. O discador liga sozinho, <strong>conecta você só com quem atende</strong>, e quem
+          atende entra na sua carteira.
         </p>
         <div className="flex flex-wrap items-end gap-3">
-          <Button
-            disabled={iniciarDiscador.isPending || iniciarManual.isPending}
-            onClick={() => iniciarDiscador.mutate()}
-          >
+          <Button disabled={ocupado} onClick={() => iniciarDiscador.mutate()}>
             <Play className="h-4 w-4 mr-2" />
-            {iniciarDiscador.isPending
-              ? progresso
-                ? `Enfileirando ${progresso.feito}/${progresso.total}…`
-                : "Montando fila…"
-              : "Iniciar agora"}
+            {iniciarDiscador.isPending ? "Reservando a fila…" : "Iniciar agora"}
           </Button>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
           <span className="text-xs text-muted-foreground">
-            Sem campanha configurada no PABX? Disque a mesma fila um a um pelo seu ramal:
+            Prefere ouvir chamando? Disque a mesma fila um a um pelo seu agente:
           </span>
           <Button
             size="sm"
             variant="outline"
-            disabled={iniciarDiscador.isPending || iniciarManual.isPending}
-            onClick={() => iniciarManual.mutate()}
+            disabled={ocupado}
+            onClick={() => {
+              setDiscarAoMontar(autoDiscar);
+              iniciarUmAUm.mutate();
+            }}
           >
             <Phone className="h-3.5 w-3.5 mr-1.5" />
-            {iniciarManual.isPending ? "Montando fila…" : "Discar um a um"}
+            {iniciarUmAUm.isPending ? "Reservando…" : "Discar um a um"}
           </Button>
           <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
             <Checkbox checked={autoDiscar} onCheckedChange={(c) => setAutoDiscar(c === true)} />

@@ -1,6 +1,8 @@
-// Guarda da telefonia Sonax (discador): migration `chamadas` +
-// profiles.ramal_sonax + fiação das edge functions sonax-discar (click-to-call,
-// JWT/RLS) e sonax-webhook (URL de integração do PABX, secret + service_role).
+// Guarda da telefonia Sonax — LEGADO desde 2026-09-15: o discador do CRM é o
+// 3C Plus (tests/telefonia-3cplus.test.ts cobre a fiação do app). O que fica
+// aqui é o que continua VIVO: a migration `chamadas` (o histórico de ligações
+// é compartilhado entre provedores) e as edge functions sonax-* mantidas como
+// referência/rollback — sem nenhuma asserção sobre a tela, que não as chama.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -111,9 +113,6 @@ describe("sonax-campanha (discador automático)", () => {
     expect(fnCampanha.indexOf("campanha_compartilhada")).toBeLessThan(
       fnCampanha.indexOf("Higiene do lote"),
     );
-    // E o front traduz o código para o corretor.
-    const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
-    expect(sessao).toContain("campanha_compartilhada:");
   });
 
   it("parar tolera campanha já parada (contrato v1 devolve 404) — o cockpit sempre fecha", () => {
@@ -126,10 +125,6 @@ describe("sonax-campanha (discador automático)", () => {
     // A higiene (stop+limpa) roda só no iniciar — repetida em cada lote,
     // apagaria os lotes anteriores da mesma sessão.
     expect(fnCampanha).toMatch(/if \(!adicionar\) \{\s*await acaoSonax\("stop_campanha"/);
-    // O front fatia a base inteira: 1º lote inicia, os demais adicionam.
-    const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
-    expect(sessao).toContain('"adicionar"');
-    expect(sessao).toContain("LOTE_CAMPANHA");
   });
 
   it("normalização de número é ÚNICA (_shared/sonax.ts) — discar e campanha importam a mesma", () => {
@@ -184,11 +179,6 @@ describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
     join(root, "supabase/migrations/20260818120000_telefonia_tabulacao_status.sql"),
     "utf8",
   ).replace(/--[^\n]*/g, "");
-  const paginaDiscador = readFileSync(
-    join(root, "src/features/telefonia/discador-page.tsx"),
-    "utf8",
-  );
-
   it("mapeamento é configuração (gestao_config), semeado sem sobrescrever ajustes do admin", () => {
     expect(sqlTab).toContain("'telefonia_tabulacao_status'");
     expect(sqlTab).toContain("ON CONFLICT (chave) DO NOTHING");
@@ -205,11 +195,8 @@ describe("sonax-tabulacoes (tabulação do discador -> etapa do funil)", () => {
     expect(fnTab).toContain("STATUS_VALIDOS");
   });
 
-  it("exige JWT e a aba dispara o sync (automático + botão)", () => {
+  it("exige JWT (a aba não a chama mais: a qualificação do 3C Plus chega pelo webhook)", () => {
     expect(configToml).toMatch(/\[functions\.sonax-tabulacoes\]\s*\nverify_jwt = true/);
-    expect(paginaDiscador).toContain('invoke("sonax-tabulacoes"');
-    expect(paginaDiscador).toContain("Sincronizar tabulações");
-    expect(paginaDiscador).toContain("refetchInterval");
   });
 
   it("transição vem ANTES do marcador — falha na RPC fica sem marcar e o próximo sync retenta", () => {
@@ -305,86 +292,5 @@ describe("sonax-webhook (URL de integração do PABX)", () => {
     // Eco na timeline com a direção DA LINHA — click2call atualizado por
     // evento sem id_campanha continua "saída".
     expect(fnWebhook).toContain("existente.direcao");
-  });
-});
-
-describe("aba Discador (fiação)", () => {
-  const rota = readFileSync(join(root, "src/routes/_authenticated/discador.tsx"), "utf8");
-  const pagina = readFileSync(join(root, "src/features/telefonia/discador-page.tsx"), "utf8");
-  const clienteChamadas = readFileSync(
-    join(root, "src/features/telefonia/chamadas-client.ts"),
-    "utf8",
-  );
-  // O menu vem do registro SISTEMAS desde a reorganização em sistemas.
-  const sistemas = readFileSync(join(root, "src/features/nav/sistemas.ts"), "utf8");
-  const routeTree = readFileSync(join(root, "src/routeTree.gen.ts"), "utf8");
-
-  it("rota /discador existe, está na árvore gerada e no menu da Prospecção", () => {
-    expect(rota).toContain('createFileRoute("/_authenticated/discador")');
-    expect(routeTree).toContain("discador");
-    // 2026-09-11: o Discador é ferramenta de topo de funil — seção da Prospecção.
-    expect(sistemas).toMatch(
-      /titulo: "Prospecção"[\s\S]{0,2500}label: "Discador",\s*icon: Phone,\s*to: "\/discador"/,
-    );
-  });
-
-  it("página vive de `chamadas` com realtime e rediscagem pelo hook único", () => {
-    expect(pagina).toContain('useRealtimeInvalidate("chamadas"');
-    expect(pagina).toContain("useLigarLead");
-    expect(pagina).toContain("listarChamadasRecentes");
-    // Migration pendente mostra estado explicativo em vez de quebrar.
-    expect(pagina).toContain("tabelaAusente");
-    expect(clienteChamadas).toContain("tabelaAusente");
-  });
-
-  it("KPIs do dia contam no servidor; lookups .in() vão em lotes; telefone formata sem truncar", () => {
-    // A lista é uma janela das 500 mais recentes — os cartões contam TODAS as
-    // chamadas de hoje (head:true), senão dia de campanha pesada subconta.
-    expect(pagina).toContain("contarChamadasHoje");
-    expect(clienteChamadas).toContain('count: "exact", head: true');
-    // Centenas de UUIDs num .in() só cabem na URL em lotes.
-    expect(pagina).toContain("buscarEmLotes");
-    // Exibição única de telefone (lib/masks) — sem cópia local que trunca.
-    expect(pagina).toContain("formatPhoneBR");
-  });
-
-  it("sessão de discagem: fila só da carteira, sem opt-out/lixeira, uma chamada por vez", () => {
-    const sessao = readFileSync(join(root, "src/features/telefonia/sessao-discagem.tsx"), "utf8");
-    expect(rota).toContain("SessaoDiscagem");
-    expect(sessao).toContain("Iniciar agora");
-    // A fila respeita a carteira e as exclusões de compliance.
-    expect(sessao).toContain('.eq("corretor_id", user.id)');
-    expect(sessao).toContain('.eq("opt_out", false)');
-    expect(sessao).toContain('.eq("na_lixeira", false)');
-    expect(sessao).toContain('.is("deleted_at", null)');
-    // Régua fixa da operação: Aguardando atendimento OU follow-up vencido
-    // (em etapa ativa) — nunca uma fila arbitrária.
-    expect(sessao).toContain("status.eq.aguardando_atendimento");
-    expect(sessao).toContain("proximo_followup.lt.");
-    // Base COMPLETA, sem teto de quantidade: pagina o banco até o fim.
-    expect(sessao).toContain(".range(de, de + PAGINA - 1)");
-    // Prioridade: quem está há mais tempo sem contato entra primeiro.
-    expect(sessao).toMatch(/order\("ultima_interacao", \{ ascending: true, nullsFirst: true \}\)/);
-    // Disca pelo fluxo único (click-to-call com fallback) e registra resultado
-    // pelo diálogo padrão — nada de caminho paralelo sem histórico.
-    expect(sessao).toContain("useLigarLead");
-    expect(sessao).toContain("RegistrarContatoDialog");
-  });
-
-  it("pop-up global de chamada ativa: filtro do corretor, som e ficha do cliente", () => {
-    const host = readFileSync(join(root, "src/features/telefonia/chamada-ativa-host.tsx"), "utf8");
-    const layout = readFileSync(join(root, "src/routes/_authenticated/route.tsx"), "utf8");
-    // Montado no layout autenticado — a ficha aparece em QUALQUER tela do CRM.
-    expect(layout).toContain("ChamadaAtivaHost");
-    // Só as chamadas do PRÓPRIO corretor acordam o pop-up: a RLS deixa a
-    // gestão ver tudo, e sem o filtro o sino tocaria a cada chamada alheia.
-    expect(host).toContain("corretor_id=eq.");
-    expect(clienteChamadas).toContain('.eq("corretor_id", corretorId)');
-    // Campainha sintetizada (sem asset externo) com preferência persistida.
-    expect(host).toContain("tocarCampainha");
-    expect(host).toContain("localStorage");
-    // Ficha + ações: atender no CRM (dossiê) e registrar o resultado.
-    expect(host).toContain("RegistrarContatoDialog");
-    expect(host).toContain("Atender no CRM");
   });
 });
