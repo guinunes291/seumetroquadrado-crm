@@ -775,13 +775,53 @@ prazos vindos da resposta — nunca fixados no cliente. Sem os prazos na respost
 volta a mostrar tudo: melhor o comportamento antigo do que um recorte feito com
 prazo chutado.
 
-## 21. "Próximo passo" era qualquer tarefa aberta — inclusive as vencidas (`20260914190000`)
+## 21. O discador disca o Bolsão (2026-09-15)
+
+Decisão do dono: **"a base que o discador deve gerar é tudo que está fora da
+carteira ativa dos corretores."** No vocabulário deste documento, isso é o
+Bolsão — a camada sem dono do §1 — e não a Reserva: a Reserva ainda tem dono,
+e o §6 já diz por qual porta um lead com dono chega ao discador (a régua de
+devolução), nunca por um robô discando a carteira alheia.
+
+O que mudou no código (desenho completo em
+`docs/integracoes/3cplus-discador.md`, item 6):
+
+- **Uma regra só para "quem está no Bolsão".** O predicado de `bolsao_v1` foi
+  fatorado em `_bolsao_elegivel(leads)`; `bolsao_v1` e a reserva do discador
+  leem a mesma função. As guardas deste documento (venda viva, opt-out,
+  fechado sem venda, perdido sem retrabalho) valem para o discador por
+  construção, não por cópia.
+- **A fila é reservada no servidor**, não montada no navegador: a RLS esconde
+  (e deve esconder) o telefone de lead que não é do corretor. A tabela
+  `bolsao_discagem` registra qual corretor está discando qual lead, e a RPC
+  `discador_bolsao_reservar_v1` (service_role só — devolve o telefone
+  inteiro) pega os mais frios primeiro, pulando quem está com o SDR, quem
+  foi discado há pouco, quem está reservado e quem o próprio corretor devolveu
+  há pouco (anti-ioiô do §5.2). O corretor vê a própria sessão mascarada
+  (`bolsao_discagem_minha_v1`) — a máscara do §11.1 continua valendo.
+- **Quem atende entra na carteira de quem falou** (`discador_bolsao_assumir_v1`,
+  chamada pelo webhook no primeiro atendimento real): só lead sem dono, fora
+  do SDR e sem venda viva. Discar sem atender não dá posse. É a única escrita
+  que o discador faz em `leads`, e fica em `distribution_log` (regra
+  `discador_bolsao`). Não é o "puxar" do §5.2: puxar é escolher um lead
+  específico; aqui é o robô conectando o corretor a um lead frio que ninguém
+  tinha — sem dono anterior a proteger e sem cota, porque não há como
+  garimpar a base pelo discador (a ordem é a frieza, não a escolha).
+- As funções que escrevem chamam-se `discador_bolsao_*`, não `bolsao_*`: a
+  guarda de `tests/db/bolsao.test.ts` ("nenhuma função do Bolsão é VOLATILE")
+  continua verdadeira — o Bolsão em si segue só leitura.
+
+Configuração em `gestao_config.bolsao`: `discador_lote` (200),
+`discador_rediscagem_dias` (7), `discador_reserva_horas` (24),
+`discador_anti_ioio_dias` (30), `discador_assume_ao_atender` (true).
+
+## 22. "Próximo passo" era qualquer tarefa aberta — inclusive as vencidas (`20260914190000`)
 
 A §20 pôs o teto na tela e mediu 4 corretores acima dele, 181 leads de
 excedente. A pergunta seguinte — _o que são esses leads?_ — descobriu um
 defeito que invalidava a leitura inteira.
 
-### 21.1 O que a medição encontrou (14/09/2026, os 4 acima do teto)
+### 22.1 O que a medição encontrou (14/09/2026, os 4 acima do teto)
 
 | pergunta                                   | resposta               |
 | ------------------------------------------ | ---------------------- |
@@ -799,7 +839,7 @@ distintos, maior aglomeração de 5 num minuto. Os corretores trabalham um a um
 — registram o contato, aceitam o follow-up sugerido ("Amanhã" é o padrão do
 diálogo) e não fecham a tarefa quando a data chega.
 
-### 21.2 O defeito
+### 22.2 O defeito
 
 A regra de `sem_proximo_passo` vivia em dois lugares, com o mesmo texto —
 `_carteira_classificar` (o motivo da Reserva) e `fila_equipe_v1` (o contador
@@ -822,7 +862,7 @@ nova: ele é espelho de `min(data_vencimento)` das tarefas pendentes
 dívida mais **velha**, não para o próximo passo. As tabelas de origem
 respondem melhor a pergunta do que o espelho delas.
 
-### 21.3 O conserto
+### 22.3 O conserto
 
 `public.lead_sem_proximo_passo(uuid)` passa a ser a fonte única: nenhuma tarefa
 aberta com vencimento no futuro, nenhum agendamento futuro. `_carteira_classificar`,
@@ -841,7 +881,7 @@ custo de a tela passar a discordar da operação. Tela e régua medindo tempo de
 formas diferentes é o pior dos dois mundos, e é contra isso que este documento
 existe.
 
-### 21.4 O que isso faz com os 181 do §20
+### 22.4 O que isso faz com os 181 do §20
 
 Reenquadra. O excedente dos quatro não é trabalho que não cabe no teto: é
 carteira morta que ainda respira no relógio da higiene. Redistribuir os 181
@@ -854,3 +894,4 @@ tarefa pendente" sem olhar a data, ou se qualquer uma das três funções deixar
 de chamar `lead_sem_proximo_passo(`. O parêntese na guarda não é enfeite: a
 primeira versão procurava só o nome, e um comentário citando a função
 satisfazia a checagem sem que a chamada existisse — pego por teste de mutação.
+

@@ -1,3 +1,7 @@
+// LEGADO — substituído pelo discador 3C Plus em 2026-09-15 (functions tcplus-*,
+// docs/integracoes/3cplus-discador.md). Mantido só como referência/rollback:
+// o app não chama mais esta function e ela não precisa de deploy.
+//
 // Helpers compartilhados da telefonia Sonax (espelho Deno — as functions não
 // importam de src/). Mantém sonax-discar e sonax-campanha com UMA definição
 // de normalização de número.

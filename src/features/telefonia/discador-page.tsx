@@ -1,14 +1,14 @@
-// /discador — a central de telefonia do CRM (Sonax PABX): o que tocou e o que
-// foi discado, num lugar só. As linhas nascem da edge function sonax-discar
-// (click-to-call) e do webhook sonax-webhook (receptivo/campanha); a RLS
-// recorta — corretor vê as chamadas da própria carteira/ramal, gestão vê tudo.
+// /discador — a central de telefonia do CRM (3C Plus): o que tocou e o que
+// foi discado, num lugar só. As linhas nascem da edge function tcplus-discar
+// (click-to-call) e do webhook tcplus-webhook (receptivo/campanha, com a
+// qualificação e a gravação); a RLS recorta — corretor vê as chamadas da
+// própria carteira/agente, gestão vê tudo.
 
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowClockwise,
+  Headset,
   Info,
   MagnifyingGlass,
   Phone,
@@ -16,6 +16,7 @@ import {
   PhoneIncoming,
   PhoneOutgoing,
   PhoneX,
+  Waveform,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,13 +34,14 @@ import {
 import { AsyncBoundary } from "@/components/ui/async-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
-import { codigoDoErro, useLigarLead } from "@/hooks/use-ligar-lead";
+import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
 import { formatRelativeTime } from "@/lib/interacoes";
 import { formatPhoneBR } from "@/lib/masks";
-import { listarTelefoniaSonax } from "@/features/gestao/ramal-sonax-client";
 import { contarChamadasHoje, listarChamadasRecentes, type Chamada } from "./chamadas-client";
+import { QUERY_MEU_AGENTE_TCPLUS } from "./conectar-tcplus";
+import { buscarMeuAgenteTcplus } from "./telefonia-3cplus-client";
 
 const STATUS_LABEL: Record<string, string> = {
   iniciada: "Iniciada",
@@ -159,44 +161,16 @@ export function DiscadorCentral() {
     },
   });
 
-  // Minha telefonia no PABX — ramal (click-to-call) e campanha (discador).
-  const telefoniaQ = useQuery({
-    queryKey: ["minha-telefonia-sonax", user?.id],
+  // Meu vínculo com o 3C Plus — agente, campanha e se o token está gravado.
+  // A qualificação (tabulação -> etapa) não precisa de sync aqui: chega pelo
+  // webhook call-history-was-created e o realtime de `chamadas` atualiza a
+  // lista sozinho.
+  const agenteQ = useQuery({
+    queryKey: [QUERY_MEU_AGENTE_TCPLUS, user?.id],
     enabled: !!user,
-    queryFn: async () => {
-      const tel = await listarTelefoniaSonax([user!.id]);
-      return tel[user!.id] ?? null;
-    },
+    queryFn: () => buscarMeuAgenteTcplus(user!.id),
   });
-  const meuRamal = telefoniaQ.data?.ramal_sonax ?? null;
-  const temCampanha = Boolean(telefoniaQ.data?.sonax_id_campanha);
-
-  // Tabulação -> etapa do funil: sincroniza automaticamente enquanto a aba
-  // está aberta (e no botão). Idempotente — a function só processa tabulação
-  // nova; quando aplica alguma, avisa e atualiza as listas.
-  const qc = useQueryClient();
-  const syncTabulacoes = useQuery({
-    queryKey: ["sonax-tabulacoes-sync", user?.id],
-    enabled: !!user && temCampanha,
-    refetchInterval: 120_000,
-    refetchIntervalInBackground: false,
-    retry: false,
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("sonax-tabulacoes", { body: {} });
-      if (error) throw new Error((await codigoDoErro(error)) ?? error.message);
-      const r = data as { aplicadas?: number; novas?: number };
-      if ((r.aplicadas ?? 0) > 0) {
-        toast.success(
-          `Tabulação do discador: ${r.aplicadas} lead${(r.aplicadas ?? 0) > 1 ? "s" : ""} mudou de etapa.`,
-        );
-        qc.invalidateQueries({ queryKey: ["leads"] });
-        qc.invalidateQueries({ queryKey: ["chamadas:discador"] });
-      } else if ((r.novas ?? 0) > 0) {
-        qc.invalidateQueries({ queryKey: ["chamadas:discador"] });
-      }
-      return r;
-    },
-  });
+  const meuAgente = agenteQ.data ?? null;
 
   const linhas = useMemo((): LinhaChamada[] => {
     const leads = leadsQ.data ?? new Map<string, LeadResumo>();
@@ -294,10 +268,23 @@ export function DiscadorCentral() {
             {row.original.tabulacao && (
               <div
                 className="mt-0.5 truncate text-xs text-muted-foreground"
-                title={`Tabulação do discador: ${row.original.tabulacao}`}
+                title={`Qualificação no discador: ${row.original.tabulacao}`}
               >
                 {row.original.tabulacao}
               </div>
+            )}
+            {/* Gravação: o 3C Plus manda a URL no CallHistory; só URL absoluta
+                vira link (um caminho relativo exigiria o token do gestor —
+                proxy fica como próximo passo). */}
+            {row.original.gravacao_url && /^https?:\/\//.test(row.original.gravacao_url) && (
+              <a
+                href={row.original.gravacao_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-0.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                <Waveform className="h-3 w-3" /> Gravação
+              </a>
             )}
           </div>
         ),
@@ -370,7 +357,7 @@ export function DiscadorCentral() {
           <span>
             O Discador depende da migration de telefonia (<code>chamadas</code>), ainda não aplicada
             neste ambiente. Aplique o deploy do banco e volte aqui — o setup completo está em{" "}
-            <code>docs/integracoes/sonax-discador.md</code>.
+            <code>docs/integracoes/3cplus-discador.md</code>.
           </span>
         </CardContent>
       </Card>
@@ -379,7 +366,7 @@ export function DiscadorCentral() {
 
   return (
     <div className="space-y-4">
-      {/* KPIs do dia + meu ramal */}
+      {/* KPIs do dia + meu 3C Plus */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard icon={PhoneCall} label="Chamadas hoje" valor={kpis ? String(kpis.total) : "…"} />
         <KpiCard
@@ -389,13 +376,21 @@ export function DiscadorCentral() {
         />
         <KpiCard icon={PhoneX} label="Perdidas hoje" valor={kpis ? String(kpis.perdidas) : "…"} />
         <KpiCard
-          icon={Phone}
-          label="Meu ramal"
-          valor={meuRamal ?? "—"}
+          icon={Headset}
+          label="Meu 3C Plus"
+          valor={
+            meuAgente?.token_atualizado_em
+              ? meuAgente.agent_id
+                ? `Agente #${meuAgente.agent_id}`
+                : "Conectado"
+              : "—"
+          }
           hint={
-            meuRamal
-              ? "O click-to-call toca aqui antes de discar o lead."
-              : "Sem ramal cadastrado — peça ao admin em Gestão → Corretores."
+            meuAgente?.token_atualizado_em
+              ? meuAgente.campaign_id
+                ? `Campanha #${meuAgente.campaign_id} — o Ligar disca pelo seu agente.`
+                : "Sem campanha cadastrada — peça ao admin em Gestão → Corretores."
+              : "Cole seu token de agente no card Meu 3C Plus acima."
           }
         />
       </div>
@@ -434,19 +429,6 @@ export function DiscadorCentral() {
             ))}
           </SelectContent>
         </Select>
-        {temCampanha && (
-          <Button
-            variant="outline"
-            disabled={syncTabulacoes.isFetching}
-            onClick={() => void syncTabulacoes.refetch()}
-            title="Puxa as tabulações aplicadas no painel do Sonax e move os leads de etapa conforme o mapeamento. Roda sozinho a cada 2 minutos com a aba aberta."
-          >
-            <ArrowClockwise
-              className={`h-4 w-4 mr-2 ${syncTabulacoes.isFetching ? "animate-spin" : ""}`}
-            />
-            Sincronizar tabulações
-          </Button>
-        )}
       </div>
 
       <AsyncBoundary
@@ -481,7 +463,7 @@ export function DiscadorCentral() {
               description={
                 busca || direcao !== "todas" || status !== "todos"
                   ? "Ajuste os filtros ou limpe a busca."
-                  : 'As ligações entram aqui pelo botão "Ligar" do lead (click-to-call) e pelos eventos do PABX Sonax (receptivo e campanhas do discador).'
+                  : 'As ligações entram aqui pelo botão "Ligar" do lead (click-to-call) e pelos eventos do 3C Plus (receptivo e o discador sobre o Bolsão), com qualificação e gravação.'
               }
             />
           }

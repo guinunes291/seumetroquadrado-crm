@@ -1,3 +1,7 @@
+// LEGADO — substituído pelo discador 3C Plus em 2026-09-15 (functions tcplus-*,
+// docs/integracoes/3cplus-discador.md). Mantido só como referência/rollback:
+// o app não chama mais esta function e ela não precisa de deploy.
+//
 // Discador automático via campanha do Sonax: enfileira leads na campanha do
 // corretor e dá play — o PABX disca a fila sozinho e SÓ conecta ao ramal quem
 // atende (a campanha, criada no painel Sonax, aponta para a fila do corretor
