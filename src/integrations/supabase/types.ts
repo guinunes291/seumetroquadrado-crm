@@ -1804,6 +1804,7 @@ export type Database = {
           lead_id: string
           lote_id: string
           modo: string
+          motivo: string
           origem: string | null
           status_no_momento: string | null
         }
@@ -1820,6 +1821,7 @@ export type Database = {
           lead_id: string
           lote_id: string
           modo: string
+          motivo?: string
           origem?: string | null
           status_no_momento?: string | null
         }
@@ -1836,6 +1838,7 @@ export type Database = {
           lead_id?: string
           lote_id?: string
           modo?: string
+          motivo?: string
           origem?: string | null
           status_no_momento?: string | null
         }
@@ -10095,6 +10098,7 @@ export type Database = {
           dias_parado: number
           grupo: string
           lead_id: string
+          motivo: string
           origem: string
           status: string
         }[]
@@ -10108,6 +10112,7 @@ export type Database = {
           destino: string
           lote_id: string
           modo: string
+          motivo: string
         }[]
       }
       regua_followup_atual: { Args: never; Returns: Json }
