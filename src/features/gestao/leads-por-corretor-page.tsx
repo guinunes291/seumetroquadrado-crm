@@ -35,6 +35,14 @@ import {
   UsersThree,
 } from "@phosphor-icons/react";
 import {
+  SEM_DONO,
+  indexarPorCorretor,
+  pctParada,
+  tomDaCarteira,
+  useCarteiraStats,
+  type CarteiraStats,
+} from "@/features/gestao/carteira-stats";
+import {
   LEAD_STATUS_LABEL,
   LEAD_STATUS_BADGE_TONE,
   leadStatusLabel,
@@ -116,6 +124,16 @@ export function LeadsPorCorretorPage() {
       ),
   });
   const statsDoServidor = statsRows != null;
+
+  // A leitura nova: carteira separada em tratativa / prospecção / parada.
+  // `aguardando` sozinho são 6.186 leads na casa e domina a tela inteira —
+  // mas ele mistura topo de funil com abandono, que são conversas diferentes.
+  const { data: carteiraRows } = useCarteiraStats();
+  const carteiraPorCorretor = useMemo(() => indexarPorCorretor(carteiraRows ?? []), [carteiraRows]);
+  const prospeccaoDaCasa = useMemo(
+    () => (carteiraRows ?? []).reduce((soma, r) => soma + r.prospeccao, 0),
+    [carteiraRows],
+  );
 
   const {
     data: leads,
@@ -397,12 +415,31 @@ export function LeadsPorCorretorPage() {
         </p>
       )}
 
+      {/* Prospecção não é carteira: o lead que ainda não teve primeiro contato
+          é trabalho de topo de funil e tem tela própria. Sem esta linha, o
+          gestor lê os "em prospecção" dos cards como carteira parada. */}
+      {prospeccaoDaCasa > 0 && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border-subtle bg-surface-subtle px-3 py-2 text-sm text-muted-foreground">
+          <span>
+            {prospeccaoDaCasa.toLocaleString("pt-BR")} leads ainda sem primeiro contato — isso é
+            prospecção, não carteira.
+          </span>
+          <Link
+            to="/prospeccao"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Trabalhar em Prospecção
+          </Link>
+        </div>
+      )}
+
       {/* Cards de corretores */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {unassignedStats && unassignedStats.total > 0 && (
           <CorretorCard
             nome="Sem corretor"
             stats={unassignedStats}
+            carteira={carteiraPorCorretor.get(SEM_DONO)}
             selected={selectedCorretor === "unassigned"}
             onClick={() =>
               setSelectedCorretor(selectedCorretor === "unassigned" ? null : "unassigned")
@@ -423,6 +460,7 @@ export function LeadsPorCorretorPage() {
               key={c.id}
               nome={c.nome}
               stats={s}
+              carteira={carteiraPorCorretor.get(c.id)}
               redistribuidos={redistMap.get(c.id) ?? 0}
               selected={selectedCorretor === c.id}
               onClick={() => setSelectedCorretor(selectedCorretor === c.id ? null : c.id)}
@@ -549,6 +587,7 @@ export function LeadsPorCorretorPage() {
 function CorretorCard({
   nome,
   stats,
+  carteira,
   redistribuidos,
   selected,
   onClick,
@@ -556,6 +595,7 @@ function CorretorCard({
 }: {
   nome: string;
   stats: Stats;
+  carteira?: CarteiraStats;
   redistribuidos?: number;
   selected: boolean;
   onClick: () => void;
@@ -571,18 +611,62 @@ function CorretorCard({
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base truncate">{nome}</CardTitle>
-          <Badge variant={stats.total > 0 ? "default" : "secondary"}>{stats.total}</Badge>
+          {/* O número em destaque é o que está EM TRATATIVA, não o total. Com
+              441 leads por corretor, o total não diz nada sobre o trabalho —
+              e era ele que fazia a tela parecer cheia de gente ocupada. */}
+          <Badge variant={(carteira?.ativa ?? stats.total) > 0 ? "default" : "secondary"}>
+            {carteira ? carteira.ativa : stats.total}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="text-sm space-y-1">
-        <div className="flex items-center gap-2">
-          <UsersThree className="h-3.5 w-3.5 text-blue-600" />
-          <span>{stats.emAtendimento} em atendimento</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <UserCheck className="h-3.5 w-3.5 text-warning" />
-          <span>{stats.aguardando} aguardando</span>
-        </div>
+        {carteira ? (
+          <>
+            <div className="flex items-center gap-2">
+              <UsersThree className="h-3.5 w-3.5 text-blue-600" />
+              <span>{carteira.ativa} em tratativa</span>
+              {carteira.fundo > 0 && (
+                <span className="text-xs text-muted-foreground">({carteira.fundo} no fundo)</span>
+              )}
+            </div>
+            {carteira.parada > 0 && (
+              <div
+                className="flex items-center gap-2"
+                title="Sem registro no prazo da fase — é o que a régua de devolução leva"
+              >
+                <UserMinus
+                  className={`h-3.5 w-3.5 ${
+                    tomDaCarteira(carteira) === "critico" ? "text-destructive" : "text-warning"
+                  }`}
+                />
+                <span>
+                  {carteira.parada} parados
+                  {pctParada(carteira) !== null && ` (${pctParada(carteira)}%)`}
+                </span>
+              </div>
+            )}
+            {carteira.prospeccao > 0 && (
+              <div
+                className="flex items-center gap-2 text-muted-foreground"
+                title="Ainda sem primeiro contato — trabalho de topo de funil, em Prospecção"
+              >
+                <UserCheck className="h-3.5 w-3.5" />
+                <span>{carteira.prospeccao} em prospecção</span>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <UsersThree className="h-3.5 w-3.5 text-blue-600" />
+              <span>{stats.emAtendimento} em atendimento</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-3.5 w-3.5 text-warning" />
+              <span>{stats.aguardando} aguardando</span>
+            </div>
+          </>
+        )}
         <div className="flex items-center gap-2">
           <Trophy className="h-3.5 w-3.5 text-green-600" />
           <span>{stats.ganhos} ganhos</span>
