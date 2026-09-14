@@ -821,3 +821,83 @@ Configuração em `gestao_config.bolsao`: `discador_lote` (200),
 `discador_rediscagem_dias` (7), `discador_reserva_horas` (24),
 `discador_anti_ioio_dias` (30), `discador_posse_a_partir_de` (agendado,
 visita_realizada, proposta_enviada, analise_credito).
+
+## 22. "Próximo passo" era qualquer tarefa aberta — inclusive as vencidas (`20260914190000`)
+
+A §20 pôs o teto na tela e mediu 4 corretores acima dele, 181 leads de
+excedente. A pergunta seguinte — _o que são esses leads?_ — descobriu um
+defeito que invalidava a leitura inteira.
+
+### 22.1 O que a medição encontrou (14/09/2026, os 4 acima do teto)
+
+| pergunta                                   | resposta               |
+| ------------------------------------------ | ---------------------- |
+| leads em tratativa                         | 444                    |
+| com tarefa **escrita** pelo corretor       | **0**                  |
+| com tarefa de título gerado pela régua     | 374                    |
+| com `origem_automatica = true` (motor SDR) | 2                      |
+| com visita/reunião marcada                 | 2                      |
+| **com algo marcado no futuro**             | **79 (18%)**           |
+| tarefas abertas **já vencidas**            | 567                    |
+| atraso máximo                              | 88 dias (o CRM tem 91) |
+
+As tarefas **não** nasceram em lote: 644 tarefas abertas em 596 minutos
+distintos, maior aglomeração de 5 num minuto. Os corretores trabalham um a um
+— registram o contato, aceitam o follow-up sugerido ("Amanhã" é o padrão do
+diálogo) e não fecham a tarefa quando a data chega.
+
+### 22.2 O defeito
+
+A regra de `sem_proximo_passo` vivia em dois lugares, com o mesmo texto —
+`_carteira_classificar` (o motivo da Reserva) e `fila_equipe_v1` (o contador
+do gestor):
+
+```sql
+AND NOT EXISTS (
+  SELECT 1 FROM public.tarefas AS t
+  WHERE t.lead_id = v.id AND t.status IN ('pendente', 'em_andamento')
+)
+```
+
+Sem filtro de vencimento e sem `deleted_at IS NULL`. Uma tarefa que venceu há
+40 dias continua `pendente` e blindava o lead. Dos 444, **365 apareciam como
+"com próximo passo"** — a tela de equipe mostrava time em dia.
+
+`leads.proximo_followup` não salva a conta e por isso ficou fora da regra
+nova: ele é espelho de `min(data_vencimento)` das tarefas pendentes
+(`sync_proximo_followup`, `20260708155905`). Sendo `min`, ele aponta para a
+dívida mais **velha**, não para o próximo passo. As tabelas de origem
+respondem melhor a pergunta do que o espelho delas.
+
+### 22.3 O conserto
+
+`public.lead_sem_proximo_passo(uuid)` passa a ser a fonte única: nenhuma tarefa
+aberta com vencimento no futuro, nenhum agendamento futuro. `_carteira_classificar`,
+`fila_equipe_v1` e `carteira_stats_por_corretor_v1` chamam a mesma função — a
+regra em três cópias foi exatamente o que deixou o defeito sobreviver em dois
+lugares sem ninguém notar.
+
+A gestão de carteira ganha `sem_passo_vivo`: dentro do que está em tratativa,
+quantos não têm nada marcado adiante. O card mostra a linha em âmbar.
+
+**O que este conserto deliberadamente NÃO faz:** mudar o que é "em tratativa".
+A carteira continua contada pelo relógio do último toque, o mesmo da régua de
+devolução. A alternativa — exigir passo vivo para o lead contar como tratativa
+— daria um número mais honesto (a carteira dos quatro cairia de 444 para 79) ao
+custo de a tela passar a discordar da operação. Tela e régua medindo tempo de
+formas diferentes é o pior dos dois mundos, e é contra isso que este documento
+existe.
+
+### 22.4 O que isso faz com os 181 do §20
+
+Reenquadra. O excedente dos quatro não é trabalho que não cabe no teto: é
+carteira morta que ainda respira no relógio da higiene. Redistribuir os 181
+para quem tem folga seria mudar de lugar o mesmo problema. Os quatro
+corretores mais carregados da casa somam **79 tratativas vivas** contra um teto
+somado de 260.
+
+Uma guarda `DO $guard$` reprova o deploy se alguém voltar a perguntar "existe
+tarefa pendente" sem olhar a data, ou se qualquer uma das três funções deixar
+de chamar `lead_sem_proximo_passo(`. O parêntese na guarda não é enfeite: a
+primeira versão procurava só o nome, e um comentário citando a função
+satisfazia a checagem sem que a chamada existisse — pego por teste de mutação.
