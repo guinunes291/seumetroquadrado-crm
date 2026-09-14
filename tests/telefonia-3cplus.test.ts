@@ -1,5 +1,6 @@
 // Guarda da telefonia 3C Plus (discador atual, decisão 2026-09-15): migration
-// `telefonia_agentes` (token write-only por privilégio de coluna), fiação das
+// `telefonia_agentes` (token write-only por privilégio de coluna), migrations
+// do discador sobre o Bolsão (reserva + Atendidos sem posse), fiação das
 // edge functions tcplus-discar / tcplus-campanha / tcplus-webhook, fiação da
 // aba Discador, e testes de UNIDADE dos helpers compartilhados (número,
 // parser de eventos, desfecho) — o _shared/tcplus.ts é TS puro justamente
@@ -416,7 +417,64 @@ describe("migration discador sobre o Bolsão (bolsao_discagem + RPCs)", () => {
     expect(sqlBolsao).toMatch(
       /assumir_v1[\s\S]*?transicionar_lead\([\s\S]*?'aguardando_atendimento'/,
     );
-    expect(sqlBolsao).toMatch(/discador_assume_ao_atender/);
+  });
+});
+
+describe("migration Atendidos do discador (atender sem posse; posse ao avançar)", () => {
+  const sqlAtendidos = ler("supabase/migrations/20260915140000_discador_atendidos.sql").replace(
+    /--[^\n]*/g,
+    "",
+  );
+
+  it("tabela por (lead, corretor) fechada para o app; só a service_role registra o atendimento", () => {
+    expect(sqlAtendidos).toContain("CREATE TABLE IF NOT EXISTS public.discador_atendimentos");
+    expect(sqlAtendidos).toContain(
+      "REVOKE ALL ON TABLE public.discador_atendimentos FROM PUBLIC, anon, authenticated",
+    );
+    expect(sqlAtendidos).toMatch(
+      /REVOKE ALL ON FUNCTION public\.discador_bolsao_atender_v1[^;]*FROM PUBLIC, anon, authenticated/,
+    );
+    expect(sqlAtendidos).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.discador_bolsao_atender_v1[^;]*TO service_role/,
+    );
+    // Atender NÃO dá posse: a RPC não toca em leads.corretor_id nem transiciona.
+    const atender = sqlAtendidos.slice(
+      sqlAtendidos.indexOf("FUNCTION public.discador_bolsao_atender_v1("),
+      sqlAtendidos.indexOf("FUNCTION public.discador_bolsao_assumir_v1("),
+    );
+    expect(atender).not.toMatch(/UPDATE public\.leads/);
+    expect(atender).not.toContain("transicionar_lead");
+    expect(atender).toMatch(/'tem_dono'/);
+    // Idempotente por chamada: os dois eventos da mesma ligação contam um.
+    expect(atender).toMatch(/ON CONFLICT \(lead_id, corretor_id\) DO UPDATE/);
+  });
+
+  it("posse ao avançar encerra os atendimentos de todos (posse_propria / posse_outro)", () => {
+    expect(sqlAtendidos).toMatch(
+      /assumir_v1[\s\S]*?UPDATE public\.discador_atendimentos[\s\S]*?'posse_propria'[\s\S]*?'posse_outro'/,
+    );
+    // A posse-ao-atender da migration anterior sai da config; entra a lista
+    // de etapas a partir das quais o lead ganha dono (agendado em diante).
+    expect(sqlAtendidos).toMatch(/valor - 'discador_assume_ao_atender'/);
+    expect(sqlAtendidos).toMatch(
+      /'discador_posse_a_partir_de',[\s\S]*?'agendado'[\s\S]*?'visita_realizada'[\s\S]*?'proposta_enviada'[\s\S]*?'analise_credito'/,
+    );
+  });
+
+  it("sessão do corretor: lista mascarada e anônima (só o número de outros), nota e assumir exigem atendimento aberto", () => {
+    expect(sqlAtendidos).toMatch(
+      /discador_atendidos_meus_v1\(\)[\s\S]*?public\.telefone_mascarado\(l\.telefone\)[\s\S]*?a\.corretor_id = auth\.uid\(\)/,
+    );
+    expect(sqlAtendidos).toMatch(/outros_corretores integer/);
+    expect(sqlAtendidos).toMatch(
+      /GRANT EXECUTE ON FUNCTION public\.discador_atendidos_meus_v1\(\) TO authenticated/,
+    );
+    expect(sqlAtendidos).toMatch(
+      /discador_atendido_nota_v1[\s\S]*?'lead não é um atendido seu' USING ERRCODE = '42501'/,
+    );
+    expect(sqlAtendidos).toMatch(
+      /discador_atendido_assumir_v1\(_lead uuid\)[\s\S]*?'lead não é um atendido seu' USING ERRCODE = '42501'[\s\S]*?public\.discador_bolsao_assumir_v1\(/,
+    );
   });
 });
 
@@ -439,10 +497,15 @@ describe("tcplus-discar (click-to-call pelo agente)", () => {
     expect(fnDiscar).toMatch(/await supabase\s*\.from\("leads"\)/);
     expect(fnDiscar).toMatch(/admin\s*\.from\("telefonia_agentes"\)[\s\S]*?\.eq\("user_id", uid\)/);
     // A service_role lê `leads` SÓ depois de achar a reserva do Bolsão para
-    // este corretor (bolsao_discagem) — nunca como atalho da RLS.
+    // este corretor (bolsao_discagem) ou um atendimento ABERTO dele
+    // (discador_atendimentos) — nunca como atalho da RLS.
     expect(fnDiscar).toMatch(
       /admin\s*\.from\("bolsao_discagem"\)[\s\S]*?\.eq\("corretor_id", uid\)[\s\S]*?admin\s*\.from\("leads"\)/,
     );
+    expect(fnDiscar).toMatch(
+      /admin\s*\.from\("discador_atendimentos"\)[\s\S]*?\.eq\("corretor_id", uid\)[\s\S]*?\.is\("encerrado_em", null\)/,
+    );
+    expect(fnDiscar).toMatch(/if \(reserva \|\| atendido\) \{/);
     expect(fnDiscar).toMatch(/const escritor = viaBolsao \? admin : supabase/);
     // O token do GESTOR não disca: ação de agente usa o token do agente.
     expect(fnDiscar).not.toContain("TCPLUS_API_TOKEN");
@@ -574,16 +637,30 @@ describe("tcplus-webhook (eventos do 3C Plus)", () => {
     expect(fnWebhook).toContain('fonte: "tcplus_webhook"');
   });
 
-  it("lead do Bolsão que ATENDEU entra na carteira de quem falou (posse antes da qualificação)", () => {
-    expect(fnWebhook).toContain('rpc("discador_bolsao_assumir_v1"');
-    expect(fnWebhook).toContain("discador_assume_ao_atender");
-    // Discar sem atender não dá posse: só conexão ou desfecho atendida.
-    expect(fnWebhook).toMatch(/conexao \|\| desfecho === "atendida"\s*\? await assumirSeBolsao/);
-    expect(fnWebhook.indexOf("await assumirSeBolsao(leadId ?? linha.lead_id)")).toBeLessThan(
-      fnWebhook.indexOf("await aplicarQualificacao(leadId ?? linha.lead_id"),
+  it("lead do Bolsão que ATENDEU vira Atendido de quem falou — SEM posse", () => {
+    expect(fnWebhook).toContain('rpc("discador_bolsao_atender_v1"');
+    expect(fnWebhook).not.toContain("assumirSeBolsao");
+    expect(fnWebhook).not.toContain("discador_assume_ao_atender");
+    // Discar sem atender não registra nada: só conexão ou desfecho atendida.
+    expect(fnWebhook).toMatch(
+      /conexao \|\| desfecho === "atendida"\s*\? await registrarAtendimento\(leadId \?\? linha\.lead_id, linha\.id\)/,
     );
-    // Lead com dono nunca troca de mão por aqui.
-    expect(fnWebhook).toMatch(/if \(lead\.corretor_id\) return "tem_dono"/);
+    expect(fnWebhook).toMatch(/atendeu \? await registrarAtendimento\(leadId, linha\.id\)/);
+  });
+
+  it("posse só quando a qualificação AVANÇA para etapa configurada (agendado em diante)", () => {
+    expect(fnWebhook).toContain('rpc("discador_bolsao_assumir_v1"');
+    expect(fnWebhook).toContain("discador_posse_a_partir_de");
+    // A posse é decidida DEPOIS da qualificação, a partir do resultado dela.
+    expect(fnWebhook).toMatch(
+      /const funil = await aplicarQualificacao\(leadId \?\? linha\.lead_id[^\n]*\n\s*const posse = await posseSeAvancou\(leadId \?\? linha\.lead_id, funil\)/,
+    );
+    expect(fnWebhook).toMatch(/if \(!funil\.startsWith\("aplicada:"\)\) return "nao_aplicavel"/);
+    expect(fnWebhook).toMatch(/if \(!etapasDePosse\.includes\(alvo\)\) return "antes_da_posse"/);
+    // Default coerente com a migration quando a config não tem a lista.
+    expect(fnWebhook).toMatch(
+      /\["agendado", "visita_realizada", "proposta_enviada", "analise_credito"\]/,
+    );
   });
 
   it("qualificação -> etapa em tempo de evento, pela RPC oficial, idempotente e sem fechar venda", () => {
@@ -650,9 +727,15 @@ describe("aba Discador (fiação 3C Plus)", () => {
     expect(sessao).toContain("useMinhaDiscagem");
     expect(sessao).toContain("telefone_mascarado");
     expect(clienteSessao).toContain('rpc("bolsao_discagem_minha_v1"');
-    // Registrar resultado só quando o lead entrou na carteira (RLS).
+    // Atendeu ≠ posse: registrar contato e assumir só liberam depois do
+    // atendimento; o RegistrarContatoDialog (RLS da carteira) só para lead
+    // que já é dele.
     expect(sessao).toMatch(/const naCarteira = !!leadAtual\.assumido_em/);
-    expect(sessao).toMatch(/disabled=\{!naCarteira\}/);
+    expect(sessao).toMatch(/const atendeu = leadAtual\.atendido/);
+    expect(sessao).toContain("NotaAtendidoDialog");
+    expect(sessao).toContain("useAssumirAtendido");
+    expect(sessao).toMatch(/disabled=\{!atendeu\}/);
+    expect(sessao).toMatch(/disabled=\{!atendeu \|\| assumir\.isPending\}/);
     // Ligar no um a um nunca leva telefone (não há fallback tel: para o Bolsão).
     expect(sessao).toMatch(
       /ligar\(\{ id: leadAtual\.lead_id, nome: leadAtual\.nome, telefone: null \}\)/,
@@ -690,16 +773,35 @@ describe("aba Discador (fiação 3C Plus)", () => {
     expect(cliente).toContain('"telefonia_agentes"');
   });
 
-  it("rota /discador monta conexão + sessão + central; layout monta o pop-up; menu na Prospecção", () => {
+  it("rota /discador monta conexão + sessão + abas Atendidos/Histórico; layout monta o pop-up; menu na Prospecção", () => {
     expect(rota).toContain('createFileRoute("/_authenticated/discador")');
     expect(rota).toContain("ConectarTcplus");
     expect(rota).toContain("SessaoDiscagem");
+    expect(rota).toContain("AtendidosDiscador");
     expect(rota).toContain("DiscadorCentral");
+    expect(rota).toMatch(/<TabsTrigger value="atendidos">/);
+    expect(rota).toMatch(/<TabsTrigger value="historico">/);
     expect(routeTree).toContain("discador");
     expect(layout).toContain("ChamadaAtivaHost");
     expect(sistemas).toMatch(
       /titulo: "Prospecção"[\s\S]{0,2500}label: "Discador",\s*icon: Phone,\s*to: "\/discador"/,
     );
+  });
+
+  it("aba Atendidos: lista pela RPC mascarada, nota/assumir pelas RPCs; nunca lê leads; Ligar sem telefone", () => {
+    const clienteAtendidos = ler("src/features/telefonia/discador-atendidos-client.ts");
+    const aba = ler("src/features/telefonia/atendidos-discador.tsx");
+    expect(clienteAtendidos).toContain('rpc("discador_atendidos_meus_v1"');
+    expect(clienteAtendidos).toContain('rpc("discador_atendido_nota_v1"');
+    expect(clienteAtendidos).toContain('rpc("discador_atendido_assumir_v1"');
+    expect(clienteAtendidos).not.toMatch(/from\("leads"\)/);
+    expect(aba).not.toMatch(/from\("leads"\)/);
+    expect(aba).toContain("telefone_mascarado");
+    // Ligar de novo vai pelo CRM (tcplus-discar autoriza pelo atendimento aberto).
+    expect(aba).toMatch(/ligar\(\{ id: l\.lead_id, nome: l\.nome, telefone: null \}\)/);
+    // Assumir só enquanto o lead ainda está no Bolsão, e com confirmação.
+    expect(aba).toMatch(/disabled=\{assumir\.isPending \|\| !l\.ainda_no_bolsao\}/);
+    expect(aba).toContain("Assumir e agendar");
   });
 
   it("pop-up global de chamada ativa: filtro do corretor, som e ficha do cliente", () => {

@@ -125,17 +125,27 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
    - `parar` / `liberar`: logout + apaga as listas do CRM + solta as reservas
      (o que sobrou volta ao Bolsão) / só solta as reservas.
 
-   **Quem atende entra na carteira de quem falou.** No primeiro atendimento
+   **Quem atende NÃO ganha dono: vira um Atendido.** No primeiro atendimento
    real (`call-was-connected` ou histórico com desfecho atendida) o webhook
-   chama `discador_bolsao_assumir_v1`: só lead **sem dono**, fora da triagem
-   do SDR e sem venda viva (lead com dono nunca troca de mão por aqui — isso
-   é transferência, e passa pela gestão). Discar **sem** atender não dá posse;
-   senão o discador esvaziaria o Bolsão para dentro das carteiras sem ninguém
-   falar com ninguém. Sem a posse o corretor não conseguiria registrar o
-   resultado nem trabalhar o lead (RLS); com ela, `novo`/`aguardando_corretor`
-   vira `aguardando_atendimento` (caixa de entrada) e a qualificação move a
-   etapa. Fica em `distribution_log` (regra `discador_bolsao`) e é ligável em
-   `gestao_config.bolsao.discador_assume_ao_atender`.
+   chama `discador_bolsao_atender_v1`, que registra o lead na aba
+   **Atendidos** do corretor (`discador_atendimentos`, idempotente por
+   chamada) sem mexer na posse. O lead **segue no Bolsão**, fora da base
+   ativa (sem dono, nunca conta nos 65) e **discável por outros corretores**
+   (respeitada a rediscagem de `discador_rediscagem_dias`). Vários corretores
+   podem ter o mesmo cliente em Atendidos. Da aba o corretor liga de novo pelo
+   CRM, registra contato na timeline sem ser dono (`discador_atendido_nota_v1`,
+   autoria dele) ou **assume para agendar** (`discador_atendido_assumir_v1`).
+
+   **A posse vem com o avanço de fase.** Quando a qualificação leva o lead a
+   uma etapa de `gestao_config.bolsao.discador_posse_a_partir_de` (default:
+   agendado, visita realizada, proposta enviada, análise de crédito) e ele
+   ainda não tem dono, o webhook chama `discador_bolsao_assumir_v1`: o lead
+   entra na carteira de quem avançou (faixa fundo, conta nos 65), sai do
+   Bolsão e os atendimentos de todos se encerram — a aba dos outros mostra
+   "outro corretor avançou", sem dizer quem. Só lead sem dono, fora da triagem
+   do SDR e sem venda viva; lead com dono nunca troca de mão por aqui. Fica em
+   `distribution_log` (regra `discador_bolsao`). Discar sem atender não gera
+   nada além do histórico.
 
    **Uma campanha por corretor (obrigatório)**: o discador entrega as
    chamadas a QUALQUER agente logado na campanha — dois corretores na mesma
@@ -205,9 +215,10 @@ identifier: <uuid do lead>, data:{nome, projeto}}`), garante **peso ≥ 1**
    `chamadas` e na timeline). Encerrar e qualificar no 3C Plus → o webhook
    preenche status/duração/gravação e move o lead de etapa. Depois, aba
    Discador → "Iniciar agora": o lote do Bolsão é reservado, a lista sobe e o
-   discador passa a entregar chamadas ao webphone; quem atende entra na
-   carteira. Ajustes de lote/rediscagem/validade ficam em
-   `gestao_config.bolsao` (`discador_*`).
+   discador passa a entregar chamadas ao webphone; quem atende aparece em
+   Atendidos, e "agendou visita" o coloca na carteira. Ajustes de lote,
+   rediscagem, validade e etapas de posse ficam em `gestao_config.bolsao`
+   (`discador_*`).
 
 ### Nota de segurança — dois segredos, dois lugares
 
