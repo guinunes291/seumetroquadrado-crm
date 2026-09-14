@@ -34,6 +34,9 @@ const linhaSchema = z.object({
   // de um número a mais. Ausente ≠ zero: `teto` ausente esconde a leitura de
   // teto, não afirma que o teto é zero.
   acima_do_teto: z.coerce.number().int().optional(),
+  // Dos que estão em tratativa, quantos não têm NADA marcado adiante
+  // (migration 20260914190000). Tarefa vencida não conta: é dívida.
+  sem_passo_vivo: z.coerce.number().int().optional(),
   teto: z.coerce.number().int().positive().optional(),
   dias_atendimento: z.coerce.number().int().positive().optional(),
   dias_avancado: z.coerce.number().int().positive().optional(),
@@ -60,6 +63,15 @@ export function excedente(s: CarteiraStats): number {
 }
 
 /**
+ * Quantos da tratativa não têm próximo passo vivo. `null` quando o banco ainda
+ * não responde a coluna — e null não é zero: "não sei" e "ninguém está parado"
+ * levam o gestor a decisões opostas.
+ */
+export function semPassoVivo(s: CarteiraStats): number | null {
+  return s.sem_passo_vivo ?? null;
+}
+
+/**
  * "32 de 65 em tratativa" — o teto entra na frase porque o número sozinho não
  * diz se o corretor está com espaço ou estourado, que é a única pergunta que
  * o gestor faz olhando esse card. Sem teto na resposta (banco antigo), volta a
@@ -79,6 +91,8 @@ export function fraseDaCarteira(s: CarteiraStats): string {
   const partes = [textoTratativa(s)];
   const acima = excedente(s);
   if (acima > 0) partes.push(`+${acima} acima do teto`);
+  const semPasso = semPassoVivo(s);
+  if (semPasso !== null && semPasso > 0) partes.push(`${semPasso} sem próximo passo`);
   if (s.parada > 0) partes.push(`${s.parada} parados`);
   if (s.prospeccao > 0) partes.push(`${s.prospeccao} em prospecção`);
   return partes.join(" · ");
