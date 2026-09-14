@@ -556,6 +556,8 @@ function LeadDetailPage() {
         onPerdido={() => setPerdidoLead(stageLead)}
       />
 
+      <HistoricoResponsaveisCard leadId={leadId} corretorId={lead.corretor_id} />
+
       <LeadStatusCards leadId={leadId} lead={lead} />
 
       <ResponsiveTabs
