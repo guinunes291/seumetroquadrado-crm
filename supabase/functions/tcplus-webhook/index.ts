@@ -12,12 +12,15 @@
 // linha do click-to-call pendente); grava/atualiza `chamadas` (idempotente
 // por sid; a linha que a tcplus-discar criou SEM sid é adotada por número +
 // corretor) e ecoa uma interação `ligacao` na timeline no primeiro evento de
-// atendimento real. Lead do BOLSÃO (sem dono) que ATENDEU entra na carteira
-// de quem falou (RPC discador_bolsao_assumir_v1; ligável em
-// gestao_config.bolsao.discador_assume_ao_atender) — sem posse o corretor
-// não consegue registrar nem trabalhar o lead. A qualificação move o lead de
-// etapa na hora, pela RPC oficial transicionar_lead, conforme o mapeamento em
-// gestao_config (telefonia_tabulacao_status) — sem polling de arquivo.
+// atendimento real. Lead do BOLSÃO (sem dono) que ATENDEU vira um ATENDIDO
+// de quem falou (RPC discador_bolsao_atender_v1: aba Atendidos, sem posse —
+// o lead segue no Bolsão, discável por outros). A qualificação move o lead
+// de etapa na hora, pela RPC oficial transicionar_lead, conforme o
+// mapeamento em gestao_config (telefonia_tabulacao_status) — sem polling de
+// arquivo; e quando a etapa nova está em
+// gestao_config.bolsao.discador_posse_a_partir_de (agendado em diante, por
+// default), aí sim o lead entra na carteira de quem avançou
+// (discador_bolsao_assumir_v1).
 //
 // Autenticação: header x-webhook-secret, Authorization: Bearer <secret> OU
 // ?secret= na query. A exceção ao P-3 ("nunca secret em query") é
@@ -287,32 +290,53 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
     return "nao_atendida";
   }
 
-  // ---- Posse: lead do Bolsão (sem dono) que ATENDEU entra na carteira de
-  // quem falou. Discar sem atender não dá posse — senão o discador esvaziaria
-  // o Bolsão para dentro das carteiras sem ninguém falar com ninguém. A RPC
-  // recusa lead com dono, em triagem de SDR ou com venda viva.
-  async function assumirSeBolsao(leadAlvo: string | null): Promise<string> {
+  // ---- Atendido: lead do Bolsão (sem dono) que ATENDEU vira um atendido de
+  // quem falou — aba Atendidos, SEM posse. Ele segue no Bolsão, discável por
+  // outros corretores, até alguém avançar a fase. A RPC é idempotente por
+  // chamada (os dois eventos da mesma ligação contam um atendimento) e
+  // recusa lead com dono (é ligação da carteira de alguém, não do Bolsão).
+  async function registrarAtendimento(
+    leadAlvo: string | null,
+    chamadaId: string | null,
+  ): Promise<string> {
     if (!leadAlvo || !corretorId) return "nao_aplicavel";
+    const { data, error } = await supabase.rpc("discador_bolsao_atender_v1", {
+      _lead: leadAlvo,
+      _corretor: corretorId,
+      _chamada: chamadaId,
+    });
+    if (error) {
+      console.error("tcplus-webhook atender_failed:", error);
+      return `falhou: ${error.message}`;
+    }
+    const r = (data ?? {}) as { ok?: boolean; motivo?: string };
+    return r.motivo ?? (r.ok ? "atendido" : "recusado");
+  }
+
+  // ---- Posse ao AVANÇAR: só quando a qualificação levou o lead a uma etapa
+  // de gestao_config.bolsao.discador_posse_a_partir_de (agendado em diante,
+  // por default) e ele ainda não tem dono. Aí ele entra na carteira de quem
+  // avançou, sai do Bolsão e os atendimentos de todos se encerram. A RPC
+  // recusa lead com dono, em triagem de SDR ou com venda viva.
+  async function posseSeAvancou(leadAlvo: string | null, funil: string): Promise<string> {
+    if (!leadAlvo || !corretorId) return "nao_aplicavel";
+    if (!funil.startsWith("aplicada:")) return "nao_aplicavel";
+    const alvo = funil.slice("aplicada:".length);
     const { data: cfg } = await supabase
       .from("gestao_config")
       .select("valor")
       .eq("chave", "bolsao")
       .maybeSingle();
-    const ligado = (cfg?.valor as { discador_assume_ao_atender?: unknown } | null)
-      ?.discador_assume_ao_atender;
-    if (ligado === false) return "desligado";
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("corretor_id")
-      .eq("id", leadAlvo)
-      .maybeSingle();
-    if (!lead) return "lead_nao_encontrado";
-    if (lead.corretor_id === corretorId) return "ja_e_seu";
-    if (lead.corretor_id) return "tem_dono";
+    const listaCfg = (cfg?.valor as { discador_posse_a_partir_de?: unknown } | null)
+      ?.discador_posse_a_partir_de;
+    const etapasDePosse = Array.isArray(listaCfg)
+      ? listaCfg.filter((v): v is string => typeof v === "string")
+      : ["agendado", "visita_realizada", "proposta_enviada", "analise_credito"];
+    if (!etapasDePosse.includes(alvo)) return "antes_da_posse";
     const { data, error } = await supabase.rpc("discador_bolsao_assumir_v1", {
       _lead: leadAlvo,
       _corretor: corretorId,
-      _motivo: `Discador 3C Plus: cliente atendeu (${c.evento})`,
+      _motivo: `Discador 3C Plus: avançou para ${alvo} (${c.evento})`,
     });
     if (error) {
       console.error("tcplus-webhook assumir_failed:", error);
@@ -404,15 +428,16 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
       console.error("tcplus-webhook update_failed:", updErr);
     }
     const atendeuAgora = !jaAtendidaAntes && (conexao || desfecho === "atendida");
-    // Posse antes da qualificação: a etapa nova precisa de um dono.
-    const posse =
+    // Atendeu: vira atendido (sem posse). A posse só vem com o avanço de fase.
+    const atendimento =
       conexao || desfecho === "atendida"
-        ? await assumirSeBolsao(leadId ?? linha.lead_id)
+        ? await registrarAtendimento(leadId ?? linha.lead_id, linha.id)
         : "nao_aplicavel";
     const timeline = atendeuAgora
       ? await ecoarInteracao(linha, leadId ?? linha.lead_id)
       : "nao_aplicavel";
     const funil = await aplicarQualificacao(leadId ?? linha.lead_id, tabulacao, linha.tabulacao);
+    const posse = await posseSeAvancou(leadId ?? linha.lead_id, funil);
     return {
       evento: c.evento,
       chamada_id: linha.id,
@@ -421,6 +446,7 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
       status: novoStatus,
       lead: leadId ?? linha.lead_id ?? "nao_encontrado",
       corretor: corretorId ?? "nao_encontrado",
+      atendimento,
       posse,
       timeline,
       funil,
@@ -543,15 +569,17 @@ async function processarEvento(supabase: Db, payload: unknown): Promise<Record<s
 
   const linha = { id: nova!.id as string, direcao, origem };
   const atendeu = conexao || desfecho === "atendida";
-  const posse = atendeu ? await assumirSeBolsao(leadId) : "nao_aplicavel";
+  const atendimento = atendeu ? await registrarAtendimento(leadId, linha.id) : "nao_aplicavel";
   const timeline = atendeu ? await ecoarInteracao(linha, leadId) : "nao_aplicavel";
   const funil = await aplicarQualificacao(leadId, tabulacao, null);
+  const posse = await posseSeAvancou(leadId, funil);
   return {
     evento: c.evento,
     chamada_id: linha.id,
     status,
     lead: leadId ?? "nao_encontrado",
     corretor: corretorId ?? "nao_encontrado",
+    atendimento,
     posse,
     timeline,
     funil,

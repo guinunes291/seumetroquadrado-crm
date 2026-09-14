@@ -799,21 +799,28 @@ O que mudou no código (desenho completo em
   foi discado há pouco, quem está reservado e quem o próprio corretor devolveu
   há pouco (anti-ioiô do §5.2). O corretor vê a própria sessão mascarada
   (`bolsao_discagem_minha_v1`) — a máscara do §11.1 continua valendo.
-- **Quem atende entra na carteira de quem falou** (`discador_bolsao_assumir_v1`,
-  chamada pelo webhook no primeiro atendimento real): só lead sem dono, fora
-  do SDR e sem venda viva. Discar sem atender não dá posse. É a única escrita
-  que o discador faz em `leads`, e fica em `distribution_log` (regra
+- **Quem atende não ganha dono: vira um Atendido** (decisão do dono, no
+  mesmo dia). `discador_bolsao_atender_v1` registra o lead na aba Atendidos
+  do corretor (`discador_atendimentos`), sem posse; ele segue no Bolsão,
+  fora da base ativa e discável por outros. A posse vem só com o **avanço de
+  fase**: quando a qualificação (ou o próprio corretor, pela aba, ao assumir
+  para agendar) leva o lead a uma etapa de
+  `gestao_config.bolsao.discador_posse_a_partir_de` — agendado em diante,
+  por default, o mesmo marco que o §5.3 usa para "de agendado em diante
+  passa pela gestão" — `discador_bolsao_assumir_v1` dá a posse a quem
+  avançou, tira o lead do Bolsão e encerra os atendimentos dos outros (a aba
+  deles diz "outro corretor avançou", sem dizer quem). É a única escrita que
+  o discador faz em `leads`, e fica em `distribution_log` (regra
   `discador_bolsao`). Não é o "puxar" do §5.2: puxar é escolher um lead
-  específico; aqui é o robô conectando o corretor a um lead frio que ninguém
-  tinha — sem dono anterior a proteger e sem cota, porque não há como
-  garimpar a base pelo discador (a ordem é a frieza, não a escolha).
+  específico; aqui o corretor só fica com quem ele levou até a visita.
 - As funções que escrevem chamam-se `discador_bolsao_*`, não `bolsao_*`: a
   guarda de `tests/db/bolsao.test.ts` ("nenhuma função do Bolsão é VOLATILE")
   continua verdadeira — o Bolsão em si segue só leitura.
 
 Configuração em `gestao_config.bolsao`: `discador_lote` (200),
 `discador_rediscagem_dias` (7), `discador_reserva_horas` (24),
-`discador_anti_ioio_dias` (30), `discador_assume_ao_atender` (true).
+`discador_anti_ioio_dias` (30), `discador_posse_a_partir_de` (agendado,
+visita_realizada, proposta_enviada, analise_credito).
 
 ## 22. "Próximo passo" era qualquer tarefa aberta — inclusive as vencidas (`20260914190000`)
 

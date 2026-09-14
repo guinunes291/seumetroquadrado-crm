@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Eye, EyeSlash, Gauge, Target, UsersThree } from "@phosphor-icons/react";
-import { safeSameOriginPath } from "@/lib/safe-navigation";
+import { safePostLoginPath, safeSameOriginPath } from "@/lib/safe-navigation";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -35,20 +35,24 @@ function AuthPage() {
     next,
     typeof window === "undefined" ? "https://crm.local" : window.location.origin,
   );
+  const destinoAposLogin = safePostLoginPath(
+    next,
+    typeof window === "undefined" ? "https://crm.local" : window.location.origin,
+  );
   const [loading, setLoading] = useState(false);
 
   // Se já estiver logado, respeita o destino preservado.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        if (destino.startsWith("/") && destino !== "/") {
-          window.location.href = destino;
-        } else {
+        if (destinoAposLogin === "/inicio") {
           navigate({ to: "/inicio" });
+        } else {
+          window.location.href = destinoAposLogin;
         }
       }
     });
-  }, [navigate, destino]);
+  }, [navigate, destinoAposLogin]);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPwd, setLoginPwd] = useState("");
@@ -86,10 +90,10 @@ function AuthPage() {
         return;
       }
       toast.success("Bem-vindo de volta!");
-      if (destino !== "/") {
-        window.location.href = destino;
-      } else {
+      if (destinoAposLogin === "/inicio") {
         navigate({ to: "/inicio" });
+      } else {
+        window.location.href = destinoAposLogin;
       }
     } catch (error) {
       toast.error("Não foi possível entrar", { description: authErrorMessage(error) });
@@ -135,10 +139,10 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    if (destino !== "/") {
-      window.location.href = destino;
-    } else {
+    if (destinoAposLogin === "/inicio") {
       navigate({ to: "/inicio" });
+    } else {
+      window.location.href = destinoAposLogin;
     }
   };
 
