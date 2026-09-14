@@ -22,6 +22,7 @@ import { Link } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  CalendarCheck,
   CaretRight,
   CheckCircle,
   PencilSimple,
@@ -41,6 +42,7 @@ import { erroDaFunction, useLigarLead } from "@/hooks/use-ligar-lead";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { supabase } from "@/integrations/supabase/client";
 import { LEAD_STATUS_LABEL, type LeadStatus } from "@/lib/leads";
+import { NotaAtendidoDialog, useAssumirAtendido } from "./atendidos-discador";
 import {
   DISCAGEM_KEY,
   indiceInicial,
@@ -138,7 +140,7 @@ export function SessaoDiscagem() {
       toast.success(
         `Discador rodando: ${n} lead${n === 1 ? "" : "s"} do Bolsão na fila${
           (r.filtrados ?? 0) > 0 ? ` (${r.filtrados} filtrados pelo 3C Plus)` : ""
-        }. Quem atender cai no seu webphone e entra na sua carteira.`,
+        }. Quem atender cai no seu webphone e na sua aba Atendidos.`,
       );
     },
     onError: (e) => toast.error(mensagemDeErro(e, "Não foi possível iniciar o discador")),
@@ -171,6 +173,8 @@ export function SessaoDiscagem() {
   const [discarAoMontar, setDiscarAoMontar] = useState(false);
   const [indice, setIndice] = useState(0);
   const [registrarAberto, setRegistrarAberto] = useState(false);
+  const [notaAberta, setNotaAberta] = useState(false);
+  const assumir = useAssumirAtendido();
 
   const iniciarUmAUm = useMutation({
     mutationFn: () => invocarCampanha({ acao: "reservar" }),
@@ -303,7 +307,9 @@ export function SessaoDiscagem() {
 
   // ---- Sessão um a um ativa: cockpit do lead atual --------------------------
   if (leadAtual) {
+    // Posse só vem com o avanço de fase; atender vira "atendido" (sem posse).
     const naCarteira = !!leadAtual.assumido_em;
+    const atendeu = leadAtual.atendido;
     return (
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
@@ -353,11 +359,9 @@ export function SessaoDiscagem() {
                 ? `Parado há ${leadAtual.dias_parado} dia${leadAtual.dias_parado === 1 ? "" : "s"}`
                 : "Tocado hoje"}
             </span>
-            {leadAtual.atendido && <Badge variant="default">Atendeu</Badge>}
+            {atendeu && <Badge variant="default">Atendeu</Badge>}
             {naCarteira && <Badge variant="outline">Na sua carteira</Badge>}
-            {!leadAtual.atendido && leadAtual.discado && (
-              <Badge variant="outline">Já discado</Badge>
-            )}
+            {!atendeu && leadAtual.discado && <Badge variant="outline">Já discado</Badge>}
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -367,18 +371,38 @@ export function SessaoDiscagem() {
             >
               <Phone className="h-4 w-4 mr-2" /> {leadAtual.discado ? "Ligar de novo" : "Ligar"}
             </Button>
-            <Button
-              variant="outline"
-              disabled={!naCarteira}
-              title={
-                naCarteira
-                  ? undefined
-                  : "Libera quando o cliente atender — aí o lead entra na sua carteira."
-              }
-              onClick={() => setRegistrarAberto(true)}
-            >
-              <PencilSimple className="h-4 w-4 mr-2" /> Registrar resultado
-            </Button>
+            {naCarteira ? (
+              <Button variant="outline" onClick={() => setRegistrarAberto(true)}>
+                <PencilSimple className="h-4 w-4 mr-2" /> Registrar resultado
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  disabled={!atendeu}
+                  title={
+                    atendeu
+                      ? "Nota na timeline do cliente, sem assumir o lead."
+                      : "Libera quando o cliente atender."
+                  }
+                  onClick={() => setNotaAberta(true)}
+                >
+                  <PencilSimple className="h-4 w-4 mr-2" /> Registrar contato
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!atendeu || assumir.isPending}
+                  title={
+                    atendeu
+                      ? "O lead entra na sua carteira; a visita é agendada no dossiê."
+                      : "Libera quando o cliente atender."
+                  }
+                  onClick={() => assumir.mutate(leadAtual.lead_id)}
+                >
+                  <CalendarCheck className="h-4 w-4 mr-2" /> Assumir e agendar
+                </Button>
+              </>
+            )}
             <Button variant="outline" onClick={avancar}>
               {indice + 1 >= umAUm.length ? (
                 <>
@@ -394,16 +418,18 @@ export function SessaoDiscagem() {
 
           <p className="text-xs text-muted-foreground">
             {naCarteira
-              ? "O cliente atendeu: o lead já é seu. Registre o resultado e siga."
-              : autoDiscar
-                ? "Ao avançar, o próximo lead é discado automaticamente pelo seu agente no 3C Plus. Quem não atende volta ao Bolsão."
-                : "Ao avançar, use o botão Ligar para discar o próximo lead. Quem não atende volta ao Bolsão."}
+              ? "O lead já é seu. Registre o resultado e siga."
+              : atendeu
+                ? "Atendeu: ele entrou na sua aba Atendidos, mas continua no Bolsão até alguém avançar de fase. Registre o contato ou assuma para agendar."
+                : autoDiscar
+                  ? "Ao avançar, o próximo lead é discado automaticamente pelo seu agente no 3C Plus. Quem não atende volta ao Bolsão."
+                  : "Ao avançar, use o botão Ligar para discar o próximo lead. Quem não atende volta ao Bolsão."}
           </p>
         </CardContent>
 
         {/* Registrar resultado reaproveita o fluxo padrão (interação +
-            follow-up) e, ao concluir, já avança a fila — menos cliques. Só
-            abre quando o lead entrou na carteira (RLS). */}
+            follow-up) e, ao concluir, já avança a fila — só quando o lead é
+            do corretor (RLS). Sem posse, a nota vai pela RPC dos atendidos. */}
         {naCarteira && user && (
           <RegistrarContatoDialog
             open={registrarAberto}
@@ -413,6 +439,12 @@ export function SessaoDiscagem() {
             onDone={avancar}
           />
         )}
+        <NotaAtendidoDialog
+          lead={{ id: leadAtual.lead_id, nome: leadAtual.nome }}
+          open={notaAberta}
+          onOpenChange={setNotaAberta}
+          onDone={avancar}
+        />
       </Card>
     );
   }

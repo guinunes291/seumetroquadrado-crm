@@ -110,9 +110,11 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  // Lead do Bolsão reservado para este corretor (tcplus-campanha, modo um a
-  // um): lido pela service_role SÓ quando a reserva existe e está viva, e só
-  // se o lead continua sem dono (ou já é dele).
+  // Lead do Bolsão autorizado para este corretor sem ser dele: reservado na
+  // sessão (tcplus-campanha, modo um a um) OU um ATENDIDO dele (aba
+  // Atendidos: já atendeu o discador deste corretor e segue no Bolsão). Lido
+  // pela service_role SÓ com essa autorização, e só se o lead continua sem
+  // dono (ou já é dele).
   type LeadDiscavel = { id: string; nome: string; telefone: string | null; opt_out: boolean };
   let lead: LeadDiscavel | null = (leadCarteira as LeadDiscavel | null) ?? null;
   let viaBolsao = false;
@@ -124,7 +126,16 @@ async function handleRequest(req: Request): Promise<Response> {
       .eq("corretor_id", uid)
       .gt("expira_em", new Date().toISOString())
       .maybeSingle();
-    if (reserva) {
+    const { data: atendido } = reserva
+      ? { data: null }
+      : await admin
+          .from("discador_atendimentos")
+          .select("lead_id")
+          .eq("lead_id", leadId)
+          .eq("corretor_id", uid)
+          .is("encerrado_em", null)
+          .maybeSingle();
+    if (reserva || atendido) {
       const { data: l } = await admin
         .from("leads")
         .select("id, nome, telefone, opt_out, corretor_id, deleted_at, na_lixeira")
