@@ -45,7 +45,7 @@ export function OfertaAtivaPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { isAdmin, isGestor } = useUserRoles();
-  const canManage = isAdmin;
+  const canManage = isAdmin || isGestor;
   const [tab, setTab] = useState<"ativas" | "arquivadas">("ativas");
   const [confirmExcluir, setConfirmExcluir] = useState<OfertaAtiva | null>(null);
 

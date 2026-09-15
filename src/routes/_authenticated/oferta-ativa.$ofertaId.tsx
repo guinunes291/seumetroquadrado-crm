@@ -206,7 +206,7 @@ function OfertaDetailPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { isAdmin, isGestor } = useUserRoles();
-  const canManage = isAdmin;
+  const canManage = isAdmin || isGestor;
 
   // `leads` na escuta: o avanço na carteira reflete aqui via trigger do banco.
   useRealtimeInvalidate(
