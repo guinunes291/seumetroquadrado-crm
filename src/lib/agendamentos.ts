@@ -92,9 +92,11 @@ export async function criarAgendamento(
   const linha = criado as { id: string; corretor_id: string | null };
   const agendamentoId = linha.id;
 
-  // SDR (trigger trg_sdr_visita_roleta): visita em lead de pré-venda nasce no
-  // nome do corretor da roleta, não de quem marcou. Avisa e não cria o
-  // follow-up de etapa — as confirmações D-1/D-0 já ficaram com o SDR.
+  // SDR (trigger trg_sdr_visita_roleta): visita marcada por um SDR em lead de
+  // pré-venda nasce no nome do corretor da roleta, não de quem marcou. Avisa e
+  // não cria o follow-up de etapa — as confirmações D-1/D-0 já ficaram com o
+  // SDR. Marcada pelo corretor, a visita fica com ele e nada disso acontece
+  // (migration 20260915160000).
   const entregueViaSdr =
     !!input.corretorId && !!linha.corretor_id && linha.corretor_id !== input.corretorId;
   if (entregueViaSdr) {

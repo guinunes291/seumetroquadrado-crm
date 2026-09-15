@@ -626,6 +626,77 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
     expect(l.corretor_id).toBe(corretorB.id);
   });
 
+  it("lead em pré-venda: visita marcada pelo PRÓPRIO corretor não roda roleta nem avisa", async () => {
+    // Regressão 14/09/2026: o trigger olhava só para o lead (sdr_id + não
+    // entregue) e ignorava quem marcava. Como o lead reaquecido mantém o
+    // corretor_id do dono original, todo agendamento feito pelo corretor
+    // virava "entrega do SDR" e ele recebia o WhatsApp "Lead do SDR para
+    // você" de um lead que já era dele.
+    await comoSuperuser(c);
+    const reaquecido = await criarLead(c, {
+      nome: "Reaquecido do Bruno",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    await c.query(`UPDATE public.leads SET sdr_id = $1 WHERE id = $2`, [sdr.id, reaquecido]);
+
+    await comoUsuario(c, corretorB.id);
+    const ag = await insereVisita(reaquecido, corretorB.id, corretorB.id, 12 * 24);
+    expect(ag.corretor_id).toBe(corretorB.id);
+
+    const l = await lead(reaquecido);
+    expect(l.corretor_id).toBe(corretorB.id);
+    expect(l.sdr_id).toBe(sdr.id); // segue na base do SDR, só não foi entregue
+    expect(l.sdr_entregue_em).toBeNull();
+    expect(await entregasSucesso(reaquecido)).toBe(0);
+
+    await comoSuperuser(c);
+    const avisos = await c.query(
+      `SELECT count(*)::int AS n FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_aviso_corretor'`,
+      [reaquecido],
+    );
+    expect(avisos.rows[0].n).toBe(0);
+    const tokens = await c.query(
+      `SELECT count(*)::int AS n FROM public.sdr_avisos_corretor WHERE lead_id = $1`,
+      [reaquecido],
+    );
+    expect(tokens.rows[0].n).toBe(0);
+    // Fica o rastro para a gestão ver o lead que segue em pré-venda.
+    const rastro = await c.query(
+      `SELECT payload FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_visita_sem_roleta'`,
+      [reaquecido],
+    );
+    expect(rastro.rowCount).toBe(1);
+    expect((rastro.rows[0].payload as Record<string, unknown>).ator).toBe(corretorB.id);
+  });
+
+  it("lead em pré-venda sem corretor: visita inserida sem ator (bot/service role) não vira entrega do SDR", async () => {
+    await comoSuperuser(c);
+    const doBot = await criarLead(c, { nome: "Agendado pelo bot", status: "em_atendimento" });
+    await c.query(`UPDATE public.leads SET sdr_id = $1, corretor_id = $2 WHERE id = $3`, [
+      sdr.id,
+      corretorB.id,
+      doBot,
+    ]);
+    // service role/n8n: sem criado_por_id e sem auth.uid().
+    const ag = await c.query(
+      `INSERT INTO public.agendamentos
+         (lead_id, corretor_id, tipo, status, titulo, local, data_inicio, data_fim)
+       VALUES ($1, $2, 'visita', 'agendado', 'Visita', 'Estande',
+               now() + interval '13 days', now() + interval '13 days' + interval '1 hour')
+       RETURNING corretor_id`,
+      [doBot, corretorB.id],
+    );
+    expect(ag.rows[0].corretor_id).toBe(corretorB.id);
+    const l = await lead(doBot);
+    expect(l.sdr_entregue_em).toBeNull();
+    const avisos = await c.query(
+      `SELECT count(*)::int AS n FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_aviso_corretor'`,
+      [doBot],
+    );
+    expect(avisos.rows[0].n).toBe(0);
+  });
+
   it("cadastro pelo SDR que bate em lead existente: parado ou da própria carteira entra na base; recente de corretor não", async () => {
     await comoSuperuser(c);
     const paradoBruno = await criarLead(c, {
@@ -701,10 +772,24 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
     await comoUsuario(c, sdr.id);
     const ag = await insereVisita(pendente, sdr.id, sdr.id, 11 * 24);
     expect(ag.corretor_id).toBe(sdr.id);
+
+    // Visita que o CORRETOR marcou no lead dele em pré-venda: o reparo não a
+    // toca (senão o lead sairia da mão dele com o WhatsApp do SDR).
+    await comoSuperuser(c);
+    const doCorretor = await criarLead(c, {
+      nome: "Pré-venda agendado pelo Bruno",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    await c.query(`UPDATE public.leads SET sdr_id = $1 WHERE id = $2`, [sdr.id, doCorretor]);
+    await comoUsuario(c, corretorB.id);
+    const agCorretor = await insereVisita(doCorretor, corretorB.id, corretorB.id, 11 * 24 + 6);
     await setFlag(true);
 
     await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT * FROM public.sdr_reentregar_visitas_pendentes()`);
+    expect(r.rows.find((x) => x.agendamento_id === agCorretor.id)).toBeUndefined();
+    expect((await lead(doCorretor)).sdr_entregue_em).toBeNull();
     const linha = r.rows.find((x) => x.agendamento_id === ag.id);
     expect(linha?.erro).toBeNull();
     expect(linha?.corretor_id).toBe(corretorA.id);
@@ -813,6 +898,34 @@ describe("aviso ao corretor sai do banco; endereço obrigatório", () => {
       [lb],
     );
     expect(ev2.rows[0].n).toBe(0);
+  });
+
+  it("sem entrega do SDR gravada no lead, o notificador recusa (nada de WhatsApp solto)", async () => {
+    await comoSuperuser(c);
+    const l = await criarLead(c, {
+      nome: "Sem entrega do SDR",
+      corretorId: corretorB.id,
+      status: "em_atendimento",
+    });
+    await c.query(`UPDATE public.leads SET sdr_id = $1 WHERE id = $2`, [sdr.id, l]);
+    const r = await c.query(`SELECT public._sdr_notificar_corretor($1, $2, 'teste') AS ok`, [
+      l,
+      corretorB.id,
+    ]);
+    expect(r.rows[0].ok).toBe(false);
+    const ev = await c.query(
+      `SELECT payload FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'sdr_aviso_corretor'`,
+      [l],
+    );
+    expect(ev.rowCount).toBe(1);
+    const p = ev.rows[0].payload as Record<string, unknown>;
+    expect(p.enviado).toBe(false);
+    expect(p.motivo).toBe("entrega_sdr_nao_registrada");
+    const tk = await c.query(
+      `SELECT count(*)::int AS n FROM public.sdr_avisos_corretor WHERE lead_id = $1`,
+      [l],
+    );
+    expect(tk.rows[0].n).toBe(0);
   });
 });
 
