@@ -45,7 +45,7 @@ function NovaOfertaPage() {
   const navigate = useNavigate();
   const { de } = Route.useSearch();
   const { isAdmin, isGestor, loading: rolesLoading } = useUserRoles();
-  const canManage = isAdmin;
+  const canManage = isAdmin || isGestor;
 
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
