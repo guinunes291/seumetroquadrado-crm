@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { garantirFollowUpAberto } from "@/lib/follow-up";
+import { concluirToquesDeHoje } from "@/features/followup/fila-client";
 import { transicionarLead } from "@/lib/lead-transitions";
 import {
   descreverProximo,
