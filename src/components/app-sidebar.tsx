@@ -4,7 +4,7 @@ import {
   CaretDoubleLeft,
   CaretDoubleRight,
   GearSix,
-  LifeBuoy,
+  Lifebuoy,
   List,
   SignOut,
   SquaresFour,
@@ -291,7 +291,7 @@ function SidebarContent({
                       aria-label="Como usar o CRM"
                       className="mx-auto flex h-11 w-11 items-center justify-center rounded-md text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
                     >
-                      <LifeBuoy className="h-4 w-4" />
+                      <Lifebuoy className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="right">Como usar o CRM</TooltipContent>
@@ -339,7 +339,7 @@ function SidebarContent({
                   onClick={abrirOnboarding}
                   className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 >
-                  <LifeBuoy className="h-4 w-4" />
+                  <Lifebuoy className="h-4 w-4" />
                   Como usar o CRM
                 </Button>
               )}
