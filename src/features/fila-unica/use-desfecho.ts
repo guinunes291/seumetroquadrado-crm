@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { garantirFollowUpAberto } from "@/lib/follow-up";
+import { concluirToquesDeHoje } from "@/features/followup/fila-client";
 import { transicionarLead } from "@/lib/lead-transitions";
 import {
   descreverProximo,
@@ -119,8 +120,13 @@ export async function executarDesfecho(
   }
 
   // 3) O próximo passo com data — só a tarefa; o espelho no lead é do trigger.
+  //    ANTES de criar o novo toque, conclui os toques de contato já vencidos
+  //    (mesmo caminho da Fila de follow-up): sem isso cada desfecho deixava a
+  //    tarefa antiga aberta e o lead acumulava toques duplicados. Se falhar, o
+  //    desfecho falha — não se engole o erro, senão a duplicata volta calada.
   let vencimento: string | null = null;
   if (opcao.proximo) {
+    await concluirToquesDeHoje(lead.id);
     vencimento = vencimentoDe(opcao.proximo.quando, agora).toISOString();
     await garantirFollowUpAberto({
       leadId: lead.id,
