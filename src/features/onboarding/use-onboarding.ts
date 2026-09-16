@@ -41,16 +41,14 @@ const rpc = ((fn: string, args?: Record<string, unknown>) =>
 export function useOnboardingStatus() {
   const { user } = useAuth();
   const uid = user?.id;
-  const q = useQuery({
+  return useQuery({
     queryKey: [ONBOARDING_KEY, uid],
     enabled: !!uid,
     staleTime: 30_000,
     retry: false,
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<OnboardingStatus | null> => {
-      ((window as any).__L ??= []).push("start");
       const { data, error } = await rpc("onboarding_corretor_status");
-      ((window as any).__L ??= []).push(JSON.stringify({ data, error }));
       if (error) {
         console.warn("onboarding_corretor_status indisponível:", error.message);
         return null;
@@ -58,8 +56,6 @@ export function useOnboardingStatus() {
       return normalizar(data);
     },
   });
-  (window as any).__onbh = JSON.stringify({ uid, status: q.status, fetchStatus: q.fetchStatus, err: q.error ? String(q.error) : null });
-  return q;
 }
 
 export function useConcluirOnboarding() {

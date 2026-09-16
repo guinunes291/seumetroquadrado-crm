@@ -35,7 +35,6 @@ export function OnboardingGlobal() {
     }
   }, [aberto, fechadoNestaSessao, isCorretor, papeisCarregando, status]);
 
-  (window as any).__onb = { aberto, isCorretor, papeisCarregando, status, user: !!user };
   if (!user) return null;
 
   return (
