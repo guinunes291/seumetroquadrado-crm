@@ -325,3 +325,80 @@ efeito de base importada e redistribuída. Minha consulta não filtrou isso.
 >
 > Por isso a meta muda de natureza: não é "toque mais leads". É **capte 2 leads por
 > dia**. Dois. É isso que separa 1 venda por semana de 1 venda por trimestre.
+
+---
+
+# 9. O funil corrigido (16/09/2026, após a Fase 2 — passos 1 a 4)
+
+Separar a base da pré-venda da mesa do corretor mudou o denominador de todas as
+passagens. Pela primeira vez o funil da SMQ mede o que diz medir.
+
+| Etapa | Antes | **Depois** |
+| --- | ---: | ---: |
+| Entrada (sem dono nenhum) | 15 | **965** |
+| Aguardando atendimento | 48.048 | **4.125** |
+| Aguardando retorno | 667 | 666 |
+| Qualificação corretor | 483 | 483 |
+| Em atendimento | 6.461 | **6.439** |
+| Agendado | 74 | 74 |
+| Visita realizada | 38 | 38 |
+| Análise de crédito | 140 | 139 |
+| Venda | 115 | 115 |
+| **Base da pré-venda** (fora do funil) | — | **42.997** |
+| Perdido | 2.104 | 2.104 |
+
+## 9.1 As oito passagens, com o denominador limpo **[MEDIDO]**
+
+| Passagem | Atual | Meta da casa | |
+| --- | ---: | ---: | :---: |
+| Distribuição (dono em 1h útil) | 92,6% | 100% | 🟡 perto |
+| **1º contato efetivo** | **65,8%** | 50% | 🟢 **acima** |
+| Qualificação | 91,6% | 50% | 🟢 acima |
+| Qualificado vira conversa | 93,4% | 90% | 🟢 acima |
+| **Agendamento** | **5,4%** | **70%** | 🔴 **1/13 da meta** |
+| Comparecimento | 79,8% | 65% | 🟢 acima |
+| Pasta / proposta | 87,0% | 75% | 🟢 acima |
+| Fechamento | 45,3% | 30% | 🟢 acima |
+
+> ## Sete das oito passagens estão saudáveis. Uma está a um treze avos da meta.
+
+## 9.2 A correção que isso força no meu próprio diagnóstico
+
+Eu havia escrito que `aguardando_atendimento` era "o balde furado" e que o 1º contato
+era um problema. **Estava errado, e o erro era de denominador.**
+
+| 1º contato efetivo | |
+| --- | ---: |
+| Com a base da pré-venda no denominador (como o funil mostrava) | **14,2%** |
+| Só com quem tem corretor (a medida certa) | **65,8%** |
+
+O time **nunca falhou no primeiro contato**. A métrica é que estava contaminada por
+43 mil leads que não estão na mesa de ninguém. Três meses de leitura de funil apontaram
+para o lugar errado por causa disso.
+
+## 9.3 O gargalo, agora isolado
+
+```
+Em atendimento  6.439 leads   ← a MAIOR etapa comercial do funil,
+      │                          maior que "aguardando atendimento" (4.125)
+      │  5,4%   (meta 70%)
+      ▼
+Agendado           74
+```
+
+Tudo flui até `em_atendimento`. Ali empoça e para. **Não há segundo gargalo.**
+
+Isso confirma e afia o §3: os 98% que morrem antes da visita morrem **num único degrau**,
+e o degrau tem nome — não se oferece a visita.
+
+## 9.4 Três achados de operação que vieram junto
+
+1. **`fila_funil_v1` nunca existiu no banco.** O arquivo estava no repositório, a função
+   nunca chegou a produção, e o painel de funil da Fila Única caía em "sem dado" —
+   provavelmente desde 12/09. **O time nunca viu esse painel funcionando.**
+2. **965 leads não têm corretor nem pré-vendedor.** Estavam escondidos dentro de
+   `aguardando_atendimento`; agora aparecem em "Entrada". São os que a roleta precisa
+   distribuir.
+3. **A esteira já tinha terminado.** No momento da pausa havia **zero** leads no estoque
+   elegível ao plantão: ela havia drenado tudo para a pré-venda. A pausa é preventiva,
+   não corretiva.

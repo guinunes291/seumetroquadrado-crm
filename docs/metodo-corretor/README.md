@@ -82,6 +82,17 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | 2 | ~~Régua de follow-up em colapso~~ | ✅ **corrigido 16/09.** O vazamento parou; 2.498 duplicatas canceladas. Os 5.126 leads com tarefa única e vencida ficaram de fora de propósito — são dívida comercial, não defeito |
 | 3 | ~~WhatsApp nunca foi ligado~~ | ✅ **resolvido 16/09.** Segredo criado, teste ponta a ponta, e a busca por telefone migrada para a convenção de 9 dígitos sobre índice único — os 56.217 gravados sem o `55` passam a ser encontrados |
 
+> ### Resultado da Fase 2 (passos 1–4): o funil ficou legível
+>
+> `aguardando_atendimento` caiu de **48.048 para 4.125** — o resto era a base da
+> pré-venda. Com o denominador limpo, **7 das 8 passagens do funil estão na meta da casa
+> ou acima**, inclusive o 1º contato efetivo, que aparecia como 14,2% e é **65,8%**
+> (meta 50%).
+>
+> **Sobra um único gargalo:** `em atendimento → agendado` a **5,4%** contra meta de 70%,
+> com **6.439 clientes** parados ali — a maior etapa comercial do funil.
+> Detalhe em [17-recalibracao.md §9](17-recalibracao.md).
+
 **Resta o problema 1, em execução.** A Fase 2 está autorizada e em andamento — ver
 [PROMPT-LOVABLE-FASE-2.md](PROMPT-LOVABLE-FASE-2.md). A causa não é onde os leads estão:
 é a esteira `distribuir-estoque-plantao`, que empurra **4.320 leads/dia** para uma base
