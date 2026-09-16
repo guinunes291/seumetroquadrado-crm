@@ -43,7 +43,9 @@ export function useOnboardingStatus() {
     retry: false,
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<OnboardingStatus | null> => {
+      (window as any).__onbq = "start";
       const { data, error } = await rpc("onboarding_corretor_status");
+      (window as any).__onbq = JSON.stringify({ data, error });
       if (error) {
         console.warn("onboarding_corretor_status indisponível:", error.message);
         return null;
