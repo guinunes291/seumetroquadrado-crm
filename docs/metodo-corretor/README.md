@@ -69,12 +69,16 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | Arquivo | O que faz | Escreve? |
 | --- | --- | :---: |
 | [PROMPT-LOVABLE-EXTRACAO.md](PROMPT-LOVABLE-EXTRACAO.md) | Extrai os dados do banco (o que gerou o Documento 17) | não |
-| [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md) | Corrige os 3 problemas reais, em 4 fases | **sim** |
+| [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md) | Fase 0 (diagnóstico) + o plano das 3 correções | não (Fase 0) |
+| [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md) | Autoriza Fases 1 e 3; Fase 2 reescrita e retida | **sim** |
 
 ## Os três problemas reais
 
 | # | Problema | Número |
 | - | --- | --- |
-| 1 | Leads sem dono no meio do funil | **50.196** — 43.923 deles em `aguardando_atendimento`, etapa que por definição significa "distribuído" |
-| 2 | Régua de follow-up em colapso | **95,8%** das tarefas pendentes já venceram; 3% de conclusão |
-| 3 | Resposta do cliente não é gravada | **1 interação de entrada em 90 dias** — o balde "Cliente respondeu" nunca acende |
+| 1 | Um SDR com **42.884 leads** | 97,8% dos 43.923 sem corretor estão na base de **uma pessoa**. Na meta de 40 contatos/dia, uma passada leva **49 meses** |
+| 2 | Régua de follow-up em colapso | 9.236 tarefas abertas: **2.498 são vazamento de bug** (`use-desfecho` não fecha a anterior) e **5.126 nunca foram trabalhadas** |
+| 3 | WhatsApp nunca foi ligado | `WHATSAPP_WEBHOOK_SECRET` não existe → o endpoint devolve 503; `mensagens` tem **zero linhas**. O balde "Cliente respondeu" nunca acendeu |
+
+Causas rastreadas até a linha em [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md);
+números confirmados pela Fase 0 em [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md).
