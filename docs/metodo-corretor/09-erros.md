@@ -170,9 +170,9 @@ remarca.
 ### ERRO 15 — Não oferecer visita em toda conversa ativa
 
 **Este é o erro que explica o gargalo #1 da SMQ.** A passagem `em_atendimento →
-agendado` marca **7% contra meta de 70% [MEDIDO]**. Com 7%, seriam necessários **434
-leads por semana** para 1 venda, em vez de 43 — dez vezes mais
-([Doc 8 §4](08-indicadores.md)).
+agendado` marca **5,4% contra meta de 70% [MEDIDO]**. É a **única** das oito passagens
+do funil fora da meta — as outras sete estão nela ou acima. Levar só essa passagem à
+meta multiplica a conversão da casa por **13** ([Doc 17 §9](17-recalibracao.md)).
 
 **O certo.** Oferta assumida, com duas opções:
 

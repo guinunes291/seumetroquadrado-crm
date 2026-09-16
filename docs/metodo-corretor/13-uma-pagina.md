@@ -83,11 +83,11 @@
 
 ### 🔥 O GARGALO DA CASA
 
-> **"Em atendimento → Agendado" está em 7%. A meta é 70%.**
+> **"Em atendimento → Agendado" está em 5,4%. A meta é 70%.**
 >
-> A causa é quase sempre uma: **não se ofereceu a visita.**
-> Corrigir isso sozinho reduz em **5 vezes** o número de leads que você
-> precisa para vender.
+> É a **única** das 8 passagens do funil fora da meta — as outras sete estão
+> na meta ou acima. A causa é quase sempre uma: **não se ofereceu a visita.**
+> Corrigir só isso multiplica a conversão da casa por **13**.
 
 ---
 

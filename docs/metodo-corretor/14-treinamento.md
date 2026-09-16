@@ -32,7 +32,7 @@ novo vale ~0,005. **78 vezes de diferença.** É por isso que a fila tem ordem.
 - As duas fases: **Prospecção** × **Carteira**
 - Por que não se pula etapa (a máquina de estados)
 - As 8 metas de passagem da casa
-- 🔴 O gargalo: `em_atendimento → agendado` em **7%** contra meta de 70%
+- 🔴 O gargalo único: `em_atendimento → agendado` em **5,4%** contra meta de 70% — as outras 7 passagens estão na meta ou acima
 
 **Exercício**
 1. Pegar 5 leads da própria carteira e classificar a etapa correta
@@ -146,7 +146,7 @@ novo vale ~0,005. **78 vezes de diferença.** É por isso que a fila tem ordem.
 - A oferta assumida com **duas opções de horário**
 - Quando oferecer: **em toda conversa**, sempre
 - Como contornar "vou pensar", "preciso falar com meu marido", "vou ver depois"
-- A demonstração matemática: 7% → 35% reduz em 5× os leads necessários
+- A demonstração matemática: 5,4% → 70% multiplica a conversão da casa por 13×
 
 **Exercício**
 1. Role-play: 10 conversas, oferecer visita em todas as 10

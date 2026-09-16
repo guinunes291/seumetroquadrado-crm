@@ -72,8 +72,11 @@ Ordem canônica (`LEAD_STATUS_ORDER`), com as duas fases comerciais:
 | **Motivo de perda típico** | `sem_contato`, `sem_perfil` |
 | **KPI** | Tempo até 1º atendimento (mediana ≤ 15 min, p90 ≤ 60 min) · **1º contato efetivo: [META CASA] 50%** |
 
-> 🔴 **[MEDIDO] 48.049 leads aqui — 82,6% da base.** Esta etapa é o balde furado. Ver
-> [Diagnóstico §2.5](01-diagnostico.md).
+> ✅ **Correção de 16/09/2026.** Eu havia chamado esta etapa de "o balde furado", com
+> 48.049 leads (82,6% da base). **Estava errado — era denominador.** 43 mil daqueles
+> leads eram a base da pré-venda, sem corretor nenhum. Com a separação feita, a etapa
+> tem **4.125 leads** e o 1º contato efetivo é de **65,8%**, acima da meta de 50%.
+> Ver [17 §9](17-recalibracao.md).
 
 ---
 
@@ -126,7 +129,7 @@ Ordem canônica (`LEAD_STATUS_ORDER`), com as duas fases comerciais:
 | **Follow-up** | Régua ativa, gaps de quente ou morno |
 | **Prioridade** | Balde `esfriando` (6º) ou `sem_acao` (5º) |
 | **Gatilho de alerta** | 3+ dias sem contato → balde `esfriando` |
-| **KPI** | 🔴 **Agendamento: [META CASA] 70% · [MEDIDO] 7%** |
+| **KPI** | 🔴 **Agendamento: [META CASA] 70% · [MEDIDO] 5,4%** — a única passagem fora da meta |
 
 > 🔴 **ESTE É O GARGALO #1 DA OPERAÇÃO.** 6.460 leads aqui, e a passagem para `agendado`
 > roda a **um décimo da meta**. O copy do CRM já diagnostica: *"'Em atendimento' virou
@@ -243,7 +246,7 @@ Outra régua. Fora do escopo da fila comercial.
 | 2 | aguardando_atendimento → aguardando_retorno | 50% | — | política v1 (provisório) |
 | 3 | aguardando_retorno → qualificacao_corretor | 50% | — | rotina comercial |
 | 4 | qualificacao_corretor → em_atendimento | 90% | — | qualificado vira conversa em 1 dia |
-| 5 | **em_atendimento → agendado** | **70%** | 🔴 **7%** | rotina comercial |
+| 5 | **em_atendimento → agendado** | **70%** | 🔴 **5,4%** | rotina comercial |
 | 6 | agendado → visita_realizada | 65% | — | protocolo D-2/D-1/D+0 |
 | 7 | visita_realizada → analise_credito | 75% | — | rotina comercial |
 | 8 | **analise_credito → venda** | 30% | 🟢 **39,1%** | coorte mede 39% |
@@ -251,9 +254,11 @@ Outra régua. Fora do escopo da fila comercial.
 Estas metas vivem em `PASSAGENS` (`src/features/fila-unica/funil-derive.ts`) e aparecem
 no painel do funil da Fila Única, com a fonte de cada uma no tooltip.
 
-**A leitura:** a operação **fecha bem** (39% > 30%) e **não agenda** (7% << 70%).
-Não é um problema de fechamento nem de crédito. É um problema de **transformar conversa
-em visita**.
+**A leitura (revista em 16/09 com o funil corrigido):** **sete das oito passagens estão
+na meta da casa ou acima** — inclusive o 1º contato (65,8% contra 50%) e o fechamento
+(45,3% contra 30%). Uma única passagem trava: **agendamento, a 5,4% contra 70%**.
+Não é problema de fechamento, nem de crédito, nem de primeiro contato. É **um degrau**.
+Tabela completa em [17 §9](17-recalibracao.md).
 
 ---
 

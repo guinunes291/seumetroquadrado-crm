@@ -133,7 +133,7 @@ fora de `LEAD_STATUS_ORDER` → **invisíveis no Kanban e no funil**. **[MEDIDO]
 ## M13 · Sub-estados de `em_atendimento`
 
 **Problema:** 6.460 leads **[MEDIDO]** num status que significa tudo e nada — e é a
-passagem que marca 7% contra meta de 70%.
+passagem que marca 5,4% contra meta de 70% — a única do funil fora da meta.
 **Solução:** **sem migration** — padronizar `proxima_acao` em 5 valores pelo desfecho:
 `primeiro contato feito` → `simulação enviada` → `produto definido` → `visita oferecida`
 → `visita marcada`.

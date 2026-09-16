@@ -110,7 +110,7 @@ conversão. **Leia e corrija o ritmo.**
 
 ### Por que este bloco existe
 
-🔴 A passagem `em_atendimento → agendado` marca **7% contra meta de 70%**. **[MEDIDO]**
+🔴 A passagem `em_atendimento → agendado` marca **5,4% contra meta de 70%**. **[MEDIDO]**
 É o gargalo #1 da SMQ. Um bloco inteiro do dia é dedicado a ele.
 
 ### 3.1 A pergunta que fecha agendamento

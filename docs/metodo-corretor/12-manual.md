@@ -343,9 +343,14 @@ em campo, com o cliente na frente.
 
 ## 8.2 O gargalo onde você mais vai perder cliente
 
-🔴 **Em atendimento → Agendado: a operação está em 7% contra meta de 70%. [MEDIDO]**
+🔴 **Em atendimento → Agendado: a operação está em 5,4% contra meta de 70%. [MEDIDO]**
 
-Traduzindo: de cada 100 conversas ativas, só 7 viram visita. Deveriam ser 70.
+Traduzindo: de cada 100 conversas ativas, só 5 viram visita. Deveriam ser 70.
+
+E aqui está o que mais importa saber: **esta é a única passagem do funil fora da meta.**
+As outras sete — primeiro contato, qualificação, comparecimento, pasta, fechamento —
+estão todas na meta da casa ou acima. Você não precisa melhorar em sete coisas. Precisa
+melhorar em uma.
 
 **A causa é quase sempre uma só: não se ofereceu a visita.**
 
@@ -354,9 +359,8 @@ A correção é uma frase, em toda conversa:
 > *"Separei duas opções que cabem na sua renda. Você prefere conhecer **sábado de manhã
 > ou sábado à tarde**?"*
 
-Se cada corretor da SMQ subir essa taxa de 7% para 35%, o número de leads necessários
-para 1 venda cai de **434 para 87 por semana** — uma melhora de **5 vezes** sem gastar
-um real a mais em mídia.
+Levar essa passagem de 5,4% para a meta de 70% multiplica a conversão da casa por
+**13** — sem gastar um real a mais em mídia, sem mais um lead, sem mudar mais nada.
 
 ## 8.3 Quando NÃO avançar
 
