@@ -51,6 +51,13 @@ const ChamadaAtivaHost = lazy(() =>
   })),
 );
 
+// Onboarding do primeiro acesso do corretor — montado ANTES das metas do dia.
+const OnboardingGlobal = lazy(() =>
+  import("@/features/onboarding/onboarding-global").then(({ OnboardingGlobal }) => ({
+    default: OnboardingGlobal,
+  })),
+);
+
 // Metas do dia: popup obrigatório na 1ª abertura do dia (corretor) + card
 // flutuante de progresso que sobrevive à navegação.
 const MetasDiaGlobal = lazy(() =>
@@ -123,6 +130,7 @@ function AuthenticatedLayout() {
         <NovoLeadDialogHost />
         <KeyboardShortcutsHelp />
         <ChamadaAtivaHost />
+        <OnboardingGlobal />
         <MetasDiaGlobal />
       </Suspense>
       <CelebrationHost />

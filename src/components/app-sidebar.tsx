@@ -4,6 +4,7 @@ import {
   CaretDoubleLeft,
   CaretDoubleRight,
   GearSix,
+  LifeBuoy,
   List,
   SignOut,
   SquaresFour,
@@ -24,6 +25,7 @@ import {
 } from "@/features/nav/sistemas";
 import { useFaseDaJornada } from "@/features/nav/contexto-jornada";
 import { isTypingTarget } from "@/lib/shortcuts";
+import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -48,7 +50,7 @@ function SidebarContent({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { roles, isAdmin } = useUserRoles();
+  const { roles, isAdmin, isCorretor } = useUserRoles();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // A search entra na resolução do sistema: é ela que separa /pipeline?fase=
   // prospeccao de ?fase=carteira e escolhe a seção acesa por ?tab.
@@ -64,6 +66,12 @@ function SidebarContent({
   // Ativação por id da seção resolvida — path puro acenderia junto o par que
   // divide /pipeline (fase × fechamento).
   const secaoAcesa = sistema ? secaoAtiva(sistema, { pathname, search }) : null;
+
+  // Trilha "Como usar o CRM" — reabrível a qualquer momento pelo corretor.
+  const abrirOnboarding = () => {
+    onNavigate?.();
+    window.dispatchEvent(new Event(EVENTO_ABRIR_ONBOARDING));
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -274,6 +282,21 @@ function SidebarContent({
                   onNavigate={onNavigate}
                 />
               )}
+              {isCorretor && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={abrirOnboarding}
+                      aria-label="Como usar o CRM"
+                      className="mx-auto flex h-11 w-11 items-center justify-center rounded-md text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
+                    >
+                      <LifeBuoy className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Como usar o CRM</TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -309,6 +332,16 @@ function SidebarContent({
                   <GearSix className="h-4 w-4" />
                   Configurações
                 </Link>
+              )}
+              {isCorretor && (
+                <Button
+                  variant="ghost"
+                  onClick={abrirOnboarding}
+                  className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                >
+                  <LifeBuoy className="h-4 w-4" />
+                  Como usar o CRM
+                </Button>
               )}
               <Button
                 variant="ghost"
