@@ -2,6 +2,16 @@
 
 Auditoria de 16/09/2026. Base: código em produção + leitura direta do banco via MCP do CRM.
 
+> ## ⚠️ ESTE DOCUMENTO FOI CORRIGIDO
+>
+> A extração completa do banco (16/09/2026, via Lovable) desmentiu três afirmações
+> centrais daqui: a SMQ **tem 126 vendas e R$ 32,2 mi de VGV**; `interacoes`, `tarefas`
+> e `agendamentos` **não estão vazias**; e **nenhum** lead em `agendado` está sem
+> agendamento. A causa-raiz não é o registro — é a **origem dos leads**.
+>
+> **Leia a [Recalibração (Documento 17)](17-recalibracao.md) antes deste.**
+> Onde houver conflito, vale o 17.
+
 ---
 
 ## 1. O veredito em uma frase

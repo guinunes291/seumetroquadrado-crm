@@ -42,19 +42,32 @@ Complementos:
 | 14  | [Modelo de treinamento em 10 módulos](14-treinamento.md)      | Etapa 19                       |
 | 15  | [Modo Corretor e a regra dos 5 minutos](15-modo-corretor.md)  | Etapas 15 e 18                 |
 | 16  | [Gargalos do funil e qualidade da carteira](16-gargalos-e-carteira.md) | Etapas 11 e 12        |
+| 17  | **[Recalibração com os dados reais](17-recalibracao.md)** ⭐ | corrige 01, 08 e 16 |
 
-## A conclusão em cinco linhas
+## ⚠️ Leia o Documento 17 primeiro
 
-1. O CRM **já é** o gerente comercial digital que se pediu. A Fila Única, a régua de 13
-   toques, o Score de prioridade, a carteira ativa de 65 e o cálculo reverso de meta
-   estão construídos, testados e no ar.
-2. O que falta não é software: é **registro**. A camada de inteligência lê
-   `interacoes`, `tarefas` e `agendamentos` — e essas três tabelas estão praticamente
-   vazias. **[MEDIDO]**
-3. Por isso o funil mente: 82,6% da base está em `aguardando_atendimento` e a passagem
-   "em atendimento → agendado" marca 7% contra meta de 70%. **[MEDIDO]**
-4. 89,4% das negociações paradas há 5+ dias **não têm corretor**. Não é falta de
-   disciplina do corretor: é lead órfão no meio do funil. **[MEDIDO]**
-5. O método deste estudo tem um único eixo: **o desfecho de um toque na Fila Única
-   passa a ser a única forma de trabalhar**. Ele grava interação + próximo passo +
-   etapa de uma vez — é o registro que acende todo o resto do sistema.
+A primeira rodada deste estudo usou o MCP do CRM, cujas RPCs devolviam zero para vendas,
+tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os documentos
+01, 08 e 16 carregam aviso de correção no topo; a
+**[Recalibração (17)](17-recalibracao.md)** é a versão boa dos números.
+
+## A conclusão em cinco linhas — versão corrigida **[MEDIDO 16/09/2026]**
+
+1. A SMQ **vende bem**: 126 vendas, 116 aprovadas, **R$ 32,2 mi de VGV**, e setembro de
+   2026 é o melhor mês do ano com 29 vendas.
+2. A metade de baixo do funil é **forte e acima da meta da casa**: comparecimento em
+   visita de **80,4%** (meta 65%) e **44,3%** das visitas realizadas viram venda.
+3. O funil perde **98,1% dos leads antes da visita** — e a razão principal é a
+   matéria-prima: 80% da base é importação, que converte **0,02%**.
+4. **1% dos leads gera 83% das vendas.** Um lead captado pelo próprio corretor converte
+   **16,2%** — 1 venda a cada 6 leads — contra 0,24% do Facebook.
+5. Por isso a meta muda de natureza: não é "toque mais leads", é **capte 2 leads por dia
+   útil**. É a única conta que fecha 1 venda por semana.
+
+## Os três problemas reais
+
+| # | Problema | Número |
+| - | --- | --- |
+| 1 | Leads sem dono no meio do funil | **50.196** — 43.923 deles em `aguardando_atendimento`, etapa que por definição significa "distribuído" |
+| 2 | Régua de follow-up em colapso | **95,8%** das tarefas pendentes já venceram; 3% de conclusão |
+| 3 | Resposta do cliente não é gravada | **1 interação de entrada em 90 dias** — o balde "Cliente respondeu" nunca acende |

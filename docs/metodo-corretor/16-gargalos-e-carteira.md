@@ -1,5 +1,15 @@
 # DOCUMENTO 16 — Gargalos do funil e qualidade da carteira
 
+> ## ⚠️ A CONTA DO §2.5 ESTÁ ERRADA
+>
+> Apliquei a taxa-meta de 2,3% a 48 mil leads de importação que convertem **0,02%**.
+> As "1.105 vendas potenciais na base atual" não existem: 26.201 leads importados
+> geraram **4 vendas** em 6 meses. A conclusão "não precisa de mais leads, precisa de
+> registro" está invertida — precisa de leads **melhores**.
+>
+> **Ver [Documento 17 §2](17-recalibracao.md).** O resto deste documento (o mapa de
+> vazamento e a classificação A/B/C/D derivada) continua válido.
+
 ---
 
 # PARTE 1 — ONDE OS LEADS ESTÃO MORRENDO

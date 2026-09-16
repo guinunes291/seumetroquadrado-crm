@@ -3,6 +3,17 @@
 > **Objetivo:** transformar "1 corretor = 1 venda por semana" de meta em **consequência
 > matemática da atividade comercial**.
 
+> ## ⚠️ OS NÚMEROS DESTE DOCUMENTO FORAM SUBSTITUÍDOS
+>
+> O cálculo abaixo parte das metas declaradas da casa, porque na época eu não tinha as
+> taxas reais. Agora tenho: a conversão da SMQ é **0,25% no agregado**, mas varia de
+> **0,02% (importação)** a **16,2% (captação do corretor)**. A conta boa não é por
+> volume de toque — é **por canal de origem**.
+>
+> **Use o [Documento 17 §4](17-recalibracao.md) no lugar deste cálculo.**
+> O que continua valendo aqui: a estrutura do raciocínio reverso, o placar de 18
+> indicadores (§5) e o Índice de Atividade Mínima (§6).
+
 ---
 
 ## 1. Aviso metodológico — leia antes dos números
