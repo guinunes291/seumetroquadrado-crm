@@ -36,7 +36,7 @@ const rpc = supabase.rpc as unknown as (
 export function useOnboardingStatus() {
   const { user } = useAuth();
   const uid = user?.id;
-  return useQuery({
+  const q = useQuery({
     queryKey: [ONBOARDING_KEY, uid],
     enabled: !!uid,
     staleTime: 30_000,
@@ -53,6 +53,8 @@ export function useOnboardingStatus() {
       return normalizar(data);
     },
   });
+  (window as any).__onbh = JSON.stringify({ uid, status: q.status, fetchStatus: q.fetchStatus, err: q.error ? String(q.error) : null });
+  return q;
 }
 
 export function useConcluirOnboarding() {
