@@ -145,6 +145,26 @@ describe("executarDesfecho", () => {
     expect(chamadas.some((c) => c.tabela === "leads" && c.op === "update")).toBe(false);
   });
 
+  it("conclui os toques vencidos ANTES de criar o próximo (sem duplicata)", async () => {
+    const it0 = item("analise_credito");
+    const opcao = desfechoPara(it0).opcoes[1];
+    await executarDesfecho({ item: it0, opcao, agora }, "u1");
+
+    const conclui = chamadas.find(
+      (c) =>
+        c.tabela === "tarefas" &&
+        c.op === "update" &&
+        (c.args[0] as { status?: string })?.status === "concluida",
+    );
+    expect(conclui).toBeTruthy();
+    const iConclui = chamadas.indexOf(conclui!);
+    const iCria = chamadas.findIndex((c) => c.tabela === "tarefas" && c.op === "select");
+    expect(iConclui).toBeGreaterThanOrEqual(0);
+    expect(iConclui).toBeLessThan(iCria);
+  });
+
+
+
   it("a objeção vai para o corpo da interação e para leads.objecoes, sem repetir", async () => {
     const it0 = item("visita_realizada");
     const opcao = desfechoPara(it0).opcoes[1]; // objeção
