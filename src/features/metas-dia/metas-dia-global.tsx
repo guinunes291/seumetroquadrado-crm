@@ -28,6 +28,7 @@ import {
 } from "@/features/metas-dia/use-metas-dia";
 import { MetasDiaDialog } from "@/features/metas-dia/metas-dia-dialog";
 import { MetasDiaCard } from "@/features/metas-dia/metas-dia-card";
+import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 
 /** Evento global para reabrir o popup de qualquer lugar (command palette, atalhos). */
 export const EVENTO_ABRIR_METAS_DIA = "open-metas-dia";
@@ -125,8 +126,16 @@ export function MetasDiaGlobal() {
     return () => window.removeEventListener(EVENTO_ABRIR_METAS_DIA, abrir);
   }, []);
 
+  // Quem ainda não concluiu o onboarding não recebe o popup de metas: a trilha
+  // do primeiro acesso vem antes (não faz sentido pedir meta do dia para quem
+  // ainda não sabe o que é a fila). Sem a leitura, o comportamento é o antigo.
+  const onboardingQ = useOnboardingStatus();
+  const onboardingPendente =
+    isCorretor && !!onboardingQ.data && onboardingQ.data.concluido_em === null;
+
   const primeira =
     habilitado &&
+    !onboardingPendente &&
     !hojeQ.isPending &&
     !hojeQ.isError &&
     precisaResponder({

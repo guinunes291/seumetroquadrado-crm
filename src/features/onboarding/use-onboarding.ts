@@ -23,7 +23,12 @@ function normalizar(raw: unknown): OnboardingStatus | null {
   };
 }
 
-const rpc = supabase.rpc as unknown as (
+// Ligado ao client: `supabase.rpc` solto perde o `this` e a chamada nunca resolve.
+const rpc = ((fn: string, args?: Record<string, unknown>) =>
+  (supabase.rpc as unknown as (f: string, a?: Record<string, unknown>) => unknown)(
+    fn,
+    args,
+  )) as unknown as (
   fn: string,
   args?: Record<string, unknown>,
 ) => Promise<{ data: unknown; error: { message: string } | null }>;
