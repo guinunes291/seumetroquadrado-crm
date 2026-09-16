@@ -72,6 +72,7 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md) | Fase 0 (diagnóstico) + o plano das 3 correções | não (Fase 0) |
 | [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md) | Autoriza Fases 1 e 3; Fase 2 reescrita e retida | **sim** |
 | [PROMPT-LOVABLE-FASE-3.1.md](PROMPT-LOVABLE-FASE-3.1.md) | Corrige a busca por telefone do webhook | **sim** |
+| [PROMPT-LOVABLE-FASE-2.md](PROMPT-LOVABLE-FASE-2.md) | Fase 2: pausa a esteira, põe teto no SDR, conserta o funil | **sim** |
 
 ## Os três problemas reais
 
@@ -81,9 +82,12 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | 2 | ~~Régua de follow-up em colapso~~ | ✅ **corrigido 16/09.** O vazamento parou; 2.498 duplicatas canceladas. Os 5.126 leads com tarefa única e vencida ficaram de fora de propósito — são dívida comercial, não defeito |
 | 3 | ~~WhatsApp nunca foi ligado~~ | ✅ **resolvido 16/09.** Segredo criado, teste ponta a ponta, e a busca por telefone migrada para a convenção de 9 dígitos sobre índice único — os 56.217 gravados sem o `55` passam a ser encontrados |
 
-**Restam apenas os 42.884 leads num único SDR (problema 1), que depende de uma decisão
-de negócio:** para onde vão os excedentes e qual o teto por SDR. Recomendação registrada
-em [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md), Fase 2.
+**Resta o problema 1, em execução.** A Fase 2 está autorizada e em andamento — ver
+[PROMPT-LOVABLE-FASE-2.md](PROMPT-LOVABLE-FASE-2.md). A causa não é onde os leads estão:
+é a esteira `distribuir-estoque-plantao`, que empurra **4.320 leads/dia** para uma base
+que ninguém trabalha. Pausá-la é um flag reversível e não afeta lead novo, campanha nem
+o SLA de primeiro contato — esses correm por `distribuicao-automatica-5min`, outro job e
+outra função.
 
 Causas rastreadas até a linha em [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md);
 números confirmados pela Fase 0 em [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md).
