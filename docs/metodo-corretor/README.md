@@ -74,6 +74,7 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md) | Autoriza Fases 1 e 3; Fase 2 reescrita e retida | **sim** |
 | [PROMPT-LOVABLE-FASE-3.1.md](PROMPT-LOVABLE-FASE-3.1.md) | Corrige a busca por telefone do webhook | **sim** |
 | [PROMPT-LOVABLE-FASE-2.md](PROMPT-LOVABLE-FASE-2.md) | Fase 2: pausa a esteira, põe teto no SDR, conserta o funil | **sim** |
+| [PROMPT-LOVABLE-ONBOARDING.md](PROMPT-LOVABLE-ONBOARDING.md) | Onboarding do corretor no primeiro acesso, com números ao vivo | **sim** |
 
 ## Os três problemas reais
 
