@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 export type CamposDistribuicaoV2 = {
   modelo_contrato: "fixo" | "autonomo" | null;
   onboarding_concluido_em: string | null;
+  /** Como foi concluído: pela trilha do corretor ou marcado à mão pela gestão. */
+  onboarding_concluido_origem: "onboarding" | "manual" | null;
 };
 
 export type WipCorretor = {
@@ -30,7 +32,9 @@ export async function listarCamposDistribuicaoV2(
   const { data, error } = await supabase
     .from("profiles")
     // Colunas fora dos types gerados — o cast é a fronteira, não o chamador.
-    .select("id, modelo_contrato, onboarding_concluido_em" as "id")
+    .select(
+      "id, modelo_contrato, onboarding_concluido_em, onboarding_concluido_origem" as "id",
+    )
     .in("id", ids);
   if (error) {
     if (FONTE_AUSENTE.has(error.code ?? "")) return {};
@@ -43,6 +47,7 @@ export async function listarCamposDistribuicaoV2(
       {
         modelo_contrato: r.modelo_contrato ?? null,
         onboarding_concluido_em: r.onboarding_concluido_em ?? null,
+        onboarding_concluido_origem: r.onboarding_concluido_origem ?? null,
       },
     ]),
   );

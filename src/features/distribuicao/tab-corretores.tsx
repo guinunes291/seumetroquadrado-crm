@@ -187,6 +187,13 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
                                     {new Date(c.v2.onboarding_concluido_em).toLocaleDateString(
                                       "pt-BR",
                                     )}
+                                    <span className="ml-1 text-muted-foreground">
+                                      (
+                                      {c.v2.onboarding_concluido_origem === "onboarding"
+                                        ? "pela trilha"
+                                        : "marcado à mão"}
+                                      )
+                                    </span>
                                   </span>
                                 ) : (
                                   <span className="text-warning">Pendente</span>
