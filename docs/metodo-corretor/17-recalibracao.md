@@ -153,7 +153,7 @@ A meta de atividade é **captação**, não toque. A venda é consequência.
 
 ## 5. O que ESTÁ quebrado (os problemas reais)
 
-### 🔴 R1 — 50.196 leads sem dono no meio do funil
+### 🔴 R1 — 50.196 leads sem dono no meio do funil — **ABERTO, aguardando decisão**
 
 | Etapa | Sem corretor | Média de dias parado |
 | --- | ---: | ---: |
@@ -175,7 +175,7 @@ ninguém, e o funil da casa reporta 48 mil leads "em atendimento" que não exist
 **Correção:** ou a esteira atribui dono, ou esses leads voltam para
 `aguardando_corretor`. Do jeito atual o funil inteiro é ilegível.
 
-### 🔴 R2 — A régua de follow-up está em colapso
+### ✅ R2 — A régua de follow-up estava em colapso — CORRIGIDO EM 16/09
 
 | | |
 | --- | ---: |
@@ -187,11 +187,23 @@ ninguém, e o funil da casa reporta 48 mil leads "em atendimento" que não exist
 
 A régua cria a tarefa. **Ninguém fecha.** 96% do que está aberto já venceu.
 
-Isto **é** um problema de registro — mas não o que eu diagnostiquei. As interações são
-gravadas (222 mil); a **tarefa** não é fechada. O corretor toca o cliente e não marca o
-toque como feito, então a Fila Única mostra o mesmo lead amanhã, e depois de amanhã.
+**A causa, rastreada e corrigida.** `use-desfecho.ts` criava a tarefa do próximo passo
+sem concluir a anterior, e `garantirFollowUpAberto` só reaproveita tarefa que vença
+dentro de ±1 dia — então a vencida nunca era encontrada. Cada desfecho vazava uma tarefa.
 
-### 🔴 R3 — Uma única interação de entrada em 90 dias
+**Mas o bug explicava só 27%.** A Fase 0 mediu: das 9.236 tarefas abertas, **2.498 eram
+duplicatas** (o vazamento) e **5.126 eram leads com UMA tarefa aberta e vencida** — não
+houve vazamento, o toque nunca foi trabalhado.
+
+| | Estado em 16/09 |
+| --- | --- |
+| O vazamento | ✅ parado (`concluirToquesDeHoje` antes de `garantirFollowUpAberto`, com teste) |
+| As 2.498 duplicatas | ✅ canceladas — zero lead com mais de uma tarefa aberta |
+| Os 5.126 nunca trabalhados | ⏳ **de fora de propósito** — é dívida comercial, e concluí-las por `UPDATE` seria mentira no histórico. Saem pelo trabalho do time |
+
+Registro em `docs/ops/2026-09-16-regua-followup-duplicatas.md`.
+
+### ✅ R3 — Uma única interação de entrada em 90 dias — CORRIGIDO EM 16/09
 
 | Tipo | Direção | Qtd (90d) |
 | --- | --- | ---: |
@@ -205,8 +217,35 @@ toque como feito, então a Fila Única mostra o mesmo lead amanhã, e depois de 
 E a resposta do cliente **não é gravada**: uma única interação de entrada em 90 dias.
 
 **Consequência direta:** o balde **"Cliente respondeu e espera"** da Fila Única — a
-terceira prioridade do dia — **nunca acende**. O lead que respondeu no WhatsApp fica
+terceira prioridade do dia — **nunca acendeu**. O lead que respondeu no WhatsApp ficava
 invisível para o sistema.
+
+**A causa: o recurso nunca foi ligado.** O webhook `/api/public/webhooks/whatsapp` já
+gravava `interacoes` com `direcao='entrada'` e estava correto — mas
+`WHATSAPP_WEBHOOK_SECRET` não existia, então o endpoint devolvia **503 para tudo**, e a
+tabela `mensagens` tinha **zero linhas**. Construído, testado no código, nunca ativado.
+
+**E havia um segundo defeito por baixo.** `buscar_lead_ativo_por_telefone_global`
+comparava telefone dígito a dígito, sem normalizar prefixo de país e ignorando a coluna
+`telefone_e164`: **56.217 clientes gravados sem o `55` nunca seriam encontrados** por uma
+mensagem em E.164. Ligar a integração sem isso teria produzido um recurso "no ar" e
+inútil para 93% da base.
+
+A correção alinhou a busca à convenção que o repositório já usava desde 02/09 em
+`mesclar_leads_por_telefone` — casamento pelos **9 últimos dígitos** de
+`coalesce(telefone_e164, telefone)`, sobre o índice **UNIQUE**
+`leads_telefone_unico_ativo_uidx`. Sendo único, ele torna colisão entre dois leads ativos
+**estruturalmente impossível** (medido: zero).
+
+| | Estado em 16/09 |
+| --- | --- |
+| Segredo do webhook | ✅ criado (32 caracteres) |
+| Teste ponta a ponta | ✅ mensagem → `mensagens` + `interacoes` de entrada → balde acendeu |
+| Busca por telefone | ✅ na convenção de 9 dígitos, por índice, sem varredura |
+| Formato no n8n | ✅ envia E.164 como o provedor entrega — a normalização é do banco |
+| Telefone fixo antigo (< 9 dígitos) | ⏳ 101 clientes, deixados como estão |
+
+Contrato em `docs/ops/2026-09-16-whatsapp-webhook-contrato.md`.
 
 ### 🟠 R4 — 367 visitas sem desfecho registrado
 

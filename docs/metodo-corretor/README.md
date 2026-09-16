@@ -79,7 +79,11 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | - | --- | --- |
 | 1 | Um SDR com **42.884 leads** | 97,8% dos 43.923 sem corretor estão na base de **uma pessoa**. Na meta de 40 contatos/dia, uma passada leva **49 meses** |
 | 2 | ~~Régua de follow-up em colapso~~ | ✅ **corrigido 16/09.** O vazamento parou; 2.498 duplicatas canceladas. Os 5.126 leads com tarefa única e vencida ficaram de fora de propósito — são dívida comercial, não defeito |
-| 3 | ~~WhatsApp nunca foi ligado~~ | ✅ **ligado 16/09**, com teste ponta a ponta. Pendente a Fase 3.1: a busca por telefone não acha 56.217 clientes por diferença de prefixo `55` |
+| 3 | ~~WhatsApp nunca foi ligado~~ | ✅ **resolvido 16/09.** Segredo criado, teste ponta a ponta, e a busca por telefone migrada para a convenção de 9 dígitos sobre índice único — os 56.217 gravados sem o `55` passam a ser encontrados |
+
+**Restam apenas os 42.884 leads num único SDR (problema 1), que depende de uma decisão
+de negócio:** para onde vão os excedentes e qual o teto por SDR. Recomendação registrada
+em [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md), Fase 2.
 
 Causas rastreadas até a linha em [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md);
 números confirmados pela Fase 0 em [PROMPT-LOVABLE-FASES-1-3-2.md](PROMPT-LOVABLE-FASES-1-3-2.md).
