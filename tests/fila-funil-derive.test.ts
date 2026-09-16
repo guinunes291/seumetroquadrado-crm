@@ -39,6 +39,20 @@ const ROWS: FunilRow[] = [
   row("safra", "perdido", 99, 3),
 ];
 
+describe("montarFunil — base do SDR", () => {
+  it("'base_sdr' sai do funil comercial e vira número próprio", () => {
+    const f = montarFunil([...ROWS, row("base", "base_sdr", 98, 42973)], "base");
+    expect(f.baseSdr).toBe(42973);
+    // não entra em nenhum degrau nem no total do funil
+    expect(f.etapas.some((e) => (e.key as string) === "base_sdr")).toBe(false);
+    expect(f.total).toBe(montarFunil(ROWS, "base").total);
+  });
+
+  it("sem linha da pré-venda, o número é zero", () => {
+    expect(montarFunil(ROWS, "base").baseSdr).toBe(0);
+  });
+});
+
 describe("montarFunil — base inteira", () => {
   const f = montarFunil(ROWS, "base");
 

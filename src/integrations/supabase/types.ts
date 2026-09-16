@@ -9141,6 +9141,16 @@ export type Database = {
           vencidos: number
         }[]
       }
+      fila_funil_v1: {
+        Args: { _corretor?: string; _dias?: number }
+        Returns: {
+          etapa: string
+          ordem: number
+          parados: number
+          quantidade: number
+          recorte: string
+        }[]
+      }
       followup_fila_v1: {
         Args: { _corretor?: string; _take?: number }
         Returns: Json
