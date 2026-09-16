@@ -43,6 +43,7 @@ Complementos:
 | 15  | [Modo Corretor e a regra dos 5 minutos](15-modo-corretor.md)  | Etapas 15 e 18                 |
 | 16  | [Gargalos do funil e qualidade da carteira](16-gargalos-e-carteira.md) | Etapas 11 e 12        |
 | 17  | **[Recalibração com os dados reais](17-recalibracao.md)** ⭐ | corrige 01, 08 e 16 |
+| 18  | **[O Contrato do Corretor](18-contrato-do-corretor.md)** ⭐ | o RESULTADO ESPERADO |
 
 ## ⚠️ Leia o Documento 17 primeiro
 
