@@ -25,6 +25,8 @@ vi.mock("@/integrations/supabase/client", () => {
       "select",
       "eq",
       "in",
+      "not",
+      "lte",
       "order",
       "limit",
       "single",
