@@ -4620,6 +4620,7 @@ export type Database = {
           nome: string
           numero: string | null
           onboarding_concluido_em: string | null
+          onboarding_concluido_origem: string | null
           perfil_completo: boolean
           presente: boolean
           presente_em: string | null
@@ -4665,6 +4666,7 @@ export type Database = {
           nome?: string
           numero?: string | null
           onboarding_concluido_em?: string | null
+          onboarding_concluido_origem?: string | null
           perfil_completo?: boolean
           presente?: boolean
           presente_em?: string | null
@@ -4710,6 +4712,7 @@ export type Database = {
           nome?: string
           numero?: string | null
           onboarding_concluido_em?: string | null
+          onboarding_concluido_origem?: string | null
           perfil_completo?: boolean
           presente?: boolean
           presente_em?: string | null
@@ -8377,6 +8380,7 @@ export type Database = {
           nome: string
           numero: string | null
           onboarding_concluido_em: string | null
+          onboarding_concluido_origem: string | null
           perfil_completo: boolean
           presente: boolean
           presente_em: string | null
@@ -9910,6 +9914,8 @@ export type Database = {
           projetos: Json
         }[]
       }
+      onboarding_corretor_concluir: { Args: never; Returns: Json }
+      onboarding_corretor_status: { Args: never; Returns: Json }
       painel_distribuicao_resumo: { Args: never; Returns: Json }
       pasta_min_documentos: { Args: never; Returns: number }
       pipeline_snapshot_v2: {
