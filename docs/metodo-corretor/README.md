@@ -64,6 +64,13 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 5. Por isso a meta muda de natureza: não é "toque mais leads", é **capte 2 leads por dia
    útil**. É a única conta que fecha 1 venda por semana.
 
+## Prompts prontos para o Lovable
+
+| Arquivo | O que faz | Escreve? |
+| --- | --- | :---: |
+| [PROMPT-LOVABLE-EXTRACAO.md](PROMPT-LOVABLE-EXTRACAO.md) | Extrai os dados do banco (o que gerou o Documento 17) | não |
+| [PROMPT-LOVABLE-CORRECOES.md](PROMPT-LOVABLE-CORRECOES.md) | Corrige os 3 problemas reais, em 4 fases | **sim** |
+
 ## Os três problemas reais
 
 | # | Problema | Número |
