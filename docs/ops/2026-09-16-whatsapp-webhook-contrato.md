@@ -54,16 +54,26 @@ fuso). `provider_message_id` garante a idempotência — replay responde
 | 401 | `unauthorized` | header errado |
 | 503 | `service_unavailable` | chave ausente no servidor |
 
-## ⚠️ Formato do telefone (decidido aqui, não foi pedido)
+## Formato do telefone (corrigido na Fase 3.1)
 
-A busca do lead compara **dígitos exatos** (`telefone_digits`): `5511999998888`
-**não** casa com `11999998888`. Na base, **56.217** leads têm 11 dígitos (sem
-DDI) contra **4.465** com 13. Portanto, **o n8n deve remover o `55` inicial**
-quando o número tiver 12 ou 13 dígitos, antes de enviar. Se não achar, tentar
-uma segunda chamada com o DDI — ou cair no lead-intake.
+**O n8n manda o telefone como o provedor entrega (E.164, com o `55`). Sem tirar
+nada.** A normalização é do banco.
 
-Não alterei o webhook nem a função de busca para "adivinhar" o DDI: seriam duas
-definições da mesma regra de telefone.
+Convenção única, agora válida para **busca e merge**: casamento pelos **9
+últimos dígitos** sobre `coalesce(telefone_e164, telefone)`, apoiado no índice
+`leads_tel9_ativo_idx` (a mesma expressão de `mesclar_leads_por_telefone`).
+`buscar_lead_ativo_por_telefone_global` foi reescrita nessa expressão; o corpo
+antigo (comparação de dígitos exatos, que só achava leads gravados no mesmo
+formato) está em comentário de rollback na própria migration.
+
+Medições feitas antes de aplicar:
+
+- chaves de 9 dígitos colidindo entre leads ativos: **0**
+- leads com menos de 9 dígitos (fixo antigo): **101** — resíduo conhecido, não
+  corrigido (WhatsApp em telefone fixo é raro)
+
+Teste: dois leads criados, um com `11900000011` e outro com `5511900000022`,
+consultados no formato E.164 — **ambos encontrados** — e apagados em seguida.
 
 ## Teste ponta a ponta executado
 
