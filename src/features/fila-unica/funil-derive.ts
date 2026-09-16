@@ -208,6 +208,9 @@ export type FunilLeitura = {
   /** Leads vivos ou fechados (fora os perdidos). */
   total: number;
   perdidos: number;
+  /** Base do SDR: sem corretor, com SDR, ainda não entregue. Fora do funil
+   *  comercial — é pré-venda, não etapa de corretor. */
+  baseSdr: number;
   /** Etapas do funil comercial com mais leads parados — as três mais caras. */
   vazamentos: FunilEtapa[];
   nota: string;
@@ -252,10 +255,15 @@ export function montarFunil(
   const dias = opts.dias ?? 30;
   const porEtapa = new Map<string, { quantidade: number; parados: number }>();
   let perdidos = 0;
+  let baseSdr = 0;
   for (const r of rows) {
     if (r.recorte !== recorte) continue;
     if (r.etapa === "perdido") {
       perdidos += r.quantidade;
+      continue;
+    }
+    if (r.etapa === "base_sdr") {
+      baseSdr += r.quantidade;
       continue;
     }
     const atual = porEtapa.get(r.etapa) ?? { quantidade: 0, parados: 0 };
@@ -330,6 +338,7 @@ export function montarFunil(
     passagens,
     total: etapas.reduce((s, e) => s + e.quantidade, 0),
     perdidos,
+    baseSdr,
     vazamentos,
     nota: notaDoRecorte(recorte, dias),
   };

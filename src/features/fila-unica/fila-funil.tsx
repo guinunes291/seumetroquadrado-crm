@@ -284,6 +284,18 @@ function Degraus({ leitura, realce, onRealce }: { leitura: FunilLeitura } & Real
           marcado(s) como perdido com motivo — a única porta de saída honesta do funil.
         </span>
       </div>
+      {leitura.baseSdr > 0 && (
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+          <span aria-hidden="true">↳</span>
+          <span>
+            Base da pré-venda:{" "}
+            <b className="font-display text-sm font-semibold text-foreground">
+              {fmt(leitura.baseSdr)}
+            </b>{" "}
+            sem corretor, na mão do SDR e ainda não entregue — não é etapa do funil comercial.
+          </span>
+        </div>
+      )}
       <p className="mt-2 text-xs leading-snug text-muted-foreground">{leitura.nota}</p>
     </div>
   );
