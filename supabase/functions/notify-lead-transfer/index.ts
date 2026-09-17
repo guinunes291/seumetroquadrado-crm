@@ -2,6 +2,14 @@
 // é transferido manualmente. Requer JWT (verify_jwt default = true).
 //
 // Body: { lead_id: string, corretor_id: string, contexto?: "sdr" }
+//    ou { lead_ids: string[], corretor_id: string }   ← transferência em LOTE
+//
+// LOTE (2026-09-17): a UI de transferência em massa mandava uma chamada por
+// lead, e o corretor recebia N mensagens em sequência — rajada que o WhatsApp
+// trata como spam e que já custa bloqueio de instância. Agora o lote chega
+// numa lista só e sai UMA mensagem de resumo por corretor, qualquer que seja
+// o tamanho da seleção. As regras de elegibilidade não mudam: cada lead ainda
+// passa pela RLS do chamador e pelo filtro de origem.
 //
 // contexto "sdr" (2026-09-04): entrega feita pelo SDR (visita agendada ou
 // entrega manual). Vale para qualquer origem e a mensagem traz o que o
@@ -11,6 +19,13 @@
 // Secrets reutilizadas: ZAPI_INSTANCE_ID, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN, APP_BASE_URL.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  LOTE_CHUNK_LEITURA,
+  LOTE_MAX_IDS,
+  mensagemTransferenciaIndividual,
+  mensagemTransferenciaLote,
+  type LeadResumo,
+} from "../_shared/notificacao-transferencia.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -33,13 +48,12 @@ function toZapiPhone(raw: string | null | undefined): string | null {
   return d;
 }
 
-async function sendZapi(opts: {
-  telefone: string | null | undefined;
+function mensagemSdr(opts: {
   nomeLead: string;
   projeto: string | null;
   renda: string | null;
   link: string;
-  sdr?: {
+  sdr: {
     sdrNome: string | null;
     visita: string | null;
     local: string | null;
@@ -47,30 +61,31 @@ async function sendZapi(opts: {
     fgts: boolean | null;
     resumo: string | null;
   };
-}): Promise<string> {
+}): string {
+  return (
+    `🔥 *Lead do SDR para você!*\n\n` +
+    `👤 Nome: ${opts.nomeLead}\n` +
+    `🏢 Projeto: ${opts.projeto ?? "—"}\n` +
+    (opts.sdr.visita
+      ? `📅 Visita: ${opts.sdr.visita}${opts.sdr.local ? ` · ${opts.sdr.local}` : ""}\n`
+      : `📌 Entrega manual (sem visita marcada)\n`) +
+    `💰 Renda: ${opts.renda ?? "—"}${opts.sdr.tipoRenda ? ` (${opts.sdr.tipoRenda})` : ""}\n` +
+    `🏦 FGTS: ${opts.sdr.fgts == null ? "—" : opts.sdr.fgts ? "sim" : "não"}\n` +
+    (opts.sdr.resumo ? `📝 ${opts.sdr.resumo.slice(0, 300)}\n` : "") +
+    `🙋 SDR: ${opts.sdr.sdrNome ?? "—"}\n\n` +
+    `🔗 Abrir no CRM: ${opts.link}`
+  );
+}
+
+/** Um envio de texto pela Z-API. Chamada ÚNICA por notificação — inclusive no
+ *  lote, que é o ponto da mudança. */
+async function sendZapi(telefone: string | null | undefined, message: string): Promise<string> {
   const instance = Deno.env.get("ZAPI_INSTANCE_ID");
   const token = Deno.env.get("ZAPI_TOKEN");
   const clientToken = Deno.env.get("ZAPI_CLIENT_TOKEN");
   if (!instance || !token) return "zapi_nao_configurada";
-  const phone = toZapiPhone(opts.telefone);
+  const phone = toZapiPhone(telefone);
   if (!phone) return "sem_telefone";
-  const message = opts.sdr
-    ? `🔥 *Lead do SDR para você!*\n\n` +
-      `👤 Nome: ${opts.nomeLead}\n` +
-      `🏢 Projeto: ${opts.projeto ?? "—"}\n` +
-      (opts.sdr.visita
-        ? `📅 Visita: ${opts.sdr.visita}${opts.sdr.local ? ` · ${opts.sdr.local}` : ""}\n`
-        : `📌 Entrega manual (sem visita marcada)\n`) +
-      `💰 Renda: ${opts.renda ?? "—"}${opts.sdr.tipoRenda ? ` (${opts.sdr.tipoRenda})` : ""}\n` +
-      `🏦 FGTS: ${opts.sdr.fgts == null ? "—" : opts.sdr.fgts ? "sim" : "não"}\n` +
-      (opts.sdr.resumo ? `📝 ${opts.sdr.resumo.slice(0, 300)}\n` : "") +
-      `🙋 SDR: ${opts.sdr.sdrNome ?? "—"}\n\n` +
-      `🔗 Abrir no CRM: ${opts.link}`
-    : `🔔 *Lead transferido para você!*\n\n` +
-      `👤 Nome: ${opts.nomeLead}\n` +
-      `🏢 Projeto: ${opts.projeto ?? "—"}\n` +
-      `💰 Faixa de renda: ${opts.renda ?? "—"}\n\n` +
-      `🔗 Abrir no CRM: ${opts.link}`;
   try {
     const resp = await fetch(
       `https://api.z-api.io/instances/${instance}/token/${token}/send-text`,
@@ -102,7 +117,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // lead antes de a notificação disparar).
   const authorization = req.headers.get("authorization") ?? "";
 
-  let body: { lead_id?: string; corretor_id?: string; contexto?: string; token?: string };
+  let body: {
+    lead_id?: string;
+    lead_ids?: unknown;
+    corretor_id?: string;
+    contexto?: string;
+    token?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -125,6 +146,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let contextoSdr = body.contexto === "sdr";
   const token = typeof body.token === "string" ? body.token.trim() : "";
   const interna = token.length > 0;
+
+  // Lote: só no caminho por usuário e fora do contexto SDR (a entrega do SDR é
+  // sempre um lead de cada vez, com token próprio).
+  const loteIds =
+    !interna && !contextoSdr && Array.isArray(body.lead_ids)
+      ? [
+          ...new Set(
+            (body.lead_ids as unknown[])
+              .filter((id): id is string => typeof id === "string" && id.length > 0)
+              .slice(0, LOTE_MAX_IDS),
+          ),
+        ]
+      : [];
+  const emLote = loteIds.length > 0;
 
   if (interna && serviceKey.length === 0) return json({ error: "server_config" }, 503);
 
@@ -156,7 +191,52 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const { data: contaAtiva, error: contaError } = await supabase.rpc("conta_atual_ativa");
     if (contaError || !contaAtiva) return json({ error: "account_inactive" }, 403);
   }
-  if (!leadId || !corretorId) return json({ error: "missing_params" }, 400);
+  if ((!leadId && !emLote) || !corretorId) return json({ error: "missing_params" }, 400);
+
+  const appUrl = (Deno.env.get("APP_BASE_URL") ?? "").replace(/\/+$/, "");
+
+  // ---------------------------------------------------------------------
+  // Lote: lê os leads elegíveis (RLS do chamador + origem=facebook) e manda
+  // UMA mensagem de resumo. Nada de um envio por lead.
+  // ---------------------------------------------------------------------
+  if (emLote) {
+    const elegiveis: LeadResumo[] = [];
+    for (let i = 0; i < loteIds.length; i += LOTE_CHUNK_LEITURA) {
+      const fatia = loteIds.slice(i, i + LOTE_CHUNK_LEITURA);
+      const { data: rows, error: rowsErr } = await supabase
+        .from("leads")
+        .select("id, nome, origem, projeto_nome, renda_informada")
+        .in("id", fatia);
+      if (rowsErr) return json({ error: "leads_read_failed" }, 500);
+      for (const row of (rows ?? []) as Record<string, unknown>[]) {
+        // Leads fora da carteira simplesmente não voltam (RLS) — e os de outra
+        // origem seguem sem aviso, como no fluxo individual.
+        if (row.origem !== "facebook") continue;
+        elegiveis.push({
+          nome: (row.nome as string | null) ?? null,
+          projeto: (row.projeto_nome as string | null) ?? null,
+          renda: (row.renda_informada as string | null) ?? null,
+        });
+      }
+    }
+    if (elegiveis.length === 0) {
+      return json({ ok: true, skipped: "nenhum_lead_elegivel", leads_notificados: 0 });
+    }
+
+    const { data: profLote } = await supabase
+      .from("profiles")
+      .select("nome,telefone")
+      .eq("id", corretorId)
+      .maybeSingle();
+
+    const notificacao = await sendZapi(
+      profLote?.telefone as string | null | undefined,
+      mensagemTransferenciaLote(elegiveis, {
+        linkLista: appUrl ? `${appUrl}/leads` : "/leads",
+      }),
+    );
+    return json({ ok: true, notificacao, leads_notificados: elegiveis.length, envios: 1 });
+  }
 
   const { data: lead, error: leadErr } = await supabase
     .from("leads")
@@ -183,7 +263,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ ok: true, skipped: "origem_nao_facebook" });
   }
 
-  let sdrInfo: NonNullable<Parameters<typeof sendZapi>[0]["sdr"]> | undefined;
+  let sdrInfo: Parameters<typeof mensagemSdr>[0]["sdr"] | undefined;
   if (contextoSdr) {
     const [{ data: sdrProf }, { data: visita }] = await Promise.all([
       supabase
@@ -226,15 +306,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .eq("id", corretorId)
     .maybeSingle();
 
-  const appUrl = (Deno.env.get("APP_BASE_URL") ?? "").replace(/\/+$/, "");
-  const notificacao = await sendZapi({
-    telefone: prof?.telefone as string | null | undefined,
+  const dadosMensagem = {
     nomeLead: (lead.nome as string | null) ?? "(sem nome)",
     projeto: (lead.projeto_nome as string | null) ?? null,
     renda: (lead.renda_informada as string | null) ?? null,
     link: appUrl ? `${appUrl}/leads/${lead.id}` : `/leads/${lead.id}`,
-    sdr: sdrInfo,
-  });
+  };
+  const notificacao = await sendZapi(
+    prof?.telefone as string | null | undefined,
+    sdrInfo
+      ? mensagemSdr({ ...dadosMensagem, sdr: sdrInfo })
+      : mensagemTransferenciaIndividual(dadosMensagem),
+  );
 
   return json({ ok: true, notificacao });
 });
