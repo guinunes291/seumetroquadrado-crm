@@ -25,6 +25,7 @@ import {
   TELAS_QUE_IMPORTAM,
   gravarPasso,
   lerPasso,
+  limparPasso,
   podeConcluir,
   type OnboardingStatus,
 } from "@/features/onboarding/onboarding";
@@ -456,7 +457,12 @@ export function OnboardingDialog({
               onConcluir={() => {
                 concluir.mutate(undefined, {
                   onSuccess: (r) => {
-                    if (r.ok) onOpenChange(false);
+                    if (r.ok) {
+                      // Concluiu: some da tela e não volta a abrir sozinha.
+                      limparPasso(uid);
+                      setPasso(1);
+                      onOpenChange(false);
+                    }
                   },
                 });
               }}

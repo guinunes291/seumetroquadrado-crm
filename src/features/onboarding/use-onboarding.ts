@@ -68,7 +68,10 @@ export function useConcluirOnboarding() {
       const obj = (data ?? {}) as Record<string, unknown>;
       return { ok: obj.ok === true, status: normalizar(data) };
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
+      // Grava o status novo NA HORA: sem isso o cache fica com concluido_em
+      // nulo até o refetch e a trilha pode reabrir sozinha logo após concluir.
+      if (r.status) qc.setQueryData([ONBOARDING_KEY, user?.id], r.status);
       void qc.invalidateQueries({ queryKey: [ONBOARDING_KEY, user?.id] });
     },
   });
