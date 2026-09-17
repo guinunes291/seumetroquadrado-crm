@@ -25,6 +25,7 @@ import {
   TELAS_QUE_IMPORTAM,
   gravarPasso,
   lerPasso,
+  limparPasso,
   podeConcluir,
   type OnboardingStatus,
 } from "@/features/onboarding/onboarding";
