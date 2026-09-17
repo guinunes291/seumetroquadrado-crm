@@ -7,8 +7,9 @@
 // WhatsApp classifica como spam e que derruba/bloqueia a instância Z-API, e
 // com ela todo o restante da operação (SDR, atendimento, oferta ativa).
 //
-// A elegibilidade continua sendo decidida no servidor (RLS do chamador +
-// filtro de origem): aqui só mandamos a lista de ids.
+// Quem pode ser notificado continua sendo decidido no servidor (RLS do
+// chamador): aqui só mandamos a lista de ids. Vale para lead de qualquer
+// origem — portal, indicação, importação ou campanha.
 
 import { supabase } from "@/integrations/supabase/client";
 

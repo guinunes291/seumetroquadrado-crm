@@ -89,7 +89,14 @@ describe("transferência em massa não avisa lead a lead", () => {
     expect(trecho).toContain("mensagemTransferenciaLote");
     // Um único sendZapi no caminho do lote — nada de envio por lead.
     expect(trecho.match(/sendZapi\(/g) ?? []).toHaveLength(1);
-    expect(trecho).toContain('origem !== "facebook"');
+  });
+
+  it("avisa lead de qualquer origem — o filtro de facebook não voltou", () => {
+    // O aviso valia só para origem=facebook, herança de quando o Facebook Ads
+    // era a única entrada com roleta. Hoje todo lead transferido avisa o novo
+    // dono; só a RLS do chamador limita quem entra na mensagem.
+    expect(fnLote).not.toMatch(/origem\s*!==\s*"facebook"/);
+    expect(fnLote).not.toContain("origem_nao_facebook");
   });
 
   it("o caminho do SDR continua individual (token de uso único, sem lote)", () => {
