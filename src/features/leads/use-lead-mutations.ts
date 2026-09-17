@@ -11,6 +11,7 @@ import { mensagemPrimeiroContato } from "@/lib/whatsapp";
 import { notaSistemaPayload } from "@/lib/interacoes";
 import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
+import { notificarTransferenciaEmLote } from "@/lib/notificar-transferencia";
 import type { Lead } from "./types";
 
 export function useLeadMutations(opts: {
@@ -185,18 +186,11 @@ export function useLeadMutations(opts: {
         if (notaErr) console.error("[bulkTransferir] nota de timeline falhou", notaErr);
       }
 
-      // Notifica via WhatsApp (best-effort; a edge function decide por origem).
-      const notifyBatchSize = 20;
-      for (let i = 0; i < okIds.length; i += notifyBatchSize) {
-        const lote = okIds.slice(i, i + notifyBatchSize);
-        await Promise.allSettled(
-          lote.map((id) =>
-            supabase.functions.invoke("notify-lead-transfer", {
-              body: { lead_id: id, corretor_id: corretorId },
-            }),
-          ),
-        );
-      }
+      // Notifica via WhatsApp: UMA mensagem de resumo para o corretor, não uma
+      // por lead. A rajada de N avisos seguidos era o que arriscava bloqueio do
+      // número no WhatsApp — a edge function recebe a lista e decide a
+      // elegibilidade (RLS + origem) lá dentro. Best-effort.
+      await notificarTransferenciaEmLote({ leadIds: okIds, corretorId });
       return { ok: okIds.length, total: ids.length, erro: primeiroErro };
     },
     onSuccess: ({ ok, total, erro }) => {

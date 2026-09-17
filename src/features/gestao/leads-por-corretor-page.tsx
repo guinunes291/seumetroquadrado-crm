@@ -55,6 +55,7 @@ import {
   type LeadStatus,
 } from "@/lib/leads";
 import { rpcWithFallback } from "@/lib/supabase-errors";
+import { notificarTransferenciaEmLote } from "@/lib/notificar-transferencia";
 
 type Corretor = { id: string; nome: string; ativo: boolean };
 type Lead = {
@@ -295,14 +296,10 @@ export function LeadsPorCorretorPage() {
         _corretor: corretorId,
       });
       if (error) throw error;
-      // Notifica via WhatsApp os leads com origem=facebook (uma chamada por lead).
-      await Promise.allSettled(
-        ids.map((id) =>
-          supabase.functions.invoke("notify-lead-transfer", {
-            body: { lead_id: id, corretor_id: corretorId },
-          }),
-        ),
-      );
+      // Notifica via WhatsApp: UMA mensagem de resumo para o corretor (a edge
+      // function ainda filtra por origem=facebook). Um aviso por lead virava
+      // rajada no mesmo número e arriscava bloqueio da instância Z-API.
+      await notificarTransferenciaEmLote({ leadIds: ids, corretorId });
     },
     onSuccess: (_data, vars) => {
       toast.success(`${vars.ids.length} lead(s) transferido(s) com sucesso`);
