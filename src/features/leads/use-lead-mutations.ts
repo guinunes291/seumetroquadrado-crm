@@ -188,8 +188,9 @@ export function useLeadMutations(opts: {
 
       // Notifica via WhatsApp: UMA mensagem de resumo para o corretor, não uma
       // por lead. A rajada de N avisos seguidos era o que arriscava bloqueio do
-      // número no WhatsApp — a edge function recebe a lista e decide a
-      // elegibilidade (RLS + origem) lá dentro. Best-effort.
+      // número no WhatsApp — a edge function recebe a lista e resolve a
+      // visibilidade (RLS) lá dentro, para leads de qualquer origem.
+      // Best-effort.
       await notificarTransferenciaEmLote({ leadIds: okIds, corretorId });
       return { ok: okIds.length, total: ids.length, erro: primeiroErro };
     },

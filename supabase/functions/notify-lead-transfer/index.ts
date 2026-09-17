@@ -1,5 +1,5 @@
-// Notifica via WhatsApp (Z-API) o corretor quando um lead com origem=facebook
-// é transferido manualmente. Requer JWT (verify_jwt default = true).
+// Notifica via WhatsApp (Z-API) o corretor quando um lead é transferido
+// manualmente — QUALQUER origem. Requer JWT (verify_jwt default = true).
 //
 // Body: { lead_id: string, corretor_id: string, contexto?: "sdr" }
 //    ou { lead_ids: string[], corretor_id: string }   ← transferência em LOTE
@@ -8,8 +8,14 @@
 // lead, e o corretor recebia N mensagens em sequência — rajada que o WhatsApp
 // trata como spam e que já custa bloqueio de instância. Agora o lote chega
 // numa lista só e sai UMA mensagem de resumo por corretor, qualquer que seja
-// o tamanho da seleção. As regras de elegibilidade não mudam: cada lead ainda
-// passa pela RLS do chamador e pelo filtro de origem.
+// o tamanho da seleção. A única regra de elegibilidade é a RLS do chamador:
+// quem não enxerga o lead não notifica sobre ele.
+//
+// ORIGEM (2026-09-17): o aviso valia só para origem=facebook — herança de
+// quando o Facebook Ads era a única entrada com roleta. Lead transferido é
+// lead que mudou de dono, venha de onde vier: portal, indicação, importação
+// ou campanha. O corretor precisa saber em todos os casos, então o filtro
+// saiu dos dois caminhos (individual e lote).
 //
 // contexto "sdr" (2026-09-04): entrega feita pelo SDR (visita agendada ou
 // entrega manual). Vale para qualquer origem e a mensagem traz o que o
@@ -196,8 +202,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const appUrl = (Deno.env.get("APP_BASE_URL") ?? "").replace(/\/+$/, "");
 
   // ---------------------------------------------------------------------
-  // Lote: lê os leads elegíveis (RLS do chamador + origem=facebook) e manda
-  // UMA mensagem de resumo. Nada de um envio por lead.
+  // Lote: lê os leads visíveis ao chamador (RLS) e manda UMA mensagem de
+  // resumo. Nada de um envio por lead.
   // ---------------------------------------------------------------------
   if (emLote) {
     const elegiveis: LeadResumo[] = [];
@@ -205,13 +211,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const fatia = loteIds.slice(i, i + LOTE_CHUNK_LEITURA);
       const { data: rows, error: rowsErr } = await supabase
         .from("leads")
-        .select("id, nome, origem, projeto_nome, renda_informada")
+        .select("id, nome, projeto_nome, renda_informada")
         .in("id", fatia);
       if (rowsErr) return json({ error: "leads_read_failed" }, 500);
       for (const row of (rows ?? []) as Record<string, unknown>[]) {
-        // Leads fora da carteira simplesmente não voltam (RLS) — e os de outra
-        // origem seguem sem aviso, como no fluxo individual.
-        if (row.origem !== "facebook") continue;
+        // Leads fora da carteira simplesmente não voltam (RLS) — é a única
+        // filtragem que sobra; origem não decide mais quem recebe aviso.
         elegiveis.push({
           nome: (row.nome as string | null) ?? null,
           projeto: (row.projeto_nome as string | null) ?? null,
@@ -242,8 +247,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .from("leads")
     .select(
       contextoSdr
-        ? "id, nome, origem, projeto_nome, renda_informada, tipo_renda, usa_fgts, resumo_qualificacao, sdr_id, corretor_id, sdr_entregue_em"
-        : "id, nome, origem, projeto_nome, renda_informada",
+        ? "id, nome, projeto_nome, renda_informada, tipo_renda, usa_fgts, resumo_qualificacao, sdr_id, corretor_id, sdr_entregue_em"
+        : "id, nome, projeto_nome, renda_informada",
     )
     .eq("id", leadId)
     .maybeSingle();
@@ -259,8 +264,6 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (leadAny.corretor_id !== corretorId || !leadAny.sdr_entregue_em) {
       return json({ ok: true, skipped: "sdr_entrega_nao_confirmada" });
     }
-  } else if (lead.origem !== "facebook") {
-    return json({ ok: true, skipped: "origem_nao_facebook" });
   }
 
   let sdrInfo: Parameters<typeof mensagemSdr>[0]["sdr"] | undefined;

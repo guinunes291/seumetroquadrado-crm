@@ -296,9 +296,9 @@ export function LeadsPorCorretorPage() {
         _corretor: corretorId,
       });
       if (error) throw error;
-      // Notifica via WhatsApp: UMA mensagem de resumo para o corretor (a edge
-      // function ainda filtra por origem=facebook). Um aviso por lead virava
-      // rajada no mesmo número e arriscava bloqueio da instância Z-API.
+      // Notifica via WhatsApp: UMA mensagem de resumo para o corretor, qualquer
+      // que seja a origem dos leads. Um aviso por lead virava rajada no mesmo
+      // número e arriscava bloqueio da instância Z-API.
       await notificarTransferenciaEmLote({ leadIds: ids, corretorId });
     },
     onSuccess: (_data, vars) => {
