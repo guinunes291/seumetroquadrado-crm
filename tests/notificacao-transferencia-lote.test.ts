@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -101,5 +101,41 @@ describe("transferência em massa não avisa lead a lead", () => {
 
   it("o caminho do SDR continua individual (token de uso único, sem lote)", () => {
     expect(fnLote).toContain("!interna && !contextoSdr && Array.isArray(body.lead_ids)");
+  });
+});
+
+describe("dossiê do copiloto não sai lead a lead na transferência em massa", () => {
+  // A definição que vale no banco é a da migration mais recente que redefine a
+  // função — ler um arquivo só não detecta redefinição posterior.
+  const ultimaTransferirLeads = (): string => {
+    const dir = "supabase/migrations";
+    const arquivos = readdirSync(join(process.cwd(), dir))
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+    let corpo = "";
+    for (const arquivo of arquivos) {
+      const sql = ler(join(dir, arquivo));
+      const m = sql.match(
+        /CREATE OR REPLACE FUNCTION public\.transferir_leads\b[\s\S]*?REVOKE ALL ON FUNCTION public\.transferir_leads/,
+      );
+      if (m) corpo = m[0];
+    }
+    return corpo;
+  };
+
+  it("chama _notificar_handoff_novo_dono uma única vez, depois do loop e sob guarda", () => {
+    const corpo = ultimaTransferirLeads();
+    expect(corpo).not.toBe("");
+
+    // Uma chamada só na função inteira…
+    expect(corpo.match(/_notificar_handoff_novo_dono\(/g) ?? []).toHaveLength(1);
+
+    // …fora do loop (depois do END LOOP) e condicionada a um único dono trocado.
+    const depoisDoLoop = corpo.slice(corpo.lastIndexOf("END LOOP;"));
+    expect(depoisDoLoop).toContain("_notificar_handoff_novo_dono(");
+    expect(depoisDoLoop).toMatch(/IF _donos_trocados = 1 THEN/);
+
+    // A auditoria interna continua por lead (não gera mensagem).
+    expect(corpo).toContain("_auditar_redistribuicao(");
   });
 });
