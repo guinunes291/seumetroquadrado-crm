@@ -27,7 +27,7 @@ const SUMARIO: { id: string; titulo: string }[] = [
 
 export function ManualPage() {
   return (
-    <div className="manual-doc -mx-4 -my-6 px-0 md:-mx-6">
+    <div className="manual-doc -mx-4 -mt-6 -mb-24 md:-mx-8 md:-mt-8">
       {/* Capa — mesma abertura do PDF da marca. */}
       <header
         className="px-6 py-12 md:px-12 md:py-16"
