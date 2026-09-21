@@ -165,8 +165,6 @@ describe("executarDesfecho", () => {
     expect(iConclui).toBeLessThan(iCria);
   });
 
-
-
   it("a objeção vai para o corpo da interação e para leads.objecoes, sem repetir", async () => {
     const it0 = item("visita_realizada");
     const opcao = desfechoPara(it0).opcoes[1]; // objeção

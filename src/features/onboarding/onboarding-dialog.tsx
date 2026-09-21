@@ -432,10 +432,7 @@ export function OnboardingDialog({
           {Array.from({ length: ONBOARDING_TOTAL_PASSOS }, (_, i) => (
             <span
               key={i}
-              className={cn(
-                "h-1 flex-1 rounded-full",
-                i < passo ? "bg-gradient-gold" : "bg-muted",
-              )}
+              className={cn("h-1 flex-1 rounded-full", i < passo ? "bg-gradient-gold" : "bg-muted")}
             />
           ))}
         </div>

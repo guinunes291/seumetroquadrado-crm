@@ -30,11 +30,23 @@ export function ConteudoOperacao() {
           <Tabela
             cabecalho={["Perfil", "O que enxerga"]}
             linhas={[
-              ["Corretor", "A própria carteira: Fila Única, Reserva, agenda, projetos, seu raio-x e ranking."],
-              ["Gestor", "Tudo do corretor + a carteira do time, painel do gestor, oferta ativa e as filas do próprio time na distribuição."],
+              [
+                "Corretor",
+                "A própria carteira: Fila Única, Reserva, agenda, projetos, seu raio-x e ranking.",
+              ],
+              [
+                "Gestor",
+                "Tudo do corretor + a carteira do time, painel do gestor, oferta ativa e as filas do próprio time na distribuição.",
+              ],
               ["Superintendente", "Visão de gestão em leitura (sem operar a distribuição)."],
-              ["Admin", "Tudo, inclusive política de distribuição, configurações, financeiro e pessoas."],
-              ["Pré-vendas (SDR)", "Hub próprio: base de pré-venda, reaquecimento, visitas e entregas ao corretor."],
+              [
+                "Admin",
+                "Tudo, inclusive política de distribuição, configurações, financeiro e pessoas.",
+              ],
+              [
+                "Pré-vendas (SDR)",
+                "Hub próprio: base de pré-venda, reaquecimento, visitas e entregas ao corretor.",
+              ],
             ]}
           />
         </Bloco>
@@ -91,7 +103,10 @@ export function ConteudoOperacao() {
             linhas={[
               ["Aguardando atendimento", "Recebeu o cliente e ainda não fez o primeiro contato."],
               ["Aguardando retorno", "O cliente pediu para falar depois."],
-              ["Qualificação Corretor", "Chegou pelo bot ou pela pré-venda, já com interesse confirmado."],
+              [
+                "Qualificação Corretor",
+                "Chegou pelo bot ou pela pré-venda, já com interesse confirmado.",
+              ],
               ["Em atendimento", "Conversa em andamento."],
               ["Agendado", "Visita marcada (pede data, hora e empreendimento)."],
               ["Visita realizada", "Visita confirmada (pede o resultado da visita)."],
@@ -125,10 +140,10 @@ export function ConteudoOperacao() {
       >
         <Bloco titulo="Fila Única" quem="Corretor · Gestor">
           <p>
-            A fila junta tudo o que precisa de você hoje e ordena por risco, nesta sequência:
-            fundo do funil parado → chegaram agora (SLA correndo) → cliente respondeu e espera →
-            follow-up vencido ou de hoje → sem próximo passo → esfriando → pasta travada. São até
-            40 clientes por dia.
+            A fila junta tudo o que precisa de você hoje e ordena por risco, nesta sequência: fundo
+            do funil parado → chegaram agora (SLA correndo) → cliente respondeu e espera → follow-up
+            vencido ou de hoje → sem próximo passo → esfriando → pasta travada. São até 40 clientes
+            por dia.
           </p>
           <Passos
             itens={[
@@ -142,21 +157,24 @@ export function ConteudoOperacao() {
           <p className="text-muted-foreground">
             Os desfechos mudam conforme a etapa. Exemplos: em análise de crédito aparecem “Falei ·
             crédito aprovado”, “Falei · aguardando Caixa”, “Falei · reprovado”, “Não atendeu” e
-            “Perdeu (motivo)”; em visita agendada aparecem “Sim, foi à visita”, “Não foi
-            (no-show)”, “Remarcou” e “Desistiu (motivo)”.
+            “Perdeu (motivo)”; em visita agendada aparecem “Sim, foi à visita”, “Não foi (no-show)”,
+            “Remarcou” e “Desistiu (motivo)”.
           </p>
           <Aviso>
             Desfecho que <em>não</em> muda a etapa tem “Desfazer” por 5 segundos. Desfecho que muda
             a etapa (visita, venda, perda) não tem — por isso ele pede confirmação e dados.
           </Aviso>
-          <Tela src="fila-unica" legenda="Fila Única com o funil “Onde os clientes somem” e os três vazamentos mais caros." />
+          <Tela
+            src="fila-unica"
+            legenda="Fila Única com o funil “Onde os clientes somem” e os três vazamentos mais caros."
+          />
         </Bloco>
 
         <Bloco titulo="Carteira ativa: o teto de 65" quem="Corretor">
           <p>
-            Cada corretor trabalha até <strong>65 clientes ativos</strong>. Quem estoura o teto
-            para de receber cliente novo pela distribuição — nada é tirado de você por causa disso.
-            O contador aparece no topo da Fila Única (“0/65 carteira ativa”).
+            Cada corretor trabalha até <strong>65 clientes ativos</strong>. Quem estoura o teto para
+            de receber cliente novo pela distribuição — nada é tirado de você por causa disso. O
+            contador aparece no topo da Fila Única (“0/65 carteira ativa”).
           </p>
         </Bloco>
 
@@ -167,12 +185,15 @@ export function ConteudoOperacao() {
           </p>
           <Passos
             itens={[
-              'Abra Reserva e escolha um cliente.',
+              "Abra Reserva e escolha um cliente.",
               'Clique em "Trazer" para puxá-lo de volta à carteira ativa (só funciona se houver vaga; são até 13 resgates).',
               'Use "Dossiê" para abrir a ficha completa antes de decidir.',
             ]}
           />
-          <Tela src="reserva" legenda="Reserva — clientes seus aguardando vaga na carteira ativa." />
+          <Tela
+            src="reserva"
+            legenda="Reserva — clientes seus aguardando vaga na carteira ativa."
+          />
         </Bloco>
 
         <Bloco titulo="Bolsão" quem="Todos (consulta)">
@@ -212,7 +233,10 @@ export function ConteudoOperacao() {
             e <strong>Config da régua</strong> (admin).
           </p>
           <Tela src="follow-up" legenda="Follow-Up — fila do dia, um cliente por vez." />
-          <Tela src="follow-up-cobertura" legenda="Cobertura do time — visão da gestão sobre quem está tocando a base." />
+          <Tela
+            src="follow-up-cobertura"
+            legenda="Cobertura do time — visão da gestão sobre quem está tocando a base."
+          />
         </Bloco>
       </Capitulo>
 
@@ -252,7 +276,10 @@ export function ConteudoOperacao() {
             perda. Quando ninguém está apto, o cliente cai na <strong>fila de exceções</strong> —
             que exige ação da gestão e aparece no painel de saúde no topo da tela.
           </p>
-          <Tela src="distribuicao" legenda="Central de Distribuição — saúde da operação e abas de configuração." />
+          <Tela
+            src="distribuicao"
+            legenda="Central de Distribuição — saúde da operação e abas de configuração."
+          />
           <p className="text-muted-foreground">
             Abas: Visão Geral, Filas, Corretores, Exceções, Histórico, Política (admin),
             Configurações (admin) e Auditoria. O gestor pode incluir, pausar e remover corretores
@@ -288,7 +315,10 @@ export function ConteudoOperacao() {
               "Visitas & confirmações: confirme a visita na véspera e no dia. Do comparecimento em diante, o corretor assume.",
             ]}
           />
-          <Tela src="sdr" legenda="Hub da pré-venda: minha base, reaquecer, entregues, visitas e raio-x." />
+          <Tela
+            src="sdr"
+            legenda="Hub da pré-venda: minha base, reaquecer, entregues, visitas e raio-x."
+          />
         </Bloco>
       </Capitulo>
     </>

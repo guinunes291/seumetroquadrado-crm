@@ -21,13 +21,16 @@ export function ConteudoGestao() {
           <Passos
             itens={[
               'Novo cliente: botão "Novo lead" — nome e telefone são o mínimo.',
-              'Importar planilha: botão de importação, com conferência antes de gravar.',
+              "Importar planilha: botão de importação, com conferência antes de gravar.",
               "Selecionar vários: use as caixinhas; aparece a barra de ações em massa.",
               'Em massa você pode: "Transferir" para outro corretor, agendar follow-up e descartar com motivo.',
               'Tecla F abre o "Modo Foco": um cliente por vez, sem distração.',
             ]}
           />
-          <Tela src="base-leads" legenda="Base de leads com filtros, visões salvas e seleção múltipla." />
+          <Tela
+            src="base-leads"
+            legenda="Base de leads com filtros, visões salvas e seleção múltipla."
+          />
         </Bloco>
 
         <Bloco titulo="Ficha do cliente (dossiê)" quem="Todos">
@@ -53,8 +56,8 @@ export function ConteudoGestao() {
         <Bloco titulo="Agenda e tarefas (/agendamentos)" quem="Todos">
           <p>
             <strong>Agenda</strong> mostra visitas e compromissos; <strong>Tarefas</strong> mostra
-            os próximos passos com data. Toda tarefa nasce de um desfecho ou de um agendamento — é
-            a tarefa que garante que ninguém fica sem próximo passo.
+            os próximos passos com data. Toda tarefa nasce de um desfecho ou de um agendamento — é a
+            tarefa que garante que ninguém fica sem próximo passo.
           </p>
           <Tela src="agenda" legenda="Agenda de visitas e compromissos." />
           <Tela src="tarefas" legenda="Tarefas — os próximos passos com data." />
@@ -92,7 +95,10 @@ export function ConteudoGestao() {
             Qualificação), o sistema monta o lote e o trabalho acontece um cliente por vez, com
             desfecho obrigatório a cada um.
           </p>
-          <Tela src="prospeccao-modo-foco" legenda="Modo Foco — o lote do dia, um cliente por vez." />
+          <Tela
+            src="prospeccao-modo-foco"
+            legenda="Modo Foco — o lote do dia, um cliente por vez."
+          />
         </Bloco>
 
         <Bloco titulo="Oferta Ativa (/oferta-ativa)" quem="Admin · Gestor">
@@ -110,16 +116,14 @@ export function ConteudoGestao() {
           <p>
             Integração com o discador 3C Plus. Você conecta o seu ramal, roda a sessão de discagem
             e, quando o cliente atende, a ficha dele aparece na tela em qualquer página do CRM, com
-            som. As abas <strong>Atendidos</strong> e <strong>Histórico de chamadas</strong>{" "}
-            mostram o que foi falado.
+            som. As abas <strong>Atendidos</strong> e <strong>Histórico de chamadas</strong> mostram
+            o que foi falado.
           </p>
           <Tela src="discador" legenda="Discador 3C Plus — sessão, atendidos e histórico." />
         </Bloco>
 
         <Bloco titulo="Captação (Landing)" quem="Admin · Gestor">
-          <p>
-            Acompanha o que entra pelas páginas de captação e campanhas, antes da distribuição.
-          </p>
+          <p>Acompanha o que entra pelas páginas de captação e campanhas, antes da distribuição.</p>
           <Tela src="captacao-landing" legenda="Captação — entrada de leads das landing pages." />
         </Bloco>
       </Capitulo>
@@ -143,8 +147,8 @@ export function ConteudoGestao() {
 
         <Bloco titulo="Vitrine (mapa)" quem="Todos">
           <p>
-            Os empreendimentos no mapa, para achar opção por região — útil na conversa com o
-            cliente e para montar roteiro de visita.
+            Os empreendimentos no mapa, para achar opção por região — útil na conversa com o cliente
+            e para montar roteiro de visita.
           </p>
           <Tela src="vitrine" legenda="Vitrine — empreendimentos no mapa." />
         </Bloco>
@@ -221,8 +225,8 @@ export function ConteudoGestao() {
         <Bloco titulo="Painel do Gestor" quem="Admin · Gestor · Superintendente">
           <p>
             Abas <strong>Dia</strong>, <strong>Relatórios</strong>, <strong>Funil</strong>,{" "}
-            <strong>Time</strong> e <strong>Metas &amp; Ritmo</strong>. É onde se acompanha o
-            ritmo do time, os gargalos do funil e as metas.
+            <strong>Time</strong> e <strong>Metas &amp; Ritmo</strong>. É onde se acompanha o ritmo
+            do time, os gargalos do funil e as metas.
           </p>
           <Tela src="painel-gestor" legenda="Painel do Gestor — dia, funil, time e metas." />
         </Bloco>
