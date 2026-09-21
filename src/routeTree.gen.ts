@@ -39,6 +39,7 @@ import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authentica
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
+import { Route as AuthenticatedManualRouteImport } from './routes/_authenticated/manual'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authenticated/links-uteis'
 import { Route as AuthenticatedLeadsPorCorretorRouteImport } from './routes/_authenticated/leads-por-corretor'
@@ -254,6 +255,11 @@ const AuthenticatedMensagensRoute = AuthenticatedMensagensRouteImport.update({
 const AuthenticatedMatchRoute = AuthenticatedMatchRouteImport.update({
   id: '/match',
   path: '/match',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedManualRoute = AuthenticatedManualRouteImport.update({
+  id: '/manual',
+  path: '/manual',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLixeiraRoute = AuthenticatedLixeiraRouteImport.update({
@@ -636,6 +642,7 @@ export interface FileRoutesByFullPath {
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
+  '/manual': typeof AuthenticatedManualRoute
   '/match': typeof AuthenticatedMatchRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
@@ -731,6 +738,7 @@ export interface FileRoutesByTo {
   '/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
+  '/manual': typeof AuthenticatedManualRoute
   '/match': typeof AuthenticatedMatchRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
@@ -828,6 +836,7 @@ export interface FileRoutesById {
   '/_authenticated/leads-por-corretor': typeof AuthenticatedLeadsPorCorretorRoute
   '/_authenticated/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
+  '/_authenticated/manual': typeof AuthenticatedManualRoute
   '/_authenticated/match': typeof AuthenticatedMatchRoute
   '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
@@ -925,6 +934,7 @@ export interface FileRouteTypes {
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
+    | '/manual'
     | '/match'
     | '/mensagens'
     | '/metas'
@@ -1020,6 +1030,7 @@ export interface FileRouteTypes {
     | '/leads-por-corretor'
     | '/links-uteis'
     | '/lixeira'
+    | '/manual'
     | '/match'
     | '/mensagens'
     | '/metas'
@@ -1116,6 +1127,7 @@ export interface FileRouteTypes {
     | '/_authenticated/leads-por-corretor'
     | '/_authenticated/links-uteis'
     | '/_authenticated/lixeira'
+    | '/_authenticated/manual'
     | '/_authenticated/match'
     | '/_authenticated/mensagens'
     | '/_authenticated/metas'
@@ -1430,6 +1442,13 @@ declare module '@tanstack/react-router' {
       path: '/match'
       fullPath: '/match'
       preLoaderRoute: typeof AuthenticatedMatchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/manual': {
+      id: '/_authenticated/manual'
+      path: '/manual'
+      fullPath: '/manual'
+      preLoaderRoute: typeof AuthenticatedManualRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/lixeira': {
@@ -1908,6 +1927,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsPorCorretorRoute: typeof AuthenticatedLeadsPorCorretorRoute
   AuthenticatedLinksUteisRoute: typeof AuthenticatedLinksUteisRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
+  AuthenticatedManualRoute: typeof AuthenticatedManualRoute
   AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
   AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
@@ -1964,6 +1984,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsPorCorretorRoute: AuthenticatedLeadsPorCorretorRoute,
   AuthenticatedLinksUteisRoute: AuthenticatedLinksUteisRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
+  AuthenticatedManualRoute: AuthenticatedManualRoute,
   AuthenticatedMatchRoute: AuthenticatedMatchRoute,
   AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
