@@ -45,14 +45,14 @@ fuso). `provider_message_id` garante a idempotência — replay responde
 
 ### Respostas
 
-| Código | Corpo | Significado |
-| --- | --- | --- |
-| 200 | `{"ok":true,"lead_id":"…","timeline":"ok"}` | gravado |
-| 200 | `{"ok":true,"duplicada":true}` | replay, já gravado |
-| 200 | `{"ok":true,"lead":"nao_encontrado"}` | telefone sem lead ativo — o n8n manda ao lead-intake e reenvia |
-| 400 | `payload_invalido` / `telefone_invalido` / `mensagem_vazia` | corpo fora do contrato |
-| 401 | `unauthorized` | header errado |
-| 503 | `service_unavailable` | chave ausente no servidor |
+| Código | Corpo                                                       | Significado                                                    |
+| ------ | ----------------------------------------------------------- | -------------------------------------------------------------- |
+| 200    | `{"ok":true,"lead_id":"…","timeline":"ok"}`                 | gravado                                                        |
+| 200    | `{"ok":true,"duplicada":true}`                              | replay, já gravado                                             |
+| 200    | `{"ok":true,"lead":"nao_encontrado"}`                       | telefone sem lead ativo — o n8n manda ao lead-intake e reenvia |
+| 400    | `payload_invalido` / `telefone_invalido` / `mensagem_vazia` | corpo fora do contrato                                         |
+| 401    | `unauthorized`                                              | header errado                                                  |
+| 503    | `service_unavailable`                                       | chave ausente no servidor                                      |
 
 ## Formato do telefone (corrigido na Fase 3.1)
 

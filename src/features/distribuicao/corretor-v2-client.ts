@@ -32,9 +32,7 @@ export async function listarCamposDistribuicaoV2(
   const { data, error } = await supabase
     .from("profiles")
     // Colunas fora dos types gerados — o cast é a fronteira, não o chamador.
-    .select(
-      "id, modelo_contrato, onboarding_concluido_em, onboarding_concluido_origem" as "id",
-    )
+    .select("id, modelo_contrato, onboarding_concluido_em, onboarding_concluido_origem" as "id")
     .in("id", ids);
   if (error) {
     if (FONTE_AUSENTE.has(error.code ?? "")) return {};

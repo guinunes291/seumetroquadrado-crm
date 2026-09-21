@@ -118,6 +118,7 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
 | Suíte de banco                                                  | `tests/db/sdr.test.ts` (29 casos, ponta a ponta)                       |
 | Regras puras + testes                                           | `src/lib/sdr.ts`, `tests/sdr.test.ts`                                  |
 | Fronteira do cliente (RPCs/tabelas novas)                       | `src/features/sdr/client.ts`                                           |
+| Relatório semanal do SDR (folha do sábado)                      | `docs/relatorio-semanal-sdr.md`                                        |
 | Hub `/sdr`                                                      | `src/routes/_authenticated/sdr.tsx`, `src/features/sdr/sdr-page.tsx`   |
 | Ações na ficha do lead                                          | `src/features/sdr/sdr-lead-card.tsx`, `espelho-lead-card.tsx`          |
 | Navegação (hub, cor, bottom-nav, redirect da Hoje)              | `src/features/nav/sistemas.ts`, `cores-modulo.ts`, `styles.css`        |

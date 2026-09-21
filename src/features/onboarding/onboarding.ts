@@ -84,14 +84,24 @@ export const TELAS_QUE_IMPORTAM: Array<{
   quando: string;
   to: string;
 }> = [
-  { tela: "Fila Única", responde: "“o que eu faço agora?”", quando: "é a sua casa. O dia inteiro", to: "/fila" },
+  {
+    tela: "Fila Única",
+    responde: "“o que eu faço agora?”",
+    quando: "é a sua casa. O dia inteiro",
+    to: "/fila",
+  },
   {
     tela: "Follow-Up",
     responde: "“quem eu combinei de retomar?”",
     quando: "a régua dos 13 toques",
     to: "/follow-up",
   },
-  { tela: "Agenda", responde: "“quais visitas eu tenho?”", quando: "de manhã e ao fechar o dia", to: "/agendamentos" },
+  {
+    tela: "Agenda",
+    responde: "“quais visitas eu tenho?”",
+    quando: "de manhã e ao fechar o dia",
+    to: "/agendamentos",
+  },
   {
     tela: "Ficha do cliente",
     responde: "“quem é essa pessoa?”",

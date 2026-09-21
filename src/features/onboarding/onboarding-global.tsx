@@ -8,10 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
-import {
-  EVENTO_ABRIR_ONBOARDING,
-  deveAbrirSozinho,
-} from "@/features/onboarding/onboarding";
+import { EVENTO_ABRIR_ONBOARDING, deveAbrirSozinho } from "@/features/onboarding/onboarding";
 import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 import { OnboardingDialog } from "@/features/onboarding/onboarding-dialog";
 

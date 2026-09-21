@@ -95,6 +95,11 @@ const RelatoriosCorretoresTab = lazy(() =>
     default: RelatoriosCorretoresTab,
   })),
 );
+const RelatoriosSdrTab = lazy(() =>
+  import("@/features/dashboard/relatorios-sdr-tab").then(({ RelatoriosSdrTab }) => ({
+    default: RelatoriosSdrTab,
+  })),
+);
 
 /** Link discreto para a aba de análise completa do hub de Gestão. */
 function AbaLink({ tab, label }: { tab: "funil" | "time"; label: string }) {
@@ -146,12 +151,17 @@ export function RelatoriosView() {
             : "Sua performance"
         }
         actions={
-          <PeriodFilter
-            preset={preset}
-            onPresetChange={setPreset}
-            custom={custom}
-            onCustomChange={setCustom}
-          />
+          // A aba SDR tem calendário próprio (semana de pagamento, sábado a
+          // sexta): deixar o filtro de período ligado ali só criaria dois
+          // controles de data disputando a mesma tela.
+          aba === "sdr" ? null : (
+            <PeriodFilter
+              preset={preset}
+              onPresetChange={setPreset}
+              custom={custom}
+              onCustomChange={setCustom}
+            />
+          )
         }
       />
 
@@ -162,6 +172,7 @@ export function RelatoriosView() {
           <TabsTrigger value="atividades">Atividades</TabsTrigger>
           {canSeeAll && <TabsTrigger value="time">Time</TabsTrigger>}
           {canSeeAll && <TabsTrigger value="corretores">Corretores</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="sdr">SDR</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="resumo">
@@ -188,6 +199,16 @@ export function RelatoriosView() {
           <TabsContent value="corretores">
             <Suspense fallback={<AbaSkeleton />}>
               <RelatoriosCorretoresTab />
+            </Suspense>
+          </TabsContent>
+        )}
+        {/* Relatório padrão do time de pré-venda, na semana da folha (sáb→sex).
+            Só admin: a leitura de papéis de outras pessoas (user_roles) é de
+            admin, e a conferência do pagamento também. */}
+        {isAdmin && (
+          <TabsContent value="sdr">
+            <Suspense fallback={<AbaSkeleton />}>
+              <RelatoriosSdrTab />
             </Suspense>
           </TabsContent>
         )}

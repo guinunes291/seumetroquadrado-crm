@@ -38,7 +38,10 @@ export function Capitulo({
           {titulo}
         </h2>
         {resumo && (
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--manual-ink-soft)" }}>
+          <p
+            className="mt-2 max-w-3xl text-sm leading-relaxed"
+            style={{ color: "var(--manual-ink-soft)" }}
+          >
             {resumo}
           </p>
         )}
@@ -131,7 +134,13 @@ export function Tela({
   );
 }
 
-export function Aviso({ tipo = "info", children }: { tipo?: "info" | "atencao"; children: ReactNode }) {
+export function Aviso({
+  tipo = "info",
+  children,
+}: {
+  tipo?: "info" | "atencao";
+  children: ReactNode;
+}) {
   const cor = tipo === "atencao" ? "#a33b2a" : "var(--manual-navy)";
   return (
     <div
@@ -169,7 +178,11 @@ export function Tabela({ cabecalho, linhas }: { cabecalho: string[]; linhas: Rea
         </thead>
         <tbody>
           {linhas.map((linha, i) => (
-            <tr key={i} className="border-t align-top" style={{ borderColor: "var(--manual-line)" }}>
+            <tr
+              key={i}
+              className="border-t align-top"
+              style={{ borderColor: "var(--manual-line)" }}
+            >
               {linha.map((celula, j) => (
                 <td key={j} className="px-3.5 py-2.5">
                   {celula}
