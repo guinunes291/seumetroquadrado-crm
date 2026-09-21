@@ -104,7 +104,6 @@ export function ConteudoGestao() {
               "Salve. Para repetir uma campanha, use a opção de duplicar a partir de uma lista existente.",
             ]}
           />
-          <Tela src="oferta-ativa" legenda="Oferta Ativa — listas dirigidas de clientes." />
         </Bloco>
 
         <Bloco titulo="Discador (/discador)" quem="Corretor · Gestor">
