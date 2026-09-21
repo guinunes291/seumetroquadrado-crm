@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  BookOpen,
   CaretDoubleLeft,
   CaretDoubleRight,
   GearSix,
@@ -282,6 +283,13 @@ function SidebarContent({
                   onNavigate={onNavigate}
                 />
               )}
+              <RailFootLink
+                to="/manual"
+                label="Manual do CRM"
+                icon={BookOpen}
+                active={isActivePath(pathname, "/manual")}
+                onNavigate={onNavigate}
+              />
               {isCorretor && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -333,6 +341,15 @@ function SidebarContent({
                   Configurações
                 </Link>
               )}
+              <Link
+                to="/manual"
+                onClick={onNavigate}
+                aria-current={isActivePath(pathname, "/manual") ? "page" : undefined}
+                className="flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              >
+                <BookOpen className="h-4 w-4" />
+                Manual do CRM
+              </Link>
               {isCorretor && (
                 <Button
                   variant="ghost"
