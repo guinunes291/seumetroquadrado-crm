@@ -651,3 +651,23 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Manual do CRM (/manual) — identidade impressa da marca (azul-marinho +
+   dourado sobre papel creme), igual ao PDF "Manual do CRM — Cores da Marca".
+   Escopo fechado em .manual-doc para não vazar no resto do CRM nem depender
+   do tema claro/escuro: o manual é um documento, sempre no papel.
+   -------------------------------------------------------------------------- */
+.manual-doc {
+  --manual-navy: #14263f;
+  --manual-navy-soft: #24405f;
+  --manual-gold: #b8862b;
+  --manual-paper: #fdfbf7;
+  --manual-paper-2: #f6f1e8;
+  --manual-line: #e6ded0;
+  --manual-ink: #1d2a3a;
+  --manual-ink-soft: #5c6674;
+
+  background: var(--manual-paper);
+  color: var(--manual-ink);
+}
