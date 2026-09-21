@@ -81,6 +81,7 @@ export type SistemaId =
   | "prospeccao"
   | "carteira"
   | "visita"
+  | "cadencia"
   | "follow-up"
   | "financeiro"
   | "docs-projetos"
@@ -305,6 +306,23 @@ export const SISTEMAS: Sistema[] = [
     cor: "visita",
     grupo: "operacao",
     secoes: [{ id: "modo-visita", label: "Modo Visita", icon: MapPinArea, to: "/modo-visita" }],
+  },
+  {
+    // A cadência cobre a janela PRÉ-resposta (D1/D2/D3); o Follow-Up logo
+    // abaixo cobre o que vem depois do cliente responder. Dois módulos
+    // vizinhos de propósito: são duas janelas do mesmo cliente, e o corretor
+    // precisa ver que uma entrega na outra — nunca as duas disputando o
+    // mesmo lead. Ver docs/ops/cadencia-followup-reativacao.md.
+    id: "cadencia",
+    titulo: "Cadência",
+    descricao:
+      "D1, D2 e D3: as 7 tentativas do lead novo. Cumprir até o fim não conta como perda — deixar vencer, sim.",
+    icon: ListChecks,
+    home: { to: "/cadencia" },
+    roles: OPERACAO,
+    cor: "followup",
+    grupo: "operacao",
+    secoes: [{ id: "fila", label: "Fila do Dia", icon: ListChecks, to: "/cadencia" }],
   },
   {
     id: "follow-up",
