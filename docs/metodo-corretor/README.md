@@ -76,6 +76,19 @@ tarefas e agendamentos. **A extração completa do banco desmentiu isso.** Os do
 | [PROMPT-LOVABLE-FASE-2.md](PROMPT-LOVABLE-FASE-2.md) | Fase 2: pausa a esteira, põe teto no SDR, conserta o funil | **sim** |
 | [PROMPT-LOVABLE-ONBOARDING.md](PROMPT-LOVABLE-ONBOARDING.md) | Onboarding do corretor no primeiro acesso, com números ao vivo | **sim** |
 
+## Material de treinamento
+
+| Arquivo | O que é | Para quem |
+| --- | --- | --- |
+| [apresentacao/Manual-CRM-SMQ.pptx](apresentacao/) | Deck de 20 slides: o manual de uso do CRM, pronto para apresentar | corretor, na reunião |
+| [apresentacao/gerar-deck.js](apresentacao/gerar-deck.js) | O script que gera o .pptx — edite aqui, não no PowerPoint | quem mantém o deck |
+| [PROMPT-CLAUDE-DESIGN-TREINAMENTO.md](PROMPT-CLAUDE-DESIGN-TREINAMENTO.md) | Prompt autossuficiente para o Claude Design gerar o treinamento completo: 37 artboards, os 10 módulos do Documento 14 | quem for gerar a versão desenhada |
+
+> O prompt do Claude Design é **autossuficiente de propósito**: o Claude Design não
+> enxerga este repositório nem a conversa que gerou o estudo. A paleta, a tipografia, as
+> regras de layout e **todos os números medidos** viajam dentro do prompt — inclusive a
+> proibição explícita de inventar qualquer número que não esteja lá.
+
 ## Os três problemas reais
 
 | # | Problema | Número |
