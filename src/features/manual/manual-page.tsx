@@ -1,10 +1,9 @@
 // Página /manual — Manual de utilização do CRM, com capturas reais das telas.
-// O mesmo conteúdo alimenta o PDF (public/manual/manual-crm.pdf).
+// Identidade impressa da marca (azul-marinho, dourado, papel creme), igual ao
+// PDF em public/manual/manual-crm.pdf.
 
-import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { DownloadSimple } from "@phosphor-icons/react";
+import logoM2 from "@/assets/logo-m2.png.asset.json";
 import { ConteudoOperacao } from "./conteudo-operacao";
 import { ConteudoGestao } from "./conteudo-gestao";
 
@@ -28,44 +27,97 @@ const SUMARIO: { id: string; titulo: string }[] = [
 
 export function ManualPage() {
   return (
-    <div>
-      <PageHeader
-        title="Manual do CRM"
-        description="Como usar o sistema de ponta a ponta: cada módulo, cada ação e as telas reais do CRM. Vale para corretor, pré-venda, gestor e administrador."
-        actions={
-          <Button asChild variant="outline" size="sm">
-            <a href="/manual/manual-crm.pdf" target="_blank" rel="noreferrer">
-              <DownloadSimple className="mr-1.5 h-4 w-4" />
+    <div className="manual-doc -mx-4 -my-6 px-0 md:-mx-6">
+      {/* Capa — mesma abertura do PDF da marca. */}
+      <header
+        className="px-6 py-12 md:px-12 md:py-16"
+        style={{ background: "var(--manual-navy)", color: "var(--manual-paper)" }}
+      >
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center gap-3">
+            <img src={logoM2.url} alt="Seu Metro Quadrado" className="h-12 w-auto" />
+            <span className="font-display text-lg font-bold uppercase leading-tight tracking-wide">
+              Seu Metro
+              <br />
+              Quadrado
+            </span>
+          </div>
+
+          <p
+            className="mt-10 text-xs font-semibold uppercase tracking-[0.22em]"
+            style={{ color: "var(--manual-gold)" }}
+          >
+            Guia de uso
+          </p>
+          <h1 className="mt-2 font-display text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+            Manual
+            <br />
+            do CRM
+          </h1>
+          <div className="mt-6 h-px w-24" style={{ background: "var(--manual-gold)" }} />
+          <p className="mt-5 max-w-md text-sm leading-relaxed opacity-85">
+            Passo a passo dos módulos, ações e telas do sistema. Do primeiro acesso às rotinas do
+            dia a dia.
+          </p>
+
+          <div className="mt-10 flex flex-wrap items-center gap-4">
+            <a
+              href="/manual/manual-crm.pdf"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+              style={{ background: "var(--manual-gold)", color: "var(--manual-navy)" }}
+            >
+              <DownloadSimple className="h-4 w-4" weight="bold" />
               Baixar em PDF
             </a>
-          </Button>
-        }
-      />
+            <p className="text-xs uppercase tracking-[0.18em] opacity-70">
+              Corretores · Pré-vendas · Gestores · Admin
+            </p>
+          </div>
+        </div>
+      </header>
 
-      <Card className="mb-8">
-        <CardContent className="p-4">
-          <p className="mb-3 text-sm font-medium text-foreground">Sumário</p>
-          <ol className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto max-w-4xl px-6 py-10 md:px-12">
+        {/* Sumário */}
+        <nav
+          className="rounded-2xl border p-5"
+          style={{ borderColor: "var(--manual-line)", background: "var(--manual-paper-2)" }}
+        >
+          <p
+            className="mb-3 text-xs font-semibold uppercase tracking-[0.18em]"
+            style={{ color: "var(--manual-gold)" }}
+          >
+            Sumário
+          </p>
+          <ol className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
             {SUMARIO.map((s) => (
               <li key={s.id}>
-                <a className="text-primary hover:underline" href={`#${s.id}`}>
+                <a
+                  className="hover:underline"
+                  style={{ color: "var(--manual-navy)" }}
+                  href={`#${s.id}`}
+                >
                   {s.titulo}
                 </a>
               </li>
             ))}
           </ol>
-        </CardContent>
-      </Card>
+        </nav>
 
-      <div className="space-y-10">
-        <ConteudoOperacao />
-        <ConteudoGestao />
+        <div className="mt-10 space-y-12">
+          <ConteudoOperacao />
+          <ConteudoGestao />
+        </div>
+
+        <p
+          className="mt-12 border-t pt-5 text-xs"
+          style={{ borderColor: "var(--manual-line)", color: "var(--manual-ink-soft)" }}
+        >
+          As imagens deste manual são capturas reais do CRM. Números e nomes que aparecem nelas são
+          do momento da captura e mudam no dia a dia.
+        </p>
       </div>
-
-      <p className="mt-10 border-t border-border pt-4 text-xs text-muted-foreground">
-        As imagens deste manual são capturas reais do CRM. Números e nomes que aparecem nelas são do
-        momento da captura e mudam no dia a dia.
-      </p>
     </div>
   );
 }
