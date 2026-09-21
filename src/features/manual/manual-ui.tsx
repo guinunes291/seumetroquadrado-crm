@@ -20,7 +20,7 @@ export function Capitulo({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 border-t border-border pt-8 print:break-before-page">
+    <section id={id} className="scroll-mt-24 border-t border-border pt-8">
       <div className="mb-4">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Capítulo {numero}
@@ -86,7 +86,7 @@ export function Tela({
   className?: string;
 }) {
   return (
-    <figure className={cn("space-y-2", className)}>
+    <figure className={cn("space-y-2 break-inside-avoid", className)}>
       <img
         src={`/manual/${src}.jpg`}
         alt={legenda}
