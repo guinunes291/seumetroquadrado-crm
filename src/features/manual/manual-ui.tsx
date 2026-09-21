@@ -88,7 +88,7 @@ export function Tela({
   return (
     <figure className={cn("space-y-2", className)}>
       <img
-        src={`/manual/${src}.png`}
+        src={`/manual/${src}.jpg`}
         alt={legenda}
         loading="lazy"
         className="w-full rounded-lg border border-border shadow-sm"
