@@ -778,6 +778,138 @@ export type Database = {
           },
         ]
       }
+      cadencia_config: {
+        Row: {
+          atualizado_em: string
+          descanso_dias: number
+          espera_pos_d3_h: number
+          id: number
+          intervalo_min_lig: string
+          lote_estoque_dia: number
+          modo: string
+          tolerancia_venc_d: number
+        }
+        Insert: {
+          atualizado_em?: string
+          descanso_dias?: number
+          espera_pos_d3_h?: number
+          id?: number
+          intervalo_min_lig?: string
+          lote_estoque_dia?: number
+          modo?: string
+          tolerancia_venc_d?: number
+        }
+        Update: {
+          atualizado_em?: string
+          descanso_dias?: number
+          espera_pos_d3_h?: number
+          id?: number
+          intervalo_min_lig?: string
+          lote_estoque_dia?: number
+          modo?: string
+          tolerancia_venc_d?: number
+        }
+        Relationships: []
+      }
+      cadencia_tentativas: {
+        Row: {
+          canal: string
+          ciclo: number
+          corretor_id: string | null
+          created_at: string
+          etapa: string
+          id: string
+          lead_id: string
+          origem: string
+          resultado: string
+          template_id: string | null
+          ts: string
+        }
+        Insert: {
+          canal: string
+          ciclo?: number
+          corretor_id?: string | null
+          created_at?: string
+          etapa: string
+          id?: string
+          lead_id: string
+          origem?: string
+          resultado: string
+          template_id?: string | null
+          ts?: string
+        }
+        Update: {
+          canal?: string
+          ciclo?: number
+          corretor_id?: string | null
+          created_at?: string
+          etapa?: string
+          id?: string
+          lead_id?: string
+          origem?: string
+          resultado?: string
+          template_id?: string | null
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadencia_tentativas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates_mensagem"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carteira_resgates: {
         Row: {
           corretor_id: string
@@ -3581,7 +3713,12 @@ export type Database = {
       }
       leads: {
         Row: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -3628,6 +3765,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -3661,7 +3799,12 @@ export type Database = {
           zona: string | null
         }
         Insert: {
+          arquivado_em?: string | null
           bairro?: string | null
+          cadencia_ciclo?: number
+          cadencia_etapa?: string | null
+          cadencia_inicio_ts?: string | null
+          cadencia_prazo_ts?: string | null
           campanha?: string | null
           canal_entrada?: string | null
           classe_lead?: string
@@ -3708,6 +3851,7 @@ export type Database = {
           projeto_nome?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
+          reativado?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
@@ -3741,7 +3885,12 @@ export type Database = {
           zona?: string | null
         }
         Update: {
+          arquivado_em?: string | null
           bairro?: string | null
+          cadencia_ciclo?: number
+          cadencia_etapa?: string | null
+          cadencia_inicio_ts?: string | null
+          cadencia_prazo_ts?: string | null
           campanha?: string | null
           canal_entrada?: string | null
           classe_lead?: string
@@ -3788,6 +3937,7 @@ export type Database = {
           projeto_nome?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
+          reativado?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
@@ -5389,6 +5539,113 @@ export type Database = {
         }
         Relationships: []
       }
+      reativacao_fila: {
+        Row: {
+          created_at: string
+          elegivel_em: string
+          empreendimento: string | null
+          entrou_em: string
+          faixa_renda: string | null
+          finalizado_em: string | null
+          horarios_tentados: Json | null
+          id: string
+          lead_id: string
+          origem: string
+          prioridade: number
+          sdr_id: string | null
+          sdr_notas: string | null
+          status: string
+          tentativas_reativacao: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          elegivel_em: string
+          empreendimento?: string | null
+          entrou_em?: string
+          faixa_renda?: string | null
+          finalizado_em?: string | null
+          horarios_tentados?: Json | null
+          id?: string
+          lead_id: string
+          origem: string
+          prioridade?: number
+          sdr_id?: string | null
+          sdr_notas?: string | null
+          status?: string
+          tentativas_reativacao?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          elegivel_em?: string
+          empreendimento?: string | null
+          entrou_em?: string
+          faixa_renda?: string | null
+          finalizado_em?: string | null
+          horarios_tentados?: Json | null
+          id?: string
+          lead_id?: string
+          origem?: string
+          prioridade?: number
+          sdr_id?: string | null
+          sdr_notas?: string | null
+          status?: string
+          tentativas_reativacao?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       roleta_participantes: {
         Row: {
           agendamentos_janela: number
@@ -6497,6 +6754,7 @@ export type Database = {
           ativo: boolean
           canal: Database["public"]["Enums"]["template_canal"]
           conteudo: string
+          contexto: string | null
           created_at: string
           criado_por: string | null
           id: string
@@ -6509,6 +6767,7 @@ export type Database = {
           ativo?: boolean
           canal?: Database["public"]["Enums"]["template_canal"]
           conteudo: string
+          contexto?: string | null
           created_at?: string
           criado_por?: string | null
           id?: string
@@ -6521,6 +6780,7 @@ export type Database = {
           ativo?: boolean
           canal?: Database["public"]["Enums"]["template_canal"]
           conteudo?: string
+          contexto?: string | null
           created_at?: string
           criado_por?: string | null
           id?: string
@@ -7980,7 +8240,12 @@ export type Database = {
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -8027,6 +8292,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -10338,7 +10604,12 @@ export type Database = {
       sdr_pegar_lead: {
         Args: { _lead_id: string }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -10385,6 +10656,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -10446,6 +10718,7 @@ export type Database = {
       telefone_digits: { Args: { _telefone: string }; Returns: string }
       telefone_discavel: { Args: { _telefone: string }; Returns: boolean }
       telefone_mascarado: { Args: { _telefone: string }; Returns: string }
+      telefone_suspeito: { Args: { _telefone: string }; Returns: boolean }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
@@ -10479,7 +10752,12 @@ export type Database = {
           p_proximo_followup?: string
         }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -10526,6 +10804,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -10573,7 +10852,12 @@ export type Database = {
           p_motivo?: string
         }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -10620,6 +10904,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
