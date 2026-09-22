@@ -50,6 +50,13 @@
       "when": 1790109041368,
       "tag": "0006_cadencia_fase0_estoque",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790111051642,
+      "tag": "0007_cadencia_painel",
+      "breakpoints": true
     }
   ]
 }

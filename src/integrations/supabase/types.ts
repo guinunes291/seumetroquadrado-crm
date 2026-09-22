@@ -8248,6 +8248,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      _cadencia_janela: {
+        Args: { _ate: string; _de: string }
+        Returns: Record<string, unknown>
+      }
       _carteira_classificar: {
         Args: { _corretor: string }
         Returns: {
@@ -8494,6 +8498,7 @@ export type Database = {
         }
       }
       _proximo_sdr: { Args: never; Returns: string }
+      _reativacao_pode_agir: { Args: { _uid: string }; Returns: boolean }
       _registrar_estouro_sla: {
         Args: { _corretor: string; _lead: string; _slug: string }
         Returns: undefined
@@ -9021,6 +9026,79 @@ export type Database = {
           _proximo_followup: string
         }
         Returns: Json
+      }
+      cadencia_painel_corretores: {
+        Args: { _ate?: string; _de?: string }
+        Returns: {
+          atrasados: number
+          corretor_id: string
+          corretor_nome: string
+          cumprimento_pct: number
+          encerrados_no_processo: number
+          entraram_d1: number
+          fazer_hoje: number
+          minutos_1a_tentativa: number
+          perdas_por_falha: number
+          responderam: number
+          saidas_sem_resposta: number
+          taxa_resposta_pct: number
+        }[]
+      }
+      cadencia_painel_etapas: {
+        Args: { _ate?: string; _de?: string }
+        Returns: {
+          alcancaram: number
+          empreendimento: string
+          etapa: string
+          responderam: number
+          semana: string
+          taxa_resposta_pct: number
+        }[]
+      }
+      cadencia_painel_fase0_lotes: {
+        Args: { _limite?: number }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          desfeito: boolean
+          executado_em: string
+          lote_id: string
+          modo: string
+        }[]
+      }
+      cadencia_painel_fase0_pendentes: {
+        Args: never
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          dias_medio: number
+          pendentes: number
+        }[]
+      }
+      cadencia_painel_motor: {
+        Args: { _limite?: number }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          executado_em: string
+          job: string
+          lote_id: string
+          modo: string
+          motivos: Json
+        }[]
+      }
+      cadencia_painel_reativacao: {
+        Args: { _ate?: string; _de?: string }
+        Returns: {
+          conversao_pct: number
+          convertidos: number
+          elegiveis_hoje: number
+          em_descanso: number
+          em_trabalho: number
+          reativados: number
+          sem_retorno: number
+          taxa_reativacao_pct: number
+        }[]
       }
       cadencia_prioridade_reativacao: {
         Args: { _lead: string }
@@ -10595,6 +10673,7 @@ export type Database = {
         }[]
       }
       reativacao_desarquivar: { Args: { _lead_id: string }; Returns: boolean }
+      reativacao_fila_v1: { Args: { _take?: number }; Returns: Json }
       reativacao_marcar_reativado: {
         Args: { _fila_id: string; _notas?: string }
         Returns: Json
