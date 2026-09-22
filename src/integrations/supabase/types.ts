@@ -778,6 +778,233 @@ export type Database = {
           },
         ]
       }
+      cadencia_config: {
+        Row: {
+          atualizado_em: string
+          descanso_dias: number
+          espera_pos_d3_h: number
+          id: number
+          intervalo_min_lig: string
+          lote_estoque_dia: number
+          modo: string
+          tolerancia_venc_d: number
+        }
+        Insert: {
+          atualizado_em?: string
+          descanso_dias?: number
+          espera_pos_d3_h?: number
+          id?: number
+          intervalo_min_lig?: string
+          lote_estoque_dia?: number
+          modo?: string
+          tolerancia_venc_d?: number
+        }
+        Update: {
+          atualizado_em?: string
+          descanso_dias?: number
+          espera_pos_d3_h?: number
+          id?: number
+          intervalo_min_lig?: string
+          lote_estoque_dia?: number
+          modo?: string
+          tolerancia_venc_d?: number
+        }
+        Relationships: []
+      }
+      cadencia_execucao_log: {
+        Row: {
+          aplicado: boolean
+          corretor_id: string | null
+          created_at: string
+          detalhe: Json | null
+          etapa_de: string | null
+          etapa_para: string | null
+          id: string
+          job: string
+          lead_id: string
+          lote_id: string
+          modo: string
+          motivo: string
+        }
+        Insert: {
+          aplicado?: boolean
+          corretor_id?: string | null
+          created_at?: string
+          detalhe?: Json | null
+          etapa_de?: string | null
+          etapa_para?: string | null
+          id?: string
+          job: string
+          lead_id: string
+          lote_id: string
+          modo: string
+          motivo: string
+        }
+        Update: {
+          aplicado?: boolean
+          corretor_id?: string | null
+          created_at?: string
+          detalhe?: Json | null
+          etapa_de?: string | null
+          etapa_para?: string | null
+          id?: string
+          job?: string
+          lead_id?: string
+          lote_id?: string
+          modo?: string
+          motivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadencia_execucao_log_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
+      cadencia_tentativas: {
+        Row: {
+          canal: string
+          ciclo: number
+          corretor_id: string | null
+          created_at: string
+          etapa: string
+          id: string
+          lead_id: string
+          origem: string
+          resultado: string
+          template_id: string | null
+          ts: string
+        }
+        Insert: {
+          canal: string
+          ciclo?: number
+          corretor_id?: string | null
+          created_at?: string
+          etapa: string
+          id?: string
+          lead_id: string
+          origem?: string
+          resultado: string
+          template_id?: string | null
+          ts?: string
+        }
+        Update: {
+          canal?: string
+          ciclo?: number
+          corretor_id?: string | null
+          created_at?: string
+          etapa?: string
+          id?: string
+          lead_id?: string
+          origem?: string
+          resultado?: string
+          template_id?: string | null
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadencia_tentativas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_tentativas_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates_mensagem"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carteira_resgates: {
         Row: {
           corretor_id: string
@@ -3581,7 +3808,12 @@ export type Database = {
       }
       leads: {
         Row: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -3628,6 +3860,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -3661,7 +3894,12 @@ export type Database = {
           zona: string | null
         }
         Insert: {
+          arquivado_em?: string | null
           bairro?: string | null
+          cadencia_ciclo?: number
+          cadencia_etapa?: string | null
+          cadencia_inicio_ts?: string | null
+          cadencia_prazo_ts?: string | null
           campanha?: string | null
           canal_entrada?: string | null
           classe_lead?: string
@@ -3708,6 +3946,7 @@ export type Database = {
           projeto_nome?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
+          reativado?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
@@ -3741,7 +3980,12 @@ export type Database = {
           zona?: string | null
         }
         Update: {
+          arquivado_em?: string | null
           bairro?: string | null
+          cadencia_ciclo?: number
+          cadencia_etapa?: string | null
+          cadencia_inicio_ts?: string | null
+          cadencia_prazo_ts?: string | null
           campanha?: string | null
           canal_entrada?: string | null
           classe_lead?: string
@@ -3788,6 +4032,7 @@ export type Database = {
           projeto_nome?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
+          reativado?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
@@ -5389,6 +5634,113 @@ export type Database = {
         }
         Relationships: []
       }
+      reativacao_fila: {
+        Row: {
+          created_at: string
+          elegivel_em: string
+          empreendimento: string | null
+          entrou_em: string
+          faixa_renda: string | null
+          finalizado_em: string | null
+          horarios_tentados: Json | null
+          id: string
+          lead_id: string
+          origem: string
+          prioridade: number
+          sdr_id: string | null
+          sdr_notas: string | null
+          status: string
+          tentativas_reativacao: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          elegivel_em: string
+          empreendimento?: string | null
+          entrou_em?: string
+          faixa_renda?: string | null
+          finalizado_em?: string | null
+          horarios_tentados?: Json | null
+          id?: string
+          lead_id: string
+          origem: string
+          prioridade?: number
+          sdr_id?: string | null
+          sdr_notas?: string | null
+          status?: string
+          tentativas_reativacao?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          elegivel_em?: string
+          empreendimento?: string | null
+          entrou_em?: string
+          faixa_renda?: string | null
+          finalizado_em?: string | null
+          horarios_tentados?: Json | null
+          id?: string
+          lead_id?: string
+          origem?: string
+          prioridade?: number
+          sdr_id?: string | null
+          sdr_notas?: string | null
+          status?: string
+          tentativas_reativacao?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       roleta_participantes: {
         Row: {
           agendamentos_janela: number
@@ -6497,6 +6849,7 @@ export type Database = {
           ativo: boolean
           canal: Database["public"]["Enums"]["template_canal"]
           conteudo: string
+          contexto: string | null
           created_at: string
           criado_por: string | null
           id: string
@@ -6509,6 +6862,7 @@ export type Database = {
           ativo?: boolean
           canal?: Database["public"]["Enums"]["template_canal"]
           conteudo: string
+          contexto?: string | null
           created_at?: string
           criado_por?: string | null
           id?: string
@@ -6521,6 +6875,7 @@ export type Database = {
           ativo?: boolean
           canal?: Database["public"]["Enums"]["template_canal"]
           conteudo?: string
+          contexto?: string | null
           created_at?: string
           criado_por?: string | null
           id?: string
@@ -7734,6 +8089,58 @@ export type Database = {
         }
         Relationships: []
       }
+      v_reativacao_discador: {
+        Row: {
+          elegivel_em: string | null
+          empreendimento: string | null
+          entrou_em: string | null
+          faixa_renda: string | null
+          horarios_tentados: Json | null
+          id: string | null
+          lead_id: string | null
+          nome: string | null
+          prioridade: number | null
+          telefone: string | null
+          tentativas_reativacao: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       v_velocidade_corretor: {
         Row: {
           amostra: number | null
@@ -7825,6 +8232,20 @@ export type Database = {
       }
       _bolsao_elegivel: {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: boolean
+      }
+      _cadencia_devolver_roleta: {
+        Args: { _corretor: string; _lead: string; _motivo: string }
+        Returns: boolean
+      }
+      _cadencia_encerrar_lead: {
+        Args: {
+          _corretor: string
+          _descricao: string
+          _etapa_final: string
+          _lead: string
+          _motivo_categoria: string
+        }
         Returns: boolean
       }
       _carteira_classificar: {
@@ -7980,7 +8401,12 @@ export type Database = {
       _oferta_ativa_query: {
         Args: { _corretor: string; _filtros: Json }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -8027,6 +8453,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -8507,6 +8934,76 @@ export type Database = {
         Returns: string
       }
       buscar_lead_por_telefone: { Args: { _telefone: string }; Returns: string }
+      cadencia_auditoria: {
+        Args: { _limite?: number }
+        Returns: {
+          achados: number
+          lote_id: string
+        }[]
+      }
+      cadencia_avancar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
+      cadencia_cumprida_100: { Args: { _lead: string }; Returns: boolean }
+      cadencia_encerrar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
+      cadencia_etapa_completa: {
+        Args: { _etapa: string; _lead: string }
+        Returns: boolean
+      }
+      cadencia_fila_v1: {
+        Args: { _corretor?: string; _take?: number }
+        Returns: Json
+      }
+      cadencia_fim_do_dia: {
+        Args: { _mais_dias?: number; _quando?: string }
+        Returns: string
+      }
+      cadencia_horarios_tentados: { Args: { _lead: string }; Returns: Json }
+      cadencia_iniciar: { Args: { _lead: string }; Returns: boolean }
+      cadencia_marcar_respondeu: {
+        Args: {
+          _lead_id: string
+          _proxima_acao: string
+          _proximo_followup: string
+        }
+        Returns: Json
+      }
+      cadencia_prioridade_reativacao: {
+        Args: { _lead: string }
+        Returns: number
+      }
+      cadencia_registrar_tentativa: {
+        Args: {
+          _canal: string
+          _lead_id: string
+          _resultado: string
+          _template_id?: string
+        }
+        Returns: Json
+      }
+      cadencia_vencidos: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
       carteira_ativa_config: { Args: never; Returns: Json }
       carteira_ativa_v1: {
         Args: { _corretor?: string }
@@ -10057,6 +10554,15 @@ export type Database = {
           whatsapps: number
         }[]
       }
+      reativacao_desarquivar: { Args: { _lead_id: string }; Returns: boolean }
+      reativacao_marcar_reativado: {
+        Args: { _fila_id: string; _notas?: string }
+        Returns: Json
+      }
+      reativacao_marcar_sem_retorno: {
+        Args: { _fila_id: string }
+        Returns: Json
+      }
       reativar_followup: { Args: { _lead_id: string }; Returns: undefined }
       recalcular_faixas_velocidade: {
         Args: { _gatilho?: string }
@@ -10338,7 +10844,12 @@ export type Database = {
       sdr_pegar_lead: {
         Args: { _lead_id: string }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -10385,6 +10896,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -10446,6 +10958,7 @@ export type Database = {
       telefone_digits: { Args: { _telefone: string }; Returns: string }
       telefone_discavel: { Args: { _telefone: string }; Returns: boolean }
       telefone_mascarado: { Args: { _telefone: string }; Returns: string }
+      telefone_suspeito: { Args: { _telefone: string }; Returns: boolean }
       tempo_primeira_resposta: {
         Args: { _corretor?: string; _df: string; _di: string }
         Returns: {
@@ -10479,7 +10992,12 @@ export type Database = {
           p_proximo_followup?: string
         }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -10526,6 +11044,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -10573,7 +11092,12 @@ export type Database = {
           p_motivo?: string
         }
         Returns: {
+          arquivado_em: string | null
           bairro: string | null
+          cadencia_ciclo: number
+          cadencia_etapa: string | null
+          cadencia_inicio_ts: string | null
+          cadencia_prazo_ts: string | null
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
@@ -10620,6 +11144,7 @@ export type Database = {
           projeto_nome: string | null
           proxima_acao: string | null
           proximo_followup: string | null
+          reativado: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null

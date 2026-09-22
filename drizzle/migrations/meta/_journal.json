@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790098917649,
+      "tag": "0000_cadencia_fundacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790099148971,
+      "tag": "0001_cadencia_motor",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790099248148,
+      "tag": "0002_cadencia_fila_reativacao",
+      "breakpoints": true
+    }
+  ]
+}
