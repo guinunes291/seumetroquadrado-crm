@@ -126,7 +126,24 @@ export type LeadExtras = {
   tipo_renda?: string | null;
   /** Preço "a partir de" do projeto de interesse (VGV estimado do lead). */
   valor_projeto?: number | null;
+  /** Etapa da cadência. D1/D2/D3 = base em formação (ver `emFormacao`). */
+  cadencia_etapa?: string | null;
 };
+
+/**
+ * Base em formação (migration 20260925120000): lead em D1/D2/D3 da cadência
+ * não é carteira dos 65 — é trabalhado na Fila do Dia da cadência (/cadencia),
+ * que tem prazo, ordem e botões próprios. Mostrá-lo aqui também daria ao
+ * corretor duas ordens sobre o mesmo cliente, em duas telas.
+ *
+ * Exceção: cliente que ESCREVEU (fila "responder" da inbox). Isso é conversa
+ * acontecendo agora, e esconder resposta de cliente custa mais do que mostrar
+ * um card a mais — o corretor responde e marca "Cliente respondeu".
+ */
+export function emFormacao(extras: LeadExtras | undefined): boolean {
+  const e = extras?.cadencia_etapa;
+  return e === "D1" || e === "D2" || e === "D3";
+}
 
 export type FilaFonte = "inbox" | "regua" | "sem_acao";
 
@@ -506,13 +523,27 @@ export function buildFilaUnica(input: {
       if (fila === "followups" && input.regua) continue;
       const itens = input.inbox.filas[fila];
       ocultosInbox += Math.max(0, input.inbox.counts[fila] - itens.length);
-      for (const q of itens) candidatos.push(itemDaInbox(fila, q, extras.get(q.lead.id), agora));
+      for (const q of itens) {
+        const ex = extras.get(q.lead.id);
+        if (fila !== "responder" && emFormacao(ex)) continue;
+        candidatos.push(itemDaInbox(fila, q, ex, agora));
+      }
     }
   }
   if (input.regua) {
-    for (const f of input.regua.itens) candidatos.push(itemDaRegua(f, extras.get(f.id), agora));
+    for (const f of input.regua.itens) {
+      const ex = extras.get(f.id);
+      if (emFormacao(ex)) continue;
+      candidatos.push(itemDaRegua(f, ex, agora));
+    }
   }
-  for (const r of input.semAcao) candidatos.push(itemSemAcao(r, extras.get(r.id), agora));
+  for (const r of input.semAcao) {
+    const ex = extras.get(r.id);
+    // A cadência não escreve próximo passo, por desenho: todo lead em
+    // formação cairia aqui como "sem próximo passo" — a acusação errada.
+    if (emFormacao(ex)) continue;
+    candidatos.push(itemSemAcao(r, ex, agora));
+  }
 
   // Dedup: um lead, um balde — o mais urgente vence; empate fica com a
   // primeira fonte (a inbox, cujas contagens vêm do banco), completada com o
@@ -545,8 +576,10 @@ export function buildFilaUnica(input: {
       vencidos: todos.filter((i) => i.vencidoMin > 0).length,
       hoje: todos.filter((i) => i.venceHoje && i.prazo !== null).length,
       semProximoPasso: porBucket.sem_acao,
-      // O SLA conta a carteira inteira (contagem do banco), não só os cards.
-      slaCorrendo: input.inbox?.counts.novos ?? porBucket.sla,
+      // Só o que ESTA fila mostra. A contagem do banco (`counts.novos`) inclui
+      // os leads novos em formação, que desde 20260925120000 são da Fila do
+      // Dia da cadência — somá-los aqui prometeria cards que a tela não tem.
+      slaCorrendo: porBucket.sla,
       fundoParado: porBucket.fundo,
       ocultosInbox,
       emJogo: itens.reduce((s, i) => s + (i.valorEmJogo ?? 0), 0),

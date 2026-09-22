@@ -33,22 +33,27 @@ export const TETO_PADRAO = 65;
  *  isto é o fallback. Escala com o teto (8 quando o teto era 40). */
 export const CAP_RESGATE_PADRAO = 13;
 
-/** As faixas, na ordem de precedência com que enchem as vagas. */
-export const FAIXAS = ["fundo", "resgate", "conversa", "sla"] as const;
+/**
+ * As faixas, na ordem de precedência com que enchem as vagas.
+ *
+ * Sem `sla` desde 20260925120000: o lead recém-chegado ("chegaram agora")
+ * está na BASE EM FORMAÇÃO — em D1/D2/D3 da cadência, fora dos 65. Os 65 são
+ * só o que avançou de fase ou agendou para frente. `formacao` também não é
+ * faixa daqui: `carteira_ativa_v1` nunca a devolve.
+ */
+export const FAIXAS = ["fundo", "resgate", "conversa"] as const;
 export type Faixa = (typeof FAIXAS)[number];
 
 export const FAIXA_LABEL: Record<Faixa, string> = {
   fundo: "Fundo do funil",
   resgate: "Resgatados por você",
   conversa: "Conversa viva",
-  sla: "Chegaram agora",
 };
 
 export const FAIXA_HINT: Record<Faixa, string> = {
   fundo: "agendado, visita, proposta e análise de crédito — converte 39% e nunca sai da carteira",
   resgate: "você puxou da Reserva",
   conversa: "o cliente respondeu, ou você combinou de voltar",
-  sla: "o SLA do primeiro contato está correndo",
 };
 
 /** Uma linha da carteira ativa, como `carteira_ativa_v1` devolve. */
@@ -125,7 +130,7 @@ export type ResumoCarteira = {
 };
 
 export function resumoCarteira(linhas: LinhaCarteira[], teto: number): ResumoCarteira {
-  const porFaixa: Record<Faixa, number> = { fundo: 0, resgate: 0, conversa: 0, sla: 0 };
+  const porFaixa: Record<Faixa, number> = { fundo: 0, resgate: 0, conversa: 0 };
   let emJogo = 0;
   for (const l of linhas) {
     if ((FAIXAS as readonly string[]).includes(l.faixa)) porFaixa[l.faixa as Faixa] += 1;

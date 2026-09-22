@@ -137,12 +137,12 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     expect(await carteira(vazio.id)).toBe(8);
   });
 
-  it("a roleta para no cap da faixa de ENTRADA, não no teto — nunca despeja lead que já nasce na Reserva", async () => {
-    // `novato` tem a carteira zerada: 65 vagas globais, mas só 20 na faixa de
-    // entrada (cap_sla). Com 100 leads de estoque e lote de 200, entregar as
-    // 65 vagas globais criaria 45 leads na Reserva no mesmo instante, com
-    // "faixa cheia (sla)" — o CRM fabricando o problema que a regra existe
-    // para resolver.
+  it("a roleta para no cap da FORMAÇÃO, não no teto — e quem entra não ocupa os 65", async () => {
+    // `novato` tem a carteira zerada: 65 vagas globais e 20 de formação
+    // (cap_formacao, herdado de cap_sla). Com 100 leads de estoque e lote de
+    // 200, a porta fecha em 20: é quanto a cadência consegue trabalhar ao
+    // mesmo tempo. Desde 20260925120000 esses 20 estão na BASE EM FORMAÇÃO
+    // (D1), não na carteira — os 65 continuam inteiros para o que avançar.
     await comoSuperuser(c);
     for (let i = 1; i <= 100; i++) {
       const l = await criarLead(c, { corretorId: null, status: "novo" });
@@ -163,14 +163,22 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     ]);
     expect(entrada.rows[0].v).toBe(0);
 
-    // A carteira global ainda tem folga: o que fechou foi o cap da faixa, não
-    // o teto de 65. Os dois números são diferentes de propósito.
+    // A carteira de 65 não foi tocada: lead recém-chegado não é carteira. Até
+    // 20260925120000 isto dava 45 — o lead que ninguém ainda tinha
+    // conseguido falar ocupava vaga de quem já está em negociação.
     const global = await c.query(`SELECT public.carteira_vagas_v1($1)::int AS v`, [novato.id]);
-    expect(global.rows[0].v).toBe(45);
+    expect(global.rows[0].v).toBe(65);
+
+    const formacao = await c.query(
+      `SELECT count(*)::int AS n FROM public._carteira_classificar($1) WHERE faixa = 'formacao'`,
+      [novato.id],
+    );
+    expect(formacao.rows[0].n).toBe(20);
 
     // E nenhum dos leads entregues caiu na Reserva.
     const reserva = await c.query(
-      `SELECT count(*)::int AS n FROM public._carteira_classificar($1) WHERE NOT ativa`,
+      `SELECT count(*)::int AS n FROM public._carteira_classificar($1)
+        WHERE NOT ativa AND faixa <> 'formacao'`,
       [novato.id],
     );
     expect(reserva.rows[0].n).toBe(0);

@@ -394,7 +394,7 @@ describe("buildFilaUnica — fontes e resumo", () => {
     expect(fila.itens.map((i) => i.bucket)).toEqual(["followup"]);
   });
 
-  it("resumo: vencidos, hoje, sem próximo passo, SLA (contagem do banco) e ocultos da inbox", () => {
+  it("resumo: vencidos, hoje, sem próximo passo, SLA (só o que esta fila mostra) e ocultos da inbox", () => {
     const fila = buildFilaUnica({
       inbox: inbox(
         { novos: [item(lead({ id: "n", nome: "Novo", status: "aguardando_atendimento" }))] },
@@ -416,12 +416,63 @@ describe("buildFilaUnica — fontes e resumo", () => {
       vencidos: 1,
       hoje: 1,
       semProximoPasso: 2,
-      slaCorrendo: 7,
+      // Era `counts.novos` (7). Desde a base em formação os novos em D1/D2/D3
+      // são da Fila do Dia da cadência, e a contagem do banco os inclui —
+      // somá-los aqui prometeria cards que esta tela não tem.
+      slaCorrendo: 1,
       fundoParado: 0,
       // 6 novos além do card + 12 esfriando sem card algum.
       ocultosInbox: 18,
       emJogo: 0,
     });
+  });
+
+  it("base em formação: lead em D1/D2/D3 sai da fila — novos, régua e sem próximo passo", () => {
+    // É trabalhado na Fila do Dia da cadência. Aqui ele seria uma segunda
+    // ordem sobre o mesmo cliente — e, no balde "sem próximo passo", uma
+    // acusação errada: a cadência não escreve passo, por desenho.
+    const extras = new Map<string, LeadExtras>([
+      ["n1", { cadencia_etapa: "D1" }],
+      ["r1", { cadencia_etapa: "D2" }],
+      ["s1", { cadencia_etapa: "D3" }],
+      ["n2", { cadencia_etapa: "respondeu" }],
+    ]);
+    const fila = buildFilaUnica({
+      inbox: inbox({
+        novos: [
+          item(lead({ id: "n1", nome: "Em D1", status: "aguardando_atendimento" })),
+          item(lead({ id: "n2", nome: "Já respondeu", status: "em_atendimento" })),
+        ],
+      }),
+      regua: regua([toque({ id: "r1", nome: "Em D2" })]),
+      semAcao: [semAcao({ id: "s1", nome: "Em D3" })],
+      extras,
+      agora,
+    });
+    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Já respondeu"]);
+    expect(fila.resumo.semProximoPasso).toBe(0);
+  });
+
+  it("base em formação: cliente que ESCREVEU aparece mesmo em D1 — resposta não se esconde", () => {
+    const fila = buildFilaUnica({
+      inbox: inbox({ responder: [item(lead({ id: "w", nome: "Escreveu" }))] }),
+      regua: null,
+      semAcao: [],
+      extras: new Map([["w", { cadencia_etapa: "D1" }]]),
+      agora,
+    });
+    expect(fila.itens.map((i) => i.lead.nome)).toEqual(["Escreveu"]);
+  });
+
+  it("base em formação: sem o enriquecimento (ainda carregando) nada é escondido", () => {
+    // Não saber a etapa não é motivo para sumir com um lead da tela.
+    const fila = buildFilaUnica({
+      inbox: inbox({ novos: [item(lead({ id: "n", nome: "Novo", status: "novo" }))] }),
+      regua: null,
+      semAcao: [],
+      agora,
+    });
+    expect(fila.itens).toHaveLength(1);
   });
 
   it("sem próximo passo: o item não herda prazo nem ação sugerida", () => {

@@ -90,6 +90,8 @@ const extrasRowSchema = z.object({
   faixa_mcmv: z.string().nullable().optional(),
   decisor: z.string().nullable().optional(),
   tipo_renda: z.string().nullable().optional(),
+  // Base em formação: D1/D2/D3 saem desta fila (ver `emFormacao`).
+  cadencia_etapa: z.string().nullable().optional(),
   // O projeto de interesse embutido: o preço de tabela vira o "dinheiro em
   // jogo" do card; sob consulta, não há número honesto.
   projeto: z
@@ -127,7 +129,7 @@ async function carregarExtras(ids: string[]): Promise<Map<string, LeadExtras>> {
       const { data, error } = await supabase
         .from("leads")
         .select(
-          "id, created_at, ultimo_contato, projeto_nome, corretor_id, faixa_mcmv, decisor, tipo_renda, projeto:projetos!leads_projeto_id_fkey(preco_a_partir, sob_consulta)",
+          "id, created_at, ultimo_contato, projeto_nome, corretor_id, faixa_mcmv, decisor, tipo_renda, cadencia_etapa, projeto:projetos!leads_projeto_id_fkey(preco_a_partir, sob_consulta)",
         )
         .in("id", lote);
       if (error) throw error;
@@ -144,6 +146,7 @@ async function carregarExtras(ids: string[]): Promise<Map<string, LeadExtras>> {
       decisor: row.decisor ?? null,
       tipo_renda: row.tipo_renda ?? null,
       valor_projeto: valorDoProjeto(row.projeto),
+      cadencia_etapa: row.cadencia_etapa ?? null,
     });
   }
   return mapa;
