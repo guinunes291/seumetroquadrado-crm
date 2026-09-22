@@ -11,6 +11,14 @@ import { z } from "zod";
 
 const optStr = (max = 2000) => z.string().trim().max(max).optional().nullable();
 
+/** Teto de respostas livres guardadas por lead — evita observação gigante. */
+export const MAX_CAMPOS_EXTRAS = 15;
+const MAX_LABEL_EXTRA = 120;
+const MAX_VALOR_EXTRA = 300;
+const PREFIXO_EXTRA = "extra_";
+
+export type CampoExtra = { label: string; valor: string };
+
 export const ORIGENS_LEAD = [
   "facebook",
   "google_sheets",
@@ -72,6 +80,13 @@ export const payloadSchema = z.object({
   motivoHandoff: z.enum(["analise", "visita", "humano"]).optional().nullable(),
   aceitouAnalise: z.boolean().optional().nullable(),
   aceitouVisita: z.boolean().optional().nullable(),
+  // Respostas livres do formulário da campanha (Meta Lead Ads). Cada campanha
+  // tem perguntas próprias; o schema não pode conhecê-las de antemão, então
+  // chegam como pares rótulo/valor já normalizados (ver extrairCamposExtras).
+  camposExtras: z
+    .array(z.object({ label: z.string(), valor: z.string() }))
+    .max(MAX_CAMPOS_EXTRAS)
+    .optional(),
 });
 
 export type PayloadLead = z.infer<typeof payloadSchema>;
@@ -135,10 +150,109 @@ export function normalizarPayloadExterno(body: unknown): unknown {
     else if (v === "false") b[campo] = false;
   }
 
+  // Respostas livres do formulário: objeto `camposExtras` e/ou chaves
+  // `extra_<pergunta>` de primeiro nível (forma que o Zapier monta sem JSON
+  // aninhado). As chaves cruas saem do body para não poluir o validado.
+  const extras = extrairCamposExtras(b);
+  for (const chave of Object.keys(b)) {
+    if (chave.startsWith(PREFIXO_EXTRA)) delete b[chave];
+  }
+  if (extras.length) b.camposExtras = extras;
+  else delete b.camposExtras;
+
   return b;
+}
+
+/** "investimento_para_renda" → "Investimento para renda" (valor raw do Meta). */
+function humanizarValor(v: string): string {
+  const t = v.trim();
+  if (!t) return t;
+  // Só mexe em valor claramente "raw": sem espaços e com underline.
+  if (!/_/.test(t) || /\s/.test(t)) return t;
+  const s = t.replace(/_/g, " ").trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function valorExtra(v: unknown): string | null {
+  if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  if (typeof v !== "string") return null;
+  const t = humanizarValor(v).trim();
+  return t ? t.slice(0, MAX_VALOR_EXTRA) : null;
+}
+
+/**
+ * Junta `camposExtras` (objeto pergunta→resposta) com as chaves `extra_*`
+ * num único array normalizado. Não lança: entrada esquisita vira lista vazia.
+ */
+export function extrairCamposExtras(body: unknown): CampoExtra[] {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return [];
+  const b = body as Record<string, unknown>;
+  const out: CampoExtra[] = [];
+  const vistos = new Set<string>();
+
+  const push = (labelBruto: unknown, valorBruto: unknown) => {
+    if (out.length >= MAX_CAMPOS_EXTRAS) return;
+    const label = typeof labelBruto === "string" ? labelBruto.trim().slice(0, MAX_LABEL_EXTRA) : "";
+    const valor = valorExtra(valorBruto);
+    if (!label || !valor) return;
+    const chave = label.toLowerCase();
+    if (vistos.has(chave)) return;
+    vistos.add(chave);
+    out.push({ label, valor });
+  };
+
+  const obj = b.camposExtras;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      if (item && typeof item === "object") {
+        const i = item as Record<string, unknown>;
+        push(i.label ?? i.pergunta, i.valor ?? i.resposta);
+      }
+    }
+  } else if (obj && typeof obj === "object") {
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) push(k, v);
+  }
+
+  for (const [k, v] of Object.entries(b)) {
+    if (k.startsWith(PREFIXO_EXTRA)) push(k.slice(PREFIXO_EXTRA.length), v);
+  }
+
+  return out;
+}
+
+/** Bloco legível das respostas do formulário (observações, nota e WhatsApp). */
+export function blocoCamposExtras(
+  extras: CampoExtra[] | undefined | null,
+  titulo = "📝 Respostas do formulário:",
+): string | null {
+  if (!extras?.length) return null;
+  return [titulo, ...extras.map((e) => `• ${e.label}: ${e.valor}`)].join("\n");
 }
 
 /** Normaliza e valida em um passo — o que o route usa. */
 export function validarPayloadLead(body: unknown) {
   return payloadSchema.safeParse(normalizarPayloadExterno(body));
+}
+
+/**
+ * Bloco das respostas livres para a notificação do corretor no WhatsApp.
+ * Inclui "Finalidade" só quando ela não veio repetida nos extras — a mesma
+ * informação duas vezes na mensagem confunde na hora da ligação.
+ */
+export function blocoObservacoesCorretor(
+  extras: CampoExtra[] | undefined | null,
+  finalidadeImovel?: string | null,
+): string | null {
+  const linhas = (extras ?? []).map((e) => `• ${e.label}: ${e.valor}`);
+  const fin = finalidadeImovel?.trim() || null;
+  if (fin) {
+    const jaTem = (extras ?? []).some(
+      (e) =>
+        e.valor.trim().toLowerCase() === fin.toLowerCase() ||
+        e.label.toLowerCase().includes("finalidade"),
+    );
+    if (!jaTem) linhas.push(`• Finalidade: ${fin}`);
+  }
+  if (!linhas.length) return null;
+  return ["📝 *Observações:*", ...linhas].join("\n");
 }
