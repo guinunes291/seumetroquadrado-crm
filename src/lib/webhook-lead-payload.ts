@@ -72,6 +72,13 @@ export const payloadSchema = z.object({
   motivoHandoff: z.enum(["analise", "visita", "humano"]).optional().nullable(),
   aceitouAnalise: z.boolean().optional().nullable(),
   aceitouVisita: z.boolean().optional().nullable(),
+  // Respostas livres do formulário da campanha (Meta Lead Ads). Cada campanha
+  // tem perguntas próprias; o schema não pode conhecê-las de antemão, então
+  // chegam como pares rótulo/valor já normalizados (ver extrairCamposExtras).
+  camposExtras: z
+    .array(z.object({ label: z.string(), valor: z.string() }))
+    .max(MAX_CAMPOS_EXTRAS)
+    .optional(),
 });
 
 export type PayloadLead = z.infer<typeof payloadSchema>;
