@@ -378,6 +378,19 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           });
         }
 
+        // Respostas livres do formulário na timeline, separadas da nota da IA:
+        // é dado dito pelo cliente, não inferência do robô.
+        if (blocoExtras) {
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: lead.id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Respostas do formulário",
+            conteudo: blocoExtras,
+            metadata: { fonte: "webhook_lead", camposExtras: data.camposExtras ?? [] },
+          });
+        }
+
         // Enriquecimento de contato do corretor para a resposta (formato preservado).
         let corretorNome: string | null = null;
         let corretorTelefone: string | null = null;
