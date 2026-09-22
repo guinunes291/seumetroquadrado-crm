@@ -248,6 +248,15 @@ correta — o custo é que os `COMMENT ON FUNCTION` no banco ficaram com o texto
 curto das cópias. Mexer no journal de migrations já aplicadas para arrumar
 comentário não se paga; fica registrado para não virar arqueologia.
 
+## Base em formação (22/09/2026)
+
+Lead em D1/D2/D3 deixou de ocupar vaga da carteira de 65: é a **base em
+formação**, trabalhada na Fila do Dia. Só o que avança de fase ou agenda para
+frente sobe para os 65. Junto veio a correção de um defeito desta cadência: o
+lead que avançava **pela ficha** (visita agendada, tarefa, perda) continuava em
+D1 e o motor de vencidos o mandava para a roleta. Desenho completo em
+`docs/ops/carteira-ativa-40-fatia3.md` §11.
+
 ## Pontos que continuam em aberto
 
 - **Sincronização do espelho.** Por que `estagio_funil` mostra 3.029 leads como

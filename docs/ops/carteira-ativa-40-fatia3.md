@@ -652,6 +652,164 @@ Conferido do zero: 207 migrations aplicadas num Postgres 16 real,
 `test:db` 33 arquivos / 521 testes, `test` 179 arquivos / 1.770 testes,
 `lint:ci` e `typecheck` limpos.
 
+## 11. Base em formação: a cadência sai dos 65 (22/09/2026)
+
+Decisão do dono, depois da cadência D1/D2/D3 entrar em produção:
+
+> A carteira de 65 do corretor deve ter apenas leads avançados e realmente
+> tratados. Os toques de cadência entram numa **base em formação**; vai para a
+> base dos 65 apenas o que avançar de fase ou agendar para frente.
+
+Migration `20260925120000_carteira_base_em_formacao` (Drizzle `0008`).
+
+### 11.1 Três estados, não dois
+
+Até aqui um lead com dono era **carteira** (ocupa vaga) ou **Reserva** (fora,
+esperando). A cadência criou um terceiro que não é nenhum dos dois:
+
+| Estado       | Quem                                           | Ocupa os 65 | Onde se trabalha          |
+| ------------ | ---------------------------------------------- | :---------: | ------------------------- |
+| **Carteira** | fundo, resgate, conversa (respondeu ou passo)  |     sim     | Fila Única (`/fila`)      |
+| **Formação** | D1/D2/D3 da cadência                           |     não     | Fila do Dia (`/cadencia`) |
+| **Reserva**  | o resto — saiu da carteira, pode ser resgatado |     não     | Reserva (`/reserva`)      |
+
+Formação não é Reserva porque o lead **não saiu de ninguém**: está sendo
+trabalhado todo dia, com prazo. Aparecer na Reserva convidaria o corretor a
+"resgatar" quem ele já está trabalhando.
+
+A invariante de §9 muda de forma e continua de pé: carteira, formação e
+Reserva **particionam** os leads vivos — nenhum some, nenhum aparece em duas.
+
+### 11.2 A faixa `sla` deixou de existir
+
+A faixa C (§2.2, "novos do SLA: chegaram há até 72 h") **era** a população que
+a cadência passou a governar: lead novo entra em D1 pelo gatilho de
+atribuição. Medido no harness antes da mudança:
+
+```
+lead novo da roleta:  cadencia_etapa=D1  faixa=sla  ativa=true
+```
+
+O lead que ninguém ainda conseguiu falar ocupava uma vaga de quem está em
+negociação. A faixa saiu; a precedência ficou `fundo > formação > resgate >
+conversa > reserva`.
+
+### 11.3 A porta de entrada é da formação
+
+`carteira_vagas_entrada_v1` passa a ser:
+
+1. **0 se a carteira de 65 está cheia.** O princípio de §2.3 continua: quem
+   responde na formação SOBE para os 65, e mandar lead novo para uma carteira
+   cheia é garantir que a resposta dele não tenha vaga.
+2. Senão, **`cap_formacao` − em formação.**
+
+`cap_formacao` herda o número de `cap_sla` (20) — é a mesma população com
+outro nome, e herdar evita um número novo. Se o admin tinha ajustado `cap_sla`,
+o ajuste veio junto.
+
+Efeito medido no teste da roleta: um corretor vazio recebe 20 leads e a porta
+fecha, como antes. A diferença é o que sobra: antes, **45** vagas nos 65;
+agora, **65** — os 20 estão em formação.
+
+### 11.4 🔴 O furo que a regra fechou: a cadência não sabia que o lead avançou
+
+A única saída da cadência para a qualificação era o botão "Cliente respondeu".
+Se o corretor agendava a visita **pela ficha**, o status ia para `agendado` e
+`cadencia_etapa` continuava em D1. Quando o prazo vencia, `cadencia_vencidos`
+tirava o corretor e voltava o status para `aguardando_corretor` — apagando o
+agendamento e entregando o cliente a outro. É o oposto de §4.1.
+
+"Avançou" passou a ter uma definição só, a mesma de "tem próximo passo":
+
+| Porta                                                             | Gatilho                  |
+| ----------------------------------------------------------------- | ------------------------ |
+| status sai da prospecção (`novo`/`aguardando_*` → qualquer outro) | BEFORE UPDATE em `leads` |
+| próximo passo escrito no lead (`transicionar_lead`)               | o mesmo                  |
+| tarefa com vencimento futuro                                      | AFTER em `tarefas`       |
+| agendamento futuro                                                | AFTER em `agendamentos`  |
+
+Três decisões dentro disso:
+
+- **Tarefa automática não conta.** Não é compromisso do corretor com o
+  cliente. Um gatilho de follow-up automático existiu até `20260708155905`; se
+  voltar, a cadência não pode encerrar em massa. A exceção cobre também o
+  espelho `proximo_followup`, que `sync_proximo_followup` preenche a partir de
+  tarefas automáticas.
+- **Transição, não estado.** `em_atendimento` é estado legítimo em cadência (o
+  estoque da Fase 0 entra nele). Mover `novo → em_atendimento` pela ficha é
+  avançar. O gatilho olha a transição; a correção retroativa olha o estado.
+- **A saída automática não muda status.** O botão muda (`novo →
+em_atendimento`) porque o corretor DECLAROU a resposta. Aqui só se sabe que
+  há um passo agendado. A primeira versão mudava e a suíte pegou uma interação
+  `mudanca_status` que ninguém fez.
+
+A saída grava o **mesmo evento** do botão (`cadencia_etapa`, `de_estado` →
+`respondeu`) com `via` (`status`, `tarefa`, `agendamento`, `proximo_passo`).
+Sem isso, o painel da cadência subcontaria a resposta por etapa. Perda marcada
+pela ficha vai para `encerrado` e não conta como resposta.
+
+### 11.5 Quem mais acusava a formação
+
+A cadência não escreve próximo passo, por desenho. Pela regra geral, todo lead
+em cadência está "sem próximo passo" — e três leituras cobravam o corretor:
+
+- `regua_devolucao_candidatos_v1`: lead admitido pela Fase 0, antes do 1º
+  toque, era candidato `sem_passo` e ia ao **Bolsão no meio da cadência**
+  (reproduzido no harness antes da mudança).
+- `fila_equipe_v1`: coluna "sem próximo passo" do gestor.
+- `carteira_stats_por_corretor_v1`: "sem passo vivo" e "ativa". Formação
+  passou a contar como **prospecção**, que é o que ela é.
+
+`lead_sem_proximo_passo` **não mudou** — é fonte única de três telas, e mudar o
+significado dela mudaria as três em silêncio. Quem mudou foram os consumidores.
+
+Na tela, a Fila Única deixou de mostrar lead em formação (exceto quando o
+cliente **escreveu** — resposta não se esconde) e ganhou uma linha com a
+contagem e o link para a Fila do Dia.
+
+### 11.6 A Fase 0 entra pela porta da formação
+
+A cota de admissão por corretor é o menor entre:
+
+- `lote_estoque_dia` — o ritmo escolhido pelo admin;
+- `cap_formacao_estoque` − em formação — **o estoque nunca passa da metade da
+  formação** (10 de 20). Estoque e roleta disputam as mesmas vagas, e um lead
+  pago que chegou agora vale mais que um parado há 20 dias;
+- `carteira_vagas_entrada_v1` — 0 com a carteira de 65 cheia.
+
+É isto que responde à pergunta dos **215 por corretor**
+(`docs/ops/cadencia-followup-reativacao.md`): o estoque entra na velocidade em
+que a formação se esvazia e nunca empurra os 65. A escolha de devolver parte
+dele ao Bolsão continua possível e continua sendo de operação.
+
+### 11.7 Correção dos que já tinham avançado
+
+`cadencia_corrigir_avancados()` roda dentro da migration e fica disponível ao
+admin. Tira da formação quem **já** estava avançado (status fora da janela ou
+passo vivo que não é tarefa automática) — os leads em risco na próxima
+execução de `cadencia_vencidos`. Idempotente. A migration imprime quantos
+corrigiu:
+
+```
+NOTICE: cadência: N lead(s) já avançados por status e M com passo combinado saíram da formação
+```
+
+### 11.8 Como foi conferido
+
+Postgres 16 com as 393 migrations aplicadas do zero: `test:db` 47 arquivos /
+685 testes. Suíte nova `tests/db/carteira-formacao.test.ts` (18): cada teste
+de saída roda o motor de vencidos DEPOIS, com um lead de controle que **é**
+devolvido — sem ele, "não devolveu" poderia ser só "o motor não rodou".
+Checagem de mutação: sem os gatilhos, 5 dos 18 quebram.
+
+Oito arquivos antigos mudaram, em dois tipos, e cada mudança diz qual é:
+
+- **(a) a regra mudou** — testes da faixa `sla` e da vaga de entrada por SLA
+  foram reescritos para a formação;
+- **(b) o fixture mentia** — leads que modelam carteira em conversa ou estoque
+  parado nasciam em D1 pelo gatilho de atribuição; saem da cadência no
+  fixture, com o porquê escrito, para a suíte continuar medindo o que media.
+
 ## Leitura relacionada
 
 - `docs/ops/fila-unica-fatia1.md` — a Fila Única e o teto de 40 visual que

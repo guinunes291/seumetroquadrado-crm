@@ -133,6 +133,15 @@ beforeAll(async () => {
   await criarLead(c, { corretorId: null, status: "novo", projetoId: projeto });
 
   await comoSuperuser(c);
+  // Base em formação (20260925120000): `criarLead` com corretor põe o lead
+  // em D1. Os leads EM TRATATIVA deste fixture modelam carteira que já passou
+  // da cadência (em produção, sai ao avançar de fase ou ganhar passo) — o D1
+  // deles é artefato e mudaria o que a suíte mede.
+  await c.query(
+    `UPDATE public.leads
+        SET cadencia_etapa = NULL, cadencia_prazo_ts = NULL, cadencia_inicio_ts = NULL
+      WHERE cadencia_etapa IN ('D1','D2','D3') AND status = 'em_atendimento'`,
+  );
 });
 
 afterAll(async () => {

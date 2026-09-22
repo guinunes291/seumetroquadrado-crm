@@ -56,14 +56,16 @@ function reserva(motivo: string): LinhaReserva {
 describe("resumoCarteira", () => {
   it("conta ocupadas, vagas e o VGV em jogo (ignorando lead sem preço)", () => {
     const r = resumoCarteira(
-      [linha("fundo", 1, 250000), linha("conversa", 2, null), linha("sla", 3, 300000)],
+      [linha("fundo", 1, 250000), linha("resgate", 2, 300000), linha("conversa", 3, null)],
       40,
     );
     expect(r.ocupadas).toBe(3);
     expect(r.vagas).toBe(37);
     expect(r.estourou).toBe(false);
     expect(r.emJogo).toBe(550000);
-    expect(r.porFaixa).toEqual({ fundo: 1, resgate: 0, conversa: 1, sla: 1 });
+    // Sem `sla` desde a base em formação (20260925120000): o recém-chegado
+    // está em D1/D2/D3 da cadência, fora dos 65.
+    expect(r.porFaixa).toEqual({ fundo: 1, resgate: 1, conversa: 1 });
   });
 
   it("carteira acima do teto: vagas nunca fica negativo", () => {
@@ -133,8 +135,19 @@ describe("agrupamentos", () => {
   });
 
   it("a carteira agrupa por faixa na precedência, e faixa vazia não vira seção", () => {
-    const g = agruparPorFaixa([linha("sla", 3), linha("fundo", 1), linha("conversa", 2)]);
-    expect(g.map((x) => x.faixa)).toEqual(["fundo", "conversa", "sla"]);
+    const g = agruparPorFaixa([linha("conversa", 3), linha("fundo", 1), linha("resgate", 2)]);
+    expect(g.map((x) => x.faixa)).toEqual(["fundo", "resgate", "conversa"]);
     expect(g[0].itens[0].posicao).toBe(1);
+  });
+
+  it("faixa que não é dos 65 (formacao, ou sla de um banco antigo) não vira seção nem conta", () => {
+    // `carteira_ativa_v1` não devolve formação; se um banco antigo ainda
+    // devolver `sla`, a tela não inventa uma seção para ela — mas o lead
+    // continua contado em `ocupadas`, porque o banco disse que ocupa vaga.
+    const linhas = [linha("fundo", 1), linha("sla", 2), linha("formacao", 3)];
+    expect(agruparPorFaixa(linhas).map((x) => x.faixa)).toEqual(["fundo"]);
+    const r = resumoCarteira(linhas, 65);
+    expect(r.porFaixa).toEqual({ fundo: 1, resgate: 0, conversa: 0 });
+    expect(r.ocupadas).toBe(3);
   });
 });

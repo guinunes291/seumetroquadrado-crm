@@ -23,6 +23,7 @@ import type { LinhaCarteira, LinhaReserva } from "@/features/carteira-ativa/deri
 export const CARTEIRA_ATIVA_KEY = "carteira-ativa";
 export const CARTEIRA_RESERVA_KEY = "carteira-reserva";
 export const CARTEIRA_CONFIG_KEY = "carteira-config";
+export const CARTEIRA_FORMACAO_KEY = "carteira-formacao";
 
 /** Reexportado do módulo puro para quem já importava daqui — a definição (e
  *  a razão de ser única) está em `carteira-ativa/derive`. */
@@ -96,7 +97,7 @@ export function useCarteiraAtiva(corretorId?: string) {
   const { user } = useAuth();
   useRealtimeInvalidate(
     ["leads", "tarefas", "agendamentos", "interacoes"],
-    [[CARTEIRA_ATIVA_KEY], [CARTEIRA_RESERVA_KEY]],
+    [[CARTEIRA_ATIVA_KEY], [CARTEIRA_RESERVA_KEY], [CARTEIRA_FORMACAO_KEY]],
   );
   return useQuery({
     queryKey: [CARTEIRA_ATIVA_KEY, corretorId ?? user?.id],
@@ -110,6 +111,44 @@ export function useCarteiraAtiva(corretorId?: string) {
           });
           if (error) throw error;
           return parseCarteira(data);
+        },
+        () => null,
+      ),
+  });
+}
+
+const formacaoSchema = z.object({
+  em_formacao: z.number().int().nonnegative(),
+  cap_formacao: z.number().int().nonnegative(),
+  ocupadas: z.number().int().nonnegative(),
+  teto: z.number().int().positive(),
+  vagas_entrada: z.number().int().nonnegative(),
+});
+
+/** O placar da base em formação (`carteira_formacao_v1`, 20260925120000):
+ *  quem está em D1/D2/D3 da cadência — FORA dos 65 — e quantos leads novos
+ *  ainda cabem. */
+export type PlacarFormacao = z.infer<typeof formacaoSchema>;
+
+export function parseFormacao(input: unknown): PlacarFormacao {
+  return formacaoSchema.parse(input);
+}
+
+/** Banco sem a migration devolve null: a tela omite a linha, nunca mostra 0. */
+export function useCarteiraFormacao(corretorId?: string) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: [CARTEIRA_FORMACAO_KEY, corretorId ?? user?.id],
+    enabled: !!user,
+    staleTime: 30_000,
+    queryFn: () =>
+      rpcWithFallback<PlacarFormacao | null>(
+        async () => {
+          const { data, error } = await rpc("carteira_formacao_v1", {
+            _corretor: corretorId ?? null,
+          });
+          if (error) throw error;
+          return parseFormacao(data);
         },
         () => null,
       ),

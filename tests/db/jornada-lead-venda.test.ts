@@ -431,18 +431,28 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       { de: "analise_credito", para: "contrato_fechado" },
     ]);
 
-    // Trilha de lead_eventos: 4 transições via RPC + 1 efetivacao_venda
-    // (marcos ligados no passo 9) + 1 venda_aprovada.
+    // Trilha de lead_eventos: 4 transições via RPC + 1 saída da cadência +
+    // 1 efetivacao_venda (marcos ligados no passo 9) + 1 venda_aprovada.
     // (A atribuição inicial novo->aguardando_atendimento é do motor de
     // distribuição, que loga em distribution_log, não em lead_eventos; o
     // fechamento pela venda gera 'venda_aprovada', não 'transicao_lead'.)
+    // Desempate explícito: a saída da cadência nasce na MESMA transação da
+    // transição que a causou, com o mesmo `created_at`. Sem ele a ordem dos
+    // dois varia entre execuções.
     const eventos = await c.query(
       `SELECT tipo, payload->>'de_status' AS de, payload->>'para_status' AS para
-         FROM public.lead_eventos WHERE lead_id = $1 ORDER BY created_at`,
+         FROM public.lead_eventos WHERE lead_id = $1
+        ORDER BY created_at, (tipo = 'cadencia_etapa')`,
       [leadId],
     );
     expect(eventos.rows).toEqual([
       { tipo: "transicao_lead", de: "aguardando_atendimento", para: "em_atendimento" },
+      // Base em formação (20260925120000): a atribuição pôs o lead em D1, e o
+      // passo 3 (corretor inicia o atendimento pela ficha) é avançar de fase —
+      // o lead sai da cadência para a carteira. Sem esta saída ele chegaria em
+      // `agendado` ainda em D1, e `cadencia_vencidos` o devolveria à roleta no
+      // meio da venda.
+      { tipo: "cadencia_etapa", de: null, para: null },
       { tipo: "transicao_lead", de: "em_atendimento", para: "agendado" },
       { tipo: "transicao_lead", de: "agendado", para: "visita_realizada" },
       { tipo: "transicao_lead", de: "visita_realizada", para: "analise_credito" },
@@ -450,7 +460,21 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       { tipo: "venda_aprovada", de: null, para: null },
     ]);
 
+    const saida = await c.query(
+      `SELECT l.cadencia_etapa,
+              e.payload->>'de_estado' AS de, e.payload->>'para_estado' AS para,
+              e.payload->>'via' AS via
+         FROM public.leads l
+         JOIN public.lead_eventos e ON e.lead_id = l.id AND e.tipo = 'cadencia_etapa'
+        WHERE l.id = $1`,
+      [leadId],
+    );
+    expect(saida.rows).toEqual([
+      { cadencia_etapa: "respondeu", de: "D1", para: "respondeu", via: "status" },
+    ]);
+
     // Cada transição também vira uma interação 'mudanca_status' no histórico.
+    // A saída da cadência NÃO muda status, então não soma aqui.
     const interacoes = await c.query(
       `SELECT count(*)::int AS n FROM public.interacoes
         WHERE lead_id = $1 AND tipo = 'mudanca_status'`,

@@ -51,6 +51,7 @@ import {
   TETO_PADRAO,
   useCarteiraAtiva,
   useCarteiraConfig,
+  useCarteiraFormacao,
 } from "@/features/carteira-ativa/use-carteira";
 import { FilaFunil } from "@/features/fila-unica/fila-funil";
 import { FilaRegras } from "@/features/fila-unica/fila-regras";
@@ -177,6 +178,11 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   // anel volta ao comportamento anterior — nunca um zero inventado.
   const carteiraQ = useCarteiraAtiva(alvo);
   const configQ = useCarteiraConfig();
+  // Base em formação: os leads em D1/D2/D3 ficam FORA do anel e desta lista —
+  // são da Fila do Dia da cadência. A linha abaixo do placar diz quantos são,
+  // para ninguém achar que o lead novo sumiu.
+  const formacaoQ = useCarteiraFormacao(alvo);
+  const emFormacao = formacaoQ.data?.em_formacao ?? 0;
   const carteira = carteiraQ.data
     ? (() => {
         const r = resumoCarteira(carteiraQ.data, configQ.data?.teto ?? TETO_PADRAO);
@@ -391,6 +397,29 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
             {/* O funil das etapas do mockup: leitura própria (fila_funil_v1),
                 fechado no celular para a lista vir primeiro. */}
             <FilaFunil id="funil" corretorId={alvo ?? null} />
+
+            {emFormacao > 0 && (
+              <p
+                className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground"
+                data-testid="fila-em-formacao"
+              >
+                <Timer className="h-4 w-4 text-primary" />
+                <span>
+                  {emFormacao === 1
+                    ? "1 lead na base em formação"
+                    : `${emFormacao} leads na base em formação`}{" "}
+                  — fora dos {carteira?.teto ?? TETO_PADRAO}, até avançar.
+                </span>
+                {!outro && (
+                  <Link
+                    to="/cadencia"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    Abrir a Fila do Dia
+                  </Link>
+                )}
+              </p>
+            )}
 
             {fila.resumo.slaCorrendo > 0 && (
               <p className="hidden items-center gap-2 text-xs text-muted-foreground md:flex">

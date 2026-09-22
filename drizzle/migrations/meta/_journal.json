@@ -57,6 +57,13 @@
       "when": 1790111051642,
       "tag": "0007_cadencia_painel",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790116579648,
+      "tag": "0008_carteira_base_em_formacao",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,12 @@
  *
  * Isso importa porque a Reserva é de onde a régua de devolução tira lead: com a
  * faixa errada, a varredura devolveria leads que o corretor de fato agendou.
+ *
+ * Base em formação (20260925120000): os leads desta suíte são leads de
+ * carteira EM CONVERSA, e em produção já teriam saído da cadência ao ganhar
+ * passo. O fixture desliga os gatilhos (replica) para montar as tarefas, então
+ * a saída é aplicada à mão. A exceção é `novo_recente`, que era o caso da
+ * faixa `sla` e agora é o da formação.
  */
 import { beforeAll, describe, expect, it } from "vitest";
 import {
@@ -61,6 +67,12 @@ beforeAll(async () => {
   const novoVelho = await mk("novo_velho", "novo");
 
   await comoSuperuser(c);
+  await c.query(
+    `UPDATE public.leads
+        SET cadencia_etapa = NULL, cadencia_prazo_ts = NULL, cadencia_inicio_ts = NULL
+      WHERE corretor_id = $1 AND id <> $2`,
+    [corretor.id, novoRecente],
+  );
   await c.query(`SET session_replication_role = replica`);
   await c.query(`DELETE FROM public.tarefas`);
   // Todos tocados há 2 dias: dentro da janela de conversa (7 dias), então o que
@@ -135,11 +147,14 @@ describe("a faixa conversa", () => {
 });
 
 describe("as outras faixas não mudaram", () => {
-  it("fundo e sla continuam como eram", async () => {
+  it("o fundo continua como era; o recém-chegado está em formação, fora dos 65", async () => {
     const f = await faixas();
     expect(f.get("agendado")?.faixa).toBe("fundo");
     expect(f.get("agendado")?.ativa).toBe(true);
-    expect(f.get("novo_recente")?.faixa).toBe("sla");
+    // Era `sla` antes de 20260925120000. Agora está na cadência, que é onde
+    // o lead que ninguém ainda conseguiu falar é trabalhado.
+    expect(f.get("novo_recente")?.faixa).toBe("formacao");
+    expect(f.get("novo_recente")?.ativa).toBe(false);
     expect(f.get("novo_velho")?.faixa).toBe("reserva");
   });
 });
@@ -166,6 +181,10 @@ describe("o espelho proximo_followup", () => {
     expect(await (async () => (await faixas()).get("followup_na_mao")?.faixa)()).toBe("conversa");
     const r = await c.query(`SELECT public.lead_sem_proximo_passo($1) AS v`, [id]);
     expect(r.rows[0].v).toBe(false);
+    // O lead nasceu em D1 (gatilho de atribuição). Escrever o passo no lead
+    // é "agendar para frente": ele saiu da cadência sozinho, pelo gatilho.
+    const e = await c.query(`SELECT cadencia_etapa FROM public.leads WHERE id = $1`, [id]);
+    expect(e.rows[0].cadencia_etapa).toBe("respondeu");
   });
 });
 
