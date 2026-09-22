@@ -95,7 +95,11 @@ async function chamar<T>(nome: string, args: Record<string, unknown>, schema: z.
 }
 
 export function fetchPainelCorretores(de?: string, ate?: string): Promise<LinhaCorretor[]> {
-  return chamar("cadencia_painel_corretores", { _de: de ?? null, _ate: ate ?? null }, corretorSchema);
+  return chamar(
+    "cadencia_painel_corretores",
+    { _de: de ?? null, _ate: ate ?? null },
+    corretorSchema,
+  );
 }
 
 export function fetchPainelEtapas(de?: string, ate?: string): Promise<LinhaEtapa[]> {
@@ -152,5 +156,8 @@ export async function admitirEstoque(
 export async function desfazerLote(loteId: string): Promise<number> {
   const { data, error } = await rpc("cadencia_fase0_desfazer", { _lote: loteId });
   if (error) throw error;
-  return z.number().int().parse(data ?? 0);
+  return z
+    .number()
+    .int()
+    .parse(data ?? 0);
 }
