@@ -1,29 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { blocoCamposExtras, validarPayloadLead } from "@/lib/webhook-lead-payload";
-import type { CampoExtra } from "@/lib/webhook-lead-payload";
-
-/**
- * Bloco das respostas livres do formulário para a notificação do corretor.
- * Inclui "Finalidade" só quando ela não veio repetida nos extras — a mesma
- * informação duas vezes na mensagem confunde na hora da ligação.
- */
-export function blocoObservacoesCorretor(
-  extras: CampoExtra[] | undefined | null,
-  finalidadeImovel?: string | null,
-): string | null {
-  const linhas = (extras ?? []).map((e) => `• ${e.label}: ${e.valor}`);
-  const fin = finalidadeImovel?.trim() || null;
-  if (fin) {
-    const jaTem = (extras ?? []).some(
-      (e) =>
-        e.valor.trim().toLowerCase() === fin.toLowerCase() ||
-        e.label.toLowerCase().includes("finalidade"),
-    );
-    if (!jaTem) linhas.push(`• Finalidade: ${fin}`);
-  }
-  if (!linhas.length) return null;
-  return ["📝 *Observações:*", ...linhas].join("\n");
-}
+import {
+  blocoCamposExtras,
+  blocoObservacoesCorretor,
+  validarPayloadLead,
+} from "@/lib/webhook-lead-payload";
 
 function mapTemperatura(t: string | null | undefined): "quente" | "morno" | "frio" | null {
   if (!t) return null;
