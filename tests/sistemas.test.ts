@@ -31,6 +31,8 @@ describe("visibilidade por papel", () => {
   it("corretor vê os 8 sistemas, sem Configurações — o dia primeiro, a consulta depois", () => {
     // Regra dos 2 menus (2026-09-11): Comunicações saiu, Modo Visita entrou
     // como módulo — o dia do corretor segue com 5 cards.
+    // A cadência D1/D2/D3 (2026-09-21) NÃO abriu módulo: entrou como primeira
+    // seção de Follow-Up, porque é a janela pré-resposta do mesmo cliente.
     expect(ids(corretor)).toEqual([
       "central-comando",
       "prospeccao",
@@ -316,7 +318,8 @@ describe("sistemaAtivo (pathname + search)", () => {
 
   it("Cobertura do time do Follow-Up é só gestão", () => {
     const secoes = (ctx: PapelCtx) => secoesVisiveis(sistema("follow-up"), ctx).map((s) => s.id);
-    expect(secoes(corretor)).toEqual(["fila", "esgotados", "kpis"]);
+    // "cadencia" primeiro: é a janela pré-resposta, por onde o lead entra.
+    expect(secoes(corretor)).toEqual(["cadencia", "fila", "esgotados", "kpis"]);
     expect(secoes(gestor)).toContain("cobertura");
   });
 

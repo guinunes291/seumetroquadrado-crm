@@ -310,7 +310,7 @@ export const SISTEMAS: Sistema[] = [
     id: "follow-up",
     titulo: "Follow-Up",
     descricao:
-      "A régua dos 13 toques: quem tocar hoje, com mensagem pronta e contador por cliente.",
+      "As duas janelas do mesmo cliente: a cadência D1/D2/D3 até ele responder, a régua dos 13 toques depois disso.",
     icon: ArrowsClockwise,
     home: { to: "/follow-up" },
     // nav_pendencias.followups = tarefas de contato de hoje + vencidas — o
@@ -321,8 +321,22 @@ export const SISTEMAS: Sistema[] = [
     grupo: "operacao",
     secoes: [
       {
+        // A cadência é SEÇÃO do Follow-Up, e não módulo próprio, por duas
+        // razões que apontam para o mesmo lugar. A de identidade: a família
+        // de cores fecha em dez tons por decisão registrada em
+        // cores-modulo.ts, e um módulo novo exigiria um décimo primeiro. A de
+        // produto, que é a que importa: são duas janelas do MESMO cliente —
+        // a cadência até ele responder, a régua depois — e o corretor precisa
+        // ver que uma entrega na outra, não escolher entre duas.
+        // Primeira da lista porque é por onde o lead entra.
+        id: "cadencia",
+        label: "Cadência (lead novo)",
+        icon: ListChecks,
+        to: "/cadencia",
+      },
+      {
         id: "fila",
-        label: "Fila do dia",
+        label: "Régua (já respondeu)",
         icon: ArrowsClockwise,
         to: "/follow-up",
         badge: (b) => b.followups,

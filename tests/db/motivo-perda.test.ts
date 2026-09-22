@@ -79,11 +79,17 @@ describe("motivo_perda_sem_retrabalho", () => {
       "timing_adiou",
       "sem_perfil",
       "outro",
+      // Trazidas pela cadência D1/D2/D3 (20260921120000). Ver o mapeamento
+      // documento -> CRM no cabeçalho daquela migration: os demais motivos do
+      // documento já existiam com outro nome e NÃO viraram apelidos novos.
+      "sem_retorno_cadencia",
+      "numero_invalido",
+      "opt_out",
     ]) {
       expect(def, `categoria ${cat} sumiu do CHECK`).toContain(cat);
     }
-    // 11 categorias e nada além delas.
-    expect((def.match(/'/g) ?? []).length).toBe(22);
+    // 14 categorias e nada além delas.
+    expect((def.match(/'/g) ?? []).length).toBe(28);
   });
 
   it("NULL continua reciclável — lead sem categoria de perda não é excluído", async () => {
