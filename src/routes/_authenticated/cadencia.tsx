@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
-import { Lock } from "@phosphor-icons/react";
+import { ListChecks, Lock, UsersThree } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,6 +59,14 @@ function CadenciaPage() {
         <PageHeader
           title="Painel da cadência"
           description="Quem está devendo hoje, se o D3 se paga, como anda a reativação e se o motor rodou."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link to="/cadencia">
+                <ListChecks className="h-4 w-4" />
+                <span className="ml-1">Fila do Dia</span>
+              </Link>
+            </Button>
+          }
         />
         {loading ? (
           <AbaSkeleton />
@@ -79,11 +88,25 @@ function CadenciaPage() {
     );
   }
 
+  // O painel não é seção da sidebar (teto de 6 seções do Follow-Up): o botão
+  // no cabeçalho é a porta visível dele, e o ⌘K é o caminho curto. Fica aqui,
+  // e não num hub de BI, porque quem cobra o time entra pela mesma fila que
+  // está cobrando.
   return (
     <div className="space-y-4">
       <PageHeader
         title="Fila do Dia"
         description="Os leads cuja etapa vence hoje ou já venceu. Cumprir a cadência até o fim não conta como perda — deixar vencer, sim."
+        actions={
+          gestao ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/cadencia" search={{ tab: "painel" }}>
+                <UsersThree className="h-4 w-4" />
+                <span className="ml-1">Painel da cadência</span>
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
       <FilaCadenciaView />
     </div>

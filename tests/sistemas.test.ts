@@ -120,13 +120,19 @@ describe("visibilidade por papel", () => {
 
   it("SDR (2026-09-04): Modo Foco + Base de leads (carteira antiga), hub próprio e Docs", () => {
     // A Base de leads mudou de módulo (Carteira) na regra dos 2 menus, mas a
-    // superfície do SDR é a mesma de 2026-09-04: só Modo Foco e Base de leads
-    // — nada de Oferta Ativa, Discador, Kanban, Agenda ou Tarefas.
+    // superfície do SDR FORA do hub próprio é a mesma de 2026-09-04: só Modo
+    // Foco e Base de leads — nada de Oferta Ativa, Discador, Kanban, Agenda
+    // ou Tarefas.
     expect(ids(sdr)).toEqual(["prospeccao", "carteira", "sdr", "docs-projetos"]);
     expect(secoesVisiveis(sistema("prospeccao"), sdr).map((s) => s.id)).toEqual(["modo-foco"]);
     expect(secoesVisiveis(sistema("carteira"), sdr).map((s) => s.id)).toEqual(["base-leads"]);
+    // "reaativacao" entrou no hub em 2026-09-24, logo depois da Minha base: é
+    // a SAÍDA da cadência (cumpriu 7 toques, ninguém respondeu) e o trabalho
+    // dela é discagem, nunca carteira de corretor. O hub fica com as seis que
+    // o teto permite — não cabe uma sétima sem cortar outra.
     expect(secoesVisiveis(sistema("sdr"), sdr).map((s) => s.id)).toEqual([
       "base",
+      "reativacao",
       "reaquecer",
       "entregues",
       "agenda",
@@ -349,6 +355,21 @@ describe("sistemaAtivo (pathname + search)", () => {
         search: { tab: "pessoas" },
       })?.id,
     ).toBe("pessoas");
+  });
+
+  it("Painel da cadência é atalho, não seção — o Follow-Up já está no teto de 6", () => {
+    // O painel (2026-09-24) chegou num módulo que já tinha as seis seções que
+    // o teto permite, e "Config da régua" está fixada pelo teste abaixo. Em
+    // vez de esticar o teto, ele seguiu o padrão do corte de 2026-08-30:
+    // seção cortada vira atalho de ⌘K — com um botão no cabeçalho da própria
+    // Fila do Dia como porta visível.
+    const secoes = (ctx: PapelCtx) => secoesVisiveis(sistema("follow-up"), ctx).map((s) => s.id);
+    expect(secoes(admin)).not.toContain("cadencia-painel");
+    // A rota continua viva e dentro do módulo: sidebar do Follow-Up acesa.
+    expect(em("/cadencia", { tab: "painel" })).toBe("follow-up");
+    const atalho = ATALHOS_EXTRAS.find((a) => a.search?.tab === "painel" && a.to === "/cadencia");
+    expect(atalho, "o painel precisa ter porta em algum lugar").toBeDefined();
+    expect(atalho?.roles).toEqual(["admin", "gestor", "superintendente"]);
   });
 
   it("Config da régua é aba do Follow-Up (admin) — a régua se configura onde se opera", () => {
