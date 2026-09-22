@@ -186,11 +186,11 @@ depois de mover mil leads.
 
 O ensaio (`cadencia_fase0_classificar`, nada é movido) leu o estoque assim:
 
-| destino | leads |
-| --- | --- |
+| destino                                           | leads |
+| ------------------------------------------------- | ----- |
 | cadência (parados ≤ 30 dias + importação em lote) | 5.087 |
-| reativação (parados > 30 dias) | 191 |
-| encerrar (telefone suspeito / opt-out) | 8 |
+| reativação (parados > 30 dias)                    | 191   |
+| encerrar (telefone suspeito / opt-out)            | 8     |
 
 A carga única (`cadencia_fase0_executar('ativo')`) aplicou os dois últimos —
 199 leads, 199 aplicados. A admissão na cadência é gradual por decisão, em
@@ -219,7 +219,7 @@ não tem cron justamente para não decidir isto sozinha.
 `20260924120000` fecha o ciclo com a leitura do processo:
 
 - **Painel da cadência** (`/cadencia?tab=painel`, gestão): quem está devendo
-  hoje por corretor, taxa de resposta por etapa (denominador = quem *recebeu*
+  hoje por corretor, taxa de resposta por etapa (denominador = quem _recebeu_
   toque na etapa, não quem passou por ela), reativação, log do motor e a
   admissão do estoque com ensaio, histórico e desfazer.
 - **Reativação** (`/reativacao`, SDR + gestão): fila acionável priorizada e,
