@@ -147,11 +147,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             .maybeSingle();
 
           const mesmoProjeto = leadExistente?.projeto_id === projeto.id;
-          const conteudo = mesmoProjeto
+          const base = mesmoProjeto
             ? `Nova entrada pelo webhook (${data.origem}) — mesmo empreendimento.`
             : `Novo interesse registrado: ${projetoNomeInteresse}. ` +
               `Lead já em atendimento no projeto "${leadExistente?.projeto_nome ?? "?"}" — ` +
               `mantido o corretor atual, apenas registrado o novo interesse.`;
+          // O dono atual precisa ver as respostas novas do formulário.
+          const conteudo = blocoExtras ? `${base}\n\n${blocoExtras}` : base;
 
           await supabaseAdmin.from("interacoes").insert({
             lead_id: dupGlobal,
