@@ -811,6 +811,101 @@ export type Database = {
         }
         Relationships: []
       }
+      cadencia_execucao_log: {
+        Row: {
+          aplicado: boolean
+          corretor_id: string | null
+          created_at: string
+          detalhe: Json | null
+          etapa_de: string | null
+          etapa_para: string | null
+          id: string
+          job: string
+          lead_id: string
+          lote_id: string
+          modo: string
+          motivo: string
+        }
+        Insert: {
+          aplicado?: boolean
+          corretor_id?: string | null
+          created_at?: string
+          detalhe?: Json | null
+          etapa_de?: string | null
+          etapa_para?: string | null
+          id?: string
+          job: string
+          lead_id: string
+          lote_id: string
+          modo: string
+          motivo: string
+        }
+        Update: {
+          aplicado?: boolean
+          corretor_id?: string | null
+          created_at?: string
+          detalhe?: Json | null
+          etapa_de?: string | null
+          etapa_para?: string | null
+          id?: string
+          job?: string
+          lead_id?: string
+          lote_id?: string
+          modo?: string
+          motivo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cadencia_execucao_log_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cadencia_execucao_log_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       cadencia_tentativas: {
         Row: {
           canal: string
@@ -8087,6 +8182,20 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
       }
+      _cadencia_devolver_roleta: {
+        Args: { _corretor: string; _lead: string; _motivo: string }
+        Returns: boolean
+      }
+      _cadencia_encerrar_lead: {
+        Args: {
+          _corretor: string
+          _descricao: string
+          _etapa_final: string
+          _lead: string
+          _motivo_categoria: string
+        }
+        Returns: boolean
+      }
       _carteira_classificar: {
         Args: { _corretor: string }
         Returns: {
@@ -8773,6 +8882,55 @@ export type Database = {
         Returns: string
       }
       buscar_lead_por_telefone: { Args: { _telefone: string }; Returns: string }
+      cadencia_auditoria: {
+        Args: { _limite?: number }
+        Returns: {
+          achados: number
+          lote_id: string
+        }[]
+      }
+      cadencia_avancar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
+      cadencia_cumprida_100: { Args: { _lead: string }; Returns: boolean }
+      cadencia_encerrar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
+      cadencia_etapa_completa: {
+        Args: { _etapa: string; _lead: string }
+        Returns: boolean
+      }
+      cadencia_fim_do_dia: {
+        Args: { _mais_dias?: number; _quando?: string }
+        Returns: string
+      }
+      cadencia_horarios_tentados: { Args: { _lead: string }; Returns: Json }
+      cadencia_iniciar: { Args: { _lead: string }; Returns: boolean }
+      cadencia_prioridade_reativacao: {
+        Args: { _lead: string }
+        Returns: number
+      }
+      cadencia_vencidos: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
       carteira_ativa_config: { Args: never; Returns: Json }
       carteira_ativa_v1: {
         Args: { _corretor?: string }

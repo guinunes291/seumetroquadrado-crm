@@ -8,6 +8,13 @@
       "when": 1790098917649,
       "tag": "0000_cadencia_fundacao",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790099148971,
+      "tag": "0001_cadencia_motor",
+      "breakpoints": true
     }
   ]
 }
