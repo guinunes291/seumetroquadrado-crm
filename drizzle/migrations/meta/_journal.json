@@ -29,6 +29,13 @@
       "when": 1790100158475,
       "tag": "0003_cadencia_avanco_na_escrita",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790104657219,
+      "tag": "0004_cadencia_fase0_estoque",
+      "breakpoints": true
     }
   ]
 }
