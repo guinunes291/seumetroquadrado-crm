@@ -22,6 +22,13 @@
       "when": 1790099248148,
       "tag": "0002_cadencia_fila_reativacao",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790100158475,
+      "tag": "0003_cadencia_avanco_na_escrita",
+      "breakpoints": true
     }
   ]
 }

@@ -644,6 +644,116 @@ describe("cenários 10 a 12: reativação", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Avanço na escrita (20260922120000)
+// ---------------------------------------------------------------------------
+
+describe("avanço na escrita", () => {
+  it("fechar a etapa pela RPC avança o lead NA HORA, sem esperar a varredura", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.cadencia_config SET modo = 'ativo' WHERE id = 1`);
+    const lead = await leadEmCadencia();
+
+    await comoUsuario(c, corretor.id);
+    await c.query(`SELECT public.cadencia_registrar_tentativa($1,'ligacao','nao_atendeu')`, [lead]);
+    // A 2ª ligação precisa respeitar o intervalo mínimo, senão não conta.
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.cadencia_tentativas SET ts = ts - interval '10 minutes' WHERE lead_id = $1`,
+      [lead],
+    );
+    await comoUsuario(c, corretor.id);
+    await c.query(`SELECT public.cadencia_registrar_tentativa($1,'ligacao','nao_atendeu')`, [lead]);
+
+    const r = await c.query(
+      `SELECT public.cadencia_registrar_tentativa($1,'whatsapp','enviada') AS res`,
+      [lead],
+    );
+    expect(r.rows[0].res.etapa_completa).toBe(true);
+    expect(r.rows[0].res.etapa_nova).toBe("D2");
+
+    // Sem nenhuma chamada à varredura, o lead JÁ está em D2.
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D2");
+
+    // E o log registra que quem avançou foi a escrita, não o motor.
+    await comoSuperuser(c);
+    const log = await c.query(
+      `SELECT detalhe->>'origem' AS origem, aplicado FROM public.cadencia_execucao_log
+        WHERE lead_id = $1 AND job = 'avancar' ORDER BY created_at DESC LIMIT 1`,
+      [lead],
+    );
+    expect(log.rows[0].origem).toBe("escrita");
+    expect(log.rows[0].aplicado).toBe(true);
+  });
+
+  it("em modo SOMBRA a escrita registra a tentativa mas NÃO avança a etapa", async () => {
+    const lead = await leadEmCadencia(); // beforeEach deixa o modo em sombra
+    await fecharEtapa(lead, "D1", 0);
+
+    await comoUsuario(c, corretor.id);
+    // Uma tentativa a mais pela RPC, com a etapa já completa.
+    const r = await c.query(
+      `SELECT public.cadencia_registrar_tentativa($1,'whatsapp','enviada') AS res`,
+      [lead],
+    );
+    expect(r.rows[0].res.etapa_completa).toBe(true);
+    expect(r.rows[0].res.etapa_nova).toBeNull();
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D1");
+
+    // A sombra continua dizendo o que FARIA — é para isso que ela existe.
+    await comoSuperuser(c);
+    const log = await c.query(
+      `SELECT etapa_para, aplicado, modo FROM public.cadencia_execucao_log
+        WHERE lead_id = $1 AND job = 'avancar' ORDER BY created_at DESC LIMIT 1`,
+      [lead],
+    );
+    expect(log.rows[0]).toMatchObject({ etapa_para: "D2", aplicado: false, modo: "sombra" });
+  });
+
+  it("a varredura ainda pega quem fechou etapa FORA da tela (discador)", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.cadencia_config SET modo = 'ativo' WHERE id = 1`);
+    const lead = await leadEmCadencia();
+    // Tentativas que nunca passaram pela RPC: origem 'discador'.
+    await c.query(
+      `INSERT INTO public.cadencia_tentativas (lead_id, etapa, canal, resultado, ts, origem)
+       VALUES ($1,'D1','ligacao','nao_atendeu', now() - interval '3 hours','discador'),
+              ($1,'D1','ligacao','nao_atendeu', now() - interval '2 hours','discador'),
+              ($1,'D1','whatsapp','enviada',    now() - interval '1 hour', 'discador')`,
+      [lead],
+    );
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D1");
+
+    await c.query(`SELECT public.cadencia_avancar('ativo')`);
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D2");
+
+    const log = await c.query(
+      `SELECT detalhe->>'origem' AS origem FROM public.cadencia_execucao_log
+        WHERE lead_id = $1 AND job = 'avancar' ORDER BY created_at DESC LIMIT 1`,
+      [lead],
+    );
+    expect(log.rows[0].origem).toBe("motor");
+  });
+
+  it("escrita e varredura no mesmo lead não pulam duas etapas", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.cadencia_config SET modo = 'ativo' WHERE id = 1`);
+    const lead = await leadEmCadencia();
+    await fecharEtapa(lead, "D1", 0);
+
+    // A escrita avança para D2...
+    expect(
+      await c
+        .query(`SELECT public.cadencia_avancar_lead($1,'ativo',null,'escrita') AS e`, [lead])
+        .then((r) => r.rows[0].e),
+    ).toBe("D2");
+    // ...e a varredura logo atrás não encontra o que avançar (D2 está vazio).
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D2");
+    await c.query(`SELECT public.cadencia_avancar('ativo')`);
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D2");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // As duas travas que o aceite pede fora da tabela de cenários
 // ---------------------------------------------------------------------------
 
