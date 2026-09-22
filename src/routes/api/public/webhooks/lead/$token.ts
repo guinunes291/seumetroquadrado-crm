@@ -172,6 +172,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               utm_source: data.utm_source ?? null,
               utm_campaign: data.utm_campaign ?? null,
               faixaRenda: data.faixaRenda ?? null,
+              camposExtras: data.camposExtras ?? null,
             },
           });
 
