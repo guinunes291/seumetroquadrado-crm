@@ -11,6 +11,14 @@ import { z } from "zod";
 
 const optStr = (max = 2000) => z.string().trim().max(max).optional().nullable();
 
+/** Teto de respostas livres guardadas por lead — evita observação gigante. */
+export const MAX_CAMPOS_EXTRAS = 15;
+const MAX_LABEL_EXTRA = 120;
+const MAX_VALOR_EXTRA = 300;
+const PREFIXO_EXTRA = "extra_";
+
+export type CampoExtra = { label: string; valor: string };
+
 export const ORIGENS_LEAD = [
   "facebook",
   "google_sheets",
