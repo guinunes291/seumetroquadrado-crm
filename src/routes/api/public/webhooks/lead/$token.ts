@@ -1,5 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { validarPayloadLead } from "@/lib/webhook-lead-payload";
+import {
+  blocoCamposExtras,
+  blocoObservacoesCorretor,
+  validarPayloadLead,
+} from "@/lib/webhook-lead-payload";
 
 function mapTemperatura(t: string | null | undefined): "quente" | "morno" | "frio" | null {
   if (!t) return null;
@@ -117,6 +121,10 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           );
         }
         const data = parsed.data;
+        // Respostas livres do formulário da campanha (perguntas próprias de
+        // cada anúncio). Usadas nas observações, na timeline e no aviso ao
+        // corretor — é o que muda a abordagem da primeira ligação.
+        const blocoExtras = blocoCamposExtras(data.camposExtras);
 
         // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
         // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
@@ -143,11 +151,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             .maybeSingle();
 
           const mesmoProjeto = leadExistente?.projeto_id === projeto.id;
-          const conteudo = mesmoProjeto
+          const base = mesmoProjeto
             ? `Nova entrada pelo webhook (${data.origem}) — mesmo empreendimento.`
             : `Novo interesse registrado: ${projetoNomeInteresse}. ` +
               `Lead já em atendimento no projeto "${leadExistente?.projeto_nome ?? "?"}" — ` +
               `mantido o corretor atual, apenas registrado o novo interesse.`;
+          // O dono atual precisa ver as respostas novas do formulário.
+          const conteudo = blocoExtras ? `${base}\n\n${blocoExtras}` : base;
 
           await supabaseAdmin.from("interacoes").insert({
             lead_id: dupGlobal,
@@ -166,6 +176,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               utm_source: data.utm_source ?? null,
               utm_campaign: data.utm_campaign ?? null,
               faixaRenda: data.faixaRenda ?? null,
+              camposExtras: data.camposExtras ?? null,
             },
           });
 
@@ -179,6 +190,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const blocoQualif = montarBlocoQualificacao(data);
         const obsPartes = [
           data.observacoes?.trim() || null,
+          blocoExtras,
           resumo ? `📝 Resumo da qualificação (IA):\n${resumo}` : null,
           blocoQualif ? `📋 Dados de qualificação:\n${blocoQualif}` : null,
         ].filter(Boolean) as string[];
@@ -366,6 +378,19 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           });
         }
 
+        // Respostas livres do formulário na timeline, separadas da nota da IA:
+        // é dado dito pelo cliente, não inferência do robô.
+        if (blocoExtras) {
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: lead.id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Respostas do formulário",
+            conteudo: blocoExtras,
+            metadata: { fonte: "webhook_lead", camposExtras: data.camposExtras ?? [] },
+          });
+        }
+
         // Enriquecimento de contato do corretor para a resposta (formato preservado).
         let corretorNome: string | null = null;
         let corretorTelefone: string | null = null;
@@ -404,12 +429,14 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         if (distributed && corretorId && data.origem !== "chatbot") {
           const { enviarWhatsAppZapi } = await import("@/lib/zapi.server");
           const appBase = new URL(request.url).origin;
+          const blocoObs = blocoObservacoesCorretor(data.camposExtras, data.finalidadeImovel);
           const linhas = [
             "🔔 *Novo lead recebido!*",
             "",
             `👤 Nome: ${data.nome}`,
             `🏢 Empreendimento: ${projetoNomeFinal}`,
             ...(data.faixaRenda ? [`💰 Faixa de renda: ${data.faixaRenda}`] : []),
+            ...(blocoObs ? ["", blocoObs] : []),
             "",
             `Acesse: ${appBase}/leads/${lead.id}`,
           ];
@@ -419,7 +446,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               user_id: corretorId,
               tipo: "lead_novo",
               titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
-              mensagem: `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.`,
+              mensagem:
+                `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.` +
+                (blocoObs ? `\n\n${blocoObs}` : ""),
               link: `/leads/${lead.id}`,
               ref_id: lead.id,
             });
