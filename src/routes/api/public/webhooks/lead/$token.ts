@@ -121,6 +121,10 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           );
         }
         const data = parsed.data;
+        // Respostas livres do formulário da campanha (perguntas próprias de
+        // cada anúncio). Usadas nas observações, na timeline e no aviso ao
+        // corretor — é o que muda a abordagem da primeira ligação.
+        const blocoExtras = blocoCamposExtras(data.camposExtras);
 
         // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
         // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
