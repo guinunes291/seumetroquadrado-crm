@@ -429,12 +429,14 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         if (distributed && corretorId && data.origem !== "chatbot") {
           const { enviarWhatsAppZapi } = await import("@/lib/zapi.server");
           const appBase = new URL(request.url).origin;
+          const blocoObs = blocoObservacoesCorretor(data.camposExtras, data.finalidadeImovel);
           const linhas = [
             "🔔 *Novo lead recebido!*",
             "",
             `👤 Nome: ${data.nome}`,
             `🏢 Empreendimento: ${projetoNomeFinal}`,
             ...(data.faixaRenda ? [`💰 Faixa de renda: ${data.faixaRenda}`] : []),
+            ...(blocoObs ? ["", blocoObs] : []),
             "",
             `Acesse: ${appBase}/leads/${lead.id}`,
           ];
@@ -444,7 +446,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               user_id: corretorId,
               tipo: "lead_novo",
               titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
-              mensagem: `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.`,
+              mensagem:
+                `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.` +
+                (blocoObs ? `\n\n${blocoObs}` : ""),
               link: `/leads/${lead.id}`,
               ref_id: lead.id,
             });
