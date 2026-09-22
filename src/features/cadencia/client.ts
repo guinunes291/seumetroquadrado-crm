@@ -74,6 +74,10 @@ const registroSchema = z.object({
   tentativa_id: z.string().uuid(),
   etapa: etapaSchema,
   etapa_completa: z.boolean(),
+  /** Etapa para a qual o lead JÁ avançou nesta mesma chamada (20260922120000).
+   *  null quando a etapa não fechou — ou quando o motor está em sombra, que é
+   *  o caso em que a tentativa é gravada mas nada se move. */
+  etapa_nova: etapaSchema.nullable(),
   encerrado: z.boolean(),
 });
 

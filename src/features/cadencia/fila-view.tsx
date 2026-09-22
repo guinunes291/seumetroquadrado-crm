@@ -89,8 +89,13 @@ export function FilaCadenciaView() {
     onSuccess: (res) => {
       if (res.encerrado) {
         toast.success("Lead encerrado por número inválido.");
+      } else if (res.etapa_nova) {
+        toast.success(`Etapa ${res.etapa} completa — o lead já está em ${res.etapa_nova}.`);
       } else if (res.etapa_completa) {
-        toast.success(`Etapa ${res.etapa} completa — o motor avança o lead em instantes.`);
+        // Etapa fechada mas sem avanço: o motor está em sombra. Dizer "vai
+        // avançar" aqui seria prometer algo que não vai acontecer enquanto a
+        // chave não virar.
+        toast.success(`Etapa ${res.etapa} completa (motor em modo sombra).`);
       } else {
         toast.success("Ligação registrada.");
       }
@@ -104,9 +109,11 @@ export function FilaCadenciaView() {
       registrarWhatsApp(lead.id, templateId),
     onSuccess: (res) => {
       toast.success(
-        res.etapa_completa
-          ? `Etapa ${res.etapa} completa — o lead sai da fila de hoje.`
-          : "WhatsApp registrado.",
+        res.etapa_nova
+          ? `Etapa ${res.etapa} completa — o lead já está em ${res.etapa_nova}.`
+          : res.etapa_completa
+            ? `Etapa ${res.etapa} completa (motor em modo sombra).`
+            : "WhatsApp registrado.",
       );
       invalidar();
     },
