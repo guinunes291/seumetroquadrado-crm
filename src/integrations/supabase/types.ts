@@ -8950,6 +8950,15 @@ export type Database = {
           modo: string
         }[]
       }
+      cadencia_avancar_lead: {
+        Args: {
+          _lead: string
+          _lote?: string
+          _modo?: string
+          _origem?: string
+        }
+        Returns: string
+      }
       cadencia_cumprida_100: { Args: { _lead: string }; Returns: boolean }
       cadencia_encerrar: {
         Args: { _limite?: number; _modo?: string }
@@ -8963,6 +8972,37 @@ export type Database = {
       cadencia_etapa_completa: {
         Args: { _etapa: string; _lead: string }
         Returns: boolean
+      }
+      cadencia_fase0_admitir: {
+        Args: { _modo?: string; _por_corretor?: number }
+        Returns: {
+          admitidos: number
+          corretores: number
+          lote_id: string
+          modo: string
+        }[]
+      }
+      cadencia_fase0_classificar: {
+        Args: never
+        Returns: {
+          corretor_id: string
+          destino: string
+          dias_parado: number
+          escrita_lote: boolean
+          lead_id: string
+          motivo: string
+        }[]
+      }
+      cadencia_fase0_desfazer: { Args: { _lote: string }; Returns: number }
+      cadencia_fase0_executar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          destino: string
+          lote_id: string
+          modo: string
+        }[]
       }
       cadencia_fila_v1: {
         Args: { _corretor?: string; _take?: number }
