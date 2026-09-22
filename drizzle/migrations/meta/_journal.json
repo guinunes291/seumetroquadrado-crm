@@ -15,6 +15,13 @@
       "when": 1790099148971,
       "tag": "0001_cadencia_motor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790099248148,
+      "tag": "0002_cadencia_fila_reativacao",
+      "breakpoints": true
     }
   ]
 }

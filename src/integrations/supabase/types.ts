@@ -8089,6 +8089,58 @@ export type Database = {
         }
         Relationships: []
       }
+      v_reativacao_discador: {
+        Row: {
+          elegivel_em: string | null
+          empreendimento: string | null
+          entrou_em: string | null
+          faixa_renda: string | null
+          horarios_tentados: Json | null
+          id: string | null
+          lead_id: string | null
+          nome: string | null
+          prioridade: number | null
+          telefone: string | null
+          tentativas_reativacao: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "reativacao_fila_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       v_velocidade_corretor: {
         Row: {
           amostra: number | null
@@ -8912,15 +8964,36 @@ export type Database = {
         Args: { _etapa: string; _lead: string }
         Returns: boolean
       }
+      cadencia_fila_v1: {
+        Args: { _corretor?: string; _take?: number }
+        Returns: Json
+      }
       cadencia_fim_do_dia: {
         Args: { _mais_dias?: number; _quando?: string }
         Returns: string
       }
       cadencia_horarios_tentados: { Args: { _lead: string }; Returns: Json }
       cadencia_iniciar: { Args: { _lead: string }; Returns: boolean }
+      cadencia_marcar_respondeu: {
+        Args: {
+          _lead_id: string
+          _proxima_acao: string
+          _proximo_followup: string
+        }
+        Returns: Json
+      }
       cadencia_prioridade_reativacao: {
         Args: { _lead: string }
         Returns: number
+      }
+      cadencia_registrar_tentativa: {
+        Args: {
+          _canal: string
+          _lead_id: string
+          _resultado: string
+          _template_id?: string
+        }
+        Returns: Json
       }
       cadencia_vencidos: {
         Args: { _limite?: number; _modo?: string }
@@ -10480,6 +10553,15 @@ export type Database = {
           visitas: number
           whatsapps: number
         }[]
+      }
+      reativacao_desarquivar: { Args: { _lead_id: string }; Returns: boolean }
+      reativacao_marcar_reativado: {
+        Args: { _fila_id: string; _notas?: string }
+        Returns: Json
+      }
+      reativacao_marcar_sem_retorno: {
+        Args: { _fila_id: string }
+        Returns: Json
       }
       reativar_followup: { Args: { _lead_id: string }; Returns: undefined }
       recalcular_faixas_velocidade: {
