@@ -335,6 +335,16 @@ export const SISTEMAS: Sistema[] = [
         to: "/cadencia",
       },
       {
+        // Painel da cadência: mora ao lado da fila que ele mede, não num hub
+        // de BI. Gestão-only, mas quem cair por link vê recusa explicada.
+        id: "cadencia-painel",
+        label: "Painel da cadência",
+        icon: UsersThree,
+        to: "/cadencia",
+        search: { tab: "painel" },
+        roles: GESTAO,
+      },
+      {
         id: "fila",
         label: "Régua (já respondeu)",
         icon: ArrowsClockwise,
@@ -391,6 +401,14 @@ export const SISTEMAS: Sistema[] = [
     grupo: "operacao",
     secoes: [
       { id: "base", label: "Minha base", icon: Fire, to: "/sdr" },
+      {
+        // Reativação: base de quem cumpriu a cadência sem responder. É trilha
+        // do SDR/discador, nunca do corretor — por isso vive aqui.
+        id: "reativacao",
+        label: "Reativação",
+        icon: ArrowsClockwise,
+        to: "/reativacao",
+      },
       {
         id: "reaquecer",
         label: "Reaquecer (parados)",

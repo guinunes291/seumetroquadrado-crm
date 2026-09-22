@@ -129,7 +129,8 @@ function TabelaCorretores() {
   }, [q.data, ordem]);
 
   if (q.isLoading) return <BlocoSkeleton />;
-  if (q.isError) return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
+  if (q.isError)
+    return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
 
   const Coluna = ({ campo, children }: { campo: Ordem; children: React.ReactNode }) => (
     <TableHead>
@@ -219,7 +220,8 @@ function TabelaEtapas() {
   });
 
   if (q.isLoading) return <BlocoSkeleton />;
-  if (q.isError) return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
+  if (q.isError)
+    return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
 
   const linhas = q.data ?? [];
 
@@ -283,7 +285,8 @@ function BlocoReativacao() {
   });
 
   if (q.isLoading) return <BlocoSkeleton />;
-  if (q.isError) return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
+  if (q.isError)
+    return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
 
   const r = q.data!;
   const itens: Array<[string, string]> = [
@@ -304,8 +307,8 @@ function BlocoReativacao() {
           <ArrowCounterClockwise size={18} weight="duotone" /> Reativação
         </CardTitle>
         <CardDescription>
-          Quem está em descanso não é acionável — a janela existe para o número não ser bloqueado
-          no discador.
+          Quem está em descanso não é acionável — a janela existe para o número não ser bloqueado no
+          discador.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -327,7 +330,8 @@ function TabelaMotor() {
   });
 
   if (q.isLoading) return <BlocoSkeleton />;
-  if (q.isError) return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
+  if (q.isError)
+    return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
 
   const linhas = q.data ?? [];
 
@@ -404,7 +408,10 @@ function CardFase0() {
     queryKey: ["cadencia:fase0:pendentes"],
     queryFn: fetchFase0Pendentes,
   });
-  const lotes = useQuery({ queryKey: ["cadencia:fase0:lotes"], queryFn: () => fetchFase0Lotes(20) });
+  const lotes = useQuery({
+    queryKey: ["cadencia:fase0:lotes"],
+    queryFn: () => fetchFase0Lotes(20),
+  });
 
   const invalidar = () => {
     void qc.invalidateQueries({ queryKey: ["cadencia:fase0:pendentes"] });

@@ -25,6 +25,7 @@ import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSdrRouteImport } from './routes/_authenticated/sdr'
 import { Route as AuthenticatedReservaRouteImport } from './routes/_authenticated/reserva'
 import { Route as AuthenticatedRelatoriosRouteImport } from './routes/_authenticated/relatorios'
+import { Route as AuthenticatedReativacaoRouteImport } from './routes/_authenticated/reativacao'
 import { Route as AuthenticatedRankingRouteImport } from './routes/_authenticated/ranking'
 import { Route as AuthenticatedRadarRouteImport } from './routes/_authenticated/radar'
 import { Route as AuthenticatedProspeccaoRouteImport } from './routes/_authenticated/prospeccao'
@@ -183,6 +184,11 @@ const AuthenticatedReservaRoute = AuthenticatedReservaRouteImport.update({
 const AuthenticatedRelatoriosRoute = AuthenticatedRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReativacaoRoute = AuthenticatedReativacaoRouteImport.update({
+  id: '/reativacao',
+  path: '/reativacao',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedRankingRoute = AuthenticatedRankingRouteImport.update({
@@ -664,6 +670,7 @@ export interface FileRoutesByFullPath {
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
+  '/reativacao': typeof AuthenticatedReativacaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/reserva': typeof AuthenticatedReservaRoute
   '/sdr': typeof AuthenticatedSdrRoute
@@ -761,6 +768,7 @@ export interface FileRoutesByTo {
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/radar': typeof AuthenticatedRadarRoute
   '/ranking': typeof AuthenticatedRankingRoute
+  '/reativacao': typeof AuthenticatedReativacaoRoute
   '/relatorios': typeof AuthenticatedRelatoriosRoute
   '/reserva': typeof AuthenticatedReservaRoute
   '/sdr': typeof AuthenticatedSdrRoute
@@ -860,6 +868,7 @@ export interface FileRoutesById {
   '/_authenticated/prospeccao': typeof AuthenticatedProspeccaoRoute
   '/_authenticated/radar': typeof AuthenticatedRadarRoute
   '/_authenticated/ranking': typeof AuthenticatedRankingRoute
+  '/_authenticated/reativacao': typeof AuthenticatedReativacaoRoute
   '/_authenticated/relatorios': typeof AuthenticatedRelatoriosRoute
   '/_authenticated/reserva': typeof AuthenticatedReservaRoute
   '/_authenticated/sdr': typeof AuthenticatedSdrRoute
@@ -959,6 +968,7 @@ export interface FileRouteTypes {
     | '/prospeccao'
     | '/radar'
     | '/ranking'
+    | '/reativacao'
     | '/relatorios'
     | '/reserva'
     | '/sdr'
@@ -1056,6 +1066,7 @@ export interface FileRouteTypes {
     | '/prospeccao'
     | '/radar'
     | '/ranking'
+    | '/reativacao'
     | '/relatorios'
     | '/reserva'
     | '/sdr'
@@ -1154,6 +1165,7 @@ export interface FileRouteTypes {
     | '/_authenticated/prospeccao'
     | '/_authenticated/radar'
     | '/_authenticated/ranking'
+    | '/_authenticated/reativacao'
     | '/_authenticated/relatorios'
     | '/_authenticated/reserva'
     | '/_authenticated/sdr'
@@ -1356,6 +1368,13 @@ declare module '@tanstack/react-router' {
       path: '/relatorios'
       fullPath: '/relatorios'
       preLoaderRoute: typeof AuthenticatedRelatoriosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reativacao': {
+      id: '/_authenticated/reativacao'
+      path: '/reativacao'
+      fullPath: '/reativacao'
+      preLoaderRoute: typeof AuthenticatedReativacaoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ranking': {
@@ -1962,6 +1981,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProspeccaoRoute: typeof AuthenticatedProspeccaoRoute
   AuthenticatedRadarRoute: typeof AuthenticatedRadarRoute
   AuthenticatedRankingRoute: typeof AuthenticatedRankingRoute
+  AuthenticatedReativacaoRoute: typeof AuthenticatedReativacaoRoute
   AuthenticatedRelatoriosRoute: typeof AuthenticatedRelatoriosRoute
   AuthenticatedReservaRoute: typeof AuthenticatedReservaRoute
   AuthenticatedSdrRoute: typeof AuthenticatedSdrRoute
@@ -2020,6 +2040,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProspeccaoRoute: AuthenticatedProspeccaoRoute,
   AuthenticatedRadarRoute: AuthenticatedRadarRoute,
   AuthenticatedRankingRoute: AuthenticatedRankingRoute,
+  AuthenticatedReativacaoRoute: AuthenticatedReativacaoRoute,
   AuthenticatedRelatoriosRoute: AuthenticatedRelatoriosRoute,
   AuthenticatedReservaRoute: AuthenticatedReservaRoute,
   AuthenticatedSdrRoute: AuthenticatedSdrRoute,
