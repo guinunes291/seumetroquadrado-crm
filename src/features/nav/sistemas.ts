@@ -329,20 +329,16 @@ export const SISTEMAS: Sistema[] = [
         // a cadência até ele responder, a régua depois — e o corretor precisa
         // ver que uma entrega na outra, não escolher entre duas.
         // Primeira da lista porque é por onde o lead entra.
+        //
+        // O PAINEL da cadência (?tab=painel, gestão) não é seção: o Follow-Up
+        // já tem as seis que o teto permite, e "Config da régua" está fixada
+        // por decisão registrada. Virou atalho de ⌘K + botão no cabeçalho
+        // desta mesma tela — o padrão "seção cortada vira atalho" do corte de
+        // 2026-08-30. Quem cobra o time entra pela fila que está cobrando.
         id: "cadencia",
         label: "Cadência (lead novo)",
         icon: ListChecks,
         to: "/cadencia",
-      },
-      {
-        // Painel da cadência: mora ao lado da fila que ele mede, não num hub
-        // de BI. Gestão-only, mas quem cair por link vê recusa explicada.
-        id: "cadencia-painel",
-        label: "Painel da cadência",
-        icon: UsersThree,
-        to: "/cadencia",
-        search: { tab: "painel" },
-        roles: GESTAO,
       },
       {
         id: "fila",
@@ -610,6 +606,16 @@ export type AtalhoExtra = {
 
 export const ATALHOS_EXTRAS: AtalhoExtra[] = [
   { label: "Comissões", icon: ListChecks, to: "/financeiro", search: { tab: "comissoes" } },
+  // Visão de gestão da cadência. Fora da sidebar pelo teto de 6 seções do
+  // Follow-Up (ver a seção "cadencia"): a porta visível é o botão no cabeçalho
+  // da própria Fila do Dia, e este atalho é o caminho curto de quem já sabe.
+  {
+    label: "Painel da cadência",
+    icon: UsersThree,
+    to: "/cadencia",
+    search: { tab: "painel" },
+    roles: GESTAO,
+  },
   {
     // "Reta final" é a leitura de fechamento DA CARTEIRA (auditoria
     // 2026-08-27) — por isso o atalho fixa fase=carteira, mesmo vindo do

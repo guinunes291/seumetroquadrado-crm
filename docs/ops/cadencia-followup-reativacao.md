@@ -159,8 +159,10 @@ corretores, ordenação da fila e a auditoria diária.
 primeiro nome na mensagem, o placeholder que não pode vazar, e o `wa.me` que
 não pode duplicar o 55.
 
-Suíte completa depois da entrega: **636 testes de banco e 1.928 de unidade,
-todos verdes.**
+Suíte completa depois da Fatia 4: **666 testes de banco (46 arquivos) e 1.929
+de unidade (188 arquivos), todos verdes** contra um Postgres 16 real com as
+migrations aplicadas em ordem, mais build com `NITRO_PRESET=node-server` e
+smoke.
 
 ## Implantação
 
@@ -175,13 +177,76 @@ update public.cadencia_config set modo = 'ativo', atualizado_em = now() where id
 Mudar a janela de descanso, a tolerância de vencimento ou o intervalo mínimo
 entre ligações é `update` nessa mesma linha — sem deploy.
 
-### Fase 0, ainda por fazer
+### Fase 0, feita em 22/09/2026
 
-A carga do estoque parado (mais de 30 dias direto para a reativação com
-`origem = 'estoque_30d'`; entre 7 e 30 dias em lotes de `lote_estoque_dia` por
-corretor) **não** entra nestas migrations. É carga de dados, depende da
-contagem refeita no CRM oficial e roda uma vez — script de operação, não
-migration. O motor e a fila já estão prontos para recebê-la.
+A régua da carga virou SQL versionado (`20260923120000`), e não script solto,
+porque o ensaio e a execução precisavam sair da **mesma** função — duas
+consultas parecidas divergem no primeiro ajuste, e a divergência só aparece
+depois de mover mil leads.
+
+O ensaio (`cadencia_fase0_classificar`, nada é movido) leu o estoque assim:
+
+| destino | leads |
+| --- | --- |
+| cadência (parados ≤ 30 dias + importação em lote) | 5.087 |
+| reativação (parados > 30 dias) | 191 |
+| encerrar (telefone suspeito / opt-out) | 8 |
+
+A carga única (`cadencia_fase0_executar('ativo')`) aplicou os dois últimos —
+199 leads, 199 aplicados. A admissão na cadência é gradual por decisão, em
+lotes por corretor: a primeira chamada admitiu 128 leads em 32 corretores.
+
+### O que a Fase 0 tornou visível, e que ela não resolve
+
+4.944 leads em carteira para 23 corretores dão **215 por corretor**, contra a
+política `carteira_teto_65`. A cadência não fecha essa diferença — ela a expõe
+um lote por dia, porque cada lead admitido passa a ter etapa, prazo e cobrança.
+
+São dois caminhos, e a escolha é de operação, não de código:
+
+1. **Admitir tudo devagar.** A `lote_estoque_dia` atual (15) esvazia o estoque
+   em ~14 dias e entrega 105 tentativas de toque por corretor por dia em
+   regime — inviável. A 5/dia são ~43 dias e ~35 toques/dia, que é trabalhável.
+2. **Reduzir o estoque antes.** `regua_devolucao_processar` devolve ao Bolsão o
+   que está parado, a carteira converge para o teto, e a cadência passa a
+   governar só o que cabe. O lead devolvido continua alcançável pelo discador.
+
+Enquanto a escolha não é feita, a admissão diária fica parada de propósito: ela
+não tem cron justamente para não decidir isto sozinha.
+
+### Fatia 4 — painel do gestor e tela da reativação (24/09/2026)
+
+`20260924120000` fecha o ciclo com a leitura do processo:
+
+- **Painel da cadência** (`/cadencia?tab=painel`, gestão): quem está devendo
+  hoje por corretor, taxa de resposta por etapa (denominador = quem *recebeu*
+  toque na etapa, não quem passou por ela), reativação, log do motor e a
+  admissão do estoque com ensaio, histórico e desfazer.
+- **Reativação** (`/reativacao`, SDR + gestão): fila acionável priorizada e,
+  em lista separada e somente leitura, quem ainda está em descanso — o SDR
+  precisa saber que o lead existe sem poder ligar para ele.
+
+`cadência cumprida sem retorno` aparece em coluna própria e **não** entra em
+perdas do corretor. É a regra inteira do projeto num número: cumprir os sete
+toques não é falhar; deixar a etapa vencer, sim.
+
+#### Por que o painel não é seção da sidebar
+
+O Follow-Up já tinha as seis seções que o teto por sistema permite, e "Config
+da régua" está fixada por decisão registrada (`tests/sistemas.test.ts`). Em vez
+de esticar o teto para sete, o painel seguiu o padrão do corte de 2026-08-30 —
+**seção cortada vira atalho de ⌘K** — com um botão no cabeçalho da própria
+Fila do Dia como porta visível. Quem cobra o time entra pela mesma fila que
+está cobrando, que é melhor do que uma linha a mais no menu.
+
+#### Dívida conhecida: o journal do Drizzle tem entrada repetida
+
+`drizzle/migrations/` carrega `0005`/`0006` como cópias de `0003`/`0004` sem os
+comentários, e o `_journal.json` lista as quatro. As migrations são
+idempotentes e o que rodou duas vezes foi o mesmo DDL, então produção está
+correta — o custo é que os `COMMENT ON FUNCTION` no banco ficaram com o texto
+curto das cópias. Mexer no journal de migrations já aplicadas para arrumar
+comentário não se paga; fica registrado para não virar arqueologia.
 
 ## Pontos que continuam em aberto
 
