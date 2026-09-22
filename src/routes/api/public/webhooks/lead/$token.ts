@@ -192,6 +192,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           data.observacoes?.trim() || null,
           resumo ? `📝 Resumo da qualificação (IA):\n${resumo}` : null,
           blocoQualif ? `📋 Dados de qualificação:\n${blocoQualif}` : null,
+          blocoExtras,
         ].filter(Boolean) as string[];
         const observacoesFinais = obsPartes.length ? obsPartes.join("\n\n") : null;
 
