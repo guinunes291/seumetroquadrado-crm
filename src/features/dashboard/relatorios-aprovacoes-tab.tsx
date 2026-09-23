@@ -107,7 +107,7 @@ export function dadosDaLinha(r: AprovacaoVigenteRow): DadosAprovacao {
     valor_fgts: n(r.valor_fgts),
     valor_subsidio: n(r.valor_subsidio),
     valor_entrada: n(r.valor_entrada),
-    valor_imovel_max: n(r.valor_imovel_max),
+    valor_imovel_simulacao: n(r.valor_imovel_simulacao),
     renda_familiar: n(r.renda_familiar),
     prazo_meses: n(r.prazo_meses),
     faixa_mcmv: (r.faixa_mcmv as DadosAprovacao["faixa_mcmv"]) ?? null,
@@ -399,9 +399,9 @@ export function RelatoriosAprovacoesTab({
               </label>
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Mesma conta do card do lead: financiamento aprovado (até 80% do imóvel) + FGTS +
-              subsídio + entrada; construtora até 20% cabe, até 25% com esforço. Com estoque
-              cadastrado, usa a unidade mais cara que cabe.
+              Mesma conta do card do lead, sobre o "a partir de" do empreendimento: financiamento
+              aprovado (até 80% do imóvel) + FGTS + subsídio + entrada; construtora até 20% cabe,
+              até 25% com esforço. O valor do imóvel da carta (teto da faixa) não entra na conta.
             </p>
           </div>
         </CardContent>

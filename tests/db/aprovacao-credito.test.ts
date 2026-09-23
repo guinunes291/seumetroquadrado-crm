@@ -70,7 +70,7 @@ beforeAll(async () => {
     valor_financiamento: 210222.91,
     valor_parcela: 1404.79,
     valor_fgts: 10000,
-    valor_imovel_max: 275000,
+    valor_imovel_simulacao: 275000,
     renda_familiar: 4682.64,
     faixa_mcmv: "2",
     validade_ate: new Date(Date.now() + 30 * 86_400_000),

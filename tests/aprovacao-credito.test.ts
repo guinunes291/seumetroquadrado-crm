@@ -40,7 +40,7 @@ const SIRIC_LIDO: DadosAprovacao = {
   valor_parcela: 1404.79,
   prazo_meses: 420,
   taxa_juros_anual: 7,
-  valor_imovel_max: 275000,
+  valor_imovel_simulacao: 275000,
   renda_familiar: 4682.64,
   qtd_participantes: 2,
   cotista_fgts: false,
@@ -84,17 +84,24 @@ describe("retorno real da Caixa (SIRIC)", () => {
     expect(avaliarEncaixe(275000, { ...SIRIC, valor_fgts: 10000 }).nivel).toBe("cabe");
   });
 
-  it("teto de imóvel = poder de compra / 0,8, limitado ao valor máximo aprovado", () => {
+  it("teto de imóvel = poder de compra / 0,8 — sem corte no valor do imóvel da carta", () => {
     expect(tetoDeImovel(SIRIC)).toBe(262779);
-    expect(tetoDeImovel({ ...SIRIC, valor_fgts: 30000 })).toBe(275000);
+    // Passa dos R$ 275 mil da simulação: aquele valor é o teto da faixa, não um limite.
+    expect(tetoDeImovel({ ...SIRIC, valor_fgts: 30000 })).toBe(300279);
     // No teto, cabe; um real acima já não cabe limpo.
     expect(avaliarEncaixe(262779, SIRIC).nivel).toBe("cabe");
   });
 
-  it("imóvel acima do valor máximo aprovado nunca cabe", () => {
-    const e = avaliarEncaixe(290000, { ...SIRIC, valor_fgts: 100000 });
-    expect(e.nivel).toBe("nao_cabe");
-    expect(e.alertas.join(" ")).toContain("valor máximo de imóvel aprovado");
+  it("o valor do imóvel da carta (teto da faixa) não limita nem muda a conta", () => {
+    const comFgts = { ...SIRIC, valor_fgts: 100000 };
+    const e = avaliarEncaixe(290000, comFgts);
+    expect(e.nivel).toBe("cabe"); // acima dos R$ 275 mil simulados, e cabe
+    expect(e.alertas).toEqual([]);
+    // Mesmo resultado com ou sem o valor simulado preenchido.
+    expect(avaliarEncaixe(290000, { ...comFgts, valor_imovel_simulacao: null })).toEqual(e);
+    expect(avaliarEncaixe(250000, { ...SIRIC, valor_imovel_simulacao: 180000 })).toEqual(
+      avaliarEncaixe(250000, SIRIC),
+    );
   });
 
   it("faixa pela renda: R$ 4.682,64 → Faixa 2 (o simulador não traz a faixa)", () => {
@@ -108,9 +115,9 @@ describe("ranking de produtos para a aprovação", () => {
   const catalogo = [
     produto({ id: "A", preco_a_partir: 250000 }), // cabe
     produto({ id: "B", preco_a_partir: 270000 }), // 22,1% → esforço
-    produto({ id: "C", preco_a_partir: 400000 }), // acima do máximo → fora
+    produto({ id: "C", preco_a_partir: 400000 }), // construtora 47% → fora
     produto({ id: "D", preco_a_partir: null }), // sob consulta → ignorado
-    produto({ id: "E", valores_unidades: [240000, 262000, 300000] }), // 2 unidades cabem
+    produto({ id: "E", preco_a_partir: 262000 }), // 20% → cabe no limite
     produto({ id: "F", preco_a_partir: 200000, renda_minima: 5000 }), // renda abaixo → esforço
   ];
 
@@ -122,11 +129,15 @@ describe("ranking de produtos para a aprovação", () => {
     expect(r.totalAvaliados).toBe(5); // D (sob consulta) não entra na conta
   });
 
-  it("com estoque, conta as unidades que cabem e usa a MAIS CARA delas", () => {
-    const e = encaixarProduto(catalogo[4], SIRIC)!;
-    expect(e.unidadesQueCabem).toBe(2);
-    expect(e.precoReferencia).toBe(262000);
+  it("a conta usa SEMPRE o 'a partir de' do catálogo", () => {
+    const g = produto({ id: "G", preco_a_partir: 280000 });
+    const e = encaixarProduto(g, { ...SIRIC, valor_fgts: 20000 })!;
+    expect(e.precoReferencia).toBe(280000);
+    // R$ 280 mil > R$ 275 mil da simulação, e ainda assim cabe (17,8%).
     expect(e.encaixe.nivel).toBe("cabe");
+    expect(e.encaixe.percentualConstrutora).toBe(17.8);
+    // Sem "a partir de" (sob consulta) não há conta.
+    expect(encaixarProduto(produto({ id: "H" }), SIRIC)).toBeNull();
   });
 
   it("renda abaixo da mínima do empreendimento rebaixa para esforço, com o motivo", () => {

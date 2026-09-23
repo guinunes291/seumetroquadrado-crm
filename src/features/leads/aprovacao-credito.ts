@@ -15,6 +15,12 @@
 //   • o que sobra o cliente parcela com a construtora — até 20% cabe, até 25%
 //     é "cabe com esforço" (cenário otimista que o Mapa de Mercado já usa),
 //     acima disso não cabe.
+//
+// PREÇO DA CONTA: sempre o "a partir de" do empreendimento no catálogo
+// (decisão do dono, 2026-09-23). O "valor do imóvel" que vem na carta do banco
+// NÃO é o imóvel do cliente: o analista simula no TETO DA FAIXA MCMV (ex.:
+// R$ 275 mil na F2). Por isso ele fica guardado só como referência
+// (valor_imovel_simulacao) e nunca limita nem entra na conta do encaixe.
 
 import { consultarLinhaAprove, TETO_PARCELAMENTO_CONSTRUTORA } from "@/lib/orcamento";
 import { parseValorBR } from "@/lib/simulador";
@@ -46,7 +52,11 @@ export type DadosAprovacao = {
   valor_fgts: number | null;
   valor_subsidio: number | null;
   valor_entrada: number | null;
-  valor_imovel_max: number | null;
+  /**
+   * "Valor do imóvel" da carta: o analista simula no teto da faixa, não no
+   * imóvel do cliente. Só referência — não limita o encaixe.
+   */
+  valor_imovel_simulacao: number | null;
   renda_familiar: number | null;
   faixa_mcmv: "1" | "2" | "3" | "4" | null;
   qtd_participantes: number | null;
@@ -67,7 +77,7 @@ export const DADOS_APROVACAO_VAZIOS: DadosAprovacao = {
   valor_fgts: null,
   valor_subsidio: null,
   valor_entrada: null,
-  valor_imovel_max: null,
+  valor_imovel_simulacao: null,
   renda_familiar: null,
   faixa_mcmv: null,
   qtd_participantes: null,
@@ -126,12 +136,11 @@ export function poderDeCompra(d: DadosAprovacao): number {
 /**
  * Maior preço de imóvel que "cabe" (construtora ≤ 20%). Derivação: com o
  * financiamento limitado a 80% do imóvel, preço − min(F, 0,8·P) − R ≤ 0,2·P
- * vale para todo P ≤ (F + R) / 0,8. Limitado pelo valor máximo de imóvel
- * aprovado pelo banco, quando a carta traz.
+ * vale para todo P ≤ (F + R) / 0,8. NÃO é limitado pelo valor do imóvel da
+ * carta: aquele é o teto da faixa usado na simulação, não um limite do cliente.
  */
 export function tetoDeImovel(d: DadosAprovacao): number {
-  const teto = poderDeCompra(d) / (1 - TETO_PARCELAMENTO_CONSTRUTORA);
-  return Math.round(d.valor_imovel_max ? Math.min(teto, d.valor_imovel_max) : teto);
+  return Math.round(poderDeCompra(d) / (1 - TETO_PARCELAMENTO_CONSTRUTORA));
 }
 
 /**
@@ -154,7 +163,7 @@ export function faixaPelaRenda(renda: number | null): DadosAprovacao["faixa_mcmv
  * imóvel e todo produto "cabe". Pura; usada na saída da IA.
  */
 export function sanearEntradaDoSimulador(d: DadosAprovacao): DadosAprovacao {
-  const { valor_entrada: e, valor_imovel_max: im, valor_financiamento: f } = d;
+  const { valor_entrada: e, valor_imovel_simulacao: im, valor_financiamento: f } = d;
   if (e != null && im != null && f != null && Math.abs(im - f - e) <= 5) {
     return { ...d, valor_entrada: null };
   }
@@ -216,12 +225,6 @@ export function avaliarEncaixe(
     );
   }
 
-  // Valor máximo de compra/avaliação aprovado pelo banco é teto DURO.
-  if (d.valor_imovel_max && preco > d.valor_imovel_max) {
-    nivel = "nao_cabe";
-    alertas.push("Acima do valor máximo de imóvel aprovado pelo banco.");
-  }
-
   if (
     nivel === "cabe" &&
     opts.rendaMinima &&
@@ -247,59 +250,30 @@ export type ProdutoCandidato = {
   construtora: string | null;
   bairro: string | null;
   cidade: string | null;
-  /** "A partir de" do empreendimento. */
+  /** "A partir de" do empreendimento — o ÚNICO preço usado na conta. */
   preco_a_partir: number | null;
   renda_minima: number | null;
-  /** Valores das unidades DISPONÍVEIS (quando o estoque está cadastrado). */
-  valores_unidades?: number[];
 };
 
 export type ProdutoEncaixado = {
   produto: ProdutoCandidato;
-  /** Preço usado na conta: a unidade mais cara que cabe, ou o "a partir de". */
+  /** Preço usado na conta: o "a partir de" do catálogo. */
   precoReferencia: number;
-  /** Quantas unidades disponíveis cabem (null = estoque não cadastrado). */
-  unidadesQueCabem: number | null;
   encaixe: EncaixeImovel;
 };
 
 const ORDEM_NIVEL: Record<NivelEncaixe, number> = { cabe: 0, esforco: 1, nao_cabe: 2 };
 
 /**
- * Encaixe de UM empreendimento. Com estoque cadastrado, a conta é por
- * unidade: conta quantas cabem e usa como referência a MAIS CARA que ainda
- * cabe (é a melhor unidade que o crédito compra). Sem estoque, usa o "a
- * partir de" — que é a unidade mais barata, portanto o melhor caso.
+ * Encaixe de UM empreendimento, sempre pelo "a partir de" cadastrado no
+ * catálogo. Sem preço (sob consulta) → null: fica fora da conta.
  */
 export function encaixarProduto(p: ProdutoCandidato, d: DadosAprovacao): ProdutoEncaixado | null {
-  const opts = { rendaMinima: p.renda_minima };
-  const unidades = (p.valores_unidades ?? []).filter((v) => v > 0);
-
-  if (unidades.length > 0) {
-    const avaliadas = unidades.map((v) => ({ v, e: avaliarEncaixe(v, d, opts) }));
-    const cabem = avaliadas.filter((a) => a.e.nivel === "cabe");
-    const esforco = avaliadas.filter((a) => a.e.nivel === "esforco");
-    const melhorGrupo = cabem.length ? cabem : esforco.length ? esforco : avaliadas;
-    // Dentro do melhor grupo: a mais cara que cabe; se nada cabe, a mais barata
-    // (é a que chega mais perto).
-    const ref =
-      cabem.length || esforco.length
-        ? melhorGrupo.reduce((a, b) => (b.v > a.v ? b : a))
-        : melhorGrupo.reduce((a, b) => (b.v < a.v ? b : a));
-    return {
-      produto: p,
-      precoReferencia: ref.v,
-      unidadesQueCabem: cabem.length,
-      encaixe: ref.e,
-    };
-  }
-
-  if (!p.preco_a_partir || p.preco_a_partir <= 0) return null; // sob consulta
+  if (!p.preco_a_partir || p.preco_a_partir <= 0) return null;
   return {
     produto: p,
     precoReferencia: p.preco_a_partir,
-    unidadesQueCabem: null,
-    encaixe: avaliarEncaixe(p.preco_a_partir, d, opts),
+    encaixe: avaliarEncaixe(p.preco_a_partir, d, { rendaMinima: p.renda_minima }),
   };
 }
 
@@ -352,7 +326,7 @@ export type FormAprovacao = Record<
   | "valor_fgts"
   | "valor_subsidio"
   | "valor_entrada"
-  | "valor_imovel_max"
+  | "valor_imovel_simulacao"
   | "renda_familiar"
   | "qtd_participantes"
   | "data_aprovacao"
@@ -388,7 +362,7 @@ export function formParaDados(f: FormAprovacao): DadosAprovacao {
     valor_fgts: num(f.valor_fgts),
     valor_subsidio: num(f.valor_subsidio),
     valor_entrada: num(f.valor_entrada),
-    valor_imovel_max: num(f.valor_imovel_max),
+    valor_imovel_simulacao: num(f.valor_imovel_simulacao),
     renda_familiar: num(f.renda_familiar),
     faixa_mcmv: f.faixa_mcmv || null,
     qtd_participantes: int(f.qtd_participantes),
@@ -418,7 +392,7 @@ export function dadosParaForm(d: Partial<DadosAprovacao>): FormAprovacao {
     valor_fgts: txt(x.valor_fgts),
     valor_subsidio: txt(x.valor_subsidio),
     valor_entrada: txt(x.valor_entrada),
-    valor_imovel_max: txt(x.valor_imovel_max),
+    valor_imovel_simulacao: txt(x.valor_imovel_simulacao),
     renda_familiar: txt(x.renda_familiar),
     faixa_mcmv: x.faixa_mcmv ?? "",
     qtd_participantes: x.qtd_participantes == null ? "" : String(x.qtd_participantes),

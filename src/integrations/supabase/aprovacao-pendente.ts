@@ -34,7 +34,7 @@ export type ColunasAprovacao = {
   valor_fgts: number | null;
   valor_subsidio: number | null;
   valor_entrada: number | null;
-  valor_imovel_max: number | null;
+  valor_imovel_simulacao: number | null;
   renda_familiar: number | null;
   faixa_mcmv: string | null;
   qtd_participantes: number | null;

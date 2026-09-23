@@ -97,7 +97,7 @@ function ValoresAprovados({ d }: { d: DadosAprovacao }) {
     ["FGTS", d.valor_fgts ? brl(d.valor_fgts) : null],
     ["Subsídio", d.valor_subsidio ? brl(d.valor_subsidio) : null],
     ["Entrada", d.valor_entrada ? brl(d.valor_entrada) : null],
-    ["Imóvel máx.", d.valor_imovel_max ? brl(d.valor_imovel_max) : null],
+    ["Imóvel simulado", d.valor_imovel_simulacao ? brl(d.valor_imovel_simulacao) : null],
     ["Renda", d.renda_familiar ? brl(d.renda_familiar) : null],
     [
       "Taxa",

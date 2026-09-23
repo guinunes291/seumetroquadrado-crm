@@ -377,11 +377,11 @@ export function AprovacaoCreditoDialog({
           />
           <Campo
             id="ap-imovel-max"
-            label="Valor máx. do imóvel (R$)"
-            value={form.valor_imovel_max}
-            onChange={(v) => set("valor_imovel_max", v)}
-            placeholder="compra e venda / avaliação"
-            lidoPelaIa={lido("valor_imovel_max")}
+            label="Valor do imóvel na simulação (R$)"
+            value={form.valor_imovel_simulacao}
+            onChange={(v) => set("valor_imovel_simulacao", v)}
+            placeholder="teto da faixa — só referência"
+            lidoPelaIa={lido("valor_imovel_simulacao")}
           />
           <Campo
             id="ap-renda"
