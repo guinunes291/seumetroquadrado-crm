@@ -70,11 +70,20 @@ describe("visibilidade por papel", () => {
       "agenda",
       "tarefas",
     ]);
+    // Corretor trabalha só os produtos em foco: sem Catálogo completo.
     expect(secoesVisiveis(sistema("docs-projetos"), corretor).map((s) => s.id)).toEqual([
       "projetos-foco",
-      "catalogo",
       "vitrine",
     ]);
+  });
+
+  it("Catálogo completo é só da gestão (admin, gestor, superintendente)", () => {
+    const temCatalogo = (ctx: PapelCtx) =>
+      secoesVisiveis(sistema("docs-projetos"), ctx).some((s) => s.id === "catalogo");
+    expect(temCatalogo(admin)).toBe(true);
+    expect(temCatalogo(gestor)).toBe(true);
+    expect(temCatalogo(superintendente)).toBe(true);
+    expect(temCatalogo(corretor)).toBe(false);
   });
 
   it("regra dos 2 menus: nenhum módulo do dia passa de 4 seções para o corretor", () => {

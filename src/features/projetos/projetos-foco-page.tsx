@@ -90,6 +90,7 @@ import {
   iniciais,
   montarItem,
   montarPrateleira,
+  noEscopoDoCorretor,
   ORDENACOES,
   ordenar,
   type Corredor,
@@ -123,6 +124,7 @@ import {
   useProjetosPrateleira,
 } from "./use-prateleira-dados";
 import { useRegistrarEventoProjeto } from "./use-projeto-eventos";
+import { PAPEIS_CATALOGO } from "@/lib/projetos";
 
 /** Cards por lote no carregamento incremental. */
 const LOTE = 24;
@@ -195,8 +197,9 @@ type LeadContexto = {
 };
 
 export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, roles } = useUserRoles();
   const podeGerir = isAdmin || isGestor;
+  const podeVerCatalogo = roles.some((r) => PAPEIS_CATALOGO.includes(r));
   const isMobile = useIsMobile();
   const abrirWhatsApp = useWhatsAppLead();
   const registrarEvento = useRegistrarEventoProjeto();
@@ -259,13 +262,13 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcular quando os dados chegam é o comportamento desejado
   const agora = useMemo(() => Date.now(), [projetosQ.data, focosQ.data]);
   const focos = useMemo(() => focosPorProjeto(focosQ.data ?? [], agora), [focosQ.data, agora]);
-  const itens = useMemo(
-    () =>
-      (projetosQ.data ?? []).map((p) =>
-        montarItem(p, { parceiras, focos, demanda: demandaQ.data, agora }),
-      ),
-    [projetosQ.data, parceiras, focos, demandaQ.data, agora],
-  );
+  // Corretor fica com foco + parceiras; a gestão enxerga a prateleira inteira.
+  const itens = useMemo(() => {
+    const todos = (projetosQ.data ?? []).map((p) =>
+      montarItem(p, { parceiras, focos, demanda: demandaQ.data, agora }),
+    );
+    return podeVerCatalogo ? todos : todos.filter(noEscopoDoCorretor);
+  }, [projetosQ.data, parceiras, focos, demandaQ.data, agora, podeVerCatalogo]);
 
   // Base das contagens dos filtros: o que está na prateleira (sem os demais filtros).
   const visiveis = useMemo(
@@ -453,12 +456,14 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
                   Parceiras
                 </Button>
               )}
-              <Button asChild variant="outline" size="sm">
-                <Link to="/projetos">
-                  <Buildings className="mr-1 h-4 w-4" />
-                  Catálogo completo
-                </Link>
-              </Button>
+              {podeVerCatalogo && (
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/projetos">
+                    <Buildings className="mr-1 h-4 w-4" />
+                    Catálogo completo
+                  </Link>
+                </Button>
+              )}
               {/* Links Úteis saiu da sidebar (corte 2026-08-30): a home do
                   hub é a porta — a rota segue viva e no ⌘K. */}
               <Button asChild variant="outline" size="sm">
@@ -719,9 +724,11 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
             title="Nenhum empreendimento ativo no catálogo"
             description="Assim que a gestão cadastrar (ou reativar) projetos, eles aparecem aqui com book e tabela."
             action={
-              <Button asChild size="sm" variant="outline">
-                <Link to="/projetos">Abrir catálogo</Link>
-              </Button>
+              podeVerCatalogo ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link to="/projetos">Abrir catálogo</Link>
+                </Button>
+              ) : undefined
             }
             className="py-12"
           />

@@ -319,6 +319,15 @@ export function visivelNaPrateleira(item: ItemPrateleira, mostrarIncompletos: bo
   return item.completude.prontoParaPrateleira;
 }
 
+/**
+ * Escopo do corretor: só trabalha o que a gestão empurra — campanha em foco ou
+ * construtora parceira. O resto do catálogo ("Outras construtoras") fica só
+ * para a gestão, que também é quem vê o Catálogo completo.
+ */
+export function noEscopoDoCorretor(item: Pick<ItemPrateleira, "foco" | "parceira">): boolean {
+  return item.foco != null || item.parceira != null;
+}
+
 export function aplicarFiltros(
   itens: ItemPrateleira[],
   f: FiltrosPrateleira,

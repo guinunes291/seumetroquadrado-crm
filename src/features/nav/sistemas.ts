@@ -60,6 +60,7 @@ import type { AppRole } from "@/hooks/use-auth";
 import type { CorModulo } from "@/features/nav/cores-modulo";
 import type { NavBadges } from "@/features/nav/use-nav-badges";
 import { CARTEIRA_STAGES, type FaseFunil } from "@/lib/leads";
+import { PAPEIS_CATALOGO } from "@/lib/projetos";
 
 export type Destino = { to: string; search?: Record<string, string> };
 
@@ -448,7 +449,15 @@ export const SISTEMAS: Sistema[] = [
     dominioExtra: ["/links-uteis"],
     secoes: [
       { id: "projetos-foco", label: "Projetos em Foco", icon: Star, to: "/projetos-foco" },
-      { id: "catalogo", label: "Catálogo completo", icon: Buildings, to: "/projetos" },
+      // Catálogo completo é da gestão — o corretor trabalha só os produtos em
+      // foco (Projetos em Foco + Vitrine). A rota também é gateada.
+      {
+        id: "catalogo",
+        label: "Catálogo completo",
+        icon: Buildings,
+        to: "/projetos",
+        roles: PAPEIS_CATALOGO,
+      },
       { id: "vitrine", label: "Vitrine (mapa)", icon: MapTrifold, to: "/vitrine" },
       {
         id: "materiais",
