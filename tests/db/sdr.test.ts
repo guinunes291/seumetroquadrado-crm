@@ -608,7 +608,10 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
       `SELECT regra_aplicada FROM public.distribution_log WHERE lead_id = $1 ORDER BY created_at`,
       [legado],
     );
-    expect(ev.rows.map((x) => x.regra_aplicada)).toEqual(["sdr_carteira_antiga", "roleta_sdr"]);
+    // Quem marcou foi o próprio SDR: desde 20260929120000 (caso Lauriene) o
+    // registro é 'sdr_agenda' — 'sdr_carteira_antiga' fica para a visita posta
+    // no nome do SDR por outra pessoa.
+    expect(ev.rows.map((x) => x.regra_aplicada)).toEqual(["sdr_agenda", "roleta_sdr"]);
   });
 
   it("lead comum de corretor: a visita fica com ele, nada muda", async () => {
