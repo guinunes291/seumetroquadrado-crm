@@ -1,5 +1,12 @@
 -- Meu Funil — estudo diário obrigatório do corretor.
 --
+-- VERSÃO: nasceu como 20260927120000, número que colidiu com
+-- 20260927120000_aprovacao_credito_dados (#215, mesclado minutos antes). O
+-- runner identifica migration pela versão: com duas iguais, a segunda é
+-- tratada como já aplicada e pulada. Renomeada para 20260928110000. O corpo é
+-- idempotente (CREATE OR REPLACE / IF NOT EXISTS / DROP ... IF EXISTS), então
+-- reaplicar num banco onde ela já rodou não muda nada.
+--
 -- Todo dia (fim de semana inclusive), antes das metas do dia, o corretor abre
 -- o PRÓPRIO funil:
 -- conversão por etapa, conversão por origem e a "matemática da venda"
