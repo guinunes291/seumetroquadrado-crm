@@ -78,6 +78,13 @@
       "when": 1790201314094,
       "tag": "0010_sdr_criar_e_puxar_leads",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790202511868,
+      "tag": "0011_sdr_visita_pela_agenda",
+      "breakpoints": true
     }
   ]
 }
