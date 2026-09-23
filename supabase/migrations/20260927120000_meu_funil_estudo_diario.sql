@@ -1,6 +1,7 @@
 -- Meu Funil — estudo diário obrigatório do corretor.
 --
--- Todo dia útil, antes das metas do dia, o corretor abre o PRÓPRIO funil:
+-- Todo dia (fim de semana inclusive), antes das metas do dia, o corretor abre
+-- o PRÓPRIO funil:
 -- conversão por etapa, conversão por origem e a "matemática da venda"
 -- (quantos leads / conversas / agendamentos / visitas / pastas para 1 venda).
 --
