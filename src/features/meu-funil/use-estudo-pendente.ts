@@ -20,6 +20,32 @@ export function useDia(): string {
   return dia;
 }
 
+function chaveLiberado(uid: string, dia: string) {
+  return `smq:meu-funil:liberado-por-falha:${uid}:${dia}`;
+}
+
+/**
+ * O corretor concluiu o estudo, mas o servidor recusou a gravação. Libera o
+ * CRM NESTE aparelho só por hoje: uma falha técnica nunca prende o corretor
+ * fora do trabalho (mesma regra da leitura com erro). O erro vai para o
+ * rastreamento, então a gestão fica sabendo mesmo sem a linha no banco.
+ */
+export function liberarPorFalha(uid: string, dia: string) {
+  try {
+    localStorage.setItem(chaveLiberado(uid, dia), "1");
+  } catch {
+    /* modo privado: sem como lembrar; o estudo reabre na próxima carga */
+  }
+}
+
+function lerLiberado(uid: string, dia: string): boolean {
+  try {
+    return localStorage.getItem(chaveLiberado(uid, dia)) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /** Evento disparado quando o estudo pendente muda (as metas do dia esperam por ele). */
 export const EVENTO_ESTUDO_FUNIL = "meu-funil:estudo";
 
@@ -34,9 +60,17 @@ export function useEstudoFunilPendente(): boolean | null {
   const uid = user?.id ?? "";
   const dia = useDia();
   const hojeQ = useEstudoDeHoje(dia, !!uid && isCorretor);
+  const [liberado, setLiberado] = useState(() => lerLiberado(uid, dia));
+  useEffect(() => {
+    const atualizar = () => setLiberado(lerLiberado(uid, dia));
+    atualizar();
+    window.addEventListener(EVENTO_ESTUDO_FUNIL, atualizar);
+    return () => window.removeEventListener(EVENTO_ESTUDO_FUNIL, atualizar);
+  }, [uid, dia]);
 
   if (!uid || loading) return null;
   if (!isCorretor) return false;
+  if (liberado) return false;
   if (hojeQ.isError) return false;
   if (hojeQ.isPending) return null;
   return precisaEstudar({ ehCorretor: isCorretor, estudoHoje: hojeQ.data });

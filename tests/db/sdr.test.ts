@@ -608,7 +608,10 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
       `SELECT regra_aplicada FROM public.distribution_log WHERE lead_id = $1 ORDER BY created_at`,
       [legado],
     );
-    expect(ev.rows.map((x) => x.regra_aplicada)).toEqual(["sdr_carteira_antiga", "roleta_sdr"]);
+    // Quem marcou foi o próprio SDR: desde 20260929120000 (caso Lauriene) o
+    // registro é 'sdr_agenda' — 'sdr_carteira_antiga' fica para a visita posta
+    // no nome do SDR por outra pessoa.
+    expect(ev.rows.map((x) => x.regra_aplicada)).toEqual(["sdr_agenda", "roleta_sdr"]);
   });
 
   it("lead comum de corretor: a visita fica com ele, nada muda", async () => {
@@ -626,7 +629,11 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
     expect(l.corretor_id).toBe(corretorB.id);
   });
 
-  it("cadastro pelo SDR que bate em lead existente: parado ou da própria carteira entra na base; recente de corretor não", async () => {
+  // Regra de posse de 23/09 (20260923220000_sdr_criar_e_puxar_leads): o SDR
+  // puxa lead de qualquer dono — parado ou recente, de corretor ou da própria
+  // carteira antiga —, EXCETO de agendado em diante (ou com venda viva): esse
+  // só a gestão move. Quem perde o lead fica em corretor_anterior_id.
+  it("cadastro pelo SDR que bate em lead existente: puxa de qualquer dono, menos de agendado em diante", async () => {
     await comoSuperuser(c);
     const paradoBruno = await criarLead(c, {
       nome: "Parado Bruno dedup",
@@ -650,6 +657,12 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
       corretorId: sdr.id,
       status: "novo",
     });
+    const agendadoBruno = await criarLead(c, {
+      nome: "Agendado Bruno dedup",
+      telefone: "11977770004",
+      corretorId: corretorB.id,
+      status: "agendado",
+    });
 
     await comoUsuario(c, sdr.id);
     const dedup = async (telefone: string) => {
@@ -664,13 +677,24 @@ describe("visita fora da RPC passa pela roleta (trigger em agendamentos)", () =>
     expect(r1.sdr_pegou).toBe(true);
     const r2 = await dedup("(11) 97777-0002");
     expect(r2.duplicado).toBe(true);
-    expect(r2.sdr_pegou).toBe(false);
+    expect(r2.sdr_pegou).toBe(true);
     const r3 = await dedup("(11) 97777-0003");
     expect(r3.sdr_pegou).toBe(true);
+    const r4 = await dedup("(11) 97777-0004");
+    expect(r4.duplicado).toBe(true);
+    expect(r4.lead_id).toBe(agendadoBruno);
+    expect(r4.sdr_pegou).toBe(false);
 
-    expect((await lead(paradoBruno)).sdr_id).toBe(sdr.id);
-    expect((await lead(paradoBruno)).corretor_id).toBe(corretorB.id);
-    expect((await lead(recenteBruno)).sdr_id).toBeNull();
+    for (const id of [paradoBruno, recenteBruno]) {
+      const l = await lead(id);
+      expect(l.sdr_id).toBe(sdr.id);
+      expect(l.corretor_id).toBeNull();
+      expect(l.corretor_anterior_id).toBe(corretorB.id);
+    }
+    // Agendado continua do corretor: só a gestão move.
+    const ag = await lead(agendadoBruno);
+    expect(ag.sdr_id).toBeNull();
+    expect(ag.corretor_id).toBe(corretorB.id);
     const meu = await lead(meuLegado);
     expect(meu.sdr_id).toBe(sdr.id);
     expect(meu.status).toBe("aguardando_atendimento");

@@ -23,7 +23,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useUserRoles } from "@/hooks/use-auth";
+import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { captureClientError } from "@/lib/error-tracking-browser";
+import { mensagemDeErro } from "@/lib/mensagem-erro";
 import { cn } from "@/lib/utils";
 import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 import {
@@ -36,6 +38,7 @@ import { MeuFunilView } from "@/features/meu-funil/meu-funil-view";
 import { useRegistrarEstudo } from "@/features/meu-funil/use-meu-funil";
 import {
   EVENTO_ESTUDO_FUNIL,
+  liberarPorFalha,
   useDia,
   useEstudoFunilPendente,
 } from "@/features/meu-funil/use-estudo-pendente";
@@ -54,6 +57,8 @@ function useSegundosVisiveis(ativo: boolean): number {
 }
 
 export function MeuFunilGlobal() {
+  const { user } = useAuth();
+  const uid = user?.id ?? "";
   const { isCorretor } = useUserRoles();
   const dia = useDia();
   const pendente = useEstudoFunilPendente();
@@ -89,10 +94,19 @@ export function MeuFunilGlobal() {
           });
           window.dispatchEvent(new Event(EVENTO_ESTUDO_FUNIL));
         },
-        onError: (e) =>
-          toast.error("Não foi possível salvar o estudo", {
-            description: e instanceof Error ? e.message : undefined,
-          }),
+        onError: (e) => {
+          // Erro do Supabase é objeto simples, não Error: sem o formatador a
+          // mensagem sumia e o aviso saía mudo.
+          const motivo = mensagemDeErro(e) ?? "sem detalhe do servidor";
+          console.error("[meu-funil] falha ao salvar o estudo:", e);
+          captureClientError(e, "meu-funil:salvar-estudo", true);
+          liberarPorFalha(uid, dia);
+          window.dispatchEvent(new Event(EVENTO_ESTUDO_FUNIL));
+          toast.warning("Estudo concluído, mas não foi salvo no servidor", {
+            description: `Você está liberado para trabalhar hoje. Envie este motivo para a gestão: ${motivo}`,
+            duration: 60_000,
+          });
+        },
       },
     );
   };
