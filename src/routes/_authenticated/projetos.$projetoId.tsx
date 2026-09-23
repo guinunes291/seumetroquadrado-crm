@@ -6,6 +6,7 @@ import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { isMissingColumn } from "@/lib/supabase-errors";
 import { focoVigente } from "@/lib/prateleira";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
+import { PAPEIS_CATALOGO } from "@/lib/projetos";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { usePreference } from "@/hooks/use-preference";
 import { PageHeader } from "@/components/page-header";
@@ -54,8 +55,10 @@ function ProjetoDetalhePage() {
   const { leadId } = Route.useSearch();
   usePublicarFaseDoLeadPorId(leadId);
   const { user } = useAuth();
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, roles } = useUserRoles();
   const canManage = isAdmin;
+  // Corretor não tem o Catálogo completo: o "voltar" leva para Projetos em Foco.
+  const podeVerCatalogo = roles.some((r) => PAPEIS_CATALOGO.includes(r));
   const qc = useQueryClient();
   const [unidadeOpen, setUnidadeOpen] = useState(false);
   const [editing, setEditing] = useState<UnidadeRow | null>(null);
@@ -252,7 +255,7 @@ function ProjetoDetalhePage() {
       }
       asChild
     >
-      <Link to="/projetos">
+      <Link to={podeVerCatalogo ? "/projetos" : "/projetos-foco"}>
         <ArrowLeft className="mr-1 h-4 w-4" />
         Projetos
       </Link>

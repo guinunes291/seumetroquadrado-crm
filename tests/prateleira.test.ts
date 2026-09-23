@@ -13,6 +13,7 @@ import {
   iniciais,
   montarItem,
   montarPrateleira,
+  noEscopoDoCorretor,
   ordenar,
   rotuloUrgencia,
   type FocoRow,
@@ -343,6 +344,23 @@ describe("corredores", () => {
     expect(c[2].total).toBe(2);
     expect(construtoraChave(mundo)).toBe("p:mundo");
     expect(construtoraChave(outra)).toBe("c:vibra");
+  });
+
+  it("escopo do corretor: campanha em foco e parceiras ficam, 'Outras construtoras' sai", () => {
+    const focoForaDaParceria = item(
+      { id: "o2", nome: "Outra em campanha", construtora: "Vibra" },
+      focosPorProjeto(
+        [{ id: "f2", projeto_id: "o2", motivo: null, inicio: dia(-1), fim: null, ativo: true }],
+        AGORA,
+      ),
+    );
+    const escopo = [outra, mundo, cury, semConstrutora, focoForaDaParceria].filter(
+      noEscopoDoCorretor,
+    );
+    expect(escopo.map((i) => i.id)).toEqual(["m1", "c1", "o2"]);
+    // O corredor "Outras" só sobra com o que está em campanha (aparece no topo).
+    const p = montarPrateleira(escopo, parceiras);
+    expect(p.outras.map((i) => i.id)).toEqual(["o2"]);
   });
 });
 
