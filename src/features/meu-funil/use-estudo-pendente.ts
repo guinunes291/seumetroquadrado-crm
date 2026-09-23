@@ -3,29 +3,9 @@
 
 import { useEffect, useState } from "react";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
-import { diaSaoPaulo, ehDiaUtil } from "@/features/metas-dia/metas-dia";
+import { diaSaoPaulo } from "@/features/metas-dia/metas-dia";
 import { precisaEstudar } from "@/features/meu-funil/meu-funil";
 import { useEstudoDeHoje } from "@/features/meu-funil/use-meu-funil";
-
-function chavePulado(uid: string) {
-  return `smq:meu-funil:pulado:${uid}`;
-}
-
-function lerPulado(uid: string, dia: string): boolean {
-  try {
-    return localStorage.getItem(chavePulado(uid)) === dia;
-  } catch {
-    return false;
-  }
-}
-
-export function gravarPulado(uid: string, dia: string) {
-  try {
-    localStorage.setItem(chavePulado(uid), dia);
-  } catch {
-    /* modo privado: pergunta de novo na próxima abertura */
-  }
-}
 
 /** Relógio de "dia": vira à meia-noite de São Paulo mesmo com a aba aberta. */
 export function useDia(): string {
@@ -54,22 +34,10 @@ export function useEstudoFunilPendente(): boolean | null {
   const uid = user?.id ?? "";
   const dia = useDia();
   const hojeQ = useEstudoDeHoje(dia, !!uid && isCorretor);
-  const [pulado, setPulado] = useState(() => lerPulado(uid, dia));
-  useEffect(() => {
-    const atualizar = () => setPulado(lerPulado(uid, dia));
-    atualizar();
-    window.addEventListener(EVENTO_ESTUDO_FUNIL, atualizar);
-    return () => window.removeEventListener(EVENTO_ESTUDO_FUNIL, atualizar);
-  }, [uid, dia]);
 
   if (!uid || loading) return null;
   if (!isCorretor) return false;
   if (hojeQ.isError) return false;
   if (hojeQ.isPending) return null;
-  return precisaEstudar({
-    ehCorretor: isCorretor,
-    diaUtil: ehDiaUtil(dia),
-    estudoHoje: hojeQ.data,
-    puladoHoje: pulado,
-  });
+  return precisaEstudar({ ehCorretor: isCorretor, estudoHoje: hojeQ.data });
 }

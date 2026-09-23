@@ -5,9 +5,9 @@
 // precisa de 12 conversas para 1 agendamento declara a meta de agendamentos
 // sabendo o que ela custa.
 //
-// Em dia útil é bloqueante: a única saída é concluir o estudo, que só libera
-// depois de SEGUNDOS_MINIMOS_ESTUDO com a tela aberta e visível e com um foco
-// escolhido. Fim de semana: pode pular.
+// Bloqueante TODOS os dias, fim de semana inclusive: a única saída é concluir
+// o estudo, que só libera depois de SEGUNDOS_MINIMOS_ESTUDO (3 min) com a
+// tela aberta e visível e com um foco escolhido.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -23,9 +23,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { useUserRoles } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { ehDiaUtil } from "@/features/metas-dia/metas-dia";
 import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 import {
   FOCOS,
@@ -37,7 +36,6 @@ import { MeuFunilView } from "@/features/meu-funil/meu-funil-view";
 import { useRegistrarEstudo } from "@/features/meu-funil/use-meu-funil";
 import {
   EVENTO_ESTUDO_FUNIL,
-  gravarPulado,
   useDia,
   useEstudoFunilPendente,
 } from "@/features/meu-funil/use-estudo-pendente";
@@ -56,9 +54,7 @@ function useSegundosVisiveis(ativo: boolean): number {
 }
 
 export function MeuFunilGlobal() {
-  const { user } = useAuth();
   const { isCorretor } = useUserRoles();
-  const uid = user?.id ?? "";
   const dia = useDia();
   const pendente = useEstudoFunilPendente();
 
@@ -68,7 +64,6 @@ export function MeuFunilGlobal() {
     isCorretor && !!onboardingQ.data && onboardingQ.data.concluido_em === null;
 
   const aberto = pendente === true && !onboardingPendente;
-  const bloqueante = ehDiaUtil(dia);
   const segundos = useSegundosVisiveis(aberto);
   const faltam = Math.max(0, SEGUNDOS_MINIMOS_ESTUDO - segundos);
 
@@ -102,24 +97,18 @@ export function MeuFunilGlobal() {
     );
   };
 
-  const pular = () => {
-    if (bloqueante) return;
-    gravarPulado(uid, dia);
-    window.dispatchEvent(new Event(EVENTO_ESTUDO_FUNIL));
-  };
-
   if (!aberto) return null;
 
   return (
-    <Dialog open onOpenChange={(o) => !o && pular()}>
+    <Dialog open>
       <DialogContent
         className={cn(
           "flex max-h-[92vh] max-w-5xl flex-col gap-0 p-0",
-          bloqueante && "[&>button.absolute]:hidden",
+          "[&>button.absolute]:hidden",
         )}
-        onEscapeKeyDown={(e) => bloqueante && e.preventDefault()}
-        onPointerDownOutside={(e) => bloqueante && e.preventDefault()}
-        onInteractOutside={(e) => bloqueante && e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
         data-testid="meu-funil-estudo-dialog"
       >
         <DialogHeader className="border-b p-5">
@@ -184,17 +173,12 @@ export function MeuFunilGlobal() {
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Timer className="h-4 w-4" />
             {faltam > 0
-              ? `Leitura mínima: libera em ${faltam}s`
+              ? `Leitura mínima: libera em ${Math.floor(faltam / 60)}:${String(faltam % 60).padStart(2, "0")}`
               : !foco
                 ? "Escolha o seu foco de hoje"
                 : "Pronto para começar"}
           </span>
           <div className="flex gap-2">
-            {!bloqueante && (
-              <Button type="button" variant="ghost" onClick={pular}>
-                Pular hoje
-              </Button>
-            )}
             <Button
               type="button"
               onClick={concluir}

@@ -50,7 +50,9 @@ export const ORIGENS_BASE_IMPORTADA = ["importacao", "google_sheets"] as const;
 export const AMOSTRA_MINIMA = 10;
 
 /** Tempo mínimo com a tela aberta antes de liberar o "concluí o estudo". */
-export const SEGUNDOS_MINIMOS_ESTUDO = 45;
+// 3 minutos: o bastante para ler a matemática da venda, o funil e a origem —
+// menos que isso o corretor só rola a tela até o botão.
+export const SEGUNDOS_MINIMOS_ESTUDO = 180;
 
 export const PERIODOS_DIAS = [30, 90, 180] as const;
 export type PeriodoDias = (typeof PERIODOS_DIAS)[number];
@@ -449,19 +451,14 @@ export type EstudoDia = {
 };
 
 /**
- * Deve abrir o estudo obrigatório? Só corretor, só sem registro de HOJE (o
- * banco é a fonte), e no fim de semana só se ele não pulou hoje.
+ * Deve abrir o estudo obrigatório? Só corretor e só sem registro de HOJE (o
+ * banco é a fonte). Todos os dias, fim de semana inclusive — não há "pular".
  */
 export function precisaEstudar(input: {
   ehCorretor: boolean;
-  diaUtil: boolean;
   estudoHoje: EstudoDia | null | undefined;
-  puladoHoje: boolean;
 }): boolean {
-  if (!input.ehCorretor) return false;
-  if (input.estudoHoje) return false;
-  if (!input.diaUtil && input.puladoHoje) return false;
-  return true;
+  return input.ehCorretor && !input.estudoHoje;
 }
 
 // ---------------------------------------------------------------------------

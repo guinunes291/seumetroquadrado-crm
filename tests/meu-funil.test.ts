@@ -177,26 +177,21 @@ describe("planoDoMes", () => {
 });
 
 describe("precisaEstudar", () => {
-  const base = { ehCorretor: true, diaUtil: true, estudoHoje: null, puladoHoje: false };
-  it("corretor sem estudo hoje → abre; já estudou ou não é corretor → não", () => {
-    expect(precisaEstudar(base)).toBe(true);
-    expect(precisaEstudar({ ...base, ehCorretor: false })).toBe(false);
+  it("corretor sem estudo hoje → abre, todo dia; já estudou ou não é corretor → não", () => {
+    expect(precisaEstudar({ ehCorretor: true, estudoHoje: null })).toBe(true);
+    expect(precisaEstudar({ ehCorretor: false, estudoHoje: null })).toBe(false);
     expect(
       precisaEstudar({
-        ...base,
+        ehCorretor: true,
         estudoHoje: {
           dia: "x",
           foco: "agendar",
           compromisso: null,
-          segundos_na_tela: 60,
+          segundos_na_tela: 200,
           concluido_em: "x",
         },
       }),
     ).toBe(false);
-  });
-  it("em dia útil pular não vale; no fim de semana vale", () => {
-    expect(precisaEstudar({ ...base, puladoHoje: true })).toBe(true);
-    expect(precisaEstudar({ ...base, diaUtil: false, puladoHoje: true })).toBe(false);
   });
 });
 
