@@ -90,6 +90,7 @@ import {
   iniciais,
   montarItem,
   montarPrateleira,
+  noEscopoDoCorretor,
   ORDENACOES,
   ordenar,
   type Corredor,
@@ -261,13 +262,13 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- recalcular quando os dados chegam é o comportamento desejado
   const agora = useMemo(() => Date.now(), [projetosQ.data, focosQ.data]);
   const focos = useMemo(() => focosPorProjeto(focosQ.data ?? [], agora), [focosQ.data, agora]);
-  const itens = useMemo(
-    () =>
-      (projetosQ.data ?? []).map((p) =>
-        montarItem(p, { parceiras, focos, demanda: demandaQ.data, agora }),
-      ),
-    [projetosQ.data, parceiras, focos, demandaQ.data, agora],
-  );
+  // Corretor fica com foco + parceiras; a gestão enxerga a prateleira inteira.
+  const itens = useMemo(() => {
+    const todos = (projetosQ.data ?? []).map((p) =>
+      montarItem(p, { parceiras, focos, demanda: demandaQ.data, agora }),
+    );
+    return podeVerCatalogo ? todos : todos.filter(noEscopoDoCorretor);
+  }, [projetosQ.data, parceiras, focos, demandaQ.data, agora, podeVerCatalogo]);
 
   // Base das contagens dos filtros: o que está na prateleira (sem os demais filtros).
   const visiveis = useMemo(
