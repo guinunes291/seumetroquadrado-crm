@@ -550,9 +550,15 @@ function LeadDetailPage() {
       )}
 
       {/* Decisão da análise de crédito (item 3.1): aprovar/reprovar com o
-          próximo passo do fluxo embutido — só aparece na etapa de análise. */}
+          próximo passo do fluxo embutido. Aprovada COM DADOS, o card segue
+          visível nas etapas seguintes (valores, carta e produtos que encaixam). */}
       <AnaliseCreditoCard
-        lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
+        lead={{
+          id: lead.id,
+          nome: lead.nome,
+          status: lead.status,
+          corretor_id: lead.corretor_id,
+        }}
         onRegistrarVenda={() => setModalState({ modal: "contrato_fechado", lead: stageLead })}
         onNovaAnalise={() => setModalState({ modal: "analise_credito", lead: stageLead })}
         onPerdido={() => setPerdidoLead(stageLead)}

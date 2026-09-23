@@ -10,7 +10,12 @@ import type { SamiQAction, SamiQCanal } from "@/lib/samiq";
  * métrica C3 distingue o chat dos botões do dossiê/match. Não entram em
  * SAMIQ_ACTIONS de propósito — aquilo é catálogo de UI do painel.
  */
-export type GovernedAIAction = SamiQAction | "match_projetos" | "resumo_lead" | "mensagem_whatsapp";
+export type GovernedAIAction =
+  | SamiQAction
+  | "match_projetos"
+  | "resumo_lead"
+  | "mensagem_whatsapp"
+  | "ler_aprovacao_credito";
 
 /**
  * Modelo do comportamento legado, usado só quando a governança ainda não

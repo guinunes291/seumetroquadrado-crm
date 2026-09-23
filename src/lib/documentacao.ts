@@ -70,6 +70,7 @@ export const DOC_LABEL: Record<string, string> = {
   declaracao_ir: "Declaração de IR (completa) + recibo",
   conjuge_identidade: "Documento de identidade do cônjuge",
   conjuge_renda: "Comprovante de renda do cônjuge",
+  aprovacao_credito: "Carta de aprovação de crédito",
   nao_classificado: "Documento não classificado (revisar)",
   outro: "Outro documento",
 };
@@ -262,6 +263,42 @@ export async function uploadDocArquivo(
   const result = await documentacaoApi("/api/documentacao", { method: "POST", body: form });
   if (!result.path) throw new Error("O servidor não confirmou o arquivo enviado.");
   return result.path;
+}
+
+/**
+ * Anexa a carta de aprovação de crédito: cria o item `aprovacao_credito` na
+ * documentação do lead e sobe o arquivo pelo MESMO handler mediado (bucket
+ * privado, versão imutável, auditoria). Devolve o id do item — é o que a
+ * análise guarda em `comprovante_doc_id`. O arquivo aparece também na aba
+ * Documentação: um lugar só para arquivo sensível do cliente.
+ */
+export async function anexarComprovanteAprovacao(
+  leadId: string,
+  corretorId: string | null,
+  file: File,
+): Promise<string> {
+  if (!DOC_MIME_TYPES.has(file.type) || file.size < 1 || file.size > DOC_MAX_BYTES) {
+    throw new Error("Envie PDF, JPEG, PNG ou WebP de até 15 MB.");
+  }
+  const { data, error } = await supabase
+    .from("documentacoes")
+    .insert({
+      lead_id: leadId,
+      corretor_id: corretorId,
+      tipo: "aprovacao_credito",
+      status: "pendente" as DocStatus,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+  try {
+    await uploadDocArquivo(leadId, data.id, file);
+  } catch (e) {
+    // Sem arquivo, o item vazio só polui o checklist: desfaz.
+    await supabase.from("documentacoes").delete().eq("id", data.id);
+    throw e;
+  }
+  return data.id;
 }
 
 /** Signed URL de cinco minutos, emitida somente após autorização server-side. */

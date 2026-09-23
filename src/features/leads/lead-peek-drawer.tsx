@@ -204,7 +204,12 @@ function PeekBody({
           sair do peek; cada desfecho oferece o próximo passo do fluxo. */}
       {lead.status === "analise_credito" && (
         <AnaliseCreditoCard
-          lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
+          lead={{
+            id: lead.id,
+            nome: lead.nome,
+            status: lead.status,
+            corretor_id: lead.corretor_id,
+          }}
           onRegistrarVenda={() => setModalState({ modal: "contrato_fechado", lead: stageLead })}
           onNovaAnalise={() => setModalState({ modal: "analise_credito", lead: stageLead })}
           onPerdido={() => setPerdidoLead(stageLead)}

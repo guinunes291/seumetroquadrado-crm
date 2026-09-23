@@ -95,6 +95,11 @@ const RelatoriosCorretoresTab = lazy(() =>
     default: RelatoriosCorretoresTab,
   })),
 );
+const RelatoriosAprovacoesTab = lazy(() =>
+  import("@/features/dashboard/relatorios-aprovacoes-tab").then(({ RelatoriosAprovacoesTab }) => ({
+    default: RelatoriosAprovacoesTab,
+  })),
+);
 const RelatoriosSdrTab = lazy(() =>
   import("@/features/dashboard/relatorios-sdr-tab").then(({ RelatoriosSdrTab }) => ({
     default: RelatoriosSdrTab,
@@ -154,7 +159,9 @@ export function RelatoriosView() {
           // A aba SDR tem calendário próprio (semana de pagamento, sábado a
           // sexta): deixar o filtro de período ligado ali só criaria dois
           // controles de data disputando a mesma tela.
-          aba === "sdr" ? null : (
+          // Aprovações idem: aprovação vigente é ESTADO (vale até a validade),
+          // não evento do período.
+          aba === "sdr" || aba === "aprovacoes" ? null : (
             <PeriodFilter
               preset={preset}
               onPresetChange={setPreset}
@@ -170,6 +177,7 @@ export function RelatoriosView() {
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           <TabsTrigger value="vendas">Vendas</TabsTrigger>
           <TabsTrigger value="atividades">Atividades</TabsTrigger>
+          <TabsTrigger value="aprovacoes">Aprovações</TabsTrigger>
           {canSeeAll && <TabsTrigger value="time">Time</TabsTrigger>}
           {canSeeAll && <TabsTrigger value="corretores">Corretores</TabsTrigger>}
           {isAdmin && <TabsTrigger value="sdr">SDR</TabsTrigger>}
@@ -186,6 +194,11 @@ export function RelatoriosView() {
         <TabsContent value="atividades">
           <Suspense fallback={<AbaSkeleton />}>
             <RelatoriosAtividadesTab range={range} scope={scope} canSeeAll={canSeeAll} />
+          </Suspense>
+        </TabsContent>
+        <TabsContent value="aprovacoes">
+          <Suspense fallback={<AbaSkeleton />}>
+            <RelatoriosAprovacoesTab scope={scope} canSeeAll={canSeeAll} />
           </Suspense>
         </TabsContent>
         {canSeeAll && (
