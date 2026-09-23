@@ -66,8 +66,11 @@ describe("fluxo no app (3.1)", () => {
   });
 
   it("o card decide OU oferece o próximo passo — nunca os dois", () => {
-    expect(card).toContain('if (lead.status !== "analise_credito") return null');
-    expect(card).toMatch(/\{!decidida \? \(/);
+    // Fora da etapa, o card só aparece com aprovação COM DADOS (acompanha o
+    // lead até a venda) ou para oferecer o anexo; a DECISÃO segue só na etapa.
+    expect(card).toContain("if (!naEtapa && !comDados && !podeAnexar) return null");
+    expect(card).toContain('const naEtapa = lead.status === "analise_credito"');
+    expect(card).toMatch(/\{!naEtapa \? null : !decidida \? \(/);
     expect(card).toContain("Registrar venda");
     expect(card).toContain("Nova análise");
     expect(card).toContain("Motivo da reprovação");

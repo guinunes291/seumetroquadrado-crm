@@ -46,6 +46,13 @@ const AgendaDoDiaCard = lazy(() =>
     default: AgendaDoDiaCard,
   })),
 );
+// O estudo diário do Meu Funil abre antes das metas — também já no hub, senão
+// as metas (que esperam por ele) nunca abririam aqui.
+const MeuFunilGlobal = lazy(() =>
+  import("@/features/meu-funil/meu-funil-global").then(({ MeuFunilGlobal }) => ({
+    default: MeuFunilGlobal,
+  })),
+);
 // O popup de metas do dia precisa aparecer JÁ no hub: é a primeira tela após
 // o login, e o corretor pode ir daqui direto para o Modo Visita.
 const MetasDiaGlobal = lazy(() =>
@@ -223,6 +230,7 @@ export function InicioPage() {
       <Suspense fallback={null}>
         <CommandPalette />
         <NovoLeadDialogHost />
+        <MeuFunilGlobal />
         <MetasDiaGlobal />
       </Suspense>
       <Toaster richColors closeButton />
