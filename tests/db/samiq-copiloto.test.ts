@@ -119,8 +119,10 @@ describe("reserva com ferramentas de leitura", () => {
   it("devolve a versão ativa com tools_enabled, o teto de passos da política e sem % de custo quando não há teto", async () => {
     const r = await reservar(c, corretorA.id);
     expect(r.allowed).toBe(true);
-    // Versão ativa mais recente (S5 = v5). v3 e v4 continuam no banco, inativas.
-    expect(r.prompt_version).toBe("samiq-2026-09-v5");
+    // Versão ativa mais recente: v6 (aprovação de crédito, 20260927120000) é a
+    // v5 + a ação ler_aprovacao_credito — mesmo system prompt, por isso as
+    // asserções da S5 abaixo seguem valendo. v3, v4 e v5 ficam inativas.
+    expect(r.prompt_version).toBe("samiq-2026-09-v6");
     expect(r.tools_enabled).toBe(true);
     expect(r.max_tool_steps).toBe(6);
     expect(r.custo_mes_pct).toBeNull();
