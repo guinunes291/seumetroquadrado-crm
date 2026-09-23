@@ -8234,6 +8234,7 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
       }
+      _cadencia_destino_saida: { Args: { _status: string }; Returns: string }
       _cadencia_devolver_roleta: {
         Args: { _corretor: string; _lead: string; _motivo: string }
         Returns: boolean
@@ -8248,9 +8249,31 @@ export type Database = {
         }
         Returns: boolean
       }
+      _cadencia_evento_saida: {
+        Args: {
+          _de: string
+          _lead: string
+          _para: string
+          _status: string
+          _via: string
+        }
+        Returns: undefined
+      }
       _cadencia_janela: {
         Args: { _ate: string; _de: string }
         Returns: Record<string, unknown>
+      }
+      _cadencia_sair_por_avanco: {
+        Args: { _lead: string; _via: string }
+        Returns: boolean
+      }
+      _cadencia_status_na_janela: {
+        Args: { _status: string }
+        Returns: boolean
+      }
+      _cadencia_status_prospeccao: {
+        Args: { _status: string }
+        Returns: boolean
       }
       _carteira_classificar: {
         Args: { _corretor: string }
@@ -8271,6 +8294,10 @@ export type Database = {
           temperatura: string
           valor: number
         }[]
+      }
+      _carteira_vaga_entrada: {
+        Args: { _em_formacao: number; _ocupadas: number }
+        Returns: number
       }
       _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
       _devolver_lead_ao_sdr: {
@@ -8964,6 +8991,13 @@ export type Database = {
         }
         Returns: string
       }
+      cadencia_corrigir_avancados: {
+        Args: never
+        Returns: {
+          por_passo: number
+          por_status: number
+        }[]
+      }
       cadencia_cumprida_100: { Args: { _lead: string }; Returns: boolean }
       cadencia_encerrar: {
         Args: { _limite?: number; _modo?: string }
@@ -9141,6 +9175,7 @@ export type Database = {
           valor: number
         }[]
       }
+      carteira_formacao_v1: { Args: { _corretor?: string }; Returns: Json }
       carteira_reserva_v1: {
         Args: {
           _busca?: string
