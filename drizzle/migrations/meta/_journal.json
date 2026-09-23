@@ -71,6 +71,13 @@
       "when": 1790122219506,
       "tag": "0009_cadencia_corretor_inativo",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790201314094,
+      "tag": "0010_sdr_criar_e_puxar_leads",
+      "breakpoints": true
     }
   ]
 }

@@ -8426,6 +8426,7 @@ export type Database = {
         Args: { _corretor: string; _lead: string; _motivo: string }
         Returns: boolean
       }
+      _cadencia_dono_ativo: { Args: { _corretor: string }; Returns: boolean }
       _cadencia_encerrar_lead: {
         Args: {
           _corretor: string
@@ -9197,6 +9198,15 @@ export type Database = {
         }[]
       }
       cadencia_cumprida_100: { Args: { _lead: string }; Returns: boolean }
+      cadencia_devolver_inativos: {
+        Args: { _modo?: string }
+        Returns: {
+          aplicados: number
+          avaliados: number
+          lote_id: string
+          modo: string
+        }[]
+      }
       cadencia_encerrar: {
         Args: { _limite?: number; _modo?: string }
         Returns: {
