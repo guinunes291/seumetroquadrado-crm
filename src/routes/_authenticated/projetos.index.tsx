@@ -11,7 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ArrowClockwise, Buildings, Plus, UploadSimple, Warning, X } from "@phosphor-icons/react";
 import { SamiMark } from "@/components/ui/sami-mark";
-import { webhookUrl } from "@/lib/projetos";
+import { PAPEIS_CATALOGO, webhookUrl } from "@/lib/projetos";
+import { RequireRole } from "@/components/require-role";
 import { ImportProjetosDialog } from "@/components/import-projetos-dialog";
 import { ProjetoFormDialog } from "@/components/projeto-form-dialog";
 import { ProjetoCard, type ProjetoRow } from "@/components/projeto-card";
@@ -43,8 +44,18 @@ export const Route = createFileRoute("/_authenticated/projetos/")({
     }
   },
   head: () => ({ meta: [{ title: "Projetos — Seu Metro Quadrado" }] }),
-  component: CatalogoPanel,
+  component: CatalogoRoute,
 });
+
+// Catálogo completo é da gestão: o corretor trabalha só os produtos em foco
+// (Projetos em Foco + Vitrine) e quem cai aqui por link antigo vai para lá.
+function CatalogoRoute() {
+  return (
+    <RequireRole allow={PAPEIS_CATALOGO} redirectTo="/projetos-foco">
+      <CatalogoPanel />
+    </RequireRole>
+  );
+}
 
 function CatalogoPanel() {
   const { user } = useAuth();

@@ -2,6 +2,14 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import type { AppRole } from "@/hooks/use-auth";
+
+/**
+ * Quem enxerga o Catálogo completo (/projetos). O corretor trabalha só os
+ * produtos em foco — Projetos em Foco e o mapa da Vitrine — então o catálogo
+ * inteiro (inclusive o que a gestão não quer empurrar) fica com a gestão.
+ */
+export const PAPEIS_CATALOGO: AppRole[] = ["admin", "gestor", "superintendente"];
 
 export function slugify(input: string): string {
   return input
