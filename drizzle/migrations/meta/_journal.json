@@ -64,6 +64,13 @@
       "when": 1790116579648,
       "tag": "0008_carteira_base_em_formacao",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790122219506,
+      "tag": "0009_cadencia_corretor_inativo",
+      "breakpoints": true
     }
   ]
 }

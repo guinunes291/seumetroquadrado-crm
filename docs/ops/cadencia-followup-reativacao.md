@@ -257,6 +257,26 @@ lead que avançava **pela ficha** (visita agendada, tarefa, perda) continuava em
 D1 e o motor de vencidos o mandava para a roleta. Desenho completo em
 `docs/ops/carteira-ativa-40-fatia3.md` §11.
 
+## Corretor inativo (23/09/2026)
+
+Medido em produção logo depois da base em formação: 5 leads em D1/D2/D3 de
+perfis **inativos** (cauã Caetano, Ezequiel Silva, Juliana Alonso ×2, Emilly
+Vitória). A admissão da Fase 0 exigia lead com corretor, mas nunca perguntou
+se o corretor estava ativo. Ninguém trabalharia esses leads, o prazo venceria
+e o painel registraria falha de quem já saiu da casa.
+
+Migration `20260926120000` (Drizzle `0009`), uma regra — cadência é trabalho de
+quem está na casa:
+
+- `cadencia_fase0_classificar` não manda para a cadência lead de dono inativo.
+  Encerrar e reativação continuam: não dependem do dono.
+- `cadencia_iniciar` recusa dono inativo.
+- `cadencia_devolver_inativos` devolve à roleta pelo caminho da própria
+  cadência, com motivo `corretor_inativo`. Roda uma vez na migration e, daqui
+  em diante, no início de `cadencia_vencidos`. O log usa o job `inativo`, e não
+  `vencidos`: o painel conta como falha só `vencidos`, e sair da casa não é
+  deixar a etapa vencer.
+
 ## Pontos que continuam em aberto
 
 - **Sincronização do espelho.** Por que `estagio_funil` mostra 3.029 leads como
