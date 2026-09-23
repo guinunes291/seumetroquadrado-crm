@@ -445,7 +445,10 @@ function LeadsPage() {
   // modo foco — uma única montagem para os três consumidores.
   const buildParams = () => {
     const sNorm = debouncedSearch ? normalizeSearch(debouncedSearch).replace(/[%,]/g, "") : "";
-    const sDig = debouncedSearch ? onlyDigits(debouncedSearch) : "";
+    // Telefone: busca pelos 8 últimos dígitos — acha o número com ou sem o 9º,
+    // com ou sem 55/DDD (ex.: "91 8017-0154" encontra "91 98017-0154").
+    const sDigRaw = debouncedSearch ? onlyDigits(debouncedSearch) : "";
+    const sDig = sDigRaw.length >= 10 ? sDigRaw.slice(-8) : sDigRaw;
     return {
       _na_lixeira: showLixeira,
       _status: statusFilter,

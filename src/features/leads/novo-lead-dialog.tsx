@@ -212,6 +212,8 @@ function NovoLeadForm({
         na_carteira?: boolean;
         /** SDR: o lead já existia e entrou na base de pré-venda (RPC decide). */
         sdr_pegou?: boolean;
+        /** SDR: lead existe mas está de agendado para frente — só gestão move. */
+        bloqueado_etapa?: boolean;
       } | null;
       if (!resultado?.lead_id) throw new Error("Falha ao criar o lead. Tente novamente.");
       if (resultado.duplicado && resultado.sdr_pegou) {
@@ -222,6 +224,11 @@ function NovoLeadForm({
           selfAssigned: false,
           sdrPegou: true,
         };
+      }
+      if (resultado.duplicado && resultado.bloqueado_etapa) {
+        throw new Error(
+          `"${resultado.nome ?? "Este cliente"}" já existe e está em etapa avançada (agendamento em diante, venda ou perdido). Só a gestão pode mover — peça ao seu gestor.`,
+        );
       }
       if (resultado.duplicado) {
         throw new Error(
