@@ -80,7 +80,7 @@ export function formatVagasRange(
   if (min != null && max != null) {
     if (min === max) {
       const v = min;
-      return v === 0 ? (obs?.trim() || "Sem vaga") : `${v} vaga${v === 1 ? "" : "s"}`;
+      return v === 0 ? obs?.trim() || "Sem vaga" : `${v} vaga${v === 1 ? "" : "s"}`;
     }
     return `${min}–${max} vagas`;
   }
@@ -160,16 +160,17 @@ const fmtMil = (n: number) =>
 
 export const PRECO_FROM_PRESETS: RangeOption[] = [
   QUALQUER,
-  ...[150_000, 200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000].map(
-    (v) => ({ value: v, label: fmtMil(v) }),
-  ),
+  ...[150_000, 200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000].map((v) => ({
+    value: v,
+    label: fmtMil(v),
+  })),
 ];
 
 export const PRECO_TO_PRESETS: RangeOption[] = [
   QUALQUER,
-  ...[200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000, 5_000_000].map(
-    (v) => ({ value: v, label: fmtMil(v) }),
-  ),
+  ...[
+    200_000, 300_000, 500_000, 750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000, 5_000_000,
+  ].map((v) => ({ value: v, label: fmtMil(v) })),
 ];
 
 export const AREA_FROM_PRESETS: RangeOption[] = [
