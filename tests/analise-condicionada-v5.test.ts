@@ -20,6 +20,8 @@ const migCheck = semComentarios(
 const migV5 = semComentarios(read("supabase/migrations/20260811141000_leads_filtered_v5.sql"));
 const modulo = read("src/features/leads/analise-credito.ts");
 const card = read("src/components/lead-stage/analise-resultado.tsx");
+// A condição passou a ser pedida no dialog da aprovação com dados.
+const dialogAprovacao = read("src/components/lead-stage/aprovacao-credito-dialog.tsx");
 const dialog = read("src/components/lead-stage/credit-analysis-dialog.tsx");
 const rpc = read("src/features/leads/leads-rpc.ts");
 const query = read("src/features/leads/leads-query.ts");
@@ -145,7 +147,9 @@ describe("terceiro desfecho no fluxo de decisão", () => {
 
   it("card: botão próprio, dialog pedindo a condição e próximos passos de aprovação", () => {
     expect(card).toContain("Aprovar c/ condição");
-    expect(card).toContain("Condição imposta pelo banco");
+    expect(card).toContain('setAprovacaoModo("aprovada_condicionada")');
+    expect(dialogAprovacao).toContain("Condição imposta pelo banco");
+    expect(dialogAprovacao).toContain("Descreva a condição imposta pelo banco.");
     // Condicionada libera a venda E permite nova rodada se a condição não fechar.
     expect(card).toContain('status === "aprovada" || status === "aprovada_condicionada"');
     expect(card).toContain('status === "aprovada_condicionada" && onNovaAnalise');

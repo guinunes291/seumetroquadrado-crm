@@ -5,13 +5,21 @@
 // aprovada → registrar a venda; condicionada → registrar a venda (ajustada)
 // ou nova análise; reprovada → nova análise (outro banco / docs novos) ou
 // perda. É a resposta operacional ao "quantos negócios estão liberados?".
+//
+// Aprovar (com ou sem condição) abre o dialog da APROVAÇÃO COM DADOS: carta
+// anexada, valores lidos pela IA e conferidos pelo corretor. Depois de
+// aprovado, o card SEGUE visível nas etapas seguintes (venda, pós-venda) com
+// os valores, o comprovante e os produtos que encaixam na aprovação.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ArrowCounterClockwise,
+  FileArrowUp,
   FileMagnifyingGlass,
+  Paperclip,
+  PencilSimple,
   SealCheck,
   XCircle,
 } from "@phosphor-icons/react";
@@ -34,13 +42,104 @@ import {
   ANALISE_STATUS_LABEL,
   decidirAnalise,
   fetchAnaliseAtual,
+  type AnaliseCredito,
   type AnaliseResultado,
   type AnaliseStatus,
 } from "@/features/leads/analise-credito";
 import { formatRelativeTime } from "@/lib/interacoes";
+import { urlAssinadaDoc } from "@/lib/documentacao";
+import { brl } from "@/lib/orcamento";
 import { cn } from "@/lib/utils";
+import {
+  aprovacaoVencida,
+  DADOS_APROVACAO_VAZIOS,
+  MODALIDADE_LABEL,
+  poderDeCompra,
+  temDadosDeAprovacao,
+  type DadosAprovacao,
+  type Modalidade,
+} from "@/features/leads/aprovacao-credito";
+import {
+  AprovacaoCreditoDialog,
+  type ModoAprovacao,
+} from "@/components/lead-stage/aprovacao-credito-dialog";
+import { ProdutosAprovacao } from "@/components/lead-stage/produtos-aprovacao";
 
-type LeadMin = { id: string; nome: string; status: string };
+/** Colunas numeric podem vir como string do PostgREST — normaliza para number. */
+function dadosDe(a: AnaliseCredito): DadosAprovacao {
+  const out = { ...DADOS_APROVACAO_VAZIOS };
+  for (const k of Object.keys(out) as (keyof DadosAprovacao)[]) {
+    const v = a[k];
+    (out as Record<string, unknown>)[k] =
+      typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : (v ?? null);
+  }
+  return out;
+}
+
+/** Etapas em que o retorno do banco já pode chegar (atendimento em diante). */
+const ETAPAS_COM_ANEXO = new Set([
+  "em_atendimento",
+  "agendado",
+  "visita_realizada",
+  "analise_credito",
+  "contrato_fechado",
+  "pos_venda",
+]);
+
+const hojeIso = () => new Date().toISOString().slice(0, 10);
+
+/** Grade compacta com os valores aprovados. */
+function ValoresAprovados({ d }: { d: DadosAprovacao }) {
+  const itens: [string, string | null][] = [
+    ["Financiamento", d.valor_financiamento != null ? brl(d.valor_financiamento) : null],
+    ["Parcela", d.valor_parcela != null ? brl(d.valor_parcela) : null],
+    ["Prazo", d.prazo_meses != null ? `${d.prazo_meses} meses` : null],
+    ["FGTS", d.valor_fgts ? brl(d.valor_fgts) : null],
+    ["Subsídio", d.valor_subsidio ? brl(d.valor_subsidio) : null],
+    ["Entrada", d.valor_entrada ? brl(d.valor_entrada) : null],
+    ["Imóvel máx.", d.valor_imovel_max ? brl(d.valor_imovel_max) : null],
+    ["Renda", d.renda_familiar ? brl(d.renda_familiar) : null],
+    [
+      "Taxa",
+      d.taxa_juros_anual != null ? `${d.taxa_juros_anual.toLocaleString("pt-BR")}% a.a.` : null,
+    ],
+    ["Banco", d.banco],
+    ["Modalidade", d.modalidade ? MODALIDADE_LABEL[d.modalidade as Modalidade] : null],
+    ["Faixa", d.faixa_mcmv ? `Faixa ${d.faixa_mcmv}` : null],
+  ];
+  return (
+    <div className="space-y-1">
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs sm:grid-cols-4">
+        {itens
+          .filter(([, v]) => v)
+          .map(([k, v]) => (
+            <div key={k} className="min-w-0">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className="truncate font-medium tabular-nums">{v}</dd>
+            </div>
+          ))}
+      </dl>
+      <div className="text-xs">
+        Poder de compra: <span className="font-semibold">{brl(poderDeCompra(d))}</span>
+        {d.validade_ate && (
+          <span
+            className={cn(
+              "ml-2",
+              aprovacaoVencida(d.validade_ate, hojeIso())
+                ? "font-medium text-destructive"
+                : "text-muted-foreground",
+            )}
+          >
+            {aprovacaoVencida(d.validade_ate, hojeIso()) ? "vencida em " : "válida até "}
+            {d.validade_ate.split("-").reverse().join("/")}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type LeadMin = { id: string; nome: string; status: string; corretor_id?: string | null };
 
 export function AnaliseCreditoCard({
   lead,
@@ -57,9 +156,13 @@ export function AnaliseCreditoCard({
   onPerdido?: () => void;
 }) {
   const qc = useQueryClient();
-  // Dialog compartilhado: reprovar pede o motivo; condicionar pede a condição.
-  const [dialogo, setDialogo] = useState<null | "reprovada" | "aprovada_condicionada">(null);
+  // Reprovar pede o motivo; aprovar (com ou sem condição) abre o dialog da
+  // aprovação com dados.
+  const [dialogo, setDialogo] = useState<null | "reprovada">(null);
   const [motivo, setMotivo] = useState("");
+  const [aprovacaoModo, setAprovacaoModo] = useState<ModoAprovacao | null>(null);
+  const [arquivoInicial, setArquivoInicial] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const analiseQ = useQuery({
     queryKey: ["analise-credito", lead.id],
@@ -87,12 +190,30 @@ export function AnaliseCreditoCard({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (lead.status !== "analise_credito") return null;
-
   const analise = analiseQ.data;
   const status = (analise?.status ?? "enviada") as AnaliseStatus;
   const decidida = ANALISE_DECIDIDA.some((s) => s === status);
+  const aprovada = status === "aprovada" || status === "aprovada_condicionada";
+  const dados = analise && aprovada ? dadosDe(analise) : null;
+  const comDados = temDadosDeAprovacao(dados);
+  const naEtapa = lead.status === "analise_credito";
+
+  // O retorno do banco (ex.: "Simulador – Detalhamento" da Caixa) às vezes
+  // chega antes de o lead ser movido para a etapa de análise: o botão
+  // "Anexar aprovação" fica disponível do atendimento em diante.
+  const podeAnexar = ETAPAS_COM_ANEXO.has(lead.status);
+
+  // Fora da etapa de análise, o card aparece para mostrar uma aprovação com
+  // dados (acompanha o lead até a venda) ou para oferecer o anexo.
+  if (!naEtapa && !comDados && !podeAnexar) return null;
+
+  /** Abre o seletor NO gesto do clique; escolhido o arquivo, o dialog abre lendo. */
+  const escolherArquivo = () => fileRef.current?.click();
+  const modoDoAnexo: ModoAprovacao = comDados || (aprovada && analise) ? "editar" : "aprovada";
   const label = ANALISE_STATUS_LABEL[status] ?? analise?.status ?? "Em análise";
+  // Fora da etapa e sem aprovação com dados, o card é só o convite ao anexo:
+  // nada de selo "Enviada ao banco" num lead que ainda está em atendimento.
+  const soAnexo = !naEtapa && !comDados;
 
   return (
     <Card
@@ -100,14 +221,16 @@ export function AnaliseCreditoCard({
         status === "aprovada" && "border-success/50",
         status === "aprovada_condicionada" && "border-warning/50",
         status === "reprovada" && "border-destructive/50",
-        !decidida && "border-info/40",
+        !decidida && !soAnexo && "border-info/40",
       )}
     >
       <CardContent className="space-y-2 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <FileMagnifyingGlass className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">Análise de crédito</span>
-          {analiseQ.isLoading ? (
+          <span className="text-sm font-semibold">
+            {soAnexo ? "Aprovação de crédito" : "Análise de crédito"}
+          </span>
+          {soAnexo ? null : analiseQ.isLoading ? (
             <Skeleton className="h-5 w-24" />
           ) : (
             <Badge
@@ -121,30 +244,88 @@ export function AnaliseCreditoCard({
               {label}
             </Badge>
           )}
-          {analise && (
+          {analise && !soAnexo && (
             <span className="text-xs text-muted-foreground">
               {decidida ? "decidida" : "registrada"} {formatRelativeTime(analise.updated_at)}
             </span>
           )}
-          {!analise && !analiseQ.isLoading && (
+          {!analise && !analiseQ.isLoading && naEtapa && (
             <span className="text-xs text-muted-foreground">
               sem registro — decida aqui mesmo (vale para análises antigas)
             </span>
           )}
         </div>
 
-        {analise?.observacoes && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            setArquivoInicial(f);
+            setAprovacaoModo(modoDoAnexo);
+          }}
+        />
+        {!comDados && podeAnexar && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed p-2">
+            <Button size="sm" onClick={escolherArquivo}>
+              <FileArrowUp className="h-4 w-4" /> Anexar aprovação
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              PDF ou print do retorno do banco — a IA lê financiamento, parcela, FGTS e renda.
+            </span>
+          </div>
+        )}
+
+        {analise?.observacoes && !soAnexo && (
           <p className="whitespace-pre-wrap text-xs text-muted-foreground">{analise.observacoes}</p>
         )}
 
         {/* A decisão OU o próximo passo — nunca os dois ao mesmo tempo. */}
-        {!decidida ? (
+        {dados && comDados && (
+          <>
+            <ValoresAprovados d={dados} />
+            <div className="flex flex-wrap gap-2">
+              {analise?.comprovante_doc_id && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={async () => {
+                    try {
+                      const url = await urlAssinadaDoc(analise.comprovante_doc_id!);
+                      if (url) window.open(url, "_blank", "noopener,noreferrer");
+                    } catch (e) {
+                      toast.error((e as Error).message);
+                    }
+                  }}
+                >
+                  <Paperclip className="h-3.5 w-3.5" /> Ver carta de aprovação
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => setAprovacaoModo("editar")}
+              >
+                <PencilSimple className="h-3.5 w-3.5" /> Editar dados
+              </Button>
+            </div>
+            <ProdutosAprovacao dados={dados} />
+          </>
+        )}
+
+        {!naEtapa ? null : !decidida ? (
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               className="bg-success text-success-foreground hover:bg-success/90"
               disabled={decidir.isPending}
-              onClick={() => decidir.mutate({ resultado: "aprovada" })}
+              onClick={() => setAprovacaoModo("aprovada")}
             >
               <SealCheck className="h-4 w-4" /> Aprovar
             </Button>
@@ -153,7 +334,7 @@ export function AnaliseCreditoCard({
               variant="outline"
               className="border-warning/50 text-warning hover:bg-warning/10"
               disabled={decidir.isPending}
-              onClick={() => setDialogo("aprovada_condicionada")}
+              onClick={() => setAprovacaoModo("aprovada_condicionada")}
             >
               <SealCheck className="h-4 w-4" /> Aprovar c/ condição
             </Button>
@@ -204,38 +385,7 @@ export function AnaliseCreditoCard({
 
       <Dialog open={dialogo !== null} onOpenChange={(open) => !open && setDialogo(null)}>
         <DialogContent className="max-w-md">
-          {dialogo === "aprovada_condicionada" ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Aprovar com condição — {lead.nome}</DialogTitle>
-                <DialogDescription>
-                  O banco aprovou, mas não no potencial máximo. Registre a condição — ela fica na
-                  análise e na timeline e orienta o ajuste de produto/valor antes do fechamento.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-1.5">
-                <Label>Condição imposta pelo banco</Label>
-                <Textarea
-                  rows={3}
-                  value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Ex.: crédito aprovado em R$ 180 mil (pretendia 220); exige entrada maior…"
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setDialogo(null)}>
-                  Cancelar
-                </Button>
-                <Button
-                  className="bg-warning text-warning-foreground hover:bg-warning/90"
-                  disabled={decidir.isPending}
-                  onClick={() => decidir.mutate({ resultado: "aprovada_condicionada", motivo })}
-                >
-                  {decidir.isPending ? "Salvando…" : "Aprovar com condição"}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : (
+          {dialogo === "reprovada" && (
             <>
               <DialogHeader>
                 <DialogTitle>Reprovar análise — {lead.nome}</DialogTitle>
@@ -269,6 +419,20 @@ export function AnaliseCreditoCard({
           )}
         </DialogContent>
       </Dialog>
+
+      {aprovacaoModo && (
+        <AprovacaoCreditoDialog
+          lead={lead}
+          modo={aprovacaoModo}
+          analise={analise}
+          arquivoInicial={arquivoInicial}
+          onOpenChange={(o) => {
+            if (o) return;
+            setAprovacaoModo(null);
+            setArquivoInicial(null);
+          }}
+        />
+      )}
     </Card>
   );
 }

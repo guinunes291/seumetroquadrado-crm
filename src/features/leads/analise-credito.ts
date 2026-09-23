@@ -5,6 +5,13 @@
 // Tudo tipado pelos types gerados — a tabela sempre existiu no schema.
 
 import { supabase } from "@/integrations/supabase/client";
+import {
+  supabaseAprovacao,
+  type ColunasAprovacao,
+} from "@/integrations/supabase/aprovacao-pendente";
+import type { Json } from "@/integrations/supabase/types";
+import { isMissingColumn } from "@/lib/supabase-errors";
+import { resumoAprovacao, type DadosAprovacao } from "@/features/leads/aprovacao-credito";
 
 export type AnaliseStatus =
   | "enviada"
@@ -32,7 +39,26 @@ export type AnaliseCredito = {
   observacoes: string | null;
   created_at: string;
   updated_at: string;
+} & Partial<ColunasAprovacao> & { poder_compra?: number | null };
+
+/** Dados da aprovação + comprovante, gravados junto com a decisão. */
+export type AprovacaoPayload = {
+  dados: DadosAprovacao;
+  comprovanteDocId: string | null;
+  /** manual | ia | ia_revisado (IA leu e o corretor mexeu). */
+  origem: "manual" | "ia" | "ia_revisado";
+  /** O JSON cru que a IA devolveu — trilha de auditoria da leitura. */
+  extraido: Json | null;
 };
+
+function colunasDaAprovacao(a: AprovacaoPayload): Partial<ColunasAprovacao> {
+  return {
+    ...a.dados,
+    comprovante_doc_id: a.comprovanteDocId,
+    dados_origem: a.origem,
+    dados_extraidos: a.extraido,
+  };
+}
 
 export const ANALISE_STATUS_LABEL: Record<AnaliseStatus, string> = {
   enviada: "Enviada ao banco",
@@ -44,15 +70,75 @@ export const ANALISE_STATUS_LABEL: Record<AnaliseStatus, string> = {
 
 /** Última análise registrada do lead (estado atual); null = sem registro. */
 export async function fetchAnaliseAtual(leadId: string): Promise<AnaliseCredito | null> {
-  const { data, error } = await supabase
+  // `*` e não a lista de colunas: antes da migration 20260927120000 as
+  // colunas da aprovação não existem, e o select continua válido (elas só
+  // chegam ausentes).
+  const { data, error } = await supabaseAprovacao
     .from("analises_credito")
-    .select("id, lead_id, corretor_id, status, observacoes, created_at, updated_at")
+    .select("*")
     .eq("lead_id", leadId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+/**
+ * Grava uma escrita em analises_credito com os campos da aprovação; se o
+ * banco ainda não tem as colunas (migration não aplicada — desacoplamento
+ * deploy×banco), refaz SEM elas e devolve `false`: a decisão não se perde, e
+ * o resumo dos valores fica nas observações e na timeline.
+ */
+async function escreverComAprovacao(
+  escrever: (extra: Partial<ColunasAprovacao>) => PromiseLike<{ error: unknown }>,
+  aprovacao: AprovacaoPayload | undefined,
+): Promise<boolean> {
+  if (!aprovacao) {
+    const { error } = await escrever({});
+    if (error) throw error;
+    return false;
+  }
+  const { error } = await escrever(colunasDaAprovacao(aprovacao));
+  if (!error) return true;
+  if (!isMissingColumn(error)) throw error;
+  const retry = await escrever({});
+  if (retry.error) throw retry.error;
+  return false;
+}
+
+/**
+ * Atualiza os dados da aprovação de uma análise JÁ decidida (corrigir um
+ * valor, anexar o comprovante depois). Não mexe no status; ecoa na timeline.
+ */
+export async function atualizarDadosAprovacao(args: {
+  analiseId: string;
+  leadId: string;
+  aprovacao: AprovacaoPayload;
+}): Promise<void> {
+  const { error } = await supabaseAprovacao
+    .from("analises_credito")
+    .update(colunasDaAprovacao(args.aprovacao))
+    .eq("id", args.analiseId);
+  if (error) {
+    if (isMissingColumn(error)) {
+      throw new Error(
+        "O banco ainda não tem os campos da aprovação (migration pendente). Avise o administrador.",
+      );
+    }
+    throw error;
+  }
+  const { data: u } = await supabase.auth.getUser();
+  const { error: ecoErr } = await supabase.from("interacoes").insert({
+    lead_id: args.leadId,
+    autor_id: u.user?.id ?? null,
+    tipo: "nota",
+    direcao: "interna",
+    titulo: "Dados da aprovação de crédito atualizados",
+    conteudo: resumoAprovacao(args.aprovacao.dados),
+    metadata: { fonte: "aprovacao_credito", analise_id: args.analiseId },
+  });
+  if (ecoErr) throw ecoErr;
 }
 
 /** Abre um registro de análise (chamado pelo modal de etapa). */
@@ -84,7 +170,10 @@ export async function decidirAnalise(args: {
   resultado: AnaliseResultado;
   /** Reprovada: motivo. Condicionada: a condição imposta pelo banco. */
   motivo?: string | null;
+  /** Aprovada/condicionada: valores da carta de aprovação + comprovante. */
+  aprovacao?: AprovacaoPayload;
 }): Promise<void> {
+  const aprovacao = args.resultado === "reprovada" ? undefined : args.aprovacao;
   const { data: u } = await supabase.auth.getUser();
   const uid = u.user?.id ?? null;
   const motivo = args.motivo?.trim() || null;
@@ -96,21 +185,28 @@ export async function decidirAnalise(args: {
     const observacoes = motivo
       ? `${atual.observacoes ? `${atual.observacoes}\n` : ""}${rotuloMotivo}: ${motivo}`
       : atual.observacoes;
-    const { error } = await supabase
-      .from("analises_credito")
-      .update({ status: args.resultado, observacoes })
-      .eq("id", atual.id);
-    if (error) throw error;
+    await escreverComAprovacao(
+      (extra) =>
+        supabaseAprovacao
+          .from("analises_credito")
+          .update({ status: args.resultado, observacoes, ...extra })
+          .eq("id", atual.id),
+      aprovacao,
+    );
   } else {
     // Sem análise aberta (ou a última já decidida — nova rodada): registra
     // uma linha nova já com o desfecho.
-    const { error } = await supabase.from("analises_credito").insert({
-      lead_id: args.leadId,
-      corretor_id: uid,
-      status: args.resultado,
-      observacoes: motivo ? `${rotuloMotivo}: ${motivo}` : null,
-    });
-    if (error) throw error;
+    await escreverComAprovacao(
+      (extra) =>
+        supabaseAprovacao.from("analises_credito").insert({
+          lead_id: args.leadId,
+          corretor_id: uid,
+          status: args.resultado,
+          observacoes: motivo ? `${rotuloMotivo}: ${motivo}` : null,
+          ...extra,
+        }),
+      aprovacao,
+    );
   }
 
   const titulo =
@@ -127,14 +223,28 @@ export async function decidirAnalise(args: {
           ? `Crédito aprovado com condição: ${motivo}`
           : "Crédito aprovado com condição — ajustar produto/valor antes de fechar."
         : motivo || "Crédito reprovado.";
+  // Os valores aprovados vão junto no eco: a timeline é lida por quem não abre
+  // o card (e é o registro que sobra se a migration ainda não chegou).
+  const conteudoComValores = aprovacao
+    ? `${conteudo}\n${resumoAprovacao(aprovacao.dados)}`
+    : conteudo;
   const { error: ecoErr } = await supabase.from("interacoes").insert({
     lead_id: args.leadId,
     autor_id: uid,
     tipo: "nota",
     direcao: "interna",
     titulo,
-    conteudo,
-    metadata: { status_analise: args.resultado, fonte: "fluxo_analise" },
+    conteudo: conteudoComValores,
+    metadata: {
+      status_analise: args.resultado,
+      fonte: "fluxo_analise",
+      ...(aprovacao
+        ? {
+            valor_financiamento: aprovacao.dados.valor_financiamento,
+            valor_parcela: aprovacao.dados.valor_parcela,
+          }
+        : {}),
+    },
   });
   if (ecoErr) throw ecoErr;
 }
