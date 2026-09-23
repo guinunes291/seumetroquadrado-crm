@@ -188,36 +188,102 @@ export type Database = {
       analises_credito: {
         Row: {
           agendamento_id: string | null
+          banco: string | null
+          comprovante_doc_id: string | null
           corretor_id: string | null
+          cotista_fgts: boolean | null
           created_at: string
+          dados_extraidos: Json | null
+          dados_origem: string | null
+          data_aprovacao: string | null
+          faixa_mcmv: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
+          modalidade: string | null
           observacoes: string | null
+          poder_compra: number | null
+          possui_dependente: boolean | null
+          prazo_meses: number | null
+          qtd_participantes: number | null
+          renda_familiar: number | null
+          sistema_amortizacao: string | null
           status: string
+          taxa_juros_anual: number | null
           updated_at: string
+          validade_ate: string | null
+          valor_entrada: number | null
+          valor_fgts: number | null
+          valor_financiamento: number | null
+          valor_imovel_simulacao: number | null
+          valor_parcela: number | null
+          valor_subsidio: number | null
         }
         Insert: {
           agendamento_id?: string | null
+          banco?: string | null
+          comprovante_doc_id?: string | null
           corretor_id?: string | null
+          cotista_fgts?: boolean | null
           created_at?: string
+          dados_extraidos?: Json | null
+          dados_origem?: string | null
+          data_aprovacao?: string | null
+          faixa_mcmv?: string | null
           id?: string
           lead_id?: string | null
           legacy_id?: number | null
+          modalidade?: string | null
           observacoes?: string | null
+          poder_compra?: number | null
+          possui_dependente?: boolean | null
+          prazo_meses?: number | null
+          qtd_participantes?: number | null
+          renda_familiar?: number | null
+          sistema_amortizacao?: string | null
           status?: string
+          taxa_juros_anual?: number | null
           updated_at?: string
+          validade_ate?: string | null
+          valor_entrada?: number | null
+          valor_fgts?: number | null
+          valor_financiamento?: number | null
+          valor_imovel_simulacao?: number | null
+          valor_parcela?: number | null
+          valor_subsidio?: number | null
         }
         Update: {
           agendamento_id?: string | null
+          banco?: string | null
+          comprovante_doc_id?: string | null
           corretor_id?: string | null
+          cotista_fgts?: boolean | null
           created_at?: string
+          dados_extraidos?: Json | null
+          dados_origem?: string | null
+          data_aprovacao?: string | null
+          faixa_mcmv?: string | null
           id?: string
           lead_id?: string | null
           legacy_id?: number | null
+          modalidade?: string | null
           observacoes?: string | null
+          poder_compra?: number | null
+          possui_dependente?: boolean | null
+          prazo_meses?: number | null
+          qtd_participantes?: number | null
+          renda_familiar?: number | null
+          sistema_amortizacao?: string | null
           status?: string
+          taxa_juros_anual?: number | null
           updated_at?: string
+          validade_ate?: string | null
+          valor_entrada?: number | null
+          valor_fgts?: number | null
+          valor_financiamento?: number | null
+          valor_imovel_simulacao?: number | null
+          valor_parcela?: number | null
+          valor_subsidio?: number | null
         }
         Relationships: [
           {
@@ -225,6 +291,13 @@ export type Database = {
             columns: ["agendamento_id"]
             isOneToOne: false
             referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_comprovante_doc_id_fkey"
+            columns: ["comprovante_doc_id"]
+            isOneToOne: false
+            referencedRelation: "documentacoes"
             referencedColumns: ["id"]
           },
           {
@@ -3162,6 +3235,42 @@ export type Database = {
           posicao?: number
           posicao_facebook?: number | null
           ultima_distribuicao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      funil_estudo_diario: {
+        Row: {
+          compromisso: string | null
+          concluido_em: string
+          corretor_id: string
+          created_at: string
+          dia: string
+          foco: string
+          id: string
+          segundos_na_tela: number
+          updated_at: string
+        }
+        Insert: {
+          compromisso?: string | null
+          concluido_em?: string
+          corretor_id: string
+          created_at?: string
+          dia: string
+          foco: string
+          id?: string
+          segundos_na_tela?: number
+          updated_at?: string
+        }
+        Update: {
+          compromisso?: string | null
+          concluido_em?: string
+          corretor_id?: string
+          created_at?: string
+          dia?: string
+          foco?: string
+          id?: string
+          segundos_na_tela?: number
           updated_at?: string
         }
         Relationships: []
@@ -7815,6 +7924,84 @@ export type Database = {
       }
     }
     Views: {
+      aprovacoes_credito_vigentes: {
+        Row: {
+          analise_id: string | null
+          banco: string | null
+          comprovante_doc_id: string | null
+          corretor_id: string | null
+          cotista_fgts: boolean | null
+          data_aprovacao: string | null
+          faixa_mcmv: string | null
+          lead_id: string | null
+          lead_nome: string | null
+          lead_status: string | null
+          lead_telefone: string | null
+          modalidade: string | null
+          poder_compra: number | null
+          possui_dependente: boolean | null
+          prazo_meses: number | null
+          projeto_nome: string | null
+          qtd_participantes: number | null
+          renda_familiar: number | null
+          sistema_amortizacao: string | null
+          status_analise: string | null
+          taxa_juros_anual: number | null
+          updated_at: string | null
+          validade_ate: string | null
+          valor_entrada: number | null
+          valor_fgts: number | null
+          valor_financiamento: number | null
+          valor_imovel_simulacao: number | null
+          valor_parcela: number | null
+          valor_subsidio: number | null
+          vencida: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analises_credito_comprovante_doc_id_fkey"
+            columns: ["comprovante_doc_id"]
+            isOneToOne: false
+            referencedRelation: "documentacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "analises_credito_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       copa_pontuacao_semanal: {
         Row: {
           agendamentos: number | null
@@ -8418,6 +8605,17 @@ export type Database = {
       }
       _gestao_escopo: { Args: never; Returns: Record<string, unknown> }
       _lead_venda_viva: { Args: { _lead: string }; Returns: boolean }
+      _meu_funil_coorte: {
+        Args: { _corretores: string[]; _fim: string; _ini: string }
+        Returns: {
+          corretor_id: string
+          estagio: number
+          grupo: string
+          lead_id: string
+          origem: string
+          perdido: boolean
+        }[]
+      }
       _minutos_uteis_entre: {
         Args: { _ate: string; _de: string }
         Returns: number
@@ -10550,6 +10748,8 @@ export type Database = {
           tentativa: number
         }[]
       }
+      meu_funil_estagio: { Args: { _status: string }; Returns: number }
+      meu_funil_estudo: { Args: { _dias?: number }; Returns: Json }
       minha_elegibilidade: { Args: never; Returns: Json }
       motivo_perda_sem_retrabalho: {
         Args: { _motivo: string }
