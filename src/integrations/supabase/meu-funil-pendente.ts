@@ -1,5 +1,5 @@
 // Fronteira tipada dos objetos criados pela migration do Meu Funil
-// (20260927120000_meu_funil_estudo_diario), que ainda NÃO estão em types.ts
+// (20260928110000_meu_funil_estudo_diario), que ainda NÃO estão em types.ts
 // (gerado a partir do banco real).
 //
 // Mesmo padrão de integrations/supabase/higiene-pendente.ts. Ao regenerar os

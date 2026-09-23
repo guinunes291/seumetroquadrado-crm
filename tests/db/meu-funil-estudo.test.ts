@@ -1,5 +1,5 @@
 /**
- * MEU FUNIL — estudo diário do corretor (migration 20260927120000).
+ * MEU FUNIL — estudo diário do corretor (migration 20260928110000).
  *
  * Dados CONSTRUÍDOS. O que cada bloco protege:
  *  - base importada fora do funil real: é o que impede a "matemática da venda"
