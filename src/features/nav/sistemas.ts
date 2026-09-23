@@ -33,6 +33,7 @@ import {
   ChartLineUp,
   Crosshair,
   Fire,
+  Funnel,
   GearSix,
   Handshake,
   Hourglass,
@@ -503,6 +504,9 @@ export const SISTEMAS: Sistema[] = [
     grupo: "consulta",
     secoes: [
       { id: "meu-raio-x", label: "Meu Raio-X", icon: ChartLineUp, to: "/meu-raio-x" },
+      // Estudo diário obrigatório do corretor (abre sozinho na 1ª tela do dia);
+      // a seção deixa reabrir o funil a qualquer hora.
+      { id: "meu-funil", label: "Meu Funil", icon: Funnel, to: "/meu-funil" },
       { id: "desempenho", label: "Desempenho", icon: Trophy, to: "/ranking" },
       {
         id: "operacao",

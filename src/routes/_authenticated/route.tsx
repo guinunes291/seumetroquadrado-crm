@@ -58,6 +58,14 @@ const OnboardingGlobal = lazy(() =>
   })),
 );
 
+// Estudo diário do Meu Funil: obrigatório para o corretor, entre o onboarding
+// e as metas do dia.
+const MeuFunilGlobal = lazy(() =>
+  import("@/features/meu-funil/meu-funil-global").then(({ MeuFunilGlobal }) => ({
+    default: MeuFunilGlobal,
+  })),
+);
+
 // Metas do dia: popup obrigatório na 1ª abertura do dia (corretor) + card
 // flutuante de progresso que sobrevive à navegação.
 const MetasDiaGlobal = lazy(() =>
@@ -131,6 +139,7 @@ function AuthenticatedLayout() {
         <KeyboardShortcutsHelp />
         <ChamadaAtivaHost />
         <OnboardingGlobal />
+        <MeuFunilGlobal />
         <MetasDiaGlobal />
       </Suspense>
       <CelebrationHost />
