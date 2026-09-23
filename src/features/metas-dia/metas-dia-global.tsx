@@ -29,6 +29,7 @@ import {
 import { MetasDiaDialog } from "@/features/metas-dia/metas-dia-dialog";
 import { MetasDiaCard } from "@/features/metas-dia/metas-dia-card";
 import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
+import { useEstudoFunilPendente } from "@/features/meu-funil/use-estudo-pendente";
 
 /** Evento global para reabrir o popup de qualquer lugar (command palette, atalhos). */
 export const EVENTO_ABRIR_METAS_DIA = "open-metas-dia";
@@ -133,9 +134,14 @@ export function MetasDiaGlobal() {
   const onboardingPendente =
     isCorretor && !!onboardingQ.data && onboardingQ.data.concluido_em === null;
 
+  // O estudo do Meu Funil vem antes das metas: quem acabou de ver quanto
+  // custa 1 venda declara a meta sabendo o esforço. `null` = ainda lendo.
+  const estudoFunilPendente = useEstudoFunilPendente();
+
   const primeira =
     habilitado &&
     !onboardingPendente &&
+    estudoFunilPendente === false &&
     !hojeQ.isPending &&
     !hojeQ.isError &&
     precisaResponder({

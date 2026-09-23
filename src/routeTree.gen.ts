@@ -37,6 +37,7 @@ import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMeuRaioXRouteImport } from './routes/_authenticated/meu-raio-x'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
+import { Route as AuthenticatedMeuFunilRouteImport } from './routes/_authenticated/meu-funil'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
@@ -247,6 +248,11 @@ const AuthenticatedMeuPerfilRoute = AuthenticatedMeuPerfilRouteImport.update({
 const AuthenticatedMeuPainelRoute = AuthenticatedMeuPainelRouteImport.update({
   id: '/meu-painel',
   path: '/meu-painel',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMeuFunilRoute = AuthenticatedMeuFunilRouteImport.update({
+  id: '/meu-funil',
+  path: '/meu-funil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMetasRoute = AuthenticatedMetasRouteImport.update({
@@ -659,6 +665,7 @@ export interface FileRoutesByFullPath {
   '/match': typeof AuthenticatedMatchRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
+  '/meu-funil': typeof AuthenticatedMeuFunilRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
@@ -757,6 +764,7 @@ export interface FileRoutesByTo {
   '/match': typeof AuthenticatedMatchRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
+  '/meu-funil': typeof AuthenticatedMeuFunilRoute
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
@@ -857,6 +865,7 @@ export interface FileRoutesById {
   '/_authenticated/match': typeof AuthenticatedMatchRoute
   '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
+  '/_authenticated/meu-funil': typeof AuthenticatedMeuFunilRoute
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
@@ -957,6 +966,7 @@ export interface FileRouteTypes {
     | '/match'
     | '/mensagens'
     | '/metas'
+    | '/meu-funil'
     | '/meu-painel'
     | '/meu-perfil'
     | '/meu-raio-x'
@@ -1055,6 +1065,7 @@ export interface FileRouteTypes {
     | '/match'
     | '/mensagens'
     | '/metas'
+    | '/meu-funil'
     | '/meu-painel'
     | '/meu-perfil'
     | '/meu-raio-x'
@@ -1154,6 +1165,7 @@ export interface FileRouteTypes {
     | '/_authenticated/match'
     | '/_authenticated/mensagens'
     | '/_authenticated/metas'
+    | '/_authenticated/meu-funil'
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
     | '/_authenticated/meu-raio-x'
@@ -1452,6 +1464,13 @@ declare module '@tanstack/react-router' {
       path: '/meu-painel'
       fullPath: '/meu-painel'
       preLoaderRoute: typeof AuthenticatedMeuPainelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/meu-funil': {
+      id: '/_authenticated/meu-funil'
+      path: '/meu-funil'
+      fullPath: '/meu-funil'
+      preLoaderRoute: typeof AuthenticatedMeuFunilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/metas': {
@@ -1970,6 +1989,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
   AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
+  AuthenticatedMeuFunilRoute: typeof AuthenticatedMeuFunilRoute
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedMeuRaioXRoute: typeof AuthenticatedMeuRaioXRoute
@@ -2029,6 +2049,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMatchRoute: AuthenticatedMatchRoute,
   AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
+  AuthenticatedMeuFunilRoute: AuthenticatedMeuFunilRoute,
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedMeuRaioXRoute: AuthenticatedMeuRaioXRoute,
