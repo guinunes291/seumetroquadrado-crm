@@ -911,11 +911,19 @@ function CorredorParceira({
   renderCard: (item: ItemPrateleira) => React.ReactNode;
   onVerTodos: () => void;
 }) {
+  const [aberto, setAberto] = useState(false);
   const mostrados = corredor.itens.slice(0, POR_CORREDOR);
   const restantes = corredor.itens.length - mostrados.length;
+  const painelId = `corredor-${corredor.chave}`;
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
+    <div className="rounded-xl border border-border-subtle bg-card shadow-elev-1">
+      <button
+        type="button"
+        onClick={() => setAberto((a) => !a)}
+        aria-expanded={aberto}
+        aria-controls={painelId}
+        className="flex min-h-11 w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted/50"
+      >
         {corredor.logo ? (
           <PlacaLogo logo={corredor.logo} nome={corredor.titulo} tamanho="md" />
         ) : (
@@ -937,14 +945,24 @@ function CorredorParceira({
             </Badge>
           </h3>
         </div>
-        {restantes > 0 && (
-          <Button size="sm" variant="ghost" onClick={onVerTodos}>
-            Ver todos ({corredor.itens.length})
-            <CaretRight className="ml-1 h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      <Grade view={view}>{mostrados.map(renderCard)}</Grade>
+        <CaretRight
+          aria-hidden="true"
+          className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${aberto ? "rotate-90" : ""}`}
+        />
+      </button>
+      {aberto && (
+        <div id={painelId} className="space-y-3 border-t border-border-subtle p-3">
+          <Grade view={view}>{mostrados.map(renderCard)}</Grade>
+          {restantes > 0 && (
+            <div className="flex justify-end">
+              <Button size="sm" variant="ghost" onClick={onVerTodos}>
+                Ver todos ({corredor.itens.length})
+                <CaretRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
