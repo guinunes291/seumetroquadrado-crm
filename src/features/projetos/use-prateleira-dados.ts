@@ -15,6 +15,7 @@ import { supabasePendente } from "@/integrations/supabase/pendentes";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
 import { rpcWithFallback, selectWithColumnFallback } from "@/lib/supabase-errors";
 import type { Demanda, FocoRow, ProjetoPrateleiraRow } from "@/lib/prateleira";
+import { naVitrine } from "@/lib/construtoras-vitrine";
 
 const PRATELEIRA_SELECT = `${PROJETO_CRM_SELECT},preco_atualizado_em,tabela_atualizada_em` as const;
 
@@ -28,29 +29,31 @@ export function useProjetosPrateleira() {
   return useQuery({
     queryKey: PRATELEIRA_KEYS.catalogo,
     staleTime: 60_000,
-    queryFn: (): Promise<ProjetoPrateleiraRow[]> =>
-      selectWithColumnFallback(
-        async () => {
-          const { data, error } = await supabasePendente
-            .from("projetos")
-            .select(PRATELEIRA_SELECT)
-            .is("deleted_at", null)
-            .eq("ativo", true)
-            .order("nome");
-          if (error) throw error;
-          return (data ?? []) as ProjetoPrateleiraRow[];
-        },
-        async () => {
-          const { data, error } = await supabase
-            .from("projetos")
-            .select(PROJETO_CRM_SELECT)
-            .is("deleted_at", null)
-            .eq("ativo", true)
-            .order("nome");
-          if (error) throw error;
-          return (data ?? []) as ProjetoPrateleiraRow[];
-        },
-      ),
+    queryFn: async (): Promise<ProjetoPrateleiraRow[]> =>
+      (
+        await selectWithColumnFallback(
+          async () => {
+            const { data, error } = await supabasePendente
+              .from("projetos")
+              .select(PRATELEIRA_SELECT)
+              .is("deleted_at", null)
+              .eq("ativo", true)
+              .order("nome");
+            if (error) throw error;
+            return (data ?? []) as ProjetoPrateleiraRow[];
+          },
+          async () => {
+            const { data, error } = await supabase
+              .from("projetos")
+              .select(PROJETO_CRM_SELECT)
+              .is("deleted_at", null)
+              .eq("ativo", true)
+              .order("nome");
+            if (error) throw error;
+            return (data ?? []) as ProjetoPrateleiraRow[];
+          },
+        )
+      ).filter(naVitrine),
   });
 }
 

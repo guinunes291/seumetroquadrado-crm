@@ -63,6 +63,7 @@ import {
 import { buscarPlanilhaMercado } from "@/lib/vitrine/mercado-planilha-client";
 import { toggleVitrineShortlist } from "@/lib/vitrine-publica";
 import { PROJETO_CRM_SELECT } from "@/lib/projetos-query";
+import { naVitrine } from "@/lib/construtoras-vitrine";
 import { cn } from "@/lib/utils";
 import { usePublicarFaseDoLead } from "@/features/nav/contexto-jornada";
 
@@ -105,7 +106,7 @@ function VitrinePage() {
         .is("deleted_at", null)
         .order("nome");
       if (error) throw error;
-      return (data ?? []) as ProjetoRow[];
+      return ((data ?? []) as ProjetoRow[]).filter(naVitrine);
     },
   });
 
