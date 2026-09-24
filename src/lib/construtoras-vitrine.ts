@@ -14,6 +14,7 @@ const CONSTRUTORAS_VITRINE = [
   "direcional",
   "riva",
   "econ",
+  "emccamp",
 ];
 
 function norm(s: string | null | undefined): string {
