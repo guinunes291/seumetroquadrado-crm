@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import type { Tables } from "@/integrations/supabase/types";
 import { focoProgramado, focoVigente, rotuloUrgencia, diasRestantes } from "@/lib/prateleira";
+import { imagemExibivel } from "@/lib/imagem-url";
 
 /** Linha do banco; `arte_url` chega com a migration da prateleira. */
 export type FocoRow = Tables<"projeto_foco"> & { arte_url?: string | null };
@@ -198,7 +199,7 @@ export function ProjetoFocoPanel({
                       <div className="flex items-center gap-2">
                         {f.arte_url && (
                           <img
-                            src={f.arte_url}
+                            src={imagemExibivel(f.arte_url) ?? undefined}
                             alt=""
                             aria-hidden="true"
                             loading="lazy"
