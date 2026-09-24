@@ -1,3 +1,4 @@
+import { imagemExibivel } from "@/lib/imagem-url";
 // Banner de campanhas — o topo da prateleira (decisões 14 e 22 de 2026-09-02).
 //
 // Um slide por projeto em foco: arte própria da campanha quando a gestão subiu
@@ -134,7 +135,7 @@ function Slide({
   onAbrirMaterial: (item: ItemPrateleira, tipo: MaterialTipo) => void;
   onAbrirFicha?: (item: ItemPrateleira) => void;
 }) {
-  const imagem = item.foco?.arte_url ?? item.capa_url ?? null;
+  const imagem = imagemExibivel(item.foco?.arte_url ?? item.capa_url ?? null);
   const urg = rotuloUrgencia(item.foco?.diasRestantes ?? null);
   const preco =
     !item.sob_consulta && item.preco_a_partir != null ? formatBRL(item.preco_a_partir) : null;

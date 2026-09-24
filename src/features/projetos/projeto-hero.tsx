@@ -1,3 +1,4 @@
+import { imagemExibivel } from "@/lib/imagem-url";
 // Hero da ficha do empreendimento — a capa da "munição comercial" do corretor:
 // imagem de capa sob véu navy (fallback: gradiente Comando), nome em Sora,
 // chips de contexto e preço "a partir de" em dourado. O fio de luz
@@ -87,7 +88,7 @@ export function ProjetoHero({
       {projeto.capa_url ? (
         <>
           <img
-            src={projeto.capa_url}
+            src={imagemExibivel(projeto.capa_url) ?? undefined}
             alt=""
             aria-hidden="true"
             loading="lazy"

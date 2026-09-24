@@ -1,3 +1,4 @@
+import { imagemExibivel } from "@/lib/imagem-url";
 // ProdutoCard — o card ÚNICO do empreendimento na prateleira (decisões 11, 12,
 // 20, 25 de 2026-09-02, docs/revisao-projetos-foco.md).
 //
@@ -110,7 +111,7 @@ function Capa({
       {item.capa_url ? (
         <>
           <img
-            src={item.capa_url}
+            src={imagemExibivel(item.capa_url) ?? undefined}
             alt=""
             loading="lazy"
             decoding="async"

@@ -1,3 +1,4 @@
+import { imagemExibivel } from "@/lib/imagem-url";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -240,7 +241,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
     <Card className="overflow-hidden border-t-4 border-t-amber-400">
       {project.capa_url && (
         <img
-          src={project.capa_url}
+          src={imagemExibivel(project.capa_url) ?? undefined}
           alt={`Capa de ${project.nome}`}
           loading="lazy"
           referrerPolicy="no-referrer"

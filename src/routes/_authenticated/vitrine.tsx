@@ -1,3 +1,4 @@
+import { imagemExibivel } from "@/lib/imagem-url";
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -613,7 +614,7 @@ function ListaResultados({
       {itens.map((e) => {
         const projeto = e.projeto;
         const inShortlist = projeto != null && shortlistIds.has(projeto.id);
-        const capaUrl = safeCatalogImageUrl(projeto?.capa_url);
+        const capaUrl = safeCatalogImageUrl(imagemExibivel(projeto?.capa_url));
         const enquadramento = poder ? classificar(e.precoMin, poder) : null;
         return (
           <article
