@@ -28,7 +28,9 @@ function norm(s: string | null | undefined): string {
 
 function casa(texto: string | null | undefined): boolean {
   const t = norm(texto);
-  return CONSTRUTORAS_VITRINE.some((c) => t.includes(` ${c} `) || (c === "conx" && t.includes("conx")));
+  return CONSTRUTORAS_VITRINE.some(
+    (c) => t.includes(` ${c} `) || (c === "conx" && t.includes("conx")),
+  );
 }
 
 /** Com construtora preenchida ela decide; sem ela, tenta pelo nome do empreendimento. */
