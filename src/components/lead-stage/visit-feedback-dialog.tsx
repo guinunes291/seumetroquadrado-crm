@@ -129,6 +129,8 @@ export function VisitFeedbackDialog({ lead, onOpenChange, onDone }: Props) {
           .insert({
             lead_id: lead.id,
             corretor_id: lead.corretor_id ?? uid,
+            // RLS de insert exige criado_por_id = auth.uid().
+            criado_por_id: uid,
             titulo: `Visita — ${lead.nome}`,
             tipo: "visita",
             status: "agendado",
