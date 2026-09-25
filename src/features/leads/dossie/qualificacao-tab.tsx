@@ -1,4 +1,5 @@
-// Aba Qualificação do dossiê do lead: objeções, simulador de financiamento,
+// Aba Qualificação do dossiê do lead: perfil do cliente (vai no comparativo em
+// PDF), objeções, simulador de financiamento,
 // atalho para a Vitrine e recomendação de empreendimento. Os componentes
 // internos cuidam das próprias queries/mutations — aqui é só composição.
 
@@ -9,10 +10,12 @@ import { LeadObjecoes } from "@/components/lead-objecoes";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
 import { EmpreendimentoRecomendado } from "@/components/empreendimento-recomendado";
 import type { DossieLead } from "@/features/leads/dossie/types";
+import { PerfilClienteCard } from "@/features/leads/dossie/perfil-cliente-card";
 
 export function QualificacaoTab({ lead }: { lead: DossieLead }) {
   return (
     <>
+      <PerfilClienteCard leadId={lead.id} />
       <LeadObjecoes leadId={lead.id} objecoes={lead.objecoes ?? null} />
       <SimuladorFinanciamento
         entradaInicial={lead.entrada_disponivel}

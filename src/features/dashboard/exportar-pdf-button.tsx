@@ -22,7 +22,7 @@ export function ExportarPdfButton({
     setGerando(true);
     try {
       const pdf = await import("@/features/dashboard/relatorios-pdf");
-      pdf.imprimirRelatorio(montar(pdf));
+      await pdf.imprimirRelatorio(montar(pdf));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível gerar o PDF.");
     } finally {

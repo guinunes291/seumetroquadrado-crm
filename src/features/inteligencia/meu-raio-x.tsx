@@ -220,7 +220,7 @@ export function MeuRaioX({ corretorId }: { corretorId: string }) {
     setGerandoPdf(true);
     try {
       const { imprimirRaioX } = await import("./raio-x-pdf");
-      imprimirRaioX(montarRelatorioRaioX(relatorioInput()));
+      await imprimirRaioX(montarRelatorioRaioX(relatorioInput()));
       toast.success("Relatório pronto — escolha “Salvar como PDF” na impressão.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao gerar o PDF.");

@@ -829,6 +829,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
           leadName={lead?.nome}
           onRemove={(id) => setSacolaIds((atual) => atual.filter((x) => x !== id))}
           onClear={() => setSacolaIds([])}
+          origem="prateleira"
         />
 
         <EnviarVitrineDialog

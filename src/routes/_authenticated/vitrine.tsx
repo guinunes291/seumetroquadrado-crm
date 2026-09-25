@@ -482,6 +482,8 @@ function VitrinePage() {
         leadName={lead?.nome}
         onRemove={(id) => setShortlistIds((atual) => atual.filter((item) => item !== id))}
         onClear={() => setShortlistIds([])}
+        perfilSimulador={perfil}
+        origem="vitrine"
       />
 
       <VitrinePanel

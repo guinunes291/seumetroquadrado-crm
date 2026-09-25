@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
 import { Route as ApiMercadoPlanilhaRouteImport } from './routes/api/mercado-planilha'
 import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
+import { Route as ApiBookPdfRouteImport } from './routes/api/book-pdf'
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
@@ -155,6 +156,11 @@ const ApiMercadoPlanilhaRoute = ApiMercadoPlanilhaRouteImport.update({
 const ApiDocumentacaoRoute = ApiDocumentacaoRouteImport.update({
   id: '/api/documentacao',
   path: '/api/documentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBookPdfRoute = ApiBookPdfRouteImport.update({
+  id: '/api/book-pdf',
+  path: '/api/book-pdf',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVitrineRoute = AuthenticatedVitrineRouteImport.update({
@@ -684,6 +690,7 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
+  '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
@@ -783,6 +790,7 @@ export interface FileRoutesByTo {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/templates': typeof AuthenticatedTemplatesRoute
   '/vitrine': typeof AuthenticatedVitrineRoute
+  '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
@@ -884,6 +892,7 @@ export interface FileRoutesById {
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
+  '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
@@ -985,6 +994,7 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
+    | '/api/book-pdf'
     | '/api/documentacao'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
@@ -1084,6 +1094,7 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/templates'
     | '/vitrine'
+    | '/api/book-pdf'
     | '/api/documentacao'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
@@ -1184,6 +1195,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tarefas'
     | '/_authenticated/templates'
     | '/_authenticated/vitrine'
+    | '/api/book-pdf'
     | '/api/documentacao'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
@@ -1237,6 +1249,7 @@ export interface RootRouteChildren {
   VitrinePublicaRoute: typeof VitrinePublicaRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  ApiBookPdfRoute: typeof ApiBookPdfRoute
   ApiDocumentacaoRoute: typeof ApiDocumentacaoRoute
   ApiMercadoPlanilhaRoute: typeof ApiMercadoPlanilhaRoute
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
@@ -1338,6 +1351,13 @@ declare module '@tanstack/react-router' {
       path: '/api/documentacao'
       fullPath: '/api/documentacao'
       preLoaderRoute: typeof ApiDocumentacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/book-pdf': {
+      id: '/api/book-pdf'
+      path: '/api/book-pdf'
+      fullPath: '/api/book-pdf'
+      preLoaderRoute: typeof ApiBookPdfRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/vitrine': {
@@ -2109,6 +2129,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  ApiBookPdfRoute: ApiBookPdfRoute,
   ApiDocumentacaoRoute: ApiDocumentacaoRoute,
   ApiMercadoPlanilhaRoute: ApiMercadoPlanilhaRoute,
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,

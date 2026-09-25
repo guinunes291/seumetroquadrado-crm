@@ -21,6 +21,7 @@ import {
   type RaioXRelatorio,
   type Tom,
 } from "./raio-x-relatorio";
+import { escHtml as esc, imprimirHtml, slugPdf as slug } from "@/lib/pdf-print";
 import type { ComparacaoMetrica } from "./raio-x-derive";
 import type { PerformanceDrillRow } from "./queries";
 
@@ -50,21 +51,6 @@ const TOM_COR: Record<Tom, string> = {
   critico: C.perigo,
   neutro: C.navy400,
 };
-
-const esc = (v: unknown): string =>
-  String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-
-const slug = (s: string): string =>
-  s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
 
 // ---------------------------------------------------------------------------
 // Gráficos (SVG artesanal — nada de recharts fora do React)
@@ -687,55 +673,6 @@ export function montarHtmlRaioX(r: RaioXRelatorio): string {
 // Impressão
 // ---------------------------------------------------------------------------
 
-/**
- * Abre a caixa de impressão com o relatório renderizado. Usa iframe oculto
- * (mesma origem, sem bloqueio de pop-up); se o browser recusar, cai para uma
- * aba nova.
- */
-export function imprimirRaioX(relatorio: RaioXRelatorio): void {
-  const html = montarHtmlRaioX(relatorio);
-  const iframe = document.createElement("iframe");
-  if (!("srcdoc" in iframe)) {
-    abrirEmAba(html);
-    return;
-  }
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.setAttribute("title", "Raio-X para impressão");
-  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
-
-  let encerrado = false;
-  const limpar = () => {
-    if (encerrado) return;
-    encerrado = true;
-    // Um tick depois do print para o Safari não abortar o job.
-    window.setTimeout(() => iframe.remove(), 1000);
-  };
-
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    if (!win) {
-      iframe.remove();
-      abrirEmAba(html);
-      return;
-    }
-    win.addEventListener("afterprint", limpar, { once: true });
-    win.focus();
-    win.print();
-    // Rede de segurança para browsers que não emitem afterprint.
-    window.setTimeout(limpar, 60_000);
-  };
-
-  // srcdoc (e não document.write): o load só dispara com o relatório pronto,
-  // sem corrida com o about:blank inicial do iframe.
-  iframe.srcdoc = html;
-  document.body.appendChild(iframe);
-}
-
-function abrirEmAba(html: string): void {
-  const win = window.open("", "_blank");
-  if (!win) throw new Error("Bloqueio de pop-up: libere pop-ups para gerar o PDF.");
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.setTimeout(() => win.print(), 300);
+export function imprimirRaioX(relatorio: RaioXRelatorio): Promise<void> {
+  return imprimirHtml(montarHtmlRaioX(relatorio), { tituloIframe: "Raio-X para impressão" });
 }

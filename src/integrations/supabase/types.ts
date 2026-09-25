@@ -3942,6 +3942,7 @@ export type Database = {
           desfecho: string | null
           docs_pendentes: Json | null
           docs_recebidos: Json | null
+          dorms_desejados: number | null
           email: string | null
           entrada_disponivel: string | null
           estado: Database["public"]["Enums"]["lead_estado"] | null
@@ -3960,11 +3961,14 @@ export type Database = {
           motivo_perdido: string | null
           na_lixeira: boolean
           nome: string
+          nota_perfil_cliente: string | null
           objecoes: string[]
           observacoes: string | null
           opt_out: boolean
           origem: Database["public"]["Enums"]["lead_origem"]
           pasta_montada_em: string | null
+          precisa_vaga: boolean | null
+          prioridades: string[]
           projeto_id: string | null
           projeto_nome: string | null
           proxima_acao: string | null
@@ -4028,6 +4032,7 @@ export type Database = {
           desfecho?: string | null
           docs_pendentes?: Json | null
           docs_recebidos?: Json | null
+          dorms_desejados?: number | null
           email?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
@@ -4046,11 +4051,14 @@ export type Database = {
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome: string
+          nota_perfil_cliente?: string | null
           objecoes?: string[]
           observacoes?: string | null
           opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
           pasta_montada_em?: string | null
+          precisa_vaga?: boolean | null
+          prioridades?: string[]
           projeto_id?: string | null
           projeto_nome?: string | null
           proxima_acao?: string | null
@@ -4114,6 +4122,7 @@ export type Database = {
           desfecho?: string | null
           docs_pendentes?: Json | null
           docs_recebidos?: Json | null
+          dorms_desejados?: number | null
           email?: string | null
           entrada_disponivel?: string | null
           estado?: Database["public"]["Enums"]["lead_estado"] | null
@@ -4132,11 +4141,14 @@ export type Database = {
           motivo_perdido?: string | null
           na_lixeira?: boolean
           nome?: string
+          nota_perfil_cliente?: string | null
           objecoes?: string[]
           observacoes?: string | null
           opt_out?: boolean
           origem?: Database["public"]["Enums"]["lead_origem"]
           pasta_montada_em?: string | null
+          precisa_vaga?: boolean | null
+          prioridades?: string[]
           projeto_id?: string | null
           projeto_nome?: string | null
           proxima_acao?: string | null
@@ -5273,6 +5285,7 @@ export type Database = {
           observacoes: string | null
           percentual_comissao: number | null
           perfil_ideal: string | null
+          plantas: Json
           preco_a_partir: number | null
           preco_atualizado_em: string | null
           preco_inicial: string | null
@@ -5327,6 +5340,7 @@ export type Database = {
           observacoes?: string | null
           percentual_comissao?: number | null
           perfil_ideal?: string | null
+          plantas?: Json
           preco_a_partir?: number | null
           preco_atualizado_em?: string | null
           preco_inicial?: string | null
@@ -5381,6 +5395,7 @@ export type Database = {
           observacoes?: string | null
           percentual_comissao?: number | null
           perfil_ideal?: string | null
+          plantas?: Json
           preco_a_partir?: number | null
           preco_atualizado_em?: string | null
           preco_inicial?: string | null
