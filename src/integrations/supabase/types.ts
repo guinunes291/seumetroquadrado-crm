@@ -11629,6 +11629,7 @@ export type Database = {
           total: number
         }[]
       }
+      vendas_total_empresa: { Args: never; Returns: Json }
       vitrine_galeria_urls_validas: {
         Args: { _urls: string[] }
         Returns: boolean
