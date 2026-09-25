@@ -6,6 +6,8 @@
 // Telefone NUNCA entra no documento: o PDF é material de reunião
 // (apresentação), e a regra da página é contato oculto em apresentação.
 
+import { escHtml, imprimirHtml } from "@/lib/pdf-print";
+
 // ---------------------------------------------------------------------------
 // Paleta (hex fixo: o PDF não herda o tema do app e precisa imprimir igual)
 // ---------------------------------------------------------------------------
@@ -33,12 +35,7 @@ export type DocumentoRelatorio = {
   rodape?: string;
 };
 
-export const escPdf = (v: unknown): string =>
-  String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+export const escPdf = escHtml;
 
 /** Rótulo do período do filtro para o cabeçalho do documento. */
 export function periodoLabelPdf(range: { di: string | null; df: string | null }): string {
@@ -177,48 +174,6 @@ ${secoes}
 // Impressão (mesmo mecanismo do raio-x-pdf: iframe oculto, aba como fallback)
 // ---------------------------------------------------------------------------
 
-export function imprimirRelatorio(doc: DocumentoRelatorio): void {
-  const html = montarHtmlRelatorio(doc);
-  const iframe = document.createElement("iframe");
-  if (!("srcdoc" in iframe)) {
-    abrirEmAba(html);
-    return;
-  }
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.setAttribute("title", "Relatório para impressão");
-  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0";
-
-  let encerrado = false;
-  const limpar = () => {
-    if (encerrado) return;
-    encerrado = true;
-    // Um tick depois do print para o Safari não abortar o job.
-    window.setTimeout(() => iframe.remove(), 1000);
-  };
-
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    if (!win) {
-      iframe.remove();
-      abrirEmAba(html);
-      return;
-    }
-    win.addEventListener("afterprint", limpar, { once: true });
-    win.focus();
-    win.print();
-    // Rede de segurança para browsers que não emitem afterprint.
-    window.setTimeout(limpar, 60_000);
-  };
-
-  iframe.srcdoc = html;
-  document.body.appendChild(iframe);
-}
-
-function abrirEmAba(html: string): void {
-  const win = window.open("", "_blank");
-  if (!win) throw new Error("Bloqueio de pop-up: libere pop-ups para gerar o PDF.");
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.setTimeout(() => win.print(), 300);
+export function imprimirRelatorio(doc: DocumentoRelatorio): Promise<void> {
+  return imprimirHtml(montarHtmlRelatorio(doc), { tituloIframe: "Relatório para impressão" });
 }

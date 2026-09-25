@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import {
   ArrowSquareOut,
   BookOpen,
+  Blueprint,
   Buildings,
   Clipboard,
   FloppyDisk,
@@ -68,6 +69,7 @@ import { completudeProjeto, descreveFaltando, type Completude } from "@/lib/proj
 import { saneiaLocal, saneiaMetragem } from "@/lib/projetos-saneamento";
 import { zonaDoProjeto } from "@/lib/zonas";
 import { useConstrutorasParceiras } from "./use-construtoras-parceiras";
+import { PlantasDialog } from "./plantas/plantas-dialog";
 
 /** O que esta tela lê (para o score) e escreve (book, tabela, capa, preço). */
 type ProjetoMaterial = {
@@ -127,6 +129,7 @@ export function MateriaisPage() {
   const [soFaltando, setSoFaltando] = useState(true);
   const [edicoes, setEdicoes] = useState<Record<string, Edicao>>({});
   const [colarOpen, setColarOpen] = useState(false);
+  const [plantasDe, setPlantasDe] = useState<ProjetoMaterial | null>(null);
 
   const projetosQ = useQuery({
     queryKey: ["projetos-materiais"],
@@ -482,12 +485,17 @@ export function MateriaisPage() {
                       edicao={valorAtual(p)}
                       alterado={edicoes[p.id] != null}
                       onChange={(campo, valor) => editar(p.id, campo, valor, p)}
+                      onPlantas={() => setPlantasDe(p)}
                     />
                   ))}
                 </div>
               </div>
             ))}
           </div>
+        )}
+
+        {plantasDe && (
+          <PlantasDialog projeto={plantasDe} open onOpenChange={(v) => !v && setPlantasDe(null)} />
         )}
 
         {pendentes.length + invalidos > 0 && (
@@ -586,12 +594,14 @@ function LinhaMaterial({
   edicao,
   alterado,
   onChange,
+  onPlantas,
 }: {
   projeto: ProjetoMaterial;
   completude: Completude | undefined;
   edicao: Edicao;
   alterado: boolean;
   onChange: (campo: keyof Edicao, valor: string) => void;
+  onPlantas: () => void;
 }) {
   const local = saneiaLocal(projeto.bairro, projeto.cidade);
   const localTexto = [local.bairro, local.cidade].filter(Boolean).join(", ");
@@ -619,6 +629,27 @@ function LinhaMaterial({
             <TooltipContent>{descreveFaltando(completude.faltando, 5)}</TooltipContent>
           </Tooltip>
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!projeto.book_url}
+                onClick={onPlantas}
+              >
+                <Blueprint className="mr-1 h-3.5 w-3.5" />
+                Plantas
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {projeto.book_url
+              ? "Extrair as plantas do book para o comparativo em PDF"
+              : "Salve o link do book para extrair as plantas"}
+          </TooltipContent>
+        </Tooltip>
         <Button asChild variant="ghost" size="sm">
           <Link to="/projetos/$projetoId" params={{ projetoId: projeto.id }}>
             Ficha

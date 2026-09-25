@@ -103,9 +103,13 @@ async function transicao(leadId: string, corretorId: string, para: string) {
 
 async function venda(leadId: string, corretorId: string, opts: { distrato?: boolean } = {}) {
   await comoSuperuser(c);
+  // Assinatura "hoje" no fuso de Brasília, o mesmo que meu_funil_estudo usa.
+  // current_date é UTC: das 21h às 0h (BRT) ele já é o dia seguinte e a venda
+  // caía fora do mês/dia da função — o teste quebrava só nesse horário.
   await c.query(
     `INSERT INTO public.vendas (lead_id, corretor_id, valor_venda, status_venda, data_assinatura, distrato)
-     VALUES ($1, $2, 250000, 'pendente'::public.status_venda, current_date, $3)`,
+     VALUES ($1, $2, 250000, 'pendente'::public.status_venda,
+             (now() AT TIME ZONE 'America/Sao_Paulo')::date, $3)`,
     [leadId, corretorId, opts.distrato ?? false],
   );
 }

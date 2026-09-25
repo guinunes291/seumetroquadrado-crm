@@ -30,7 +30,8 @@ export type ProjetoEventoTipo =
   | "enviar_lead"
   | "sacola_add"
   | "ficha_abrir"
-  | "reportar_erro";
+  | "reportar_erro"
+  | "comparativo_pdf";
 
 export type ProjetoEventoRow = {
   id: string;
