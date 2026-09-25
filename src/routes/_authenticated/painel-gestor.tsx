@@ -167,6 +167,17 @@ function PainelGestorPage() {
     },
   });
 
+  // Número total de vendas da EMPRESA (não só do time) — só contagem.
+  const { data: totalEmpresa } = useQuery({
+    queryKey: ["vendas-total-empresa"],
+    enabled: podeVer,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("vendas_total_empresa");
+      if (error) throw error;
+      return data as { mes: number; ano: number; total: number } | null;
+    },
+  });
+
   // Guarda real: corretor não acessa o hub de Gestão. Enquanto os papéis
   // carregam, evita o flash redirecionando só depois.
   if (!loading && !podeVer) {
@@ -180,6 +191,20 @@ function PainelGestorPage() {
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+      {totalEmpresa && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border bg-card px-4 py-2 text-sm">
+          <span className="font-medium text-muted-foreground">Vendas da empresa</span>
+          <span>
+            Mês: <strong className="tabular-nums">{totalEmpresa.mes}</strong>
+          </span>
+          <span>
+            Ano: <strong className="tabular-nums">{totalEmpresa.ano}</strong>
+          </span>
+          <span>
+            Total: <strong className="tabular-nums">{totalEmpresa.total}</strong>
+          </span>
+        </div>
+      )}
       <TabsList className="h-auto flex-wrap justify-start">
         <TabsTrigger value="dia">Dia</TabsTrigger>
         <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
