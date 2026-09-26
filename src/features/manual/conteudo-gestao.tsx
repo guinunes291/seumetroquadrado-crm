@@ -256,7 +256,9 @@ export function ConteudoGestao() {
           <p>
             Abas <strong>Dia</strong>, <strong>Relatórios</strong>, <strong>Funil</strong>,{" "}
             <strong>Time</strong> e <strong>Metas &amp; Ritmo</strong>. É onde se acompanha o ritmo
-            do time, os gargalos do funil e as metas.
+            do time, os gargalos do funil e as metas. No alto da tela, a faixa{" "}
+            <strong>Vendas da empresa</strong> mostra o total de vendas aprovadas da empresa inteira
+            no mês, no ano e no geral (pela data de assinatura, sem distratos).
           </p>
           <Tela src="painel-gestor" legenda="Painel do Gestor — dia, funil, time e metas." />
         </Bloco>
@@ -317,6 +319,15 @@ export function ConteudoGestao() {
         titulo="Recursos que ajudam no dia a dia"
         resumo="Busca, atalhos, mensagens e o assistente."
       >
+        <Bloco titulo="Trilha de boas-vindas (Como usar o CRM)" quem="Corretor">
+          <p>
+            No primeiro acesso, uma trilha de 6 passos abre sozinha. Ela não bloqueia nada: dá para
+            fechar e voltar depois pelo item <strong>Como usar o CRM</strong> no menu. O último
+            passo só conclui depois de registrar um atendimento de verdade. Concluída, a trilha não
+            abre mais sozinha — e só quem concluiu passa a estar apto a receber clientes.
+          </p>
+        </Bloco>
+
         <Bloco titulo="Central de Mensagens (/mensagens)" quem="Operação">
           <p>
             As conversas de WhatsApp em um lugar só, com aviso de quem está aguardando resposta.
