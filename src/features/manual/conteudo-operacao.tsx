@@ -217,7 +217,7 @@ export function ConteudoOperacao() {
             Cada cliente tem uma cadência de até <strong>13 toques</strong>, com intervalo que muda
             conforme a temperatura e a etapa. Só contato ativo feito por você conta como toque.
             Esgotados os 13 sem resposta, o cliente <strong>não</strong> é perdido automaticamente —
-            vai para a sua decisão.
+            fica sem próximo passo, na Reserva da sua carteira, esperando a sua decisão na ficha.
           </p>
           <Passos
             itens={[
@@ -228,9 +228,9 @@ export function ConteudoOperacao() {
             ]}
           />
           <p className="text-muted-foreground">
-            Abas: <strong>Fila do dia</strong>, <strong>Esgotados (13/13)</strong> — com “Reativar
-            régua”, <strong>Curva de resposta</strong>, <strong>Cobertura do time</strong> (gestão)
-            e <strong>Config da régua</strong> (admin).
+            Abas: <strong>Cadência (lead novo)</strong>, <strong>Kanban da cadência</strong>,{" "}
+            <strong>Régua (já respondeu)</strong>, <strong>Curva de resposta</strong>,{" "}
+            <strong>Cobertura do time</strong> (gestão) e <strong>Config da régua</strong> (admin).
           </p>
           <Tela src="follow-up" legenda="Follow-Up — fila do dia, um cliente por vez." />
           <Tela

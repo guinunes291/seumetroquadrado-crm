@@ -6,12 +6,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRoles } from "@/hooks/use-auth";
 import { FilaFollowUpView } from "@/features/followup/fila-view";
-import { EsgotadosView } from "@/features/followup/esgotados-view";
 
 // Módulo Follow-Up — a régua de 13 toques virou processo: a fila do dia diz
-// quem tocar e por qual canal; Esgotados guarda a decisão humana (nunca
-// auto-perdido); KPIs mostram a curva de resposta por tentativa; Cobertura é
-// a visão de gestão. Sem abas próprias: a sidebar contextual navega entre as
+// quem tocar e por qual canal; KPIs mostram a curva de resposta por
+// tentativa; Cobertura é a visão de gestão. A aba Esgotados saiu em
+// 2026-09-26: o lead que esgota os 13 toques fica sem próximo passo e aparece
+// na Reserva da carteira do corretor — nunca é perdido sozinho. Sem abas próprias: a sidebar contextual navega entre as
 // seções via ?tab= na URL.
 
 // Recharts das visões analíticas só desce quando a seção abre — mesmo padrão
@@ -34,8 +34,8 @@ const ReguaFollowUpConfigCard = lazy(() =>
   })),
 );
 
-type FollowUpTab = "esgotados" | "kpis" | "cobertura" | "config";
-const TABS: FollowUpTab[] = ["esgotados", "kpis", "cobertura", "config"];
+type FollowUpTab = "kpis" | "cobertura" | "config";
+const TABS: FollowUpTab[] = ["kpis", "cobertura", "config"];
 
 export const Route = createFileRoute("/_authenticated/follow-up")({
   head: () => ({ meta: [{ title: "Follow-Up — Seu Metro Quadrado" }] }),
@@ -68,7 +68,6 @@ function FollowUpPage() {
       />
 
       {!tab && <FilaFollowUpView />}
-      {tab === "esgotados" && <EsgotadosView />}
       {tab === "kpis" && (
         <Suspense fallback={<AbaSkeleton />}>
           <FollowUpKpisView />

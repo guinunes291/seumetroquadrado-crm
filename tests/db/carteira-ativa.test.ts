@@ -10,7 +10,7 @@
  *    fundo fica.
  *  - A precedência das faixas: fundo → resgate → conversa. Um lead em
  *    análise parado há 80 dias vem antes de qualquer outro.
- *  - BASE EM FORMAÇÃO (20260925120000): lead em D1/D2/D3 da cadência NÃO
+ *  - BASE EM FORMAÇÃO (20260925120000): lead em D0/D1/D2/D3 da cadência NÃO
  *    ocupa vaga dos 65 e NÃO é Reserva. Os 65 são só o que avançou. A antiga
  *    faixa `sla` ("chegaram agora") era exatamente essa população, e saiu.
  *  - Carteira, formação e Reserva PARTICIONAM os leads vivos: nenhum fica de
@@ -57,10 +57,10 @@ let leadFrio: string;
 
 /**
  * Tira o lead da cadência. `criarLead` com corretor dispara o gatilho de
- * atribuição e põe o lead em D1 — o certo para lead recém-chegado. Mas os
+ * atribuição e põe o lead em Lead chegou (D0) — o certo para lead recém-chegado. Mas os
  * leads de carteira desta suíte modelam outra coisa: quem já está em conversa
  * (em produção saiu da cadência ao avançar) ou o estoque parado que a Fase 0
- * ainda não admitiu. Para eles, D1 seria um artefato do fixture.
+ * ainda não admitiu. Para eles, D0 seria um artefato do fixture.
  */
 async function foraDaCadencia(id: string): Promise<void> {
   await comoSuperuser(c);
@@ -103,7 +103,7 @@ beforeAll(async () => {
                              proximo_followup = now() + interval '1 day' WHERE id = $1`,
     [conversa],
   );
-  // O recém-chegado: fica em D1, na base em formação — fora dos 65.
+  // O recém-chegado: fica em Lead chegou (D0), na base em formação — fora dos 65.
   const novo = await criarLead(c, { corretorId: corretor.id, status: "aguardando_atendimento" });
   await c.query(`UPDATE public.leads SET created_at = now() - interval '2 hours' WHERE id = $1`, [
     novo,
@@ -167,7 +167,7 @@ describe("carteira ativa — base em formação", () => {
     expect(linhas).toHaveLength(1);
     expect(linhas[0].faixa).toBe("formacao");
     expect(linhas[0].ativa).toBe(false);
-    expect(linhas[0].motivo).toBe("em formação na cadência (D1)");
+    expect(linhas[0].motivo).toBe("em formação na cadência (lead chegou)");
 
     await comoUsuario(c, dono.id);
     const ativa = await c.query(`SELECT lead_id FROM public.carteira_ativa_v1()`);

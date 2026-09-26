@@ -104,7 +104,7 @@ describe("Fase 0", () => {
     expect(destino.get(doInativoFrio)).toBe("reativacao");
   });
 
-  it("a admissão não põe em D1 lead de dono inativo", async () => {
+  it("a admissão não põe em Lead chegou lead de dono inativo", async () => {
     const doAtivo = await estoque(ativo);
     const doInativo = await estoque(saiu);
     await desativar(saiu);
@@ -112,7 +112,7 @@ describe("Fase 0", () => {
     await comoSuperuser(c);
     const r = await c.query(`SELECT * FROM public.cadencia_fase0_admitir('ativo', 15)`);
     expect(r.rows[0].admitidos).toBe(1);
-    expect((await lead(doAtivo)).cadencia_etapa).toBe("D1");
+    expect((await lead(doAtivo)).cadencia_etapa).toBe("D0");
     expect((await lead(doInativo)).cadencia_etapa).toBeNull();
   });
 });
@@ -133,7 +133,7 @@ describe("cadencia_devolver_inativos", () => {
   it("devolve à roleta pelo caminho da cadência e deixa o lead do ativo onde está", async () => {
     const doInativo = await criarLead(c, { corretorId: saiu.id, status: "aguardando_atendimento" });
     const doAtivo = await criarLead(c, { corretorId: ativo.id, status: "aguardando_atendimento" });
-    expect((await lead(doInativo)).cadencia_etapa).toBe("D1");
+    expect((await lead(doInativo)).cadencia_etapa).toBe("D0");
     await desativar(saiu);
 
     await comoSuperuser(c);
@@ -145,7 +145,7 @@ describe("cadencia_devolver_inativos", () => {
       status: "aguardando_corretor",
       cadencia_etapa: null,
     });
-    expect((await lead(doAtivo)).cadencia_etapa).toBe("D1");
+    expect((await lead(doAtivo)).cadencia_etapa).toBe("D0");
     expect(await jobsDoLead(doInativo)).toEqual(["inativo"]);
 
     await comoSuperuser(c);

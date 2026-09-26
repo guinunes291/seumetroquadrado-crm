@@ -1,6 +1,6 @@
-// Cliente da cadência D1/D2/D3.
+// Cliente da cadência Lead chegou/D1/D2/D3.
 //
-// As RPCs (cadencia_fila_v1, cadencia_registrar_tentativa,
+// As RPCs (cadencia_fila_v1, cadencia_kanban_v1, cadencia_registrar_tentativa,
 // cadencia_marcar_respondeu) ainda não existem nos types gerados do Supabase;
 // passam pela fronteira `rpc` de features/dashboard/queries para não gastar o
 // budget de escapes de tipo checado no CI — mesmo caminho do módulo
@@ -14,9 +14,13 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { rpc } from "@/features/dashboard/queries";
-import { CONTEXTO_POR_ETAPA, type EtapaCadencia } from "@/features/cadencia/templates";
+import {
+  CONTEXTO_POR_ETAPA,
+  ETAPAS_CADENCIA,
+  type EtapaCadencia,
+} from "@/features/cadencia/templates";
 
-const etapaSchema = z.enum(["D1", "D2", "D3"]);
+const etapaSchema = z.enum(ETAPAS_CADENCIA);
 
 const filaItemSchema = z.object({
   id: z.string().uuid(),
@@ -30,8 +34,11 @@ const filaItemSchema = z.object({
   projeto_nome: z.string().nullable(),
   faixa_mcmv: z.string().nullable(),
   renda_estimada: z.number().nullable(),
-  prazo: z.string(),
-  atrasado: z.boolean(),
+  /** Nulo só no Kanban: lead em cadência sem prazo é defeito que a auditoria
+   *  diária acusa — o Kanban o mostra ("sem prazo") em vez de derrubar a tela
+   *  inteira por causa dele. A Fila do Dia nunca o recebe (filtra por prazo). */
+  prazo: z.string().nullable(),
+  atrasado: z.boolean().nullable(),
   proxima_acao: z.string().nullable(),
   telefone_suspeito: z.boolean(),
   ligacoes_validas: z.number().int().nonnegative(),
@@ -61,6 +68,41 @@ export async function fetchFilaCadencia(corretorId?: string): Promise<FilaCadenc
   });
   if (error) throw error;
   return parseFilaCadencia(data);
+}
+
+const kanbanSchema = z.object({
+  gerado_em: z.string(),
+  corretor_id: z.string().uuid(),
+  /** Quantos leads o corretor tem na cadência — pode passar de `itens` quando
+   *  o teto da leitura corta; a tela avisa em vez de esconder. */
+  total: z.number().int().nonnegative(),
+  itens: z.array(filaItemSchema),
+});
+
+export type KanbanCadencia = z.infer<typeof kanbanSchema>;
+
+export function parseKanbanCadencia(input: unknown): KanbanCadencia {
+  return kanbanSchema.parse(input);
+}
+
+/** Kanban da cadência: TODOS os leads em cadência do corretor (não só o que
+ *  vence hoje), com o mesmo card da Fila do Dia. */
+export async function fetchKanbanCadencia(corretorId?: string): Promise<KanbanCadencia> {
+  const { data, error } = await rpc("cadencia_kanban_v1", {
+    _corretor: corretorId ?? null,
+    _take: 400,
+  });
+  if (error) throw error;
+  return parseKanbanCadencia(data);
+}
+
+/** As colunas do Kanban, na ordem das etapas. Pura para ser testável. */
+export function agruparPorEtapa(itens: CadenciaItem[]): Record<EtapaCadencia, CadenciaItem[]> {
+  const colunas = Object.fromEntries(
+    ETAPAS_CADENCIA.map((e) => [e, [] as CadenciaItem[]]),
+  ) as Record<EtapaCadencia, CadenciaItem[]>;
+  for (const item of itens) colunas[item.etapa].push(item);
+  return colunas;
 }
 
 export type ResultadoLigacao =
@@ -138,10 +180,10 @@ const templateSchema = z.object({
 export type TemplateCadencia = z.infer<typeof templateSchema>;
 
 /**
- * Os três textos da cadência, por etapa.
+ * Os quatro textos da cadência, por etapa.
  *
  * Lidos do banco (e não embutidos no bundle) porque versionar o texto ali é o
- * que deixa o teste A/B pronto sem deploy — trocar a mensagem do D3 passa a
+ * que deixa o teste A/B pronto sem deploy — trocar a mensagem do encerramento passa a
  * ser um UPDATE. Só os ATIVOS entram, e o índice único por contexto garante
  * que existe no máximo um ativo por etapa.
  */

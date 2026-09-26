@@ -99,6 +99,13 @@
       "when": 1790372066066,
       "tag": "0013_vendas_total_empresa",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790438526500,
+      "tag": "0014_cadencia_quatro_etapas",
+      "breakpoints": true
     }
   ]
 }

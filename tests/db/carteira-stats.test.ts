@@ -148,14 +148,14 @@ beforeAll(async () => {
 
   await comoSuperuser(c);
   // Base em formação (20260925120000): `criarLead` com corretor põe o lead
-  // em D1. Os leads EM TRATATIVA deste fixture modelam carteira que já passou
-  // da cadência (em produção, sai ao avançar de fase ou ganhar passo) — o D1
+  // em D0 (Lead chegou). Os leads EM TRATATIVA deste fixture modelam carteira que já passou
+  // da cadência (em produção, sai ao avançar de fase ou ganhar passo) — o D0
   // deles é artefato e mudaria o que a suíte mede. Os "nunca tocados" ficam
-  // em D1: são prospecção pelo status e continuam sendo.
+  // em D0: são prospecção pelo status e continuam sendo.
   await c.query(
     `UPDATE public.leads
         SET cadencia_etapa = NULL, cadencia_prazo_ts = NULL, cadencia_inicio_ts = NULL
-      WHERE cadencia_etapa IN ('D1','D2','D3') AND status = 'em_atendimento'`,
+      WHERE cadencia_etapa IN ('D0','D1','D2','D3') AND status = 'em_atendimento'`,
   );
   await c.query(`SET session_replication_role = replica`);
   await c.query(

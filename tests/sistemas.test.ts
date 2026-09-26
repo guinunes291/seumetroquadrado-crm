@@ -322,7 +322,11 @@ describe("sistemaAtivo (pathname + search)", () => {
     expect(em("/ranking")).toBe("bi");
     expect(em("/painel-gestor", { tab: "time" })).toBe("bi");
     expect(em("/follow-up")).toBe("follow-up");
-    expect(em("/follow-up", { tab: "esgotados" })).toBe("follow-up");
+    expect(em("/follow-up", { tab: "kpis" })).toBe("follow-up");
+    expect(em("/cadencia", { tab: "kanban" })).toBe("follow-up");
+    expect(
+      secaoAtiva(sistema("follow-up"), { pathname: "/cadencia", search: { tab: "kanban" } })?.id,
+    ).toBe("cadencia-kanban");
     expect(secaoAtiva(sistema("follow-up"), { pathname: "/follow-up", search: {} })?.id).toBe(
       "fila",
     );
@@ -334,7 +338,7 @@ describe("sistemaAtivo (pathname + search)", () => {
   it("Cobertura do time do Follow-Up é só gestão", () => {
     const secoes = (ctx: PapelCtx) => secoesVisiveis(sistema("follow-up"), ctx).map((s) => s.id);
     // "cadencia" primeiro: é a janela pré-resposta, por onde o lead entra.
-    expect(secoes(corretor)).toEqual(["cadencia", "fila", "esgotados", "kpis"]);
+    expect(secoes(corretor)).toEqual(["cadencia", "cadencia-kanban", "fila", "kpis"]);
     expect(secoes(gestor)).toContain("cobertura");
   });
 

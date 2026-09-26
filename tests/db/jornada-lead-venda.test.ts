@@ -447,10 +447,10 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     );
     expect(eventos.rows).toEqual([
       { tipo: "transicao_lead", de: "aguardando_atendimento", para: "em_atendimento" },
-      // Base em formação (20260925120000): a atribuição pôs o lead em D1, e o
+      // Base em formação (20260925120000): a atribuição pôs o lead em Lead chegou (D0), e o
       // passo 3 (corretor inicia o atendimento pela ficha) é avançar de fase —
       // o lead sai da cadência para a carteira. Sem esta saída ele chegaria em
-      // `agendado` ainda em D1, e `cadencia_vencidos` o devolveria à roleta no
+      // `agendado` ainda em D0, e `cadencia_vencidos` o devolveria à roleta no
       // meio da venda.
       { tipo: "cadencia_etapa", de: null, para: null },
       { tipo: "transicao_lead", de: "em_atendimento", para: "agendado" },
@@ -470,7 +470,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       [leadId],
     );
     expect(saida.rows).toEqual([
-      { cadencia_etapa: "respondeu", de: "D1", para: "respondeu", via: "status" },
+      { cadencia_etapa: "respondeu", de: "D0", para: "respondeu", via: "status" },
     ]);
 
     // Cada transição também vira uma interação 'mudanca_status' no histórico.

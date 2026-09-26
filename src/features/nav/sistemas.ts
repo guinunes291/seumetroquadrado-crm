@@ -36,7 +36,6 @@ import {
   Funnel,
   GearSix,
   Handshake,
-  Hourglass,
   Kanban,
   Layout,
   Link,
@@ -343,18 +342,23 @@ export const SISTEMAS: Sistema[] = [
         to: "/cadencia",
       },
       {
+        // A cadência inteira, por etapa: Lead chegou, 1º follow-up, 2º
+        // follow-up e encerramento. Entrou no lugar de "Esgotados (13/13)"
+        // (removida em 2026-09-26 por decisão do dono) — o teto de 6 seções
+        // continua respeitado. A Fila do Dia é onde se trabalha; o Kanban é
+        // onde se vê onde está cada cliente.
+        id: "cadencia-kanban",
+        label: "Kanban da cadência",
+        icon: Kanban,
+        to: "/cadencia",
+        search: { tab: "kanban" },
+      },
+      {
         id: "fila",
         label: "Régua (já respondeu)",
         icon: ArrowsClockwise,
         to: "/follow-up",
         badge: (b) => b.followups,
-      },
-      {
-        id: "esgotados",
-        label: "Esgotados (13/13)",
-        icon: Hourglass,
-        to: "/follow-up",
-        search: { tab: "esgotados" },
       },
       {
         id: "kpis",

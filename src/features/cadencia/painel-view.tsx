@@ -25,6 +25,7 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { rotuloEtapa } from "@/features/cadencia/templates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -261,7 +262,7 @@ function TabelaEtapas() {
                   <TableRow key={`${l.semana}-${l.etapa}-${l.empreendimento}`}>
                     <TableCell>{dia(l.semana)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{l.etapa}</Badge>
+                      <Badge variant="outline">{rotuloEtapa(l.etapa)}</Badge>
                     </TableCell>
                     <TableCell className="max-w-56 truncate">{l.empreendimento}</TableCell>
                     <TableCell>{l.alcancaram}</TableCell>
