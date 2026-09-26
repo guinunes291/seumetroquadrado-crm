@@ -1,6 +1,7 @@
 // Fila do Dia da cadência — a única lista que o corretor abre para trabalhar
 // lead novo: quem vence hoje ou já venceu, na ordem que o processo manda
-// (atrasado primeiro, depois D1 antes de D2 antes de D3, depois maior renda).
+// (atrasado primeiro, depois Lead chegou, 1º follow-up, 2º follow-up e
+// encerramento, depois maior renda).
 //
 // Três botões e nada além deles. Não existe "marcar etapa como feita": a
 // etapa só anda com tentativa registrada, e quem a faz andar é o motor no
@@ -48,9 +49,29 @@ import {
   acaoPrimaria,
   aplicarPlaceholders,
   linkWhatsApp,
+  ROTULO_ETAPA,
   rotuloProgresso,
+  type EtapaCadencia,
 } from "@/features/cadencia/templates";
 import { ArrowSquareOut, CheckCircle, Envelope, Phone, WhatsappLogo } from "@phosphor-icons/react";
+
+/** "Etapa Lead chegou completa — o lead já está no 1º follow-up." */
+function mensagemEtapa(res: {
+  etapa: EtapaCadencia;
+  etapa_completa: boolean;
+  etapa_nova: EtapaCadencia | null;
+}): string | null {
+  if (res.etapa_nova) {
+    return `${ROTULO_ETAPA[res.etapa]} completo — o lead já está em ${ROTULO_ETAPA[res.etapa_nova]}.`;
+  }
+  if (res.etapa_completa) {
+    // Etapa fechada mas sem avanço: o motor está em sombra. Dizer "vai
+    // avançar" aqui seria prometer algo que não vai acontecer enquanto a
+    // chave não virar.
+    return `${ROTULO_ETAPA[res.etapa]} completo (motor em modo sombra).`;
+  }
+  return null;
+}
 
 const RESULTADOS: Array<{ valor: ResultadoLigacao; rotulo: string }> = [
   { valor: "nao_atendeu", rotulo: "Não atendeu" },
@@ -81,6 +102,7 @@ export function FilaCadenciaView() {
 
   const invalidar = () => {
     void qc.invalidateQueries({ queryKey: ["cadencia:fila"] });
+    void qc.invalidateQueries({ queryKey: ["cadencia:kanban"] });
   };
 
   const ligacao = useMutation({
@@ -89,15 +111,8 @@ export function FilaCadenciaView() {
     onSuccess: (res) => {
       if (res.encerrado) {
         toast.success("Lead encerrado por número inválido.");
-      } else if (res.etapa_nova) {
-        toast.success(`Etapa ${res.etapa} completa — o lead já está em ${res.etapa_nova}.`);
-      } else if (res.etapa_completa) {
-        // Etapa fechada mas sem avanço: o motor está em sombra. Dizer "vai
-        // avançar" aqui seria prometer algo que não vai acontecer enquanto a
-        // chave não virar.
-        toast.success(`Etapa ${res.etapa} completa (motor em modo sombra).`);
       } else {
-        toast.success("Ligação registrada.");
+        toast.success(mensagemEtapa(res) ?? "Ligação registrada.");
       }
       invalidar();
     },
@@ -108,13 +123,7 @@ export function FilaCadenciaView() {
     mutationFn: ({ lead, templateId }: { lead: CadenciaItem; templateId: string | null }) =>
       registrarWhatsApp(lead.id, templateId),
     onSuccess: (res) => {
-      toast.success(
-        res.etapa_nova
-          ? `Etapa ${res.etapa} completa — o lead já está em ${res.etapa_nova}.`
-          : res.etapa_completa
-            ? `Etapa ${res.etapa} completa (motor em modo sombra).`
-            : "WhatsApp registrado.",
-      );
+      toast.success(mensagemEtapa(res) ?? "WhatsApp registrado.");
       invalidar();
     },
     onError: (e: Error) => toast.error(e.message),

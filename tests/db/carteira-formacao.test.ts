@@ -8,7 +8,7 @@
  * O que está em jogo, na ordem em que quebraria a operação:
  *
  *  1. O LEAD QUE AVANÇOU POR FORA DO BOTÃO NÃO PODE IR PARA A ROLETA. Antes
- *     desta migration, agendar a visita pela ficha deixava o lead em D1; o
+ *     desta migration, agendar a visita pela ficha deixava o lead em cadência; o
  *     prazo vencia e `cadencia_vencidos` tirava o corretor e voltava o status
  *     para `aguardando_corretor` — apagando o agendamento. Cada teste de saída
  *     roda o motor de vencidos DEPOIS, com um lead de controle que não avançou
@@ -56,12 +56,12 @@ beforeEach(async () => {
   corretor = await criarUsuario(c, { nome: "Corretor Formação", papel: "corretor" });
 });
 
-/** Lead recém-chegado: o gatilho de atribuição o põe em D1. */
-async function leadEmD1(status = "aguardando_atendimento", corretorId?: string) {
+/** Lead recém-chegado: o gatilho de atribuição o põe em Lead chegou (D0). */
+async function leadRecemChegado(status = "aguardando_atendimento", corretorId?: string) {
   const id = await criarLead(c, { corretorId: corretorId ?? corretor.id, status });
   await comoSuperuser(c);
   const r = await c.query(`SELECT cadencia_etapa FROM public.leads WHERE id = $1`, [id]);
-  expect(r.rows[0].cadencia_etapa).toBe("D1");
+  expect(r.rows[0].cadencia_etapa).toBe("D0");
   return id;
 }
 
@@ -116,14 +116,14 @@ async function rodarVencidos() {
 
 describe("saída da formação quando o lead avança por fora do botão", () => {
   it("visita agendada pela ficha: sai da cadência e o motor de vencidos NÃO a manda para a roleta", async () => {
-    const avancou = await leadEmD1();
-    const controle = await leadEmD1();
+    const avancou = await leadRecemChegado();
+    const controle = await leadRecemChegado();
     await vencerPrazo(avancou);
     await vencerPrazo(controle);
 
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET status = 'agendado' WHERE id = $1`, [avancou]);
-    expect(await eventoSaida(avancou)).toEqual({ de: "D1", para: "respondeu", via: "status" });
+    expect(await eventoSaida(avancou)).toEqual({ de: "D0", para: "respondeu", via: "status" });
 
     await rodarVencidos();
 
@@ -140,40 +140,40 @@ describe("saída da formação quando o lead avança por fora do botão", () => 
   });
 
   it("de novo para em_atendimento pela ficha é avançar de fase", async () => {
-    const id = await leadEmD1("novo");
+    const id = await leadRecemChegado("novo");
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET status = 'em_atendimento' WHERE id = $1`, [id]);
     expect((await lead(id)).cadencia_etapa).toBe("respondeu");
   });
 
   it("voltar para prospecção NÃO é avanço (é redistribuição, e a etapa é de quem redistribui)", async () => {
-    const id = await leadEmD1("novo");
+    const id = await leadRecemChegado("novo");
     await comoSuperuser(c);
     await c.query(`UPDATE public.leads SET status = 'aguardando_atendimento' WHERE id = $1`, [id]);
-    expect((await lead(id)).cadencia_etapa).toBe("D1");
+    expect((await lead(id)).cadencia_etapa).toBe("D0");
   });
 
   it("estoque em em_atendimento admitido de propósito continua na cadência", async () => {
     // O ESTADO em_atendimento não é avanço — a Fase 0 põe esse estoque na
     // cadência. Só a TRANSIÇÃO para ele é.
-    const id = await leadEmD1("em_atendimento");
+    const id = await leadRecemChegado("em_atendimento");
     await comoSuperuser(c);
     await c.query(
       `UPDATE public.leads SET ultima_interacao = now() - interval '1 hour' WHERE id = $1`,
       [id],
     );
-    expect((await lead(id)).cadencia_etapa).toBe("D1");
+    expect((await lead(id)).cadencia_etapa).toBe("D0");
   });
 
   it("perda marcada pela ficha encerra a cadência sem contar como resposta, e ninguém a ressuscita", async () => {
-    const id = await leadEmD1();
+    const id = await leadRecemChegado();
     await vencerPrazo(id);
     await comoSuperuser(c);
     await c.query(
       `UPDATE public.leads SET status = 'perdido', motivo_perda_categoria = 'outro' WHERE id = $1`,
       [id],
     );
-    expect(await eventoSaida(id)).toEqual({ de: "D1", para: "encerrado", via: "status" });
+    expect(await eventoSaida(id)).toEqual({ de: "D0", para: "encerrado", via: "status" });
 
     await rodarVencidos();
     // `_cadencia_devolver_roleta` poria `aguardando_corretor` num lead perdido.
@@ -181,13 +181,13 @@ describe("saída da formação quando o lead avança por fora do botão", () => 
   });
 
   it("tarefa humana com data futura é agendar para frente — e o painel conta como resposta", async () => {
-    const id = await leadEmD1();
-    const controle = await leadEmD1();
+    const id = await leadRecemChegado();
+    const controle = await leadRecemChegado();
     await vencerPrazo(id);
     await vencerPrazo(controle);
     await tarefa(id, "2 days");
 
-    expect(await eventoSaida(id)).toEqual({ de: "D1", para: "respondeu", via: "tarefa" });
+    expect(await eventoSaida(id)).toEqual({ de: "D0", para: "respondeu", via: "tarefa" });
     // A saída NÃO muda o status: só o corretor sabe em que ponto da venda o
     // lead está. O botão muda porque ali ele DECLAROU a resposta.
     expect((await lead(id)).status).toBe("aguardando_atendimento");
@@ -201,7 +201,7 @@ describe("saída da formação quando o lead avança por fora do botão", () => 
     // O espelho `proximo_followup` é preenchido por `sync_proximo_followup` a
     // partir dela. Se o gatilho de leads lesse o espelho sem olhar a origem,
     // a exceção entraria pela porta dos fundos.
-    const id = await leadEmD1();
+    const id = await leadRecemChegado();
     await tarefa(id, "1 day", true);
     await comoSuperuser(c);
     const r = await c.query(
@@ -209,38 +209,38 @@ describe("saída da formação quando o lead avança por fora do botão", () => 
       [id],
     );
     expect(r.rows[0].espelho).toBe(true);
-    expect((await lead(id)).cadencia_etapa).toBe("D1");
+    expect((await lead(id)).cadencia_etapa).toBe("D0");
   });
 
   it("tarefa vencida (dívida) não é passo e não tira da formação", async () => {
-    const id = await leadEmD1();
+    const id = await leadRecemChegado();
     await tarefa(id, "-2 days");
-    expect((await lead(id)).cadencia_etapa).toBe("D1");
+    expect((await lead(id)).cadencia_etapa).toBe("D0");
   });
 
   it("agendamento futuro tira da formação", async () => {
-    const id = await leadEmD1();
+    const id = await leadRecemChegado();
     await comoSuperuser(c);
     await c.query(
       `INSERT INTO public.agendamentos (lead_id, corretor_id, titulo, data_inicio, data_fim)
        VALUES ($1, $2, 'Ligação marcada', now() + interval '1 day', now() + interval '1 day 30 min')`,
       [id, corretor.id],
     );
-    expect(await eventoSaida(id)).toEqual({ de: "D1", para: "respondeu", via: "agendamento" });
+    expect(await eventoSaida(id)).toEqual({ de: "D0", para: "respondeu", via: "agendamento" });
   });
 
   it("próximo passo escrito direto no lead (como transicionar_lead faz) tira da formação", async () => {
-    const id = await leadEmD1();
+    const id = await leadRecemChegado();
     await comoSuperuser(c);
     await c.query(
       `UPDATE public.leads SET proximo_followup = now() + interval '2 days' WHERE id = $1`,
       [id],
     );
-    expect(await eventoSaida(id)).toEqual({ de: "D1", para: "respondeu", via: "proximo_passo" });
+    expect(await eventoSaida(id)).toEqual({ de: "D0", para: "respondeu", via: "proximo_passo" });
   });
 
   it("o botão continua dono da própria saída: nenhum evento duplicado", async () => {
-    const id = await leadEmD1();
+    const id = await leadRecemChegado();
     await comoUsuario(c, corretor.id);
     await c.query(
       `SELECT public.cadencia_marcar_respondeu($1, 'Visitar decorado', now() + interval '2 days')`,
@@ -248,7 +248,7 @@ describe("saída da formação quando o lead avança por fora do botão", () => 
     );
     await comoSuperuser(c);
     // A tarefa que o botão cria dispara o gatilho de tarefas — que encontra o
-    // lead já fora de D1 e não faz nada.
+    // lead já fora de D0 e não faz nada.
     const r = await c.query(
       `SELECT count(*)::int AS n FROM public.lead_eventos
         WHERE lead_id = $1 AND tipo = 'cadencia_etapa'`,
@@ -263,7 +263,7 @@ describe("saída da formação quando o lead avança por fora do botão", () => 
 // ---------------------------------------------------------------------------
 
 describe("régua de devolução", () => {
-  it("lead de estoque admitido em D1, antes do primeiro toque, não é candidato", async () => {
+  it("lead de estoque admitido em Lead chegou, antes do primeiro toque, não é candidato", async () => {
     // O caso reproduzido antes da migration: relógio de 20 dias, sem passo
     // (a cadência não escreve passo, por desenho) — era candidato 'sem_passo'.
     const id = await criarLead(c, { corretorId: corretor.id, status: "aguardando_atendimento" });
@@ -275,7 +275,7 @@ describe("régua de devolução", () => {
         WHERE id = $1`,
       [id],
     );
-    expect((await lead(id)).cadencia_etapa).toBe("D1");
+    expect((await lead(id)).cadencia_etapa).toBe("D0");
     const em = await c.query(
       `SELECT 1 FROM public.regua_devolucao_candidatos_v1() WHERE lead_id = $1`,
       [id],
@@ -331,7 +331,7 @@ describe("Fase 0 pela vaga da formação", () => {
   });
 
   it("lead novo já em formação come a parte do estoque: com 4 frescos, entram 6", async () => {
-    for (let i = 0; i < 4; i++) await leadEmD1();
+    for (let i = 0; i < 4; i++) await leadRecemChegado();
     await estoque(12, corretor.id);
     expect(await admitir(15)).toBe(6);
   });
@@ -352,13 +352,13 @@ describe("Fase 0 pela vaga da formação", () => {
 
 describe("telas do gestor não acusam a formação", () => {
   it("fila_equipe_v1 e carteira_stats: em formação não é 'sem próximo passo' nem carteira ativa", async () => {
-    // Estoque admitido: status em_atendimento, tocado hoje, em D1 — o caso que
+    // Estoque admitido: status em_atendimento, tocado hoje, em D0 — o caso que
     // carteira_stats contava como "ativo" e "sem passo vivo".
     const [id] = await estoque(1, corretor.id);
     await comoSuperuser(c);
     await c.query(`SELECT public.cadencia_iniciar($1)`, [id]);
     await c.query(`UPDATE public.leads SET ultima_interacao = now() WHERE id = $1`, [id]);
-    expect((await lead(id)).cadencia_etapa).toBe("D1");
+    expect((await lead(id)).cadencia_etapa).toBe("D0");
 
     await comoUsuario(c, admin.id);
     const eq = await c.query(`SELECT * FROM public.fila_equipe_v1()`);
@@ -379,10 +379,10 @@ describe("telas do gestor não acusam a formação", () => {
 
 describe("cadencia_corrigir_avancados", () => {
   it("tira da formação quem já estava avançado, e deixa o estoque em em_atendimento", async () => {
-    const agendado = await leadEmD1();
-    const comTarefa = await leadEmD1();
-    const estoqueParado = await leadEmD1("em_atendimento");
-    // O estado de ANTES da migration: avançado e ainda em D1. Os gatilhos
+    const agendado = await leadRecemChegado();
+    const comTarefa = await leadRecemChegado();
+    const estoqueParado = await leadRecemChegado("em_atendimento");
+    // O estado de ANTES da migration: avançado e ainda em D0. Os gatilhos
     // ficam desligados para montá-lo — é exatamente o que eles impediriam.
     await comoSuperuser(c);
     await c.query(`SET session_replication_role = replica`);
@@ -398,7 +398,7 @@ describe("cadencia_corrigir_avancados", () => {
     expect(r.rows[0]).toEqual({ por_status: 1, por_passo: 1 });
     expect((await lead(agendado)).cadencia_etapa).toBe("respondeu");
     expect((await lead(comTarefa)).cadencia_etapa).toBe("respondeu");
-    expect((await lead(estoqueParado)).cadencia_etapa).toBe("D1");
+    expect((await lead(estoqueParado)).cadencia_etapa).toBe("D0");
 
     // Idempotente: rodar de novo não acha ninguém.
     const again = await c.query(`SELECT * FROM public.cadencia_corrigir_avancados()`);

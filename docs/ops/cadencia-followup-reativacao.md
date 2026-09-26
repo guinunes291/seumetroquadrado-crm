@@ -3,9 +3,11 @@
 Data: 2026-09-21. Migrations `20260921120000`, `20260921120100`, `20260921120200`.
 
 Todo lead ativo na carteira tem exatamente uma próxima ação com prazo, e sai da
-carteira só por um destino definido. São três etapas (D1, D2, D3), 7 tentativas,
-e três saídas: qualificação (o cliente respondeu), base de reativação (cumpriu
-100% sem retorno) ou roleta (deixou vencer).
+carteira só por um destino definido. São quatro etapas desde 26/09/2026 — Lead
+chegou (D0), 1º follow-up (D1), 2º follow-up (D2) e encerramento (D3), 10
+tentativas em 4 dias (ver "Quatro etapas" abaixo) — e três saídas: qualificação
+(o cliente respondeu), base de reativação (cumpriu 100% sem retorno) ou roleta
+(deixou vencer).
 
 ## O que mudou em relação ao documento original
 
@@ -118,9 +120,9 @@ UTC — 8h de Brasília é `0 11 * * *`).
 
 | Job                  | Cron          | O que faz                                  |
 | -------------------- | ------------- | ------------------------------------------ |
-| `cadencia_avancar`   | `*/5 * * * *` | D1→D2, D2→D3 quando a etapa fecha          |
+| `cadencia_avancar`   | `*/5 * * * *` | D0→D1→D2→D3 quando a etapa fecha           |
 | `cadencia_encerrar`  | `7 * * * *`   | D3 cumprido + 24h → descanso e reativação  |
-| `cadencia_vencidos`  | `0 11 * * *`  | D1/D2 vencido → roleta                     |
+| `cadencia_vencidos`  | `0 11 * * *`  | D0/D1/D2 vencido → roleta                  |
 | `cadencia_auditoria` | `0 10 * * *`  | lead em cadência sem corretor ou sem prazo |
 
 Duas decisões que valem registro:
@@ -140,8 +142,8 @@ painel é que separa `sem_retorno_cadencia` das demais perdas.
 
 ## Aceite
 
-`tests/db/cadencia.test.ts` — 22 testes, cobrindo os 12 cenários do documento
-mais as travas fora da tabela. Datas simuladas com `make_interval`, sem sleep.
+`tests/db/cadencia.test.ts` — 34 testes, cobrindo os 12 cenários do documento
+(reescritos para as 4 etapas) mais as travas fora da tabela e a virada. Datas simuladas com `make_interval`, sem sleep.
 
 Os 12: entrada em D1 · 1 ligação + WhatsApp não fecha · 2 ligações em 30s não
 fecham · D1 de ontem vira D2 vencendo hoje · D1 parado 3 dias vai à roleta (com
@@ -277,6 +279,52 @@ quem está na casa:
   `vencidos`: o painel conta como falha só `vencidos`, e sair da casa não é
   deixar a etapa vencer.
 
+## Quatro etapas e o Kanban (26/09/2026)
+
+Decisão do dono: "o primeiro toque não é um follow-up". A cadência passou a ter
+o dia da chegada separado dos follow-ups, e a tela ganhou a visão em colunas.
+
+| Etapa | Na tela                                   | O que o corretor faz             | Vence                     |
+| ----- | ----------------------------------------- | -------------------------------- | ------------------------- |
+| D0    | Clientes que chegaram hoje                | abertura + 2 ligações + WhatsApp | fim do dia da chegada     |
+| D1    | Clientes para o 1º follow-up              | 2 ligações + WhatsApp            | fim do dia seguinte ao D0 |
+| D2    | Clientes para o 2º follow-up              | 2 ligações + WhatsApp            | fim do dia seguinte ao D1 |
+| D3    | Clientes para o follow-up de encerramento | mensagem de encerramento         | fim do dia seguinte ao D2 |
+
+Cadência cumprida (100%) = as 4 etapas completas em **4 dias diferentes**. D0,
+D1 ou D2 vencido vai para a roleta; o D3 continua terminando em descanso e
+reativação.
+
+Migration `20261001120000` (Drizzle `0014`):
+
+- **Código interno `D0`, nome na tela "Lead chegou".** Com isso D1, D2 e D3
+  querem dizer no banco o que o dono fala: 1º follow-up, 2º, encerramento. A
+  alternativa (renumerar para D1..D4) deixaria "D3" com dois sentidos nos
+  relatórios.
+- **A virada dos leads em cadência roda uma vez**, guardada por
+  `cadencia_config.quatro_etapas_desde` (função
+  `_cadencia_virada_quatro_etapas`). D1 antigo → D0, D2 antigo → D1, D3 antigo
+  **sem** a mensagem de encerramento → D2 (ganha o 2º follow-up), D3 **com** a
+  mensagem → fica. As tentativas, os eventos de etapa e o log do motor são
+  renomeados junto, senão o Painel misturaria nomes velhos e novos na semana
+  da virada.
+- **Quem já recebeu "vou encerrar seu atendimento" antes da virada** é julgado
+  pela regra antiga (3 etapas em 3 dias). Sem isso, a cadência que ele cumpriu
+  viraria "incompleta" e ele iria para a roleta em vez da reativação. A exceção
+  some sozinha em 24 h.
+- **Textos:** o de abertura passou para `cadencia_D0`, o de insistência para
+  `cadencia_D1`, e o 2º follow-up ganhou `cadencia_D2` novo (editável por
+  UPDATE, como os outros).
+- **Kanban** (`/cadencia?tab=kanban`, RPC `cadencia_kanban_v1`): a cadência
+  inteira do corretor, inclusive quem só vence amanhã — a Fila do Dia continua
+  sendo a lista de trabalho. O card é o mesmo da fila (função `_cadencia_item`,
+  compartilhada para os contadores não divergirem). **Sem arrastar**: a etapa
+  anda por toque registrado, nunca por declaração.
+- **A aba Esgotados (13/13) do Follow-Up saiu**, e o Kanban ficou no lugar dela
+  na sidebar (teto de 6 seções). O lead que esgota a régua fica sem próximo
+  passo e aparece na Reserva da carteira; a decisão (novo passo ou perda com
+  motivo) é na ficha. A contagem de esgotados continua na Cobertura do time.
+
 ## Pontos que continuam em aberto
 
 - **Sincronização do espelho.** Por que `estagio_funil` mostra 3.029 leads como
@@ -292,6 +340,10 @@ quem está na casa:
   gravados em E.164 nessa faixa. Um celular real `(11) 95555-xxxx` gravado com
   DDI cairia junto. A Fase 0 deve contar quantos leads reais caem aí antes do
   modo ativo; havendo algum, a regra vira lista configurável.
+- **Texto do 2º follow-up.** Escrito na migration de 26/09/2026 ("sei que a
+  rotina é corrida… te ligo às 12h ou prefere às 19h?") para a etapa não nascer
+  sem mensagem. Precisa do aval do dono; trocar é um UPDATE em
+  `templates_mensagem` (contexto `cadencia_D2`).
 - **Segundo ciclo do reativado.** Implementado como o documento pede (cumpriu
   100% de novo sem retorno → arquivo direto, sem segunda reativação), e o
   documento marca isso como pendente de confirmação do Guilherme.

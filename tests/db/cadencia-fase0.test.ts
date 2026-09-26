@@ -53,7 +53,7 @@ beforeEach(async () => {
 /**
  * Lead de estoque: com corretor, FORA da cadência e com o relógio no passado.
  *
- * O gatilho de atribuição põe todo lead novo em D1, então o estoque precisa
+ * O gatilho de atribuição põe todo lead novo em Lead chegou (D0), então o estoque precisa
  * ser construído limpando `cadencia_etapa` depois — é exatamente o estado dos
  * leads que já estavam na carteira antes de a cadência existir.
  */
@@ -316,8 +316,8 @@ describe("admissão em lotes", () => {
     expect(Number(r.rows[0].corretores)).toBe(2);
 
     // Do primeiro corretor entraram os de 1 e 5 dias, não os de 12 e 25.
-    expect((await leadRow(doPrimeiro[0])).cadencia_etapa).toBe("D1");
-    expect((await leadRow(doPrimeiro[1])).cadencia_etapa).toBe("D1");
+    expect((await leadRow(doPrimeiro[0])).cadencia_etapa).toBe("D0");
+    expect((await leadRow(doPrimeiro[1])).cadencia_etapa).toBe("D0");
     expect((await leadRow(doPrimeiro[2])).cadencia_etapa).toBeNull();
     expect((await leadRow(doPrimeiro[3])).cadencia_etapa).toBeNull();
   });
@@ -334,12 +334,12 @@ describe("admissão em lotes", () => {
     expect(Number(d.rows[0].admitidos)).toBe(0);
 
     expect(
-      (await c.query(`SELECT count(*)::int AS n FROM public.leads WHERE cadencia_etapa = 'D1'`))
+      (await c.query(`SELECT count(*)::int AS n FROM public.leads WHERE cadencia_etapa = 'D0'`))
         .rows[0].n,
     ).toBe(3);
   });
 
-  it("em sombra loga a admissão e não põe ninguém em D1", async () => {
+  it("em sombra loga a admissão e não põe ninguém em Lead chegou", async () => {
     const lead = await leadDeEstoque({ diasParado: 5 });
     await comoSuperuser(c);
     const r = await c.query(`SELECT * FROM public.cadencia_fase0_admitir('sombra', 15)`);
@@ -352,7 +352,7 @@ describe("admissão em lotes", () => {
       [lead],
     );
     expect(log.rows[0]).toMatchObject({
-      etapa_para: "D1",
+      etapa_para: "D0",
       motivo: "admissao_estoque",
       aplicado: false,
     });
@@ -378,11 +378,11 @@ describe("desfazer um lote", () => {
     expect(l.corretor_id).toBe(corretor.id);
     expect(l.status).toBe("aguardando_atendimento");
     expect(l.motivo_perda_categoria).toBeNull();
-    // E volta JÁ EM D1, não em limbo: devolver o corretor dispara o gatilho de
+    // E volta JÁ EM LEAD CHEGOU (D0), não em limbo: devolver o corretor dispara o gatilho de
     // atribuição, que inicia a cadência. É o desfecho certo — um lead de volta
     // na carteira sem etapa e sem prazo é exatamente o estado que este projeto
     // existe para eliminar.
-    expect(l.cadencia_etapa).toBe("D1");
+    expect(l.cadencia_etapa).toBe("D0");
     expect(
       (
         await c.query(`SELECT count(*)::int AS n FROM public.reativacao_fila WHERE lead_id=$1`, [
@@ -397,18 +397,18 @@ describe("desfazer um lote", () => {
     await comoSuperuser(c);
     const r = await c.query(`SELECT * FROM public.cadencia_fase0_admitir('ativo', 15)`);
     const lote = r.rows[0].lote_id as string;
-    expect((await leadRow(lead)).cadencia_etapa).toBe("D1");
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D0");
 
     // O corretor trabalhou o lead: registrou uma tentativa.
     await c.query(
       `INSERT INTO public.cadencia_tentativas (lead_id, corretor_id, etapa, canal, resultado)
-       VALUES ($1, $2, 'D1', 'ligacao', 'nao_atendeu')`,
+       VALUES ($1, $2, 'D0', 'ligacao', 'nao_atendeu')`,
       [lead, corretor.id],
     );
 
     expect(
       (await c.query(`SELECT public.cadencia_fase0_desfazer($1) AS n`, [lote])).rows[0].n,
     ).toBe(0);
-    expect((await leadRow(lead)).cadencia_etapa).toBe("D1");
+    expect((await leadRow(lead)).cadencia_etapa).toBe("D0");
   });
 });

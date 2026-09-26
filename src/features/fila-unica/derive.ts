@@ -126,12 +126,12 @@ export type LeadExtras = {
   tipo_renda?: string | null;
   /** Preço "a partir de" do projeto de interesse (VGV estimado do lead). */
   valor_projeto?: number | null;
-  /** Etapa da cadência. D1/D2/D3 = base em formação (ver `emFormacao`). */
+  /** Etapa da cadência. D0/D1/D2/D3 = base em formação (ver `emFormacao`). */
   cadencia_etapa?: string | null;
 };
 
 /**
- * Base em formação (migration 20260925120000): lead em D1/D2/D3 da cadência
+ * Base em formação (migration 20260925120000): lead em D0/D1/D2/D3 da cadência
  * não é carteira dos 65 — é trabalhado na Fila do Dia da cadência (/cadencia),
  * que tem prazo, ordem e botões próprios. Mostrá-lo aqui também daria ao
  * corretor duas ordens sobre o mesmo cliente, em duas telas.
@@ -142,7 +142,7 @@ export type LeadExtras = {
  */
 export function emFormacao(extras: LeadExtras | undefined): boolean {
   const e = extras?.cadencia_etapa;
-  return e === "D1" || e === "D2" || e === "D3";
+  return e === "D0" || e === "D1" || e === "D2" || e === "D3";
 }
 
 export type FilaFonte = "inbox" | "regua" | "sem_acao";

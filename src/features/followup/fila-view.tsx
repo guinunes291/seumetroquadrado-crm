@@ -275,10 +275,10 @@ export function FilaFollowUpView() {
     },
     onSuccess: (r, item) => {
       if (r.esgotou) {
-        toast("Régua esgotada — lead movido para Esgotados", {
-          description: "Decida lá: reativar a régua ou descartar com motivo.",
+        toast("Régua esgotada (13/13)", {
+          description:
+            "O lead ficou sem próximo passo e está na Reserva da sua carteira. Decida na ficha: agendar um novo passo ou perder com motivo.",
         });
-        void qc.invalidateQueries({ queryKey: ["followup:esgotados"] });
       } else {
         toast.success(
           `Toque ${r.toque}/${regua.maxToques} agendado para daqui a ${r.emDias} dia${r.emDias === 1 ? "" : "s"}.`,

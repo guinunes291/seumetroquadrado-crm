@@ -79,8 +79,8 @@ beforeAll(async () => {
 
   await comoSuperuser(c);
   // Base em formação (20260925120000): `criarLead` com corretor põe o lead
-  // em D1. Os leads EM TRATATIVA deste fixture modelam carteira que já passou
-  // da cadência (em produção, sai ao avançar de fase ou ganhar passo) — o D1
+  // em D0 (Lead chegou). Os leads EM TRATATIVA deste fixture modelam carteira que já passou
+  // da cadência (em produção, sai ao avançar de fase ou ganhar passo) — o D0
   // deles é artefato e mudaria o que a suíte mede.
   await c.query(
     `UPDATE public.leads

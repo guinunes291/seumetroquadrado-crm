@@ -181,7 +181,7 @@ describe("o espelho proximo_followup", () => {
     expect(await (async () => (await faixas()).get("followup_na_mao")?.faixa)()).toBe("conversa");
     const r = await c.query(`SELECT public.lead_sem_proximo_passo($1) AS v`, [id]);
     expect(r.rows[0].v).toBe(false);
-    // O lead nasceu em D1 (gatilho de atribuição). Escrever o passo no lead
+    // O lead nasceu em D0, Lead chegou (gatilho de atribuição). Escrever o passo no lead
     // é "agendar para frente": ele saiu da cadência sozinho, pelo gatilho.
     const e = await c.query(`SELECT cadencia_etapa FROM public.leads WHERE id = $1`, [id]);
     expect(e.rows[0].cadencia_etapa).toBe("respondeu");

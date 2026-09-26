@@ -113,9 +113,3 @@ export async function esgotarFollowUp(leadId: string): Promise<void> {
   const { error } = await rpc("marcar_followup_esgotado", { _lead_id: leadId });
   if (error) throw error;
 }
-
-/** Devolve o lead esgotado à régua para um novo ciclo de toques. */
-export async function reativarFollowUp(leadId: string): Promise<void> {
-  const { error } = await rpc("reativar_followup", { _lead_id: leadId });
-  if (error) throw error;
-}

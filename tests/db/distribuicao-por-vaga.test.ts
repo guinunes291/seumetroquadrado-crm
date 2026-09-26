@@ -142,7 +142,7 @@ describe("distribuir_estoque_roleta — limite por vaga", () => {
     // (cap_formacao, herdado de cap_sla). Com 100 leads de estoque e lote de
     // 200, a porta fecha em 20: é quanto a cadência consegue trabalhar ao
     // mesmo tempo. Desde 20260925120000 esses 20 estão na BASE EM FORMAÇÃO
-    // (D1), não na carteira — os 65 continuam inteiros para o que avançar.
+    // (Lead chegou), não na carteira — os 65 continuam inteiros para o que avançar.
     await comoSuperuser(c);
     for (let i = 1; i <= 100; i++) {
       const l = await criarLead(c, { corretorId: null, status: "novo" });

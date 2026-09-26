@@ -1,5 +1,5 @@
 /**
- * Cadência D1/D2/D3 — a parte que o cliente final enxerga.
+ * Cadência Lead chegou/D1/D2/D3 — a parte que o cliente final enxerga.
  *
  * O que está testado aqui é o texto que sai no WhatsApp dele e o número para
  * onde vai. Erro nessas duas coisas não aparece como erro: aparece como
@@ -10,9 +10,14 @@ import { describe, expect, it } from "vitest";
 import {
   acaoPrimaria,
   aplicarPlaceholders,
+  CONTEXTO_POR_ETAPA,
+  ETAPAS_CADENCIA,
   linkWhatsApp,
+  rotuloEtapa,
+  rotuloPrazo,
   rotuloProgresso,
 } from "@/features/cadencia/templates";
+import { agruparPorEtapa, parseKanbanCadencia } from "@/features/cadencia/client";
 
 const D1 =
   "Oi, {nome}! Tudo bem? Aqui é da Seu Metro Quadrado. Você pediu informações sobre o {empreendimento} e acabei de tentar te ligar.";
@@ -77,16 +82,31 @@ describe("linkWhatsApp", () => {
 });
 
 describe("rotuloProgresso", () => {
-  it("mostra o contador de ligações em D1 e D2", () => {
-    expect(rotuloProgresso({ etapa: "D1", ligacoes_validas: 1, whatsapp_enviado: false })).toBe(
-      "D1 · 1 de 2 ligações · WhatsApp pendente",
+  it("mostra o contador de ligações na chegada e nos dois follow-ups, pelo nome da etapa", () => {
+    expect(rotuloProgresso({ etapa: "D0", ligacoes_validas: 1, whatsapp_enviado: false })).toBe(
+      "Lead chegou · 1 de 2 ligações · WhatsApp pendente",
+    );
+    expect(rotuloProgresso({ etapa: "D1", ligacoes_validas: 2, whatsapp_enviado: false })).toBe(
+      "1º follow-up · 2 de 2 ligações · WhatsApp pendente",
+    );
+    expect(rotuloProgresso({ etapa: "D2", ligacoes_validas: 0, whatsapp_enviado: true })).toBe(
+      "2º follow-up · 0 de 2 ligações · WhatsApp enviado",
     );
   });
 
   it("D3 não tem ligação no rótulo — é só a mensagem de encerramento", () => {
     expect(rotuloProgresso({ etapa: "D3", ligacoes_validas: 0, whatsapp_enviado: true })).toBe(
-      "D3 · WhatsApp enviado",
+      "Encerramento · WhatsApp enviado",
     );
+  });
+
+  it("no Kanban o card não repete a etapa, que já é a coluna", () => {
+    expect(
+      rotuloProgresso(
+        { etapa: "D1", ligacoes_validas: 1, whatsapp_enviado: false },
+        { semEtapa: true },
+      ),
+    ).toBe("1 de 2 ligações · WhatsApp pendente");
   });
 
   it("não passa de 2 no contador, mesmo com ligação extra registrada", () => {
@@ -132,5 +152,99 @@ describe("acaoPrimaria", () => {
         telefone_suspeito: true,
       }),
     ).toBe("nenhuma");
+  });
+});
+
+describe("as quatro etapas", () => {
+  it("cada etapa tem o seu texto de WhatsApp, e D0 é o da chegada", () => {
+    expect(ETAPAS_CADENCIA).toEqual(["D0", "D1", "D2", "D3"]);
+    expect(CONTEXTO_POR_ETAPA.D0).toBe("cadencia_D0");
+    expect(new Set(Object.values(CONTEXTO_POR_ETAPA)).size).toBe(4);
+  });
+
+  it("o corretor nunca lê 'D0': a etapa aparece pelo nome", () => {
+    expect(rotuloEtapa("D0")).toBe("Lead chegou");
+    expect(rotuloEtapa("D3")).toBe("Encerramento");
+    // Etapa que o front ainda não conhece aparece crua, não some.
+    expect(rotuloEtapa("D9")).toBe("D9");
+  });
+});
+
+describe("rotuloPrazo", () => {
+  // 26/09/2026 10h em São Paulo (13h UTC).
+  const agora = new Date("2026-09-26T13:00:00Z");
+
+  it("conta em dias do calendário de São Paulo", () => {
+    // Fim do dia de hoje em SP = 02:59:59 UTC do dia seguinte.
+    expect(rotuloPrazo("2026-09-27T02:59:59Z", false, agora)).toBe("vence hoje");
+    expect(rotuloPrazo("2026-09-28T02:59:59Z", false, agora)).toBe("vence amanhã");
+    expect(rotuloPrazo("2026-10-03T02:59:59Z", false, agora)).toBe("vence 02/10");
+  });
+
+  it("atrasado mostra quando venceu", () => {
+    expect(rotuloPrazo("2026-09-25T02:59:59Z", true, agora)).toBe("venceu 24/09");
+  });
+
+  it("lead sem prazo não quebra o card", () => {
+    expect(rotuloPrazo(null, null, agora)).toBe("sem prazo");
+  });
+});
+
+describe("Kanban", () => {
+  const item = (id: string, etapa: string) => ({
+    id,
+    nome: "Maria",
+    telefone: "11987654321",
+    email: null,
+    status: "aguardando_atendimento",
+    etapa,
+    ciclo: 1,
+    reativado: false,
+    projeto_nome: null,
+    faixa_mcmv: null,
+    renda_estimada: null,
+    prazo: "2026-09-27T02:59:59Z",
+    atrasado: false,
+    proxima_acao: null,
+    telefone_suspeito: false,
+    ligacoes_validas: 0,
+    whatsapp_enviado: false,
+    etapa_completa: false,
+  });
+  const payload = (itens: unknown[]) => ({
+    gerado_em: "2026-09-26T13:00:00Z",
+    corretor_id: "11111111-1111-4111-8111-111111111111",
+    total: itens.length,
+    itens,
+  });
+
+  it("agrupa nas quatro colunas, na ordem das etapas, sem perder ninguém", () => {
+    const k = parseKanbanCadencia(
+      payload([
+        item("00000000-0000-4000-8000-000000000001", "D0"),
+        item("00000000-0000-4000-8000-000000000002", "D2"),
+        item("00000000-0000-4000-8000-000000000003", "D0"),
+      ]),
+    );
+    const c = agruparPorEtapa(k.itens);
+    expect(Object.keys(c)).toEqual(["D0", "D1", "D2", "D3"]);
+    expect(c.D0).toHaveLength(2);
+    expect(c.D1).toHaveLength(0);
+    expect(c.D2).toHaveLength(1);
+  });
+
+  it("recusa etapa fora da cadência em vez de sumir com o card", () => {
+    expect(() =>
+      parseKanbanCadencia(payload([item("00000000-0000-4000-8000-000000000001", "respondeu")])),
+    ).toThrow();
+  });
+
+  it("aceita lead sem prazo (defeito que a auditoria acusa) sem derrubar a tela", () => {
+    const semPrazo = {
+      ...item("00000000-0000-4000-8000-000000000001", "D1"),
+      prazo: null,
+      atrasado: null,
+    };
+    expect(parseKanbanCadencia(payload([semPrazo])).itens[0].prazo).toBeNull();
   });
 });
