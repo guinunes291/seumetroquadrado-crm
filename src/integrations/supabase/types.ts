@@ -860,6 +860,7 @@ export type Database = {
           intervalo_min_lig: string
           lote_estoque_dia: number
           modo: string
+          quatro_etapas_desde: string | null
           tolerancia_venc_d: number
         }
         Insert: {
@@ -870,6 +871,7 @@ export type Database = {
           intervalo_min_lig?: string
           lote_estoque_dia?: number
           modo?: string
+          quatro_etapas_desde?: string | null
           tolerancia_venc_d?: number
         }
         Update: {
@@ -880,6 +882,7 @@ export type Database = {
           intervalo_min_lig?: string
           lote_estoque_dia?: number
           modo?: string
+          quatro_etapas_desde?: string | null
           tolerancia_venc_d?: number
         }
         Relationships: []
@@ -8462,6 +8465,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _cadencia_item: {
+        Args: { _fim_hoje: string; _lead: string }
+        Returns: Json
+      }
       _cadencia_janela: {
         Args: { _ate: string; _de: string }
         Returns: Record<string, unknown>
@@ -8478,6 +8485,7 @@ export type Database = {
         Args: { _status: string }
         Returns: boolean
       }
+      _cadencia_virada_quatro_etapas: { Args: never; Returns: Json }
       _carteira_classificar: {
         Args: { _corretor: string }
         Returns: {
@@ -9280,6 +9288,10 @@ export type Database = {
       }
       cadencia_horarios_tentados: { Args: { _lead: string }; Returns: Json }
       cadencia_iniciar: { Args: { _lead: string }; Returns: boolean }
+      cadencia_kanban_v1: {
+        Args: { _corretor?: string; _take?: number }
+        Returns: Json
+      }
       cadencia_marcar_respondeu: {
         Args: {
           _lead_id: string
