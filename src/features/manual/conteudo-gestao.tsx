@@ -141,8 +141,38 @@ export function ConteudoGestao() {
             reúne dados técnicos, condições comerciais e as unidades disponíveis, em grade ou
             tabela. <strong>Materiais</strong> (gestão) guarda os arquivos de apoio.
           </p>
+          <p>
+            Em <strong>Construtoras parceiras</strong>, cada construtora aparece como uma barra
+            fechada com logo, nome e número de projetos. Clique para abrir e ver os projetos; clique
+            de novo para fechar.
+          </p>
+          <Aviso>
+            Produtos, Projetos em Foco e Vitrine mostram só as construtoras parceiras: Vibra, Trisul,
+            Plano&amp;Plano, Mundo APTO, Holos, Engelux, Conx, Cavazani, Cury, Longitude,
+            Direcional, Riva, Econ e Emccamp. O Catálogo da gestão continua mostrando tudo. Para
+            aparecer em Produtos, o empreendimento precisa de zona e de book ou tabela.
+          </Aviso>
           <Tela src="projetos-foco" legenda="Projetos em foco." />
           <Tela src="catalogo-projetos" legenda="Catálogo completo de empreendimentos." />
+        </Bloco>
+
+        <Bloco titulo="Completar materiais colando uma planilha" quem="Admin · Gestor">
+          <p>
+            Em <strong>Materiais</strong>, cole as linhas (sem títulos) nesta ordem: nome do
+            empreendimento, link do book, link da tabela, link da capa e preço a partir de (aceita
+            “R$ 450.000”, “320 mil” ou “1,2 mi”). Coluna vazia não apaga nada. Nomes que não
+            batem com o cadastro aparecem numa lista para corrigir.
+          </p>
+        </Bloco>
+
+        <Bloco titulo="Capas e banners de campanha" quem="Admin · Gestor">
+          <p>
+            Links do Google Drive funcionam como capa e banner, desde que o arquivo esteja
+            compartilhado como “Qualquer pessoa com o link”. Faça o banner de campanha em{" "}
+            <strong>2400 × 600 px</strong> (JPG, até 500 KB), com a metade esquerda limpa para o
+            texto e o elemento principal no centro-direita. Não escreva nome, preço ou datas na
+            arte — o CRM já mostra.
+          </p>
         </Bloco>
 
         <Bloco titulo="Vitrine (mapa)" quem="Todos">

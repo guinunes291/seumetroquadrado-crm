@@ -238,6 +238,32 @@ export function ConteudoOperacao() {
             legenda="Cobertura do time — visão da gestão sobre quem está tocando a base."
           />
         </Bloco>
+
+        <Bloco titulo="Cadência do lead novo: Lead chegou → D1 → D2 → D3" quem="Corretor">
+          <p>
+            Todo cliente novo entra na coluna <strong>Lead chegou</strong> e passa pelas etapas{" "}
+            <strong>D1</strong>, <strong>D2</strong> e <strong>D3</strong>. A etapa avança na hora
+            em que você registra o toque (ligação ou WhatsApp). A fila do dia mostra primeiro os
+            atrasados, depois D1, D2 e D3, e dentro de cada etapa quem tem maior renda.
+          </p>
+          <Passos
+            itens={[
+              "Abra Follow-Up › Cadência: toque o cliente que está no topo.",
+              "Registre o toque. O cliente pula para a próxima etapa sozinho.",
+              "Se ele respondeu, marque “Respondeu” e defina um próximo passo com data (obrigatório).",
+              "Quem cumpre D3 sem retorno sai da sua carteira e vai para a Reativação. Isso NÃO conta como perda sua.",
+            ]}
+          />
+        </Bloco>
+
+        <Bloco titulo="Painel da cadência" quem="Admin · Gestor · Superintendente">
+          <p>
+            Em <strong>Follow-Up › Painel da cadência</strong>: por corretor (fazer hoje, atrasados,
+            cumprimento, taxa de resposta e tempo até a 1ª tentativa), resposta por etapa, semana e
+            empreendimento, números da reativação e a saúde das rotinas automáticas. Cadência
+            cumprida sem retorno aparece em cinza, como “encerrado no processo”.
+          </p>
+        </Bloco>
       </Capitulo>
 
       <Capitulo
@@ -297,6 +323,16 @@ export function ConteudoOperacao() {
             ]}
           />
         </Bloco>
+
+        <Bloco titulo="Respostas do formulário no aviso do corretor" quem="Corretor">
+          <p>
+            Quando o cliente vem de formulário do Meta, as perguntas próprias da campanha (ex.:
+            “aceita outras zonas?”, “uso para investimento?”) chegam junto. Elas aparecem no aviso
+            de WhatsApp, num bloco <strong>📝 Observações</strong>, nas observações do cliente e
+            numa nota “Respostas do formulário” na linha do tempo — inclusive quando o cliente já
+            existia.
+          </p>
+        </Bloco>
       </Capitulo>
 
       <Capitulo
@@ -319,6 +355,38 @@ export function ConteudoOperacao() {
             src="sdr"
             legenda="Hub da pré-venda: minha base, reaquecer, entregues, visitas e raio-x."
           />
+        </Bloco>
+
+        <Bloco titulo="Cadastrar ou puxar clientes para a sua base" quem="SDR">
+          <Passos
+            itens={[
+              "Clique em “Novo lead” e informe o telefone.",
+              "Cliente novo entra direto na sua base de pré-venda.",
+              "Se o telefone já existe (sem dono, Bolsão, outro SDR ou corretor), o cliente passa para a sua base. O corretor anterior fica guardado no histórico.",
+              "A busca acha o número com ou sem o 9, com ou sem o 55 e com ou sem o DDD.",
+            ]}
+          />
+          <Aviso tipo="atencao">
+            Cliente de <strong>Agendado</strong> em diante, com venda em andamento ou perdido não
+            pode ser puxado pelo SDR — só a gestão move.
+          </Aviso>
+        </Bloco>
+
+        <Bloco titulo="Marcar visita pela agenda do cliente" quem="SDR">
+          <p>
+            Ao marcar a visita (pelo botão “Agendar visita” ou pela agenda da ficha), o crédito fica
+            com quem marcou, o cliente vai para <strong>Agendado</strong> com o corretor e o SDR
+            continua vendo o cliente junto com ele.
+          </p>
+        </Bloco>
+
+        <Bloco titulo="Reativação" quem="SDR · Gestão">
+          <p>
+            Em <strong>Pré-venda › Reativação</strong> ficam os clientes que cumpriram a cadência
+            sem retorno. A fila acionável vem por prioridade; marque{" "}
+            <strong>Reativado</strong> (com suas notas) ou <strong>Sem retorno</strong>. Quem está
+            em período de descanso aparece numa lista separada, só para consulta.
+          </p>
         </Bloco>
       </Capitulo>
     </>
