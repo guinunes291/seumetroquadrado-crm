@@ -34,6 +34,7 @@ import { Route as AuthenticatedProjetosMateriaisRouteImport } from './routes/_au
 import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
+import { Route as AuthenticatedObrigatorioRouteImport } from './routes/_authenticated/obrigatorio'
 import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authenticated/modo-visita'
 import { Route as AuthenticatedMeuRaioXRouteImport } from './routes/_authenticated/meu-raio-x'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
@@ -234,6 +235,12 @@ const AuthenticatedPainelGestorRoute =
   AuthenticatedPainelGestorRouteImport.update({
     id: '/painel-gestor',
     path: '/painel-gestor',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedObrigatorioRoute =
+  AuthenticatedObrigatorioRouteImport.update({
+    id: '/obrigatorio',
+    path: '/obrigatorio',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedModoVisitaRoute = AuthenticatedModoVisitaRouteImport.update({
@@ -676,6 +683,7 @@ export interface FileRoutesByFullPath {
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
+  '/obrigatorio': typeof AuthenticatedObrigatorioRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
@@ -776,6 +784,7 @@ export interface FileRoutesByTo {
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
+  '/obrigatorio': typeof AuthenticatedObrigatorioRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
@@ -878,6 +887,7 @@ export interface FileRoutesById {
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
   '/_authenticated/modo-visita': typeof AuthenticatedModoVisitaRoute
+  '/_authenticated/obrigatorio': typeof AuthenticatedObrigatorioRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
   '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
@@ -980,6 +990,7 @@ export interface FileRouteTypes {
     | '/meu-perfil'
     | '/meu-raio-x'
     | '/modo-visita'
+    | '/obrigatorio'
     | '/painel-gestor'
     | '/pipeline'
     | '/projetos-foco'
@@ -1080,6 +1091,7 @@ export interface FileRouteTypes {
     | '/meu-perfil'
     | '/meu-raio-x'
     | '/modo-visita'
+    | '/obrigatorio'
     | '/painel-gestor'
     | '/pipeline'
     | '/projetos-foco'
@@ -1181,6 +1193,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meu-perfil'
     | '/_authenticated/meu-raio-x'
     | '/_authenticated/modo-visita'
+    | '/_authenticated/obrigatorio'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/pipeline'
     | '/_authenticated/projetos-foco'
@@ -1456,6 +1469,13 @@ declare module '@tanstack/react-router' {
       path: '/painel-gestor'
       fullPath: '/painel-gestor'
       preLoaderRoute: typeof AuthenticatedPainelGestorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/obrigatorio': {
+      id: '/_authenticated/obrigatorio'
+      path: '/obrigatorio'
+      fullPath: '/obrigatorio'
+      preLoaderRoute: typeof AuthenticatedObrigatorioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/modo-visita': {
@@ -2014,6 +2034,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedMeuRaioXRoute: typeof AuthenticatedMeuRaioXRoute
   AuthenticatedModoVisitaRoute: typeof AuthenticatedModoVisitaRoute
+  AuthenticatedObrigatorioRoute: typeof AuthenticatedObrigatorioRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
   AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
@@ -2074,6 +2095,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedMeuRaioXRoute: AuthenticatedMeuRaioXRoute,
   AuthenticatedModoVisitaRoute: AuthenticatedModoVisitaRoute,
+  AuthenticatedObrigatorioRoute: AuthenticatedObrigatorioRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
   AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,

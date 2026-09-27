@@ -11,6 +11,11 @@ import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { NavBreadcrumb } from "@/features/nav/nav-breadcrumb";
+import { ModoObrigatorioGuard } from "@/features/modo-obrigatorio/guard";
+import {
+  exigirProcessoObrigatorio,
+  useTravado,
+} from "@/features/modo-obrigatorio/use-modo-obrigatorio";
 
 const SamiQLauncher = lazy(() =>
   import("@/components/samiq/samiq-launcher").then(({ SamiQLauncher }) => ({
@@ -77,12 +82,22 @@ const MetasDiaGlobal = lazy(() =>
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   // Sessão, conta ativa e presença vivem no guard compartilhado com o hub
-  // /inicio (src/lib/auth-guard.ts) — uma única fonte de verdade.
-  beforeLoad: ({ location }) => guardarRotaAutenticada(location.href),
+  // /inicio (src/lib/auth-guard.ts) — uma única fonte de verdade. Depois dele,
+  // o Modo Obrigatório: corretor com pendência só entra nas rotas do processo
+  // (redirect ANTES de renderizar, sem piscar a tela proibida).
+  beforeLoad: async ({ location, context }) => {
+    const r = await guardarRotaAutenticada(location.href);
+    await exigirProcessoObrigatorio(context.queryClient, r.user.id, location.pathname);
+    return r;
+  },
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
+  // Travado no Modo Obrigatório: some tudo que leva para fora do processo
+  // (busca global, registrar venda, Sami). A trava de verdade é o redirect;
+  // esconder só evita oferecer uma porta que não abre.
+  const { travado } = useTravado();
   return (
     // bg-ambient: luz radial estática no contêiner que NÃO rola (o scroll vive
     // no <main>) — profundidade sem repaint durante a rolagem.
@@ -101,22 +116,26 @@ function AuthenticatedLayout() {
               celular o título da página já diz onde o corretor está. */}
           <NavBreadcrumb className="hidden min-w-0 md:flex" />
           <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-muted-foreground gap-2"
-              aria-label="Abrir busca global"
-              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-            >
-              <MagnifyingGlass className="h-4 w-4" />
-              <span className="hidden sm:inline">Buscar</span>
-              <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
-                ⌘K
-              </kbd>
-            </Button>
-            <Suspense fallback={null}>
-              <RegistrarVendaDialog />
-            </Suspense>
+            {!travado && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground gap-2"
+                aria-label="Abrir busca global"
+                onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+              >
+                <MagnifyingGlass className="h-4 w-4" />
+                <span className="hidden sm:inline">Buscar</span>
+                <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
+                  ⌘K
+                </kbd>
+              </Button>
+            )}
+            {!travado && (
+              <Suspense fallback={null}>
+                <RegistrarVendaDialog />
+              </Suspense>
+            )}
             <ThemeToggle />
             <NotificationBell />
           </div>
@@ -131,8 +150,9 @@ function AuthenticatedLayout() {
         </div>
       </main>
       <BottomNav />
+      <ModoObrigatorioGuard />
       <Suspense fallback={null}>
-        <SamiQLauncher />
+        {!travado && <SamiQLauncher />}
         <SprintGlobal />
         <CommandPalette />
         <NovoLeadDialogHost />

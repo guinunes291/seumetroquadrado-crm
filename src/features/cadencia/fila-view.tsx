@@ -9,7 +9,7 @@
 // autodeclaração que a validação dos 100% existe para eliminar.
 
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -81,16 +81,14 @@ const RESULTADOS: Array<{ valor: ResultadoLigacao; rotulo: string }> = [
   { valor: "numero_invalido", rotulo: "Número inválido (encerra o lead)" },
 ];
 
-export function FilaCadenciaView() {
-  const { user } = useAuth();
+/**
+ * Os botões da cadência (Liguei, Mandar WhatsApp) com os textos da etapa.
+ * Compartilhado pela Fila do Dia e pela tela do Processo Obrigatório: as duas
+ * gravam pela mesma RPC e invalidam as mesmas listas, para uma não mostrar o
+ * lead que a outra acabou de tirar.
+ */
+export function useAcoesCadencia() {
   const qc = useQueryClient();
-  const [respondendo, setRespondendo] = useState<CadenciaItem | null>(null);
-
-  const fila = useQuery({
-    queryKey: ["cadencia:fila", user?.id],
-    queryFn: () => fetchFilaCadencia(),
-    enabled: Boolean(user?.id),
-  });
 
   const templates = useQuery({
     queryKey: ["cadencia:templates"],
@@ -103,6 +101,7 @@ export function FilaCadenciaView() {
   const invalidar = () => {
     void qc.invalidateQueries({ queryKey: ["cadencia:fila"] });
     void qc.invalidateQueries({ queryKey: ["cadencia:kanban"] });
+    void qc.invalidateQueries({ queryKey: ["modo-obrigatorio"] });
   };
 
   const ligacao = useMutation({
@@ -128,6 +127,21 @@ export function FilaCadenciaView() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  return { templates, ligacao, whatsapp, invalidar };
+}
+
+export function FilaCadenciaView() {
+  const { user } = useAuth();
+  const [respondendo, setRespondendo] = useState<CadenciaItem | null>(null);
+
+  const fila = useQuery({
+    queryKey: ["cadencia:fila", user?.id],
+    queryFn: () => fetchFilaCadencia(),
+    enabled: Boolean(user?.id),
+  });
+
+  const { templates, ligacao, whatsapp, invalidar } = useAcoesCadencia();
 
   if (fila.isLoading) {
     return (
@@ -198,7 +212,7 @@ export function FilaCadenciaView() {
   );
 }
 
-function LinhaDaFila({
+export function LinhaDaFila({
   item,
   template,
   ligando,
@@ -206,7 +220,11 @@ function LinhaDaFila({
   onLigou,
   onEnviouWhatsApp,
   onRespondeu,
+  rodape,
 }: {
+  /** Linha extra embaixo do card (o Processo Obrigatório põe motivo e
+   *  atalhos de projeto aqui). */
+  rodape?: ReactNode;
   item: CadenciaItem;
   template?: { id: string; conteudo: string };
   ligando: boolean;
@@ -314,6 +332,7 @@ function LinhaDaFila({
             </Button>
           </div>
         </CardContent>
+        {rodape && <div className="border-t px-4 py-2">{rodape}</div>}
       </Card>
     </li>
   );
@@ -326,7 +345,7 @@ function LinhaDaFila({
  * sai da cadência aqui, e sair sem próximo passo com data é exatamente como
  * nasceram os leads parados que este projeto veio resolver.
  */
-function DialogRespondeu({
+export function DialogRespondeu({
   item,
   onClose,
   onSalvo,

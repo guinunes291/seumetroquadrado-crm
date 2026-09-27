@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import { useUserRoles, type AppRole } from "@/hooks/use-auth";
 import { usePreference } from "@/hooks/use-preference";
 import { useTheme } from "@/hooks/use-theme";
 import { abrirNovoLead } from "@/features/leads/novo-lead-dialog";
+import { useTravado } from "@/features/modo-obrigatorio/use-modo-obrigatorio";
 import { LEAD_STATUS_BADGE_TONE, leadStatusLabel, type LeadStatus } from "@/lib/leads";
 import {
   ATALHOS_EXTRAS,
@@ -66,15 +67,27 @@ export function CommandPalette() {
   const [debounced, setDebounced] = useState("");
   const [recentes, setRecentes] = usePreference<RecentEntry[]>("palette:recentes", []);
 
+  // Modo Obrigatório: travado, a paleta não abre — a busca livre navega direto
+  // para qualquer ficha, e é exatamente o que a trava fecha.
+  const { travado } = useTravado();
+  const travadoRef = useRef(travado);
+  travadoRef.current = travado;
+  useEffect(() => {
+    if (travado) setOpen(false);
+  }, [travado]);
+
   // Atalho global de teclado para abrir/fechar.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
+        if (travadoRef.current) return;
         setOpen((o) => !o);
       }
     };
-    const onOpen = () => setOpen(true);
+    const onOpen = () => {
+      if (!travadoRef.current) setOpen(true);
+    };
     document.addEventListener("keydown", onKey);
     window.addEventListener("open-command-palette", onOpen);
     return () => {

@@ -49,6 +49,7 @@ import {
 } from "@/components/lead-stage/lead-stage-modals";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { ResumoIA } from "@/components/resumo-ia";
+import { LeadProjetoAtalhos } from "@/components/lead-projeto-atalhos";
 import { ScoreRing } from "@/components/ui/score-ring";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { LEAD_STATUS_BADGE_TONE } from "@/lib/leads";
@@ -407,7 +408,11 @@ function LeadDetailPage() {
         </div>
         {/* Briefing por IA — promovido da aba Timeline para o topo do dossiê. */}
         <div className="border-t border-border-subtle px-4 py-3 md:px-5">
-          <div className="mb-2 flex justify-end">
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+            {/* Projeto e vitrine sempre à mão (decisão do dono): o corretor
+                consulta o empreendimento com o cliente na linha — inclusive
+                travado no Modo Obrigatório, em que o hub de projetos é livre. */}
+            <LeadProjetoAtalhos leadId={lead.id} projetoId={lead.projeto_id} />
             {/* Chip contextual (Onda S3): abre a Sami já com este cliente em foco. */}
             <Button
               size="sm"

@@ -22,7 +22,7 @@ import {
 
 const etapaSchema = z.enum(ETAPAS_CADENCIA);
 
-const filaItemSchema = z.object({
+export const filaItemSchema = z.object({
   id: z.string().uuid(),
   nome: z.string(),
   telefone: z.string(),
@@ -31,6 +31,9 @@ const filaItemSchema = z.object({
   etapa: etapaSchema,
   ciclo: z.number().int().positive(),
   reativado: z.boolean(),
+  /** Opcional: o card passou a trazer o projeto (20261002120000) para o botão
+   *  "Ver projeto". Front novo com banco antigo continua funcionando. */
+  projeto_id: z.string().uuid().nullable().optional(),
   projeto_nome: z.string().nullable(),
   faixa_mcmv: z.string().nullable(),
   renda_estimada: z.number().nullable(),

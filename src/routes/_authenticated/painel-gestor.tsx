@@ -3,6 +3,7 @@ import { lazy, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
+import { ModoObrigatorioEquipe } from "@/features/modo-obrigatorio/equipe-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
@@ -268,7 +269,8 @@ function PainelGestorPage() {
         </div>
       )}
 
-      <TabsContent value="dia">
+      <TabsContent value="dia" className="space-y-6">
+        <ModoObrigatorioEquipe />
         <PainelDiaView />
       </TabsContent>
       <TabsContent value="relatorios" className="space-y-6">

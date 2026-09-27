@@ -10,6 +10,8 @@ import {
 import { SamiMark } from "@/components/ui/sami-mark";
 import { abrirSamiQ } from "@/components/samiq/abrir-samiq";
 import { useUserRoles } from "@/hooks/use-auth";
+import { SECOES_TRAVADO } from "@/features/modo-obrigatorio/nav";
+import { useTravado } from "@/features/modo-obrigatorio/use-modo-obrigatorio";
 import { cn } from "@/lib/utils";
 
 type Slot = {
@@ -95,6 +97,28 @@ export function BottomNav() {
   const modoSdr = isSdr && !isAdmin;
   const left = modoSdr ? LEFT_SDR : LEFT;
   const right = modoSdr ? RIGHT_SDR : RIGHT;
+  const { travado } = useTravado();
+
+  // Modo Obrigatório: a barra vira só o processo e os projetos (sem Sami e
+  // sem busca, que levariam para fora da trava).
+  if (travado) {
+    return (
+      <nav
+        aria-label="Navegação principal"
+        className="glass-panel fixed inset-x-0 bottom-0 z-40 border-x-0 border-b-0 pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        <div className="mx-auto flex max-w-md items-stretch">
+          {SECOES_TRAVADO.map((s) => (
+            <NavSlot
+              key={s.id}
+              slot={{ to: s.to, label: s.label, icon: s.icon }}
+              active={isActive(loc, { to: s.to, label: s.label, icon: s.icon })}
+            />
+          ))}
+        </div>
+      </nav>
+    );
+  }
 
   return (
     <nav

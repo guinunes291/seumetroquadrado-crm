@@ -28,6 +28,8 @@ import { useFaseDaJornada } from "@/features/nav/contexto-jornada";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
 import { Button } from "@/components/ui/button";
+import { SECOES_TRAVADO } from "@/features/modo-obrigatorio/nav";
+import { useTravado } from "@/features/modo-obrigatorio/use-modo-obrigatorio";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Casa a rota ativa por fronteira de segmento, evitando que "/leads" acenda em
@@ -68,6 +70,14 @@ function SidebarContent({
   // divide /pipeline (fase × fechamento).
   const secaoAcesa = sistema ? secaoAtiva(sistema, { pathname, search }) : null;
 
+  // Modo Obrigatório: o menu inteiro vira "Processo obrigatório" + "Projetos".
+  const { travado, total: pendencias } = useTravado();
+  const itensMenu = travado ? SECOES_TRAVADO : secoes;
+  const acesa = (secao: Secao) =>
+    travado ? isActivePath(pathname, secao.to) : secaoAcesa?.id === secao.id;
+  const contagem = (secao: Secao) =>
+    travado ? (secao.id === "obrigatorio" ? pendencias : 0) : badgeDaSecao(secao, badges, ctx);
+
   // Trilha "Como usar o CRM" — reabrível a qualquer momento pelo corretor.
   const abrirOnboarding = () => {
     onNavigate?.();
@@ -101,8 +111,8 @@ function SidebarContent({
 
   const renderLeaf = (secao: Secao) => {
     const Icon = secao.icon;
-    const n = badgeDaSecao(secao, badges, ctx);
-    const active = secaoAcesa?.id === secao.id;
+    const n = contagem(secao);
+    const active = acesa(secao);
     return (
       <Link
         to={secao.to}
@@ -161,8 +171,8 @@ function SidebarContent({
   // Link — sem ela o destino cai na visão errada (ex.: fase do pipeline).
   const renderRailItem = (secao: Secao) => {
     const Icon = secao.icon;
-    const active = secaoAcesa?.id === secao.id;
-    const n = badgeDaSecao(secao, badges, ctx);
+    const active = acesa(secao);
+    const n = contagem(secao);
     return (
       <li key={secao.id} className="flex justify-center">
         <Tooltip>
@@ -238,13 +248,15 @@ function SidebarContent({
         <nav className="flex-1 overflow-y-auto px-2 py-3">
           {collapsed ? (
             <ul className="space-y-1">
-              {railModulos}
-              {secoes.map(renderRailItem)}
+              {!travado && railModulos}
+              {itensMenu.map(renderRailItem)}
             </ul>
           ) : (
             <ul className="space-y-0.5">
-              <li>{modulosLeaf}</li>
-              {sistema && (
+              {travado &&
+                SECOES_TRAVADO.map((secao) => <li key={secao.id}>{renderLeaf(secao)}</li>)}
+              {!travado && <li>{modulosLeaf}</li>}
+              {!travado && sistema && (
                 <>
                   <li>
                     {/* Cabeçalho do sistema ativo — mesmo tom discreto da marca. */}
@@ -265,7 +277,22 @@ function SidebarContent({
         </nav>
 
         <div className={cn("space-y-1 border-t border-sidebar-border p-2")}>
-          {collapsed ? (
+          {travado ? (
+            // Travado: do rodapé só o Sair — perfil, manual e configurações
+            // ficam para depois do processo.
+            <Button
+              variant="ghost"
+              onClick={handleSignOut}
+              aria-label="Sair"
+              className={cn(
+                "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                collapsed ? "mx-auto flex h-11 w-11 p-0" : "w-full justify-start",
+              )}
+            >
+              <SignOut className="h-4 w-4" />
+              {!collapsed && "Sair"}
+            </Button>
+          ) : collapsed ? (
             <>
               <RailFootLink
                 to="/meu-perfil"

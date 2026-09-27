@@ -106,6 +106,13 @@
       "when": 1790438526500,
       "tag": "0014_cadencia_quatro_etapas",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790504523979,
+      "tag": "0015_modo_obrigatorio",
+      "breakpoints": true
     }
   ]
 }
