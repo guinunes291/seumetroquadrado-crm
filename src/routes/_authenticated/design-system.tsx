@@ -29,13 +29,36 @@ export const Route = createFileRoute("/_authenticated/design-system")({
 });
 
 const CORES = [
-  "background", "foreground", "card", "primary", "secondary", "muted", "muted-foreground",
-  "accent", "destructive", "success", "warning", "info", "border", "navy", "gold",
-  "surface-1", "surface-2", "surface-3",
+  "background",
+  "foreground",
+  "card",
+  "primary",
+  "secondary",
+  "muted",
+  "muted-foreground",
+  "accent",
+  "destructive",
+  "success",
+  "warning",
+  "info",
+  "border",
+  "navy",
+  "gold",
+  "surface-1",
+  "surface-2",
+  "surface-3",
 ];
 const MODULOS = [
-  "central", "prospeccao", "visita", "carteira", "followup",
-  "projetos", "financeiro", "bi", "config", "sdr",
+  "central",
+  "prospeccao",
+  "visita",
+  "carteira",
+  "followup",
+  "projetos",
+  "financeiro",
+  "bi",
+  "config",
+  "sdr",
 ];
 const RAIOS = ["sm", "md", "lg", "xl", "2xl", "full"];
 const SOMBRAS = ["elev-1", "elev-2", "elev-3", "elev-4", "glow-gold"];
@@ -67,12 +90,16 @@ function DesignSystemPage() {
       />
       <Secao titulo="Cores do tema">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {CORES.map((c) => <Amostra key={c} nome={c} cssVar={`--${c}`} />)}
+          {CORES.map((c) => (
+            <Amostra key={c} nome={c} cssVar={`--${c}`} />
+          ))}
         </div>
       </Secao>
       <Secao titulo="Cores dos módulos">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-          {MODULOS.map((m) => <Amostra key={m} nome={m} cssVar={`--modulo-${m}`} />)}
+          {MODULOS.map((m) => (
+            <Amostra key={m} nome={m} cssVar={`--modulo-${m}`} />
+          ))}
         </div>
       </Secao>
       <Secao titulo="Tipografia">
@@ -86,7 +113,10 @@ function DesignSystemPage() {
         <div className="flex flex-wrap gap-4">
           {RAIOS.map((r) => (
             <div key={r} className="text-center text-xs">
-              <div className="mb-1.5 h-14 w-14 border bg-muted" style={{ borderRadius: r === "full" ? 9999 : `var(--radius-${r})` }} />
+              <div
+                className="mb-1.5 h-14 w-14 border bg-muted"
+                style={{ borderRadius: r === "full" ? 9999 : `var(--radius-${r})` }}
+              />
               {r}
             </div>
           ))}
@@ -96,7 +126,10 @@ function DesignSystemPage() {
         <div className="flex flex-wrap gap-6">
           {SOMBRAS.map((s) => (
             <div key={s} className="text-center text-xs">
-              <div className="mb-2 h-16 w-24 rounded-lg bg-card" style={{ boxShadow: `var(--${s})` }} />
+              <div
+                className="mb-2 h-16 w-24 rounded-lg bg-card"
+                style={{ boxShadow: `var(--${s})` }}
+              />
               {s}
             </div>
           ))}
@@ -127,7 +160,9 @@ function DesignSystemPage() {
       <Secao titulo="Card, campo e carregamento">
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
-            <CardHeader><CardTitle>Card padrão</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle>Card padrão</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-3">
               <Input placeholder="Campo de texto" />
               <Skeleton className="h-4 w-2/3" />

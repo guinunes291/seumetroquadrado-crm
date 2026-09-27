@@ -57,6 +57,7 @@ import { Route as AuthenticatedEquipesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDuplicatasRouteImport } from './routes/_authenticated/duplicatas'
 import { Route as AuthenticatedDistribuicaoRouteImport } from './routes/_authenticated/distribuicao'
 import { Route as AuthenticatedDiscadorRouteImport } from './routes/_authenticated/discador'
+import { Route as AuthenticatedDesignSystemRouteImport } from './routes/_authenticated/design-system'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCorretoresRouteImport } from './routes/_authenticated/corretores'
 import { Route as AuthenticatedCopaRouteImport } from './routes/_authenticated/copa'
@@ -356,6 +357,12 @@ const AuthenticatedDiscadorRoute = AuthenticatedDiscadorRouteImport.update({
   path: '/discador',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDesignSystemRoute =
+  AuthenticatedDesignSystemRouteImport.update({
+    id: '/design-system',
+    path: '/design-system',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -653,6 +660,7 @@ export interface FileRoutesByFullPath {
   '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/design-system': typeof AuthenticatedDesignSystemRoute
   '/discador': typeof AuthenticatedDiscadorRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
@@ -753,6 +761,7 @@ export interface FileRoutesByTo {
   '/copa': typeof AuthenticatedCopaRoute
   '/corretores': typeof AuthenticatedCorretoresRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/design-system': typeof AuthenticatedDesignSystemRoute
   '/discador': typeof AuthenticatedDiscadorRoute
   '/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/duplicatas': typeof AuthenticatedDuplicatasRoute
@@ -855,6 +864,7 @@ export interface FileRoutesById {
   '/_authenticated/copa': typeof AuthenticatedCopaRoute
   '/_authenticated/corretores': typeof AuthenticatedCorretoresRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/design-system': typeof AuthenticatedDesignSystemRoute
   '/_authenticated/discador': typeof AuthenticatedDiscadorRoute
   '/_authenticated/distribuicao': typeof AuthenticatedDistribuicaoRoute
   '/_authenticated/duplicatas': typeof AuthenticatedDuplicatasRoute
@@ -957,6 +967,7 @@ export interface FileRouteTypes {
     | '/copa'
     | '/corretores'
     | '/dashboard'
+    | '/design-system'
     | '/discador'
     | '/distribuicao'
     | '/duplicatas'
@@ -1057,6 +1068,7 @@ export interface FileRouteTypes {
     | '/copa'
     | '/corretores'
     | '/dashboard'
+    | '/design-system'
     | '/discador'
     | '/distribuicao'
     | '/duplicatas'
@@ -1158,6 +1170,7 @@ export interface FileRouteTypes {
     | '/_authenticated/copa'
     | '/_authenticated/corretores'
     | '/_authenticated/dashboard'
+    | '/_authenticated/design-system'
     | '/_authenticated/discador'
     | '/_authenticated/distribuicao'
     | '/_authenticated/duplicatas'
@@ -1619,6 +1632,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDiscadorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/design-system': {
+      id: '/_authenticated/design-system'
+      path: '/design-system'
+      fullPath: '/design-system'
+      preLoaderRoute: typeof AuthenticatedDesignSystemRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -1991,6 +2011,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCopaRoute: typeof AuthenticatedCopaRoute
   AuthenticatedCorretoresRoute: typeof AuthenticatedCorretoresRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDesignSystemRoute: typeof AuthenticatedDesignSystemRoute
   AuthenticatedDiscadorRoute: typeof AuthenticatedDiscadorRoute
   AuthenticatedDistribuicaoRoute: typeof AuthenticatedDistribuicaoRoute
   AuthenticatedDuplicatasRoute: typeof AuthenticatedDuplicatasRoute
@@ -2051,6 +2072,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCopaRoute: AuthenticatedCopaRoute,
   AuthenticatedCorretoresRoute: AuthenticatedCorretoresRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDesignSystemRoute: AuthenticatedDesignSystemRoute,
   AuthenticatedDiscadorRoute: AuthenticatedDiscadorRoute,
   AuthenticatedDistribuicaoRoute: AuthenticatedDistribuicaoRoute,
   AuthenticatedDuplicatasRoute: AuthenticatedDuplicatasRoute,
