@@ -35,7 +35,7 @@ export function PlacaLogo({
     <div
       className={cn(
         "grid shrink-0 place-items-center overflow-hidden shadow-elev-1",
-        escuro ? "bg-gradient-command ring-1 ring-white/15" : "bg-white ring-1 ring-black/5",
+        escuro ? "bg-gradient-command ring-1 ring-claro/15" : "bg-claro ring-1 ring-escuro/5",
         TAMANHOS[tamanho],
         className,
       )}

@@ -228,7 +228,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
             <Button
               size="sm"
               variant="outline"
-              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              className="border-exito-300 text-exito-700 hover:bg-exito-50"
               onClick={() =>
                 abrirWhatsapp(
                   docs,
@@ -304,7 +304,7 @@ export function DocumentacaoTab({ leadId, lead }: Props) {
                   aria-valuenow={resolvidos}
                   className={cn(
                     "h-full rounded-full",
-                    resolvidos === total ? "bg-green-500" : "bg-primary",
+                    resolvidos === total ? "bg-verde-500" : "bg-primary",
                   )}
                   style={{ width: `${total > 0 ? (resolvidos / total) * 100 : 0}%` }}
                 />
@@ -361,16 +361,16 @@ function NaoClassificadosBloco({
     "outro",
   ];
   return (
-    <Card className="border-amber-300 bg-amber-50/50">
+    <Card className="border-aviso-300 bg-aviso-50/50">
       <CardContent className="pt-4 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+        <div className="flex items-center gap-2 text-sm font-semibold text-aviso-800">
           <Warning className="h-4 w-4" />
           {pendentesRevisao.length} documento(s) precisa(m) de revisão
         </div>
         {pendentesRevisao.map((d) => (
           <div
             key={d.id}
-            className="flex flex-wrap items-center gap-2 rounded-md bg-white/70 p-2 text-sm"
+            className="flex flex-wrap items-center gap-2 rounded-md bg-claro/70 p-2 text-sm"
           >
             <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="flex-1 truncate">{d.arquivo_nome ?? nomeArquivo(d.url ?? "")}</span>
@@ -564,7 +564,7 @@ function DocRow({
           {doc.origem === "whatsapp" && (
             <Badge
               variant="outline"
-              className="shrink-0 border-emerald-500 text-emerald-700"
+              className="shrink-0 border-exito-500 text-exito-700"
               title="Recebido pelo WhatsApp"
             >
               <WhatsappLogo className="h-3 w-3 mr-1" /> WhatsApp
@@ -573,7 +573,7 @@ function DocRow({
           {doc.classificado_por === "ia" && (
             <Badge
               variant="outline"
-              className="shrink-0 border-violet-500 text-violet-700"
+              className="shrink-0 border-violeta-500 text-violeta-700"
               title={
                 doc.confianca_ia != null
                   ? `Classificado pela IA (${Math.round(doc.confianca_ia * 100)}% de confiança)`

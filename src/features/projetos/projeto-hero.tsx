@@ -44,11 +44,11 @@ export type ProjetoHeroData = {
   argumentos_venda: string[];
 };
 
-const GLASS_BTN = "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white";
+const GLASS_BTN = "border-claro/25 bg-claro/10 text-claro hover:bg-claro/20 hover:text-claro";
 
 function HeroChip({ icon: Icon, children }: { icon: IconComponent; children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-claro/15 bg-claro/10 px-2.5 py-1 text-xs font-medium text-claro/90 backdrop-blur-sm">
       <Icon className="h-3.5 w-3.5 text-gold-300" aria-hidden="true" />
       {children}
     </span>
@@ -81,7 +81,7 @@ export function ProjetoHero({
     <section
       aria-label={`Resumo do empreendimento ${projeto.nome}`}
       className={cn(
-        "relative overflow-hidden rounded-xl bg-gradient-command text-white shadow-elev-2",
+        "relative overflow-hidden rounded-xl bg-gradient-command text-claro shadow-elev-2",
         emFoco && "beam-border",
       )}
     >
@@ -124,7 +124,7 @@ export function ProjetoHero({
             <h1 className="font-display text-2xl font-semibold leading-tight tracking-tight md:text-3xl">
               {projeto.nome}
             </h1>
-            {projeto.construtora && <p className="text-sm text-white/75">{projeto.construtora}</p>}
+            {projeto.construtora && <p className="text-sm text-claro/75">{projeto.construtora}</p>}
             <div className="flex flex-wrap gap-1.5 pt-1">
               {localizacao && <HeroChip icon={MapPin}>{localizacao}</HeroChip>}
               {projeto.zona_smq && <HeroChip icon={MapPin}>Zona {projeto.zona_smq}</HeroChip>}
@@ -141,7 +141,7 @@ export function ProjetoHero({
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-medium text-white/70">
+            <div className="text-xs font-medium text-claro/70">
               {projeto.sob_consulta ? "Preço" : "A partir de"}
             </div>
             <div className="font-display mt-0.5 text-3xl font-semibold tracking-tight text-gold-300 tabular-nums">

@@ -249,7 +249,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
                           </TableCell>
                           <TableCell className="text-right tabular-nums">{r.visitas}</TableCell>
                           <TableCell className="text-right tabular-nums">{r.analise}</TableCell>
-                          <TableCell className="text-right tabular-nums font-semibold text-emerald-600">
+                          <TableCell className="text-right tabular-nums font-semibold text-exito-600">
                             {r.fechados}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
@@ -388,7 +388,7 @@ export function RelatoriosTimeTab({ range }: { range: Range }) {
                           <TableCell className="text-right tabular-nums">
                             {b.pendente > 0 ? fmtBRL(b.pendente) : "—"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-emerald-600">
+                          <TableCell className="text-right tabular-nums text-exito-600">
                             {b.paga > 0 ? fmtBRL(b.paga) : "—"}
                           </TableCell>
                           <TableCell className="text-right tabular-nums font-semibold">

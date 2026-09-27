@@ -449,7 +449,7 @@ function MatchList({
           </span>
         )}
         {semPreco > 0 && (
-          <span className="ml-1 text-amber-600">
+          <span className="ml-1 text-aviso-600">
             ({semPreco} empreendimento{semPreco > 1 ? "s" : ""} sem preço cadastrado — não entram no
             match)
           </span>
@@ -510,7 +510,7 @@ function MatchList({
                   <div className="text-xs text-muted-foreground">Folga vs teto</div>
                   <div
                     className={`font-medium ${
-                      a.folga >= 0 ? "text-emerald-600" : "text-destructive"
+                      a.folga >= 0 ? "text-exito-600" : "text-destructive"
                     }`}
                   >
                     {a.folga >= 0 ? "+" : ""}

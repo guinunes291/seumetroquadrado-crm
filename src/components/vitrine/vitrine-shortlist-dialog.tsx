@@ -465,16 +465,16 @@ export function VitrineShortlist({
           </section>
 
           {!leadId ? (
-            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="rounded-lg border border-aviso-300 bg-aviso-50 p-3 text-sm text-aviso-900">
               Para gerar o link público (e usar o perfil do cliente no PDF), abra a Vitrine pelo
               dossiê de um lead.
             </div>
           ) : generated ? (
-            <div className="space-y-3 rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-emerald-950">
+            <div className="space-y-3 rounded-lg border border-exito-300 bg-exito-50 p-4 text-exito-950">
               <p className="flex items-center gap-2 font-semibold">
                 <Check className="h-4 w-4" /> Link pronto para {leadName || "o lead"}
               </p>
-              <p className="break-all rounded-md bg-white/80 p-2 font-mono text-xs">
+              <p className="break-all rounded-md bg-claro/80 p-2 font-mono text-xs">
                 {generated.url}
               </p>
               <p className="text-xs">

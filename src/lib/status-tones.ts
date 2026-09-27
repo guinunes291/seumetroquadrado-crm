@@ -55,7 +55,7 @@ export const INTENT_DOT: Record<Intent, string> = {
   warning: "bg-warning",
   danger: "bg-destructive",
   info: "bg-info",
-  neutral: "bg-slate-400",
+  neutral: "bg-ardosia-400",
 };
 
 // ---------------------------------------------------------------------------
@@ -79,19 +79,19 @@ export type Hue =
 
 /** Badge: fundo 15% + texto 700 (300 no dark, para contraste sobre navy). */
 export const HUE_BADGE: Record<Hue, string> = {
-  blue: "bg-blue-500/15 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300",
-  amber: "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
-  yellow: "bg-yellow-500/15 text-yellow-700 dark:bg-yellow-400/15 dark:text-yellow-300",
-  violet: "bg-violet-500/15 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
-  cyan: "bg-cyan-500/15 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300",
-  indigo: "bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300",
-  emerald: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
-  teal: "bg-teal-500/15 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300",
-  orange: "bg-orange-500/15 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300",
-  green: "bg-green-600/20 text-green-800 dark:bg-green-500/20 dark:text-green-300",
-  lime: "bg-lime-500/15 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300",
-  rose: "bg-rose-500/15 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
-  slate: "bg-slate-500/15 text-slate-700 dark:bg-slate-400/15 dark:text-slate-300",
+  blue: "bg-azul-500/15 text-azul-700 dark:bg-azul-400/15 dark:text-azul-300",
+  amber: "bg-aviso-500/15 text-aviso-700 dark:bg-aviso-400/15 dark:text-aviso-300",
+  yellow: "bg-amarelo-500/15 text-amarelo-700 dark:bg-amarelo-400/15 dark:text-amarelo-300",
+  violet: "bg-violeta-500/15 text-violeta-700 dark:bg-violeta-400/15 dark:text-violeta-300",
+  cyan: "bg-ciano-500/15 text-ciano-700 dark:bg-ciano-400/15 dark:text-ciano-300",
+  indigo: "bg-anil-500/15 text-anil-700 dark:bg-anil-400/15 dark:text-anil-300",
+  emerald: "bg-exito-500/15 text-exito-700 dark:bg-exito-400/15 dark:text-exito-300",
+  teal: "bg-petroleo-500/15 text-petroleo-700 dark:bg-petroleo-400/15 dark:text-petroleo-300",
+  orange: "bg-laranja-500/15 text-laranja-700 dark:bg-laranja-400/15 dark:text-laranja-300",
+  green: "bg-verde-600/20 text-verde-800 dark:bg-verde-500/20 dark:text-verde-300",
+  lime: "bg-lima-500/15 text-lima-700 dark:bg-lima-400/15 dark:text-lima-300",
+  rose: "bg-perigo-500/15 text-perigo-700 dark:bg-perigo-400/15 dark:text-perigo-300",
+  slate: "bg-ardosia-500/15 text-ardosia-700 dark:bg-ardosia-400/15 dark:text-ardosia-300",
 };
 
 /** Coluna do kanban: só o fio de 2px no topo leva a cor da etapa (identidade
@@ -115,19 +115,19 @@ export const HUE_COLUMN: Record<Hue, string> = {
 
 /** Bolinha/dot por hue (legenda de calendário, timeline). */
 export const HUE_DOT: Record<Hue, string> = {
-  blue: "bg-blue-500",
-  amber: "bg-amber-500",
-  yellow: "bg-yellow-500",
-  violet: "bg-violet-500",
-  cyan: "bg-cyan-500",
-  indigo: "bg-indigo-500",
-  emerald: "bg-emerald-500",
-  teal: "bg-teal-500",
-  orange: "bg-orange-500",
-  green: "bg-green-600",
-  lime: "bg-lime-500",
-  rose: "bg-rose-500",
-  slate: "bg-slate-400",
+  blue: "bg-azul-500",
+  amber: "bg-aviso-500",
+  yellow: "bg-amarelo-500",
+  violet: "bg-violeta-500",
+  cyan: "bg-ciano-500",
+  indigo: "bg-anil-500",
+  emerald: "bg-exito-500",
+  teal: "bg-petroleo-500",
+  orange: "bg-laranja-500",
+  green: "bg-verde-600",
+  lime: "bg-lima-500",
+  rose: "bg-perigo-500",
+  slate: "bg-ardosia-400",
 };
 
 // ---------------------------------------------------------------------------

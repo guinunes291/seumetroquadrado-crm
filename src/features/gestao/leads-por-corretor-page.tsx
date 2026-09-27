@@ -669,7 +669,7 @@ function CorretorCard({
         {carteira ? (
           <>
             <div className="flex items-center gap-2">
-              <UsersThree className="h-3.5 w-3.5 text-blue-600" />
+              <UsersThree className="h-3.5 w-3.5 text-azul-600" />
               <span>{textoTratativa(carteira)}</span>
               {carteira.fundo > 0 && (
                 <span className="text-xs text-muted-foreground">({carteira.fundo} no fundo)</span>
@@ -729,7 +729,7 @@ function CorretorCard({
         ) : (
           <>
             <div className="flex items-center gap-2">
-              <UsersThree className="h-3.5 w-3.5 text-blue-600" />
+              <UsersThree className="h-3.5 w-3.5 text-azul-600" />
               <span>{stats.emAtendimento} em atendimento</span>
             </div>
             <div className="flex items-center gap-2">
@@ -739,7 +739,7 @@ function CorretorCard({
           </>
         )}
         <div className="flex items-center gap-2">
-          <Trophy className="h-3.5 w-3.5 text-green-600" />
+          <Trophy className="h-3.5 w-3.5 text-verde-600" />
           <span>{stats.ganhos} ganhos</span>
         </div>
         <div className="flex items-center gap-2">
@@ -751,7 +751,7 @@ function CorretorCard({
             className="flex items-center gap-2 text-muted-foreground"
             title="Movimentações do job automático de leads parados nos últimos 7 dias"
           >
-            <ArrowsLeftRight className="h-3.5 w-3.5 text-amber-600" />
+            <ArrowsLeftRight className="h-3.5 w-3.5 text-aviso-600" />
             <span>{redistribuidos} redistribuições (7d)</span>
           </div>
         )}

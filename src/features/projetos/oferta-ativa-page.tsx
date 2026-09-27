@@ -141,7 +141,7 @@ export function OfertaAtivaPage() {
                 {lista.totalAvancados} ({pctAvancados}%)
               </span>
             </div>
-            <Progress value={pctAvancados} className="h-1.5 [&>div]:bg-green-500" />
+            <Progress value={pctAvancados} className="h-1.5 [&>div]:bg-verde-500" />
           </div>
         </div>
 

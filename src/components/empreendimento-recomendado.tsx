@@ -146,7 +146,7 @@ export function EmpreendimentoRecomendado({ lead }: { lead: LeadPerfil }) {
                           {aderencia && (
                             <div
                               className={`mt-1 inline-flex items-center gap-1 text-[11px] font-medium ${
-                                aderencia.cabe ? "text-emerald-600" : "text-rose-600"
+                                aderencia.cabe ? "text-exito-600" : "text-perigo-600"
                               }`}
                             >
                               {aderencia.cabe ? (

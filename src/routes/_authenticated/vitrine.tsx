@@ -339,7 +339,7 @@ function VitrinePage() {
           </div>
 
           {planilhaQ.isError && (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-aviso-300 bg-aviso-50 px-3 py-2 text-xs text-aviso-900">
               <Warning className="h-4 w-4 shrink-0" />
               <span>
                 A planilha de mercado não respondeu — o mapa está mostrando só o catálogo do CRM.
@@ -419,7 +419,7 @@ function VitrinePage() {
                 {poder && (
                   <>
                     {" · "}
-                    <b className="tabular-nums text-emerald-700">{fecham}</b> fecham com o cliente
+                    <b className="tabular-nums text-exito-700">{fecham}</b> fecham com o cliente
                   </>
                 )}
                 {doPlanilha > 0 && ` · ${doPlanilha} só na planilha`}
@@ -762,7 +762,7 @@ function BadgeForaDoCatalogo() {
   return (
     <span
       title="Está na planilha de mercado, mas ainda não é projeto no CRM — cadastre para comparar e enviar pelo sistema."
-      className="shrink-0 rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800"
+      className="shrink-0 rounded-md bg-aviso-100 px-2 py-1 text-[11px] font-semibold text-aviso-800"
     >
       Fora do catálogo
     </span>
@@ -777,8 +777,8 @@ function BadgeEnquadramento({
   cobertura: number | null;
 }) {
   const conteudo: Record<Enquadramento, { texto: string; tom: string }> = {
-    fecha: { texto: "Fecha", tom: "bg-emerald-100 text-emerald-800" },
-    otimista: { texto: "Fecha a 25%", tom: "bg-sky-100 text-sky-800" },
+    fecha: { texto: "Fecha", tom: "bg-exito-100 text-exito-800" },
+    otimista: { texto: "Fecha a 25%", tom: "bg-celeste-100 text-celeste-800" },
     "nao-fecha": { texto: "Não fecha", tom: "bg-muted text-muted-foreground" },
     "sem-preco": { texto: "Sem preço", tom: "bg-muted text-muted-foreground" },
   };
@@ -906,11 +906,11 @@ function TabelaResultados({
 function BadgeSituacao({ entrega, situacao }: { entrega: string; situacao: Situacao }) {
   const tone =
     situacao === "Pronto"
-      ? "bg-emerald-100 text-emerald-800"
+      ? "bg-exito-100 text-exito-800"
       : situacao === "Lançamento"
-        ? "bg-amber-100 text-amber-800"
+        ? "bg-aviso-100 text-aviso-800"
         : situacao === "Em obras"
-          ? "bg-sky-100 text-sky-800"
+          ? "bg-celeste-100 text-celeste-800"
           : "bg-muted text-muted-foreground";
   return (
     <span className={cn("rounded-md px-2 py-1 text-[11px] font-semibold", tone)}>{entrega}</span>

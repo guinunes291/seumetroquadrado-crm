@@ -56,7 +56,7 @@ export function statusBadgeClass(status: string): string {
 export function prioridadeBadgeClass(prio: string): string {
   switch (prio) {
     case "urgente": return INTENT_OUTLINE.danger;
-    case "alta": return "border-orange-500 text-orange-700";
+    case "alta": return "border-laranja-500 text-laranja-700";
     case "media": return INTENT_OUTLINE.warning;
     case "baixa": return INTENT_OUTLINE.neutral;
     default: return "";

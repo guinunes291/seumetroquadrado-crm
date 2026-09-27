@@ -65,9 +65,9 @@ type Participante = {
 type Projeto = { id: string; nome: string };
 
 const TIER_STYLE: Record<"A" | "B" | "C", string> = {
-  A: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+  A: "bg-exito-500/15 text-exito-500 border-exito-500/30",
   B: "bg-muted text-foreground border-border",
-  C: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  C: "bg-aviso-500/15 text-aviso-500 border-aviso-500/30",
 };
 
 export function CampanhasPage() {

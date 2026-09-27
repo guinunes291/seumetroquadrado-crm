@@ -532,25 +532,25 @@ export function ImportProjetosDialog({
             <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-green-600">{resultado.inseridos}</div>
+                  <div className="text-2xl font-bold text-verde-600">{resultado.inseridos}</div>
                   <div className="text-xs text-muted-foreground">Inseridos</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-blue-600">{resultado.atualizados}</div>
+                  <div className="text-2xl font-bold text-azul-600">{resultado.atualizados}</div>
                   <div className="text-xs text-muted-foreground">Atualizados</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-amber-600">{resultado.duplicados}</div>
+                  <div className="text-2xl font-bold text-aviso-600">{resultado.duplicados}</div>
                   <div className="text-xs text-muted-foreground">Duplicados</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-rose-600">
+                  <div className="text-2xl font-bold text-perigo-600">
                     {resultado.invalidos + resultado.erros}
                   </div>
                   <div className="text-xs text-muted-foreground">Inválidos / erros</div>

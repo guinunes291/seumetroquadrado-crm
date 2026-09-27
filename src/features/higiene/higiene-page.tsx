@@ -92,7 +92,7 @@ export function HigienePage() {
             de cobrar alguém.
           */}
           {resumo.parados > 0 && resumo.parados_em_lote / resumo.parados >= 0.2 && (
-            <Card className="border-amber-500/40 bg-amber-500/5 p-3">
+            <Card className="border-aviso-500/40 bg-aviso-500/5 p-3">
               <p className="flex items-start gap-2 text-sm">
                 <Stack className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>

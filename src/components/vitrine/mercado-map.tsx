@@ -355,7 +355,7 @@ function Legenda({ simulando }: { simulando: boolean }) {
         {linhas.map((l) => (
           <div key={l.texto} className="flex items-center gap-2 text-muted-foreground">
             <span
-              className="h-2.5 w-2.5 shrink-0 rounded-full border border-white shadow-[0_0_0_1px_rgba(0,0,0,0.08)]"
+              className="h-2.5 w-2.5 shrink-0 rounded-full border border-claro shadow-[0_0_0_1px_rgba(0,0,0,0.08)]"
               style={{ background: l.cor }}
             />
             {l.texto}
@@ -431,14 +431,14 @@ function popupDoItem(
     }
   }
   if (poder && !poder.orcamento.enquadra) {
-    linha(box, "Renda fora da tabela de crédito.", "text-[11px] text-amber-700");
+    linha(box, "Renda fora da tabela de crédito.", "text-[11px] text-aviso-700");
   }
 
   if (item.origem === "planilha") {
     linha(
       box,
       "Fora do catálogo do CRM — cadastre o projeto para enviar pelo sistema.",
-      "text-[10.5px] leading-snug text-amber-700",
+      "text-[10.5px] leading-snug text-aviso-700",
     );
   }
 

@@ -32,9 +32,9 @@ const EXEMPLOS = [
 ];
 
 function corPontuacao(p: number) {
-  if (p >= 9) return "bg-emerald-600 text-white";
-  if (p >= 7) return "bg-blue-600 text-white";
-  if (p >= 5) return "bg-amber-500 text-white";
+  if (p >= 9) return "bg-exito-600 text-claro";
+  if (p >= 7) return "bg-azul-600 text-claro";
+  if (p >= 5) return "bg-aviso-500 text-claro";
   return "bg-muted text-muted-foreground";
 }
 
@@ -189,7 +189,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
                   </span>
                 </div>
               ) : (
-                <p className="text-xs text-amber-700">{orc.motivoNaoEnquadra}</p>
+                <p className="text-xs text-aviso-700">{orc.motivoNaoEnquadra}</p>
               ))}
           </div>
 
@@ -304,7 +304,7 @@ export function BuscadorIA({ leadId }: { leadId?: string }) {
                             {aderencia && (
                               <p
                                 className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                  aderencia.cabe ? "text-emerald-600" : "text-rose-600"
+                                  aderencia.cabe ? "text-exito-600" : "text-perigo-600"
                                 }`}
                               >
                                 {aderencia.cabe ? (

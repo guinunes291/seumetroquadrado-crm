@@ -85,7 +85,7 @@ function SidebarContent({
     cn(
       "relative flex min-h-11 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
       active
-        ? "bg-white/[0.06] font-medium text-sidebar-primary before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-gradient-gold"
+        ? "bg-claro/[0.06] font-medium text-sidebar-primary before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-gradient-gold"
         : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
     );
 
@@ -145,7 +145,7 @@ function SidebarContent({
             className={cn(
               "relative flex h-11 w-11 items-center justify-center rounded-md transition-colors",
               modulosAtivo
-                ? "bg-white/[0.08] text-sidebar-primary"
+                ? "bg-claro/[0.08] text-sidebar-primary"
                 : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
             )}
           >
@@ -176,7 +176,7 @@ function SidebarContent({
               className={cn(
                 "relative flex h-11 w-11 items-center justify-center rounded-md transition-colors",
                 active
-                  ? "bg-white/[0.08] text-sidebar-primary"
+                  ? "bg-claro/[0.08] text-sidebar-primary"
                   : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
               )}
             >
@@ -222,7 +222,7 @@ function SidebarContent({
             <img
               src="/icons/icon-192.png"
               alt="Seu Metro Quadrado"
-              className="h-9 w-9 shrink-0 rounded-md object-contain bg-white shadow-elev-1"
+              className="h-9 w-9 shrink-0 rounded-md object-contain bg-claro shadow-elev-1"
             />
             {!collapsed && (
               <div className="leading-tight">
@@ -432,7 +432,7 @@ function RailFootLink({
           className={cn(
             "mx-auto flex h-11 w-11 items-center justify-center rounded-md transition-colors",
             active
-              ? "bg-white/[0.08] text-sidebar-primary"
+              ? "bg-claro/[0.08] text-sidebar-primary"
               : "text-sidebar-foreground/75 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
           )}
         >

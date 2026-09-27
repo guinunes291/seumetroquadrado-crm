@@ -104,7 +104,7 @@ export function SimuladorFinanciamento({
         </div>
 
         {!orc.enquadra ? (
-          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-500/5 p-3 text-sm text-amber-700">
+          <div className="flex items-start gap-2 rounded-lg border border-aviso-300 bg-aviso-500/5 p-3 text-sm text-aviso-700">
             <Warning className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{orc.motivoNaoEnquadra ?? "Renda fora da tabela APROVE."}</span>
           </div>
@@ -163,8 +163,8 @@ export function SimuladorFinanciamento({
                   className={cn(
                     "mt-3 flex items-start gap-2 rounded-lg border p-3 text-sm",
                     aderencia.cabe
-                      ? "border-emerald-300 bg-emerald-500/5 text-emerald-700"
-                      : "border-rose-300 bg-rose-500/5 text-rose-700",
+                      ? "border-exito-300 bg-exito-500/5 text-exito-700"
+                      : "border-perigo-300 bg-perigo-500/5 text-perigo-700",
                   )}
                 >
                   {aderencia.cabe ? (

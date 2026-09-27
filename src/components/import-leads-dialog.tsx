@@ -486,19 +486,19 @@ export function ImportLeadsDialog({
             <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-green-600">{resultado.inseridos}</div>
+                  <div className="text-2xl font-bold text-verde-600">{resultado.inseridos}</div>
                   <div className="text-xs text-muted-foreground">Inseridos</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-amber-600">{resultado.duplicados}</div>
+                  <div className="text-2xl font-bold text-aviso-600">{resultado.duplicados}</div>
                   <div className="text-xs text-muted-foreground">Duplicados</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold text-rose-600">{resultado.invalidos}</div>
+                  <div className="text-2xl font-bold text-perigo-600">{resultado.invalidos}</div>
                   <div className="text-xs text-muted-foreground">Inválidos</div>
                 </CardContent>
               </Card>

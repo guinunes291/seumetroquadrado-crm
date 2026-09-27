@@ -970,9 +970,9 @@ function SituacaoAgora({
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {parados30 > 0 && (
-        <Card className="border-orange-500/40 bg-orange-500/5">
+        <Card className="border-laranja-500/40 bg-laranja-500/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <Warning className="h-6 w-6 text-orange-500" />
+            <Warning className="h-6 w-6 text-laranja-500" />
             <div className="flex-1">
               <div className="text-sm font-semibold">
                 {parados30} {parados30 === 1 ? "lead parado" : "leads parados"} há mais de{" "}
@@ -989,9 +989,9 @@ function SituacaoAgora({
         </Card>
       )}
       {semCorretor > 0 && (
-        <Card className="border-red-500/40 bg-red-500/5">
+        <Card className="border-vermelho-500/40 bg-vermelho-500/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <UserMinus className="h-6 w-6 text-red-500" />
+            <UserMinus className="h-6 w-6 text-vermelho-500" />
             <div className="flex-1">
               <div className="text-sm font-semibold">
                 {semCorretor} {semCorretor === 1 ? "lead sem corretor" : "leads sem corretor"}
