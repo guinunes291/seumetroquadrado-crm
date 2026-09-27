@@ -54,7 +54,7 @@ function ResetPasswordPage() {
             <img
               src="/icons/icon-192.png"
               alt=""
-              className="h-8 w-8 rounded-md bg-white object-contain shadow-elev-1"
+              className="h-8 w-8 rounded-md bg-claro object-contain shadow-elev-1"
             />
             <span className="font-display text-sm font-semibold">Seu Metro Quadrado</span>
           </div>

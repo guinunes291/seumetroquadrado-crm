@@ -149,7 +149,7 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen">
       {/* Painel de marca — só desktop largo; a primeira impressão da SMQ. */}
-      <aside className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-gradient-command p-10 text-white lg:flex">
+      <aside className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-gradient-command p-10 text-claro lg:flex">
         {/* luz ambiente estática (pintada 1x) */}
         <div
           aria-hidden="true"
@@ -163,7 +163,7 @@ function AuthPage() {
           <img
             src="/icons/icon-192.png"
             alt=""
-            className="h-10 w-10 rounded-md bg-white object-contain shadow-elev-1"
+            className="h-10 w-10 rounded-md bg-claro object-contain shadow-elev-1"
           />
           <div>
             <div className="font-display text-lg font-semibold leading-tight">
@@ -178,21 +178,21 @@ function AuthPage() {
           <h1 className="font-display text-3xl font-semibold leading-tight">
             A central de comando da sua operação imobiliária.
           </h1>
-          <ul className="space-y-3 text-sm text-white/80">
+          <ul className="space-y-3 text-sm text-claro/80">
             <li className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.08]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-claro/[0.08]">
                 <UsersThree className="h-4 w-4 text-gold-300" />
               </span>
               Leads priorizados por urgência, com a próxima ação sempre à vista
             </li>
             <li className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.08]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-claro/[0.08]">
                 <Gauge className="h-4 w-4 text-gold-300" />
               </span>
               Funil com valor e conversão por etapa, em tempo real
             </li>
             <li className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.08]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-claro/[0.08]">
                 <Target className="h-4 w-4 text-gold-300" />
               </span>
               Metas, ranking e comissões acompanhando cada venda
@@ -200,7 +200,7 @@ function AuthPage() {
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/50">
+        <p className="relative text-xs text-claro/50">
           © {new Date().getFullYear()} Seu Metro Quadrado
         </p>
       </aside>
@@ -213,7 +213,7 @@ function AuthPage() {
               <img
                 src="/icons/icon-192.png"
                 alt=""
-                className="h-10 w-10 rounded-md bg-white object-contain shadow-elev-1"
+                className="h-10 w-10 rounded-md bg-claro object-contain shadow-elev-1"
               />
               <div className="text-left">
                 <div className="font-display text-lg font-semibold leading-tight">

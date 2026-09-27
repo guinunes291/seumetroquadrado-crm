@@ -187,7 +187,7 @@ export function VitrinePanel({ projeto: p, lead, onOpenChange, onEnviar }: Props
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-      <span className="h-0.5 w-3.5 rounded bg-amber-400" />
+      <span className="h-0.5 w-3.5 rounded bg-aviso-400" />
       {children}
     </div>
   );

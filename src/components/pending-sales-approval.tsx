@@ -161,11 +161,11 @@ export function PendingSalesApproval() {
 
   return (
     <>
-      <Card className="border-amber-500/40">
+      <Card className="border-aviso-500/40">
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ClockAfternoon className="h-4 w-4 text-amber-600" aria-hidden="true" />
+              <ClockAfternoon className="h-4 w-4 text-aviso-600" aria-hidden="true" />
               Aprovações de venda
             </CardTitle>
             {!query.isLoading && (

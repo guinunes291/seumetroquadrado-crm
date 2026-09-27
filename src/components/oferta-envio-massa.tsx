@@ -212,7 +212,7 @@ export function OfertaEnvioMassa({ open, onOpenChange, rows, onMarcarContatado }
                 <p className="text-xs text-muted-foreground">{atual.lead.telefone}</p>
                 {atual.contatado && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3 text-green-600" /> Já contatado antes
+                    <CheckCircle className="w-3 h-3 text-verde-600" /> Já contatado antes
                   </p>
                 )}
               </div>

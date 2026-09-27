@@ -250,7 +250,7 @@ function ProjetoDetalhePage() {
       size="sm"
       className={
         projeto
-          ? "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+          ? "border-claro/25 bg-claro/10 text-claro hover:bg-claro/20 hover:text-claro"
           : undefined
       }
       asChild

@@ -100,7 +100,7 @@ function Resumo({ poder }: { poder: PoderDeCompra }) {
 
   if (!orc.enquadra) {
     return (
-      <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+      <div className="mt-3 flex items-start gap-2 rounded-lg border border-aviso-300 bg-aviso-50 p-3 text-xs text-aviso-900">
         <Warning className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
           <b>Renda fora da tabela de crédito.</b> A tabela APROVE 2026 começa em {brl(RENDA_MINIMA)}
@@ -179,14 +179,14 @@ function Teto({
     <div
       className={cn(
         "rounded-md border px-3 py-2",
-        tom === "ok" ? "border-emerald-300 bg-emerald-50" : "bg-background",
+        tom === "ok" ? "border-exito-300 bg-exito-50" : "bg-background",
       )}
     >
       <div className="text-[11px] text-muted-foreground">{titulo}</div>
       <div
         className={cn(
           "text-lg font-extrabold tabular-nums",
-          tom === "ok" ? "text-emerald-800" : "text-foreground",
+          tom === "ok" ? "text-exito-800" : "text-foreground",
         )}
       >
         {brl(valor)}

@@ -122,7 +122,7 @@ export function WhatsappLeadDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button className="bg-emerald-600 text-white hover:bg-emerald-700">
+        <Button className="bg-exito-600 text-claro hover:bg-exito-700">
           <WhatsappLogo className="h-4 w-4 mr-2" /> WhatsApp
         </Button>
       </DialogTrigger>

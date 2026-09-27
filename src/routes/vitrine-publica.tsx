@@ -149,7 +149,7 @@ function VitrinePublicaPage() {
         ) : token === null || unavailableLink ? (
           <Card className="mx-auto max-w-lg">
             <CardContent className="space-y-4 py-12 text-center">
-              <Warning className="mx-auto h-10 w-10 text-amber-600" />
+              <Warning className="mx-auto h-10 w-10 text-aviso-600" />
               <div>
                 <h1 className="text-xl font-semibold">Esta seleção não está mais disponível</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -161,7 +161,7 @@ function VitrinePublicaPage() {
         ) : transientFailure ? (
           <Card className="mx-auto max-w-lg">
             <CardContent className="space-y-4 py-12 text-center">
-              <Warning className="mx-auto h-10 w-10 text-amber-600" />
+              <Warning className="mx-auto h-10 w-10 text-aviso-600" />
               <div>
                 <h1 className="text-xl font-semibold">Não foi possível carregar agora</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -183,7 +183,7 @@ function VitrinePublicaPage() {
         ) : (
           <>
             <div className="mb-7 max-w-3xl">
-              <p className="text-xs font-medium text-amber-700">Seleção preparada para você</p>
+              <p className="text-xs font-medium text-aviso-700">Seleção preparada para você</p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl">
                 Compare seus empreendimentos favoritos
               </h1>
@@ -268,7 +268,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
               ? "Sob consulta"
               : formatBRL(project.preco_a_partir)}
           </p>
-          <p className="mt-1 text-xs font-medium text-amber-800">{availability}</p>
+          <p className="mt-1 text-xs font-medium text-aviso-800">{availability}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-sm">
@@ -315,7 +315,7 @@ function PublicProjectCard({ project, token }: { project: VitrinePublicProject; 
                     <li key={item} className="flex gap-2">
                       <span
                         aria-hidden
-                        className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+                        className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-aviso-500"
                       />
                       {item}
                     </li>

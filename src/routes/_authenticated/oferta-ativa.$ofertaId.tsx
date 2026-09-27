@@ -134,7 +134,7 @@ function ToggleContatado({
       aria-pressed={row.contatado}
     >
       {row.contatado ? (
-        <CheckCircle className="w-5 h-5 text-green-600" />
+        <CheckCircle className="w-5 h-5 text-verde-600" />
       ) : (
         <Circle className="w-5 h-5 text-muted-foreground" />
       )}
@@ -598,7 +598,7 @@ function OfertaDetailPage() {
       </div>
 
       {canManage && listaAtiva && statsAll.total > 0 && statsAll.contatados === statsAll.total && (
-        <div className="rounded-xl border border-green-600/30 bg-green-600/10 p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="rounded-xl border border-verde-600/30 bg-verde-600/10 p-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium">Todos os leads desta lista já foram contatados. 🎉</p>
           <Button size="sm" onClick={() => setConfirmConcluir(true)}>
             <Checks className="w-4 h-4 mr-2" /> Concluir lista
@@ -635,7 +635,7 @@ function OfertaDetailPage() {
             {statsAll.avancados}{" "}
             <span className="text-sm text-muted-foreground">({statsAll.pctAvancados}%)</span>
           </p>
-          <Progress value={statsAll.pctAvancados} className="h-1.5 mt-2 [&>div]:bg-green-500" />
+          <Progress value={statsAll.pctAvancados} className="h-1.5 mt-2 [&>div]:bg-verde-500" />
         </div>
       </div>
 

@@ -140,7 +140,7 @@ export function InicioPage() {
             <img
               src="/icons/icon-192.png"
               alt="Seu Metro Quadrado"
-              className="h-9 w-9 shrink-0 rounded-md bg-white object-contain shadow-elev-1"
+              className="h-9 w-9 shrink-0 rounded-md bg-claro object-contain shadow-elev-1"
             />
             <div className="leading-tight">
               <div className="font-display text-sm font-semibold">Seu Metro Quadrado</div>
@@ -178,7 +178,7 @@ export function InicioPage() {
       <div id="metas-dia-slot" className="sticky top-16 z-10 md:hidden" />
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8">
-        <section className="relative overflow-hidden rounded-xl bg-gradient-command p-6 text-white shadow-elev-2 md:p-8">
+        <section className="relative overflow-hidden rounded-xl bg-gradient-command p-6 text-claro shadow-elev-2 md:p-8">
           {/* luz ambiente estática (pintada 1x), como no painel do /auth */}
           <div
             aria-hidden="true"
@@ -189,11 +189,11 @@ export function InicioPage() {
             }}
           />
           <div className="relative space-y-1">
-            <p className="text-sm text-white/75">{dataPorExtenso()}</p>
+            <p className="text-sm text-claro/75">{dataPorExtenso()}</p>
             <h1 className="font-display text-2xl font-semibold leading-tight md:text-3xl">
               {saudacao()}, {primeiroNome}
             </h1>
-            <p className="text-sm text-white/80">
+            <p className="text-sm text-claro/80">
               {loading ? "Escolha por onde você quer começar." : fraseDePendencias(comPendencia)}
             </p>
           </div>

@@ -68,11 +68,11 @@ export const TIPO_ICON: Record<string, IconComponent> = {
 
 /** Tom do ícone da timeline — mesmos hues dos dots (status-tones). */
 export const TIPO_ICON_TONE: Record<string, string> = {
-  visita: "text-blue-600 dark:text-blue-400",
-  reuniao: "text-violet-600 dark:text-violet-400",
-  ligacao: "text-emerald-600 dark:text-emerald-400",
-  follow_up: "text-amber-600 dark:text-amber-400",
-  outro: "text-slate-500 dark:text-slate-400",
+  visita: "text-azul-600 dark:text-azul-400",
+  reuniao: "text-violeta-600 dark:text-violeta-400",
+  ligacao: "text-exito-600 dark:text-exito-400",
+  follow_up: "text-aviso-600 dark:text-aviso-400",
+  outro: "text-ardosia-500 dark:text-ardosia-400",
 };
 
 export type Agendamento = {

@@ -230,7 +230,7 @@ function BotaoFavorito({
       aria-pressed={favorito}
       aria-label={favorito ? `Remover ${nome} dos favoritos` : `Favoritar ${nome}`}
       className={cn(
-        "press-scale grid h-9 w-9 place-items-center rounded-full border border-white/25 bg-navy-900/60 text-white backdrop-blur-sm transition-colors hover:bg-navy-900/80",
+        "press-scale grid h-9 w-9 place-items-center rounded-full border border-claro/25 bg-navy-900/60 text-claro backdrop-blur-sm transition-colors hover:bg-navy-900/80",
         favorito && "border-gold-400/60 text-gold-300",
         className,
       )}
@@ -583,11 +583,11 @@ function CardGrade(props: ProdutoCardProps) {
         <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
           <Selos item={item} />
         </div>
-        <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 text-white">
+        <div className="absolute inset-x-3 bottom-3 flex items-end justify-between gap-2 text-claro">
           <div className="min-w-0">
-            <p className="truncate text-xs font-medium text-white/80">{construtoraExibida(item)}</p>
+            <p className="truncate text-xs font-medium text-claro/80">{construtoraExibida(item)}</p>
             {item.zona && (
-              <p className="inline-flex items-center gap-1 text-xs text-white/90">
+              <p className="inline-flex items-center gap-1 text-xs text-claro/90">
                 <MapPin className="h-3 w-3" aria-hidden="true" />
                 {rotuloZona(item.zona)}
               </p>

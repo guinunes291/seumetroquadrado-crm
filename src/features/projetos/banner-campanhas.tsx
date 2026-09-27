@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import type { MaterialTipo } from "./produto-card";
 import { PlacaLogo } from "./placa-logo";
 
-const GLASS_BTN = "border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white";
+const GLASS_BTN = "border-claro/25 bg-claro/10 text-claro hover:bg-claro/20 hover:text-claro";
 
 export function BannerCampanhas({
   itens,
@@ -145,7 +145,7 @@ function Slide({
 
   return (
     <article
-      className="beam-border relative overflow-hidden rounded-2xl bg-gradient-command text-white shadow-elev-2"
+      className="beam-border relative overflow-hidden rounded-2xl bg-gradient-command text-claro shadow-elev-2"
       aria-label={`Campanha: ${item.nome}`}
     >
       {imagem ? (
@@ -179,7 +179,7 @@ function Slide({
               className="absolute right-6 top-6 hidden md:grid"
             />
           ) : (
-            <span className="font-display absolute bottom-4 right-6 text-7xl font-semibold text-white/5 md:text-9xl">
+            <span className="font-display absolute bottom-4 right-6 text-7xl font-semibold text-claro/5 md:text-9xl">
               {iniciais(item.parceira?.nome ?? item.construtora ?? item.nome)}
             </span>
           )}
@@ -193,7 +193,7 @@ function Slide({
             Em foco
           </span>
           {item.foco?.motivo && (
-            <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white/90 backdrop-blur-sm">
+            <span className="rounded-full border border-claro/20 bg-claro/10 px-2.5 py-1 text-xs text-claro/90 backdrop-blur-sm">
               {item.foco.motivo}
             </span>
           )}
@@ -215,7 +215,7 @@ function Slide({
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-white/70">
+            <p className="text-xs font-medium text-claro/70">
               {construtoraExibida(item)}
               {local ? ` · ${local}` : ""}
             </p>
@@ -230,14 +230,14 @@ function Slide({
               </Link>
             </h2>
             {preco ? (
-              <p className="mt-1 text-sm text-white/80">
+              <p className="mt-1 text-sm text-claro/80">
                 A partir de{" "}
                 <span className="font-display text-xl font-semibold tabular-nums text-gold-300">
                   {preco}
                 </span>
               </p>
             ) : (
-              <p className="mt-1 text-sm text-white/70">Preço na tabela vigente</p>
+              <p className="mt-1 text-sm text-claro/70">Preço na tabela vigente</p>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">

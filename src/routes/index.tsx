@@ -60,7 +60,7 @@ function IndexRedirect() {
         <img
           src="/icons/icon-192.png"
           alt="Seu Metro Quadrado"
-          className="h-14 w-14 rounded-md bg-white object-contain shadow-elev-1"
+          className="h-14 w-14 rounded-md bg-claro object-contain shadow-elev-1"
         />
         <p className="text-sm text-muted-foreground">Carregando acesso...</p>
       </div>
