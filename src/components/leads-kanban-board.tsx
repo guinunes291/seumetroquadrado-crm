@@ -739,7 +739,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                         aria-label={`${lead.nome}, etapa ${col.label}`}
                         {...getCardProps(lead.id)}
                         className={cn(
-                          "p-2.5 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background",
+                          "p-2.5 shadow-elev-1 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background",
                           dragging?.cardId === lead.id && "opacity-40",
                         )}
                       >
