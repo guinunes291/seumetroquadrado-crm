@@ -27,6 +27,8 @@ import type { StageLead } from "@/lib/leads";
 import { ComissaoSplitFields } from "@/components/comissao-split-fields";
 import { EFETIVACAO_INICIAL, EfetivacaoFlagsField } from "@/components/efetivacao-flags-field";
 import { parseSplit, type SplitTexto } from "@/lib/comissoes";
+import { useUserRoles } from "@/hooks/use-auth";
+import { useTierNoSplit } from "@/lib/comissao-tier";
 import { validarVenda, registrarVenda, type EfetivacaoVenda } from "@/lib/vendas";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -53,6 +55,16 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
     corretor: "1.85",
     gerente: "0.50",
     superintendente: "0.30",
+  });
+
+  const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
+  const tierSplit = useTierNoSplit({
+    leadId: lead.id,
+    corretorId: lead.corretor_id,
+    data: dataAssinatura,
+    percentuais,
+    setPercentuais,
+    gestao: isAdmin || isGestor || isSuperintendente,
   });
 
   // Só projetos ativos entram em uma nova venda (regra central em
@@ -218,6 +230,8 @@ export function ContractSaleDialog({ lead, onOpenChange, onDone }: Props) {
             valorVenda={parseCurrencyBRL(valor)}
             valores={percentuais}
             onChange={(campo, v) => setPercentuais((prev) => ({ ...prev, [campo]: v }))}
+            travados={tierSplit.travados}
+            infoTier={tierSplit.infoTier}
           />
 
           <div className="space-y-1.5">

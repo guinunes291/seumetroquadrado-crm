@@ -14,6 +14,10 @@ type Props = {
   valorVenda: number | null;
   valores: SplitTexto;
   onChange: (campo: keyof SplitTexto, valor: string) => void;
+  /** Campos travados (corretor não altera o próprio %). */
+  travados?: Array<keyof SplitTexto>;
+  /** Linha explicando de onde veio o % do corretor (tier + esteira). */
+  infoTier?: string | null;
 };
 
 /**
@@ -22,7 +26,7 @@ type Props = {
  * A geração real acontece no banco (trigger sobre `vendas`) — o preview é
  * informativo.
  */
-export function ComissaoSplitFields({ valorVenda, valores, onChange }: Props) {
+export function ComissaoSplitFields({ valorVenda, valores, onChange, travados, infoTier }: Props) {
   const split = parseSplit(valores);
   const validacao = split ? validarSplit(split) : null;
   const preview =
@@ -48,11 +52,13 @@ export function ComissaoSplitFields({ valorVenda, valores, onChange }: Props) {
               inputMode="decimal"
               value={valores[campo]}
               onChange={(e) => onChange(campo, e.target.value)}
+              disabled={travados?.includes(campo)}
               aria-invalid={parsePercent(valores[campo]) === null}
             />
           </div>
         ))}
       </div>
+      {infoTier && <p className="text-xs text-muted-foreground">{infoTier}</p>}
 
       {!split && (
         <p className="text-xs text-destructive">

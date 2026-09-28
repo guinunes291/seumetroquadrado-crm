@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FechamentoPage } from "@/features/financeiro/fechamento-page";
 import { ComissoesPage } from "@/features/comissoes/comissoes-page";
 import { DrePage } from "@/features/financeiro/dre-page";
+import { TiersPage } from "@/features/comissoes/tiers-page";
 
 // DINHEIRO — hub financeiro (auditoria ux-ia-2026-08, item 2.4 [DECIDIDO]):
 // fechamento, comissões e aprovação de venda no mesmo lugar. Responde "o que
@@ -18,7 +19,7 @@ import { DrePage } from "@/features/financeiro/dre-page";
 //
 // DRE: resultado por unidade + consolidado da rede (módulo dre_*, 100%
 // aditivo). Mesma regra do Fechamento — ferramenta de gestão, guard por aba.
-const FINANCEIRO_TABS = ["fechamento", "comissoes", "dre"] as const;
+const FINANCEIRO_TABS = ["fechamento", "comissoes", "tiers", "dre"] as const;
 type FinanceiroTab = (typeof FINANCEIRO_TABS)[number];
 
 export const Route = createFileRoute("/_authenticated/financeiro/")({
@@ -73,7 +74,25 @@ function FinanceiroPage() {
   // Sem aba de fechamento, sobra uma aba só — não renderizar barra de abas
   // para uma opção única (as páginas têm PageHeader próprio).
   if (!podeFechamento) {
-    return <ComissoesPage />;
+    return (
+      <ResponsiveTabs
+        value={activeTab === "tiers" ? "tiers" : "comissoes"}
+        onValueChange={onTabChange}
+        ariaLabel="Visões do financeiro"
+        className="space-y-4"
+        items={[
+          { value: "comissoes", label: "Comissões" },
+          { value: "tiers", label: "Meu tier" },
+        ]}
+      >
+        <ResponsiveTabsContent value="comissoes">
+          <ComissoesPage />
+        </ResponsiveTabsContent>
+        <ResponsiveTabsContent value="tiers">
+          <TiersPage />
+        </ResponsiveTabsContent>
+      </ResponsiveTabs>
+    );
   }
 
   return (
@@ -85,6 +104,7 @@ function FinanceiroPage() {
       items={[
         { value: "fechamento", label: "Fechamento" },
         { value: "comissoes", label: "Comissões & Aprovação" },
+        { value: "tiers", label: "Tiers" },
         { value: "dre", label: "DRE" },
       ]}
     >
@@ -93,6 +113,9 @@ function FinanceiroPage() {
       </ResponsiveTabsContent>
       <ResponsiveTabsContent value="comissoes">
         <ComissoesPage />
+      </ResponsiveTabsContent>
+      <ResponsiveTabsContent value="tiers">
+        <TiersPage />
       </ResponsiveTabsContent>
       <ResponsiveTabsContent value="dre">
         <DrePage />
