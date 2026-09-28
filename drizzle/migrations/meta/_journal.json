@@ -120,6 +120,13 @@
       "when": 1790634619081,
       "tag": "0016_prospeccao_lote_30",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790634744820,
+      "tag": "0017_fase0_admitir_porta_fechada",
+      "breakpoints": true
     }
   ]
 }
