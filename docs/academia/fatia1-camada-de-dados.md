@@ -10,17 +10,17 @@ As decisões do dono estão em [`fatia0-respostas.md`](fatia0-respostas.md) (se�
 
 ## 1. O que mudou
 
-| Arquivo                                                    | O que é                                                    |
-| ---------------------------------------------------------- | ---------------------------------------------------------- |
-| `supabase/migrations/20261002120000_academia_fundacao.sql` | Tipos, 17 tabelas, 3 views, 17 funções, RLS, grants, flags |
-| `supabase/migrations/20261002120100_academia_seed.sql`     | 6 fases, 26 módulos, 181 aulas, 136 questões, 8 regras     |
-| `drizzle/migrations/0015_academia_fundacao.sql`            | Espelho byte a byte da migration de fundação               |
-| `drizzle/migrations/0016_academia_seed.sql`                | Espelho byte a byte do seed                                |
-| `drizzle/migrations/meta/_journal.json`                    | Entradas idx 15 e 16                                       |
-| `drizzle/migrations/meta/0015_snapshot.json` e `0016_`     | Snapshots encadeados, no padrão vazio das anteriores       |
-| `docs/academia/fatia1-rollback.sql`                        | Rollback com a ordem corrigida                             |
-| `tests/db/academia.test.ts`                                | Testes de RLS, RPC e fluxo contra o banco real             |
-| `src/integrations/supabase/academia-pendente.ts`           | Fronteira tipada enquanto `types.ts` não é regenerado      |
+| Arquivo                                                    | O que é                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `supabase/migrations/20261002120000_academia_fundacao.sql` | Tipos, 17 tabelas, 3 views, 17 funções, RLS, grants, flags         |
+| `supabase/migrations/20261002120100_academia_seed.sql`     | 6 fases, 26 módulos, 181 aulas, 136 questões, 8 regras             |
+| `drizzle/migrations/0016_academia_fundacao.sql`            | Espelho byte a byte da migration de fundação                       |
+| `drizzle/migrations/0017_academia_seed.sql`                | Espelho byte a byte do seed                                        |
+| `drizzle/migrations/meta/_journal.json`                    | Entradas idx 16 e 17                                               |
+| `drizzle/migrations/meta/0016_snapshot.json` e `0017_`     | Snapshots encadeados depois da 0015 do Lovable (tiers de comissão) |
+| `docs/academia/fatia1-rollback.sql`                        | Rollback com a ordem corrigida                                     |
+| `tests/db/academia.test.ts`                                | Testes de RLS, RPC e fluxo contra o banco real                     |
+| `src/integrations/supabase/academia-pendente.ts`           | Fronteira tipada enquanto `types.ts` não é regenerado              |
 
 Nenhum arquivo fora dessa lista foi tocado. Nada de `pg_cron` nesta fatia: o
 motor de indicadores é da Fatia 5.
