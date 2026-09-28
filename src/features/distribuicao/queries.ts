@@ -497,6 +497,40 @@ export function useCorretoresDaMinhaEquipe(enabled = true) {
   });
 }
 
+/**
+ * Lista (id, nome) dos perfis ativos da(s) equipe(s) do gestor logado. O gestor
+ * não lê papéis de terceiros (RLS de user_roles), então a lista do diálogo de
+ * inclusão sai direto dos perfis do time — o banco revalida na inclusão.
+ */
+export function useCorretoresDaMinhaEquipeLista(enabled = true) {
+  return useQuery({
+    queryKey: ["distribuicao:corretores-minha-equipe-lista"],
+    enabled,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const meuId = auth.user?.id;
+      if (!meuId) return [] as Array<{ id: string; nome: string }>;
+      const [{ data: equipesGeridas }, { data: meuPerfil }] = await Promise.all([
+        supabase.from("equipes").select("id").eq("gestor_id", meuId),
+        supabase.from("profiles").select("equipe_id").eq("id", meuId).maybeSingle(),
+      ]);
+      const equipeIds = new Set<string>((equipesGeridas ?? []).map((e) => e.id));
+      if (meuPerfil?.equipe_id) equipeIds.add(meuPerfil.equipe_id);
+      if (equipeIds.size === 0) return [];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, nome")
+        .in("equipe_id", [...equipeIds])
+        .eq("ativo", true)
+        .neq("id", meuId)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []).map((p) => ({ id: p.id, nome: p.nome }));
+    },
+  });
+}
+
 /** Nomes dos corretores/gestores (mapa id → nome) para logs e tabelas. */
 export function useNomesPerfis(enabled = true) {
   return useQuery({
