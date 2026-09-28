@@ -61,16 +61,6 @@ export function ManualPage() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
-            <a
-              href="/manual/manual-crm.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
-              style={{ background: "var(--manual-gold)", color: "var(--manual-navy)" }}
-            >
-              <DownloadSimple className="h-4 w-4" weight="bold" />
-              Baixar em PDF
-            </a>
             <p className="text-xs uppercase tracking-[0.18em] opacity-70">
               Corretores · Pré-vendas · Gestores · Admin
             </p>
