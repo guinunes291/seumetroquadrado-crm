@@ -290,9 +290,9 @@ function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number;
         )}
       </div>
       <h3 className="mt-4 truncate font-display font-semibold">{sistema.titulo}</h3>
-      {/* Espaço FIXO de 2 linhas: descrição curta ou longa, o card não muda
-          de altura entre linhas da grade. */}
-      <p className="mt-1 line-clamp-2 min-h-10 text-sm text-muted-foreground">
+      {/* Descrição sempre completa; a grade iguala a altura dos cards da linha
+          e o "Acessar" fica alinhado embaixo. */}
+      <p className="mt-1 min-h-10 flex-1 text-sm text-muted-foreground">
         {sistema.descricao}
       </p>
       <span className={cn("mt-auto flex items-center gap-1 pt-4 text-sm font-semibold", cor.text)}>
