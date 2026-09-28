@@ -23,6 +23,7 @@
   --r:18px;--maxw:1180px;--ease:cubic-bezier(.22,.61,.36,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--white);line-height:1.55;font-size:16px;overflow-x:hidden}
 h1,h2,h3,.jk{font-family:"Plus Jakarta Sans",Inter,sans-serif;line-height:1.15;letter-spacing:-.02em}
@@ -66,6 +67,7 @@ section{padding:64px 0}
 .hero p.sub{color:#EAF1F8;font-size:1.08rem;max-width:560px;margin-bottom:26px}
 .hero .ctas{display:grid;gap:12px;max-width:460px}
 .hero .micro{font-size:.85rem;color:#9DB4CB;margin-top:12px}
+.hero .micro b{color:#fff}
 .proofs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:30px;max-width:560px}
 .proofs div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px;font-size:.9rem;color:#EAF1F8}
 .proofs b{display:block;font:800 1.35rem/1.1 "Plus Jakarta Sans",sans-serif;color:#fff}
@@ -125,7 +127,6 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px}
 .seg{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .seg button{border:1.5px solid var(--gray-200);background:#fff;border-radius:10px;padding:11px 0;font:700 .95rem Inter,sans-serif;color:var(--muted);cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--gold-soft);border-color:var(--gold);color:var(--navy)}
-.seg.seg2{grid-template-columns:1fr 1fr}
 .hint{font-size:.8rem;color:var(--muted);margin-top:6px}
 .result{background:var(--navy);color:#fff;border-radius:16px;padding:20px;margin:6px 0 16px}
 .result small{color:#9DB4CB;font-size:.85rem;display:block}
@@ -253,7 +254,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
         <a href="#comecar" class="btn btn-gold">Quero começar a ganhar comissões hoje</a>
         <a href="#" class="btn btn-wa js-wa" data-msg="hero"><svg class="wa-ico"><use href="#wa"/></svg>Falar agora no WhatsApp</a>
       </div>
-      <p class="micro">Sem taxa de adesão. Sem exclusividade. Resposta no mesmo dia.</p>
+      <p class="micro"><b data-so-faixa><span data-pct="regra">65% a partir da 2ª venda no mês</span>.</b> Sem taxa de adesão. Sem exclusividade. Resposta no mesmo dia.</p>
       <div class="proofs">
         <div><b data-pct="curta">60–65%</b>da comissão é sua</div>
         <div><b>Sigilo</b>seu nome fica com a SMQ</div>
@@ -295,7 +296,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
     <span class="eyebrow">O que você ganha</span>
     <h2 class="h2">Mais dinheiro, menos trabalho de bastidor</h2>
     <div class="ben-grid">
-      <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><h3><span data-pct="faixa">60% a 65%</span> da comissão, sem nota fiscal</h3><p>Percentual combinado por escrito no contrato de parceria. Pago via pagadoria 5 dias úteis após a SMQ receber, sem você emitir nota.</p></div></div>
+      <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><h3><span data-pct="faixa">60% a 65%</span> da comissão, sem nota fiscal</h3><p><span data-pct="regraContrato">60% na 1ª venda do mês e 65% a partir da 2ª, por escrito no contrato de parceria.</span> Pago via pagadoria 5 dias úteis após a SMQ receber, sem você emitir nota.</p></div></div>
       <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><h3>Sigilo na venda</h3><p>A venda é registrada pela SMQ. A construtora negocia com a imobiliária, não com o seu nome.</p></div></div>
       <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div><h3>Pré-análise e simulação por nossa conta</h3><p>Nosso time enquadra faixa, calcula subsídio e prestação e confere a pasta antes de ir para a Caixa.</p></div></div>
       <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><h3>Co-venda</h3><p>Sem tempo para a visita ou o plantão? Outro corretor SMQ conduz o fechamento e você paga só <span data-cfg="coVendaTaxa"></span>.</p></div></div>
@@ -346,18 +347,13 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
         <div class="seg seg5" id="cVendas" role="group" aria-labelledby="lVendas">
           <button type="button" data-v="1" aria-pressed="true">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="3" aria-pressed="false">3</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="5" aria-pressed="false">5</button>
         </div>
-      </div>
-      <div class="field" id="fPct">
-        <label id="lPct">Seu percentual da comissão</label>
-        <div class="seg seg2" id="cPct" role="group" aria-labelledby="lPct">
-          <button type="button" data-v="0.60" aria-pressed="true">60%</button><button type="button" data-v="0.65" aria-pressed="false">65%</button>
-        </div>
-        <p class="hint" id="cPctHint">O seu percentual fica definido por escrito no contrato de parceria.</p>
+        <p class="hint" id="rDica">A partir da 2ª venda no mês, cada venda paga 65%: R$ 7.280.</p>
       </div>
       <div class="result" aria-live="polite">
         <small>Sua renda extra por mês</small>
         <div class="big" id="rMes">R$ 0</div>
-                <div class="row"><span>Você recebe por venda (<span id="rPct">60%</span>)</span><b id="rPorVenda">R$ 0</b></div>
+                <div class="row"><span id="rMinTxt">1ª venda (60%)</span><b id="rMinVal">R$ 6.720</b></div>
+        <div class="row" id="rMaxRow" hidden><span id="rMaxTxt">2ª venda (65%)</span><b id="rMaxVal">R$ 7.280</b></div>
         <div class="row"><span>Em 12 meses</span><b id="rAno">R$ 0</b></div>
       </div>
       <a href="#comecar" class="btn btn-gold btn-block">Quero esse dinheiro: começar agora</a>
@@ -388,8 +384,9 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
         <p>A comissão é paga <b>somente 5 dias úteis após o recebimento do valor pela imobiliária</b> (depois do repasse do cliente). Nesse prazo, a sua parte (<span data-pct="faixa">60% a 65%</span>) cai na sua conta com o demonstrativo da venda.</p>
         <p>O pagamento é feito via pagadoria: você não precisa abrir empresa nem emitir nota fiscal. Toda a burocracia fica com a gente.</p>
       </div></details>
-      <details id="faqFaixa" hidden><summary>O que define se eu recebo <span data-pct="min">60%</span> ou <span data-pct="max">65%</span>?</summary><div class="ans">
-        <p data-cfg="criterioFaixa"></p>
+      <details id="faqFaixa" data-so-faixa><summary>O que define se eu recebo <span data-pct="min">60%</span> ou <span data-pct="max">65%</span>?</summary><div class="ans">
+        <p data-pct="regraFaq">O número de vendas no mês: 60% na 1ª venda do mês e 65% a partir da 2ª. A contagem recomeça todo mês.</p>
+        <p id="faqFaixaEx">Exemplo com imóveis de R$ 280.000: 3 vendas no mês = R$ 6.720 + R$ 7.280 + R$ 7.280 = R$ 21.280.</p>
       </div></details>
       <details><summary>Preciso deixar meu emprego?</summary><div class="ans">
         <p>Não. A parceria é para gerar renda extra com o cliente que você já atende e que hoje você perde por não ter o produto certo. Sem exclusividade, sem meta mínima, sem taxa.</p>
@@ -469,10 +466,9 @@ var CONFIG = {
   // Taxa única? Use o mesmo valor nos dois (ex.: 0.60 e 0.60): a página mostra só "60%".
   partilhaMin: 0.60,
   partilhaMax: 0.65,
-  // O que leva o parceiro do mínimo ao máximo. Escreva a regra REAL, em uma frase
-  // (ex. de formato: "65% a partir da 3ª venda no mês; 60% nas duas primeiras.").
-  // Vazio = a pergunta não aparece no FAQ e a calculadora diz só que o percentual vai no contrato.
-  criterioFaixa: "",
+  // A partir de qual venda NO MÊS vale o percentual máximo (a contagem recomeça todo mês).
+  // 2 = 1ª venda do mês a 60% e, da 2ª em diante, 65%. Textos da regra, FAQ e calculadora saem daqui.
+  vendaParaMax: 2,
   valorImovelExemplo: 280000,
   prazoRepasse: "5 dias úteis após o recebimento pela imobiliária",
   coVendaTaxa: "0,3% da sua comissão", // CONFIRMAR (ver observação)
@@ -490,10 +486,17 @@ var CONFIG = {
 // Textos da faixa, derivados do CONFIG (não edite aqui).
 var FAIXA = (function(){
   var min = Math.round(CONFIG.partilhaMin*100), max = Math.round(CONFIG.partilhaMax*100), unica = min === max;
+  var n = Math.max(2, Math.round(CONFIG.vendaParaMax) || 2);
+  var antes = n === 2 ? "na 1ª venda do mês" : "nas " + (n-1) + " primeiras vendas do mês";
+  var regraLonga = min + "% " + antes + " e " + max + "% a partir da " + n + "ª";
   return {
-    unica: unica, min: min + "%", max: max + "%",
+    unica: unica, n: n, min: min + "%", max: max + "%",
     faixa: unica ? min + "%" : min + "% a " + max + "%",   // "60% a 65%" (texto corrido)
-    curta: unica ? min + "%" : min + "–" + max + "%"       // "60–65%" (espaços apertados)
+    curta: unica ? min + "%" : min + "–" + max + "%",      // "60–65%" (espaços apertados)
+    regra: max + "% a partir da " + n + "ª venda no mês",   // "65% a partir da 2ª venda no mês"
+    regraLonga: regraLonga,                                // "60% na 1ª venda do mês e 65% a partir da 2ª"
+    regraContrato: unica ? "Percentual fixo, combinado por escrito no contrato de parceria." : regraLonga + ", por escrito no contrato de parceria.",
+    regraFaq: "O número de vendas no mês: " + regraLonga + ". A contagem recomeça todo mês."
   };
 })();
 
@@ -532,8 +535,15 @@ var MSGS = {
     var s = document.createElement("span"); s.className = p[1]; s.textContent = p[0]; heroEx.appendChild(s);
   });
 
-  // Pergunta "o que define 60% ou 65%?" só aparece com a regra preenchida
-  if (CONFIG.criterioFaixa && !FAIXA.unica) document.getElementById("faqFaixa").hidden = false;
+  // Com taxa única não há regra: some a frase do hero e a pergunta do FAQ
+  if (FAIXA.unica) document.querySelectorAll("[data-so-faixa]").forEach(function(el){ el.hidden = true; });
+
+  // Exemplo do FAQ: uma venda a mais do que o necessário para chegar ao máximo (3 vendas, com a regra atual)
+  var exQtd = FAIXA.n + 1, exVals = [], exTot = 0;
+  for (var i = 1; i <= exQtd; i++){
+    var v = porVendaDe(i < FAIXA.n ? CONFIG.partilhaMin : CONFIG.partilhaMax); exVals.push(brl(v)); exTot += v;
+  }
+  document.getElementById("faqFaixaEx").textContent = "Exemplo com imóveis de " + brl(CONFIG.valorImovelExemplo) + ": " + exQtd + " vendas no mês = " + exVals.join(" + ") + " = " + brl(exTot) + ".";
 
   // Depoimentos (só reais)
   if (CONFIG.depoimentos.length){
@@ -544,19 +554,24 @@ var MSGS = {
     }).join("");
   }
 
-  // Calculadora: quantidade de vendas x percentual (começa no mínimo da faixa, para não prometer a mais)
-  var qtd = 1, partilha = CONFIG.partilhaMin;
-  var pctBtns = document.querySelectorAll("#cPct button");
-  pctBtns[0].dataset.v = CONFIG.partilhaMin; pctBtns[0].textContent = FAIXA.min;
-  pctBtns[1].dataset.v = CONFIG.partilhaMax; pctBtns[1].textContent = FAIXA.max;
-  if (FAIXA.unica) document.getElementById("fPct").hidden = true;
-  if (CONFIG.criterioFaixa) document.getElementById("cPctHint").textContent = CONFIG.criterioFaixa;
+  // Calculadora: vendas antes da FAIXA.n-ésima do mês pagam o mínimo; dela em diante, o máximo
+  var qtd = 1, pMin = porVendaDe(CONFIG.partilhaMin), pMax = porVendaDe(CONFIG.partilhaMax);
+  var byId = function(id){ return document.getElementById(id); };
+  var vendas = function(a, b){ return a === b ? a + "ª venda" : a + "ª a " + b + "ª venda"; };   // "2ª a 5ª venda"
+  var vezes = function(k, v){ return (k > 1 ? k + " × " : "") + brl(v); };                     // "4 × R$ 7.280"
   function calc(){
-    var porVenda = porVendaDe(partilha);
-    document.getElementById("rPct").textContent = Math.round(partilha*100) + "%";
-    document.getElementById("rPorVenda").textContent = brl(porVenda);
-    document.getElementById("rMes").textContent = brl(qtd*porVenda);
-    document.getElementById("rAno").textContent = brl(qtd*porVenda*12);
+    var nMin = FAIXA.unica ? qtd : Math.min(qtd, FAIXA.n - 1), nMax = qtd - nMin;
+    byId("rMinTxt").textContent = FAIXA.unica ? "Por venda (" + FAIXA.min + ")" : vendas(1, nMin) + " (" + FAIXA.min + ")";
+    byId("rMinVal").textContent = FAIXA.unica ? brl(pMin) : vezes(nMin, pMin);
+    byId("rMaxRow").hidden = nMax === 0;
+    byId("rMaxTxt").textContent = vendas(FAIXA.n, qtd) + " (" + FAIXA.max + ")";
+    byId("rMaxVal").textContent = vezes(nMax, pMax);
+    // Enquanto não chegou ao máximo, mostra quanto a próxima venda passa a pagar
+    byId("rDica").hidden = FAIXA.unica || nMax > 0;
+    byId("rDica").textContent = "A partir da " + FAIXA.n + "ª venda no mês, cada venda paga " + FAIXA.max + ": " + brl(pMax) + ".";
+    var mes = nMin*pMin + nMax*pMax;
+    byId("rMes").textContent = brl(mes);
+    byId("rAno").textContent = brl(mes*12);
   }
   function seg(id, pick){
     var btns = document.querySelectorAll("#" + id + " button");
@@ -568,7 +583,6 @@ var MSGS = {
     });
   }
   seg("cVendas", function(v){ qtd = v; });
-  seg("cPct", function(v){ partilha = v; });
   calc();
 
   // Máscara de telefone
@@ -588,7 +602,7 @@ var MSGS = {
       el.closest(".in").classList.toggle("invalid",!good); if(!good&&ok){el.focus(); ok=false;}
     });
     if(!ok) return;
-    var data={nome:f.nome.value.trim(), telefone:f.telefone.value.replace(/\D/g,""), email:f.email.value.trim(), leads_mes:f.leads_mes.value, partilha_ofertada:FAIXA.faixa, origem:"lp-parceiros", utm:location.search, enviado_em:new Date().toISOString()};
+    var data={nome:f.nome.value.trim(), telefone:f.telefone.value.replace(/\D/g,""), email:f.email.value.trim(), leads_mes:f.leads_mes.value, partilha_ofertada:FAIXA.faixa + (FAIXA.unica ? "" : " (" + FAIXA.regra + ")"), origem:"lp-parceiros", utm:location.search, enviado_em:new Date().toISOString()};
     var txt="Olá! Quero ser corretor parceiro da SMQ.\n\nNome: "+data.nome+"\nWhatsApp: "+f.telefone.value+"\nE-mail: "+data.email+"\nLeads/mês: "+data.leads_mes+utm;
     document.getElementById("fBtn").disabled=true;
     // go() roda uma vez só: com webhook, o fetch e o timeout de 2,5 s chamam os dois
