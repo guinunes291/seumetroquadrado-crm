@@ -1617,13 +1617,13 @@ function LeadsPage() {
                   }}
                 />
               ) : listLoading ? (
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3">
                   {Array.from({ length: 6 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-full rounded-lg" />
+                    <Skeleton key={i} className="h-36 w-full rounded-lg" />
                   ))}
                 </div>
               ) : (
-                <div className="stagger-children grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="stagger-children grid gap-3">
                   {paginated.length === 0 && !listLoading && (
                     <div className="col-span-full text-center text-muted-foreground py-10">
                       Nenhum lead encontrado.
@@ -1715,39 +1715,46 @@ function LeadsPage() {
                           );
                         })()}
 
-                        <div className="text-xs text-muted-foreground capitalize">
-                          {l.projeto_nome || "Sem empreendimento"} · {origemLabel(l.origem)}
-                        </div>
-                        <div className="text-sm truncate">
+                        <div className="text-sm">
                           {l.telefone}
                           {l.email ? ` · ${l.email}` : ""}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-1 text-xs">
-                          <div>
-                            <div className="text-muted-foreground">Renda</div>
-                            <div className="truncate">{l.renda_informada || "—"}</div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Empreendimento</div>
+                            <div className="truncate" title={l.projeto_nome ?? undefined}>
+                              {l.projeto_nome || "Sem empreendimento"}
+                            </div>
                           </div>
-                          <div>
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Origem</div>
+                            <div className="truncate capitalize">{origemLabel(l.origem)}</div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Renda</div>
+                            <div className="truncate" title={l.renda_informada ?? undefined}>
+                              {l.renda_informada || "—"}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
                             <div className="text-muted-foreground">Entrada</div>
                             <div className="truncate">{l.entrada_disponivel || "—"}</div>
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <div className="text-muted-foreground">FGTS</div>
                             <div>{l.usa_fgts == null ? "—" : l.usa_fgts ? "Sim" : "Não"}</div>
                           </div>
-                        </div>
-
-                        <div className="min-h-[20px]">
-                          {l.corretor_id ? (
-                            <span className="text-xs text-muted-foreground">
-                              {corretoresMap.get(l.corretor_id) ?? ""}
-                            </span>
-                          ) : (
-                            <span className="text-xs italic text-muted-foreground">
-                              sem corretor
-                            </span>
-                          )}
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Corretor</div>
+                            {l.corretor_id ? (
+                              <div className="truncate">
+                                {corretoresMap.get(l.corretor_id) ?? ""}
+                              </div>
+                            ) : (
+                              <div className="italic text-muted-foreground">sem corretor</div>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
