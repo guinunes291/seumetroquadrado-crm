@@ -164,7 +164,9 @@ export function ReservaPage({ corretorId }: { corretorId?: string }) {
         toast.error(
           r.motivo === "cap_resgate_atingido"
             ? `Você já tem ${r.cap ?? CAP_RESGATE_PADRAO} resgates na carteira. Solte um para trazer outro.`
-            : "Não foi possível trazer este cliente.",
+            : r.motivo === "porta_fechada_use_lote"
+              ? "Clientes novos agora chegam pelo botão “Pedir lote de 30” na Prospecção."
+              : "Não foi possível trazer este cliente.",
         );
       },
       onError: () => toast.error("Não foi possível trazer este cliente."),

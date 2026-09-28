@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { FocusMode } from "@/features/leads/focus-mode";
 import { cn } from "@/lib/utils";
+import { LoteProspeccaoCard } from "@/features/prospeccao/lote-card";
 
 export type BaseProspeccao =
   | "aguardando_atendimento"
@@ -161,6 +162,9 @@ export function ModoFocoProspeccaoPage() {
         title="Prospecção — Modo Foco"
         description="Escolha a base do dia. O sistema monta o lote e você trabalha um lead por vez, sem distração."
       />
+
+      <LoteProspeccaoCard />
+
 
       {contagensQ.isError ? (
         <QueryErrorState
