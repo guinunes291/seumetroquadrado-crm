@@ -77,6 +77,7 @@ import {
 import {
   useCorretoresDaMinhaEquipe,
   useCorretoresDisponiveis,
+  useCorretoresDaMinhaEquipeLista,
   useElegibilidadeRoleta,
   useEscoarEstoque,
   useGerenciarParticipante,
