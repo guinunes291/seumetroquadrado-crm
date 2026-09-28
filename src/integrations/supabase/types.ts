@@ -860,6 +860,7 @@ export type Database = {
           intervalo_min_lig: string
           lote_estoque_dia: number
           modo: string
+          portas_legadas_bolsao: boolean
           quatro_etapas_desde: string | null
           tolerancia_venc_d: number
         }
@@ -871,6 +872,7 @@ export type Database = {
           intervalo_min_lig?: string
           lote_estoque_dia?: number
           modo?: string
+          portas_legadas_bolsao?: boolean
           quatro_etapas_desde?: string | null
           tolerancia_venc_d?: number
         }
@@ -882,6 +884,7 @@ export type Database = {
           intervalo_min_lig?: string
           lote_estoque_dia?: number
           modo?: string
+          portas_legadas_bolsao?: boolean
           quatro_etapas_desde?: string | null
           tolerancia_venc_d?: number
         }
@@ -4007,6 +4010,7 @@ export type Database = {
           prioridades: string[]
           projeto_id: string | null
           projeto_nome: string | null
+          prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
@@ -4097,6 +4101,7 @@ export type Database = {
           prioridades?: string[]
           projeto_id?: string | null
           projeto_nome?: string | null
+          prospeccao_lote_id?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
           reativado?: boolean
@@ -4187,6 +4192,7 @@ export type Database = {
           prioridades?: string[]
           projeto_id?: string | null
           projeto_nome?: string | null
+          prospeccao_lote_id?: string | null
           proxima_acao?: string | null
           proximo_followup?: string | null
           reativado?: boolean
@@ -4243,6 +4249,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
+          },
+          {
+            foreignKeyName: "leads_prospeccao_lote_id_fkey"
+            columns: ["prospeccao_lote_id"]
+            isOneToOne: false
+            referencedRelation: "prospeccao_lotes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5710,6 +5723,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projetos_alternativa_regiao"
             referencedColumns: ["projeto_id"]
+          },
+        ]
+      }
+      prospeccao_lotes: {
+        Row: {
+          corretor_id: string
+          created_at: string
+          entregues: number
+          id: string
+          solicitados: number
+          zona: string
+        }
+        Insert: {
+          corretor_id: string
+          created_at?: string
+          entregues?: number
+          id?: string
+          solicitados?: number
+          zona: string
+        }
+        Update: {
+          corretor_id?: string
+          created_at?: string
+          entregues?: number
+          id?: string
+          solicitados?: number
+          zona?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospeccao_lotes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospeccao_lotes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
           },
         ]
       }
@@ -8750,6 +8805,7 @@ export type Database = {
           prioridades: string[]
           projeto_id: string | null
           projeto_nome: string | null
+          prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
@@ -10992,6 +11048,8 @@ export type Database = {
           vendas_total: number
         }[]
       }
+      prospeccao_lote_status_v1: { Args: never; Returns: Json }
+      prospeccao_pedir_lote: { Args: { _zona: string }; Returns: Json }
       ranking_campeonato: {
         Args: { _fim: string; _inicio: string }
         Returns: Json
@@ -11370,6 +11428,7 @@ export type Database = {
           prioridades: string[]
           projeto_id: string | null
           projeto_nome: string | null
+          prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
@@ -11522,6 +11581,7 @@ export type Database = {
           prioridades: string[]
           projeto_id: string | null
           projeto_nome: string | null
+          prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
@@ -11626,6 +11686,7 @@ export type Database = {
           prioridades: string[]
           projeto_id: string | null
           projeto_nome: string | null
+          prospeccao_lote_id: string | null
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
