@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { formatRelativeTime } from "@/lib/interacoes";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -1756,6 +1757,52 @@ function LeadsPage() {
                             )}
                           </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Último contato</div>
+                            <div className="truncate">
+                              {l.ultima_interacao
+                                ? formatRelativeTime(l.ultima_interacao)
+                                : "Nunca contatado"}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Próximo follow-up</div>
+                            <div className="truncate">
+                              {l.proximo_followup
+                                ? new Date(l.proximo_followup).toLocaleString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : l.tem_followup
+                                  ? "Agendado"
+                                  : "—"}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Entrou em</div>
+                            <div className="truncate">
+                              {new Date(l.created_at).toLocaleDateString("pt-BR")}
+                            </div>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-muted-foreground">Próximo passo</div>
+                            <div className="truncate font-medium">{proxima?.label ?? "—"}</div>
+                          </div>
+                        </div>
+
+                        {l.observacoes && (
+                          <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Resumo: </span>
+                            <span className="line-clamp-3 whitespace-pre-line">
+                              {l.observacoes}
+                            </span>
+                          </div>
+                        )}
+
 
                         <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
                           <Button
