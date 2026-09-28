@@ -1,31 +1,20 @@
 -- =============================================================================
--- Academia SMQ · Fatia 0 · Diagnóstico (SOMENTE LEITURA)
+-- Academia SMQ · Fatia 0 · Diagnóstico em UMA consulta (modo console)
 --
--- ONDE RODAR: SQL Editor do Supabase do CRM (projeto rldnprwjlomjmjvinxuh).
--- COMO RODAR: um bloco por vez (cada bloco termina em ';'). Me devolva a saída
---             de cada um, na ordem. Nenhum bloco escreve: todos são SELECT e as
---             funções chamadas são STABLE/IMMUTABLE (funil_ordem,
---             lead_sem_proximo_passo, _minutos_uteis_entre).
--- VALIDAÇÃO: todos os blocos rodaram sem erro contra o replay das 401
---            migrations do repo (Postgres 16, scripts/db-harness), e os blocos
---            de indicador foram checados com dados sintéticos plantados
---            (controle positivo do próprio SQL). Produção pode ter objetos
---            fora de migration: se algum bloco der erro de objeto inexistente,
---            isso já é um achado. Me mande o erro.
+-- GERADO a partir de fatia0-diagnostico.sql (mesmas 20 consultas, mesmo texto).
+-- Não edite aqui: edite o original e gere de novo.
 --
--- Parâmetros: cada bloco de indicador abre com um CTE "params". A janela
--- padrão é 30 dias. Mude ali, não no meio da consulta.
+-- Para quem não tem acesso programático ao banco:
+--   1. cole o arquivo INTEIRO no SQL Editor do Supabase do CRM;
+--   2. clique Run uma vez;
+--   3. exporte o resultado (Download CSV / Export).
+-- Volta 20 linhas: uma por bloco, com o resultado do bloco em JSON.
+-- Somente leitura: é um único SELECT.
 -- =============================================================================
 
-
--- =============================================================================
--- BLOCO 0 · O instrumento está enxergando?
--- =============================================================================
-
--- 0.1 · Caminho independente do MCP.
--- O MCP devolve 0 agendamentos e 0 vendas em ago-set/2026. Aqui é contagem
--- direta nas tabelas. Se estas linhas vierem > 0, o defeito está no MCP, não
--- na operação, e fica provado que o MCP não serve de fonte para a Academia.
+-- ---------------------------------------------------------------- 0.1
+SELECT 1 AS ordem, '0.1' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   to_char(date_trunc('month', x.quando AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM') AS mes_brt,
   x.fonte,
@@ -54,14 +43,12 @@ FROM (
 ) AS x
 WHERE x.quando >= timestamptz '2026-06-01 00:00:00-03'
 GROUP BY 1, 2
-ORDER BY 2, 1;
-
-
--- 0.2 · O histórico de status (lead_status_transitions) cobre o funil?
--- O gatilho grava só em UPDATE de status. Lead que NASCE num status não deixa
--- linha. Aqui cruzo com um caminho independente: a tabela agendamentos.
--- Se "com_transicao" for bem menor que o total, "passou por agendado" lido só
--- pelo histórico vai subcontar, e a Academia precisa ler os dois caminhos.
+ORDER BY 2, 1
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.2
+SELECT 2 AS ordem, '0.2' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH ag AS (
   SELECT DISTINCT a.lead_id
     FROM public.agendamentos a
@@ -82,13 +69,12 @@ SELECT
     AS status_atual_agendado_ou_alem,
   count(*) FILTER (WHERE l.status = 'perdido') AS status_atual_perdido
 FROM ag
-JOIN public.leads l ON l.id = ag.lead_id;
-
-
--- 0.3 · Escrita em lote no histórico de status (regra 5).
--- Instantes com 20+ transições no mesmo segundo nos últimos 120 dias. Se
--- aparecerem blocos grandes com alterado_por nulo, são carga/automação e
--- precisam sair do cálculo de taxa.
+JOIN public.leads l ON l.id = ag.lead_id
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.3
+SELECT 3 AS ordem, '0.3' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   date_trunc('second', t.created_at) AS instante,
   t.para_status,
@@ -100,14 +86,12 @@ WHERE t.created_at >= now() - interval '120 days'
 GROUP BY 1, 2
 HAVING count(*) >= 20
 ORDER BY linhas DESC
-LIMIT 30;
-
-
--- 0.4 · Status legados ainda recebem tráfego?
--- A especificação usa 'qualificado' e 'proposta_enviada'. Em funil_ordem os
--- dois são legados (qualificado = em_atendimento; proposta_enviada fica no
--- mesmo degrau de visita_realizada). Se vierem ~0, indicador que depende
--- deles mede nada.
+LIMIT 30
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.4
+SELECT 4 AS ordem, '0.4' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   t.para_status,
   count(*) FILTER (WHERE t.created_at >= now() - interval '30 days')  AS ult_30d,
@@ -116,28 +100,30 @@ SELECT
   public.funil_ordem(t.para_status)                                    AS degrau_funil
 FROM public.lead_status_transitions t
 GROUP BY t.para_status
-ORDER BY degrau_funil, t.para_status;
-
-
--- 0.5 · pg_cron: o que está agendado DE VERDADE (camada de execução).
--- Nas migrations não existe job às 04:30 nem função sla_*. A doc da Higiene
--- (3.1) já registrou job criado fora de migration, então só esta consulta
--- responde. ATENÇÃO: pg_cron no Supabase roda em UTC; 04:30 BRT = 07:30 UTC.
+ORDER BY degrau_funil, t.para_status
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.5
+SELECT 5 AS ordem, '0.5' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   j.jobid, j.jobname, j.schedule, j.active,
   left(regexp_replace(j.command, '\s+', ' ', 'g'), 140) AS comando
 FROM cron.job j
-ORDER BY j.schedule, j.jobname;
-
-
--- 0.6 · Extensões e fuso do agendador.
+ORDER BY j.schedule, j.jobname
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.6
+SELECT 6 AS ordem, '0.6' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT e.extname, e.extversion, current_setting('cron.timezone', true) AS cron_timezone
 FROM pg_extension e
-WHERE e.extname IN ('pg_cron', 'pg_net');
-
-
--- 0.7 · Objetos que a Academia assume ou não pode tocar. Existem em produção?
--- (compara a camada de execução com o que está no repo)
+WHERE e.extname IN ('pg_cron', 'pg_net')
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.7
+SELECT 7 AS ordem, '0.7' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS argumentos
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -151,32 +137,33 @@ WHERE n.nspname = 'public'
                         'lead_sem_proximo_passo', '_minutos_uteis_entre',
                         'higiene_dias_parado', 'corretores_do_gestor',
                         've_carteira_completa'))
-ORDER BY p.proname;
-
-
--- 0.8 · Já existe algo "academia_*" no banco? (tabela, view)
+ORDER BY p.proname
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.8
+SELECT 8 AS ordem, '0.8' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT c.relname, c.relkind
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = 'public' AND c.relname LIKE 'academia%';
-
-
--- 0.9 · O gate de onboarding da roleta v2 está ligado?
--- _apto_extra_v2 tira da roleta quem tem profiles.onboarding_concluido_em
--- nulo, mas só quando o modelo v2 está ativo. A Academia desenha um "Apto"
--- próprio; preciso saber se o gate atual já bloqueia gente hoje.
+WHERE n.nspname = 'public' AND c.relname LIKE 'academia%'
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- 0.9
+SELECT 9 AS ordem, '0.9' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   public._modelo_v2_ativo() AS modelo_v2_ativo,
   count(*) FILTER (WHERE rp.ativo)                                              AS participacoes_ativas,
   count(*) FILTER (WHERE rp.ativo AND p.onboarding_concluido_em IS NULL)        AS ativas_sem_onboarding,
   count(*) FILTER (WHERE rp.ativo AND p.onboarding_concluido_origem = 'manual') AS ativas_onboarding_manual
 FROM public.roleta_participantes rp
-JOIN public.profiles p ON p.id = rp.corretor_id;
-
-
--- =============================================================================
--- BLOCO P · Perfis. Eu mostro sinais; você decide quem entra na Academia.
--- =============================================================================
+JOIN public.profiles p ON p.id = rp.corretor_id
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- P
+SELECT 10 AS ordem, 'P' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   p.nome,
   split_part(p.email, '@', 2) AS email_dominio,  -- só o domínio: a saída vai para o GitHub
@@ -218,24 +205,12 @@ SELECT
 FROM public.profiles p
 LEFT JOIN auth.users u     ON u.id = p.id
 LEFT JOIN public.equipes e ON e.id = p.equipe_id
-ORDER BY p.status_conta, p.nome;
-
-
--- =============================================================================
--- BLOCO I · Indicadores da Fatia 5. Cada um traz o controle positivo junto.
---
--- Base comum: "corretor elegível" = papel corretor + conta ativa + não é bot
--- de serviço + não é identidade MCP. É PROVISÓRIO: a lista final é a sua.
--- =============================================================================
-
--- I1 · tempo_primeiro_contato (maior é pior). Exibido em hh:mm de minutos
---      ÚTEIS (08:00-19:00 BRT, mesma régua do SLA de 15 min).
--- Posse = do registro em distribution_log até a próxima atribuição do lead.
--- Primeiro contato = o mais cedo entre 4 caminhos, todos DO PRÓPRIO corretor
--- e dentro da posse: interação real (exclui mudanca_status e nota), chamada
--- de saída, mensagem de saída, e saída de aguardando_atendimento (definição
--- do SLA). I1a mostra quanto cada caminho enxerga (controle). I1b é o indicador.
--- I1a · Controle: por gatilho, quanto cada caminho enxerga.
+ORDER BY p.status_conta, p.nome
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I1a
+SELECT 11 AS ordem, 'I1a' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH params AS (
   SELECT now() - interval '30 days' AS ini, now() AS fim
 ),
@@ -295,11 +270,12 @@ SELECT
                                                    AS com_algum_contato
 FROM contato
 GROUP BY gatilho
-ORDER BY atribuicoes DESC;
-
-
--- I1b · O indicador: por corretor, sem o estoque reciclado. Mediana só entre
--- as atribuições com contato; pct_sem_contato_registrado mostra o resto.
+ORDER BY atribuicoes DESC
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I1b
+SELECT 12 AS ordem, 'I1b' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH params AS (
   SELECT now() - interval '30 days' AS ini, now() AS fim
 ),
@@ -374,18 +350,12 @@ SELECT
   lpad((floor(ag.mediana_min)::int % 60)::text, 2, '0')              AS mediana_hhmm_uteis
 FROM agregado ag
 JOIN corretores co ON co.id = ag.corretor_id
-ORDER BY ag.atribuicoes DESC;
-
-
--- I2 · taxa_agendamento (menor é pior).
--- Coorte MADURA: primeira atribuição do lead a ESTE corretor entre 37 e 7 dias
--- atrás (7 dias de maturação: lead que chegou ontem não teve tempo de agendar).
--- "Passou por agendado" com este corretor, por 3 caminhos independentes:
---   T = transição para agendado ou além com corretor_id = ele (histórico)
---   A = agendamento de visita dele para o lead (tabela agendamentos)
---   S = status atual agendado ou além e o lead ainda é dele (piso, igual à
---       régua de metrics.funil_coorte_mensal)
--- A saída mostra quanto cada caminho acha sozinho: é o controle.
+ORDER BY ag.atribuicoes DESC
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I2
+SELECT 13 AS ordem, 'I2' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH params AS (
   SELECT now() - interval '37 days' AS ini, now() - interval '7 days' AS fim
 ),
@@ -444,16 +414,12 @@ SELECT
 FROM marcado m
 JOIN corretores co ON co.id = m.corretor_id
 GROUP BY co.nome
-ORDER BY leads_coorte DESC;
-
-
--- I3 · taxa_comparecimento (menor é pior).
--- Régua da casa desde 31/07: visita é validada POR AGENDAMENTO
--- (realizado / nao_compareceu), contada na data da visita. Sintéticos
--- (auto_gerado) ficam fora: nascem "realizado" e inflariam a taxa.
--- "pendente_validacao" = visita que já passou e ninguém validou. Se for
--- grande, a taxa daquele corretor não é confiável e a tela tem que dizer.
--- Ao lado, a definição da especificação (histórico de status) para comparar.
+ORDER BY leads_coorte DESC
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I3
+SELECT 14 AS ordem, 'I3' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH params AS (
   SELECT now() - interval '30 days' AS ini, now() AS fim
 ),
@@ -495,18 +461,12 @@ FROM corretores co
 LEFT JOIN ag   ON ag.corretor_id = co.id
 LEFT JOIN hist h ON h.corretor_id = co.id
 GROUP BY co.nome
-ORDER BY realizadas DESC NULLS LAST;
-
-
--- I4 · taxa_visita_para_avanco (menor é pior).
--- Coorte: visitas validadas como realizadas entre 44 e 14 dias atrás (14 dias
--- de maturação para a pasta andar). "Avançou" por 4 caminhos independentes:
---   H = transição para analise_credito ou além, depois da visita
---   P = pasta montada (leads.pasta_montada_em) depois da visita
---   C = linha em analises_credito criada depois da visita
---   R = proposta criada depois da visita (tabela propostas)
--- Não uso proposta_enviada do histórico: em funil_ordem ela está no MESMO
--- degrau da visita (6), então "chegou a proposta_enviada" não é avanço.
+ORDER BY realizadas DESC NULLS LAST
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I4
+SELECT 15 AS ordem, 'I4' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH params AS (
   SELECT now() - interval '44 days' AS ini, now() - interval '14 days' AS fim
 ),
@@ -553,18 +513,12 @@ SELECT
 FROM marcado m
 JOIN corretores co ON co.id = m.corretor_id
 GROUP BY co.nome
-ORDER BY visitas_coorte DESC;
-
-
--- I5 + I6 · pct_carteira_parada e pct_sem_proximo_passo (maior é pior).
--- Retrato de agora. Mesmas peças da casa:
---   relógio  = COALESCE(GREATEST(ultima_interacao, ultimo_contato), created_at)  (Higiene 2.2)
---   formação = cadencia_etapa D0..D3, conta como prospecção            (carteira_stats_por_corretor_v1)
---   lote     = 50+ leads no mesmo segundo do relógio, calculado sobre a
---              tabela INTEIRA, não só sobre os vivos                   (Higiene 4.1)
---   sem passo = lead_sem_proximo_passo(id)                            (fonte única de 3 telas)
--- Mostro "parado" em 3 réguas porque a casa tem 3: 5 dias (Higiene),
--- 7 dias (especificação da Academia) e 7/30 por fase (Carteira Ativa).
+ORDER BY visitas_coorte DESC
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I5_I6
+SELECT 16 AS ordem, 'I5_I6' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH corretores AS (
   SELECT p.id, p.nome
     FROM public.profiles p
@@ -609,21 +563,18 @@ SELECT
 FROM carteira c
 JOIN corretores co ON co.id = c.corretor_id
 GROUP BY co.nome
-ORDER BY carteira_ativa DESC;
-
-
--- I5/I6 · Controle positivo: a mesma partição tem que bater com a tela da
--- Higiene. Se "vivos_parados_5d_higiene" daqui divergir de
--- v_higiene_resumo, o recorte está errado antes de virar indicador.
-SELECT * FROM public.v_higiene_resumo;
-
-
--- I7 · taxa_pasta_devolvida (maior é pior). NÃO achei a fonte.
--- "Pasta" existe como marco (leads.pasta_montada_em, 3+ docs resolvidos,
--- desde 31/07). "Devolução/pendência" não existe como evento: documentacoes
--- guarda só o status atual. Abaixo, o que existe, para você me dizer se
--- algum destes É a devolução de verdade ou se ela mora fora do CRM.
--- 7a · Pastas montadas por mês e quantas têm análise registrada.
+ORDER BY carteira_ativa DESC
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I5_I6_controle
+SELECT 17 AS ordem, 'I5_I6_controle' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
+SELECT * FROM public.v_higiene_resumo
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I7a
+SELECT 18 AS ordem, 'I7a' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT
   to_char(date_trunc('month', l.pasta_montada_em AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM') AS mes_brt,
   count(*) AS pastas_montadas,
@@ -639,24 +590,22 @@ SELECT
 FROM public.leads l
 WHERE l.deleted_at IS NULL AND l.pasta_montada_em IS NOT NULL
 GROUP BY 1
-ORDER BY 1;
-
--- 7b · Status das análises de crédito (a ÚLTIMA linha por lead é o estado).
+ORDER BY 1
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I7b
+SELECT 19 AS ordem, 'I7b' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 SELECT ac.status, count(*) AS linhas, count(DISTINCT ac.lead_id) AS leads,
        min(ac.created_at)::date AS primeira, max(ac.created_at)::date AS ultima
 FROM public.analises_credito ac
 GROUP BY ac.status
-ORDER BY linhas DESC;
-
-
--- I8 · taxa_perda_por_qualificacao (maior é pior).
--- Perda lida em "passou por" (transição para perdido), com a categoria
--- gravada NO MOMENTO da perda (lead_eventos, payload.motivo_categoria), não
--- o rótulo atual do lead, que é sobrescrito quando o SDR recicla perdidos.
--- Separo quem perdeu: o próprio corretor, automação (sem autor) ou outra
--- pessoa (gestor). Só a primeira é decisão do corretor.
--- ATENÇÃO: transicionar_lead grava 'outro' quando ninguém escolhe. 'outro'
--- está inflado por construção.
+ORDER BY linhas DESC
+  ) AS t) AS resultado
+UNION ALL
+-- ---------------------------------------------------------------- I8
+SELECT 20 AS ordem, 'I8' AS bloco,
+  (SELECT coalesce(json_agg(t), '[]'::json) FROM (
 WITH params AS (
   SELECT now() - interval '30 days' AS ini, now() AS fim
 ),
@@ -686,4 +635,6 @@ SELECT
   count(*) FILTER (WHERE degrau_antes >= public.funil_ordem('qualificacao_corretor')) AS depois_de_qualificacao
 FROM perdas
 GROUP BY 1, 2
-ORDER BY 1, perdas DESC;
+ORDER BY 1, perdas DESC
+  ) AS t) AS resultado
+ORDER BY ordem;
