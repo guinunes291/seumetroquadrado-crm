@@ -86,3 +86,26 @@ Onde o corretor cai depois do login.
 
 **Escolhido: `/academia/gestao` (Recomendado).**
 E `/academia/conteudo` só para admin.
+
+## Fatia 1 · decisões
+
+**Data e hora (Brasília):** 2026-09-28 15:05 -03
+
+### 1. [Permissão] Modelo de acesso da Academia
+
+**Escolhido: Gestor lê a equipe, escrita por função (Recomendado).**
+Gestor só lê a própria equipe, pela regra da casa (`pode_acessar_corretor`); toda escrita passa por RPC que confere permissão; conteúdo, gabarito, regras e config só admin.
+
+Como isso virou código: `academia_eh_gestor` foi removida e no lugar entraram `academia_eh_admin()` e `academia_pode_gerir(_pessoa)`. A segunda tem o "nunca sou eu mesmo" embutido — é o que impede o gestor-aluno de aprovar a própria prática, fazer override do próprio nível ou se atribuir módulo. Nenhuma tabela `academia_*` tem policy de INSERT, UPDATE ou DELETE para as tabelas pessoais.
+
+### 2. [Nomes] Nível da Academia e fase 0
+
+**Escolhido: "Habilitado" e "Integração" (Recomendado).**
+Não colidem com o Apto da roleta (`onboarding_concluido_em`) nem com a tela de onboarding de 6 passos.
+
+Alcance do rename: o valor `apto` do enum `academia_nivel` virou `habilitado` **na mesma posição** (há comparações com `>` e `>=`), a coluna `apto_override` virou `habilitado_override`, a função `academia_definir_apto` virou `academia_definir_habilitado`, a coluna `apto` da view virou `habilitado`. A fase 0 passou a se chamar "Integração", e a palavra `onboarding` saiu do CHECK de `academia_encontros.tipo` e de `academia_atribuicoes.origem`, virando `integracao` nos dois. O título do módulo O01 acompanhou ("Integração: pronto para atender").
+
+### 3. [Fora do escopo] Ana Caroline, contas de teste e docs-bot
+
+**Escolhido: Tarefa separada, não mexer agora (Recomendado).**
+Ana Caroline Pereira bloqueada com 402 leads vivos e 12 participações ativas em roleta; cinco contas de teste com e-mail descartável e `status_conta = 'ativa'`; `docs-bot` com papel `gestor`. Nada foi tocado nesta fatia. Segue registrado na seção 4 de `fatia0-fechamento.md` e pede prompt próprio.
