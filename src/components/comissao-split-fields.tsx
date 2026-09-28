@@ -58,7 +58,7 @@ export function ComissaoSplitFields({ valorVenda, valores, onChange, travados, i
           </div>
         ))}
       </div>
-      {infoTier && <p className="text-xs text-muted-foreground">{infoTier}</p>
+      {infoTier && <p className="text-xs text-muted-foreground">{infoTier}</p>}
 
       {!split && (
         <p className="text-xs text-destructive">
