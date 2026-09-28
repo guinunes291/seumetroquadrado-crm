@@ -139,6 +139,26 @@ export function ehGrandeSP(texto: string | null | undefined): boolean {
   return MUNICIPIOS_GRANDE_SP.some((m) => contemPalavra(k, m));
 }
 
+const MUNICIPIOS_ABC = [
+  "santo andre",
+  "sao bernardo",
+  "sao caetano",
+  "diadema",
+  "maua",
+  "ribeirao pires",
+  "rio grande da serra",
+  "rudge ramos",
+];
+
+/** O texto aponta para o ABC paulista? (Tratado como Zona Sul.) */
+export function ehABC(texto: string | null | undefined): boolean {
+  const k = chave(texto);
+  if (!k) return false;
+  if (contemPalavra(k, "abc")) return true;
+  if (/(^| )vila maua( |$)/.test(k)) return false;
+  return MUNICIPIOS_ABC.some((m) => contemPalavra(k, m));
+}
+
 const ehCapital = (cidade: string | null | undefined): boolean => {
   const k = chave(cidade);
   return k === "sao paulo" || k === "sp" || k === "sao paulo sp";
@@ -150,6 +170,8 @@ const ehCapital = (cidade: string | null | undefined): boolean => {
  * cidade colada ("Ponte Grande (Guarulhos)") → Grande SP.
  */
 export function zonaDoProjeto(p: ProjetoComZona): ZonaProjeto | null {
+  // Decisão de 2026-09-28: tudo que for ABC conta como Zona Sul.
+  if ([p.zona_smq, p.regiao, p.cidade, p.bairro].some(ehABC)) return "Sul";
   if (p.cidade && !ehCapital(p.cidade) && ehGrandeSP(p.cidade)) return GRANDE_SP;
   if (ehGrandeSP(p.zona_smq)) return GRANDE_SP;
   const capital = normalizeZona(p.zona_smq) ?? normalizeZona(p.regiao);

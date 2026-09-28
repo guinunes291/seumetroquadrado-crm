@@ -31,7 +31,8 @@ describe("zonaDoProjeto", () => {
   // Decisão 4 de 2026-09-02: Grande SP é zona de primeira classe na prateleira.
   it("reconhece Grande SP pela zona, pela região, pela cidade e pelo bairro colado", () => {
     expect(zonaDoProjeto({ zona_smq: "Grande SP" })).toBe(GRANDE_SP);
-    expect(zonaDoProjeto({ regiao: "ABC Paulista" })).toBe(GRANDE_SP);
+    expect(zonaDoProjeto({ regiao: "ABC Paulista" })).toBe("Sul");
+    expect(zonaDoProjeto({ zona_smq: "Grande SP", bairro: "Santo Andre" })).toBe("Sul");
     expect(zonaDoProjeto({ zona_smq: "Zona Norte", cidade: "Guarulhos" })).toBe(GRANDE_SP);
     expect(zonaDoProjeto({ bairro: "Ponte Grande (Guarulhos)" })).toBe(GRANDE_SP);
     expect(zonaDoProjeto({ cidade: "Osasco" })).toBe(GRANDE_SP);
