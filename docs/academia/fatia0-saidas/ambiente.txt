@@ -30,7 +30,8 @@ CONTAGENS DO PASSO 1: não obtidas por falta de acesso.
 DIAGNÓSTICO: fatia0-diagnostico-console.sql rodado uma vez, consulta única.
       20 de 20 blocos retornaram sem erro. Nenhum bloco com "ERRO".
       Bloco 0.8 retornou conjunto vazio ([]) — resultado válido, não é falha.
-      Saída em fatia0-saidas/diagnostico.csv (81.306 bytes, separador ";",
+      Saída bruta (diagnostico.csv, 81.306 bytes, separador ";", tem dados por
+      corretor e não é versionada no main por decisão do dono;
       colunas bloco;ordem;resultado).
 
 PASSO 5 · SHELDON BARBOSA: confirmado: só gestor.

@@ -33,7 +33,13 @@ const IGNORED_FILES = new Set(["src/routeTree.gen.ts"]);
 // regenerar os types com as views de Higiene do Funil, apague
 // src/integrations/supabase/higiene-pendente.ts, troque supabaseHigiene por
 // supabase e baixe de novo.
-const MAX_ESCAPES = 145;
+// 2026-09-28 — de 145 para 146, decisão do dono no PR da Academia SMQ.
+// O +1 é src/integrations/supabase/academia-pendente.ts, fronteira tipada da
+// Academia no mesmo padrão de higiene-pendente.ts: as tabelas academia_* só
+// existem nos types depois que a migration 20261002120000 roda em produção e o
+// Lovable regenera types.ts. Quando isso acontecer, apague academia-pendente.ts,
+// troque supabaseAcademia por supabase e baixe este teto para 145.
+const MAX_ESCAPES = 146;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {

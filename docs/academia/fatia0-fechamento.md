@@ -1,7 +1,7 @@
 # Academia SMQ · Fatia 0 · Fechamento do diagnóstico (28/09/2026)
 
 Registro do que foi medido em produção, do que isso muda no desenho da Academia e do que
-ainda falta. Cada número vem de `fatia0-saidas/diagnostico.csv` (consulta única
+ainda falta. Cada número vem da saída do diagnóstico (consulta única
 `fatia0-diagnostico-console.sql`, rodada no SQL Editor do CRM em 28/09 às 14:31 BRT, 20 de
 20 blocos sem erro). As decisões do dono estão em `fatia0-respostas.md`.
 
