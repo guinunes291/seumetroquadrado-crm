@@ -109,3 +109,19 @@ Alcance do rename: o valor `apto` do enum `academia_nivel` virou `habilitado` **
 
 **Escolhido: Tarefa separada, não mexer agora (Recomendado).**
 Ana Caroline Pereira bloqueada com 402 leads vivos e 12 participações ativas em roleta; cinco contas de teste com e-mail descartável e `status_conta = 'ativa'`; `docs-bot` com papel `gestor`. Nada foi tocado nesta fatia. Segue registrado na seção 4 de `fatia0-fechamento.md` e pede prompt próprio.
+
+## Fatia 2 · decisões
+
+**Data e hora (Brasília):** 2026-09-28 17:15 -03
+
+### 1. [Menu] Onde a Academia entra na navegação
+
+**Escolhido: módulo próprio "Academia" (Recomendado).**
+Card no `/inicio`, item na lateral e entrada na busca (Cmd+K), reaproveitando a cor de "Docs & Projetos" (`cor: "projetos"`), porque a paleta é fechada em 10 tons por decisão de design.
+
+Como isso virou código: `Sistema` ganhou o campo opcional `flag?: string` e `PapelCtx` ganhou `flagsLigadas?: Set<string>`. Sistema com flag só aparece se a chave estiver no conjunto, e o conjunto só recebe `academia_menu` se a flag estiver ligada E a pessoa for participante ativa (ou admin, para pré-visualizar). A Academia vive em `SISTEMA_ACADEMIA`, fora do array `SISTEMAS`, para não quebrar as duas asserções que percorrem o registro inteiro; a navegação consome `SISTEMAS_NAV`. Ver a seção 3 de `fatia2-telas-corretor.md`.
+
+### 2. [Celular] Barra inferior
+
+**Escolhido: não mexer agora (Recomendado).**
+A `bottom-nav` ficou idêntica à de hoje. No celular o corretor entra pelo card "Sua próxima aula" no `/inicio` e pelo card do módulo no hub.

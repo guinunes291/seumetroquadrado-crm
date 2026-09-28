@@ -14,9 +14,12 @@ import {
   badgeDoSistema,
   homeDoSistema,
   sistemasVisiveis,
+  SISTEMAS_NAV,
   type PapelCtx,
   type Sistema,
 } from "@/features/nav/sistemas";
+import { useFlagsNav } from "@/features/academia/use-flags-nav";
+import { CardProximaAula } from "@/features/academia/card-proxima-aula";
 import { CLASSES_MODULO } from "@/features/nav/cores-modulo";
 
 // O hub vive fora do shell /_authenticated, então os hosts globais de lá
@@ -112,12 +115,13 @@ export function InicioPage() {
     user?.email?.split("@")[0] ??
     "corretor";
 
-  const ctx: PapelCtx = { roles, isAdmin };
+  const flagsLigadas = useFlagsNav();
+  const ctx: PapelCtx = { roles, isAdmin, flagsLigadas };
   // Papéis da OPERAÇÃO de venda (mesma lista de OPERACAO em nav/sistemas). O
   // escopo do card segue o papel (corretor: a própria; gestor: a equipe;
   // admin/superintendente: a operação). O SDR confirma visitas no hub /sdr.
   const temAgenda = isAdmin || isGestor || isCorretor || isSuperintendente;
-  const visiveis = sistemasVisiveis(ctx);
+  const visiveis = sistemasVisiveis(ctx, SISTEMAS_NAV);
   // Portal por FREQUÊNCIA (decisão 2026-08-30): a primeira dobra é "Seu dia"
   // — os 5 hubs do fluxo diário, na ordem do fluxo — e o que é referência
   // ocasional desce para "Consulta". A decisão "onde eu clico agora?" cai de
@@ -220,6 +224,10 @@ export function InicioPage() {
           </section>
         ) : (
           <>
+            {/* Atrás da flag academia_card_inicio E da participação ativa: sem
+                as duas, o componente devolve null e esta tela fica idêntica
+                à de antes da Academia. */}
+            <CardProximaAula />
             <GrupoDeSistemas titulo="Seu dia" sistemas={operacao} badges={badges} ctx={ctx} />
             <GrupoDeSistemas titulo="Consulta" sistemas={consulta} badges={badges} ctx={ctx} />
             <GrupoDeSistemas titulo="Gestão" sistemas={gestao} badges={badges} ctx={ctx} />
@@ -292,9 +300,7 @@ function SistemaCard({ sistema, badge, ctx }: { sistema: Sistema; badge: number;
       <h3 className="mt-4 truncate font-display font-semibold">{sistema.titulo}</h3>
       {/* Descrição sempre completa; a grade iguala a altura dos cards da linha
           e o "Acessar" fica alinhado embaixo. */}
-      <p className="mt-1 min-h-10 flex-1 text-sm text-muted-foreground">
-        {sistema.descricao}
-      </p>
+      <p className="mt-1 min-h-10 flex-1 text-sm text-muted-foreground">{sistema.descricao}</p>
       <span className={cn("mt-auto flex items-center gap-1 pt-4 text-sm font-semibold", cor.text)}>
         Acessar
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
