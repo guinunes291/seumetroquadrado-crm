@@ -77,6 +77,7 @@ import {
 import {
   useCorretoresDaMinhaEquipe,
   useCorretoresDisponiveis,
+  useCorretoresDaMinhaEquipeLista,
   useElegibilidadeRoleta,
   useEscoarEstoque,
   useGerenciarParticipante,
@@ -557,7 +558,9 @@ function IncluirParticipanteDialog({
   /** Quando definido, só estes corretores podem ser incluídos (escopo do gestor). */
   restritoA?: Set<string> | null;
 }) {
-  const corretoresQ = useCorretoresDisponiveis(aberto);
+  const corretoresAdminQ = useCorretoresDisponiveis(aberto && !restritoA);
+  const corretoresEquipeQ = useCorretoresDaMinhaEquipeLista(aberto && !!restritoA);
+  const corretoresQ = restritoA ? corretoresEquipeQ : corretoresAdminQ;
   const vendasQ = useVendasMesAnterior(aberto && slug === "marquinhos");
   const gerenciar = useGerenciarParticipante();
   const [corretorId, setCorretorId] = useState<string>("");
@@ -566,9 +569,7 @@ function IncluirParticipanteDialog({
   const jaAtivos = new Set(
     participantesAtuais.filter((p) => p.participante_ativo).map((p) => p.corretor_id),
   );
-  const disponiveis = (corretoresQ.data ?? []).filter(
-    (c) => !jaAtivos.has(c.id) && (!restritoA || restritoA.has(c.id)),
-  );
+  const disponiveis = (corretoresQ.data ?? []).filter((c) => !jaAtivos.has(c.id));
   const vendasMap = new Map((vendasQ.data ?? []).map((v) => [v.corretor_id, v]));
   const vendaSelecionado = corretorId ? vendasMap.get(corretorId) : undefined;
 
@@ -612,6 +613,13 @@ function IncluirParticipanteDialog({
                 <SelectValue placeholder="Selecione o corretor" />
               </SelectTrigger>
               <SelectContent>
+                {!corretoresQ.isLoading && disponiveis.length === 0 && (
+                  <div className="px-2 py-3 text-sm text-muted-foreground">
+                    {restritoA
+                      ? "Nenhum corretor disponível da sua equipe"
+                      : "Nenhum corretor disponível"}
+                  </div>
+                )}
                 {disponiveis.map((c) => {
                   const venda = vendasMap.get(c.id);
                   return (
