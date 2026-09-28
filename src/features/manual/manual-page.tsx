@@ -1,8 +1,7 @@
 // Página /manual — Manual de utilização do CRM, com capturas reais das telas.
-// Identidade impressa da marca (azul-marinho, dourado, papel creme), igual ao
-// PDF em public/manual/manual-crm.pdf.
+// Identidade impressa da marca (azul-marinho, dourado, papel creme). Sem
+// download em PDF (decisão 2026-09-28).
 
-import { DownloadSimple } from "@phosphor-icons/react";
 import logoM2 from "@/assets/logo-m2.png.asset.json";
 import { ConteudoOperacao } from "./conteudo-operacao";
 import { ConteudoGestao } from "./conteudo-gestao";
