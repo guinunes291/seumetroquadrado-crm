@@ -20,9 +20,11 @@ import {
   ATALHOS_EXTRAS,
   secoesVisiveis,
   sistemasVisiveis,
+  SISTEMAS_NAV,
   temPapel,
   type PapelCtx,
 } from "@/features/nav/sistemas";
+import { useFlagsNav } from "@/features/academia/use-flags-nav";
 import {
   Buildings,
   CircleHalf,
@@ -205,14 +207,15 @@ export function CommandPalette() {
   // Navegação derivada do registro SISTEMAS (mesma fonte do hub e da sidebar)
   // num único grupo plano — grupos por sistema empurrariam os resultados de
   // busca para baixo do fold.
-  const ctx: PapelCtx = { roles, isAdmin };
+  const flagsLigadas = useFlagsNav();
+  const ctx: PapelCtx = { roles, isAdmin, flagsLigadas };
   const navItems = [
     {
       label: "Acesso aos Módulos",
       icon: Layout,
       go: () => navigate({ to: "/inicio" }),
     },
-    ...sistemasVisiveis(ctx).flatMap((sistema) =>
+    ...sistemasVisiveis(ctx, SISTEMAS_NAV).flatMap((sistema) =>
       secoesVisiveis(sistema, ctx).map((secao) => ({
         label: `${sistema.titulo} · ${secao.label}`,
         icon: secao.icon,

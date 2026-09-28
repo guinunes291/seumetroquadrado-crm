@@ -21,8 +21,10 @@ import {
   secaoAtiva,
   secoesVisiveis,
   sistemaAtivoContextual,
+  SISTEMAS_NAV,
   type Secao,
 } from "@/features/nav/sistemas";
+import { useFlagsNav } from "@/features/academia/use-flags-nav";
 import { useFaseDaJornada } from "@/features/nav/contexto-jornada";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
@@ -57,11 +59,12 @@ function SidebarContent({
   const search = useRouterState({ select: (s) => s.location.search }) as Record<string, unknown>;
   const badges = useNavBadges();
 
-  const ctx = { roles, isAdmin };
+  const flagsLigadas = useFlagsNav();
+  const ctx = { roles, isAdmin, flagsLigadas };
   // Telas transversais (ficha do lead, vitrine/projeto com ?leadId) publicam
   // a fase da jornada — a sidebar acompanha o lead, não o prefixo do path.
   const faseJornada = useFaseDaJornada();
-  const sistema = sistemaAtivoContextual({ pathname, search }, faseJornada);
+  const sistema = sistemaAtivoContextual({ pathname, search }, faseJornada, SISTEMAS_NAV);
   const secoes = sistema ? secoesVisiveis(sistema, ctx) : [];
   // Ativação por id da seção resolvida — path puro acenderia junto o par que
   // divide /pipeline (fase × fechamento).

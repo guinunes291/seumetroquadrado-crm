@@ -35,6 +35,7 @@ import {
   Fire,
   Funnel,
   GearSix,
+  GraduationCap,
   Handshake,
   Kanban,
   Layout,
@@ -78,6 +79,7 @@ export type Secao = {
 };
 
 export type SistemaId =
+  | "academia"
   | "central-comando"
   | "prospeccao"
   | "carteira"
@@ -116,6 +118,11 @@ export type Sistema = {
   /** Prefixos de rota reivindicados sem seção própria (ex.: /atendimento e
    *  /mensagens, que saíram do menu mas pertencem à Carteira). */
   dominioExtra?: string[];
+  /** Chave em app_flags que liga este sistema. Sistema COM flag só aparece se
+   *  o contexto trouxer a chave em `flagsLigadas` — ausência é "desligada",
+   *  nunca "ainda não sei". Quem monta o ctx decide o que entra no conjunto
+   *  (a Academia, por exemplo, exige flag ligada E participação ativa). */
+  flag?: string;
   secoes: Secao[];
 };
 
@@ -565,7 +572,44 @@ export const SISTEMAS: Sistema[] = [
   },
 ];
 
-export type PapelCtx = { roles: AppRole[]; isAdmin: boolean };
+// ---------------------------------------------------------------------------
+// Sistemas atrás de FLAG
+// ---------------------------------------------------------------------------
+// A Academia fica FORA de SISTEMAS de propósito, enquanto depender de flag.
+// SISTEMAS é o registro estável — o que existe para todo mundo, sempre — e os
+// testes de navegação o percorrem inteiro (mapa de grupos, "admin vê todos").
+// Um sistema que aparece só com flag ligada não é "todos", então entraria como
+// exceção em cada uma dessas varreduras.
+//
+// Quem navega usa SISTEMAS_NAV. Quando a Academia sair da flag, mova o objeto
+// para dentro de SISTEMAS, apague o campo `flag` e ajuste os dois testes que
+// enumeram o registro. É uma mudança de três linhas.
+export const SISTEMA_ACADEMIA: Sistema = {
+  id: "academia",
+  titulo: "Academia",
+  descricao: "Sua trilha de formação: aulas, quiz, prática e certificados.",
+  icon: GraduationCap,
+  home: { to: "/academia" },
+  cor: "projetos",
+  grupo: "consulta",
+  flag: "academia_menu",
+  secoes: [
+    { id: "trilha", label: "Minha trilha", icon: GraduationCap, to: "/academia" },
+    { id: "progresso", label: "Meu progresso", icon: Trophy, to: "/academia/progresso" },
+  ],
+};
+
+/** Registro que a navegação consome: o estável mais os que dependem de flag.
+ *  A visibilidade continua decidida por `sistemaVisivel`. */
+export const SISTEMAS_NAV: Sistema[] = [...SISTEMAS, SISTEMA_ACADEMIA];
+
+export type PapelCtx = {
+  roles: AppRole[];
+  isAdmin: boolean;
+  /** Flags de sistema já resolvidas pelo consumidor. Ausente = nenhuma flag
+   *  ligada, então todo sistema COM flag fica invisível. */
+  flagsLigadas?: Set<string>;
+};
 
 /** Mesma regra da sidebar desde sempre: admin enxerga tudo. */
 export function temPapel(permitidos: AppRole[] | undefined, ctx: PapelCtx): boolean {
@@ -581,6 +625,9 @@ export function secoesVisiveis(sistema: Sistema, ctx: PapelCtx): Secao[] {
 /** Sistema visível se o papel passa no gate E alguma seção é visível
  *  (sistema sem seções, como Configurações, decide só pelo gate). */
 export function sistemaVisivel(sistema: Sistema, ctx: PapelCtx): boolean {
+  // A flag vem ANTES do papel: admin enxerga tudo por papel, mas não fura
+  // feature flag. Sem `flagsLigadas` no contexto, sistema com flag some.
+  if (sistema.flag && !ctx.flagsLigadas?.has(sistema.flag)) return false;
   if (!temPapel(sistema.roles, ctx)) return false;
   if (sistema.secoes.length === 0) return true;
   return secoesVisiveis(sistema, ctx).length > 0;

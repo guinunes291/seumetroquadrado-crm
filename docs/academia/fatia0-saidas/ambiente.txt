@@ -1,0 +1,43 @@
+Academia SMQ · Fatia 0 · Ambiente do diagnóstico
+================================================
+
+Data e hora (Brasília): 2026-09-28 14:33 -03
+
+VIA DE ACESSO: nenhuma (Caminho B do Passo 4)
+  - Supabase MCP (execute_sql, project_id rldnprwjlomjmjvinxuh):
+    "MCP error -32600: You do not have permission to perform this action".
+  - Connection string: não encontrada. SUPABASE_DB_URL, DATABASE_URL, POSTGRES_URL e
+    LOVABLE_DB_MIGRATION_URL vazias no ambiente; no repo só existe .env.example
+    (template, sem URL de banco).
+  - psql: não instalado. Supabase CLI: não instalado.
+  - Ferramentas crm_* do MCP do CRM: não usadas (sabidamente quebrado).
+  - O diagnóstico foi rodado pelo usuário no SQL Editor do Supabase (navegador) e
+    exportado em CSV; eu não abri conexão com o banco em momento nenhum.
+
+HOST: não houve conexão direta, então não há host a registrar.
+      Projeto Supabase alvo: rldnprwjlomjmjvinxuh.
+
+version(): não obtido. O Passo 1 não pôde ser executado (sem acesso) e o SQL do
+      diagnóstico não retorna version() em nenhum dos 20 blocos.
+
+CONTAGENS DO PASSO 1: não obtidas por falta de acesso.
+      Equivalentes extraídos do próprio diagnóstico (leitura do CSV):
+      - leads vivos: 100.316  (bloco I5_I6_controle, campo "vivos";
+        medido_em = 2026-09-28T17:31:53.616331+00:00)
+        Observação: bem acima dos 55.435 vivos de 12/09 citados no roteiro.
+      - perfis: 68  (bloco P, número de linhas) — dentro da faixa esperada de 60 a 80.
+
+DIAGNÓSTICO: fatia0-diagnostico-console.sql rodado uma vez, consulta única.
+      20 de 20 blocos retornaram sem erro. Nenhum bloco com "ERRO".
+      Bloco 0.8 retornou conjunto vazio ([]) — resultado válido, não é falha.
+      Saída bruta (diagnostico.csv, 81.306 bytes, separador ";", tem dados por
+      corretor e não é versionada no main por decisão do dono;
+      colunas bloco;ordem;resultado).
+
+PASSO 5 · SHELDON BARBOSA: confirmado: só gestor.
+      Não abri conexão (sem acesso); a verificação saiu do bloco P do próprio
+      diagnóstico, que traz nome, papéis e roletas ativas por perfil.
+      Exatamente 1 linha com nome "Sheldon Barbosa": papeis = "gestor",
+      roletas_ativas = 0, profiles_ativo = true, equipe = "Sheldon Barbosa".
+      Nenhum papel além de gestor, portanto nada a remover. Nenhuma escrita
+      foi feita no banco.

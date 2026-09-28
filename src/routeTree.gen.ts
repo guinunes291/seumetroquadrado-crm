@@ -75,6 +75,7 @@ import { Route as AuthenticatedProjetosIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedOfertaAtivaIndexRouteImport } from './routes/_authenticated/oferta-ativa.index'
 import { Route as AuthenticatedLeadsIndexRouteImport } from './routes/_authenticated/leads.index'
 import { Route as AuthenticatedFinanceiroIndexRouteImport } from './routes/_authenticated/financeiro/index'
+import { Route as AuthenticatedAcademiaIndexRouteImport } from './routes/_authenticated/academia/index'
 import { Route as ApiSamiPropostasRouteImport } from './routes/api/sami/propostas'
 import { Route as ApiSamiMensagemRouteImport } from './routes/api/sami/mensagem'
 import { Route as ApiSamiBriefingRouteImport } from './routes/api/sami/briefing'
@@ -86,6 +87,7 @@ import { Route as AuthenticatedOfertaAtivaNovaRouteImport } from './routes/_auth
 import { Route as AuthenticatedOfertaAtivaOfertaIdRouteImport } from './routes/_authenticated/oferta-ativa.$ofertaId'
 import { Route as AuthenticatedLeadsLeadIdRouteImport } from './routes/_authenticated/leads.$leadId'
 import { Route as AuthenticatedFinanceiroFechamentoRouteImport } from './routes/_authenticated/financeiro/fechamento'
+import { Route as AuthenticatedAcademiaProgressoRouteImport } from './routes/_authenticated/academia/progresso'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicVendasIndexRouteImport } from './routes/api/public/vendas/index'
@@ -105,10 +107,13 @@ import { Route as ApiPublicEscritaHealthRouteImport } from './routes/api/public/
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiPublicComissoesIdRouteImport } from './routes/api/public/comissoes/$id'
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
+import { Route as AuthenticatedAcademiaModuloCodigoIndexRouteImport } from './routes/_authenticated/academia/modulo.$codigo.index'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 import { Route as ApiPublicLeadsIdPerdaRouteImport } from './routes/api/public/leads/$id.perda'
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
 import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/public/leads/$id.corretor'
+import { Route as AuthenticatedAcademiaModuloCodigoQuizRouteImport } from './routes/_authenticated/academia/modulo.$codigo.quiz'
+import { Route as AuthenticatedAcademiaModuloCodigoAulaOrdemRouteImport } from './routes/_authenticated/academia/modulo.$codigo.aula.$ordem'
 
 const VitrinePublicaRoute = VitrinePublicaRouteImport.update({
   id: '/vitrine-publica',
@@ -456,6 +461,12 @@ const AuthenticatedFinanceiroIndexRoute =
     path: '/financeiro/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAcademiaIndexRoute =
+  AuthenticatedAcademiaIndexRouteImport.update({
+    id: '/academia/',
+    path: '/academia/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiSamiPropostasRoute = ApiSamiPropostasRouteImport.update({
   id: '/api/sami/propostas',
   path: '/api/sami/propostas',
@@ -514,6 +525,12 @@ const AuthenticatedFinanceiroFechamentoRoute =
   AuthenticatedFinanceiroFechamentoRouteImport.update({
     id: '/financeiro/fechamento',
     path: '/financeiro/fechamento',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAcademiaProgressoRoute =
+  AuthenticatedAcademiaProgressoRouteImport.update({
+    id: '/academia/progresso',
+    path: '/academia/progresso',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
@@ -617,6 +634,12 @@ const ApiGoogleOauthCallbackRoute = ApiGoogleOauthCallbackRouteImport.update({
   path: '/api/google/oauth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAcademiaModuloCodigoIndexRoute =
+  AuthenticatedAcademiaModuloCodigoIndexRouteImport.update({
+    id: '/academia/modulo/$codigo/',
+    path: '/academia/modulo/$codigo/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicWebhooksLeadTokenRoute =
   ApiPublicWebhooksLeadTokenRouteImport.update({
     id: '/api/public/webhooks/lead/$token',
@@ -638,6 +661,18 @@ const ApiPublicLeadsIdCorretorRoute =
     id: '/corretor',
     path: '/corretor',
     getParentRoute: () => ApiPublicLeadsIdRoute,
+  } as any)
+const AuthenticatedAcademiaModuloCodigoQuizRoute =
+  AuthenticatedAcademiaModuloCodigoQuizRouteImport.update({
+    id: '/academia/modulo/$codigo/quiz',
+    path: '/academia/modulo/$codigo/quiz',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAcademiaModuloCodigoAulaOrdemRoute =
+  AuthenticatedAcademiaModuloCodigoAulaOrdemRouteImport.update({
+    id: '/academia/modulo/$codigo/aula/$ordem',
+    path: '/academia/modulo/$codigo/aula/$ordem',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -704,6 +739,7 @@ export interface FileRoutesByFullPath {
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
   '/financeiro/fechamento': typeof AuthenticatedFinanceiroFechamentoRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
@@ -715,6 +751,7 @@ export interface FileRoutesByFullPath {
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
   '/api/sami/propostas': typeof ApiSamiPropostasRoute
+  '/academia/': typeof AuthenticatedAcademiaIndexRoute
   '/financeiro/': typeof AuthenticatedFinanceiroIndexRoute
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
@@ -736,10 +773,13 @@ export interface FileRoutesByFullPath {
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
+  '/academia/modulo/$codigo/': typeof AuthenticatedAcademiaModuloCodigoIndexRoute
+  '/academia/modulo/$codigo/aula/$ordem': typeof AuthenticatedAcademiaModuloCodigoAulaOrdemRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -805,6 +845,7 @@ export interface FileRoutesByTo {
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
   '/financeiro/fechamento': typeof AuthenticatedFinanceiroFechamentoRoute
   '/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
@@ -816,6 +857,7 @@ export interface FileRoutesByTo {
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
   '/api/sami/propostas': typeof ApiSamiPropostasRoute
+  '/academia': typeof AuthenticatedAcademiaIndexRoute
   '/financeiro': typeof AuthenticatedFinanceiroIndexRoute
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
@@ -837,10 +879,13 @@ export interface FileRoutesByTo {
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas': typeof ApiPublicVendasIndexRoute
+  '/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
+  '/academia/modulo/$codigo': typeof AuthenticatedAcademiaModuloCodigoIndexRoute
+  '/academia/modulo/$codigo/aula/$ordem': typeof AuthenticatedAcademiaModuloCodigoAulaOrdemRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -908,6 +953,7 @@ export interface FileRoutesById {
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_authenticated/academia/progresso': typeof AuthenticatedAcademiaProgressoRoute
   '/_authenticated/financeiro/fechamento': typeof AuthenticatedFinanceiroFechamentoRoute
   '/_authenticated/leads/$leadId': typeof AuthenticatedLeadsLeadIdRoute
   '/_authenticated/oferta-ativa/$ofertaId': typeof AuthenticatedOfertaAtivaOfertaIdRoute
@@ -919,6 +965,7 @@ export interface FileRoutesById {
   '/api/sami/briefing': typeof ApiSamiBriefingRoute
   '/api/sami/mensagem': typeof ApiSamiMensagemRoute
   '/api/sami/propostas': typeof ApiSamiPropostasRoute
+  '/_authenticated/academia/': typeof AuthenticatedAcademiaIndexRoute
   '/_authenticated/financeiro/': typeof AuthenticatedFinanceiroIndexRoute
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
@@ -940,10 +987,13 @@ export interface FileRoutesById {
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/_authenticated/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
   '/api/public/leads/$id/perda': typeof ApiPublicLeadsIdPerdaRoute
   '/api/public/webhooks/lead/$token': typeof ApiPublicWebhooksLeadTokenRoute
+  '/_authenticated/academia/modulo/$codigo/': typeof AuthenticatedAcademiaModuloCodigoIndexRoute
+  '/_authenticated/academia/modulo/$codigo/aula/$ordem': typeof AuthenticatedAcademiaModuloCodigoAulaOrdemRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1011,6 +1061,7 @@ export interface FileRouteTypes {
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/academia/progresso'
     | '/financeiro/fechamento'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
@@ -1022,6 +1073,7 @@ export interface FileRouteTypes {
     | '/api/sami/briefing'
     | '/api/sami/mensagem'
     | '/api/sami/propostas'
+    | '/academia/'
     | '/financeiro/'
     | '/leads/'
     | '/oferta-ativa/'
@@ -1043,10 +1095,13 @@ export interface FileRouteTypes {
     | '/api/public/leads/'
     | '/api/public/projetos/'
     | '/api/public/vendas/'
+    | '/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
     | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
+    | '/academia/modulo/$codigo/'
+    | '/academia/modulo/$codigo/aula/$ordem'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1112,6 +1167,7 @@ export interface FileRouteTypes {
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/academia/progresso'
     | '/financeiro/fechamento'
     | '/leads/$leadId'
     | '/oferta-ativa/$ofertaId'
@@ -1123,6 +1179,7 @@ export interface FileRouteTypes {
     | '/api/sami/briefing'
     | '/api/sami/mensagem'
     | '/api/sami/propostas'
+    | '/academia'
     | '/financeiro'
     | '/leads'
     | '/oferta-ativa'
@@ -1144,10 +1201,13 @@ export interface FileRouteTypes {
     | '/api/public/leads'
     | '/api/public/projetos'
     | '/api/public/vendas'
+    | '/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
     | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
+    | '/academia/modulo/$codigo'
+    | '/academia/modulo/$codigo/aula/$ordem'
   id:
     | '__root__'
     | '/'
@@ -1214,6 +1274,7 @@ export interface FileRouteTypes {
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_authenticated/academia/progresso'
     | '/_authenticated/financeiro/fechamento'
     | '/_authenticated/leads/$leadId'
     | '/_authenticated/oferta-ativa/$ofertaId'
@@ -1225,6 +1286,7 @@ export interface FileRouteTypes {
     | '/api/sami/briefing'
     | '/api/sami/mensagem'
     | '/api/sami/propostas'
+    | '/_authenticated/academia/'
     | '/_authenticated/financeiro/'
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
@@ -1246,10 +1308,13 @@ export interface FileRouteTypes {
     | '/api/public/leads/'
     | '/api/public/projetos/'
     | '/api/public/vendas/'
+    | '/_authenticated/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
     | '/api/public/leads/$id/perda'
     | '/api/public/webhooks/lead/$token'
+    | '/_authenticated/academia/modulo/$codigo/'
+    | '/_authenticated/academia/modulo/$codigo/aula/$ordem'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1758,6 +1823,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFinanceiroIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/academia/': {
+      id: '/_authenticated/academia/'
+      path: '/academia'
+      fullPath: '/academia/'
+      preLoaderRoute: typeof AuthenticatedAcademiaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/sami/propostas': {
       id: '/api/sami/propostas'
       path: '/api/sami/propostas'
@@ -1833,6 +1905,13 @@ declare module '@tanstack/react-router' {
       path: '/financeiro/fechamento'
       fullPath: '/financeiro/fechamento'
       preLoaderRoute: typeof AuthenticatedFinanceiroFechamentoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/academia/progresso': {
+      id: '/_authenticated/academia/progresso'
+      path: '/academia/progresso'
+      fullPath: '/academia/progresso'
+      preLoaderRoute: typeof AuthenticatedAcademiaProgressoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/.mcp/invoke-tool/$tool': {
@@ -1968,6 +2047,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGoogleOauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/academia/modulo/$codigo/': {
+      id: '/_authenticated/academia/modulo/$codigo/'
+      path: '/academia/modulo/$codigo'
+      fullPath: '/academia/modulo/$codigo/'
+      preLoaderRoute: typeof AuthenticatedAcademiaModuloCodigoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/webhooks/lead/$token': {
       id: '/api/public/webhooks/lead/$token'
       path: '/api/public/webhooks/lead/$token'
@@ -1995,6 +2081,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/leads/$id/corretor'
       preLoaderRoute: typeof ApiPublicLeadsIdCorretorRouteImport
       parentRoute: typeof ApiPublicLeadsIdRoute
+    }
+    '/_authenticated/academia/modulo/$codigo/quiz': {
+      id: '/_authenticated/academia/modulo/$codigo/quiz'
+      path: '/academia/modulo/$codigo/quiz'
+      fullPath: '/academia/modulo/$codigo/quiz'
+      preLoaderRoute: typeof AuthenticatedAcademiaModuloCodigoQuizRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/academia/modulo/$codigo/aula/$ordem': {
+      id: '/_authenticated/academia/modulo/$codigo/aula/$ordem'
+      path: '/academia/modulo/$codigo/aula/$ordem'
+      fullPath: '/academia/modulo/$codigo/aula/$ordem'
+      preLoaderRoute: typeof AuthenticatedAcademiaModuloCodigoAulaOrdemRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
   }
 }
@@ -2049,15 +2149,20 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTarefasRoute: typeof AuthenticatedTarefasRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedVitrineRoute: typeof AuthenticatedVitrineRoute
+  AuthenticatedAcademiaProgressoRoute: typeof AuthenticatedAcademiaProgressoRoute
   AuthenticatedFinanceiroFechamentoRoute: typeof AuthenticatedFinanceiroFechamentoRoute
   AuthenticatedLeadsLeadIdRoute: typeof AuthenticatedLeadsLeadIdRoute
   AuthenticatedOfertaAtivaOfertaIdRoute: typeof AuthenticatedOfertaAtivaOfertaIdRoute
   AuthenticatedOfertaAtivaNovaRoute: typeof AuthenticatedOfertaAtivaNovaRoute
   AuthenticatedProjetosProjetoIdRoute: typeof AuthenticatedProjetosProjetoIdRoute
+  AuthenticatedAcademiaIndexRoute: typeof AuthenticatedAcademiaIndexRoute
   AuthenticatedFinanceiroIndexRoute: typeof AuthenticatedFinanceiroIndexRoute
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
   AuthenticatedOfertaAtivaIndexRoute: typeof AuthenticatedOfertaAtivaIndexRoute
   AuthenticatedProjetosIndexRoute: typeof AuthenticatedProjetosIndexRoute
+  AuthenticatedAcademiaModuloCodigoQuizRoute: typeof AuthenticatedAcademiaModuloCodigoQuizRoute
+  AuthenticatedAcademiaModuloCodigoIndexRoute: typeof AuthenticatedAcademiaModuloCodigoIndexRoute
+  AuthenticatedAcademiaModuloCodigoAulaOrdemRoute: typeof AuthenticatedAcademiaModuloCodigoAulaOrdemRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -2110,16 +2215,24 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTarefasRoute: AuthenticatedTarefasRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedVitrineRoute: AuthenticatedVitrineRoute,
+  AuthenticatedAcademiaProgressoRoute: AuthenticatedAcademiaProgressoRoute,
   AuthenticatedFinanceiroFechamentoRoute:
     AuthenticatedFinanceiroFechamentoRoute,
   AuthenticatedLeadsLeadIdRoute: AuthenticatedLeadsLeadIdRoute,
   AuthenticatedOfertaAtivaOfertaIdRoute: AuthenticatedOfertaAtivaOfertaIdRoute,
   AuthenticatedOfertaAtivaNovaRoute: AuthenticatedOfertaAtivaNovaRoute,
   AuthenticatedProjetosProjetoIdRoute: AuthenticatedProjetosProjetoIdRoute,
+  AuthenticatedAcademiaIndexRoute: AuthenticatedAcademiaIndexRoute,
   AuthenticatedFinanceiroIndexRoute: AuthenticatedFinanceiroIndexRoute,
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
   AuthenticatedOfertaAtivaIndexRoute: AuthenticatedOfertaAtivaIndexRoute,
   AuthenticatedProjetosIndexRoute: AuthenticatedProjetosIndexRoute,
+  AuthenticatedAcademiaModuloCodigoQuizRoute:
+    AuthenticatedAcademiaModuloCodigoQuizRoute,
+  AuthenticatedAcademiaModuloCodigoIndexRoute:
+    AuthenticatedAcademiaModuloCodigoIndexRoute,
+  AuthenticatedAcademiaModuloCodigoAulaOrdemRoute:
+    AuthenticatedAcademiaModuloCodigoAulaOrdemRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
