@@ -1,7 +1,9 @@
 // Comissionamento por tier trimestral e esteira (origem do lead).
 // A regra oficial roda no banco (trigger em `vendas`); aqui só exibimos a
 // sugestão e pré-preenchemos o % do corretor no lançamento.
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { parsePercent, type SplitTexto } from "@/lib/comissoes";
 import { supabase } from "@/integrations/supabase/client";
 
 export const TIER_LABEL: Record<string, string> = {
@@ -50,9 +52,6 @@ export function useComissaoSugerida(
     },
   });
 }
-
-import { useEffect } from "react";
-import { parsePercent, type SplitTexto } from "@/lib/comissoes";
 
 /**
  * Liga a sugestão do tier ao formulário da venda: preenche o % do corretor
