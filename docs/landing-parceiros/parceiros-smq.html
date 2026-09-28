@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Corretor Parceiro SMQ | 75% de comissão no MCMV em São Paulo</title>
-<meta name="description" content="Corretor: fique com 75% da comissão em todos os projetos Minha Casa Minha Vida de São Paulo, com sigilo, pré-análise de crédito feita pela SMQ e mapa de estoque em tempo real.">
+<title>Corretor Parceiro SMQ | 60% a 65% da comissão no MCMV em São Paulo</title>
+<meta name="description" content="Corretor: fique com 60% a 65% da comissão em todos os projetos Minha Casa Minha Vida de São Paulo, com sigilo, pré-análise de crédito feita pela SMQ e mapa de estoque em tempo real.">
 <meta name="theme-color" content="#0D3B66">
-<meta property="og:title" content="Seja Corretor Parceiro SMQ: 75% de comissão no MCMV SP">
+<meta property="og:title" content="Seja Corretor Parceiro SMQ: 60% a 65% da comissão no MCMV SP">
 <meta property="og:description" content="Venda todos os MCMV de São Paulo, com sigilo e pré-análise de crédito feita pela SMQ.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -125,6 +125,7 @@ input[type=range]{width:100%;accent-color:var(--gold);height:32px}
 .seg{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .seg button{border:1.5px solid var(--gray-200);background:#fff;border-radius:10px;padding:11px 0;font:700 .95rem Inter,sans-serif;color:var(--muted);cursor:pointer}
 .seg button[aria-pressed=true]{background:var(--gold-soft);border-color:var(--gold);color:var(--navy)}
+.seg.seg2{grid-template-columns:1fr 1fr}
 .hint{font-size:.8rem;color:var(--muted);margin-top:6px}
 .result{background:var(--navy);color:#fff;border-radius:16px;padding:20px;margin:6px 0 16px}
 .result small{color:#9DB4CB;font-size:.85rem;display:block}
@@ -197,7 +198,10 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
   .proofs{grid-template-columns:repeat(4,1fr);max-width:none}
   .hero-card{display:block;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:26px;backdrop-filter:blur(6px)}
   .hero-card h3{font-size:1rem;color:#9DB4CB;font-weight:600;margin-bottom:6px}
-  .hero-card .big{font:800 3rem/1 "Plus Jakarta Sans";color:var(--gold-bright)}
+  .hero-card .big{font:800 3rem/1 "Plus Jakarta Sans",sans-serif;color:var(--gold-bright)}
+  .hero-card .big.range{font-size:2.1rem;line-height:1.15}
+  .hero-card .big .v{white-space:nowrap}
+  .hero-card .big .a{font-size:.6em;color:#9DB4CB}
   .hero-card ul{list-style:none;margin-top:18px;display:grid;gap:10px}
   .hero-card li{display:flex;gap:10px;font-size:.95rem;color:#EAF1F8}
   .hero-card li::before{content:"✓";color:var(--gold-bright);font-weight:800}
@@ -243,7 +247,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
 <section class="hero">
   <div class="wrap">
     <div>
-      <h1>Fique com <em>75% da comissão</em> em todo MCMV de São Paulo.</h1>
+      <h1>Fique com <em><span data-pct="faixa">60% a 65%</span> da comissão</em> em todo MCMV de São Paulo.</h1>
       <p class="sub">Continue onde você está. A venda é intermediada e registrada pela Seu Metro Quadrado, que é a imobiliária credenciada na construtora. Nós te ajudamos a encaixar um projeto para o cliente, fazemos a análise de crédito, conferência da documentação antes da Caixa, acesso ao mapa de estoque e ao CRM para acompanhar cada cliente.</p>
       <div class="ctas">
         <a href="#comecar" class="btn btn-gold">Quero começar a ganhar comissões hoje</a>
@@ -251,7 +255,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
       </div>
       <p class="micro">Sem taxa de adesão. Sem exclusividade. Resposta no mesmo dia.</p>
       <div class="proofs">
-        <div><b>75%</b>da comissão é sua</div>
+        <div><b data-pct="curta">60–65%</b>da comissão é sua</div>
         <div><b>Sigilo</b>seu nome fica com a SMQ</div>
         <div><b>0 papel</b>pré-análise é nossa</div>
         <div><b>Todo SP</b>estoque MCMV num mapa</div>
@@ -259,7 +263,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
     </div>
     <aside class="hero-card" aria-label="Resumo da parceria">
       <h3>Numa venda de <span data-cfg-money="valorImovelExemplo"></span></h3>
-      <div class="big" id="heroExemplo">R$ 0</div>
+      <div class="big range" id="heroExemplo"><span class="v">R$ 6.720</span><span class="a"> a </span><span class="v">R$ 7.280</span></div>
       <p style="color:#9DB4CB;font-size:.9rem;margin-top:6px">vão para o seu bolso</p>
       <ul>
         <li>Pré-análise e simulação feitas pela SMQ</li>
@@ -280,7 +284,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
       <div class="step"><div class="n">1</div><div><h3>Cadastro em 1 minuto</h3><p>Preenche o formulário ou chama no WhatsApp. A gente libera seu acesso ao CRM e ao mapa de estoque.</p></div></div>
       <div class="step"><div class="n">2</div><div><h3>Você traz o cliente</h3><p>Lead seu, de indicação ou que não encaixou no produto da sua construtora. Escolhe o empreendimento certo no mapa.</p></div></div>
       <div class="step"><div class="n">3</div><div><h3>A SMQ faz o pesado</h3><p>Pré-análise de crédito, simulação MCMV e conferência de documentos ficam com o nosso time. Você foca em vender.</p></div></div>
-      <div class="step"><div class="n">4</div><div><h3>Você recebe 75%</h3><p>Assim que a SMQ recebe a comissão, você recebe 75% em <span data-cfg="prazoRepasse"></span>, via pagadoria. Sem emitir nota fiscal.</p></div></div>
+      <div class="step"><div class="n">4</div><div><h3>Você recebe <span data-pct="faixa">60% a 65%</span></h3><p>Assim que a SMQ recebe a comissão, você recebe a sua parte em <span data-cfg="prazoRepasse"></span>, via pagadoria. Sem emitir nota fiscal.</p></div></div>
     </div>
   </div>
 </section>
@@ -291,7 +295,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
     <span class="eyebrow">O que você ganha</span>
     <h2 class="h2">Mais dinheiro, menos trabalho de bastidor</h2>
     <div class="ben-grid">
-      <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><h3>75% de comissão, sem nota fiscal</h3><p>Percentual fixo, combinado por escrito. Pago via pagadoria 5 dias úteis após a SMQ receber, sem você emitir nota.</p></div></div>
+      <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><h3><span data-pct="faixa">60% a 65%</span> da comissão, sem nota fiscal</h3><p>Percentual combinado por escrito no contrato de parceria. Pago via pagadoria 5 dias úteis após a SMQ receber, sem você emitir nota.</p></div></div>
       <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><h3>Sigilo na venda</h3><p>A venda é registrada pela SMQ. A construtora negocia com a imobiliária, não com o seu nome.</p></div></div>
       <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div><h3>Pré-análise e simulação por nossa conta</h3><p>Nosso time enquadra faixa, calcula subsídio e prestação e confere a pasta antes de ir para a Caixa.</p></div></div>
       <div class="ben"><div class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><h3>Co-venda</h3><p>Sem tempo para a visita ou o plantão? Outro corretor SMQ conduz o fechamento e você paga só <span data-cfg="coVendaTaxa"></span>.</p></div></div>
@@ -304,7 +308,7 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
       <div class="cmp-row cmp-head" role="row"><div></div><div>Só a construtora</div><div>Parceiro SMQ</div></div>
       <div class="cmp-row" role="row"><div>Produtos para oferecer</div><div>Os da construtora</div><div>Todo MCMV de SP</div></div>
       <div class="cmp-row" role="row"><div>Cliente não encaixa no produto</div><div class="no">Você perde a venda</div><div class="ok">Oferece outro projeto</div></div>
-      <div class="cmp-row" role="row"><div>Sua parte da comissão</div><div>Tabela da casa</div><div>75%</div></div>
+      <div class="cmp-row" role="row"><div>Sua parte da comissão</div><div>Tabela da casa</div><div data-pct="faixa">60% a 65%</div></div>
       <div class="cmp-row" role="row"><div>Pré-análise e simulação</div><div>Por sua conta</div><div>Time SMQ faz</div></div>
       <div class="cmp-row" role="row"><div>Sem tempo para a visita</div><div class="no">Perde o cliente</div><div class="ok">Co-venda</div></div>
       <div class="cmp-row" role="row"><div>Nota fiscal da comissão</div><div>Por sua conta</div><div>Não precisa</div></div>
@@ -338,15 +342,22 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
     </div>
     <div class="calc-card">
       <div class="field">
-        <label>Vendas por mês pela SMQ</label>
-        <div class="seg seg5" id="cVendas">
-          <button type="button" data-v="1" aria-pressed="true">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button><button type="button" data-v="5">5</button>
+        <label id="lVendas">Vendas por mês pela SMQ</label>
+        <div class="seg seg5" id="cVendas" role="group" aria-labelledby="lVendas">
+          <button type="button" data-v="1" aria-pressed="true">1</button><button type="button" data-v="2" aria-pressed="false">2</button><button type="button" data-v="3" aria-pressed="false">3</button><button type="button" data-v="4" aria-pressed="false">4</button><button type="button" data-v="5" aria-pressed="false">5</button>
         </div>
+      </div>
+      <div class="field" id="fPct">
+        <label id="lPct">Seu percentual da comissão</label>
+        <div class="seg seg2" id="cPct" role="group" aria-labelledby="lPct">
+          <button type="button" data-v="0.60" aria-pressed="true">60%</button><button type="button" data-v="0.65" aria-pressed="false">65%</button>
+        </div>
+        <p class="hint" id="cPctHint">O seu percentual fica definido por escrito no contrato de parceria.</p>
       </div>
       <div class="result" aria-live="polite">
         <small>Sua renda extra por mês</small>
         <div class="big" id="rMes">R$ 0</div>
-                <div class="row"><span>Você recebe por venda (75%)</span><b id="rPorVenda">R$ 0</b></div>
+                <div class="row"><span>Você recebe por venda (<span id="rPct">60%</span>)</span><b id="rPorVenda">R$ 0</b></div>
         <div class="row"><span>Em 12 meses</span><b id="rAno">R$ 0</b></div>
       </div>
       <a href="#comecar" class="btn btn-gold btn-block">Quero esse dinheiro: começar agora</a>
@@ -374,8 +385,11 @@ footer .links{display:flex;flex-wrap:wrap;gap:8px 18px}
         <p>Transparência: se o seu contrato atual tem cláusula de exclusividade ou de não concorrência, leia antes de começar. A SMQ garante o sigilo do lado dela, mas o que você assinou com terceiros é responsabilidade sua.</p>
       </div></details>
       <details><summary>Como e quando eu recebo?</summary><div class="ans">
-        <p>A comissão é paga <b>somente 5 dias úteis após o recebimento do valor pela imobiliária</b> (depois do repasse do cliente). Nesse prazo, os seus 75% caem na sua conta com o demonstrativo da venda.</p>
+        <p>A comissão é paga <b>somente 5 dias úteis após o recebimento do valor pela imobiliária</b> (depois do repasse do cliente). Nesse prazo, a sua parte (<span data-pct="faixa">60% a 65%</span>) cai na sua conta com o demonstrativo da venda.</p>
         <p>O pagamento é feito via pagadoria: você não precisa abrir empresa nem emitir nota fiscal. Toda a burocracia fica com a gente.</p>
+      </div></details>
+      <details id="faqFaixa" hidden><summary>O que define se eu recebo <span data-pct="min">60%</span> ou <span data-pct="max">65%</span>?</summary><div class="ans">
+        <p data-cfg="criterioFaixa"></p>
       </div></details>
       <details><summary>Preciso deixar meu emprego?</summary><div class="ans">
         <p>Não. A parceria é para gerar renda extra com o cliente que você já atende e que hoje você perde por não ter o produto certo. Sem exclusividade, sem meta mínima, sem taxa.</p>
@@ -449,7 +463,16 @@ var CONFIG = {
   instagramUrl: "https://www.instagram.com/seumetroquadrado_oficial/",
 
   comissaoTotalPct: 4,            // usado só para calcular R$ por venda (não aparece na página)
-  partilhaParceiro: 0.75,         // 75% para o parceiro
+  // Parte do parceiro: faixa de 60% a 65%. Mudou aqui, muda a página toda (textos, calculadora e
+  // mensagens de WhatsApp). EXCEÇÃO: <title> e <meta> do topo do arquivo são fixos, porque Google e
+  // prévia de link do WhatsApp não rodam JavaScript: atualize-os à mão.
+  // Taxa única? Use o mesmo valor nos dois (ex.: 0.60 e 0.60): a página mostra só "60%".
+  partilhaMin: 0.60,
+  partilhaMax: 0.65,
+  // O que leva o parceiro do mínimo ao máximo. Escreva a regra REAL, em uma frase
+  // (ex. de formato: "65% a partir da 3ª venda no mês; 60% nas duas primeiras.").
+  // Vazio = a pergunta não aparece no FAQ e a calculadora diz só que o percentual vai no contrato.
+  criterioFaixa: "",
   valorImovelExemplo: 280000,
   prazoRepasse: "5 dias úteis após o recebimento pela imobiliária",
   coVendaTaxa: "0,3% da sua comissão", // CONFIRMAR (ver observação)
@@ -464,8 +487,18 @@ var CONFIG = {
   rodapeLegal: "Seu Metro Quadrado | 66.930.565/0001-86 | Sedes: Barra Funda (Zona Oeste) - Liberdade (Zona Central) - Belém (Zona Leste)"
 };
 
+// Textos da faixa, derivados do CONFIG (não edite aqui).
+var FAIXA = (function(){
+  var min = Math.round(CONFIG.partilhaMin*100), max = Math.round(CONFIG.partilhaMax*100), unica = min === max;
+  return {
+    unica: unica, min: min + "%", max: max + "%",
+    faixa: unica ? min + "%" : min + "% a " + max + "%",   // "60% a 65%" (texto corrido)
+    curta: unica ? min + "%" : min + "–" + max + "%"       // "60–65%" (espaços apertados)
+  };
+})();
+
 var MSGS = {
-  topo:  "Olá! Sou corretor(a) e quero saber como ser parceiro da SMQ com 75% de comissão.",
+  topo:  "Olá! Sou corretor(a) e quero saber como ser parceiro da SMQ com " + FAIXA.faixa + " da comissão.",
   hero:  "Olá! Quero começar a ganhar comissões hoje como corretor parceiro da SMQ.",
   mapa:  "Olá! Vi o mapa de empreendimentos e tenho cliente para um deles. Quero ser parceiro SMQ.",
   final: "Olá! Quero começar a ganhar comissões hoje como corretor parceiro da SMQ.",
@@ -482,15 +515,25 @@ var MSGS = {
   document.querySelectorAll("[data-cfg]").forEach(function(el){ el.textContent = CONFIG[el.dataset.cfg]; });
   document.querySelectorAll("[data-cfg-money]").forEach(function(el){ el.textContent = brl(CONFIG[el.dataset.cfgMoney]); });
   document.querySelectorAll("[data-href]").forEach(function(el){ el.href = CONFIG[el.dataset.href]; });
+  document.querySelectorAll("[data-pct]").forEach(function(el){ el.textContent = FAIXA[el.dataset.pct]; });
   document.querySelectorAll(".js-wa").forEach(function(el){
     el.href = waLink(MSGS[el.dataset.msg] || MSGS.hero);
     el.target = "_blank"; el.rel = "noopener";
     el.addEventListener("click", function(){ track("whatsapp_click", el.dataset.msg); });
   });
 
-  // Exemplo do hero
-  var ex = CONFIG.valorImovelExemplo * CONFIG.comissaoTotalPct/100 * CONFIG.partilhaParceiro;
-  document.getElementById("heroExemplo").textContent = brl(ex);
+  // R$ por venda no imóvel de exemplo, para uma parte (0.60 = 60%)
+  var porVendaDe = function(partilha){ return CONFIG.valorImovelExemplo * CONFIG.comissaoTotalPct/100 * partilha; };
+
+  // Exemplo do hero: "R$ 6.720 a R$ 7.280" (ou um valor só, se a taxa for única)
+  var heroEx = document.getElementById("heroExemplo");
+  heroEx.textContent = "";
+  [[brl(porVendaDe(CONFIG.partilhaMin)), "v"]].concat(FAIXA.unica ? [] : [[" a ", "a"], [brl(porVendaDe(CONFIG.partilhaMax)), "v"]]).forEach(function(p){
+    var s = document.createElement("span"); s.className = p[1]; s.textContent = p[0]; heroEx.appendChild(s);
+  });
+
+  // Pergunta "o que define 60% ou 65%?" só aparece com a regra preenchida
+  if (CONFIG.criterioFaixa && !FAIXA.unica) document.getElementById("faqFaixa").hidden = false;
 
   // Depoimentos (só reais)
   if (CONFIG.depoimentos.length){
@@ -501,19 +544,31 @@ var MSGS = {
     }).join("");
   }
 
-  // Calculadora: só quantidade de vendas
-  var porVenda = CONFIG.valorImovelExemplo*CONFIG.comissaoTotalPct/100*CONFIG.partilhaParceiro, qtd=1;
+  // Calculadora: quantidade de vendas x percentual (começa no mínimo da faixa, para não prometer a mais)
+  var qtd = 1, partilha = CONFIG.partilhaMin;
+  var pctBtns = document.querySelectorAll("#cPct button");
+  pctBtns[0].dataset.v = CONFIG.partilhaMin; pctBtns[0].textContent = FAIXA.min;
+  pctBtns[1].dataset.v = CONFIG.partilhaMax; pctBtns[1].textContent = FAIXA.max;
+  if (FAIXA.unica) document.getElementById("fPct").hidden = true;
+  if (CONFIG.criterioFaixa) document.getElementById("cPctHint").textContent = CONFIG.criterioFaixa;
   function calc(){
+    var porVenda = porVendaDe(partilha);
+    document.getElementById("rPct").textContent = Math.round(partilha*100) + "%";
     document.getElementById("rPorVenda").textContent = brl(porVenda);
     document.getElementById("rMes").textContent = brl(qtd*porVenda);
     document.getElementById("rAno").textContent = brl(qtd*porVenda*12);
   }
-  document.querySelectorAll("#cVendas button").forEach(function(b){
-    b.addEventListener("click", function(){
-      document.querySelectorAll("#cVendas button").forEach(function(x){x.setAttribute("aria-pressed","false")});
-      b.setAttribute("aria-pressed","true"); qtd=+b.dataset.v; calc();
+  function seg(id, pick){
+    var btns = document.querySelectorAll("#" + id + " button");
+    btns.forEach(function(b){
+      b.addEventListener("click", function(){
+        btns.forEach(function(x){ x.setAttribute("aria-pressed", String(x === b)); });
+        pick(+b.dataset.v); calc();
+      });
     });
-  });
+  }
+  seg("cVendas", function(v){ qtd = v; });
+  seg("cPct", function(v){ partilha = v; });
   calc();
 
   // Máscara de telefone
@@ -533,10 +588,13 @@ var MSGS = {
       el.closest(".in").classList.toggle("invalid",!good); if(!good&&ok){el.focus(); ok=false;}
     });
     if(!ok) return;
-    var data={nome:f.nome.value.trim(), telefone:f.telefone.value.replace(/\D/g,""), email:f.email.value.trim(), leads_mes:f.leads_mes.value, origem:"lp-parceiros", utm:location.search, enviado_em:new Date().toISOString()};
+    var data={nome:f.nome.value.trim(), telefone:f.telefone.value.replace(/\D/g,""), email:f.email.value.trim(), leads_mes:f.leads_mes.value, partilha_ofertada:FAIXA.faixa, origem:"lp-parceiros", utm:location.search, enviado_em:new Date().toISOString()};
     var txt="Olá! Quero ser corretor parceiro da SMQ.\n\nNome: "+data.nome+"\nWhatsApp: "+f.telefone.value+"\nE-mail: "+data.email+"\nLeads/mês: "+data.leads_mes+utm;
     document.getElementById("fBtn").disabled=true;
+    // go() roda uma vez só: com webhook, o fetch e o timeout de 2,5 s chamam os dois
+    var foi=false;
     var go=function(){
+      if(foi) return; foi=true;
       f.style.display="none"; document.getElementById("okMsg").style.display="block";
       track("form_submit");
       window.location.href = waLink(txt);
