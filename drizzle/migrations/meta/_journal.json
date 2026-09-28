@@ -113,6 +113,20 @@
       "when": 1790623586554,
       "tag": "0015_comissao_tier_esteira",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790634619081,
+      "tag": "0016_prospeccao_lote_30",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790634744820,
+      "tag": "0017_fase0_admitir_porta_fechada",
+      "breakpoints": true
     }
   ]
 }
