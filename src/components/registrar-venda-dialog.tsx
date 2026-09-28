@@ -40,6 +40,7 @@ import { EFETIVACAO_INICIAL, EfetivacaoFlagsField } from "@/components/efetivaca
 import { parseSplit, type SplitTexto } from "@/lib/comissoes";
 import { validarVenda, registrarVenda, type EfetivacaoVenda } from "@/lib/vendas";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { useTierNoSplit } from "@/lib/comissao-tier";
 
 const hoje = () => new Date().toISOString().slice(0, 10);
 
@@ -88,6 +89,15 @@ export function RegistrarVendaDialog() {
     corretor: "1.85",
     gerente: "0.50",
     superintendente: "0.30",
+  });
+
+  const tierSplit = useTierNoSplit({
+    leadId: lead?.id,
+    corretorId: lead?.corretor_id ?? user?.id,
+    data: dataAssinatura,
+    percentuais,
+    setPercentuais,
+    gestao: isAdmin || isGestor || isSuperintendente,
   });
 
   const reset = () => {
@@ -351,6 +361,8 @@ export function RegistrarVendaDialog() {
               valorVenda={parseCurrencyBRL(valor)}
               valores={percentuais}
               onChange={(campo, v) => setPercentuais((prev) => ({ ...prev, [campo]: v }))}
+              travados={tierSplit.travados}
+              infoTier={tierSplit.infoTier}
             />
 
             <div className="space-y-1.5">
