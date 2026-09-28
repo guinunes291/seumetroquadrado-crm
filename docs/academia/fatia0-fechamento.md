@@ -89,3 +89,73 @@ Jobs noturnos reais (UTC): `higiene-processar-diaria` 04:00, `mcp-aplicar-guarda
   `distribuir_lead_ponderado` (legado). Lead puxado pelo próprio corretor não entra no tempo
   de primeiro contato. A Fatia 5 separa pelos campos `tipo`, `motivo` e `regra_aplicada`.
 - Aprovação do dono para a lista de participantes e para as redefinições das regras.
+
+## 7. A `01-migration-academia.sql` contra o schema real
+
+Testada no harness (replay das 401 migrations), sempre dentro de `BEGIN ... ROLLBACK`. O
+harness terminou idêntico ao início.
+
+**O que funciona:** 01 e 02 aplicam sem erro. O seed carrega 6 fases, 26 módulos, 181 aulas,
+136 questões e 8 regras. O fluxo feliz roda no schema real: um corretor marca as aulas, passa
+no quiz, tem a prática aprovada e sobe de nível, com histórico e certificado. O lado do
+corretor na RLS já está certo: questões, regras, indicadores e config voltam 0 linhas, e a
+escrita direta é barrada.
+
+**O que precisa mudar antes de virar migration** (linhas da 01):
+
+1. **Gestor escreve em tudo (L807-823).** O laço cria `*_gestor_all FOR ALL` em 17 tabelas.
+   Qualquer gestor apagou o histórico de nível, mudou a config e alterou 26 gabaritos no
+   teste. E, como gestor pode ser aluno, ele também lê o gabarito do próprio quiz. Troca:
+   tabelas pessoais só com SELECT por `pode_acessar_corretor` (escopo de equipe da casa) e
+   escrita só por RPC; questões, conteúdo, config e regras com escrita só de admin.
+2. **Escopo de equipe (L45-57).** `academia_eh_gestor` trata gestor como global: no teste, o
+   gestor da equipe B avaliou prática e atribuiu módulo a corretor da equipe A. Troca por
+   `academia_eh_admin()` e `academia_pode_gerir(pessoa)` sobre `pode_acessar_corretor`.
+3. **Ninguém pode se avaliar (L636-732).** Gestor e superintendente podem ser alunos; hoje um
+   gestor aprova a própria prática e faz override do próprio nível.
+4. **Publicar módulo é só admin (L755).** Hoje o gestor publica.
+5. **Conta bloqueada ainda estuda (L471-613).** As RPCs do aluno não checam
+   `is_active_member`.
+6. **Brechas nas RPCs:** prática enviada por não participante e em módulo rascunho (L609);
+   avaliação de prática inexistente ou já avaliada passa em silêncio (L629); atribuição
+   concluída sem quiz aprovado (L645); origem da atribuição vem do cliente e pode ser forjada
+   (L708); falta a RPC de inscrição de participante, que recuse bot, identidade MCP e conta
+   inativa.
+7. **Permissões:** `academia_eh_gestor` sem `REVOKE` (anon consegue sondar o papel de qualquer
+   pessoa); `academia_recalcular_nivel` executável por corretor sobre outra pessoa; nenhuma
+   tabela ou view com `GRANT`/`REVOKE` explícito. Seguir o padrão da casa: `REVOKE ... FROM
+PUBLIC, anon` e `GRANT` explícito logo após cada objeto, e `search_path = pg_catalog,
+public` nas 13 funções.
+8. **Transação própria (L14, L895).** Os arquivos abrem `begin;` e fecham `commit;`. Nenhuma
+   migration da casa faz isso; o runner já abre a transação. Remover.
+9. **Fuso (L162, L414, L526, L737, L776).** Datas sem `AT TIME ZONE 'America/Sao_Paulo'`: uma
+   tentativa às 22:30 de Brasília cai no dia seguinte.
+10. **"Apto" vira "Habilitado"** (decisão do dono) no enum (L21, mantendo a posição), na coluna
+    `apto_override`, na view, na função `academia_definir_apto`, no seed, no gerador, no
+    `modulos.json`, no rollback, no teste e na ESPEC. "Habilitado" não colide com nada no
+    schema.
+11. **Flags:** `academia_menu` e `academia_card_inicio` nascem em `app_flags`, desligadas.
+    `academia_config` fica para parâmetros de negócio, com escrita só de admin e o CHECK do
+    `gate_roleta_modo` com nome, para a migration futura poder removê-lo.
+12. **Seed das regras:** R07 nasce desativada; R01, R04, R05 e R08 recebem as definições das
+    seções 2 e 5.
+
+**O rollback (99) falha como está:** remove `academia_eh_gestor` antes das tabelas cujas
+policies dependem dela. Com a ordem corrigida, remove tudo.
+
+**Riscos novos:**
+
+- `03b-teste-fluxo.sql` dá `GRANT ... ON ALL TABLES` para `authenticated` e desfaria
+  `REVOKE`s da casa se rodado num branch do Supabase. Os testes de RLS vão para
+  `tests/db/academia.test.ts`, com os helpers do harness.
+- "Onboarding" também colide: a fase 0, `encontros.tipo` e `atribuicoes.origem` usam a mesma
+  palavra do `onboarding_concluido_em` que trava a roleta v2.
+- A recomendação trava: o índice único inclui o status `atribuida` e nada o tira dali. Depois
+  da primeira atribuição, a regra nunca mais recomenda para a mesma pessoa.
+- O quiz vira decoreba: cerca de 5 questões por módulo, sorteio de até 10, gabarito devolvido
+  no envio. A segunda tentativa é memória.
+- Apagar um perfil apaga a trilha (`ON DELETE CASCADE`), inclusive certificados.
+
+**Nomes propostos:** `20261002120000_academia_fundacao.sql` e
+`20261002120100_academia_seed.sql` em `supabase/migrations/`, espelhadas em
+`drizzle/migrations/0015_*` e `0016_*` com entradas no journal.
