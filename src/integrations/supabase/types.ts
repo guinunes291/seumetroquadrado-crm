@@ -1320,6 +1320,39 @@ export type Database = {
           },
         ]
       }
+      comissao_tier_regras: {
+        Row: {
+          min_vendas: number
+          ordem: number
+          pct_lead_empresa: number
+          pct_lead_proprio: number
+          pct_marquinhos: number
+          pct_sdr: number
+          tier: string
+          updated_at: string
+        }
+        Insert: {
+          min_vendas: number
+          ordem: number
+          pct_lead_empresa: number
+          pct_lead_proprio: number
+          pct_marquinhos: number
+          pct_sdr?: number
+          tier: string
+          updated_at?: string
+        }
+        Update: {
+          min_vendas?: number
+          ordem?: number
+          pct_lead_empresa?: number
+          pct_lead_proprio?: number
+          pct_marquinhos?: number
+          pct_sdr?: number
+          tier?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       comissoes: {
         Row: {
           beneficiario_id: string | null
@@ -7323,12 +7356,14 @@ export type Database = {
           data_distrato: string | null
           data_recebimento: string | null
           distrato: boolean
+          esteira_comissao: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
           observacoes: string | null
+          pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
           percentual_gerente: number
@@ -7338,6 +7373,7 @@ export type Database = {
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
+          tier_comissao: string | null
           unidade: string | null
           updated_at: string
           valor_venda: number
@@ -7358,12 +7394,14 @@ export type Database = {
           data_distrato?: string | null
           data_recebimento?: string | null
           distrato?: boolean
+          esteira_comissao?: string | null
           id?: string
           lead_id?: string | null
           legacy_id?: number | null
           motivo_decisao?: string | null
           motivo_distrato?: string | null
           observacoes?: string | null
+          pct_share_corretor?: number | null
           percentual_comissao?: number
           percentual_corretor?: number
           percentual_gerente?: number
@@ -7373,6 +7411,7 @@ export type Database = {
           status_recebimento?: string
           status_venda?: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at?: string
+          tier_comissao?: string | null
           unidade?: string | null
           updated_at?: string
           valor_venda?: number
@@ -7393,12 +7432,14 @@ export type Database = {
           data_distrato?: string | null
           data_recebimento?: string | null
           distrato?: boolean
+          esteira_comissao?: string | null
           id?: string
           lead_id?: string | null
           legacy_id?: number | null
           motivo_decisao?: string | null
           motivo_distrato?: string | null
           observacoes?: string | null
+          pct_share_corretor?: number | null
           percentual_comissao?: number
           percentual_corretor?: number
           percentual_gerente?: number
@@ -7408,6 +7449,7 @@ export type Database = {
           status_recebimento?: string
           status_venda?: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at?: string
+          tier_comissao?: string | null
           unidade?: string | null
           updated_at?: string
           valor_venda?: number
@@ -8883,12 +8925,14 @@ export type Database = {
           data_distrato: string | null
           data_recebimento: string | null
           distrato: boolean
+          esteira_comissao: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
           observacoes: string | null
+          pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
           percentual_gerente: number
@@ -8898,6 +8942,7 @@ export type Database = {
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
+          tier_comissao: string | null
           unidade: string | null
           updated_at: string
           valor_venda: number
@@ -9004,12 +9049,14 @@ export type Database = {
           data_distrato: string | null
           data_recebimento: string | null
           distrato: boolean
+          esteira_comissao: string | null
           id: string
           lead_id: string | null
           legacy_id: number | null
           motivo_decisao: string | null
           motivo_distrato: string | null
           observacoes: string | null
+          pct_share_corretor: number | null
           percentual_comissao: number
           percentual_corretor: number
           percentual_gerente: number
@@ -9019,6 +9066,7 @@ export type Database = {
           status_recebimento: string
           status_venda: Database["public"]["Enums"]["status_venda"]
           status_venda_updated_at: string
+          tier_comissao: string | null
           unidade: string | null
           updated_at: string
           valor_venda: number
@@ -9496,6 +9544,15 @@ export type Database = {
           rate_limits_deleted: number
         }[]
       }
+      comissao_sugerida_corretor: {
+        Args: { p_corretor: string; p_data?: string; p_lead: string }
+        Returns: {
+          esteira: string
+          pct_share: number
+          tier: string
+          vendas_trimestre_anterior: number
+        }[]
+      }
       complete_landing_webhook_request: {
         Args: {
           _key_hash: string
@@ -9628,6 +9685,14 @@ export type Database = {
       }
       copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
+      corretor_tier: {
+        Args: { p_corretor: string; p_ref?: string }
+        Returns: string
+      }
+      corretor_vendas_trimestre: {
+        Args: { p_corretor: string; p_offset?: number; p_ref: string }
+        Returns: number
+      }
       corretores_do_gestor: { Args: { _user_id: string }; Returns: string[] }
       create_oferta_ativa: {
         Args: {
@@ -10308,6 +10373,7 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.isleadavancado_status(_status => text), public.isleadavancado_status(_status => lead_status). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
+      lead_esteira_comissao: { Args: { p_lead: string }; Returns: string }
       lead_origem_conquistada: {
         Args: { _origem: Database["public"]["Enums"]["lead_origem"] }
         Returns: boolean
@@ -10946,6 +11012,17 @@ export type Database = {
           vgv: number
           visitas: number
           whatsapps: number
+        }[]
+      }
+      ranking_tiers_corretores: {
+        Args: never
+        Returns: {
+          corretor_id: string
+          nome: string
+          tier_atual: string
+          tier_proximo: string
+          vendas_trimestre_anterior: number
+          vendas_trimestre_atual: number
         }[]
       }
       reativacao_desarquivar: { Args: { _lead_id: string }; Returns: boolean }
