@@ -246,9 +246,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const { data: lead, error: leadErr } = await supabase
     .from("leads")
     .select(
-      contextoSdr
-        ? "id, nome, projeto_nome, renda_informada, tipo_renda, usa_fgts, resumo_qualificacao, sdr_id, corretor_id, sdr_entregue_em"
-        : "id, nome, projeto_nome, renda_informada",
+      "id, nome, projeto_nome, renda_informada, tipo_renda, usa_fgts, resumo_qualificacao, sdr_id, corretor_id, sdr_entregue_em",
     )
     .eq("id", leadId)
     .maybeSingle();
