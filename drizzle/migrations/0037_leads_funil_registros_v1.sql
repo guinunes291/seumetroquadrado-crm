@@ -30,7 +30,7 @@ BEGIN
   marcas AS (
     SELECT c.id,
       (c.status IN ('contrato_fechado','pos_venda')
-        OR EXISTS (SELECT 1 FROM public.vendas v WHERE v.lead_id = c.id AND COALESCE(v.distrato,false) = false AND v.status <> 'rejeitada' AND v.status <> 'cancelada')
+        OR EXISTS (SELECT 1 FROM public.vendas v WHERE v.lead_id = c.id AND COALESCE(v.distrato,false) = false AND v.status_venda::text NOT IN ('rejeitada','cancelada'))
         OR EXISTS (SELECT 1 FROM public.lead_status_transitions t WHERE t.lead_id = c.id AND t.para_status = 'contrato_fechado')) AS venda,
       (c.status IN ('analise_credito')
         OR EXISTS (SELECT 1 FROM public.analises_credito a WHERE a.lead_id = c.id)
