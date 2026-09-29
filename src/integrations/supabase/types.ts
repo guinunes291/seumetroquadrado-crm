@@ -12237,6 +12237,22 @@ export type Database = {
           usa_fgts: boolean
         }[]
       }
+      leads_funil_registros_v1: {
+        Args: {
+          _corretor?: string
+          _na_lixeira?: boolean
+          _origem?: string
+          _periodo_end?: string
+          _periodo_start?: string
+          _search?: string
+          _search_digits?: string
+          _temperatura?: string
+        }
+        Returns: {
+          etapa: string
+          quantidade: number
+        }[]
+      }
       leads_search_v2: {
         Args: {
           _corretor_id?: string
