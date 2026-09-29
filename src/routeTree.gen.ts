@@ -95,6 +95,8 @@ import { Route as ApiPublicProjetosIndexRouteImport } from './routes/api/public/
 import { Route as ApiPublicLeadsIndexRouteImport } from './routes/api/public/leads/index'
 import { Route as ApiPublicCorretoresIndexRouteImport } from './routes/api/public/corretores/index'
 import { Route as ApiPublicComissoesIndexRouteImport } from './routes/api/public/comissoes/index'
+import { Route as AuthenticatedAcademiaGestaoIndexRouteImport } from './routes/_authenticated/academia/gestao.index'
+import { Route as AuthenticatedAcademiaConteudoIndexRouteImport } from './routes/_authenticated/academia/conteudo.index'
 import { Route as ApiPublicWebhooksWhatsappRouteImport } from './routes/api/public/webhooks/whatsapp'
 import { Route as ApiPublicWebhooksLandingRouteImport } from './routes/api/public/webhooks/landing'
 import { Route as ApiPublicVendasIdRouteImport } from './routes/api/public/vendas/$id'
@@ -107,12 +109,15 @@ import { Route as ApiPublicEscritaHealthRouteImport } from './routes/api/public/
 import { Route as ApiPublicCorretoresIdRouteImport } from './routes/api/public/corretores/$id'
 import { Route as ApiPublicComissoesIdRouteImport } from './routes/api/public/comissoes/$id'
 import { Route as ApiGoogleOauthCallbackRouteImport } from './routes/api/google/oauth.callback'
+import { Route as AuthenticatedAcademiaConteudoCodigoRouteImport } from './routes/_authenticated/academia/conteudo.$codigo'
+import { Route as AuthenticatedAcademiaCertificadoCodigoRouteImport } from './routes/_authenticated/academia/certificado.$codigo'
 import { Route as AuthenticatedAcademiaModuloCodigoIndexRouteImport } from './routes/_authenticated/academia/modulo.$codigo.index'
 import { Route as ApiPublicWebhooksLeadTokenRouteImport } from './routes/api/public/webhooks/lead/$token'
 import { Route as ApiPublicLeadsIdPerdaRouteImport } from './routes/api/public/leads/$id.perda'
 import { Route as ApiPublicLeadsIdEventosRouteImport } from './routes/api/public/leads/$id.eventos'
 import { Route as ApiPublicLeadsIdCorretorRouteImport } from './routes/api/public/leads/$id.corretor'
 import { Route as AuthenticatedAcademiaModuloCodigoQuizRouteImport } from './routes/_authenticated/academia/modulo.$codigo.quiz'
+import { Route as AuthenticatedAcademiaGestaoCorretorCorretorIdRouteImport } from './routes/_authenticated/academia/gestao.corretor.$corretorId'
 import { Route as AuthenticatedAcademiaModuloCodigoAulaOrdemRouteImport } from './routes/_authenticated/academia/modulo.$codigo.aula.$ordem'
 
 const VitrinePublicaRoute = VitrinePublicaRouteImport.update({
@@ -570,6 +575,18 @@ const ApiPublicComissoesIndexRoute = ApiPublicComissoesIndexRouteImport.update({
   path: '/api/public/comissoes/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAcademiaGestaoIndexRoute =
+  AuthenticatedAcademiaGestaoIndexRouteImport.update({
+    id: '/academia/gestao/',
+    path: '/academia/gestao/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAcademiaConteudoIndexRoute =
+  AuthenticatedAcademiaConteudoIndexRouteImport.update({
+    id: '/academia/conteudo/',
+    path: '/academia/conteudo/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicWebhooksWhatsappRoute =
   ApiPublicWebhooksWhatsappRouteImport.update({
     id: '/api/public/webhooks/whatsapp',
@@ -634,6 +651,18 @@ const ApiGoogleOauthCallbackRoute = ApiGoogleOauthCallbackRouteImport.update({
   path: '/api/google/oauth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAcademiaConteudoCodigoRoute =
+  AuthenticatedAcademiaConteudoCodigoRouteImport.update({
+    id: '/academia/conteudo/$codigo',
+    path: '/academia/conteudo/$codigo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAcademiaCertificadoCodigoRoute =
+  AuthenticatedAcademiaCertificadoCodigoRouteImport.update({
+    id: '/academia/certificado/$codigo',
+    path: '/academia/certificado/$codigo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAcademiaModuloCodigoIndexRoute =
   AuthenticatedAcademiaModuloCodigoIndexRouteImport.update({
     id: '/academia/modulo/$codigo/',
@@ -666,6 +695,12 @@ const AuthenticatedAcademiaModuloCodigoQuizRoute =
   AuthenticatedAcademiaModuloCodigoQuizRouteImport.update({
     id: '/academia/modulo/$codigo/quiz',
     path: '/academia/modulo/$codigo/quiz',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAcademiaGestaoCorretorCorretorIdRoute =
+  AuthenticatedAcademiaGestaoCorretorCorretorIdRouteImport.update({
+    id: '/academia/gestao/corretor/$corretorId',
+    path: '/academia/gestao/corretor/$corretorId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedAcademiaModuloCodigoAulaOrdemRoute =
@@ -756,6 +791,8 @@ export interface FileRoutesByFullPath {
   '/leads/': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos/': typeof AuthenticatedProjetosIndexRoute
+  '/academia/certificado/$codigo': typeof AuthenticatedAcademiaCertificadoCodigoRoute
+  '/academia/conteudo/$codigo': typeof AuthenticatedAcademiaConteudoCodigoRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
@@ -768,11 +805,14 @@ export interface FileRoutesByFullPath {
   '/api/public/vendas/$id': typeof ApiPublicVendasIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
+  '/academia/conteudo/': typeof AuthenticatedAcademiaConteudoIndexRoute
+  '/academia/gestao/': typeof AuthenticatedAcademiaGestaoIndexRoute
   '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/academia/gestao/corretor/$corretorId': typeof AuthenticatedAcademiaGestaoCorretorCorretorIdRoute
   '/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
@@ -862,6 +902,8 @@ export interface FileRoutesByTo {
   '/leads': typeof AuthenticatedLeadsIndexRoute
   '/oferta-ativa': typeof AuthenticatedOfertaAtivaIndexRoute
   '/projetos': typeof AuthenticatedProjetosIndexRoute
+  '/academia/certificado/$codigo': typeof AuthenticatedAcademiaCertificadoCodigoRoute
+  '/academia/conteudo/$codigo': typeof AuthenticatedAcademiaConteudoCodigoRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
@@ -874,11 +916,14 @@ export interface FileRoutesByTo {
   '/api/public/vendas/$id': typeof ApiPublicVendasIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
+  '/academia/conteudo': typeof AuthenticatedAcademiaConteudoIndexRoute
+  '/academia/gestao': typeof AuthenticatedAcademiaGestaoIndexRoute
   '/api/public/comissoes': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas': typeof ApiPublicVendasIndexRoute
+  '/academia/gestao/corretor/$corretorId': typeof AuthenticatedAcademiaGestaoCorretorCorretorIdRoute
   '/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
@@ -970,6 +1015,8 @@ export interface FileRoutesById {
   '/_authenticated/leads/': typeof AuthenticatedLeadsIndexRoute
   '/_authenticated/oferta-ativa/': typeof AuthenticatedOfertaAtivaIndexRoute
   '/_authenticated/projetos/': typeof AuthenticatedProjetosIndexRoute
+  '/_authenticated/academia/certificado/$codigo': typeof AuthenticatedAcademiaCertificadoCodigoRoute
+  '/_authenticated/academia/conteudo/$codigo': typeof AuthenticatedAcademiaConteudoCodigoRoute
   '/api/google/oauth/callback': typeof ApiGoogleOauthCallbackRoute
   '/api/public/comissoes/$id': typeof ApiPublicComissoesIdRoute
   '/api/public/corretores/$id': typeof ApiPublicCorretoresIdRoute
@@ -982,11 +1029,14 @@ export interface FileRoutesById {
   '/api/public/vendas/$id': typeof ApiPublicVendasIdRoute
   '/api/public/webhooks/landing': typeof ApiPublicWebhooksLandingRoute
   '/api/public/webhooks/whatsapp': typeof ApiPublicWebhooksWhatsappRoute
+  '/_authenticated/academia/conteudo/': typeof AuthenticatedAcademiaConteudoIndexRoute
+  '/_authenticated/academia/gestao/': typeof AuthenticatedAcademiaGestaoIndexRoute
   '/api/public/comissoes/': typeof ApiPublicComissoesIndexRoute
   '/api/public/corretores/': typeof ApiPublicCorretoresIndexRoute
   '/api/public/leads/': typeof ApiPublicLeadsIndexRoute
   '/api/public/projetos/': typeof ApiPublicProjetosIndexRoute
   '/api/public/vendas/': typeof ApiPublicVendasIndexRoute
+  '/_authenticated/academia/gestao/corretor/$corretorId': typeof AuthenticatedAcademiaGestaoCorretorCorretorIdRoute
   '/_authenticated/academia/modulo/$codigo/quiz': typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   '/api/public/leads/$id/corretor': typeof ApiPublicLeadsIdCorretorRoute
   '/api/public/leads/$id/eventos': typeof ApiPublicLeadsIdEventosRoute
@@ -1078,6 +1128,8 @@ export interface FileRouteTypes {
     | '/leads/'
     | '/oferta-ativa/'
     | '/projetos/'
+    | '/academia/certificado/$codigo'
+    | '/academia/conteudo/$codigo'
     | '/api/google/oauth/callback'
     | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
@@ -1090,11 +1142,14 @@ export interface FileRouteTypes {
     | '/api/public/vendas/$id'
     | '/api/public/webhooks/landing'
     | '/api/public/webhooks/whatsapp'
+    | '/academia/conteudo/'
+    | '/academia/gestao/'
     | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
     | '/api/public/projetos/'
     | '/api/public/vendas/'
+    | '/academia/gestao/corretor/$corretorId'
     | '/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
@@ -1184,6 +1239,8 @@ export interface FileRouteTypes {
     | '/leads'
     | '/oferta-ativa'
     | '/projetos'
+    | '/academia/certificado/$codigo'
+    | '/academia/conteudo/$codigo'
     | '/api/google/oauth/callback'
     | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
@@ -1196,11 +1253,14 @@ export interface FileRouteTypes {
     | '/api/public/vendas/$id'
     | '/api/public/webhooks/landing'
     | '/api/public/webhooks/whatsapp'
+    | '/academia/conteudo'
+    | '/academia/gestao'
     | '/api/public/comissoes'
     | '/api/public/corretores'
     | '/api/public/leads'
     | '/api/public/projetos'
     | '/api/public/vendas'
+    | '/academia/gestao/corretor/$corretorId'
     | '/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
@@ -1291,6 +1351,8 @@ export interface FileRouteTypes {
     | '/_authenticated/leads/'
     | '/_authenticated/oferta-ativa/'
     | '/_authenticated/projetos/'
+    | '/_authenticated/academia/certificado/$codigo'
+    | '/_authenticated/academia/conteudo/$codigo'
     | '/api/google/oauth/callback'
     | '/api/public/comissoes/$id'
     | '/api/public/corretores/$id'
@@ -1303,11 +1365,14 @@ export interface FileRouteTypes {
     | '/api/public/vendas/$id'
     | '/api/public/webhooks/landing'
     | '/api/public/webhooks/whatsapp'
+    | '/_authenticated/academia/conteudo/'
+    | '/_authenticated/academia/gestao/'
     | '/api/public/comissoes/'
     | '/api/public/corretores/'
     | '/api/public/leads/'
     | '/api/public/projetos/'
     | '/api/public/vendas/'
+    | '/_authenticated/academia/gestao/corretor/$corretorId'
     | '/_authenticated/academia/modulo/$codigo/quiz'
     | '/api/public/leads/$id/corretor'
     | '/api/public/leads/$id/eventos'
@@ -1963,6 +2028,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicComissoesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/academia/gestao/': {
+      id: '/_authenticated/academia/gestao/'
+      path: '/academia/gestao'
+      fullPath: '/academia/gestao/'
+      preLoaderRoute: typeof AuthenticatedAcademiaGestaoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/academia/conteudo/': {
+      id: '/_authenticated/academia/conteudo/'
+      path: '/academia/conteudo'
+      fullPath: '/academia/conteudo/'
+      preLoaderRoute: typeof AuthenticatedAcademiaConteudoIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/webhooks/whatsapp': {
       id: '/api/public/webhooks/whatsapp'
       path: '/api/public/webhooks/whatsapp'
@@ -2047,6 +2126,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGoogleOauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/academia/conteudo/$codigo': {
+      id: '/_authenticated/academia/conteudo/$codigo'
+      path: '/academia/conteudo/$codigo'
+      fullPath: '/academia/conteudo/$codigo'
+      preLoaderRoute: typeof AuthenticatedAcademiaConteudoCodigoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/academia/certificado/$codigo': {
+      id: '/_authenticated/academia/certificado/$codigo'
+      path: '/academia/certificado/$codigo'
+      fullPath: '/academia/certificado/$codigo'
+      preLoaderRoute: typeof AuthenticatedAcademiaCertificadoCodigoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/academia/modulo/$codigo/': {
       id: '/_authenticated/academia/modulo/$codigo/'
       path: '/academia/modulo/$codigo'
@@ -2087,6 +2180,13 @@ declare module '@tanstack/react-router' {
       path: '/academia/modulo/$codigo/quiz'
       fullPath: '/academia/modulo/$codigo/quiz'
       preLoaderRoute: typeof AuthenticatedAcademiaModuloCodigoQuizRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/academia/gestao/corretor/$corretorId': {
+      id: '/_authenticated/academia/gestao/corretor/$corretorId'
+      path: '/academia/gestao/corretor/$corretorId'
+      fullPath: '/academia/gestao/corretor/$corretorId'
+      preLoaderRoute: typeof AuthenticatedAcademiaGestaoCorretorCorretorIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/academia/modulo/$codigo/aula/$ordem': {
@@ -2160,6 +2260,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsIndexRoute: typeof AuthenticatedLeadsIndexRoute
   AuthenticatedOfertaAtivaIndexRoute: typeof AuthenticatedOfertaAtivaIndexRoute
   AuthenticatedProjetosIndexRoute: typeof AuthenticatedProjetosIndexRoute
+  AuthenticatedAcademiaCertificadoCodigoRoute: typeof AuthenticatedAcademiaCertificadoCodigoRoute
+  AuthenticatedAcademiaConteudoCodigoRoute: typeof AuthenticatedAcademiaConteudoCodigoRoute
+  AuthenticatedAcademiaConteudoIndexRoute: typeof AuthenticatedAcademiaConteudoIndexRoute
+  AuthenticatedAcademiaGestaoIndexRoute: typeof AuthenticatedAcademiaGestaoIndexRoute
+  AuthenticatedAcademiaGestaoCorretorCorretorIdRoute: typeof AuthenticatedAcademiaGestaoCorretorCorretorIdRoute
   AuthenticatedAcademiaModuloCodigoQuizRoute: typeof AuthenticatedAcademiaModuloCodigoQuizRoute
   AuthenticatedAcademiaModuloCodigoIndexRoute: typeof AuthenticatedAcademiaModuloCodigoIndexRoute
   AuthenticatedAcademiaModuloCodigoAulaOrdemRoute: typeof AuthenticatedAcademiaModuloCodigoAulaOrdemRoute
@@ -2227,6 +2332,15 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsIndexRoute: AuthenticatedLeadsIndexRoute,
   AuthenticatedOfertaAtivaIndexRoute: AuthenticatedOfertaAtivaIndexRoute,
   AuthenticatedProjetosIndexRoute: AuthenticatedProjetosIndexRoute,
+  AuthenticatedAcademiaCertificadoCodigoRoute:
+    AuthenticatedAcademiaCertificadoCodigoRoute,
+  AuthenticatedAcademiaConteudoCodigoRoute:
+    AuthenticatedAcademiaConteudoCodigoRoute,
+  AuthenticatedAcademiaConteudoIndexRoute:
+    AuthenticatedAcademiaConteudoIndexRoute,
+  AuthenticatedAcademiaGestaoIndexRoute: AuthenticatedAcademiaGestaoIndexRoute,
+  AuthenticatedAcademiaGestaoCorretorCorretorIdRoute:
+    AuthenticatedAcademiaGestaoCorretorCorretorIdRoute,
   AuthenticatedAcademiaModuloCodigoQuizRoute:
     AuthenticatedAcademiaModuloCodigoQuizRoute,
   AuthenticatedAcademiaModuloCodigoIndexRoute:

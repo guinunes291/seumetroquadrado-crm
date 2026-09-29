@@ -3,7 +3,7 @@ import { AcademiaGuard } from "@/features/academia/guard";
 import { TrilhaPage } from "@/features/academia/trilha-page";
 
 export const Route = createFileRoute("/_authenticated/academia/")({
-  head: () => ({ meta: [{ title: "Minha trilha — Academia SMQ" }] }),
+  head: () => ({ meta: [{ title: "Minha trilha · Academia SMQ" }] }),
   component: () => (
     <AcademiaGuard>
       <TrilhaPage />

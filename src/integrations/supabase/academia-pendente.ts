@@ -1,19 +1,20 @@
-// Fronteira tipada dos objetos criados pelas migrations da Academia SMQ
-// (20261002120000_academia_fundacao, 20261002120100_academia_seed), que ainda
-// NÃO estão em types.ts — types.ts é gerado pelo Lovable a partir do banco
-// real, e estas migrations ainda não foram aplicadas.
+// Fronteira tipada dos objetos da Academia SMQ que ainda NÃO estão em
+// types.ts. types.ts é gerado pelo Lovable a partir do banco real, e a
+// plataforma bloqueia edição manual dele.
 //
-// Mesmo padrão de integrations/supabase/higiene-pendente.ts e pendentes.ts,
-// em arquivo separado de propósito: cada rodada de migrations tem o seu ciclo
-// de vida e some quando a SUA rodada for refletida nos types.
+// Histórico: nasceu para a fundação e o seed (20261002120000/20261002120100).
+// Essas duas já foram aplicadas e o Lovable regenerou os types; as tabelas
+// abaixo continuam descritas aqui porque os tipos à mão são MAIS ESTREITOS
+// que os gerados (uniões de texto em vez de string, colunas de view sem
+// null), e a interseção com os gerados só estreita.
 //
-// Ao regenerar os types do Supabase depois de aplicar estas migrations:
-//   1. apagar este arquivo;
-//   2. trocar `supabaseAcademia` por `supabase` nos consumidores;
-//   3. baixar o teto do type-escape budget.
-//
-// Nesta fatia NADA no front consome isto ainda: a Fatia 1 é só camada de
-// dados, e as flags academia_menu e academia_card_inicio nascem desligadas.
+// O que ainda depende desta fronteira é a migration da gestão
+// (20261003120000_academia_gestao): motor de indicadores, recomendações,
+// efeito, encontros, gate em sombra e candidatos. Ao aplicá-la em produção e
+// regenerar os types:
+//   1. trocar `supabaseAcademia` por `supabase` nos consumidores;
+//   2. mover os tipos estreitos que ainda fizerem falta para features/academia;
+//   3. apagar este arquivo e baixar o teto do type-escape budget para 145.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "./client";
@@ -245,6 +246,8 @@ export type AcademiaRegraRecomendacaoRow = {
   amostra_minima: number;
   ativa: boolean;
   observacao: string | null;
+  /** Distância absoluta mínima até a mediana, além do limiar relativo. */
+  diferenca_minima: number | null;
 };
 
 export type AcademiaRecomendacaoRow = {
@@ -361,6 +364,55 @@ export type AcademiaQuizEnviarRetorno = {
   }> | null;
 };
 
+/** Antes (a janela que disparou a recomendação) x depois (a mesma janela
+ *  contada da conclusão do módulo). `valor_depois` nulo = janela ainda aberta. */
+export type AcademiaEfeitoRow = {
+  recomendacao_id: string;
+  corretor_id: string;
+  regra_codigo: string;
+  indicador: string;
+  direcao: "menor_e_pior" | "maior_e_pior";
+  janela_dias: number;
+  modulo_id: string;
+  modulo_codigo: string | null;
+  modulo_titulo: string | null;
+  data_antes: string;
+  valor_antes: number | null;
+  referencia_antes: number | null;
+  amostra_antes: number | null;
+  concluida_em: string;
+  data_depois: string;
+  valor_depois: number | null;
+  referencia_depois: number | null;
+  amostra_depois: number | null;
+};
+
+export type AcademiaSituacaoGate = "habilitado" | "nao_habilitado" | "fora_da_academia";
+
+/** Uma linha por corretor que recebeu lead nos últimos 30 dias. */
+export type AcademiaGateSombraRow = {
+  corretor_id: string;
+  corretor_nome: string | null;
+  situacao: AcademiaSituacaoGate;
+  leads_30d: number;
+  pct_do_total: number | null;
+};
+
+export type AcademiaCandidatoRow = {
+  pessoa_id: string;
+  nome: string | null;
+  email: string | null;
+  papeis: string[];
+  conta_ativa: boolean;
+  eh_bot: boolean;
+  eh_mcp: boolean;
+  participa: boolean;
+  inicio_trilha: string | null;
+  nivel: AcademiaNivel | null;
+};
+
+export type AcademiaMotorRetorno = { indicadores: number; recomendacoes: number };
+
 type SomenteLeitura<R> = { Row: R; Insert: never; Update: never; Relationships: [] };
 /** Escrita só por RPC: sem Insert/Update mesmo para quem tem papel. */
 type SoRpc<R> = SomenteLeitura<R>;
@@ -400,6 +452,7 @@ export type DatabaseAcademia = Omit<Database, "public"> & {
       v_academia_modulo_status: SomenteLeitura<AcademiaModuloStatusRow>;
       v_academia_fase_status: SomenteLeitura<AcademiaFaseStatusRow>;
       v_academia_corretor_resumo: SomenteLeitura<AcademiaCorretorResumoRow>;
+      v_academia_efeito: SomenteLeitura<AcademiaEfeitoRow>;
     };
     Functions: Pub["Functions"] & {
       academia_marcar_aula: { Args: { _aula: string; _concluida?: boolean }; Returns: void };
@@ -454,6 +507,32 @@ export type DatabaseAcademia = Omit<Database, "public"> & {
         Args: { _pessoa: string; _participa: boolean; _inicio_trilha?: string | null };
         Returns: void;
       };
+      academia_rodar_motor: { Args: { _data_ref?: string | null }; Returns: AcademiaMotorRetorno };
+      academia_salvar_encontro: {
+        Args: {
+          _id: string | null;
+          _tipo: AcademiaTipoEncontro;
+          _titulo: string;
+          _inicio: string;
+          _duracao_min: number | null;
+          _facilitador: string | null;
+          _modulo: string | null;
+          _descricao: string | null;
+          _acao_registrada: string | null;
+        };
+        Returns: string;
+      };
+      academia_registrar_presenca: {
+        Args: {
+          _encontro: string;
+          _corretor: string;
+          _presente: boolean | null;
+          _observacao?: string | null;
+        };
+        Returns: void;
+      };
+      academia_gate_sombra: { Args: Record<string, never>; Returns: AcademiaGateSombraRow[] };
+      academia_candidatos: { Args: Record<string, never>; Returns: AcademiaCandidatoRow[] };
     };
   };
 };

@@ -272,8 +272,11 @@ describe("texto da Academia", () => {
     });
   }
 
-  it("não usa travessão em lugar nenhum de src/features/academia", () => {
-    const comTravessao = arquivos("src/features/academia")
+  it("não usa travessão em src/features/academia nem nas rotas da Academia", () => {
+    const comTravessao = [
+      ...arquivos("src/features/academia"),
+      ...arquivos("src/routes/_authenticated/academia"),
+    ]
       .filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"))
       .filter((f) => readFileSync(f, "utf8").includes("—"));
     expect(comTravessao).toEqual([]);

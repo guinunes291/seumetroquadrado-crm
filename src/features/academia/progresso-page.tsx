@@ -75,6 +75,11 @@ export function ProgressoPage() {
                     </p>
                     <p className="font-mono text-sm">{c.codigo}</p>
                   </div>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to="/academia/certificado/$codigo" params={{ codigo: c.codigo }}>
+                      Abrir
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
             ))}

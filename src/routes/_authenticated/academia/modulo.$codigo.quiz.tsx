@@ -3,7 +3,7 @@ import { AcademiaGuard } from "@/features/academia/guard";
 import { QuizPage } from "@/features/academia/quiz-page";
 
 export const Route = createFileRoute("/_authenticated/academia/modulo/$codigo/quiz")({
-  head: () => ({ meta: [{ title: "Quiz — Academia SMQ" }] }),
+  head: () => ({ meta: [{ title: "Quiz · Academia SMQ" }] }),
   component: RotaQuiz,
 });
 

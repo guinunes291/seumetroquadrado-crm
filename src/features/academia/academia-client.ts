@@ -17,7 +17,6 @@ import {
   type AcademiaAulaRow,
   type AcademiaCertificadoRow,
   type AcademiaCorretorResumoRow,
-  type AcademiaEncontroRow,
   type AcademiaFaseRow,
   type AcademiaFaseStatusRow,
   type AcademiaModuloRow,
@@ -36,7 +35,6 @@ export const ACADEMIA_KEY = {
   modulo: (codigo: string) => ["academia", "modulo", codigo] as const,
   aulas: (moduloId: string | null) => ["academia", "aulas", moduloId] as const,
   progresso: (uid: string | null) => ["academia", "progresso", uid] as const,
-  encontro: ["academia", "proximo-encontro"] as const,
 };
 
 function idDoUsuario(uid: string | undefined): string | null {
@@ -138,28 +136,6 @@ export function useTrilha() {
           };
         },
         () => ({ resumo: null, fases: [], faseStatus: [], modulos: [], atribuicoes: [] }),
-      ),
-  });
-}
-
-export function useProximoEncontro() {
-  return useQuery<AcademiaEncontroRow | null>({
-    queryKey: ACADEMIA_KEY.encontro,
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () =>
-      rpcWithFallback(
-        async () => {
-          const { data, error } = await supabaseAcademia
-            .from("academia_encontros")
-            .select("*")
-            .gte("inicio", new Date().toISOString())
-            .order("inicio")
-            .limit(1)
-            .maybeSingle();
-          if (error) throw error;
-          return data ?? null;
-        },
-        () => null,
       ),
   });
 }

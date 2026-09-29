@@ -20,7 +20,9 @@ import { Progress } from "@/components/ui/progress";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { AcademiaModuloStatusRow } from "@/integrations/supabase/academia-pendente";
-import { useProximoEncontro, useTrilha } from "./academia-client";
+import { useTrilha } from "./academia-client";
+import { useProximosEncontros } from "./gestao/gestao-client";
+import { ROTULO_TIPO_ENCONTRO } from "./gestao/derivacao";
 import { dataBr, diasAte } from "./formato";
 import { EsqueletoAcademia } from "./guard";
 import { ROTULO_NIVEL, proximoNivel } from "./niveis";
@@ -64,7 +66,7 @@ function LinhaModulo({ m, hoje }: { m: AcademiaModuloStatusRow; hoje: string }) 
 
 export function TrilhaPage() {
   const trilha = useTrilha();
-  const encontro = useProximoEncontro();
+  const encontros = useProximosEncontros();
   const hoje = hojeBrasilia();
 
   if (trilha.isPending) return <EsqueletoAcademia />;
@@ -218,25 +220,35 @@ export function TrilhaPage() {
         </Accordion>
       )}
 
-      {encontro.data && (
-        <Card className="mt-4">
-          <CardContent className="flex items-center gap-3 py-3">
-            <CalendarDots className="h-5 w-5 shrink-0 text-muted-foreground" />
-            <div className="min-w-0">
-              <p className="text-xs text-muted-foreground">Próximo encontro presencial</p>
-              <p className="truncate text-sm font-medium">{encontro.data.titulo}</p>
-              <p className="text-xs text-muted-foreground">
-                {new Intl.DateTimeFormat("pt-BR", {
-                  timeZone: "America/Sao_Paulo",
-                  day: "2-digit",
-                  month: "2-digit",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }).format(new Date(encontro.data.inicio))}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {(encontros.data ?? []).length > 0 && (
+        <section className="mt-4" aria-labelledby="titulo-encontros">
+          <h2 id="titulo-encontros" className="mb-2 text-sm font-semibold">
+            Próximos encontros presenciais
+          </h2>
+          <div className="space-y-2">
+            {(encontros.data ?? []).map((e) => (
+              <Card key={e.id}>
+                <CardContent className="flex items-center gap-3 py-3">
+                  <CalendarDots className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{e.titulo}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ROTULO_TIPO_ENCONTRO[e.tipo]} ·{" "}
+                      {new Intl.DateTimeFormat("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                        weekday: "short",
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }).format(new Date(e.inicio))}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
