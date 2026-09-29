@@ -24,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -38,6 +39,10 @@ type PendingSale = {
   contrato_assinado: boolean;
   ato_pago: boolean;
   apto_repasse: boolean;
+  percentual_comissao: number | null;
+  percentual_gerente: number | null;
+  percentual_superintendente: number | null;
+  pct_share_corretor: number | null;
   leadNome: string;
   corretorNome: string;
 };
@@ -53,6 +58,20 @@ export function PendingSalesApproval() {
     type: "aprovada" | "rejeitada";
   } | null>(null);
   const [reason, setReason] = useState("");
+  const [pct, setPct] = useState({ total: "", gerente: "", superintendente: "" });
+  const abrirDecisao = (sale: PendingSale, type: "aprovada" | "rejeitada") => {
+    const f = (n: number | null) => (n == null ? "" : String(n).replace(".", ","));
+    setPct({
+      total: f(sale.percentual_comissao),
+      gerente: f(sale.percentual_gerente),
+      superintendente: f(sale.percentual_superintendente),
+    });
+    setDecision({ sale, type });
+  };
+  const num = (t: string) => {
+    const v = Number(t.replace(",", "."));
+    return t.trim() !== "" && Number.isFinite(v) && v >= 0 && v <= 100 ? v : null;
+  };
 
   const query = useQuery({
     queryKey: ["vendas", "pendentes-aprovacao"],
@@ -60,7 +79,7 @@ export function PendingSalesApproval() {
       const { data: sales, error } = await supabase
         .from("vendas")
         .select(
-          "id, lead_id, corretor_id, projeto_nome, valor_venda, data_assinatura, created_at, contrato_assinado, ato_pago, apto_repasse",
+          "id, lead_id, corretor_id, projeto_nome, valor_venda, data_assinatura, created_at, contrato_assinado, ato_pago, apto_repasse, percentual_comissao, percentual_gerente, percentual_superintendente, pct_share_corretor",
         )
         .eq("status_venda", "pendente")
         .order("created_at", { ascending: true })
@@ -110,6 +129,24 @@ export function PendingSalesApproval() {
       if (!decision) throw new Error("Decisão inválida");
       if (decision.type === "rejeitada" && !reason.trim()) {
         throw new Error("Informe o motivo da rejeição.");
+      }
+      if (decision.type === "aprovada") {
+        const total = num(pct.total);
+        const gerente = num(pct.gerente || "0");
+        const sup = num(pct.superintendente || "0");
+        if (total === null || gerente === null || sup === null) {
+          throw new Error("Percentuais inválidos — use números entre 0 e 100.");
+        }
+        const share = decision.sale.pct_share_corretor;
+        const patch: {
+          percentual_comissao: number;
+          percentual_gerente: number;
+          percentual_superintendente: number;
+          percentual_corretor?: number;
+        } = { percentual_comissao: total, percentual_gerente: gerente, percentual_superintendente: sup };
+        if (share != null) patch.percentual_corretor = Math.round(total * Number(share) * 100) / 10000;
+        const { error: upErr } = await supabase.from("vendas").update(patch).eq("id", decision.sale.id);
+        if (upErr) throw upErr;
       }
       const { error } = await supabase.rpc("aprovar_venda", {
         p_decisao: decision.type,
@@ -197,7 +234,7 @@ export function PendingSalesApproval() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setDecision({ sale, type: "rejeitada" })}
+                        onClick={() => abrirDecisao(sale, "rejeitada")}
                       >
                         <XCircle className="h-4 w-4" aria-hidden="true" /> Rejeitar
                       </Button>
@@ -205,7 +242,7 @@ export function PendingSalesApproval() {
                         size="sm"
                         disabled={!efetivada}
                         title={efetivada ? undefined : `Aguardando: ${pendentes.join(", ")}`}
-                        onClick={() => setDecision({ sale, type: "aprovada" })}
+                        onClick={() => abrirDecisao(sale, "aprovada")}
                       >
                         <CheckCircle className="h-4 w-4" aria-hidden="true" /> Aprovar
                       </Button>
@@ -262,6 +299,42 @@ export function PendingSalesApproval() {
                 : "A rejeição não gera comissão nem altera as metas."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {decision?.type === "aprovada" && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Comissão da imobiliária (%)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    ["total", "Imobiliária (total)"],
+                    ["gerente", "Gerente"],
+                    ["superintendente", "Superint."],
+                  ] as const
+                ).map(([k, rotulo]) => (
+                  <div key={k} className="space-y-1">
+                    <Label className="text-[11px]">{rotulo}</Label>
+                    <Input
+                      inputMode="decimal"
+                      value={pct[k]}
+                      onChange={(e) => setPct((p) => ({ ...p, [k]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+              {(() => {
+                const total = num(pct.total);
+                const share = decision.sale.pct_share_corretor;
+                if (total === null || share == null) return null;
+                const corr = Math.round(total * Number(share) * 100) / 10000;
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    Corretor recebe {Number(share).toLocaleString("pt-BR")}% (tier) ={" "}
+                    {corr.toLocaleString("pt-BR")}% do imóvel ·{" "}
+                    {money((decision.sale.valor_venda * corr) / 100)}
+                  </p>
+                );
+              })()}
+            </div>
+          )}
           {decision?.type === "rejeitada" && (
             <div className="space-y-1.5">
               <Label htmlFor="sale-rejection-reason">Motivo da rejeição *</Label>
