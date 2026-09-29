@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PencilSimple } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
+import { Constants, type Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,14 @@ import { ZONAS_ORDEM } from "@/lib/zonas";
 import { ORIGEM_LABEL } from "@/lib/origem";
 import { useUserRoles } from "@/hooks/use-auth";
 import type { DossieLead } from "@/features/leads/dossie/types";
+
+type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
+const ORIGENS: readonly string[] = Constants.public.Enums.lead_origem;
+
+/** A origem escolhida é um valor do enum do banco? (Sem escape de tipo.) */
+function ehOrigem(valor: string): valor is LeadOrigem {
+  return ORIGENS.includes(valor);
+}
 
 export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: DossieLead }) {
   const qc = useQueryClient();
@@ -77,6 +86,7 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
       if (telefone.replace(/\D/g, "").length < 8) throw new Error("Telefone inválido.");
       const email = editForm.email.trim();
       if (email && !email.includes("@")) throw new Error("E-mail inválido.");
+      const origem = editForm.origem;
       // Nota: `proximo_followup` é derivado das tarefas (trigger do banco) e
       // não é editável aqui — o corretor mexe criando/adiando tarefas.
       const payload = {
@@ -93,9 +103,7 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
         bairro: editForm.bairro.trim() || null,
         zona: editForm.zona || null,
         observacoes: editForm.observacoes.trim() || null,
-        ...(isAdmin && editForm.origem && editForm.origem !== lead.origem
-          ? { origem: editForm.origem as never }
-          : {}),
+        ...(isAdmin && ehOrigem(origem) && origem !== lead.origem ? { origem } : {}),
       };
       const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
       if (error) throw error;

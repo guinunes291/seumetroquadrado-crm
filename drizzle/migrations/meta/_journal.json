@@ -211,6 +211,13 @@
       "when": 1791299100000,
       "tag": "0029_academia_lote1_m15",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791299160000,
+      "tag": "0030_prospeccao_lote_grande_sp",
+      "breakpoints": true
     }
   ]
 }

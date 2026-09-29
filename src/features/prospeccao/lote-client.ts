@@ -14,12 +14,27 @@
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { rpc } from "@/features/dashboard/queries";
-import { ZONAS_ORDEM, type Zona } from "@/lib/zonas";
+import { GRANDE_SP, ZONAS_PROJETO_ORDEM, type ZonaProjeto } from "@/lib/zonas";
 
 export const TAMANHO_LOTE = 30;
 
-/** Zonas na ordem em que o corretor as procura (a mesma do cadastro de lead). */
-export const ZONAS_LOTE: readonly Zona[] = ZONAS_ORDEM;
+/** As cinco zonas da capital e a Grande SP (migration 20261007120000), na
+ *  ordem dos chips da vitrine. A zona de cada cliente segue a mesma regra da
+ *  vitrine (`zonaDoProjeto`) — o teste de paridade no banco garante. */
+export const ZONAS_LOTE: readonly ZonaProjeto[] = ZONAS_PROJETO_ORDEM;
+
+/** "Zona Leste", "Centro", "Grande SP" — o rótulo da vitrine (`rotuloZona`),
+ *  para o texto de zona como o banco devolve. */
+export function rotuloDaZona(zona: string | null | undefined): string {
+  if (!zona) return "";
+  return zona === GRANDE_SP || zona === "Centro" ? zona : `Zona ${zona}`;
+}
+
+/** O rótulo com a preposição: "da Zona Leste", "do Centro", "da Grande SP". */
+export function daZona(zona: string | null | undefined): string {
+  if (!zona) return "";
+  return zona === "Centro" ? "do Centro" : `da ${rotuloDaZona(zona)}`;
+}
 
 const statusSchema = z.object({
   lote_id: z.string().uuid().nullable(),
@@ -75,7 +90,7 @@ export async function fetchStatusLote(): Promise<StatusLote> {
   return parseStatusLote(data);
 }
 
-export async function pedirLote(zona: Zona): Promise<ResultadoPedido> {
+export async function pedirLote(zona: ZonaProjeto): Promise<ResultadoPedido> {
   const { data, error } = await supabase.rpc("prospeccao_pedir_lote", { _zona: zona });
   if (error) throw error;
   return parseResultadoPedido(data);
@@ -110,8 +125,7 @@ export function mensagemDoPedido(
     const n = r.entregues ?? 0;
     return {
       tipo: "sucesso",
-      titulo:
-        `${n} ${n === 1 ? "cliente chegou" : "clientes chegaram"} da Zona ${r.zona ?? ""}`.trim(),
+      titulo: `${n} ${n === 1 ? "cliente chegou" : "clientes chegaram"} ${daZona(r.zona)}`.trim(),
       descricao:
         n < TAMANHO_LOTE
           ? `A zona tinha só ${n} disponíveis agora. Eles já estão na sua Fila do Dia da cadência.`
@@ -147,7 +161,7 @@ export function resumoDoLote(
     timeZone: "America/Sao_Paulo",
   });
   return (
-    `Lote de ${data} (Zona ${s.zona}): ${s.entregues} ${s.entregues === 1 ? "cliente" : "clientes"} — ` +
+    `Lote de ${data} (${rotuloDaZona(s.zona)}): ${s.entregues} ${s.entregues === 1 ? "cliente" : "clientes"} — ` +
     `${s.em_cadencia} na cadência, ${s.ficaram} ${s.ficaram === 1 ? "ficou" : "ficaram"} com você, ` +
     `${s.sairam} ${s.sairam === 1 ? "saiu" : "saíram"}`
   );

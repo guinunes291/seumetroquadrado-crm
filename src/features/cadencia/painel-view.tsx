@@ -46,7 +46,11 @@ import {
 import { useUserRoles } from "@/hooks/use-auth";
 import { formatDuration } from "@/lib/duracao";
 import { rpcWithFallback } from "@/lib/supabase-errors";
-import { fetchLotesPainel, type LinhaPainelLote } from "@/features/prospeccao/lote-client";
+import {
+  fetchLotesPainel,
+  rotuloDaZona,
+  type LinhaPainelLote,
+} from "@/features/prospeccao/lote-client";
 import { cn } from "@/lib/utils";
 import {
   admitirEstoque,
@@ -463,7 +467,7 @@ function CardLotesProspeccao() {
                   <TableRow key={l.lote_id}>
                     <TableCell>{dataHora(l.criado_em)}</TableCell>
                     <TableCell className="font-medium">{l.corretor_nome ?? "—"}</TableCell>
-                    <TableCell>{l.zona}</TableCell>
+                    <TableCell>{rotuloDaZona(l.zona)}</TableCell>
                     <TableCell>{l.entregues}</TableCell>
                     <TableCell>{l.em_cadencia}</TableCell>
                     <TableCell>{l.ficaram}</TableCell>

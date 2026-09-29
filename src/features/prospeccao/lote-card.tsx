@@ -25,12 +25,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
-import type { Zona } from "@/lib/zonas";
+import type { ZonaProjeto } from "@/lib/zonas";
 import {
   TAMANHO_LOTE,
   ZONAS_LOTE,
   bancoDoLoteAtualizado,
   fetchStatusLote,
+  rotuloDaZona,
   mensagemDoPedido,
   motivoBloqueio,
   pedirLote,
@@ -43,7 +44,7 @@ export function LoteProspeccaoCard() {
   const { user } = useAuth();
   const { isCorretor } = useUserRoles();
   const qc = useQueryClient();
-  const [zona, setZona] = useState<Zona | "">("");
+  const [zona, setZona] = useState<ZonaProjeto | "">("");
 
   const statusQ = useQuery({
     queryKey: [LOTE_STATUS_KEY, user?.id],
@@ -55,7 +56,7 @@ export function LoteProspeccaoCard() {
   useRealtimeInvalidate("leads", [[LOTE_STATUS_KEY]], { enabled: !!user && isCorretor });
 
   const pedir = useMutation({
-    mutationFn: (z: Zona) => pedirLote(z),
+    mutationFn: (z: ZonaProjeto) => pedirLote(z),
     onSuccess: (r) => {
       const m = mensagemDoPedido(r, statusQ.data);
       if (m.tipo === "sucesso") toast.success(m.titulo, { description: m.descricao });
@@ -98,14 +99,18 @@ export function LoteProspeccaoCard() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={zona} onValueChange={(v) => setZona(v as Zona)} disabled={!podePedir}>
+          <Select
+            value={zona}
+            onValueChange={(v) => setZona(v as ZonaProjeto)}
+            disabled={!podePedir}
+          >
             <SelectTrigger className="w-40" aria-label="Zona do lote">
               <SelectValue placeholder="Escolha a zona" />
             </SelectTrigger>
             <SelectContent>
               {ZONAS_LOTE.map((z) => (
                 <SelectItem key={z} value={z}>
-                  Zona {z}
+                  {rotuloDaZona(z)}
                 </SelectItem>
               ))}
             </SelectContent>

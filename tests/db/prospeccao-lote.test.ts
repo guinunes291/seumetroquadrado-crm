@@ -645,3 +645,87 @@ describe("painel dos lotes (gestão)", () => {
     await comoSuperuser(c);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 6. Grande SP, a 6ª zona (migration 20261007120000)
+// ---------------------------------------------------------------------------
+
+describe("Grande SP como 6ª zona do lote", () => {
+  /** Empreendimento com os quatro campos que a regra da vitrine lê. */
+  async function projeto(
+    nome: string,
+    campos: { zona_smq?: string; regiao?: string; cidade?: string; bairro?: string },
+  ) {
+    const id = await criarProjeto(c, { nome });
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.projetos SET zona_smq = $2, regiao = $3, cidade = $4, bairro = $5 WHERE id = $1`,
+      [
+        id,
+        campos.zona_smq ?? null,
+        campos.regiao ?? null,
+        campos.cidade ?? null,
+        campos.bairro ?? null,
+      ],
+    );
+    return id;
+  }
+
+  it("Guarulhos entra na Grande SP pela regra da vitrine; ABC é Sul; a capital segue igual", async () => {
+    // Os dois casos medidos em produção (29/09): Merito e Next Guarulhos.
+    const merito = await projeto("Merito Guarulhos", {
+      zona_smq: "Grande SP",
+      regiao: "Grande SP",
+    });
+    const next = await projeto("Next Guarulhos", { zona_smq: "Grande SP", regiao: "Norte" });
+    const soCidade = await projeto("Parque Guarulhos", { cidade: "Guarulhos" });
+    const abc = await projeto("Residencial Santo André", {
+      zona_smq: "Grande SP",
+      cidade: "Santo André",
+    });
+    const santana = await projeto("Residencial Santana", {
+      zona_smq: "Zona Norte",
+      cidade: "São Paulo",
+    });
+
+    const doMerito = await leadBolsao({ zona: null, projetoId: merito });
+    const doNext = await leadBolsao({ zona: null, projetoId: next });
+    const daCidade = await leadBolsao({ zona: null, projetoId: soCidade });
+    const doAbc = await leadBolsao({ zona: null, projetoId: abc });
+    const deSantana = await leadBolsao({ zona: null, projetoId: santana });
+
+    const r = await pedir(corretor, "Grande SP");
+    expect(r).toMatchObject({ ok: true, entregues: 3, zona: "Grande SP" });
+    expect(await doCorretor(corretor)).toEqual([doMerito, doNext, daCidade].sort());
+
+    // Zona Norte da capital não recebe Guarulhos (o "Norte" da região do
+    // Next perde para a zona SMQ, como na vitrine).
+    expect(await pedir(outro, "Norte")).toMatchObject({ ok: true, entregues: 1 });
+    expect(await doCorretor(outro)).toEqual([deSantana]);
+
+    const terceiro = await criarUsuario(c, { nome: "Terceiro Corretor", papel: "corretor" });
+    expect(await pedir(terceiro, "Sul")).toMatchObject({ ok: true, entregues: 1 });
+    expect(await doCorretor(terceiro)).toEqual([doAbc]);
+
+    // O lote guarda a zona como foi pedida; o painel mostra "Grande SP".
+    await comoSuperuser(c);
+    const lote = await c.query(`SELECT zona FROM public.prospeccao_lotes WHERE id = $1`, [
+      r.lote_id,
+    ]);
+    expect(lote.rows[0].zona).toBe("Grande SP");
+  });
+
+  it("a zona do próprio lead vem antes da do empreendimento", async () => {
+    const guarulhos = await projeto("Merito Guarulhos", {
+      zona_smq: "Grande SP",
+      regiao: "Grande SP",
+    });
+    // O cliente disse que quer a Zona Leste, mesmo tendo vindo do anúncio de
+    // Guarulhos: vale o que ele disse.
+    const querLeste = await leadBolsao({ zona: "Leste", projetoId: guarulhos });
+
+    expect(await pedir(corretor, "Grande SP")).toMatchObject({ ok: false, motivo: "zona_vazia" });
+    expect(await pedir(corretor, "Leste")).toMatchObject({ ok: true, entregues: 1 });
+    expect(await doCorretor(corretor)).toEqual([querLeste]);
+  });
+});
