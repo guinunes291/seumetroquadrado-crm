@@ -815,13 +815,29 @@ describe("seed e flags", () => {
     expect(r.rows[0]).toMatchObject({ nome: "Integração", nivel_que_exige: "habilitado" });
   });
 
-  it("R07 nasce desativada (não existe fonte de dados)", async () => {
+  it("R07 nasce desativada; R05 e R06 saem na calibração de 29/09/2026", async () => {
+    // R07: não existe fonte de dados. R05 e R06: 1,5x a mediana real passa de
+    // 100%, então nunca disparariam (decisão do dono, migration de calibração).
     await comoSuperuser(c);
     const r = await c.query(
       `SELECT codigo, ativa FROM public.academia_regras_recomendacao ORDER BY codigo`,
     );
     const desativadas = r.rows.filter((x) => !x.ativa).map((x) => x.codigo);
-    expect(desativadas).toEqual(["R07"]);
+    expect(desativadas).toEqual(["R05", "R06", "R07"]);
+  });
+
+  it("calibração: R02 com janela de 90 dias e R08 com 10 pontos de diferença mínima", async () => {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT codigo, janela_dias, diferenca_minima::float AS dif
+         FROM public.academia_regras_recomendacao WHERE codigo IN ('R01', 'R02', 'R08')
+        ORDER BY codigo`,
+    );
+    expect(r.rows).toEqual([
+      { codigo: "R01", janela_dias: 90, dif: 5 },
+      { codigo: "R02", janela_dias: 90, dif: null },
+      { codigo: "R08", janela_dias: 90, dif: 10 },
+    ]);
   });
 
   it("app_flags ganhou as duas chaves, desligadas", async () => {
