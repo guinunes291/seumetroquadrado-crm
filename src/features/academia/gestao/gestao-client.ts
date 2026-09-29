@@ -769,13 +769,13 @@ export function useSalvarEncontro() {
   return useMutation({
     mutationFn: async (f: EncontroForm): Promise<string> => {
       const { data, error } = await supabaseAcademia.rpc("academia_salvar_encontro", {
-        _id: f.id,
+        _id: f.id as string,
         _tipo: f.tipo,
         _titulo: f.titulo,
         _inicio: f.inicio,
-        _duracao_min: f.duracaoMin,
-        _facilitador: f.facilitadorId,
-        _modulo: f.moduloId,
+        _duracao_min: f.duracaoMin as number,
+        _facilitador: f.facilitadorId as string,
+        _modulo: f.moduloId as string,
         _descricao: f.descricao,
         _acao_registrada: f.acaoRegistrada,
       });
@@ -793,7 +793,7 @@ export function useRegistrarPresenca() {
       const { error } = await supabaseAcademia.rpc("academia_registrar_presenca", {
         _encontro: p.encontroId,
         _corretor: p.corretorId,
-        _presente: p.presente,
+        _presente: p.presente as boolean,
       });
       if (error) throw error;
     },
