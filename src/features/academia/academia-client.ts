@@ -327,7 +327,7 @@ export function useEnviarPratica(codigo: string) {
       const { data, error } = await supabaseAcademia.rpc("academia_pratica_enviar", {
         _modulo: moduloId,
         _texto: texto,
-        _url: url.trim() === "" ? null : url.trim(),
+        _url: url.trim() === "" ? undefined : url.trim(),
       });
       if (error) throw error;
       return data;
