@@ -139,7 +139,7 @@ function Legenda({ leitura }: { leitura: FunilLeitura }) {
   );
 }
 
-function Degraus({ leitura, realce, onRealce }: { leitura: FunilLeitura } & Realce) {
+export function Degraus({ leitura, realce, onRealce }: { leitura: FunilLeitura } & Realce) {
   const ultimo = leitura.etapas.length - 1;
   return (
     <div>
