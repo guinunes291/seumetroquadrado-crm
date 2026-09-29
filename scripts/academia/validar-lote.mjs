@@ -27,7 +27,10 @@ import {
   moduloParaSql,
 } from "./converter-lote.mjs";
 
-const ESPERADO = { 1: { modulos: 5, aulas: 23, questoes: 100, flashcards: 65 } };
+const ESPERADO = {
+  1: { modulos: 5, aulas: 23, questoes: 100, flashcards: 65 },
+  2: { modulos: 6, aulas: 33, questoes: 120, flashcards: 83 },
+};
 const DIRETOR = "Guilherme Nunes";
 
 const argv = process.argv.slice(2);
@@ -125,8 +128,11 @@ for (const m of lote.modulos) {
   if (!existsSync(d) || readFileSync(d, "utf8") !== sql)
     falha(`${m.codigo}: espelho no drizzle ausente ou diferente`);
 }
-const estrutura = path.join(RAIZ, "supabase/migrations", `${cfg.estrutura.migration}.sql`);
-const todosSql = [...sqls, ["estrutura", readFileSync(estrutura, "utf8")]];
+const todosSql = [...sqls];
+if (cfg.estrutura) {
+  const estrutura = path.join(RAIZ, "supabase/migrations", `${cfg.estrutura.migration}.sql`);
+  todosSql.push(["estrutura", readFileSync(estrutura, "utf8")]);
+}
 
 for (const [onde, txt] of [...todosSql, ...textos.map(([c, t]) => [c, t])]) {
   for (const [ch, nome] of [

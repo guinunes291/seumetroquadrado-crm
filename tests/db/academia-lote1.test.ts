@@ -34,6 +34,13 @@ let admin: UsuarioTeste;
 let gestor: UsuarioTeste;
 let corretor: UsuarioTeste;
 
+/** Ids dos módulos deste lote, lidos como superusuário (fora da RLS). */
+async function idsDoLote(): Promise<string[]> {
+  await comoSuperuser(c);
+  const r = await c.query(`SELECT id FROM public.academia_modulos WHERE codigo = ANY($1)`, [LOTE]);
+  return r.rows.map((x) => x.id as string);
+}
+
 /** Contagens do conteúdo da Academia inteira (não só do lote). */
 async function contar(): Promise<Record<string, number>> {
   await comoSuperuser(c);
@@ -52,6 +59,11 @@ async function contar(): Promise<Record<string, number>> {
 beforeAll(async () => {
   await c.connect();
   await limparDados(c);
+  // Outros testes rodam de novo o seed da Fatia 1, que sobrescreve o cabeçalho
+  // (título, objetivos) de módulo em rascunho com o texto antigo. Em produção
+  // migration não roda duas vezes; aqui, reaplicar os seeds do LOTE 1 (que são
+  // idempotentes) devolve o estado que a importação deixa.
+  for (const s of SEEDS) await c.query(readFileSync(s, "utf8"));
   const equipe = await criarEquipe(c, { nome: "Equipe Lote 1" });
   admin = await criarUsuario(c, { papel: "admin", equipeId: null, nome: "Admin" });
   gestor = await criarUsuario(c, { papel: "gestor", equipeId: equipe, nome: "Gestor" });
@@ -189,9 +201,16 @@ describe("idempotência", () => {
   });
 
   it("o seed da Fatia 1 roda de novo sem ressuscitar o M15 antigo", async () => {
+    // Em transação: o seed antigo também reescreve o cabeçalho dos módulos em
+    // rascunho, e isso não pode vazar para os outros testes.
     const antes = await contar();
-    await c.query(readFileSync(SEED_FATIA1, "utf8"));
-    expect(await contar()).toEqual(antes);
+    await c.query("BEGIN");
+    try {
+      await c.query(readFileSync(SEED_FATIA1, "utf8"));
+      expect(await contar()).toEqual(antes);
+    } finally {
+      await c.query("ROLLBACK");
+    }
   });
 
   it("módulo publicado não é tocado pelo seed", async () => {
@@ -264,19 +283,25 @@ describe("RLS das tabelas novas", () => {
       ),
     ).toBe("42501");
 
+    const ids = await idsDoLote();
     await comoUsuario(c, admin.id);
-    const todos = await c.query(`SELECT count(*)::int AS n FROM public.academia_flashcards`);
+    const todos = await c.query(
+      `SELECT count(*)::int AS n FROM public.academia_flashcards WHERE modulo_id = ANY($1)`,
+      [ids],
+    );
     expect(todos.rows[0].n, "o admin revisa tudo em rascunho").toBe(65);
     await comoSuperuser(c);
   });
 
   it("guia do gerente e gabarito: a gestão lê, o corretor não", async () => {
+    const ids = await idsDoLote();
     const ler = async (u: UsuarioTeste) => {
       await comoUsuario(c, u.id);
       const r = await c.query(
         `SELECT count(*)::int AS n,
                 count(*) FILTER (WHERE conteudo ? 'pratica_gabarito')::int AS gabaritos
-           FROM public.academia_conteudo_gerente`,
+           FROM public.academia_conteudo_gerente WHERE modulo_id = ANY($1)`,
+        [ids],
       );
       await comoSuperuser(c);
       return r.rows[0];
