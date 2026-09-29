@@ -102,9 +102,11 @@ export type Database = {
       academia_aulas: {
         Row: {
           atualizado_em: string
+          codigo: string | null
           conteudo_md: string | null
           criado_em: string
           duracao_min: number | null
+          extras: Json
           id: string
           modulo_id: string
           ordem: number
@@ -116,9 +118,11 @@ export type Database = {
         }
         Insert: {
           atualizado_em?: string
+          codigo?: string | null
           conteudo_md?: string | null
           criado_em?: string
           duracao_min?: number | null
+          extras?: Json
           id?: string
           modulo_id: string
           ordem: number
@@ -130,9 +134,11 @@ export type Database = {
         }
         Update: {
           atualizado_em?: string
+          codigo?: string | null
           conteudo_md?: string | null
           criado_em?: string
           duracao_min?: number | null
+          extras?: Json
           id?: string
           modulo_id?: string
           ordem?: number
@@ -237,6 +243,39 @@ export type Database = {
         }
         Relationships: []
       }
+      academia_conteudo_gerente: {
+        Row: {
+          atualizado_em: string
+          conteudo: Json
+          modulo_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          conteudo?: Json
+          modulo_id: string
+        }
+        Update: {
+          atualizado_em?: string
+          conteudo?: Json
+          modulo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academia_conteudo_gerente_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: true
+            referencedRelation: "academia_modulos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academia_conteudo_gerente_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: true
+            referencedRelation: "v_academia_modulo_status"
+            referencedColumns: ["modulo_id"]
+          },
+        ]
+      }
       academia_encontros: {
         Row: {
           acao_registrada: string | null
@@ -338,6 +377,57 @@ export type Database = {
         }
         Relationships: []
       }
+      academia_flashcards: {
+        Row: {
+          ativa: boolean
+          atualizado_em: string
+          codigo: string
+          criado_em: string
+          frente: string
+          id: string
+          modulo_id: string
+          ordem: number
+          verso: string
+        }
+        Insert: {
+          ativa?: boolean
+          atualizado_em?: string
+          codigo: string
+          criado_em?: string
+          frente: string
+          id?: string
+          modulo_id: string
+          ordem: number
+          verso: string
+        }
+        Update: {
+          ativa?: boolean
+          atualizado_em?: string
+          codigo?: string
+          criado_em?: string
+          frente?: string
+          id?: string
+          modulo_id?: string
+          ordem?: number
+          verso?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academia_flashcards_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "academia_modulos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academia_flashcards_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "v_academia_modulo_status"
+            referencedColumns: ["modulo_id"]
+          },
+        ]
+      }
       academia_indicadores: {
         Row: {
           amostra: number
@@ -394,6 +484,7 @@ export type Database = {
           codigo: string
           criado_em: string
           exige_pratica: boolean
+          extras: Json
           fase: number
           id: string
           nota_minima: number | null
@@ -424,6 +515,7 @@ export type Database = {
           codigo: string
           criado_em?: string
           exige_pratica?: boolean
+          extras?: Json
           fase: number
           id?: string
           nota_minima?: number | null
@@ -454,6 +546,7 @@ export type Database = {
           codigo?: string
           criado_em?: string
           exige_pratica?: boolean
+          extras?: Json
           fase?: number
           id?: string
           nota_minima?: number | null
@@ -747,35 +840,44 @@ export type Database = {
         Row: {
           alternativas: Json
           ativa: boolean
+          codigo: string | null
           correta: number
           criado_em: string
           enunciado: string
           explicacao: string | null
+          fonte: string | null
           id: string
           modulo_id: string
           ordem: number
+          tipo: string | null
         }
         Insert: {
           alternativas: Json
           ativa?: boolean
+          codigo?: string | null
           correta: number
           criado_em?: string
           enunciado: string
           explicacao?: string | null
+          fonte?: string | null
           id?: string
           modulo_id: string
           ordem: number
+          tipo?: string | null
         }
         Update: {
           alternativas?: Json
           ativa?: boolean
+          codigo?: string | null
           correta?: number
           criado_em?: string
           enunciado?: string
           explicacao?: string | null
+          fonte?: string | null
           id?: string
           modulo_id?: string
           ordem?: number
+          tipo?: string | null
         }
         Relationships: [
           {
@@ -10153,6 +10255,7 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: string
       }
+      _prospeccao_zona_pedida: { Args: { _zona: string }; Returns: string }
       _proximo_sdr: { Args: never; Returns: string }
       _reativacao_pode_agir: { Args: { _uid: string }; Returns: boolean }
       _registrar_estouro_sla: {
@@ -10231,6 +10334,18 @@ export type Database = {
       }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
+      _zona_chave: { Args: { _txt: string }; Returns: string }
+      _zona_do_projeto: {
+        Args: {
+          _bairro: string
+          _cidade: string
+          _regiao: string
+          _zona_smq: string
+        }
+        Returns: string
+      }
+      _zona_eh_abc: { Args: { _txt: string }; Returns: boolean }
+      _zona_eh_grande_sp: { Args: { _txt: string }; Returns: boolean }
       academia_atribuir: {
         Args: {
           _corretor: string
