@@ -78,5 +78,16 @@ export function useTierNoSplit(args: {
   const infoTier = sug
     ? `${TIER_LABEL[sug.tier] ?? sug.tier} (${sug.vendas_trimestre_anterior} vendas no trimestre anterior) · ${ESTEIRA_LABEL[sug.esteira] ?? sug.esteira}: corretor recebe ${sug.pct_share}% da comissão total.`
     : null;
-  return { infoTier, travados: args.gestao ? [] : (["corretor"] as Array<keyof SplitTexto>) };
+  return {
+    infoTier,
+    travados: args.gestao ? [] : (["corretor"] as Array<keyof SplitTexto>),
+    /** Corretor vê só o próprio % do tier; a gestão ajusta o % da imobiliária na aprovação. */
+    somenteTier: args.gestao
+      ? null
+      : {
+          pctShare: sug?.pct_share ?? null,
+          tier: sug ? (TIER_LABEL[sug.tier] ?? sug.tier) : null,
+          esteira: sug ? (ESTEIRA_LABEL[sug.esteira] ?? sug.esteira) : null,
+        },
+  };
 }

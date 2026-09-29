@@ -363,6 +363,7 @@ export function RegistrarVendaDialog() {
               onChange={(campo, v) => setPercentuais((prev) => ({ ...prev, [campo]: v }))}
               travados={tierSplit.travados}
               infoTier={tierSplit.infoTier}
+              somenteTier={tierSplit.somenteTier}
             />
 
             <div className="space-y-1.5">
