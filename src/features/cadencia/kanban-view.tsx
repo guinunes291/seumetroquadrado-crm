@@ -175,6 +175,15 @@ function CardDoKanban({ item }: { item: CadenciaItem }) {
                 Reativado
               </Badge>
             )}
+            {item.lote && (
+              <Badge
+                variant="outline"
+                className="text-[11px] font-normal"
+                title="Veio do lote de prospecção do Bolsão"
+              >
+                Lote
+              </Badge>
+            )}
             {item.telefone_suspeito && (
               <Badge variant="outline" className="gap-1 text-[11px] font-normal">
                 <Envelope size={11} weight="bold" /> Só e-mail

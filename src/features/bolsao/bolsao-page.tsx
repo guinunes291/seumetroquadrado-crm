@@ -134,7 +134,8 @@ export function BolsaoPage() {
         <p>
           Por enquanto o Bolsão é só consulta. Puxar lead para a sua carteira entra depois que a
           regra de comissão estiver publicada — quem puxa lead parado há mais de 7 dias fica com a
-          venda inteira, e isso precisa estar escrito antes do primeiro puxão.
+          venda inteira, e isso precisa estar escrito antes do primeiro puxão. Enquanto isso, o
+          corretor recebe clientes do Bolsão pelo lote de 30 da Prospecção, escolhendo só a zona.
         </p>
       </div>
 

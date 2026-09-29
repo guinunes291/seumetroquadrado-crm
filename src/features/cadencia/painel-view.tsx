@@ -3,7 +3,8 @@
 // Quatro perguntas, nesta ordem, porque é a ordem em que a gestão pergunta:
 //   1. quem está devendo hoje (por corretor);
 //   2. o D3 se paga? (taxa de resposta por etapa, semana e empreendimento);
-//   3. a reativação anda? (descanso, reativados, conversão);
+//   3. a reativação anda? (descanso, reativados, conversão) — e os lotes de
+//      prospecção do Bolsão rendem? (vieram, ficaram, saíram);
 //   4. o motor rodou? (últimos lotes, direto do log).
 //
 // Nenhuma soma acontece aqui: cada bloco é uma RPC (20260924120000).
@@ -21,6 +22,7 @@ import {
   ChartLineUp,
   ClockCounterClockwise,
   Gear,
+  Package,
   UsersThree,
   Warning,
 } from "@phosphor-icons/react";
@@ -43,6 +45,8 @@ import {
 } from "@/components/ui/table";
 import { useUserRoles } from "@/hooks/use-auth";
 import { formatDuration } from "@/lib/duracao";
+import { rpcWithFallback } from "@/lib/supabase-errors";
+import { fetchLotesPainel, type LinhaPainelLote } from "@/features/prospeccao/lote-client";
 import { cn } from "@/lib/utils";
 import {
   admitirEstoque,
@@ -93,6 +97,7 @@ export function PainelCadenciaView() {
       <TabelaCorretores />
       <TabelaEtapas />
       <BlocoReativacao />
+      <CardLotesProspeccao />
       {isAdmin && <CardFase0 />}
       <TabelaMotor />
     </div>
@@ -382,6 +387,87 @@ function TabelaMotor() {
                         .map(([m, n]) => `${m}: ${n}`)
                         .join(" · ") || "—"}
                     </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Lotes de prospecção pedidos pelo time (20261005120000): quem pediu, de que
+ * zona, quantos vieram e o que aconteceu com eles. "Ficaram" é o que o lote
+ * rendeu (respondeu, agendou, avançou); "saíram" é o que voltou ao Bolsão, foi
+ * para a reativação ou mudou de dono.
+ */
+function CardLotesProspeccao() {
+  const q = useQuery({
+    queryKey: ["cadencia:painel:lotes-prospeccao"],
+    queryFn: () =>
+      rpcWithFallback<LinhaPainelLote[] | null>(
+        () => fetchLotesPainel(30),
+        () => null,
+      ),
+  });
+
+  if (q.isLoading) return <BlocoSkeleton />;
+  if (q.isError)
+    return <QueryErrorState error={q.error as Error} onRetry={() => void q.refetch()} />;
+
+  // null = RPC ausente neste banco (migration não aplicada), não "sem lotes".
+  const linhas = q.data ?? null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Package size={18} weight="duotone" /> Lotes de prospecção
+        </CardTitle>
+        <CardDescription>
+          Clientes do Bolsão pedidos pelos corretores no Modo Foco. Ficam fora da carteira ativa
+          enquanto estão na cadência; quem responde fica com o corretor.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {linhas === null ? (
+          <p className="text-sm text-muted-foreground">
+            Este painel depende da migration do lote de prospecção (20261005120000), ainda não
+            aplicada neste ambiente.
+          </p>
+        ) : linhas.length === 0 ? (
+          <EmptyState
+            icon={Package}
+            title="Nenhum lote pedido ainda"
+            description="Quando um corretor pedir um lote no Modo Foco, ele aparece aqui."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quando</TableHead>
+                  <TableHead>Corretor</TableHead>
+                  <TableHead>Zona</TableHead>
+                  <TableHead>Vieram</TableHead>
+                  <TableHead>Na cadência</TableHead>
+                  <TableHead>Ficaram</TableHead>
+                  <TableHead>Saíram</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {linhas.map((l) => (
+                  <TableRow key={l.lote_id}>
+                    <TableCell>{dataHora(l.criado_em)}</TableCell>
+                    <TableCell className="font-medium">{l.corretor_nome ?? "—"}</TableCell>
+                    <TableCell>{l.zona}</TableCell>
+                    <TableCell>{l.entregues}</TableCell>
+                    <TableCell>{l.em_cadencia}</TableCell>
+                    <TableCell>{l.ficaram}</TableCell>
+                    <TableCell>{l.sairam}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -2,16 +2,22 @@
 //
 // O corretor não cai num quadro: cai numa DECISÃO. Escolhe em qual das três
 // bases do topo do funil vai atuar agora (Aguardando Atendimento / Aguardando
-// Retorno / Em Qualificação), o sistema monta o lote (até 200 leads da sua
-// carteira, na ordem operacional da base) e abre o Modo Foco existente
+// Retorno / Em Qualificação), o sistema monta a fila do foco (até 200 leads
+// da sua carteira, na ordem operacional da base) e abre o Modo Foco existente
 // (features/leads/focus-mode) para trabalhar um por um. Fechou o foco, volta
-// para o seletor com as contagens atualizadas — o "lote do dia" é sempre o
-// estado vivo da base, nunca uma foto velha.
+// para o seletor com as contagens atualizadas — a fila é sempre o estado vivo
+// da base, nunca uma foto velha. (Na tela ela se chama "fila", e não "lote",
+// para não confundir com o lote de prospecção do cartão do topo.)
 //
 // Ordem operacional por base:
 // - Aguardando Atendimento: quem chegou primeiro é atendido primeiro (FIFO).
 // - Aguardando Retorno: quem está há mais tempo sem contato vem primeiro.
 // - Em Qualificação: FIFO (ordem de entrada na etapa ≈ ordem de criação).
+//
+// Lote de prospecção (migration 20261005120000): o cartão do topo pede até 30
+// clientes do Bolsão. Enquanto estão na cadência eles ficam FORA da base ativa
+// do corretor — e portanto fora das três bases daqui (e do badge, que o banco
+// conta com a mesma regra). O trabalho deles é na Fila do Dia da cadência.
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,7 +32,14 @@ import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { FocusMode } from "@/features/leads/focus-mode";
+import { LoteProspeccaoCard } from "@/features/prospeccao/lote-card";
 import { cn } from "@/lib/utils";
+
+/** Fora das bases: cliente de lote de prospecção ainda na cadência. É a mesma
+ *  regra de `_prospeccao_em_lote` no banco, escrita no filtro do PostgREST —
+ *  etapa nula precisa entrar explícita, senão o `not.in` a descarta. */
+export const FORA_DO_LOTE_ATIVO =
+  "prospeccao_lote_id.is.null,cadencia_etapa.is.null,cadencia_etapa.not.in.(D0,D1,D2,D3)";
 
 export type BaseProspeccao =
   | "aguardando_atendimento"
@@ -83,7 +96,8 @@ export function ModoFocoProspeccaoPage() {
           .eq("corretor_id", user!.id)
           .eq("status", status)
           .eq("na_lixeira", false)
-          .is("deleted_at", null);
+          .is("deleted_at", null)
+          .or(FORA_DO_LOTE_ATIVO);
         if (error) throw error;
         return count ?? 0;
       };
@@ -114,6 +128,7 @@ export function ModoFocoProspeccaoPage() {
         .eq("status", base!)
         .eq("na_lixeira", false)
         .is("deleted_at", null)
+        .or(FORA_DO_LOTE_ATIVO)
         .limit(200);
       q =
         base === "aguardando_retorno"
@@ -132,7 +147,7 @@ export function ModoFocoProspeccaoPage() {
   useEffect(() => {
     if (!loteVazio) return;
     // Corrida rara (contagem dizia >0, lote veio vazio): informa e rearma.
-    toast.info("Base zerada — nenhum lead para montar o lote agora.");
+    toast.info("Base zerada — nenhum lead para montar a fila agora.");
     setFocoAberto(false);
     setBase(null);
   }, [loteVazio]);
@@ -159,8 +174,10 @@ export function ModoFocoProspeccaoPage() {
     <div className="space-y-6">
       <PageHeader
         title="Prospecção — Modo Foco"
-        description="Escolha a base do dia. O sistema monta o lote e você trabalha um lead por vez, sem distração."
+        description="Escolha a base do dia. O sistema monta a fila e você trabalha um lead por vez, sem distração."
       />
+
+      <LoteProspeccaoCard />
 
       {contagensQ.isError ? (
         <QueryErrorState
@@ -207,12 +224,12 @@ export function ModoFocoProspeccaoPage() {
                 <p className="mt-1 text-sm text-muted-foreground">{descricao}</p>
                 <span className="mt-auto flex items-center gap-1 pt-4 text-sm font-medium text-primary">
                   {montando ? (
-                    "Montando o lote…"
+                    "Montando a fila…"
                   ) : vazia ? (
                     "Base zerada 🎉"
                   ) : (
                     <>
-                      Montar lote e focar
+                      Montar fila e focar
                       <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </>
                   )}

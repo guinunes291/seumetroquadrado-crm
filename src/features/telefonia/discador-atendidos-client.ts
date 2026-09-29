@@ -86,6 +86,8 @@ export const MOTIVO_ASSUMIR: Record<string, string> = {
   venda_viva: "Este cliente tem uma venda registrada — não se mexe.",
   lead_fora_da_base: "Este lead saiu da base (lixeira).",
   lead_inexistente: "Lead não encontrado.",
+  porta_fechada_use_lote:
+    "Assumir cliente do Bolsão pelo Discador está fechado para o corretor desde 28/09. Registre o contato; para trabalhar clientes do Bolsão, peça um lote na Prospecção.",
 };
 
 export const MOTIVO_ENCERRAMENTO: Record<string, string> = {
