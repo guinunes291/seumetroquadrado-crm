@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { formatRelativeTime } from "@/lib/interacoes";
+import { LeadsFunil } from "@/features/leads/leads-funil";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
@@ -89,6 +90,7 @@ import {
   Shuffle,
   Snowflake,
   SquaresFour,
+  Funnel,
   Thermometer,
   Trash,
   UploadSimple,
@@ -225,10 +227,10 @@ function LeadsPage() {
   const [showLixeira, setShowLixeira] = useState(false);
   // Página inicial pode vir da URL (?pagina=N) — voltar do detalhe não reseta.
   const [page, setPage] = useState(searchParams.pagina ?? 1);
-  const [viewMode, setViewMode] = useState<"tabela" | "cards">(() => {
+  const [viewMode, setViewMode] = useState<"tabela" | "cards" | "funil">(() => {
     if (typeof window === "undefined") return "tabela";
     const saved = window.localStorage.getItem("smq:leads-view-mode");
-    if (saved === "cards" || saved === "tabela") return saved;
+    if (saved === "cards" || saved === "tabela" || saved === "funil") return saved;
     return window.matchMedia("(max-width: 767px)").matches ? "cards" : "tabela";
   });
   const [importOpen, setImportOpen] = useState(false);
@@ -1265,6 +1267,16 @@ function LeadsPage() {
                       >
                         <SquaresFour aria-hidden="true" />
                       </Button>
+                      <Button
+                        size="icon"
+                        variant={viewMode === "funil" ? "default" : "ghost"}
+                        aria-label="Ver funil com os filtros"
+                        aria-pressed={viewMode === "funil"}
+                        title="Ver funil"
+                        onClick={() => setViewMode("funil")}
+                      >
+                        <Funnel aria-hidden="true" />
+                      </Button>
                     </div>
                     {canManage && (
                       <Button
@@ -1560,6 +1572,8 @@ function LeadsPage() {
                     </Button>
                   </CardContent>
                 </Card>
+              ) : viewMode === "funil" ? (
+                <LeadsFunil counts={statusCounts} />
               ) : viewMode === "tabela" ? (
                 // Tabela premium (DataTable): substitui a <Table> manual cujas
                 // linhas eram <EntityRow> — a ativação da linha (peek) virou o
