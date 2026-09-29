@@ -204,21 +204,49 @@ export function useAtribuicoesAbertas() {
 }
 
 /** Gate em sombra: só leitura, nunca bloqueia. `null` = migration ausente. */
+export type ModoGate = "desligado" | "sombra";
+export type DadosGate = { modo: ModoGate; linhas: AcademiaGateSombraRow[] };
+
+/** Gate em sombra: a chave academia_config.gate_roleta_modo e o que ela libera. */
 export function useGateSombra() {
   const { pronto } = useUid();
-  return useQuery<AcademiaGateSombraRow[] | null>({
+  return useQuery<DadosGate | null>({
     queryKey: GESTAO_KEY.gate,
     enabled: pronto,
     staleTime: 10 * 60 * 1000,
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia.rpc("academia_gate_sombra");
-          if (error) throw error;
-          return (data ?? []) as AcademiaGateSombraRow[];
+          const [cfg, gate] = await Promise.all([
+            supabaseAcademia.from("academia_config").select("gate_roleta_modo").maybeSingle(),
+            supabaseAcademia.rpc("academia_gate_sombra"),
+          ]);
+          if (cfg.error) throw cfg.error;
+          if (gate.error) throw gate.error;
+          return {
+            modo: cfg.data?.gate_roleta_modo === "sombra" ? "sombra" : "desligado",
+            linhas: (gate.data ?? []) as AcademiaGateSombraRow[],
+          };
         },
         () => null,
       ),
+  });
+}
+
+/** Só o admin muda a chave (RLS). Update barrado pela RLS volta 0 linhas, sem erro. */
+export function useDefinirModoGate() {
+  const invalidar = useInvalidarAcademia();
+  return useMutation({
+    mutationFn: async (modo: ModoGate) => {
+      const { data, error } = await supabaseAcademia
+        .from("academia_config")
+        .update({ gate_roleta_modo: modo })
+        .eq("id", true)
+        .select("id");
+      if (error) throw error;
+      if (!data?.length) throw new Error("forbidden");
+    },
+    onSuccess: invalidar,
   });
 }
 

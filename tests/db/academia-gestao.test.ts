@@ -11,7 +11,8 @@
  *   • em sombra o corretor não vê a própria recomendação; o gestor vê só a
  *     equipe dele; rodar de novo não duplica; modo desligado não gera nada;
  *   • presença só pela equipe; encontro só pela gestão;
- *   • o gate em sombra filtra pela equipe e não bloqueia nada;
+ *   • o gate em sombra obedece a gate_roleta_modo, filtra pela equipe e não
+ *     bloqueia nada;
  *   • só admin roda o motor e lista candidatos.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -171,6 +172,8 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await setModo("sombra");
+  await comoSuperuser(c);
+  await c.query(`UPDATE public.academia_config SET gate_roleta_modo = 'desligado'`);
   await c.end();
 });
 
@@ -418,6 +421,29 @@ describe("encontros e presença", () => {
 });
 
 describe("gate em sombra", () => {
+  it("desligado (padrão) devolve vazio, até para o admin; corretor segue barrado", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.academia_config SET gate_roleta_modo = 'desligado'`);
+    await comoUsuario(c, admin.id);
+    const r = await c.query(`SELECT * FROM public.academia_gate_sombra()`);
+    expect(r.rows).toHaveLength(0);
+    await comoUsuario(c, corretorA1.id);
+    expect(await errCode(c.query(`SELECT * FROM public.academia_gate_sombra()`))).toBe("42501");
+  });
+
+  it("só o admin liga a simulação; gestor não muda a chave", async () => {
+    await comoUsuario(c, gestorA.id);
+    const g = await c.query(
+      `UPDATE public.academia_config SET gate_roleta_modo = 'sombra' RETURNING id`,
+    );
+    expect(g.rowCount).toBe(0);
+    await comoUsuario(c, admin.id);
+    const a = await c.query(
+      `UPDATE public.academia_config SET gate_roleta_modo = 'sombra' RETURNING id`,
+    );
+    expect(a.rowCount).toBe(1);
+  });
+
   it("admin vê todos, com a situação de cada um", async () => {
     await comoUsuario(c, admin.id);
     const r = await c.query(

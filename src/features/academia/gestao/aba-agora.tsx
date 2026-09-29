@@ -12,12 +12,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { toast } from "sonner";
+import { useUserRoles } from "@/hooks/use-auth";
 import { dataBr, diasAte } from "../formato";
 import { hojeBrasilia } from "../estado-modulo";
 import { CorrecaoPratica } from "./correcao-pratica";
 import { resumoDoGate, semAtividade, tempoDeEspera } from "./derivacao";
+import { mensagemDaGestao } from "./mensagens";
 import {
   useAtribuicoesAbertas,
+  useDefinirModoGate,
   useEquipeAcademia,
   useGateSombra,
   useModulosAcademia,
@@ -25,20 +29,41 @@ import {
   type PraticaPendente,
 } from "./gestao-client";
 
-function CardGate() {
+export function CardGate() {
+  const { isAdmin } = useUserRoles();
   const gate = useGateSombra();
+  const mudar = useDefinirModoGate();
   if (gate.isPending) return <Skeleton className="h-28 w-full" />;
-  if (gate.isError || gate.data === null) return null;
-  const r = resumoDoGate(gate.data ?? []);
+  if (gate.isError || !gate.data) return null;
+  const { modo, linhas } = gate.data;
+  // Desligada, o gestor não tem o que ver; o admin vê o card para ligar.
+  if (modo !== "sombra" && !isAdmin) return null;
+  const ligada = modo === "sombra";
+  const r = resumoDoGate(linhas);
+  const alternar = () =>
+    mudar.mutate(ligada ? "desligado" : "sombra", {
+      onSuccess: () => toast.success(ligada ? "Simulação desligada." : "Simulação ligada."),
+      onError: (e) => toast.error(mensagemDaGestao(e)),
+    });
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <ShieldCheck className="h-4 w-4" /> Gate da roleta em sombra
         </CardTitle>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={alternar} disabled={mudar.isPending}>
+            {ligada ? "Desligar simulação" : "Ligar simulação"}
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-1 text-sm">
-        {r.totalLeads === 0 ? (
+        {!ligada ? (
+          <p className="text-muted-foreground">
+            Simulação desligada. Ligada, mostra quanto dos leads dos últimos 30 dias foi para quem
+            ainda não está habilitado. Só leitura: não bloqueia a roleta.
+          </p>
+        ) : r.totalLeads === 0 ? (
           <p className="text-muted-foreground">Nenhum lead distribuído nos últimos 30 dias.</p>
         ) : (
           <>

@@ -600,7 +600,8 @@ GRANT EXECUTE ON FUNCTION public.academia_registrar_presenca(uuid, uuid, boolean
 
 -- ---------------------------------------------------------------------------
 -- 7. Gate da roleta em SOMBRA (só leitura). Quanto dos leads dos últimos 30
---    dias foi para quem ainda não está habilitado. Não bloqueia nada.
+--    dias foi para quem ainda não está habilitado. Não bloqueia nada. Liga e
+--    desliga por academia_config.gate_roleta_modo ('desligado' | 'sombra').
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW public.v_academia_gate_sombra AS
 WITH atrib AS (
@@ -641,14 +642,24 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 BEGIN
+  IF NOT (public.academia_eh_admin()
+          OR public.has_role(auth.uid(), 'gestor'::public.app_role)
+          OR public.has_role(auth.uid(), 'superintendente'::public.app_role)) THEN
+    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
+  END IF;
+
+  -- A simulação só roda com academia_config.gate_roleta_modo = 'sombra'
+  -- (padrão: desligado). Desligada, devolve vazio: a chave manda de verdade.
+  IF coalesce((SELECT c.gate_roleta_modo FROM public.academia_config c WHERE c.id),
+              'desligado') <> 'sombra' THEN
+    RETURN;
+  END IF;
+
   IF public.academia_eh_admin() THEN
     RETURN QUERY SELECT * FROM public.v_academia_gate_sombra;
-  ELSIF public.has_role(auth.uid(), 'gestor'::public.app_role)
-     OR public.has_role(auth.uid(), 'superintendente'::public.app_role) THEN
+  ELSE
     RETURN QUERY SELECT g.* FROM public.v_academia_gate_sombra g
                   WHERE public.pode_acessar_corretor(auth.uid(), g.corretor_id);
-  ELSE
-    RAISE EXCEPTION 'forbidden' USING ERRCODE = '42501';
   END IF;
 END $$;
 
