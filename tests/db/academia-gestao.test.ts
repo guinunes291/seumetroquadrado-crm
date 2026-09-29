@@ -13,6 +13,7 @@
  *   • presença só pela equipe; encontro só pela gestão;
  *   • o gate em sombra obedece a gate_roleta_modo, filtra pela equipe e não
  *     bloqueia nada;
+ *   • sem 3 colegas com amostra não há referência nem recomendação;
  *   • só admin roda o motor e lista candidatos.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -481,5 +482,50 @@ describe("candidatos a participante", () => {
 
     await comoUsuario(c, gestorA.id);
     expect(await errCode(c.query(`SELECT * FROM public.academia_candidatos()`))).toBe("42501");
+  });
+});
+
+describe("mínimo de 3 colegas para comparar (decisão do dono, 29/09/2026)", () => {
+  async function refComparecimentoA1(): Promise<number | null> {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT referencia_time::float AS ref FROM public.academia_indicadores
+        WHERE corretor_id = $1 AND indicador = 'taxa_comparecimento'
+        ORDER BY data_ref DESC LIMIT 1`,
+      [corretorA1.id],
+    );
+    return r.rows[0].ref;
+  }
+
+  async function semRecDeComparecimentoA1(): Promise<void> {
+    await comoSuperuser(c);
+    await c.query(
+      `DELETE FROM public.academia_recomendacoes
+        WHERE corretor_id = $1 AND indicador = 'taxa_comparecimento'`,
+      [corretorA1.id],
+    );
+  }
+
+  it("com 2 colegas com amostra não há referência nem recomendação", async () => {
+    // Só A2 e B1 seguem com 10 visitas: 2 colegas de A1.
+    await semTriggers(async () => {
+      await c.query(`DELETE FROM public.agendamentos WHERE corretor_id = ANY($1)`, [
+        [corretorC1.id, corretorC2.id],
+      ]);
+    });
+    await semRecDeComparecimentoA1();
+    await rodarMotor();
+    expect(await refComparecimentoA1()).toBeNull();
+    expect((await recsDe(corretorA1.id)).map((r) => r.indicador)).not.toContain(
+      "taxa_comparecimento",
+    );
+  });
+
+  it("controle: com 3 colegas a referência volta e a recomendação também", async () => {
+    await visitas(corretorC1.id, 10);
+    await semRecDeComparecimentoA1();
+    await rodarMotor();
+    expect(await refComparecimentoA1()).toBe(100);
+    expect((await recsDe(corretorA1.id)).map((r) => r.indicador)).toContain("taxa_comparecimento");
   });
 });

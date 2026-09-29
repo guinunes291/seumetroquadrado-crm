@@ -4,7 +4,7 @@
 // (profiles.onboarding_concluido_em), que continua sendo outra coisa e não é
 // tocado por nenhuma tela desta fatia.
 
-import type { AcademiaNivel } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaNivel } from "@/features/academia/tipos";
 
 export const ORDEM_NIVEIS: AcademiaNivel[] = [
   "iniciante",

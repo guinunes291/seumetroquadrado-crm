@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { StatusBadge } from "@/components/ui/status-badge";
-import type { AcademiaModuloStatusRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaModuloStatusRow } from "@/features/academia/tipos";
 import { useTrilha } from "./academia-client";
 import { useProximosEncontros } from "./gestao/gestao-client";
 import { ROTULO_TIPO_ENCONTRO } from "./gestao/derivacao";

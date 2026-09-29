@@ -25,7 +25,7 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { AcademiaCandidatoRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaCandidatoRow } from "@/features/academia/tipos";
 import { dataBr } from "../formato";
 import { hojeBrasilia } from "../estado-modulo";
 import { ROTULO_NIVEL } from "../niveis";

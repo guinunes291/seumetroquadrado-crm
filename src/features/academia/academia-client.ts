@@ -1,7 +1,6 @@
-// Camada de dados da Academia. TODA leitura passa por `supabaseAcademia`
-// (src/integrations/supabase/academia-pendente.ts), que é o mesmo cliente do
-// resto do app com o schema da Fatia 1 tipado por cima. O types.ts ainda não
-// conhece estas tabelas porque quem o regenera é o Lovable.
+// Camada de dados da Academia. Usa o `supabase` do app com os tipos gerados
+// (types.ts); onde o banco guarda texto fechado por CHECK ou jsonb, o
+// resultado é estreitado aqui, uma vez, para os tipos de ./tipos.
 //
 // Degradação controlada: a migration da Academia pode não estar aplicada no
 // ambiente vivo. Toda leitura e toda RPC passam por rpcWithFallback, que
@@ -11,22 +10,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { rpcWithFallback } from "@/lib/supabase-errors";
-import {
-  supabaseAcademia,
-  type AcademiaAtribuicaoRow,
-  type AcademiaAulaRow,
-  type AcademiaCertificadoRow,
-  type AcademiaCorretorResumoRow,
-  type AcademiaFaseRow,
-  type AcademiaFaseStatusRow,
-  type AcademiaModuloRow,
-  type AcademiaModuloStatusRow,
-  type AcademiaNivelHistoricoRow,
-  type AcademiaParticipanteRow,
-  type AcademiaPraticaRow,
-  type AcademiaQuizEnviarRetorno,
-  type AcademiaQuizIniciarRetorno,
-} from "@/integrations/supabase/academia-pendente";
+import { supabase } from "@/integrations/supabase/client";
+import type {
+  AcademiaAtribuicaoRow,
+  AcademiaAulaRow,
+  AcademiaCertificadoRow,
+  AcademiaCorretorResumoRow,
+  AcademiaFaseRow,
+  AcademiaFaseStatusRow,
+  AcademiaModuloRow,
+  AcademiaModuloStatusRow,
+  AcademiaNivelHistoricoRow,
+  AcademiaParticipanteRow,
+  AcademiaPraticaRow,
+  AcademiaQuizEnviarRetorno,
+  AcademiaQuizIniciarRetorno,
+} from "@/features/academia/tipos";
 
 export const ACADEMIA_KEY = {
   raiz: ["academia"] as const,
@@ -56,7 +55,7 @@ export function useParticipacaoAcademia() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_participantes")
             .select("*")
             .eq("corretor_id", uid as string)
@@ -97,21 +96,21 @@ export function useTrilha() {
       rpcWithFallback(
         async () => {
           const [resumo, fases, faseStatus, modulos, atribuicoes] = await Promise.all([
-            supabaseAcademia
+            supabase
               .from("v_academia_corretor_resumo")
               .select("*")
               .eq("corretor_id", uid as string)
               .maybeSingle(),
-            supabaseAcademia.from("academia_fases").select("*").order("numero"),
-            supabaseAcademia
+            supabase.from("academia_fases").select("*").order("numero"),
+            supabase
               .from("v_academia_fase_status")
               .select("*")
               .eq("corretor_id", uid as string),
-            supabaseAcademia
+            supabase
               .from("v_academia_modulo_status")
               .select("*")
               .eq("corretor_id", uid as string),
-            supabaseAcademia
+            supabase
               .from("academia_atribuicoes")
               .select("*")
               .eq("corretor_id", uid as string)
@@ -168,7 +167,7 @@ export function useModulo(codigo: string) {
             aulasFeitas: new Set<string>(),
             praticas: [],
           };
-          const { data: modulo, error: erroModulo } = await supabaseAcademia
+          const { data: modulo, error: erroModulo } = await supabase
             .from("academia_modulos")
             .select("*")
             .eq("codigo", codigo)
@@ -177,22 +176,18 @@ export function useModulo(codigo: string) {
           if (!modulo) return vazio;
 
           const [aulas, status, progresso, praticas] = await Promise.all([
-            supabaseAcademia
-              .from("academia_aulas")
-              .select("*")
-              .eq("modulo_id", modulo.id)
-              .order("ordem"),
-            supabaseAcademia
+            supabase.from("academia_aulas").select("*").eq("modulo_id", modulo.id).order("ordem"),
+            supabase
               .from("v_academia_modulo_status")
               .select("*")
               .eq("corretor_id", uid as string)
               .eq("modulo_id", modulo.id)
               .maybeSingle(),
-            supabaseAcademia
+            supabase
               .from("academia_progresso_aulas")
               .select("aula_id")
               .eq("corretor_id", uid as string),
-            supabaseAcademia
+            supabase
               .from("academia_praticas")
               .select("*")
               .eq("corretor_id", uid as string)
@@ -242,12 +237,12 @@ export function useProgresso() {
       rpcWithFallback(
         async () => {
           const [certificados, historico] = await Promise.all([
-            supabaseAcademia
+            supabase
               .from("academia_certificados")
               .select("*")
               .eq("corretor_id", uid as string)
               .order("emitido_em", { ascending: false }),
-            supabaseAcademia
+            supabase
               .from("academia_niveis_historico")
               .select("*")
               .eq("corretor_id", uid as string)
@@ -277,7 +272,7 @@ export function useMarcarAula(codigo: string) {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async ({ aulaId, concluida }: { aulaId: string; concluida: boolean }) => {
-      const { error } = await supabaseAcademia.rpc("academia_marcar_aula", {
+      const { error } = await supabase.rpc("academia_marcar_aula", {
         _aula: aulaId,
         _concluida: concluida,
       });
@@ -300,7 +295,7 @@ export function useEnviarPratica(codigo: string) {
       texto: string;
       url: string;
     }) => {
-      const { data, error } = await supabaseAcademia.rpc("academia_pratica_enviar", {
+      const { data, error } = await supabase.rpc("academia_pratica_enviar", {
         _modulo: moduloId,
         _texto: texto,
         _url: url.trim() === "" ? undefined : url.trim(),
@@ -316,11 +311,12 @@ export function useEnviarPratica(codigo: string) {
 export function useIniciarQuiz() {
   return useMutation({
     mutationFn: async (moduloId: string): Promise<AcademiaQuizIniciarRetorno> => {
-      const { data, error } = await supabaseAcademia.rpc("academia_quiz_iniciar", {
+      const { data, error } = await supabase.rpc("academia_quiz_iniciar", {
         _modulo: moduloId,
       });
       if (error) throw error;
-      return data;
+      // jsonb montado pela função: o gerador tipa como Json, o formato é este.
+      return data as AcademiaQuizIniciarRetorno;
     },
   });
 }
@@ -335,12 +331,13 @@ export function useEnviarQuiz() {
       tentativaId: string;
       respostas: Record<string, number>;
     }): Promise<AcademiaQuizEnviarRetorno> => {
-      const { data, error } = await supabaseAcademia.rpc("academia_quiz_enviar", {
+      const { data, error } = await supabase.rpc("academia_quiz_enviar", {
         _tentativa: tentativaId,
         _respostas: respostas,
       });
       if (error) throw error;
-      return data;
+      // jsonb montado pela função: o gerador tipa como Json, o formato é este.
+      return data as AcademiaQuizEnviarRetorno;
     },
     onSuccess: invalidar,
   });

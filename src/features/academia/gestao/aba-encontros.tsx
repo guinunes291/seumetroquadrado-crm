@@ -32,10 +32,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAuth } from "@/hooks/use-auth";
-import type {
-  AcademiaEncontroRow,
-  AcademiaTipoEncontro,
-} from "@/integrations/supabase/academia-pendente";
+import type { AcademiaEncontroRow, AcademiaTipoEncontro } from "@/features/academia/tipos";
 import { hojeBrasilia } from "../estado-modulo";
 import {
   useEncontros,

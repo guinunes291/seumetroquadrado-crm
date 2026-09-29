@@ -9,10 +9,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useUserRoles } from "@/hooks/use-auth";
 import { useAppFlag } from "@/hooks/use-app-flags";
 import { rpcWithFallback } from "@/lib/supabase-errors";
-import {
-  supabaseAcademia,
-  type AcademiaParticipanteRow,
-} from "@/integrations/supabase/academia-pendente";
+import { supabase } from "@/integrations/supabase/client";
+import type { AcademiaParticipanteRow } from "@/features/academia/tipos";
 import { podeGerirAcademia } from "./use-flags-nav";
 
 type Selo = Pick<
@@ -28,7 +26,7 @@ function useSelos(habilitado: boolean) {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_participantes")
             .select("corretor_id, participa, nivel, habilitado_override")
             .eq("participa", true);

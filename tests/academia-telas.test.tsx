@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import type { AcademiaModuloStatusRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaModuloStatusRow } from "@/features/academia/tipos";
 
 class RedirecionouError extends Error {
   constructor(public destino: string) {

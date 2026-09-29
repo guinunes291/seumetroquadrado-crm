@@ -39,7 +39,11 @@ const IGNORED_FILES = new Set(["src/routeTree.gen.ts"]);
 // existem nos types depois que a migration 20261002120000 roda em produção e o
 // Lovable regenera types.ts. Quando isso acontecer, apague academia-pendente.ts,
 // troque supabaseAcademia por supabase e baixe este teto para 145.
-const MAX_ESCAPES = 146;
+// 2026-09-29: de 146 para 145, como combinado. O Lovable regenerou types.ts com
+// a Academia inteira; academia-pendente.ts saiu e os tipos que o banco não sabe
+// dizer (texto fechado por CHECK, colunas de view nunca nulas, jsonb das RPCs)
+// foram para src/features/academia/tipos.ts, sem escape nenhum.
+const MAX_ESCAPES = 145;
 const TYPESCRIPT_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 async function filesUnder(directory) {
