@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Degraus } from "@/features/fila-unica/fila-funil";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { montarFunil, type EtapaKey, type FunilRow } from "@/features/fila-unica/funil-derive";
 
 const STATUS_PARA_ETAPA: Record<string, string> = {
@@ -45,7 +46,7 @@ export function LeadsFunil({ counts }: { counts: Record<string, number> }) {
         {leitura.total === 0 && leitura.perdidos === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhum lead com esses filtros.</p>
         ) : (
-          <Degraus leitura={leitura} realce={realce} onRealce={setRealce} />
+          <TooltipProvider delayDuration={150}><Degraus leitura={leitura} realce={realce} onRealce={setRealce} /></TooltipProvider>
         )}
       </CardContent>
     </Card>
