@@ -28,10 +28,13 @@ import {
 } from "@/components/ui/select";
 import { maskPhoneBR, maskCPF } from "@/lib/masks";
 import { ZONAS_ORDEM } from "@/lib/zonas";
+import { ORIGEM_LABEL } from "@/lib/origem";
+import { useUserRoles } from "@/hooks/use-auth";
 import type { DossieLead } from "@/features/leads/dossie/types";
 
 export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: DossieLead }) {
   const qc = useQueryClient();
+  const { isAdmin } = useUserRoles();
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     nome: "",
@@ -45,6 +48,7 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
     bairro: "",
     zona: "",
     observacoes: "",
+    origem: "",
   });
 
   const openEdit = () => {
@@ -60,6 +64,7 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
       bairro: lead.bairro ?? "",
       zona: lead.zona ?? "",
       observacoes: lead.observacoes ?? "",
+      origem: lead.origem ?? "",
     });
     setEditOpen(true);
   };
@@ -88,6 +93,9 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
         bairro: editForm.bairro.trim() || null,
         zona: editForm.zona || null,
         observacoes: editForm.observacoes.trim() || null,
+        ...(isAdmin && editForm.origem && editForm.origem !== lead.origem
+          ? { origem: editForm.origem as never }
+          : {}),
       };
       const { error } = await supabase.from("leads").update(payload).eq("id", leadId);
       if (error) throw error;
@@ -152,6 +160,26 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
                 maxLength={20}
               />
             </div>
+            {isAdmin && (
+              <div>
+                <Label>Origem</Label>
+                <Select
+                  value={editForm.origem}
+                  onValueChange={(v) => setEditForm({ ...editForm, origem: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(ORIGEM_LABEL).map(([k, label]) => (
+                      <SelectItem key={k} value={k}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
               <Label>Empreendimento</Label>
               <Input
