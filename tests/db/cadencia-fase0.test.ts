@@ -36,7 +36,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await comoSuperuser(c);
-  await c.query(`UPDATE public.cadencia_config SET modo = 'sombra' WHERE id = 1`);
+  await c.query(
+    `UPDATE public.cadencia_config SET modo = 'sombra', portas_legadas_bolsao = false WHERE id = 1`,
+  );
   await limparDados(c);
   await c.end();
 });
@@ -44,7 +46,13 @@ afterAll(async () => {
 beforeEach(async () => {
   await limparDados(c);
   await comoSuperuser(c);
-  await c.query(`UPDATE public.cadencia_config SET modo = 'ativo' WHERE id = 1`);
+  // Portas antigas do Bolsão (resgate da Reserva, "assumir" pelo Discador e
+  // admissão do estoque) estão fechadas para o corretor desde 28/09/2026
+  // (20261005120000). Este arquivo exercita a mecânica delas com a chave
+  // ligada; a trava fechada é coberta em prospeccao-lote.test.ts.
+  await c.query(
+    `UPDATE public.cadencia_config SET modo = 'ativo', portas_legadas_bolsao = true WHERE id = 1`,
+  );
   admin = await criarUsuario(c, { papel: "admin" });
   corretor = await criarUsuario(c, { papel: "corretor" });
   outroCorretor = await criarUsuario(c, { papel: "corretor" });

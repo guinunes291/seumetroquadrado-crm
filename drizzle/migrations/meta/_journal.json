@@ -162,6 +162,13 @@
       "when": 1790709644131,
       "tag": "0022_corretor_agenda_nao_vira_lead_sdr",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791126180000,
+      "tag": "0023_prospeccao_lote_30",
+      "breakpoints": true
     }
   ]
 }

@@ -82,6 +82,12 @@ async function classificar(id: string): Promise<Linha[]> {
 beforeAll(async () => {
   await c.connect();
   await limparDados(c);
+  // Portas antigas do Bolsão (resgate da Reserva, "assumir" pelo Discador e
+  // admissão do estoque) estão fechadas para o corretor desde 28/09/2026
+  // (20261005120000). Este arquivo exercita a mecânica delas com a chave
+  // ligada; a trava fechada é coberta em prospeccao-lote.test.ts.
+  await comoSuperuser(c);
+  await c.query(`UPDATE public.cadencia_config SET portas_legadas_bolsao = true WHERE id = 1`);
 
   corretor = await criarUsuario(c, { nome: "Corretor Carteira", papel: "corretor" });
   outro = await criarUsuario(c, { nome: "Outro Carteira", papel: "corretor" });
@@ -145,6 +151,8 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await comoSuperuser(c);
+  await c.query(`UPDATE public.cadencia_config SET portas_legadas_bolsao = false WHERE id = 1`);
   await limparDados(c);
   await c.end();
 });

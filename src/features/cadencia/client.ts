@@ -41,6 +41,9 @@ const filaItemSchema = z.object({
   atrasado: z.boolean().nullable(),
   proxima_acao: z.string().nullable(),
   telefone_suspeito: z.boolean(),
+  /** Cliente de lote de prospecção (20261005120000). Opcional: o banco sem a
+   *  migration não manda a chave, e a Fila do Dia não pode cair por isso. */
+  lote: z.boolean().optional(),
   ligacoes_validas: z.number().int().nonnegative(),
   whatsapp_enviado: z.boolean(),
   etapa_completa: z.boolean(),

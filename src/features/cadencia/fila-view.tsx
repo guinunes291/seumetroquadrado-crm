@@ -254,6 +254,11 @@ function LinhaDaFila({
                 {item.nome}
               </Link>
               {item.reativado && <Badge variant="secondary">Reativado</Badge>}
+              {item.lote && (
+                <Badge variant="outline" title="Veio do lote de prospecção do Bolsão">
+                  Lote
+                </Badge>
+              )}
               {item.atrasado && <Badge variant="destructive">Atrasado</Badge>}
               {item.telefone_suspeito && (
                 <Badge variant="outline" className="gap-1">

@@ -186,7 +186,7 @@ export function ConteudoOperacao() {
           <Passos
             itens={[
               "Abra Reserva e escolha um cliente.",
-              'Clique em "Trazer" para puxá-lo de volta à carteira ativa (só funciona se houver vaga; são até 13 resgates).',
+              'O botão "Trazer" (resgate) está fechado para o corretor desde 28/09/2026: cliente novo chega pelo lote de 30 da Prospecção. A gestão ainda pode resgatar.',
               'Use "Dossiê" para abrir a ficha completa antes de decidir.',
             ]}
           />
@@ -203,6 +203,27 @@ export function ConteudoOperacao() {
             telefone aparece mascarado.
           </p>
           <Tela src="bolsao" legenda="Bolsão de oportunidades — base sem dono, somente consulta." />
+        </Bloco>
+
+        <Bloco titulo="Lote de prospecção: 30 clientes do Bolsão" quem="Corretor">
+          <p>
+            É a porta de base nova do corretor (além da roleta e da redistribuição). Em{" "}
+            <strong>Prospecção › Modo Foco</strong>, escolha a zona e peça o lote: vêm até{" "}
+            <strong>30 clientes sem dono</strong> dessa zona, os parados há mais tempo primeiro.
+          </p>
+          <Passos
+            itens={[
+              "Escolha a zona no cartão “Pedir lote de 30 do Bolsão” e clique em Pedir lote.",
+              "Os clientes entram direto na sua cadência (Lead chegou → D1 → D2 → D3) e aparecem na Fila do Dia, marcados como “Lote”, depois dos clientes da sua carteira.",
+              "Enquanto estão na cadência, eles NÃO ocupam vaga da sua carteira ativa de 65 nem travam os leads novos da roleta.",
+              "Quem responder ou avançar de fase fica com você. Quem não for trabalhado no prazo volta ao Bolsão, e não volta para você por 30 dias.",
+              "Novo lote só quando ninguém do anterior estiver mais na cadência. Com a carteira ativa no teto, o botão fica travado.",
+            ]}
+          />
+          <Aviso tipo="atencao">
+            O lote não traz cliente de anúncio pago, do Marquinhos, do Impulso SMQ nem do SDR —
+            esses vão sempre para a roleta. Também não traz quem outro corretor está discando agora.
+          </Aviso>
         </Bloco>
       </Capitulo>
 
@@ -260,8 +281,9 @@ export function ConteudoOperacao() {
           <p>
             Em <strong>Follow-Up › Painel da cadência</strong>: por corretor (fazer hoje, atrasados,
             cumprimento, taxa de resposta e tempo até a 1ª tentativa), resposta por etapa, semana e
-            empreendimento, números da reativação e a saúde das rotinas automáticas. Cadência
-            cumprida sem retorno aparece em cinza, como “encerrado no processo”.
+            empreendimento, números da reativação, os lotes de prospecção do time (quantos vieram,
+            ficaram e saíram) e a saúde das rotinas automáticas. Cadência cumprida sem retorno
+            aparece em cinza, como “encerrado no processo”.
           </p>
         </Bloco>
       </Capitulo>
@@ -383,9 +405,9 @@ export function ConteudoOperacao() {
         <Bloco titulo="Reativação" quem="SDR · Gestão">
           <p>
             Em <strong>Pré-venda › Reativação</strong> ficam os clientes que cumpriram a cadência
-            sem retorno. A fila acionável vem por prioridade; marque{" "}
-            <strong>Reativado</strong> (com suas notas) ou <strong>Sem retorno</strong>. Quem está
-            em período de descanso aparece numa lista separada, só para consulta.
+            sem retorno. A fila acionável vem por prioridade; marque <strong>Reativado</strong> (com
+            suas notas) ou <strong>Sem retorno</strong>. Quem está em período de descanso aparece
+            numa lista separada, só para consulta.
           </p>
         </Bloco>
       </Capitulo>
