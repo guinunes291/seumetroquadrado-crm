@@ -47,6 +47,18 @@ export const LOTES = {
     // mesmo padrão das entradas 0016 a 0021.
     journalBase: Date.UTC(2026, 9, 6, 15, 0, 0),
   },
+  // Sem migration de estrutura: o schema do LOTE 1 já cobre o formato canônico.
+  2: {
+    modulos: {
+      M13: { migration: "20261007120100_academia_lote2_m13", idx: 31 },
+      M16: { migration: "20261007120200_academia_lote2_m16", idx: 32 },
+      M18: { migration: "20261007120300_academia_lote2_m18", idx: 33 },
+      M19: { migration: "20261007120400_academia_lote2_m19", idx: 34 },
+      M20: { migration: "20261007120500_academia_lote2_m20", idx: 35 },
+      M21: { migration: "20261007120600_academia_lote2_m21", idx: 36 },
+    },
+    journalBase: Date.UTC(2026, 9, 7, 15, 0, 0),
+  },
 };
 
 // Trilha do super prompt → fase do CRM (academia_fases.numero).
@@ -571,8 +583,9 @@ function main(argv) {
   console.log(`${aplicadas.length} ajustes de texto aplicados (SUBSTITUICOES + PENDENCIAS)`);
 
   if (argv.includes("--espelhar")) {
-    espelhar([cfg.estrutura, ...geradas], cfg.journalBase);
-    console.log(`espelhadas ${geradas.length + 1} migrations em drizzle/migrations`);
+    const todas = cfg.estrutura ? [cfg.estrutura, ...geradas] : geradas;
+    espelhar(todas, cfg.journalBase);
+    console.log(`espelhadas ${todas.length} migrations em drizzle/migrations`);
   }
 }
 

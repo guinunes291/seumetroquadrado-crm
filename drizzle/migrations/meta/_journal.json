@@ -218,6 +218,48 @@
       "when": 1791299160000,
       "tag": "0030_prospeccao_lote_grande_sp",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791385200000,
+      "tag": "0031_academia_lote2_m13",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791385260000,
+      "tag": "0032_academia_lote2_m16",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791385320000,
+      "tag": "0033_academia_lote2_m18",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791385380000,
+      "tag": "0034_academia_lote2_m19",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791385440000,
+      "tag": "0035_academia_lote2_m20",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791385500000,
+      "tag": "0036_academia_lote2_m21",
+      "breakpoints": true
     }
   ]
 }
