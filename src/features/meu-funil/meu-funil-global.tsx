@@ -44,15 +44,29 @@ import {
 } from "@/features/meu-funil/use-estudo-pendente";
 
 /** Segundos com a aba VISÍVEL desde que `ativo` virou true. */
-function useSegundosVisiveis(ativo: boolean): number {
-  const [s, setS] = useState(0);
+function useSegundosVisiveis(ativo: boolean, chave: string): number {
+  const [s, setS] = useState(() => {
+    try {
+      return Number(sessionStorage.getItem(chave)) || 0;
+    } catch {
+      return 0;
+    }
+  });
   useEffect(() => {
     if (!ativo) return;
     const t = setInterval(() => {
-      if (document.visibilityState === "visible") setS((x) => x + 1);
+      if (document.visibilityState === "visible")
+        setS((x) => {
+          try {
+            sessionStorage.setItem(chave, String(x + 1));
+          } catch {
+            /* sem armazenamento */
+          }
+          return x + 1;
+        });
     }, 1000);
     return () => clearInterval(t);
-  }, [ativo]);
+  }, [ativo, chave]);
   return s;
 }
 
@@ -69,7 +83,7 @@ export function MeuFunilGlobal() {
     isCorretor && !!onboardingQ.data && onboardingQ.data.concluido_em === null;
 
   const aberto = pendente === true && !onboardingPendente;
-  const segundos = useSegundosVisiveis(aberto);
+  const segundos = useSegundosVisiveis(aberto, `smq:meu-funil:segundos:${uid}:${dia}`);
   const faltam = Math.max(0, SEGUNDOS_MINIMOS_ESTUDO - segundos);
 
   const [foco, setFoco] = useState<FocoChave | null>(null);
@@ -89,6 +103,7 @@ export function MeuFunilGlobal() {
       { dia, foco, compromisso, segundos },
       {
         onSuccess: () => {
+          liberarPorFalha(uid, dia);
           toast.success("Estudo do funil concluído", {
             description: `Foco de hoje: ${FOCOS.find((f) => f.chave === foco)?.label}.`,
           });
