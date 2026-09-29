@@ -267,6 +267,48 @@
       "when": 1790721349002,
       "tag": "0037_leads_funil_registros_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791471600000,
+      "tag": "0038_academia_lote3_m04",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791471660000,
+      "tag": "0039_academia_lote3_m05",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791471720000,
+      "tag": "0040_academia_lote3_m06",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791471780000,
+      "tag": "0041_academia_lote3_m07",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791471840000,
+      "tag": "0042_academia_lote3_m08",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791471900000,
+      "tag": "0043_academia_lote3_m09",
+      "breakpoints": true
     }
   ]
 }

@@ -30,6 +30,7 @@ import {
 const ESPERADO = {
   1: { modulos: 5, aulas: 23, questoes: 100, flashcards: 65 },
   2: { modulos: 6, aulas: 33, questoes: 120, flashcards: 83 },
+  3: { modulos: 6, aulas: 30, questoes: 120, flashcards: 81 },
 };
 const DIRETOR = "Guilherme Nunes";
 

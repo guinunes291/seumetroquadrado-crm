@@ -59,6 +59,17 @@ export const LOTES = {
     },
     journalBase: Date.UTC(2026, 9, 7, 15, 0, 0),
   },
+  3: {
+    modulos: {
+      M04: { migration: "20261008120100_academia_lote3_m04", idx: 38 },
+      M05: { migration: "20261008120200_academia_lote3_m05", idx: 39 },
+      M06: { migration: "20261008120300_academia_lote3_m06", idx: 40 },
+      M07: { migration: "20261008120400_academia_lote3_m07", idx: 41 },
+      M08: { migration: "20261008120500_academia_lote3_m08", idx: 42 },
+      M09: { migration: "20261008120600_academia_lote3_m09", idx: 43 },
+    },
+    journalBase: Date.UTC(2026, 9, 8, 15, 0, 0),
+  },
 };
 
 // Trilha do super prompt → fase do CRM (academia_fases.numero).
