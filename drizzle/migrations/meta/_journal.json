@@ -155,6 +155,13 @@
       "when": 1791126120000,
       "tag": "0021_academia_lead_novo_sem_importacao",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790709644131,
+      "tag": "0022_corretor_agenda_nao_vira_lead_sdr",
+      "breakpoints": true
     }
   ]
 }
