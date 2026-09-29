@@ -8,7 +8,7 @@
 ## 1. O que é
 
 No **Modo Foco da Prospecção** o corretor escolhe uma zona (Norte, Sul, Leste,
-Oeste, Centro) e pede um lote. Vêm até **30 clientes sem dono** dessa zona, os
+Oeste, Centro ou Grande SP) e pede um lote. Vêm até **30 clientes sem dono** dessa zona, os
 parados há mais tempo primeiro. Eles entram direto na cadência (Lead chegou →
 D1 → D2 → D3) e são trabalhados na **Fila do Dia** (`/cadencia`), marcados como
 "Lote".
@@ -52,8 +52,13 @@ normais da carteira.
 - Ninguém está discando agora (reserva viva do Discador).
 - Anti-ioiô: não foi devolvido por este corretor, nem vencido num lote dele, há
   menos de `discador_anti_ioio_dias` (30).
-- Zona pela mesma cascata de `zona_do_lead`: zona do lead → bairro → projeto
-  (`zona_smq` ou `regiao`), normalizada ("Zona Leste" = Leste).
+- Zona: a do próprio lead (campo zona, depois bairro) e, sem ela, a do
+  empreendimento pela **mesma regra da vitrine** (`zonaDoProjeto` em
+  `src/lib/zonas.ts`, espelhada em `_zona_do_projeto`): ABC é Zona Sul; cidade,
+  zona SMQ, região ou bairro na Grande SP é Grande SP; senão a zona SMQ, depois
+  a região, nas cinco zonas da capital. O teste
+  `tests/db/zona-projeto-paridade.test.ts` roda os mesmos casos nas duas e
+  exige a mesma resposta.
 
 ## 4. As saídas
 
@@ -108,7 +113,19 @@ select public._prospeccao_zona_do_lead(l) as zona, count(*)
  group by 1 order by 2 desc;
 ```
 
-## 7. Pontos em aberto (decisão do dono)
+## 7. Grande SP (29/09/2026, migration `20261007120000`)
+
+Medição do Bolsão elegível ao lote antes da mudança: Leste 17.123, Oeste
+9.045, Norte 6.986, Sul 6.517, Centro 160 e **8.266 sem zona** — 5.767 sem
+empreendimento (nem zona, nem bairro) e 2.499 de Guarulhos (Merito Guarulhos
+1.606, Next Guarulhos 893, ambos com zona SMQ "Grande SP").
+
+Decisão do dono: Guarulhos entra como **Grande SP**, a 6ª opção do lote; os
+5.767 sem empreendimento ficam no Bolsão, para o Discador e a pré-venda. Só o
+lote conhece a Grande SP: `zona_normalizar`, roletas por zona, distribuição e
+SLA seguem com as cinco zonas da capital.
+
+## 8. Pontos em aberto (decisão do dono)
 
 - **Comissão**: o documento do Bolsão (`bolsao-oportunidades-fatia4.md` §9)
   pede a regra de comissão de quem puxa lead parado publicada antes do primeiro

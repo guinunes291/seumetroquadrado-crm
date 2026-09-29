@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  ZONAS_LOTE,
   mensagemDoPedido,
   motivoBloqueio,
   parseResultadoPedido,
@@ -155,6 +156,25 @@ describe("os textos das travas e do resultado", () => {
     expect(
       mensagemDoPedido(parseResultadoPedido({ ok: false, motivo: "carteira_cheia" }), { teto: 65 }),
     ).toMatchObject({ tipo: "erro", titulo: expect.stringMatching(/teto \(65\)/) });
+  });
+
+  it("seis zonas: as cinco da capital e a Grande SP, com o rótulo e a preposição certos", () => {
+    expect(ZONAS_LOTE).toEqual(["Norte", "Sul", "Leste", "Oeste", "Centro", "Grande SP"]);
+    const titulo = (zona: string) =>
+      mensagemDoPedido(parseResultadoPedido({ ok: true, entregues: 30, zona })).titulo;
+    expect(titulo("Grande SP")).toBe("30 clientes chegaram da Grande SP");
+    expect(titulo("Centro")).toBe("30 clientes chegaram do Centro");
+    expect(
+      resumoDoLote(
+        status({
+          lote_id: "00000000-0000-4000-8000-0000000000bb",
+          zona: "Grande SP",
+          criado_em: "2026-09-30T15:00:00Z",
+          entregues: 3,
+          em_cadencia: 3,
+        }),
+      ),
+    ).toMatch(/^Lote de 30\/09 \(Grande SP\): 3 clientes/);
   });
 
   it("o resumo do lote soma o que veio, o que ficou e o que saiu", () => {

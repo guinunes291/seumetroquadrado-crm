@@ -208,8 +208,9 @@ export function ConteudoOperacao() {
         <Bloco titulo="Lote de prospecção: 30 clientes do Bolsão" quem="Corretor">
           <p>
             É a porta de base nova do corretor (além da roleta e da redistribuição). Em{" "}
-            <strong>Prospecção › Modo Foco</strong>, escolha a zona e peça o lote: vêm até{" "}
-            <strong>30 clientes sem dono</strong> dessa zona, os parados há mais tempo primeiro.
+            <strong>Prospecção › Modo Foco</strong>, escolha a zona (as cinco da capital ou a Grande
+            SP) e peça o lote: vêm até <strong>30 clientes sem dono</strong> dessa zona, os parados
+            há mais tempo primeiro.
           </p>
           <Passos
             itens={[
