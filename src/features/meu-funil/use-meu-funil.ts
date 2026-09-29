@@ -76,8 +76,15 @@ export function useRegistrarEstudo() {
       );
       if (error) throw error;
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: [MEU_FUNIL_KEY, "hoje"] });
+    onSuccess: (_d, input) => {
+      // Grava já no cache: nenhuma troca de página reabre o estudo concluído.
+      qc.setQueryData([MEU_FUNIL_KEY, "hoje", user?.id, input.dia], {
+        dia: input.dia,
+        foco: input.foco,
+        compromisso: input.compromisso.trim().slice(0, 500) || null,
+        segundos_na_tela: Math.max(0, Math.round(input.segundos)),
+        concluido_em: new Date().toISOString(),
+      });
     },
   });
 }
