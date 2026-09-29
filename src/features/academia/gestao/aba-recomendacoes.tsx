@@ -25,7 +25,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useUserRoles } from "@/hooks/use-auth";
-import type { AcademiaRecomendacaoRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaRecomendacaoRow } from "@/features/academia/tipos";
 import { dataBr } from "../formato";
 import { hojeBrasilia } from "../estado-modulo";
 import { formatarIndicador, rotuloIndicador } from "./derivacao";

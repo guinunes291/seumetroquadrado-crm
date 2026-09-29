@@ -48,7 +48,7 @@ import type {
   AcademiaQuestaoRow,
   AcademiaStatusConteudo,
   AcademiaTipoAula,
-} from "@/integrations/supabase/academia-pendente";
+} from "@/features/academia/tipos";
 import { listaDeTextos } from "../formato";
 import { EsqueletoAcademia } from "../guard";
 import { Markdown } from "../markdown";

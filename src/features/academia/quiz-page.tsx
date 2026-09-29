@@ -8,7 +8,7 @@ import { QueryErrorState } from "@/components/ui/query-error-state";
 import type {
   AcademiaQuizEnviarRetorno,
   AcademiaQuizIniciarRetorno,
-} from "@/integrations/supabase/academia-pendente";
+} from "@/features/academia/tipos";
 import { useEnviarQuiz, useIniciarQuiz, useModulo } from "./academia-client";
 import { erroAmigavel } from "./erros";
 import { listaDeTextos, segundosEmHhMm } from "./formato";

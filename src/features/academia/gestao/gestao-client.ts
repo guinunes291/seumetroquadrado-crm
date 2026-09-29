@@ -11,31 +11,31 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { rpcWithFallback } from "@/lib/supabase-errors";
-import {
-  supabaseAcademia,
-  type AcademiaAtribuicaoRow,
-  type AcademiaAulaRow,
-  type AcademiaCandidatoRow,
-  type AcademiaCertificadoRow,
-  type AcademiaConfigRow,
-  type AcademiaCorretorResumoRow,
-  type AcademiaEfeitoRow,
-  type AcademiaEncontroRow,
-  type AcademiaFaseRow,
-  type AcademiaFaseStatusRow,
-  type AcademiaGateSombraRow,
-  type AcademiaModuloRow,
-  type AcademiaModuloStatusRow,
-  type AcademiaMotorRetorno,
-  type AcademiaNivelHistoricoRow,
-  type AcademiaPraticaRow,
-  type AcademiaPresencaRow,
-  type AcademiaQuestaoRow,
-  type AcademiaRecomendacaoRow,
-  type AcademiaRegraRecomendacaoRow,
-  type AcademiaStatusPratica,
-  type AcademiaTipoEncontro,
-} from "@/integrations/supabase/academia-pendente";
+import { supabase } from "@/integrations/supabase/client";
+import type {
+  AcademiaAtribuicaoRow,
+  AcademiaAulaRow,
+  AcademiaCandidatoRow,
+  AcademiaCertificadoRow,
+  AcademiaConfigRow,
+  AcademiaCorretorResumoRow,
+  AcademiaEfeitoRow,
+  AcademiaEncontroRow,
+  AcademiaFaseRow,
+  AcademiaFaseStatusRow,
+  AcademiaGateSombraRow,
+  AcademiaModuloRow,
+  AcademiaModuloStatusRow,
+  AcademiaMotorRetorno,
+  AcademiaNivelHistoricoRow,
+  AcademiaPraticaRow,
+  AcademiaPresencaRow,
+  AcademiaQuestaoRow,
+  AcademiaRecomendacaoRow,
+  AcademiaRegraRecomendacaoRow,
+  AcademiaStatusPratica,
+  AcademiaTipoEncontro,
+} from "@/features/academia/tipos";
 import { ACADEMIA_KEY } from "../academia-client";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -104,9 +104,9 @@ export function useEquipeAcademia() {
       rpcWithFallback(
         async () => {
           const [resumo, fases, faseStatus] = await Promise.all([
-            supabaseAcademia.from("v_academia_corretor_resumo").select("*"),
-            supabaseAcademia.from("academia_fases").select("*").order("numero"),
-            supabaseAcademia.from("v_academia_fase_status").select("*"),
+            supabase.from("v_academia_corretor_resumo").select("*"),
+            supabase.from("academia_fases").select("*").order("numero"),
+            supabase.from("v_academia_fase_status").select("*"),
           ]);
           for (const r of [resumo, fases, faseStatus]) if (r.error) throw r.error;
           const corretores = ((resumo.data ?? []) as AcademiaCorretorResumoRow[])
@@ -133,7 +133,7 @@ export function useModulosAcademia() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_modulos")
             .select(CAMPOS_MODULO_RESUMO)
             .order("fase")
@@ -156,7 +156,7 @@ export function usePraticasPendentes() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_praticas")
             .select("*")
             .eq("status", "pendente")
@@ -167,10 +167,7 @@ export function usePraticasPendentes() {
           );
           const ids = [...new Set(praticas.map((p) => p.modulo_id))];
           const mods = ids.length
-            ? await supabaseAcademia
-                .from("academia_modulos")
-                .select(CAMPOS_MODULO_RESUMO)
-                .in("id", ids)
+            ? await supabase.from("academia_modulos").select(CAMPOS_MODULO_RESUMO).in("id", ids)
             : { data: [], error: null };
           if (mods.error) throw mods.error;
           const porId = new Map(((mods.data ?? []) as ModuloResumo[]).map((m) => [m.id, m]));
@@ -189,7 +186,7 @@ export function useAtribuicoesAbertas() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_atribuicoes")
             .select("*")
             .is("concluida_em", null)
@@ -218,8 +215,8 @@ export function useGateSombra() {
       rpcWithFallback(
         async () => {
           const [cfg, gate] = await Promise.all([
-            supabaseAcademia.from("academia_config").select("gate_roleta_modo").maybeSingle(),
-            supabaseAcademia.rpc("academia_gate_sombra"),
+            supabase.from("academia_config").select("gate_roleta_modo").maybeSingle(),
+            supabase.rpc("academia_gate_sombra"),
           ]);
           if (cfg.error) throw cfg.error;
           if (gate.error) throw gate.error;
@@ -238,7 +235,7 @@ export function useDefinirModoGate() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (modo: ModoGate) => {
-      const { data, error } = await supabaseAcademia
+      const { data, error } = await supabase
         .from("academia_config")
         .update({ gate_roleta_modo: modo })
         .eq("id", true)
@@ -273,33 +270,33 @@ export function useFichaCorretor(corretorId: string) {
         async () => {
           const [resumo, modulos, atribuicoes, praticas, historico, certificados] =
             await Promise.all([
-              supabaseAcademia
+              supabase
                 .from("v_academia_corretor_resumo")
                 .select("*")
                 .eq("corretor_id", corretorId)
                 .maybeSingle(),
-              supabaseAcademia
+              supabase
                 .from("v_academia_modulo_status")
                 .select("*")
                 .eq("corretor_id", corretorId)
                 .order("fase")
                 .order("numero"),
-              supabaseAcademia
+              supabase
                 .from("academia_atribuicoes")
                 .select("*")
                 .eq("corretor_id", corretorId)
                 .order("criado_em", { ascending: false }),
-              supabaseAcademia
+              supabase
                 .from("academia_praticas")
                 .select("*")
                 .eq("corretor_id", corretorId)
                 .order("enviado_em", { ascending: false }),
-              supabaseAcademia
+              supabase
                 .from("academia_niveis_historico")
                 .select("*")
                 .eq("corretor_id", corretorId)
                 .order("em", { ascending: false }),
-              supabaseAcademia
+              supabase
                 .from("academia_certificados")
                 .select("*")
                 .eq("corretor_id", corretorId)
@@ -340,7 +337,7 @@ export function useCandidatos(habilitado: boolean) {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia.rpc("academia_candidatos");
+          const { data, error } = await supabase.rpc("academia_candidatos");
           if (error) throw error;
           return (data ?? []) as AcademiaCandidatoRow[];
         },
@@ -370,9 +367,9 @@ export function useRecomendacoes() {
         async () => {
           const desde = new Date(Date.now() - 30 * 86_400_000).toISOString();
           const [cfg, regras, recs] = await Promise.all([
-            supabaseAcademia.from("academia_config").select("recomendacao_modo").maybeSingle(),
-            supabaseAcademia.from("academia_regras_recomendacao").select("*").order("codigo"),
-            supabaseAcademia
+            supabase.from("academia_config").select("recomendacao_modo").maybeSingle(),
+            supabase.from("academia_regras_recomendacao").select("*").order("codigo"),
+            supabase
               .from("academia_recomendacoes")
               .select("*")
               .gte("gerada_em", desde)
@@ -400,7 +397,7 @@ export function useEfeito() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("v_academia_efeito")
             .select("*")
             .order("concluida_em", { ascending: false });
@@ -430,7 +427,7 @@ export function useEncontros() {
       rpcWithFallback(
         async () => {
           const desde = new Date(Date.now() - 30 * 86_400_000).toISOString();
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_encontros")
             .select("*")
             .gte("inicio", desde)
@@ -439,7 +436,7 @@ export function useEncontros() {
           const encontros = (data ?? []) as AcademiaEncontroRow[];
           const ids = encontros.map((e) => e.id);
           const pres = ids.length
-            ? await supabaseAcademia.from("academia_presencas").select("*").in("encontro_id", ids)
+            ? await supabase.from("academia_presencas").select("*").in("encontro_id", ids)
             : { data: [], error: null };
           if (pres.error) throw pres.error;
           return { encontros, presencas: (pres.data ?? []) as AcademiaPresencaRow[] };
@@ -457,7 +454,7 @@ export function useProximosEncontros() {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_encontros")
             .select("*")
             .gte("inicio", new Date().toISOString())
@@ -489,9 +486,9 @@ export function useConteudo(habilitado: boolean) {
       rpcWithFallback(
         async () => {
           const [mods, aulas, questoes] = await Promise.all([
-            supabaseAcademia.from("academia_modulos").select("*").order("fase").order("numero"),
-            supabaseAcademia.from("academia_aulas").select("modulo_id, status"),
-            supabaseAcademia.from("academia_questoes").select("modulo_id, ativa"),
+            supabase.from("academia_modulos").select("*").order("fase").order("numero"),
+            supabase.from("academia_aulas").select("modulo_id, status"),
+            supabase.from("academia_questoes").select("modulo_id, ativa"),
           ]);
           for (const r of [mods, aulas, questoes]) if (r.error) throw r.error;
           const contaAulas = new Map<string, { total: number; pub: number }>();
@@ -534,7 +531,7 @@ export function useConteudoModulo(codigo: string, habilitado: boolean) {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data: modulo, error } = await supabaseAcademia
+          const { data: modulo, error } = await supabase
             .from("academia_modulos")
             .select("*")
             .eq("codigo", codigo)
@@ -542,12 +539,8 @@ export function useConteudoModulo(codigo: string, habilitado: boolean) {
           if (error) throw error;
           if (!modulo) return { modulo: null, aulas: [], questoes: [] };
           const [aulas, questoes] = await Promise.all([
-            supabaseAcademia
-              .from("academia_aulas")
-              .select("*")
-              .eq("modulo_id", modulo.id)
-              .order("ordem"),
-            supabaseAcademia
+            supabase.from("academia_aulas").select("*").eq("modulo_id", modulo.id).order("ordem"),
+            supabase
               .from("academia_questoes")
               .select("*")
               .eq("modulo_id", modulo.id)
@@ -581,7 +574,7 @@ export function useCertificado(codigo: string) {
     queryFn: async () =>
       rpcWithFallback(
         async () => {
-          const { data, error } = await supabaseAcademia
+          const { data, error } = await supabase
             .from("academia_certificados")
             .select("*")
             .eq("codigo", codigo)
@@ -589,7 +582,7 @@ export function useCertificado(codigo: string) {
           if (error) throw error;
           if (!data) return { certificado: null, nome: null };
           const cert = data as AcademiaCertificadoRow;
-          const { data: resumo, error: e2 } = await supabaseAcademia
+          const { data: resumo, error: e2 } = await supabase
             .from("v_academia_corretor_resumo")
             .select("corretor_nome")
             .eq("corretor_id", cert.corretor_id)
@@ -615,7 +608,7 @@ export function useAvaliarPratica() {
       rubrica: Json;
       feedback: string;
     }) => {
-      const { error } = await supabaseAcademia.rpc("academia_pratica_avaliar", {
+      const { error } = await supabase.rpc("academia_pratica_avaliar", {
         _pratica: p.praticaId,
         _status: p.status,
         _rubrica: p.rubrica,
@@ -637,7 +630,7 @@ export function useRegistrarRoleplay() {
       rubrica: Json;
       feedback: string;
     }) => {
-      const { error } = await supabaseAcademia.rpc("academia_registrar_roleplay", {
+      const { error } = await supabase.rpc("academia_registrar_roleplay", {
         _corretor: p.corretorId,
         _modulo: p.moduloId,
         _status: p.status,
@@ -660,7 +653,7 @@ export function useAtribuirModulo() {
       prazo: string;
       motivo: string;
     }) => {
-      const { error } = await supabaseAcademia.rpc("academia_atribuir", {
+      const { error } = await supabase.rpc("academia_atribuir", {
         _corretor: p.corretorId,
         _modulo: p.moduloId,
         _prazo: p.prazo,
@@ -676,7 +669,7 @@ export function useDefinirHabilitado() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (p: { corretorId: string; habilitado: boolean | null; motivo: string }) => {
-      const { error } = await supabaseAcademia.rpc("academia_definir_habilitado", {
+      const { error } = await supabase.rpc("academia_definir_habilitado", {
         _corretor: p.corretorId,
         // `null` = voltar à regra da trilha. O gerador de types não sabe
         // declarar argumento nulo de RPC (mesma limitação de
@@ -694,7 +687,7 @@ export function usePromoverMestre() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (p: { corretorId: string; motivo: string }) => {
-      const { error } = await supabaseAcademia.rpc("academia_promover_mestre", {
+      const { error } = await supabase.rpc("academia_promover_mestre", {
         _corretor: p.corretorId,
         _motivo: p.motivo,
       });
@@ -708,7 +701,7 @@ export function useDefinirParticipacao() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (p: { pessoaId: string; participa: boolean; inicio: string | null }) => {
-      const { error } = await supabaseAcademia.rpc("academia_definir_participacao", {
+      const { error } = await supabase.rpc("academia_definir_participacao", {
         _pessoa: p.pessoaId,
         _participa: p.participa,
         _inicio_trilha: p.inicio ?? undefined,
@@ -728,7 +721,7 @@ export function useDecidirRecomendacao() {
       motivo: string;
       prazo: string | null;
     }) => {
-      const { error } = await supabaseAcademia.rpc("academia_decidir_recomendacao", {
+      const { error } = await supabase.rpc("academia_decidir_recomendacao", {
         _rec: p.recId,
         _acao: p.acao,
         _motivo: p.motivo,
@@ -744,9 +737,10 @@ export function useRodarMotor() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (): Promise<AcademiaMotorRetorno> => {
-      const { data, error } = await supabaseAcademia.rpc("academia_rodar_motor", {});
+      const { data, error } = await supabase.rpc("academia_rodar_motor", {});
       if (error) throw error;
-      return data;
+      // jsonb montado pela função: o gerador tipa como Json, o formato é este.
+      return data as AcademiaMotorRetorno;
     },
     onSuccess: invalidar,
   });
@@ -768,7 +762,11 @@ export function useSalvarEncontro() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (f: EncontroForm): Promise<string> => {
-      const { data, error } = await supabaseAcademia.rpc("academia_salvar_encontro", {
+      const { data, error } = await supabase.rpc("academia_salvar_encontro", {
+        // Estes parâmetros não têm DEFAULT e a função trata o nulo: `_id` nulo
+        // cria o encontro, os demais nulos gravam "sem valor". O gerador de
+        // types marca todo argumento como não nulo; o `as` só silencia isso.
+        // Não trocar por `?? undefined`: sem a chave, a RPC não é encontrada.
         _id: f.id as string,
         _tipo: f.tipo,
         _titulo: f.titulo,
@@ -790,9 +788,11 @@ export function useRegistrarPresenca() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (p: { encontroId: string; corretorId: string; presente: boolean | null }) => {
-      const { error } = await supabaseAcademia.rpc("academia_registrar_presenca", {
+      const { error } = await supabase.rpc("academia_registrar_presenca", {
         _encontro: p.encontroId,
         _corretor: p.corretorId,
+        // `null` = desmarcar a presença (a função apaga a linha). Sem DEFAULT:
+        // mandar a chave com null, nunca omitir. Mesma limitação do gerador.
         _presente: p.presente as boolean,
       });
       if (error) throw error;
@@ -823,8 +823,8 @@ export function useSalvarAula() {
         atualizado_em: new Date().toISOString(),
       };
       const r = f.id
-        ? await supabaseAcademia.from("academia_aulas").update(campos).eq("id", f.id)
-        : await supabaseAcademia
+        ? await supabase.from("academia_aulas").update(campos).eq("id", f.id)
+        : await supabase
             .from("academia_aulas")
             .insert({ ...campos, modulo_id: f.moduloId, ordem: f.ordem });
       if (r.error) throw r.error;
@@ -855,8 +855,8 @@ export function useSalvarQuestao() {
         ativa: f.ativa,
       };
       const r = f.id
-        ? await supabaseAcademia.from("academia_questoes").update(campos).eq("id", f.id)
-        : await supabaseAcademia
+        ? await supabase.from("academia_questoes").update(campos).eq("id", f.id)
+        : await supabase
             .from("academia_questoes")
             .insert({ ...campos, modulo_id: f.moduloId, ordem: f.ordem });
       if (r.error) throw r.error;
@@ -869,7 +869,7 @@ export function useMarcarRevisado() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (moduloId: string) => {
-      const { error } = await supabaseAcademia
+      const { error } = await supabase
         .from("academia_modulos")
         .update({ revisao_pendente: null, atualizado_em: new Date().toISOString() })
         .eq("id", moduloId);
@@ -883,7 +883,7 @@ export function usePublicarModulo() {
   const invalidar = useInvalidarAcademia();
   return useMutation({
     mutationFn: async (moduloId: string) => {
-      const { error } = await supabaseAcademia.rpc("academia_publicar_modulo", {
+      const { error } = await supabase.rpc("academia_publicar_modulo", {
         _modulo: moduloId,
       });
       if (error) throw error;

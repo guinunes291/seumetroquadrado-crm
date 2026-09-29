@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { AcademiaCorretorResumoRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaCorretorResumoRow } from "@/features/academia/tipos";
 import { itensDaRubrica, pontuacaoDaRubrica, resultadoDaRubrica, tempoDeEspera } from "./derivacao";
 import {
   useAvaliarPratica,

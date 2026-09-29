@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type {
   AcademiaQuizEnviarRetorno,
   AcademiaQuizIniciarRetorno,
-} from "@/integrations/supabase/academia-pendente";
+} from "@/features/academia/tipos";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="#">{children}</a>,

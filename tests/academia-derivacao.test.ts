@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AcademiaModuloStatusRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaModuloStatusRow } from "@/features/academia/tipos";
 import {
   continueDeOndeParou,
   estadoDoModulo,

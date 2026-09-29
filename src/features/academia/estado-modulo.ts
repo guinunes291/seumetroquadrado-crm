@@ -2,7 +2,7 @@
 // Fica fora dos componentes de propósito: é a regra que decide o que o
 // corretor vê na trilha, e regra se testa sem montar tela.
 
-import type { AcademiaModuloStatusRow } from "@/integrations/supabase/academia-pendente";
+import type { AcademiaModuloStatusRow } from "@/features/academia/tipos";
 
 export type EstadoModulo =
   | "nao_iniciado"

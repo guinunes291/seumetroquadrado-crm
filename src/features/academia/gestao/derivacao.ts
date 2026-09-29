@@ -7,7 +7,7 @@ import type {
   AcademiaEfeitoRow,
   AcademiaFaseStatusRow,
   AcademiaGateSombraRow,
-} from "@/integrations/supabase/academia-pendente";
+} from "@/features/academia/tipos";
 import { diasAte, formatarHhMm } from "../formato";
 
 // ---------------------------------------------------------------------------
