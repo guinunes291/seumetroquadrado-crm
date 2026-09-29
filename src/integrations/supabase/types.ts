@@ -6737,6 +6737,82 @@ export type Database = {
           },
         ]
       }
+      prospeccao_lote_itens: {
+        Row: {
+          classe_anterior: string
+          data_distribuicao_anterior: string | null
+          devolvido_em: string | null
+          entregue_em: string
+          lead_id: string
+          lote_id: string
+          recebimento_anterior: string | null
+          status_anterior: Database["public"]["Enums"]["lead_status"]
+        }
+        Insert: {
+          classe_anterior: string
+          data_distribuicao_anterior?: string | null
+          devolvido_em?: string | null
+          entregue_em?: string
+          lead_id: string
+          lote_id: string
+          recebimento_anterior?: string | null
+          status_anterior: Database["public"]["Enums"]["lead_status"]
+        }
+        Update: {
+          classe_anterior?: string
+          data_distribuicao_anterior?: string | null
+          devolvido_em?: string | null
+          entregue_em?: string
+          lead_id?: string
+          lote_id?: string
+          recebimento_anterior?: string | null
+          status_anterior?: Database["public"]["Enums"]["lead_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prospeccao_lote_itens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospeccao_lote_itens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prospeccao_lote_itens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "prospeccao_lote_itens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "prospeccao_lote_itens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "prospeccao_lote_itens_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "prospeccao_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prospeccao_lotes: {
         Row: {
           corretor_id: string
@@ -10039,6 +10115,44 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      _prospeccao_devolver_bolsao: {
+        Args: { _corretor: string; _lead: string; _motivo: string }
+        Returns: boolean
+      }
+      _prospeccao_em_lote: {
+        Args: { _etapa: string; _lote: string }
+        Returns: boolean
+      }
+      _prospeccao_lote_elegivel: {
+        Args: {
+          _anti_ioio_dias: number
+          _corretor: string
+          l: Database["public"]["Tables"]["leads"]["Row"]
+        }
+        Returns: boolean
+      }
+      _prospeccao_lote_placar: {
+        Args: { _lote: string }
+        Returns: {
+          em_cadencia: number
+          entregues: number
+          ficaram: number
+          sairam: number
+        }[]
+      }
+      _prospeccao_zona: {
+        Args: {
+          _bairro: string
+          _regiao_projeto: string
+          _zona_lead: string
+          _zona_projeto: string
+        }
+        Returns: string
+      }
+      _prospeccao_zona_do_lead: {
+        Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: string
+      }
       _proximo_sdr: { Args: never; Returns: string }
       _reativacao_pode_agir: { Args: { _uid: string }; Returns: boolean }
       _registrar_estouro_sla: {
@@ -12386,6 +12500,20 @@ export type Database = {
         }[]
       }
       prospeccao_lote_status_v1: { Args: never; Returns: Json }
+      prospeccao_lotes_painel_v1: {
+        Args: { _limite?: number }
+        Returns: {
+          corretor_id: string
+          corretor_nome: string
+          criado_em: string
+          em_cadencia: number
+          entregues: number
+          ficaram: number
+          lote_id: string
+          sairam: number
+          zona: string
+        }[]
+      }
       prospeccao_pedir_lote: { Args: { _zona: string }; Returns: Json }
       ranking_campeonato: {
         Args: { _fim: string; _inicio: string }
