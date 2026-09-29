@@ -90,6 +90,13 @@ export type Database = {
             referencedRelation: "academia_recomendacoes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "academia_atribuicoes_recomendacao_id_fkey"
+            columns: ["recomendacao_id"]
+            isOneToOne: false
+            referencedRelation: "v_academia_efeito"
+            referencedColumns: ["recomendacao_id"]
+          },
         ]
       }
       academia_aulas: {
@@ -883,6 +890,7 @@ export type Database = {
           ativa: boolean
           codigo: string
           descricao: string
+          diferenca_minima: number | null
           direcao: string
           id: string
           indicador: string
@@ -896,6 +904,7 @@ export type Database = {
           ativa?: boolean
           codigo: string
           descricao: string
+          diferenca_minima?: number | null
           direcao: string
           id?: string
           indicador: string
@@ -909,6 +918,7 @@ export type Database = {
           ativa?: boolean
           codigo?: string
           descricao?: string
+          diferenca_minima?: number | null
           direcao?: string
           id?: string
           indicador?: string
@@ -924,6 +934,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "academia_modulos"
             referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "academia_regras_recomendacao_modulo_codigo_fkey"
+            columns: ["modulo_codigo"]
+            isOneToOne: false
+            referencedRelation: "v_academia_efeito"
+            referencedColumns: ["modulo_codigo"]
           },
           {
             foreignKeyName: "academia_regras_recomendacao_modulo_codigo_fkey"
@@ -9279,6 +9296,58 @@ export type Database = {
           },
         ]
       }
+      v_academia_efeito: {
+        Row: {
+          amostra_antes: number | null
+          amostra_depois: number | null
+          concluida_em: string | null
+          corretor_id: string | null
+          data_antes: string | null
+          data_depois: string | null
+          direcao: string | null
+          indicador: string | null
+          janela_dias: number | null
+          modulo_codigo: string | null
+          modulo_id: string | null
+          modulo_titulo: string | null
+          recomendacao_id: string | null
+          referencia_antes: number | null
+          referencia_depois: number | null
+          regra_codigo: string | null
+          valor_antes: number | null
+          valor_depois: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academia_recomendacoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academia_recomendacoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "academia_recomendacoes_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "academia_modulos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academia_recomendacoes_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "v_academia_modulo_status"
+            referencedColumns: ["modulo_id"]
+          },
+        ]
+      }
       v_academia_fase_status: {
         Row: {
           completa: boolean | null
@@ -9310,6 +9379,16 @@ export type Database = {
             referencedColumns: ["corretor_id"]
           },
         ]
+      }
+      v_academia_gate_sombra: {
+        Row: {
+          corretor_id: string | null
+          corretor_nome: string | null
+          leads_30d: number | null
+          pct_do_total: number | null
+          situacao: string | null
+        }
+        Relationships: []
       }
       v_academia_modulo_status: {
         Row: {
@@ -9610,6 +9689,15 @@ export type Database = {
       }
     }
     Functions: {
+      _academia_corretores: { Args: never; Returns: string[] }
+      _academia_indicador: {
+        Args: { _fim: string; _indicador: string; _ini: string }
+        Returns: {
+          o_amostra: number
+          o_corretor: string
+          o_valor: number
+        }[]
+      }
       _alertar_gestores_distribuicao: {
         Args: {
           _link?: string
@@ -10050,6 +10138,25 @@ export type Database = {
         }
         Returns: string
       }
+      academia_calcular_indicadores: {
+        Args: { _data_ref?: string }
+        Returns: number
+      }
+      academia_candidatos: {
+        Args: never
+        Returns: {
+          conta_ativa: boolean
+          eh_bot: boolean
+          eh_mcp: boolean
+          email: string
+          inicio_trilha: string
+          nivel: Database["public"]["Enums"]["academia_nivel"]
+          nome: string
+          papeis: string[]
+          participa: boolean
+          pessoa_id: string
+        }[]
+      }
       academia_concluir_atribuicoes: {
         Args: { _corretor: string; _modulo: string }
         Returns: undefined
@@ -10067,6 +10174,26 @@ export type Database = {
         Returns: undefined
       }
       academia_eh_admin: { Args: never; Returns: boolean }
+      academia_gate_sombra: {
+        Args: never
+        Returns: {
+          corretor_id: string | null
+          corretor_nome: string | null
+          leads_30d: number | null
+          pct_do_total: number | null
+          situacao: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "v_academia_gate_sombra"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      academia_gerar_recomendacoes: {
+        Args: { _data_ref?: string }
+        Returns: number
+      }
       academia_marcar_aula: {
         Args: { _aula: string; _concluida?: boolean }
         Returns: undefined
@@ -10102,6 +10229,15 @@ export type Database = {
         Args: { _corretor: string }
         Returns: Database["public"]["Enums"]["academia_nivel"]
       }
+      academia_registrar_presenca: {
+        Args: {
+          _corretor: string
+          _encontro: string
+          _observacao?: string
+          _presente: boolean
+        }
+        Returns: undefined
+      }
       academia_registrar_roleplay: {
         Args: {
           _corretor: string
@@ -10109,6 +10245,21 @@ export type Database = {
           _modulo: string
           _rubrica: Json
           _status: Database["public"]["Enums"]["academia_status_pratica"]
+        }
+        Returns: string
+      }
+      academia_rodar_motor: { Args: { _data_ref?: string }; Returns: Json }
+      academia_salvar_encontro: {
+        Args: {
+          _acao_registrada: string
+          _descricao: string
+          _duracao_min: number
+          _facilitador: string
+          _id: string
+          _inicio: string
+          _modulo: string
+          _tipo: string
+          _titulo: string
         }
         Returns: string
       }
