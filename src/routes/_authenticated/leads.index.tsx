@@ -1573,7 +1573,7 @@ function LeadsPage() {
                   </CardContent>
                 </Card>
               ) : viewMode === "funil" ? (
-                <LeadsFunil counts={statusCounts} />
+                <LeadsFunil params={(({ _status: _s, ...p }) => (void _s, p))(buildParams())} />
               ) : viewMode === "tabela" ? (
                 // Tabela premium (DataTable): substitui a <Table> manual cujas
                 // linhas eram <EntityRow> — a ativação da linha (peek) virou o
