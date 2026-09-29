@@ -18,6 +18,8 @@ type Props = {
   travados?: Array<keyof SplitTexto>;
   /** Linha explicando de onde veio o % do corretor (tier + esteira). */
   infoTier?: string | null;
+  /** Quando preenchido (corretor), mostra só o % do tier — sem split nem valores. */
+  somenteTier?: { pctShare: number | null; tier: string | null; esteira: string | null } | null;
 };
 
 /**
@@ -26,7 +28,38 @@ type Props = {
  * A geração real acontece no banco (trigger sobre `vendas`) — o preview é
  * informativo.
  */
-export function ComissaoSplitFields({ valorVenda, valores, onChange, travados, infoTier }: Props) {
+export function ComissaoSplitFields({
+  valorVenda,
+  valores,
+  onChange,
+  travados,
+  infoTier,
+  somenteTier,
+}: Props) {
+  if (somenteTier) {
+    return (
+      <div className="space-y-1 rounded-md border border-border bg-muted/40 p-3">
+        <Label className="text-xs text-muted-foreground">Sua comissão</Label>
+        {somenteTier.pctShare != null ? (
+          <>
+            <p className="text-lg font-semibold tabular-nums">
+              {somenteTier.pctShare.toLocaleString("pt-BR")}%
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {somenteTier.tier} · {somenteTier.esteira}. Percentual sobre a comissão da
+              imobiliária, que a gestão confirma na aprovação da venda.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground">Calculando o seu tier…</p>
+        )}
+      </div>
+    );
+  }
+  return <SplitCompleto {...{ valorVenda, valores, onChange, travados, infoTier }} />;
+}
+
+function SplitCompleto({ valorVenda, valores, onChange, travados, infoTier }: Props) {
   const split = parseSplit(valores);
   const validacao = split ? validarSplit(split) : null;
   const preview =
