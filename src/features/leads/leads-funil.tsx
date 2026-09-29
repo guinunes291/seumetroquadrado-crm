@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { rpc } from "@/features/dashboard/queries";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -112,9 +112,9 @@ export function LeadsFunil({ params }: { params: Params }) {
     queryKey: ["leads-funil-registros", params],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("leads_funil_registros_v1", params);
+      const { data, error } = await rpc("leads_funil_registros_v1", params);
       if (error) throw error;
-      return montar((data ?? []) as { etapa: string; quantidade: number }[]);
+      return montar((data ?? []) as unknown as { etapa: string; quantidade: number }[]);
     },
   });
   return (
