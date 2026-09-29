@@ -76,6 +76,9 @@ export type Secao = {
   roles?: AppRole[];
   badge?: (b: NavBadges) => number;
   badgeRoles?: AppRole[];
+  /** Chave em `flagsLigadas` que liga ESTA seção. Mesma regra do `flag` de
+   *  Sistema: ausente no conjunto = seção invisível. */
+  flag?: string;
 };
 
 export type SistemaId =
@@ -582,20 +585,55 @@ export const SISTEMAS: Sistema[] = [
 // exceção em cada uma dessas varreduras.
 //
 // Quem navega usa SISTEMAS_NAV. Quando a Academia sair da flag, mova o objeto
-// para dentro de SISTEMAS, apague o campo `flag` e ajuste os dois testes que
-// enumeram o registro. É uma mudança de três linhas.
+// para dentro de SISTEMAS, apague os campos `flag` das seções e ajuste os dois
+// testes que enumeram o registro.
+//
+// As flags ficam nas SEÇÕES, não no sistema: o aluno e a gestão entram por
+// portas diferentes. `academia_menu` no conjunto = a pessoa estuda (flag
+// ligada E participação ativa); `academia_gestao` = a pessoa gere (admin
+// sempre, para preparar conteúdo e inscrever antes de abrir; gestor e
+// superintendente só com a flag ligada). Quem monta o conjunto é useFlagsNav.
 export const SISTEMA_ACADEMIA: Sistema = {
   id: "academia",
   titulo: "Academia",
-  descricao: "Sua trilha de formação: aulas, quiz, prática e certificados.",
+  descricao: "Formação do time: trilha, aulas, quiz, prática, gestão e certificados.",
   icon: GraduationCap,
   home: { to: "/academia" },
+  homePorPapel: (ctx) =>
+    ctx.flagsLigadas?.has("academia_menu") ? { to: "/academia" } : { to: "/academia/gestao" },
   cor: "projetos",
   grupo: "consulta",
-  flag: "academia_menu",
   secoes: [
-    { id: "trilha", label: "Minha trilha", icon: GraduationCap, to: "/academia" },
-    { id: "progresso", label: "Meu progresso", icon: Trophy, to: "/academia/progresso" },
+    {
+      id: "trilha",
+      label: "Minha trilha",
+      icon: GraduationCap,
+      to: "/academia",
+      flag: "academia_menu",
+    },
+    {
+      id: "progresso",
+      label: "Meu progresso",
+      icon: Trophy,
+      to: "/academia/progresso",
+      flag: "academia_menu",
+    },
+    {
+      id: "gestao",
+      label: "Gestão da Academia",
+      icon: UsersThree,
+      to: "/academia/gestao",
+      roles: GESTAO,
+      flag: "academia_gestao",
+    },
+    {
+      id: "conteudo",
+      label: "Conteúdo",
+      icon: ListChecks,
+      to: "/academia/conteudo",
+      roles: ["admin"],
+      flag: "academia_gestao",
+    },
   ],
 };
 
@@ -619,7 +657,9 @@ export function temPapel(permitidos: AppRole[] | undefined, ctx: PapelCtx): bool
 }
 
 export function secoesVisiveis(sistema: Sistema, ctx: PapelCtx): Secao[] {
-  return sistema.secoes.filter((s) => temPapel(s.roles, ctx));
+  return sistema.secoes.filter(
+    (s) => (!s.flag || ctx.flagsLigadas?.has(s.flag) === true) && temPapel(s.roles, ctx),
+  );
 }
 
 /** Sistema visível se o papel passa no gate E alguma seção é visível

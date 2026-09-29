@@ -44,6 +44,7 @@ import {
   Warning,
   X,
 } from "@phosphor-icons/react";
+import { SeloHabilitadoAcademia } from "@/features/academia/selo-habilitado";
 
 type AppRole = "admin" | "superintendente" | "gestor" | "corretor" | "sdr";
 
@@ -284,7 +285,12 @@ export function CorretoresPage() {
         accessorKey: "nome",
         header: ({ column }) => <DataTableColumnHeader column={column} title="Nome" />,
         meta: { label: "Nome" },
-        cell: ({ row }) => <span className="font-medium">{row.original.nome || "—"}</span>,
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {row.original.nome || "—"}
+            <SeloHabilitadoAcademia corretorId={row.original.id} />
+          </span>
+        ),
       },
       {
         accessorKey: "email",

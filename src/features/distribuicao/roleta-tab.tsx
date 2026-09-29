@@ -89,6 +89,7 @@ import {
   type ElegibilidadeLinha,
   type RoletaDoCorretor,
 } from "./queries";
+import { SeloHabilitadoAcademia } from "@/features/academia/selo-habilitado";
 
 function fmtDataHora(iso: string | null): string {
   if (!iso) return "—";
@@ -301,6 +302,7 @@ function RoletaTabPadrao({
                               </Tooltip>
                             )}
                             {l.nome}
+                            <SeloHabilitadoAcademia corretorId={l.corretor_id} />
                           </span>
                           <OutrasRoletas
                             slugAtual={slug}

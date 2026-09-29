@@ -3,7 +3,7 @@ import { AcademiaGuard } from "@/features/academia/guard";
 import { ModuloPage } from "@/features/academia/modulo-page";
 
 export const Route = createFileRoute("/_authenticated/academia/modulo/$codigo/")({
-  head: () => ({ meta: [{ title: "Módulo — Academia SMQ" }] }),
+  head: () => ({ meta: [{ title: "Módulo · Academia SMQ" }] }),
   component: RotaModulo,
 });
 

@@ -4,6 +4,7 @@ import {
   SISTEMAS,
   SISTEMAS_NAV,
   SISTEMA_ACADEMIA,
+  secoesVisiveis,
   sistemaAtivo,
   sistemaVisivel,
   sistemasVisiveis,
@@ -72,6 +73,8 @@ const estado = vi.hoisted(() => ({
   card: false,
   participa: false,
   isAdmin: false,
+  isGestor: false,
+  isSuperintendente: false,
 }));
 
 vi.mock("@/hooks/use-app-flags", () => ({
@@ -83,7 +86,13 @@ vi.mock("@/hooks/use-app-flags", () => ({
   }),
 }));
 vi.mock("@/hooks/use-auth", () => ({
-  useUserRoles: () => ({ isAdmin: estado.isAdmin, roles: [], loading: false }),
+  useUserRoles: () => ({
+    isAdmin: estado.isAdmin,
+    isGestor: estado.isGestor,
+    isSuperintendente: estado.isSuperintendente,
+    roles: [],
+    loading: false,
+  }),
 }));
 vi.mock("@/features/academia/academia-client", () => ({
   useEhParticipante: () => ({ participa: estado.participa, carregando: false }),
@@ -115,13 +124,81 @@ describe("useFlagsNav", () => {
     expect(flags().has("academia_menu")).toBe(false);
   });
 
-  it("admin entra no menu sem participar, para pré-visualizar", () => {
+  it("admin que não participa entra pela gestão, não pela trilha", () => {
     Object.assign(estado, { menu: true, card: true, participa: false, isAdmin: true });
-    expect(flags().has("academia_menu")).toBe(true);
+    expect(flags().has("academia_menu")).toBe(false);
+    expect(flags().has("academia_gestao")).toBe(true);
+  });
+
+  it("admin gere mesmo com a flag desligada: prepara conteúdo e inscreve antes de abrir", () => {
+    Object.assign(estado, { menu: false, card: false, participa: false, isAdmin: true });
+    expect(flags().has("academia_gestao")).toBe(true);
+    expect(flags().has("academia_menu")).toBe(false);
+  });
+
+  it("gestor e superintendente só gerem com a flag ligada", () => {
+    for (const papel of ["isGestor", "isSuperintendente"] as const) {
+      Object.assign(estado, {
+        menu: false,
+        card: false,
+        participa: false,
+        isAdmin: false,
+        isGestor: false,
+        isSuperintendente: false,
+        [papel]: true,
+      });
+      expect(flags().has("academia_gestao"), `${papel} com flag desligada`).toBe(false);
+      Object.assign(estado, { menu: true });
+      expect(flags().has("academia_gestao"), `${papel} com flag ligada`).toBe(true);
+    }
+    Object.assign(estado, { isGestor: false, isSuperintendente: false });
+  });
+
+  it("corretor nunca ganha a porta da gestão", () => {
+    Object.assign(estado, { menu: true, card: true, participa: true, isAdmin: false });
+    expect(flags().has("academia_gestao")).toBe(false);
   });
 
   it("mas o card do /inicio é só de quem estuda: admin que não participa não vê", () => {
     Object.assign(estado, { menu: true, card: true, participa: false, isAdmin: true });
     expect(flags().has("academia_card_inicio")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Seções: aluno e gestão entram por portas diferentes
+// ---------------------------------------------------------------------------
+describe("seções da Academia", () => {
+  const ids = (ctx: PapelCtx) => secoesVisiveis(SISTEMA_ACADEMIA, ctx).map((s) => s.id);
+
+  it("aluno vê trilha e progresso, sem gestão", () => {
+    expect(ids({ ...corretor, flagsLigadas: LIGADA })).toEqual(["trilha", "progresso"]);
+  });
+
+  it("admin que só gere vê Gestão e Conteúdo e cai na gestão", () => {
+    const ctx = { ...admin, flagsLigadas: new Set(["academia_gestao"]) };
+    expect(sistemaVisivel(SISTEMA_ACADEMIA, ctx)).toBe(true);
+    expect(ids(ctx)).toEqual(["gestao", "conteudo"]);
+    expect(SISTEMA_ACADEMIA.homePorPapel?.(ctx)).toEqual({ to: "/academia/gestao" });
+  });
+
+  it("gestor que gere não vê Conteúdo (só admin)", () => {
+    const ctx = { ...gestor, flagsLigadas: new Set(["academia_gestao"]) };
+    expect(ids(ctx)).toEqual(["gestao"]);
+  });
+
+  it("quem estuda cai na trilha", () => {
+    const ctx = { ...gestor, flagsLigadas: new Set(["academia_menu", "academia_gestao"]) };
+    expect(SISTEMA_ACADEMIA.homePorPapel?.(ctx)).toEqual({ to: "/academia" });
+  });
+
+  it("as rotas de gestão, conteúdo e certificado resolvem para a Academia", () => {
+    for (const rota of [
+      "/academia/gestao",
+      "/academia/conteudo/M01",
+      "/academia/certificado/ABC12345",
+    ]) {
+      expect(sistemaAtivo({ pathname: rota, search: {} }, SISTEMAS_NAV)?.id, rota).toBe("academia");
+    }
   });
 });
