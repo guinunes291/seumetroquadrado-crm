@@ -826,7 +826,7 @@ describe("seed e flags", () => {
     expect(desativadas).toEqual(["R05", "R06", "R07"]);
   });
 
-  it("calibração: R02 com janela de 90 dias e R08 com 10 pontos de diferença mínima", async () => {
+  it("calibração: R02 com 15 dias maduros e R08 com 10 pontos de diferença mínima", async () => {
     await comoSuperuser(c);
     const r = await c.query(
       `SELECT codigo, janela_dias, diferenca_minima::float AS dif
@@ -835,7 +835,7 @@ describe("seed e flags", () => {
     );
     expect(r.rows).toEqual([
       { codigo: "R01", janela_dias: 90, dif: 5 },
-      { codigo: "R02", janela_dias: 90, dif: null },
+      { codigo: "R02", janela_dias: 15, dif: null },
       { codigo: "R08", janela_dias: 90, dif: 10 },
     ]);
   });

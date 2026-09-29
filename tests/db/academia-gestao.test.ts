@@ -14,6 +14,7 @@
  *   • o gate em sombra obedece a gate_roleta_modo, filtra pela equipe e não
  *     bloqueia nada;
  *   • sem 3 colegas com amostra não há referência nem recomendação;
+ *   • lead de importação ou planilha não conta como lead novo;
  *   • só admin roda o motor e lista candidatos.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -527,5 +528,64 @@ describe("mínimo de 3 colegas para comparar (decisão do dono, 29/09/2026)", ()
     await rodarMotor();
     expect(await refComparecimentoA1()).toBe(100);
     expect((await recsDe(corretorA1.id)).map((r) => r.indicador)).toContain("taxa_comparecimento");
+  });
+});
+
+describe("lead novo sem importação e planilha (decisão do dono, 29/09/2026)", () => {
+  /** Um lead de anúncio (gatilho webhook) atribuído há 10 dias, com a origem dada. */
+  async function leadNovo(corretor: string, origem: string, avancou: boolean): Promise<void> {
+    const lead = await criarLead(c, { corretorId: corretor, status: "em_atendimento", origem });
+    await semTriggers(async () => {
+      const d = await c.query(
+        `INSERT INTO public.distribution_log (lead_id, corretor_id, tipo, created_at, resultado)
+         VALUES ($1, $2, 'automatica', now() - interval '10 days', 'sucesso') RETURNING id`,
+        [lead, corretor],
+      );
+      await c.query(
+        `INSERT INTO public.distribuicao_log_contexto (log_id, contexto)
+         VALUES ($1, '{"gatilho":"webhook"}'::jsonb)`,
+        [d.rows[0].id],
+      );
+      if (avancou) {
+        // Visita marcada pelo corretor: conta como "passou por agendado" (R02 e R08).
+        await c.query(
+          `INSERT INTO public.agendamentos
+             (corretor_id, lead_id, tipo, status, titulo, data_inicio, data_fim, auto_gerado)
+           VALUES ($1, $2, 'visita', 'agendado'::public.agendamento_status, 'Visita',
+                   now() + interval '1 day', now() + interval '1 day 1 hour', false)`,
+          [corretor, lead],
+        );
+      }
+    });
+  }
+
+  async function amostras(corretor: string): Promise<Record<string, number>> {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT i.ind, coalesce((SELECT x.o_amostra FROM public._academia_indicador(
+                i.ind, now() - make_interval(days => i.dias), now()) x
+               WHERE x.o_corretor = $1), 0)::int AS n
+         FROM (VALUES ('tempo_primeiro_contato', 90), ('taxa_agendamento', 15),
+                      ('taxa_perda_por_qualificacao', 90)) AS i(ind, dias)`,
+      [corretor],
+    );
+    return Object.fromEntries(r.rows.map((x) => [x.ind, x.n]));
+  }
+
+  it("importação e Google Sheets não entram em R01, R02 nem R08", async () => {
+    const antes = await amostras(corretorA2.id);
+    await leadNovo(corretorA2.id, "importacao", true);
+    await leadNovo(corretorA2.id, "importacao", true);
+    await leadNovo(corretorA2.id, "google_sheets", true);
+    expect(await amostras(corretorA2.id)).toEqual(antes);
+  });
+
+  it("controle: lead de anúncio de outra origem entra nas três", async () => {
+    const antes = await amostras(corretorA2.id);
+    await leadNovo(corretorA2.id, "facebook", true);
+    const depois = await amostras(corretorA2.id);
+    expect(depois.tempo_primeiro_contato).toBe(antes.tempo_primeiro_contato + 1);
+    expect(depois.taxa_agendamento).toBe(antes.taxa_agendamento + 1);
+    expect(depois.taxa_perda_por_qualificacao).toBe(antes.taxa_perda_por_qualificacao + 1);
   });
 });
