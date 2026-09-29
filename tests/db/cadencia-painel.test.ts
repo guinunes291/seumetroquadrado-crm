@@ -91,13 +91,39 @@ async function tentativa(leadId: string, corretorId: string, etapa: string, minu
   );
 }
 
-async function eventoRespondeu(leadId: string, de: "D1" | "D2" | "D3") {
+async function eventoRespondeu(
+  leadId: string,
+  de: "D1" | "D2" | "D3",
+  /** Minutos depois do início da cadência; sem isto, a resposta é agora. */
+  minutosApos?: number,
+) {
   await comoSuperuser(c);
   await c.query(
-    `INSERT INTO public.lead_eventos (lead_id, tipo, descricao, agente, payload)
-     VALUES ($1, 'cadencia_etapa', 'cliente respondeu', 'teste',
-             jsonb_build_object('de_estado', $2::text, 'para_estado', 'respondeu'))`,
-    [leadId, de],
+    `INSERT INTO public.lead_eventos (lead_id, tipo, descricao, agente, payload, created_at)
+     SELECT $1, 'cadencia_etapa', 'cliente respondeu', 'teste',
+            jsonb_build_object('de_estado', $2::text, 'para_estado', 'respondeu'),
+            CASE WHEN $3::int IS NULL THEN now()
+                 ELSE l.cadencia_inicio_ts + make_interval(mins => $3::int) END
+       FROM public.leads l WHERE l.id = $1`,
+    [leadId, de, minutosApos ?? null],
+  );
+}
+
+/**
+ * Quarta-feira passada, 12:00 de Brasília. O painel agrupa por semana de
+ * Brasília (segunda 00:00): um toque "24 h atrás" com resposta "agora" cai em
+ * semanas diferentes toda segunda-feira. Neste horário os dois ficam sempre na
+ * mesma semana, sempre no passado e dentro da janela padrão de 30 dias.
+ */
+async function inicioNaQuartaPassada(leadId: string) {
+  await comoSuperuser(c);
+  await c.query(
+    `UPDATE public.leads
+        SET cadencia_inicio_ts =
+              (date_trunc('week', now() AT TIME ZONE 'America/Sao_Paulo')
+                 - interval '5 days' + interval '12 hours') AT TIME ZONE 'America/Sao_Paulo'
+      WHERE id = $1`,
+    [leadId],
   );
 }
 
@@ -240,8 +266,9 @@ describe("resposta por etapa", () => {
       prazoDias: 0,
       projeto: "Residencial Aurora",
     });
+    await inicioNaQuartaPassada(tocado);
     await tentativa(tocado, corretor.id, "D3", 10);
-    await eventoRespondeu(tocado, "D3");
+    await eventoRespondeu(tocado, "D3", 20);
 
     await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT * FROM public.cadencia_painel_etapas() WHERE etapa = 'D3'`);

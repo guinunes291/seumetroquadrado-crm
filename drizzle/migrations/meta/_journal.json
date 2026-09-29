@@ -127,6 +127,34 @@
       "when": 1790953260000,
       "tag": "0017_academia_seed",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791039600000,
+      "tag": "0018_academia_gestao",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791126000000,
+      "tag": "0019_academia_calibra_regras",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791126060000,
+      "tag": "0020_academia_minimo_colegas",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791126120000,
+      "tag": "0021_academia_lead_novo_sem_importacao",
+      "breakpoints": true
     }
   ]
 }
