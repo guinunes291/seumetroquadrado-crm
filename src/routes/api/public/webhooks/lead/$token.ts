@@ -4,6 +4,11 @@ import {
   blocoObservacoesCorretor,
   validarPayloadLead,
 } from "@/lib/webhook-lead-payload";
+import {
+  CHAVE_TOKEN_NEUTRO,
+  nomeProjetoDoLead,
+  tokenBateComHash,
+} from "@/lib/webhook-token-neutro";
 
 function mapTemperatura(t: string | null | undefined): "quente" | "morno" | "frio" | null {
   if (!t) return null;
@@ -87,7 +92,8 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // primeiro, origem depois) em vez da distribuição da roleta.
         const roletaAtiva = Boolean(campanha?.ativo);
 
-        let projeto: { id: string | null; nome: string; ativo: boolean } | null = null;
+        // nome null = token NEUTRO: autentica sem amarrar projeto nenhum.
+        let projeto: { id: string | null; nome: string | null; ativo: boolean } | null = null;
         if (campanha) {
           if (campanha.projeto_id) {
             const { data: p } = await supabaseAdmin
@@ -100,6 +106,18 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           if (!projeto) projeto = { id: null, nome: campanha.nome, ativo: true };
         } else if (!projErr && projetoDoToken && projetoDoToken.ativo) {
           projeto = { id: projetoDoToken.id, nome: projetoDoToken.nome, ativo: true };
+        } else if (!campanha && !projetoDoToken) {
+          // 3) Token NEUTRO (bots do n8n sem empreendimento definido) — ver
+          //    src/lib/webhook-token-neutro.ts. Só é consultado quando o token
+          //    não é de roleta nem de projeto: o caminho comum não paga a query.
+          const { data: cfg } = await supabaseAdmin
+            .from("distribuicao_settings")
+            .select("valor")
+            .eq("chave", CHAVE_TOKEN_NEUTRO)
+            .maybeSingle();
+          if (tokenBateComHash(token, cfg?.valor)) {
+            projeto = { id: null, nome: null, ativo: true };
+          }
         }
 
         if (!projeto) {
@@ -127,13 +145,11 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         const blocoExtras = blocoCamposExtras(data.camposExtras);
 
         // Nome do projeto: campo "empreendimento" (novo) tem prioridade,
-        // depois "empreendimentoInteresse" (legado), senão o nome do projeto do token.
+        // depois "empreendimentoInteresse" (legado), senão o nome do projeto do
+        // token (null no token neutro — lead sem interesse fica sem projeto).
         // Precisa ser calculado antes do dedup para registrar o interesse
         // correto na interação de duplicata cross-project.
-        const projetoNomeInteresse =
-          (data.empreendimento?.trim() || null) ??
-          (data.empreendimentoInteresse?.trim() || null) ??
-          projeto.nome;
+        const projetoNomeInteresse = nomeProjetoDoLead(data, projeto.nome);
 
         // Deduplicação global por telefone (qualquer projeto, status <> perdido).
         // Regra: pessoa com interesse em 2 empreendimentos é 1 lead com 2
@@ -150,12 +166,16 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             .eq("id", dupGlobal)
             .maybeSingle();
 
-          const mesmoProjeto = leadExistente?.projeto_id === projeto.id;
+          // Token neutro (projeto.id null) nunca é "mesmo projeto" por id:
+          // null === null diria que um lead sem projeto é do mesmo empreendimento.
+          const mesmoProjeto = projeto.id !== null && leadExistente?.projeto_id === projeto.id;
           const base = mesmoProjeto
             ? `Nova entrada pelo webhook (${data.origem}) — mesmo empreendimento.`
-            : `Novo interesse registrado: ${projetoNomeInteresse}. ` +
-              `Lead já em atendimento no projeto "${leadExistente?.projeto_nome ?? "?"}" — ` +
-              `mantido o corretor atual, apenas registrado o novo interesse.`;
+            : !projetoNomeInteresse
+              ? `Nova entrada pelo webhook (${data.origem}) — sem empreendimento informado.`
+              : `Novo interesse registrado: ${projetoNomeInteresse}. ` +
+                `Lead já em atendimento no projeto "${leadExistente?.projeto_nome ?? "?"}" — ` +
+                `mantido o corretor atual, apenas registrado o novo interesse.`;
           // O dono atual precisa ver as respostas novas do formulário.
           const conteudo = blocoExtras ? `${base}\n\n${blocoExtras}` : base;
 
@@ -181,7 +201,12 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           });
 
           return Response.json(
-            { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupGlobal },
+            {
+              ok: true,
+              duplicate: true,
+              projeto: projeto.nome ?? leadExistente?.projeto_nome ?? null,
+              lead_id: dupGlobal,
+            },
             { headers: corsHeaders },
           );
         }
@@ -434,7 +459,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             "🔔 *Novo lead recebido!*",
             "",
             `👤 Nome: ${data.nome}`,
-            `🏢 Empreendimento: ${projetoNomeFinal}`,
+            `🏢 Empreendimento: ${projetoNomeFinal ?? "a definir"}`,
             ...(data.faixaRenda ? [`💰 Faixa de renda: ${data.faixaRenda}`] : []),
             ...(blocoObs ? ["", blocoObs] : []),
             "",
@@ -447,7 +472,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               tipo: "lead_novo",
               titulo: "Novo lead atribuído (notificação WhatsApp falhou)",
               mensagem:
-                `Lead ${data.nome} — ${projetoNomeFinal}. Abra o CRM para atender.` +
+                `Lead ${data.nome} — ${projetoNomeFinal ?? "empreendimento a definir"}. Abra o CRM para atender.` +
                 (blocoObs ? `\n\n${blocoObs}` : ""),
               link: `/leads/${lead.id}`,
               ref_id: lead.id,
@@ -485,7 +510,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         return Response.json(
           {
             ok: true,
-            projeto: projeto.nome,
+            projeto: projeto.nome ?? projetoNomeFinal,
             lead_id: lead.id,
             corretor_id: corretorId,
             corretor_nome: corretorNome,

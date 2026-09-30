@@ -100,7 +100,7 @@ describe("notificação ao corretor no webhook por token", () => {
 
   it("corretor recebe WhatsApp com o EMPREENDIMENTO em destaque", () => {
     expect(rota).toContain("enviarWhatsAppZapi");
-    expect(rota).toContain("🏢 Empreendimento: ${projetoNomeFinal}");
+    expect(rota).toContain('🏢 Empreendimento: ${projetoNomeFinal ?? "a definir"}');
     expect(rota).toContain("🔔 *Novo lead recebido!*");
   });
 

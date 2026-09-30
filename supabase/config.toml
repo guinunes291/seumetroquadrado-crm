@@ -33,6 +33,12 @@ verify_jwt = true
 [functions.notify-lead-transfer]
 verify_jwt = false
 
+# Aviso agrupado de redistribuição por SLA (substitui o digest do n8n).
+# Chamador único: o banco via pg_net, com token de uso único emitido por
+# disparar_avisos_redistribuicao — a função autentica sozinha pelo token.
+[functions.notify-redistribuicao]
+verify_jwt = false
+
 # Telefonia Sonax (LEGADO desde 2026-09-15 — o app usa as tcplus-* abaixo; as
 # entradas ficam para o caso de rollback). Click-to-call chamado do app com o
 # JWT do corretor (RLS decide o que ele pode discar/registrar).
