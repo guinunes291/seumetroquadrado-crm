@@ -351,7 +351,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             });
             if (dupId2) {
               return Response.json(
-                { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId2 },
+                { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId2, distributed: false },
                 { headers: corsHeaders },
               );
             }
