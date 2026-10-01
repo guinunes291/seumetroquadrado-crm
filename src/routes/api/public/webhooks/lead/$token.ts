@@ -135,55 +135,149 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           (data.empreendimentoInteresse?.trim() || null) ??
           projeto.nome;
 
-        // Deduplicação global por telefone (qualquer projeto, status <> perdido).
-        // Regra: pessoa com interesse em 2 empreendimentos é 1 lead com 2
-        // interesses — NÃO sobrescrevemos o projeto original; o novo interesse
-        // vira interação na timeline do lead existente.
+        // Deduplicação global por telefone (inclui perdidos — decisão 01/10/2026).
+        // Lead repetido volta pela roleta do token, com o mesmo motor de lead
+        // novo (RPC redistribuir_duplicado_campanha). Venda fechada nunca sai.
         const { data: dupGlobal } = await supabaseAdmin.rpc(
-          "buscar_lead_ativo_por_telefone_global",
-          { _telefone: data.telefone },
+          "buscar_lead_por_telefone_global_incl_perdido" as never,
+          { _telefone: data.telefone } as never,
         );
         if (dupGlobal) {
-          const { data: leadExistente } = await supabaseAdmin
+          const dupId = dupGlobal as unknown as string;
+          const slugRoleta = campanha?.slug ?? `projeto:${projeto.id ?? "?"}`;
+
+          // Idempotência: mesmo telefone na mesma roleta em < 10 min → mesma resposta.
+          const { data: recente } = await supabaseAdmin
+            .from("interacoes")
+            .select("metadata")
+            .eq("lead_id", dupId)
+            .eq("metadata->>evento", "duplicado_campanha")
+            .eq("metadata->>roleta", slugRoleta)
+            .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const respostaAnterior = (recente?.metadata as { resposta?: unknown } | null)?.resposta;
+          if (respostaAnterior) {
+            return Response.json(respostaAnterior, { headers: corsHeaders });
+          }
+
+          const { data: leadAntes } = await supabaseAdmin
             .from("leads")
-            .select("id, projeto_id, projeto_nome")
-            .eq("id", dupGlobal)
+            .select("id, email, renda_informada")
+            .eq("id", dupId)
             .maybeSingle();
 
-          const mesmoProjeto = leadExistente?.projeto_id === projeto.id;
-          const base = mesmoProjeto
-            ? `Nova entrada pelo webhook (${data.origem}) — mesmo empreendimento.`
-            : `Novo interesse registrado: ${projetoNomeInteresse}. ` +
-              `Lead já em atendimento no projeto "${leadExistente?.projeto_nome ?? "?"}" — ` +
-              `mantido o corretor atual, apenas registrado o novo interesse.`;
-          // O dono atual precisa ver as respostas novas do formulário.
-          const conteudo = blocoExtras ? `${base}\n\n${blocoExtras}` : base;
+          let r: {
+            ok?: boolean;
+            motivo?: string;
+            distributed?: boolean;
+            reassigned?: boolean;
+            previous_corretor_id?: string | null;
+            previous_status?: string | null;
+            corretor_id?: string | null;
+            status?: string | null;
+          } = {};
+          const { data: redist, error: redistErr } = await supabaseAdmin.rpc(
+            "redistribuir_duplicado_campanha" as never,
+            { _lead_id: dupId, _roleta_slug: campanha && roletaAtiva ? campanha.slug : null } as never,
+          );
+          if (redistErr) {
+            console.error("[webhooks/lead] redistribuição de duplicado falhou:", redistErr);
+            r = { ok: false, motivo: "roleta_sem_corretor", distributed: false, reassigned: false };
+          } else {
+            r = (redist ?? {}) as typeof r;
+          }
+
+          // Dados novos do formulário: só preenche o que faltava; projeto passa a ser o da roleta.
+          const patch: Record<string, unknown> = {
+            projeto_nome: projetoNomeInteresse,
+            updated_at: new Date().toISOString(),
+          };
+          if (projeto.id) patch.projeto_id = projeto.id;
+          if (!leadAntes?.email && data.email) patch.email = data.email;
+          if (!leadAntes?.renda_informada && data.faixaRenda) patch.renda_informada = data.faixaRenda;
+          await supabaseAdmin.from("leads").update(patch as never).eq("id", dupId);
+
+          const ids = [r.previous_corretor_id, r.corretor_id].filter(Boolean) as string[];
+          const { data: perfis } = ids.length
+            ? await supabaseAdmin.from("profiles").select("id, nome, telefone").in("id", ids)
+            : { data: [] as { id: string; nome: string | null; telefone: string | null }[] };
+          const perfil = (id?: string | null) => perfis?.find((p) => p.id === id);
+          const nomeAnt = perfil(r.previous_corretor_id)?.nome ?? "sem corretor";
+          const nomeNovo = perfil(r.corretor_id)?.nome ?? nomeAnt;
+          let telNovo = (perfil(r.corretor_id)?.telefone ?? "").replace(/\D/g, "");
+          if (telNovo && !telNovo.startsWith("55") && (telNovo.length === 10 || telNovo.length === 11))
+            telNovo = `55${telNovo}`;
+
+          const nomeCampanha = campanha?.nome ?? projeto.nome;
+          const quando = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+          const motivoDup = r.motivo ?? "roleta_sem_corretor";
+          const texto =
+            motivoDup === "mantido_venda_fechada"
+              ? `Lead com venda fechada voltou pela campanha ${nomeCampanha} em ${quando}. Não redistribuído.`
+              : motivoDup === "redistribuido_pela_roleta"
+                ? `Lead voltou pela campanha ${nomeCampanha} em ${quando}. Redistribuído de ${nomeAnt} para ${nomeNovo}. Status anterior: ${r.previous_status ?? "?"}.`
+                : motivoDup === "mantido_mesmo_corretor"
+                  ? `Lead voltou pela campanha ${nomeCampanha} em ${quando}. Mantido com ${nomeNovo}.`
+                  : `Lead voltou pela campanha ${nomeCampanha} em ${quando}. Roleta sem corretor disponível, mantido com ${nomeAnt}.`;
+
+          const resposta = {
+            ok: true,
+            duplicate: true,
+            projeto: projeto.nome,
+            lead_id: dupId,
+            distributed: Boolean(r.distributed),
+            reassigned: Boolean(r.reassigned),
+            previous_corretor_id: r.previous_corretor_id ?? null,
+            previous_corretor_nome: perfil(r.previous_corretor_id)?.nome ?? null,
+            previous_status: r.previous_status ?? null,
+            corretor_id: r.corretor_id ?? null,
+            corretor_nome: perfil(r.corretor_id)?.nome ?? null,
+            corretor_telefone: telNovo || null,
+            status: r.status ?? null,
+            motivo: motivoDup,
+          };
 
           await supabaseAdmin.from("interacoes").insert({
-            lead_id: dupGlobal,
+            lead_id: dupId,
             tipo: "nota",
             direcao: "interna",
-            titulo: mesmoProjeto ? "Nova entrada (dedup)" : "Novo interesse (cross-project)",
-            conteudo,
+            titulo: "Sistema: lead voltou pela campanha",
+            conteudo: blocoExtras ? `${texto}\n\n${blocoExtras}` : texto,
             metadata: {
               fonte: "webhook_lead",
-              evento: "duplicata",
-              cross_project: !mesmoProjeto,
-              projeto_id_novo: projeto.id,
-              projeto_nome_novo: projetoNomeInteresse,
+              evento: "duplicado_campanha",
+              roleta: slugRoleta,
               origem: data.origem,
               campanha: data.campanha ?? null,
-              utm_source: data.utm_source ?? null,
-              utm_campaign: data.utm_campaign ?? null,
-              faixaRenda: data.faixaRenda ?? null,
               camposExtras: data.camposExtras ?? null,
+              resposta,
             },
-          });
+          } as never);
 
-          return Response.json(
-            { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupGlobal },
-            { headers: corsHeaders },
-          );
+          // Aviso de transferência para o n8n (WhatsApp do corretor novo).
+          if (motivoDup === "redistribuido_pela_roleta" && r.corretor_id) {
+            try {
+              await fetch("https://guilhermenunessmq.app.n8n.cloud/webhook/campanha/lead-entrou", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-smq-token": process.env["SMQ_WEBHOOK_SECRET"] ?? "",
+                },
+                body: JSON.stringify({
+                  evento: "transferencia",
+                  crm_lead_id: dupId,
+                  crm_corretor_id: r.corretor_id,
+                  crm_corretor_nome: perfil(r.corretor_id)?.nome ?? null,
+                }),
+              });
+            } catch (e) {
+              console.warn("[webhooks/lead] aviso n8n falhou:", e);
+            }
+          }
+
+          return Response.json(resposta, { headers: corsHeaders });
         }
 
         const resumo = (data.resumo ?? data.observacao ?? "").trim() || null;
@@ -257,7 +351,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             });
             if (dupId2) {
               return Response.json(
-                { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId2 },
+                { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId2, distributed: false },
                 { headers: corsHeaders },
               );
             }
