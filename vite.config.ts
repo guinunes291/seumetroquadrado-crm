@@ -92,9 +92,11 @@ export default defineConfig({
           manualChunks(id) {
             if (!id.includes("node_modules")) return undefined;
             if (id.includes("node_modules/@supabase/")) return "vendor-supabase";
-            if (id.includes("node_modules/@radix-ui/")) return "vendor-radix";
+            // vaul usa Dialog do Radix no topo do módulo: precisa ficar no mesmo chunk
+            // ou o app publicado quebra com "reading displayName".
+            if (/node_modules\/(@radix-ui\/|vaul\/)/.test(id)) return "vendor-radix";
             if (/node_modules\/(recharts|d3-|victory-vendor)\//.test(id)) return "vendor-charts";
-            if (/node_modules\/(lucide-react|sonner|cmdk|vaul|embla-carousel)\//.test(id)) {
+            if (/node_modules\/(lucide-react|sonner|cmdk|embla-carousel)\//.test(id)) {
               return "vendor-ui";
             }
             if (/node_modules\/(date-fns|react-day-picker)\//.test(id)) return "vendor-date";
