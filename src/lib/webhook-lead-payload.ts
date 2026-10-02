@@ -32,7 +32,6 @@ export const ORIGENS_LEAD = [
   "chatbot",
   "impulso_smq",
   "acao_rua",
-  "portal",
   "outro",
 ] as const;
 
