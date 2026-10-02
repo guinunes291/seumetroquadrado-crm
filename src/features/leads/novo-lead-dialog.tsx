@@ -46,6 +46,7 @@ export const ORIGEM_OPTIONS = [
   "chatbot",
   "impulso_smq",
   "acao_rua",
+  "portal",
   "outro",
 ] as const;
 
