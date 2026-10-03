@@ -144,14 +144,18 @@ export function SettingBooleano({
   chave,
   label,
   hint,
+  padrao = false,
 }: {
   chave: string;
   label: string;
   hint?: string;
+  /** Valor que o banco assume quando a chave ainda não existe. */
+  padrao?: boolean;
 }) {
   const settingsQ = useDistribuicaoSettings();
   const salvar = useAtualizarSetting();
-  const atual = settingsQ.data?.[chave]?.valor === true;
+  const valor = settingsQ.data?.[chave]?.valor;
+  const atual = valor === undefined ? padrao : valor === true;
 
   return (
     <div className="flex items-center justify-between gap-4 rounded-md border p-3">

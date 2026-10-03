@@ -217,6 +217,17 @@ describe("contrato das migrations", () => {
     }
   });
 
+  it("o interruptor fica na aba Configurações e, sem a chave, mostra o padrão do banco (ligada)", () => {
+    const tela = readFileSync(
+      join(process.cwd(), "src/features/distribuicao/tab-configuracoes.tsx"),
+      "utf8",
+    );
+    expect(tela).toMatch(/chave="zona_estrita"\s+padrao\s/);
+    expect(motor).toContain(
+      "COALESCE((public.get_dist_setting('zona_estrita') #>> '{}')::boolean, true)",
+    );
+  });
+
   it("a função legada sem checagem de permissão sai do alcance de anon/authenticated", () => {
     expect(motor).toContain(
       "REVOKE ALL ON FUNCTION public.atribuir_lead_a_corretor(uuid, uuid) FROM PUBLIC, anon, authenticated;",

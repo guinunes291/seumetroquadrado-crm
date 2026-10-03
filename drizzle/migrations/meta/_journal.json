@@ -316,6 +316,41 @@
       "when": 1790974069122,
       "tag": "0044_lead_origem_portal",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791558000000,
+      "tag": "0045_zona_estrita_regiao_unica",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1791558060000,
+      "tag": "0046_zona_estrita_motor_e_guarda",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791558120000,
+      "tag": "0047_repasse_sla_campanha",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791558180000,
+      "tag": "0048_cron_distribuicao_sem_execute_publico",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791558240000,
+      "tag": "0049_rpcs_sem_execute_anon",
+      "breakpoints": true
     }
   ]
 }

@@ -54,6 +54,13 @@ export function TabConfiguracoes() {
             <CardTitle className="text-sm">Regras de aptidão e volume</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* _zona_estrita(): chave ausente = ligada. */}
+            <SettingBooleano
+              chave="zona_estrita"
+              padrao
+              label="Zona estrita: corretor só recebe lead da própria região"
+              hint="Região = participação nas roletas de zona (aba Corretores). Desligado volta aos desvios antigos: lead de uma zona pode ir para corretor de outra."
+            />
             <SettingNumero
               chave="percentual_minimo_trabalhado"
               label="Percentual mínimo de leads trabalhados (Roleta Plantão)"
