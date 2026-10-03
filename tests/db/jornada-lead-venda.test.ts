@@ -60,7 +60,9 @@ let corretorA: UsuarioTeste; // jornada 3: origem da transferência
 let corretorB: UsuarioTeste; // jornada 3: destino da transferência
 
 const VALOR_VENDA = "500000.00";
-const PCT = { corretor: "1.50", gerente: "0.50", superintendente: "0.10" };
+// O app manda o total; o percentual do corretor sai do tier (trg_vendas_tier_comissao):
+// tier_1, lead da empresa, 40% → 3,75 × 40% = 1,50.
+const PCT = { total: "3.75", corretor: "1.50", gerente: "0.50", superintendente: "0.10" };
 
 beforeAll(async () => {
   await c.connect();
@@ -324,11 +326,19 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     await comoUsuario(c, corretorJ1.id);
     const r = await c.query(
       `INSERT INTO public.vendas
-         (lead_id, corretor_id, criado_por_id, valor_venda, data_assinatura,
+         (lead_id, corretor_id, criado_por_id, valor_venda, data_assinatura, percentual_comissao,
           percentual_corretor, percentual_gerente, percentual_superintendente, status_venda)
-       VALUES ($1, $2, $2, $3, current_date, $4, $5, $6, 'pendente'::public.status_venda)
+       VALUES ($1, $2, $2, $3, current_date, $4, $5, $6, $7, 'pendente'::public.status_venda)
        RETURNING id, status_venda::text AS status_venda`,
-      [leadId, corretorJ1.id, VALOR_VENDA, PCT.corretor, PCT.gerente, PCT.superintendente],
+      [
+        leadId,
+        corretorJ1.id,
+        VALOR_VENDA,
+        PCT.total,
+        PCT.corretor,
+        PCT.gerente,
+        PCT.superintendente,
+      ],
     );
     vendaId = r.rows[0].id as string;
     expect(r.rows[0].status_venda).toBe("pendente");

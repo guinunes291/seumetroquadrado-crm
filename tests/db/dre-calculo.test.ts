@@ -284,7 +284,9 @@ describe("dre_calcular: modo 'venda' usa o percentual gravado em cada venda", ()
     );
   });
 
-  it("percentuais da venda (3,5/1,85/0,5/0,3) mandam no modo 'venda'", async () => {
+  it("percentuais gravados na venda (3,5 / tier 1,4 / 0,5 / 0,3) mandam no modo 'venda'", async () => {
+    // O corretor digita 1,85, mas o gatilho de tier (trg_vendas_tier_comissao)
+    // grava total × fatia do tier: tier_1, lead da empresa, 40% → 3,5 × 40% = 1,4.
     const vendaId = await registrarVenda({
       dataAssinatura: "2026-03-10",
       pct: { total: "3.5", corretor: "1.85", gerente: "0.5", superintendente: "0.3" },
@@ -294,7 +296,7 @@ describe("dre_calcular: modo 'venda' usa o percentual gravado em cada venda", ()
     const marco = await cascata(unidadeA, 3, "competencia", "venda");
     expect(marco.faturamento).toBe("8575.00"); // 245.000 × 3,5%
     expect(marco.impostos).toBe("857.50"); // imposto continua vindo do parâmetro (10%)
-    expect(marco.consultor).toBe("4532.50"); // 245.000 × 1,85%
+    expect(marco.consultor).toBe("3430.00"); // 245.000 × 1,4% (o gravado, não o digitado)
     expect(marco.gerente).toBe("1225.00");
     expect(marco.socio_operador).toBe("735.00");
 
