@@ -101,19 +101,30 @@ $function$;
 REVOKE ALL ON FUNCTION public.processar_distribuicao_automatica() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.processar_distribuicao_automatica() TO authenticated, service_role;
 
--- Jobs do pg_cron / service_role.
-REVOKE ALL ON FUNCTION public.resetar_presenca_diaria() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.resetar_presenca_diaria() TO service_role;
-REVOKE ALL ON FUNCTION public.gerar_alertas_leads_parados() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.gerar_alertas_leads_parados() TO service_role;
-REVOKE ALL ON FUNCTION public.gerar_pushes_lembretes_visita() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.gerar_pushes_lembretes_visita() TO service_role;
-REVOKE ALL ON FUNCTION public.recalcular_temperatura_leads() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.recalcular_temperatura_leads() TO service_role;
-REVOKE ALL ON FUNCTION public.conceder_conquistas(uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.conceder_conquistas(uuid) TO service_role;
-REVOKE ALL ON FUNCTION public.regua_devolucao_processar(text, integer) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.regua_devolucao_processar(text, integer) TO service_role;
+-- Jobs do pg_cron / service_role. A função que não existe no banco é pulada:
+-- a produção não tem conceder_conquistas(uuid) (só o replay do repositório a
+-- cria), e um REVOKE numa função ausente derrubava a migration — e, com ela,
+-- a transação única em que o Drizzle aplica todas as pendentes.
+DO $jobs$
+DECLARE
+  _fn text;
+  _p regprocedure;
+BEGIN
+  FOREACH _fn IN ARRAY ARRAY[
+    'public.resetar_presenca_diaria()',
+    'public.gerar_alertas_leads_parados()',
+    'public.gerar_pushes_lembretes_visita()',
+    'public.recalcular_temperatura_leads()',
+    'public.conceder_conquistas(uuid)',
+    'public.regua_devolucao_processar(text,integer)'
+  ] LOOP
+    _p := to_regprocedure(_fn);
+    CONTINUE WHEN _p IS NULL;
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', _p);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', _p);
+  END LOOP;
+END;
+$jobs$;
 
 -- Trigger de tarefas chama na sessão do usuário: fica para authenticated.
 REVOKE ALL ON FUNCTION public.sync_proximo_followup(uuid) FROM PUBLIC, anon;
@@ -140,6 +151,7 @@ BEGIN
     'public.sync_proximo_followup(uuid)',
     'public._msg_fora_da_regiao(text,uuid)'
   ] LOOP
+    CONTINUE WHEN to_regprocedure(_fn) IS NULL;  -- ausente no banco (ver acima)
     IF has_function_privilege('anon', _fn, 'EXECUTE') THEN
       RAISE EXCEPTION 'permissões: % continua executável por anon', _fn;
     END IF;
