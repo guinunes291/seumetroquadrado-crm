@@ -30,7 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
 import { maskPhoneBR } from "@/lib/masks";
 import { origemLabel } from "@/lib/origem";
-import { ZONAS_ORDEM } from "@/lib/zonas";
+import { ZONAS_REGIAO } from "@/lib/zonas";
 
 export const ORIGEM_OPTIONS = [
   "facebook",
@@ -380,7 +380,7 @@ function NovoLeadForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="auto">Automática (bairro/projeto)</SelectItem>
-                {ZONAS_ORDEM.map((z) => (
+                {ZONAS_REGIAO.map((z) => (
                   <SelectItem key={z} value={z}>
                     {z}
                   </SelectItem>

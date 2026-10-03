@@ -18,7 +18,7 @@
  *
  * E a brecha fechada: lead com VENDA VIVA não sai nem em status anterior.
  */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   comoSuperuser,
   criarLead,
@@ -37,6 +37,7 @@ let conquistadoIndicacao: string;
 let estoqueImportacao: string;
 let comVendaViva: string;
 let avancadoRecente: string;
+let v2Antes: unknown;
 
 async function lead(id: string) {
   await comoSuperuser(c);
@@ -103,7 +104,12 @@ beforeAll(async () => {
      VALUES ($1, current_date, 250000, 'pendente'::public.status_venda)`,
     [comVendaViva],
   );
-  // Liga o modelo v2 — sem ele a função sai na primeira linha.
+  // Liga o modelo v2 — sem ele a função sai na primeira linha. O valor de
+  // antes volta no afterAll: ficar ligado vazava para as suítes seguintes
+  // (distribuicao-v3, jornada) conforme a ordem em que o vitest as roda.
+  v2Antes = (
+    await c.query(`SELECT valor FROM public.distribuicao_settings WHERE chave = 'modelo_v2_ativo'`)
+  ).rows[0]?.valor;
   await c.query(
     `INSERT INTO public.distribuicao_settings (chave, valor)
      VALUES ('modelo_v2_ativo', 'true'::jsonb)
@@ -122,6 +128,19 @@ beforeAll(async () => {
   );
 
   await c.query(`SELECT public.devolver_leads_posse_expirada()`);
+});
+
+afterAll(async () => {
+  await comoSuperuser(c);
+  if (v2Antes === undefined) {
+    await c.query(`DELETE FROM public.distribuicao_settings WHERE chave = 'modelo_v2_ativo'`);
+  } else {
+    await c.query(
+      `UPDATE public.distribuicao_settings SET valor = $1::jsonb WHERE chave = 'modelo_v2_ativo'`,
+      [JSON.stringify(v2Antes)],
+    );
+  }
+  await c.end();
 });
 
 describe("lead pago volta para a esteira de corretor", () => {

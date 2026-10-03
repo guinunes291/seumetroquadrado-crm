@@ -1,8 +1,9 @@
 # Regra dos 65 em "Em atendimento"
 
 Decisões do dono em 03/10/2026, em resposta a um questionário de 24 perguntas.
-Migration da Fatia 1: `20261009120000_em_atendimento_teto_65_sombra` (Drizzle
-`0045`). Testes: `tests/db/em-atendimento-sombra.test.ts` (banco) e
+Migration da Fatia 1: `20261009120600_em_atendimento_teto_65_sombra` (Drizzle
+`0051`), precedida do espelho do enum `20261009120500_lead_origem_portal_espelho`
+(Drizzle `0050`). Testes: `tests/db/em-atendimento-sombra.test.ts` (banco) e
 `tests/regra-65.test.tsx` (tela).
 
 > Continuação de `carteira-ativa-40-fatia3.md` e `bolsao-oportunidades-fatia4.md`.
@@ -161,11 +162,12 @@ texto diz, antes de qualquer número, que nenhum lead foi movido.
 
 Em produção, as migrations entram pelo **Drizzle** (`drizzle.config.ts` →
 `LOVABLE_DB_MIGRATION_URL`). O migrador só aplica uma entrada cujo `when` seja
-maior que o da última aplicada: em 03/10 a última era `0043`, com
-`1791471900000` (08/10 15:05 UTC). A `0045` usa `1791547200000` (09/10 12:00
-UTC), batendo com o nome `20261009120000`. A `0044` tem `when` menor que a
-`0043` e por isso nunca seria aplicada pelo migrador; o enum `portal` existe em
-produção por outro caminho.
+maior que o de toda entrada anterior (travado em `tests/drizzle-espelho.test.ts`).
+A `0050` e a `0051` vêm logo depois das espelhadas da zona estrita (`0049`,
+`1791558240000`), com `1791558300000` e `1791558360000` — os nomes
+`20261009120500` e `20261009120600`. A `0044` tem `when` menor que a `0043` e
+por isso nunca seria aplicada pelo migrador; o enum `portal` existe em produção
+por outro caminho, e o espelho `0050` é no-op lá.
 
 ### 5.4 Como foi conferido
 
@@ -210,7 +212,7 @@ Quatro pontos apareceram com os números de produção e foram decididos pelo do
 4. **Portal é origem paga:** parado, volta à roleta. Já vale na simulação. Fica
    fora de `lead_origem_paga` até a Fatia 3, porque aquela função também
    decide o lote da Prospecção, e mudá-la agora tiraria os leads de Portal do
-   lote em produção no mesmo dia. A migration `20261009115900` espelha o valor
+   lote em produção no mesmo dia. A migration `20261009120500` espelha o valor
    `portal` do enum, que só existia no Drizzle (0044), para o harness poder
    testar.
 

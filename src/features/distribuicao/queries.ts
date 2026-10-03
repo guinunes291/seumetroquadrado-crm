@@ -13,6 +13,7 @@ import {
   type CamposDistribuicaoV2,
   type WipCorretor,
 } from "./corretor-v2-client";
+import { motivoExcecaoLabel } from "@/lib/distribuicao";
 
 type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
@@ -724,7 +725,7 @@ export function useResolverExcecao() {
       invalidate();
       if (res && res.ok === false) {
         toast.warning(
-          `Ainda sem corretor apto${res.motivo ? ` (${res.motivo})` : ""} — exceção mantida.`,
+          `Ainda sem corretor apto${res.motivo ? ` (${motivoExcecaoLabel(res.motivo)})` : ""} — exceção mantida.`,
         );
       } else if (res?.ok && res.corretor_id) {
         void notificarCorretorTransferencia(args.leadId, res.corretor_id);

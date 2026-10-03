@@ -1,6 +1,6 @@
 // Leitura da simulação da regra dos 65 (modo sombra). O escopo é decidido no
 // banco: gestor vê a equipe; admin/superintendente, a casa inteira e as
-// portas. Sem a RPC (banco antes da migration 20261009120000), null — o cartão
+// portas. Sem a RPC (banco antes da migration 20261009120600), null — o cartão
 // diz "sem dado", nunca uma equipe vazia.
 //
 // As RPCs não estão nos types gerados; passam pela fronteira `rpc` de

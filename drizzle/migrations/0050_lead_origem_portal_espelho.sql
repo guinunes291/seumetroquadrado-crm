@@ -7,7 +7,10 @@
 -- nenhum teste conseguia criar um lead de Portal — a regra dos 65 trata Portal
 -- como origem paga e precisa provar isso.
 --
--- Em produção é no-op (IF NOT EXISTS). Não há espelho Drizzle novo: a 0044 já
--- é o espelho. Arquivo próprio porque o valor novo de um enum só pode ser
--- usado depois do COMMIT da transação que o criou.
+-- Em produção é no-op (IF NOT EXISTS). Tem espelho próprio (Drizzle 0050)
+-- porque tests/drizzle-espelho.test.ts exige cópia byte a byte de toda
+-- migration. Arquivo separado da regra porque o valor novo de um enum só pode
+-- ser usado depois do COMMIT da transação que o criou; a regra dos 65 compara
+-- a origem por texto, então funciona mesmo que o migrador do Drizzle aplique
+-- as duas na mesma transação.
 ALTER TYPE public.lead_origem ADD VALUE IF NOT EXISTS 'portal';

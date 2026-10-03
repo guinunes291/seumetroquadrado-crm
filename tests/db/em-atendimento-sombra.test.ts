@@ -1,6 +1,6 @@
 /**
  * REGRA DOS 65 EM "EM ATENDIMENTO" — Fatia 1, modo sombra
- * (migration 20261009120000, desenho em docs/ops/em-atendimento-teto-65.md).
+ * (migration 20261009120600, desenho em docs/ops/em-atendimento-teto-65.md).
  *
  * Decisões do dono (03/10/2026) que esta suíte trava, na ordem em que
  * quebrariam a operação se a regra errasse:

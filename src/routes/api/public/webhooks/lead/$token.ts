@@ -171,6 +171,20 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             .eq("id", dupId)
             .maybeSingle();
 
+          // Dados novos do formulário: só preenche o que faltava; projeto passa a ser o da roleta.
+          // ANTES da redistribuição: a zona do lead sai do projeto (zona estrita,
+          // migration 20261009120100) — redistribuir primeiro decidia a roleta
+          // com o projeto ANTIGO e o cliente podia cair no time da zona errada.
+          const patch: TablesUpdate<"leads"> = {
+            projeto_nome: projetoNomeInteresse,
+            updated_at: new Date().toISOString(),
+          };
+          if (projeto.id) patch.projeto_id = projeto.id;
+          if (!leadAntes?.email && data.email) patch.email = data.email;
+          if (!leadAntes?.renda_informada && data.faixaRenda)
+            patch.renda_informada = data.faixaRenda;
+          await supabaseAdmin.from("leads").update(patch).eq("id", dupId);
+
           let r: {
             ok?: boolean;
             motivo?: string;
@@ -191,17 +205,6 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           } else {
             r = (redist ?? {}) as typeof r;
           }
-
-          // Dados novos do formulário: só preenche o que faltava; projeto passa a ser o da roleta.
-          const patch: TablesUpdate<"leads"> = {
-            projeto_nome: projetoNomeInteresse,
-            updated_at: new Date().toISOString(),
-          };
-          if (projeto.id) patch.projeto_id = projeto.id;
-          if (!leadAntes?.email && data.email) patch.email = data.email;
-          if (!leadAntes?.renda_informada && data.faixaRenda)
-            patch.renda_informada = data.faixaRenda;
-          await supabaseAdmin.from("leads").update(patch).eq("id", dupId);
 
           const ids = [r.previous_corretor_id, r.corretor_id].filter(Boolean) as string[];
           const { data: perfis } = ids.length

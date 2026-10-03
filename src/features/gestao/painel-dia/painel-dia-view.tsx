@@ -38,6 +38,12 @@ import {
 } from "./derive";
 import { ExcecaoItem } from "./excecao-item";
 import { usePainelDia } from "./use-painel-dia";
+import { ExcecaoForaDaRegiaoFields } from "@/features/distribuicao/excecao-fora-da-regiao";
+import {
+  EXCECAO_ZONA_VAZIA,
+  excecaoZonaValida,
+  type ExcecaoForaDaRegiao,
+} from "@/lib/zona-estrita";
 
 function moeda(v: number): string {
   return v.toLocaleString("pt-BR", {
@@ -64,6 +70,7 @@ export function PainelDiaView() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [transferirOpen, setTransferirOpen] = useState(false);
   const [corretorDestino, setCorretorDestino] = useState("");
+  const [excecaoZona, setExcecaoZona] = useState<ExcecaoForaDaRegiao>(EXCECAO_ZONA_VAZIA);
 
   const limparSelecao = () => setSelecionados(new Set());
   const mutations = useLeadMutations({
@@ -72,6 +79,7 @@ export function PainelDiaView() {
       transferir: () => {
         setTransferirOpen(false);
         setCorretorDestino("");
+        setExcecaoZona(EXCECAO_ZONA_VAZIA);
       },
     },
   });
@@ -329,16 +337,26 @@ export function PainelDiaView() {
               ))}
             </SelectContent>
           </Select>
+          <ExcecaoForaDaRegiaoFields
+            value={excecaoZona}
+            onChange={setExcecaoZona}
+            disabled={mutations.bulkTransferir.isPending}
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferirOpen(false)}>
               Cancelar
             </Button>
             <Button
-              disabled={!corretorDestino || mutations.bulkTransferir.isPending}
+              disabled={
+                !corretorDestino ||
+                mutations.bulkTransferir.isPending ||
+                !excecaoZonaValida(excecaoZona)
+              }
               onClick={() =>
                 mutations.bulkTransferir.mutate({
                   ids: Array.from(selecionados),
                   corretorId: corretorDestino,
+                  excecaoZona,
                 })
               }
             >
