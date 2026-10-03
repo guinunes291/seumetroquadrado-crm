@@ -1,9 +1,11 @@
 # Registro mãe e registros filhos
 
-Decisões do dono em 03/10/2026. Migration da Fatia A:
-`20261010120300_registro_mae_clientes` (Drizzle `0054`). Testes:
-`tests/db/registro-mae.test.ts` (banco) e `tests/buscar-oportunidade.test.tsx`
-(tela).
+Decisões do dono em 03/10/2026.
+
+| Fatia | Migration                                               | Testes                                                                               |
+| ----- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| A     | `20261010120300_registro_mae_clientes` (Drizzle `0054`) | `tests/db/registro-mae.test.ts` (banco), `tests/buscar-oportunidade.test.tsx`        |
+| B     | `20261010120400_registro_mae_volta_campanha` (`0055`)   | `tests/db/registro-mae-campanha.test.ts` (banco), `tests/webhook-lead-volta.test.ts` |
 
 ## 1. O que o dono pediu
 
@@ -61,12 +63,12 @@ são os outros corretores.
 
 Registro filho adicional nasce **só** por onde o dono decidiu:
 
-| Porta                                                | Fatia |
-| ---------------------------------------------------- | ----- |
-| Corretor acha o cliente pelo **Buscar oportunidade** | A     |
-| Cliente volta por **campanha paga** → roleta         | B     |
+| Porta                                                                 | Fatia |
+| --------------------------------------------------------------------- | ----- |
+| Corretor acha o cliente pelo **Buscar oportunidade**                  | A     |
+| Cliente volta por **campanha paga** (webhook de leads) → roleta (§10) | B     |
 
-Todo o resto (webhook, landing, importação, cadastro manual sem oportunidade)
+Todo o resto (landing, importação, cadastro manual sem oportunidade)
 **continua deduplicando exatamente como antes**. O índice único global de
 telefone foi recriado com a mesma chave e condição, mais
 `NOT registro_adicional`. Apagar a unicidade faria cada entrada antiga criar
@@ -150,17 +152,128 @@ Medido em produção em 03/10/2026, somente leitura: **104.769 mães com dados**
 - Três fixtures antigos que inserem lead com gatilhos desligados
   (`session_replication_role = replica`) passaram a criar a mãe no mesmo
   comando. Nenhum caminho de produção usa esse modo.
+- **Fatia B:** `tests/db/registro-mae-campanha.test.ts`, com 18 testes:
+  - filho novo vinculado e fora do índice;
+  - o mesmo celular sem o 9 é a mesma pessoa (na volta e no Buscar
+    oportunidade);
+  - exclusão de quem já tem a pessoa na roleta da campanha e no time da zona;
+  - herança sem o lugar de interesse;
+  - reenvio, perdidos, negociação avançada, concorrência real entre duas
+    conexões e acesso.
+- Checagem de mutação da Fatia B, sete vezes: roleta sem a exclusão, filho
+  herdando a zona, sem o cadeado, sem a janela de reenvio, sem a lista de
+  excluídos, sem o bloqueio e chave sobre o telefone cru. Cada mutação derruba
+  pelo menos um teste.
 
-## 10. O que vem depois
+## 10. Fatia B: a volta pela campanha
 
-**Fatia B: a campanha.** As duas funções que a regra do lead repetido (01/10)
-chama, `buscar_lead_por_telefone_global_incl_perdido` e
-`redistribuir_duplicado_campanha`, **não existem nem em produção**. Hoje, um
-cliente que volta por um anúncio de outro empreendimento faz o webhook pular a
-deduplicação e bater no índice único. A recuperação só funciona para o mesmo
-empreendimento, então o n8n recebe erro 500. A Fatia B cria essas funções com a
-decisão do dono: filho novo pela roleta, ou o registro que o corretor sorteado
-já tiver.
+> **Decisão do dono:** "Sempre filho novo pela roleta". Toda volta por campanha
+> gera um registro novo para o corretor que a roleta sortear, mesmo que outro
+> esteja atendendo.
+
+### O defeito que ela fecha
+
+A regra do lead repetido (01/10) chamava duas funções que **nunca existiram**,
+nem em produção: `buscar_lead_por_telefone_global_incl_perdido` e
+`redistribuir_duplicado_campanha`. Sem elas, o webhook ia direto para o INSERT
+e batia no índice único de telefone. Esse índice vale também para os perdidos.
+A recuperação só achava o repetido do **mesmo** empreendimento. Resultado: o
+cliente que voltava por outro anúncio virava erro 500 e não entrava no CRM.
+
+- No **Marquinhos**, o erro é silencioso: o robô pausa, o Copiloto recebe o
+  lead vazio e ninguém é avisado.
+- No **aviso das campanhas (Zaps)**, o lead some sem rastro.
+
+### Como decide
+
+O webhook pergunta ao banco (`registrar_volta_campanha`). O banco decide sob
+o mesmo cadeado do gatilho de vínculo (`'cliente:' || chave`). Assim, duas
+entradas da mesma pessoa ao mesmo tempo passam uma de cada vez.
+
+| Situação da pessoa                                                      | O que acontece                                                             | Resposta ao n8n                                                       |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Telefone que o CRM não conhece (ou só na lixeira)                       | O INSERT de sempre.                                                        | Lead novo, como antes.                                                |
+| Um registro dela entrou **pelo webhook há menos de 10 minutos**         | Reenvio: é a mesma entrada. Nota no registro, nada novo.                   | `duplicate: true`, `motivo: reenvio_recente`.                         |
+| Um registro dela em **Visita realizada ou além**, ou com **venda viva** | Fica com o dono. Nota no registro e alerta no CRM para ele.                | `duplicate: true`, `motivo: mantido_negociacao_avancada`, dono atual. |
+| O resto: ativos com corretores, sem dono ou só perdidos                 | **Filho novo**, já vinculado à mãe, sem os corretores que já têm a pessoa. | Lead novo para o corretor sorteado, `registro_adicional: true`.       |
+
+O filho segue daqui **exatamente como um lead novo**:
+
+- mesma roleta (campanha, zona ou triagem);
+- mesmo SLA;
+- mesma fila de exceções;
+- mesmo WhatsApp ao corretor;
+- mesmo envio ao Banco Operacional.
+
+O registro dos outros corretores não muda e ninguém é avisado. É a mesma regra
+do Buscar oportunidade.
+
+### O que o filho recebe
+
+- **Do formulário:** tudo o que ele trouxe. É o dado mais novo e manda.
+- **Da mãe:** o que o formulário não trouxe (renda, FGTS, decisor, e-mail,
+  CPF, prioridades…). Cada um desses campos é listado na nota do filho
+  ("Vieram preenchidos: …").
+- **Nunca da mãe: zona, bairro, empreendimento e construtora.** Dizem onde o
+  cliente quer comprar, e na volta quem diz isso é o anúncio novo.
+  `zona_do_lead` olha a zona e o bairro do lead **antes** do empreendimento.
+  Herdar a Zona Norte de antes faria a roleta seguir o interesse antigo, o
+  contrário do que a regra de 01/10 já queria.
+- **Não vem:** observações e histórico dos outros corretores (decisão 1).
+- **Opt-out:** o filho da campanha nasce sem. Formulário novo é pedido novo de
+  contato, como sempre foi para um lead novo do webhook.
+
+### Quem não é sorteado
+
+Os corretores com registro **ativo** da pessoa vão para
+`corretores_que_tentaram` do filho:
+
+- **Motor v3 (roleta de zona e triagem)** e **repasse por SLA:** já excluíam
+  essa lista.
+- **Roleta ponderada da campanha:** passou a excluir também. Ela só é chamada
+  pelo webhook, sempre com lead recém-criado, então para todo lead que não é
+  filho de campanha a lista é vazia e nada muda.
+
+Quem só tem registro **perdido** da pessoa pode recebê-la de novo.
+
+### O que o n8n vê
+
+- **Aviso das campanhas (Zaps):** o fluxo decide por `duplicate`.
+  - Filho novo: "novo lead" para o corretor sorteado.
+  - Reenvio ou negociação: "lead seu que voltou" para o dono e aviso ao
+    gestor.
+- **Marquinhos:** lê só `distributed`. Com `false`, grava o alerta "roleta sem
+  distribuição". Por isso a resposta sem registro novo diz `distributed: true`
+  quando o registro tem dono com telefone, e manda o telefone desse dono. Assim
+  o Copiloto recebe o corretor certo.
+
+### Segurança do deploy
+
+- **Resposta fora do contrato ou RPC fora do ar:** o webhook segue o INSERT de
+  sempre. O índice único segura a duplicata e a recuperação antiga continua
+  lá.
+- **Corrida no INSERT (23505):** o webhook pergunta ao banco de novo antes do
+  caminho antigo.
+
+### Conserto da Fatia A que veio junto
+
+O vínculo e o índice único usam o telefone **normalizado**
+(`normalize_phone_smq`), que põe o 9 no celular antigo. A busca do Buscar
+oportunidade calculava a chave sobre o texto digitado. Exemplo:
+
+- O cliente está gravado como `(11) 98765-4321`, chave `987654321`.
+- O corretor digita `11 8765-4321`. A busca calculava `187654321` e não achava
+  ninguém. O corretor acabava cadastrando um lead paralelo.
+
+Agora a busca e a volta usam a mesma função: `cliente_chave_do_telefone`.
+
+### Fora da Fatia B
+
+`supabase/functions/lead-intake` (Facebook → Zapier → CRM) tem o mesmo defeito
+de recuperação. Ela **não recebe nenhum lead há 90 dias** (medido em produção em
+03/10/2026: todo o tráfego pago entra pelo webhook). Não foi mexida.
+
+## 11. O que vem depois
 
 Pendências conhecidas:
 
@@ -174,3 +287,11 @@ Pendências conhecidas:
   encerrá-lo em vez de devolvê-lo.
 - **Tela da mãe para a gestão:** `cliente_registro_mae_v1` já devolve dados,
   filhos e histórico; falta a tela.
+- **Distribuição que não olha os outros registros da pessoa.** Quem já tem a
+  pessoa fica fora do sorteio do filho porque entra em `corretores_que_tentaram`
+  **quando o filho nasce**. Um registro antigo **sem dono** da mesma pessoa que
+  ainda esteja na fila (exceções, cron de redistribuição) é distribuído depois
+  sem saber do filho. Pode cair em quem já tem a pessoa. O conserto certo é o
+  motor v3, a roleta ponderada e o repasse por SLA excluírem, **na hora de
+  distribuir**, quem tem registro ativo da mesma mãe. Vale também para os
+  filhos da Fatia A.

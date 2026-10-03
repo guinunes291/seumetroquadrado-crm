@@ -236,15 +236,32 @@ describe("contrato das migrations", () => {
 });
 
 describe("webhook de lead: o repetido entra na roleta com o projeto NOVO", () => {
-  it("o patch do lead (projeto da campanha) vem ANTES de redistribuir_duplicado_campanha", () => {
+  // Desde o registro mãe (Fatia B, 20261010120400) a volta vira um registro
+  // filho novo, criado com o MESMO objeto do INSERT de lead novo — projeto e
+  // zona do anúncio — e sem herdar da mãe o lugar de interesse antigo. O
+  // comportamento é provado no banco em tests/db/registro-mae-campanha.test.ts.
+  it("a volta é criada com o objeto do lead novo (projeto e zona do anúncio)", () => {
     const rota = readFileSync(
       join(process.cwd(), "src/routes/api/public/webhooks/lead/$token.ts"),
       "utf8",
     );
-    const patch = rota.indexOf('await supabaseAdmin.from("leads").update(patch).eq("id", dupId);');
-    const redistribui = rota.indexOf('"redistribuir_duplicado_campanha",');
-    expect(patch).toBeGreaterThan(0);
-    expect(redistribui).toBeGreaterThan(0);
-    expect(patch).toBeLessThan(redistribui);
+    const objeto = rota.indexOf("const novoLead = {");
+    const decide = rota.indexOf('"registrar_volta_campanha",');
+    expect(objeto).toBeGreaterThan(0);
+    expect(decide).toBeGreaterThan(objeto);
+    expect(rota).toContain("{ _lead: novoLead }");
+    const corpo = rota.slice(objeto, decide);
+    expect(corpo).toContain("projeto_id: projeto.id,");
+    expect(corpo).toContain("zona: (data.zona?.trim() || null) ?? (data.regiao?.trim() || null),");
+  });
+
+  it("o filho da campanha não herda da mãe zona, bairro nem empreendimento", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261010120400_registro_mae_volta_campanha.sql"),
+      "utf8",
+    );
+    expect(sql).toContain(
+      "AND e.key <> ALL (ARRAY['zona', 'bairro', 'projeto_nome', 'construtora'])",
+    );
   });
 });

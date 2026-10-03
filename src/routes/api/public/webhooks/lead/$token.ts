@@ -1,11 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { Json, TablesUpdate } from "@/integrations/supabase/types";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { comRpcsPendentes } from "@/integrations/supabase/webhook-lead-pendente";
 import {
   blocoCamposExtras,
   blocoObservacoesCorretor,
   validarPayloadLead,
 } from "@/lib/webhook-lead-payload";
+import {
+  MOTIVO_VOLTA,
+  lerVolta,
+  textoRegistroFilho,
+  textoVoltaSemRegistroNovo,
+  type Volta,
+  type VoltaSemRegistroNovo,
+} from "@/lib/webhook-lead-volta";
+
+/** Telefone do corretor no formato do WhatsApp (55 + DDD + número). */
+function telefoneWhatsApp(t: string | null | undefined): string | null {
+  let n = (t ?? "").replace(/\D/g, "");
+  if (n && !n.startsWith("55") && (n.length === 10 || n.length === 11)) n = `55${n}`;
+  return n || null;
+}
 
 function mapTemperatura(t: string | null | undefined): "quente" | "morno" | "frio" | null {
   if (!t) return null;
@@ -137,160 +152,6 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           (data.empreendimentoInteresse?.trim() || null) ??
           projeto.nome;
 
-        // Deduplicação global por telefone (inclui perdidos — decisão 01/10/2026).
-        // Lead repetido volta pela roleta do token, com o mesmo motor de lead
-        // novo (RPC redistribuir_duplicado_campanha). Venda fechada nunca sai.
-        const adminPendente = comRpcsPendentes(supabaseAdmin);
-        const { data: dupGlobal } = await adminPendente.rpc(
-          "buscar_lead_por_telefone_global_incl_perdido",
-          { _telefone: data.telefone },
-        );
-        if (dupGlobal) {
-          const dupId = dupGlobal;
-          const slugRoleta = campanha?.slug ?? `projeto:${projeto.id ?? "?"}`;
-
-          // Idempotência: mesmo telefone na mesma roleta em < 10 min → mesma resposta.
-          const { data: recente } = await supabaseAdmin
-            .from("interacoes")
-            .select("metadata")
-            .eq("lead_id", dupId)
-            .eq("metadata->>evento", "duplicado_campanha")
-            .eq("metadata->>roleta", slugRoleta)
-            .gte("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          const respostaAnterior = (recente?.metadata as { resposta?: unknown } | null)?.resposta;
-          if (respostaAnterior) {
-            return Response.json(respostaAnterior, { headers: corsHeaders });
-          }
-
-          const { data: leadAntes } = await supabaseAdmin
-            .from("leads")
-            .select("id, email, renda_informada")
-            .eq("id", dupId)
-            .maybeSingle();
-
-          // Dados novos do formulário: só preenche o que faltava; projeto passa a ser o da roleta.
-          // ANTES da redistribuição: a zona do lead sai do projeto (zona estrita,
-          // migration 20261009120100) — redistribuir primeiro decidia a roleta
-          // com o projeto ANTIGO e o cliente podia cair no time da zona errada.
-          const patch: TablesUpdate<"leads"> = {
-            projeto_nome: projetoNomeInteresse,
-            updated_at: new Date().toISOString(),
-          };
-          if (projeto.id) patch.projeto_id = projeto.id;
-          if (!leadAntes?.email && data.email) patch.email = data.email;
-          if (!leadAntes?.renda_informada && data.faixaRenda)
-            patch.renda_informada = data.faixaRenda;
-          await supabaseAdmin.from("leads").update(patch).eq("id", dupId);
-
-          let r: {
-            ok?: boolean;
-            motivo?: string;
-            distributed?: boolean;
-            reassigned?: boolean;
-            previous_corretor_id?: string | null;
-            previous_status?: string | null;
-            corretor_id?: string | null;
-            status?: string | null;
-          } = {};
-          const { data: redist, error: redistErr } = await adminPendente.rpc(
-            "redistribuir_duplicado_campanha",
-            { _lead_id: dupId, _roleta_slug: campanha && roletaAtiva ? campanha.slug : null },
-          );
-          if (redistErr) {
-            console.error("[webhooks/lead] redistribuição de duplicado falhou:", redistErr);
-            r = { ok: false, motivo: "roleta_sem_corretor", distributed: false, reassigned: false };
-          } else {
-            r = (redist ?? {}) as typeof r;
-          }
-
-          const ids = [r.previous_corretor_id, r.corretor_id].filter(Boolean) as string[];
-          const { data: perfis } = ids.length
-            ? await supabaseAdmin.from("profiles").select("id, nome, telefone").in("id", ids)
-            : { data: [] as { id: string; nome: string | null; telefone: string | null }[] };
-          const perfil = (id?: string | null) => perfis?.find((p) => p.id === id);
-          const nomeAnt = perfil(r.previous_corretor_id)?.nome ?? "sem corretor";
-          const nomeNovo = perfil(r.corretor_id)?.nome ?? nomeAnt;
-          let telNovo = (perfil(r.corretor_id)?.telefone ?? "").replace(/\D/g, "");
-          if (
-            telNovo &&
-            !telNovo.startsWith("55") &&
-            (telNovo.length === 10 || telNovo.length === 11)
-          )
-            telNovo = `55${telNovo}`;
-
-          const nomeCampanha = campanha?.nome ?? projeto.nome;
-          const quando = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-          const motivoDup = r.motivo ?? "roleta_sem_corretor";
-          const texto =
-            motivoDup === "mantido_venda_fechada"
-              ? `Lead com venda fechada voltou pela campanha ${nomeCampanha} em ${quando}. Não redistribuído.`
-              : motivoDup === "redistribuido_pela_roleta"
-                ? `Lead voltou pela campanha ${nomeCampanha} em ${quando}. Redistribuído de ${nomeAnt} para ${nomeNovo}. Status anterior: ${r.previous_status ?? "?"}.`
-                : motivoDup === "mantido_mesmo_corretor"
-                  ? `Lead voltou pela campanha ${nomeCampanha} em ${quando}. Mantido com ${nomeNovo}.`
-                  : `Lead voltou pela campanha ${nomeCampanha} em ${quando}. Roleta sem corretor disponível, mantido com ${nomeAnt}.`;
-
-          const resposta = {
-            ok: true,
-            duplicate: true,
-            projeto: projeto.nome,
-            lead_id: dupId,
-            distributed: Boolean(r.distributed),
-            reassigned: Boolean(r.reassigned),
-            previous_corretor_id: r.previous_corretor_id ?? null,
-            previous_corretor_nome: perfil(r.previous_corretor_id)?.nome ?? null,
-            previous_status: r.previous_status ?? null,
-            corretor_id: r.corretor_id ?? null,
-            corretor_nome: perfil(r.corretor_id)?.nome ?? null,
-            corretor_telefone: telNovo || null,
-            status: r.status ?? null,
-            motivo: motivoDup,
-          };
-
-          await supabaseAdmin.from("interacoes").insert({
-            lead_id: dupId,
-            tipo: "nota",
-            direcao: "interna",
-            titulo: "Sistema: lead voltou pela campanha",
-            conteudo: blocoExtras ? `${texto}\n\n${blocoExtras}` : texto,
-            metadata: {
-              fonte: "webhook_lead",
-              evento: "duplicado_campanha",
-              roleta: slugRoleta,
-              origem: data.origem,
-              campanha: data.campanha ?? null,
-              camposExtras: data.camposExtras ?? null,
-              resposta,
-            } as Json,
-          });
-
-          // Aviso de transferência para o n8n (WhatsApp do corretor novo).
-          if (motivoDup === "redistribuido_pela_roleta" && r.corretor_id) {
-            try {
-              await fetch("https://guilhermenunessmq.app.n8n.cloud/webhook/campanha/lead-entrou", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-smq-token": process.env["SMQ_WEBHOOK_SECRET"] ?? "",
-                },
-                body: JSON.stringify({
-                  evento: "transferencia",
-                  crm_lead_id: dupId,
-                  crm_corretor_id: r.corretor_id,
-                  crm_corretor_nome: perfil(r.corretor_id)?.nome ?? null,
-                }),
-              });
-            } catch (e) {
-              console.warn("[webhooks/lead] aviso n8n falhou:", e);
-            }
-          }
-
-          return Response.json(resposta, { headers: corsHeaders });
-        }
-
         const resumo = (data.resumo ?? data.observacao ?? "").trim() || null;
         const blocoQualif = montarBlocoQualificacao(data);
         const obsPartes = [
@@ -314,66 +175,181 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // não tiver ninguém apto, o lead vai para a FILA DE EXCEÇÕES com
         // alerta ao gestor — nunca some e nunca cai num gestor às cegas.
         // Falha no RPC também não perde o lead: o cron re-triará em 1 min.
-        const { data: lead, error } = await supabaseAdmin
-          .from("leads")
-          .insert({
-            nome: data.nome,
-            telefone: data.telefone,
-            email: data.email ?? null,
-            origem: data.origem,
-            projeto_id: projeto.id,
-            projeto_nome: projetoNomeFinal,
-            campanha: data.campanha ?? null,
-            observacoes: observacoesFinais,
-            renda_informada: data.faixaRenda ?? null,
-            usa_fgts: usaFgts,
-            entrada_disponivel: data.fgts ?? null,
-            temperatura: temperatura,
-            // Zona do lead: campo explícito manda; sem ele, a "região de
-            // interesse" da qualificação IA É a zona (trigger normaliza).
-            // `?.trim() || null` de propósito: o n8n manda campo não
-            // preenchido como "" — e "" ?? x devolve "" (não é nullish),
-            // o que descartaria a regiao válida em silêncio.
-            zona: (data.zona?.trim() || null) ?? (data.regiao?.trim() || null),
-            bairro: data.bairro?.trim() || null,
-            utm_source: data.utm_source ?? null,
-            utm_medium: data.utm_medium ?? null,
-            utm_campaign: data.utm_campaign ?? null,
-            utm_content: data.utm_content ?? null,
-            // Amarra o lead à roleta (campanha OU zona) para que o SLA
-            // redistribua na MESMA equipe se o corretor não atender a tempo.
-            // Roleta desativada não pina: o lead é triado como lead normal.
-            roleta_slug: campanha && roletaAtiva ? campanha.slug : null,
-            // Canal de chegada: só leads via_webhook entram no SLA de minutos.
-            via_webhook: true,
-            canal_entrada: "webhook_chatbot",
-          })
+        const novoLead = {
+          nome: data.nome,
+          telefone: data.telefone,
+          email: data.email ?? null,
+          origem: data.origem,
+          projeto_id: projeto.id,
+          projeto_nome: projetoNomeFinal,
+          campanha: data.campanha ?? null,
+          observacoes: observacoesFinais,
+          renda_informada: data.faixaRenda ?? null,
+          // Sem FGTS no formulário, o campo fica fora (o default da coluna é
+          // false): no filho da campanha, "não informado" não pode apagar o
+          // FGTS que a mãe já conhece.
+          ...(data.fgts ? { usa_fgts: usaFgts } : {}),
+          entrada_disponivel: data.fgts ?? null,
+          temperatura: temperatura,
+          // Zona do lead: campo explícito manda; sem ele, a "região de
+          // interesse" da qualificação IA É a zona (trigger normaliza).
+          // `?.trim() || null` de propósito: o n8n manda campo não
+          // preenchido como "" — e "" ?? x devolve "" (não é nullish),
+          // o que descartaria a regiao válida em silêncio.
+          zona: (data.zona?.trim() || null) ?? (data.regiao?.trim() || null),
+          bairro: data.bairro?.trim() || null,
+          utm_source: data.utm_source ?? null,
+          utm_medium: data.utm_medium ?? null,
+          utm_campaign: data.utm_campaign ?? null,
+          utm_content: data.utm_content ?? null,
+          // Amarra o lead à roleta (campanha OU zona) para que o SLA
+          // redistribua na MESMA equipe se o corretor não atender a tempo.
+          // Roleta desativada não pina: o lead é triado como lead normal.
+          roleta_slug: campanha && roletaAtiva ? campanha.slug : null,
+          // Canal de chegada: só leads via_webhook entram no SLA de minutos.
+          via_webhook: true,
+          canal_entrada: "webhook_chatbot",
+        } satisfies TablesInsert<"leads">;
 
-          .select("id")
-          .single();
-
-        if (error) {
-          // Corrida: o índice único (projeto, telefone) barrou um insert
-          // concorrente. Trata como duplicado — devolve o lead já existente.
-          if ((error as { code?: string }).code === "23505" && projeto.id) {
-            const { data: dupId2 } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
-              _projeto_id: projeto.id,
-              _telefone: data.telefone,
-            });
-            if (dupId2) {
-              return Response.json(
-                {
-                  ok: true,
-                  duplicate: true,
-                  projeto: projeto.nome,
-                  lead_id: dupId2,
-                  distributed: false,
-                },
-                { headers: corsHeaders },
-              );
-            }
+        // Quem já passou pelo CRM (registro mãe, Fatia B — decisão do dono em
+        // 03/10/2026: "sempre filho novo pela roleta"). O banco decide sob o
+        // cadeado da pessoa: telefone novo segue o INSERT de sempre; reenvio
+        // em até 10 min devolve o mesmo registro; negociação em Visita
+        // realizada ou além fica com o dono; o resto ganha um registro filho
+        // novo, já vinculado à mãe e sem os corretores que já têm a pessoa,
+        // que segue daqui como lead novo (mesma roleta, exceções e aviso).
+        // Substitui a regra de 01/10, que chamava duas RPCs que nunca
+        // existiram: a volta por outro empreendimento virava erro 500.
+        const adminPendente = comRpcsPendentes(supabaseAdmin);
+        const decidirVolta = async (): Promise<Volta | null> => {
+          const { data: decisao, error: decisaoErr } = await adminPendente.rpc(
+            "registrar_volta_campanha",
+            { _lead: novoLead },
+          );
+          if (decisaoErr) {
+            console.error("[webhooks/lead] registrar_volta_campanha falhou:", decisaoErr);
+            return null;
           }
-          return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+          const volta = lerVolta(decisao);
+          if (!volta) console.error("[webhooks/lead] decisão fora do contrato:", decisao);
+          return volta;
+        };
+
+        const nomeCampanha = campanha?.nome ?? projeto.nome;
+        const metaVolta = (v: Exclude<Volta, { acao: "cliente_novo" }>) => ({
+          fonte: "webhook_lead",
+          evento: "volta_campanha",
+          acao: v.acao,
+          cliente_id: v.cliente_id,
+          roleta: campanha?.slug ?? `projeto:${projeto.id ?? "?"}`,
+          origem: data.origem,
+          campanha: data.campanha ?? null,
+          projeto_nome: projetoNomeInteresse,
+          camposExtras: data.camposExtras ?? null,
+        });
+
+        // Volta que não gera registro novo: a nota vai para o registro que a
+        // recebeu e a resposta aponta o corretor dele.
+        const responderVolta = async (v: VoltaSemRegistroNovo) => {
+          const { data: dono } = v.corretor_id
+            ? await supabaseAdmin
+                .from("profiles")
+                .select("nome, telefone")
+                .eq("id", v.corretor_id)
+                .maybeSingle()
+            : { data: null };
+          const telDono = telefoneWhatsApp(dono?.telefone);
+          const quando = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+          const texto = textoVoltaSemRegistroNovo(v.acao, { campanha: nomeCampanha, quando });
+
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: v.lead_id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Sistema: cliente voltou pela campanha",
+            conteudo: blocoExtras ? `${texto}\n\n${blocoExtras}` : texto,
+            metadata: metaVolta(v),
+          });
+          if (v.acao === "negociacao_avancada" && v.corretor_id) {
+            await supabaseAdmin.from("alertas").insert({
+              user_id: v.corretor_id,
+              tipo: "sistema",
+              titulo: "Cliente em negociação voltou pela campanha",
+              mensagem: `${data.nome} preencheu o formulário de ${projetoNomeInteresse}. Ele segue com você.`,
+              link: `/leads/${v.lead_id}`,
+              ref_id: v.lead_id,
+            });
+          }
+
+          return Response.json(
+            {
+              ok: true,
+              duplicate: true,
+              projeto: projeto.nome,
+              lead_id: v.lead_id,
+              // "Está com um corretor": o Marquinhos lê só este campo e, com
+              // false, abre alerta de roleta sem distribuição para o gestor.
+              distributed: Boolean(v.corretor_id && telDono),
+              corretor_id: v.corretor_id,
+              corretor_nome: dono?.nome ?? null,
+              corretor_telefone: telDono,
+              motivo: MOTIVO_VOLTA[v.acao],
+            },
+            { headers: corsHeaders },
+          );
+        };
+
+        let volta = await decidirVolta();
+        if (volta?.acao === "reenvio" || volta?.acao === "negociacao_avancada") {
+          return responderVolta(volta);
+        }
+
+        let lead: { id: string } | null =
+          volta?.acao === "registro_filho" ? { id: volta.lead_id } : null;
+        if (!lead) {
+          const { data: inserido, error } = await supabaseAdmin
+            .from("leads")
+            .insert(novoLead)
+            .select("id")
+            .single();
+
+          if (error) {
+            if ((error as { code?: string }).code === "23505") {
+              // Corrida: outra entrada da mesma pessoa gravou primeiro e o
+              // índice único barrou esta. Pergunta de novo — agora ela existe.
+              volta = await decidirVolta();
+              if (volta?.acao === "reenvio" || volta?.acao === "negociacao_avancada") {
+                return responderVolta(volta);
+              }
+              if (volta?.acao === "registro_filho") {
+                lead = { id: volta.lead_id };
+              } else if (projeto.id) {
+                // Sem a decisão do banco (deploy em curso): o caminho antigo,
+                // que só acha o repetido do MESMO empreendimento.
+                const { data: dupId2 } = await supabaseAdmin.rpc("buscar_lead_duplicado", {
+                  _projeto_id: projeto.id,
+                  _telefone: data.telefone,
+                });
+                if (dupId2) {
+                  return Response.json(
+                    {
+                      ok: true,
+                      duplicate: true,
+                      projeto: projeto.nome,
+                      lead_id: dupId2,
+                      distributed: false,
+                    },
+                    { headers: corsHeaders },
+                  );
+                }
+              }
+            }
+            if (!lead) {
+              return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+            }
+          } else {
+            lead = inserido;
+          }
         }
 
         let corretorId: string | null = null;
@@ -459,6 +435,23 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               }
             }
           }
+        }
+
+        // Filho da campanha: o corretor sabe que a pessoa já passou pelo CRM e
+        // o que veio pronto da mãe — sem o histórico dos outros atendimentos.
+        if (volta?.acao === "registro_filho") {
+          await supabaseAdmin.from("interacoes").insert({
+            lead_id: lead.id,
+            tipo: "nota",
+            direcao: "interna",
+            titulo: "Sistema: cliente voltou pela campanha",
+            conteudo: textoRegistroFilho(volta.campos_herdados, { campanha: nomeCampanha }),
+            metadata: {
+              ...metaVolta(volta),
+              campos_herdados: volta.campos_herdados,
+              corretores_excluidos: volta.corretores_excluidos,
+            },
+          });
         }
 
         // Registra interação com o resumo da IA para aparecer no histórico do lead.
@@ -606,6 +599,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             notificacao,
             motivo,
             excecao_motivo: excecaoMotivo,
+            // Registro mãe: true quando a pessoa já existia e este é o filho
+            // novo da campanha (para o corretor sorteado, é um lead novo).
+            registro_adicional: volta?.acao === "registro_filho",
           },
           { headers: corsHeaders },
         );

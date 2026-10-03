@@ -386,6 +386,13 @@
       "when": 1791644520000,
       "tag": "0054_registro_mae_clientes",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1791644580000,
+      "tag": "0055_registro_mae_volta_campanha",
+      "breakpoints": true
     }
   ]
 }
