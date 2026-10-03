@@ -223,3 +223,17 @@ describe("contrato das migrations", () => {
     );
   });
 });
+
+describe("webhook de lead: o repetido entra na roleta com o projeto NOVO", () => {
+  it("o patch do lead (projeto da campanha) vem ANTES de redistribuir_duplicado_campanha", () => {
+    const rota = readFileSync(
+      join(process.cwd(), "src/routes/api/public/webhooks/lead/$token.ts"),
+      "utf8",
+    );
+    const patch = rota.indexOf('await supabaseAdmin.from("leads").update(patch).eq("id", dupId);');
+    const redistribui = rota.indexOf('"redistribuir_duplicado_campanha",');
+    expect(patch).toBeGreaterThan(0);
+    expect(redistribui).toBeGreaterThan(0);
+    expect(patch).toBeLessThan(redistribui);
+  });
+});
