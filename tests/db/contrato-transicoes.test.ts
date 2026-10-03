@@ -106,10 +106,16 @@ async function criarLeadTerminal(
 ): Promise<string> {
   await comoSuperuser(c);
   await c.query(`SET session_replication_role = replica`);
+  // Com gatilhos desligados o vínculo com o registro mãe (também gatilho)
+  // não roda: a mãe é criada aqui, no mesmo comando.
   const r = await c.query(
-    `INSERT INTO public.leads
-       (nome, telefone, corretor_id, status, origem, motivo_perdido, motivo_perda_categoria)
-     VALUES ($1, $2, $3, $4::public.lead_status, 'outro'::public.lead_origem, $5, $6)
+    `WITH mae AS (INSERT INTO public.clientes DEFAULT VALUES RETURNING id)
+     INSERT INTO public.leads
+       (nome, telefone, corretor_id, status, origem, motivo_perdido, motivo_perda_categoria,
+        cliente_id)
+     SELECT $1, $2, $3::uuid, $4::public.lead_status, 'outro'::public.lead_origem,
+            $5::text, $6::text, mae.id
+       FROM mae
      RETURNING id`,
     [
       `Lead terminal ${status} ${Math.random().toString(36).slice(2, 8)}`,

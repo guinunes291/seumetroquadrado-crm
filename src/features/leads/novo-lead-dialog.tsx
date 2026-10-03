@@ -31,6 +31,15 @@ import { isValidBrazilPhone, isValidEmail } from "@/lib/validators";
 import { maskPhoneBR } from "@/lib/masks";
 import { origemLabel } from "@/lib/origem";
 import { ZONAS_REGIAO } from "@/lib/zonas";
+import { BuscarOportunidade } from "@/features/leads/buscar-oportunidade";
+
+/** O telefone já existe na carteira de outro corretor: em vez de erro, o
+ *  corretor é levado ao "Buscar oportunidade" para criar o registro dele. */
+class DuplicadoEmOutraCarteira extends Error {
+  constructor(readonly telefone: string) {
+    super("Este cliente já existe no CRM.");
+  }
+}
 
 export const ORIGEM_OPTIONS = [
   "facebook",
@@ -68,7 +77,7 @@ export function abrirNovoLead(): void {
 export function NovoLeadDialogHost() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, isCorretor, isSdr } = useUserRoles();
   const canManage = isAdmin || isGestor;
 
   useEffect(() => {
@@ -85,6 +94,9 @@ export function NovoLeadDialogHost() {
           canManage={canManage}
           podeDistribuir={isAdmin}
           currentUserId={user?.id ?? null}
+          // Registro mãe: buscar oportunidade é do corretor (o banco recusa
+          // os demais papéis).
+          mostrarOportunidade={isCorretor && !canManage && !isSdr}
         />
       )}
     </Dialog>
@@ -96,13 +108,16 @@ function NovoLeadForm({
   canManage,
   podeDistribuir,
   currentUserId,
+  mostrarOportunidade = false,
 }: {
   onClose: () => void;
   canManage: boolean;
   podeDistribuir: boolean; // distribuição via roleta é admin-only (20260720180000)
   currentUserId: string | null;
+  mostrarOportunidade?: boolean;
 }) {
   const qc = useQueryClient();
+  const [consultaOportunidade, setConsultaOportunidade] = useState<string | null>(null);
   const [form, setForm] = useState({
     nome: "",
     telefone: "",
@@ -231,6 +246,9 @@ function NovoLeadForm({
           `"${resultado.nome ?? "Este cliente"}" já existe e está em etapa avançada (agendamento em diante, venda ou perdido). Só a gestão pode mover — peça ao seu gestor.`,
         );
       }
+      if (resultado.duplicado && mostrarOportunidade && !resultado.na_carteira) {
+        throw new DuplicadoEmOutraCarteira(form.telefone.trim());
+      }
       if (resultado.duplicado) {
         throw new Error(
           resultado.na_carteira && resultado.nome
@@ -289,7 +307,14 @@ function NovoLeadForm({
       qc.invalidateQueries({ queryKey: ["pipeline-snapshot-v2"] });
       onClose();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      if (e instanceof DuplicadoEmOutraCarteira) {
+        setConsultaOportunidade(e.telefone);
+        toast.info("Este cliente já existe no CRM: veja acima como criar o seu registro.");
+        return;
+      }
+      toast.error(e.message);
+    },
   });
 
   return (
@@ -299,6 +324,9 @@ function NovoLeadForm({
         <DialogDescription>Adicione um lead manualmente.</DialogDescription>
       </DialogHeader>
       <div className="space-y-3">
+        {mostrarOportunidade && (
+          <BuscarOportunidade consultaInicial={consultaOportunidade} onCriado={onClose} />
+        )}
         <div>
           <Label>Nome *</Label>
           <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
