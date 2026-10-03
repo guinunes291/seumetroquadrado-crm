@@ -58,7 +58,7 @@ const OnboardingGlobal = lazy(() =>
   })),
 );
 
-// Estudo diário do Meu Funil: obrigatório para o corretor, entre o onboarding
+// Estudo do Meu Funil: obrigatório para o corretor às quintas, entre o onboarding
 // e as metas do dia.
 const MeuFunilGlobal = lazy(() =>
   import("@/features/meu-funil/meu-funil-global").then(({ MeuFunilGlobal }) => ({

@@ -1,4 +1,4 @@
-// Dados do Meu Funil (página + estudo diário obrigatório).
+// Dados do Meu Funil (página + estudo semanal obrigatório, às quintas).
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabaseMeuFunil as db } from "@/integrations/supabase/meu-funil-pendente";

@@ -1,12 +1,11 @@
-// Estudo diário obrigatório do Meu Funil.
+// Estudo semanal obrigatório do Meu Funil — às quintas-feiras.
 //
-// Ordem da abertura do dia (corretor): onboarding → ESTUDO DO FUNIL → metas do
-// dia. O estudo vem antes das metas de propósito: quem acabou de ver que
+// Ordem da abertura da quinta (corretor): onboarding → ESTUDO DO FUNIL → metas
+// do dia. O estudo vem antes das metas de propósito: quem acabou de ver que
 // precisa de 12 conversas para 1 agendamento declara a meta de agendamentos
 // sabendo o que ela custa.
 //
-// Bloqueante TODOS os dias, fim de semana inclusive: a única saída é concluir
-// o estudo, que só libera depois de SEGUNDOS_MINIMOS_ESTUDO (3 min) com a
+// Na quinta é bloqueante: a única saída é concluir o estudo, que só libera depois de SEGUNDOS_MINIMOS_ESTUDO (3 min) com a
 // tela aberta e visível e com um foco escolhido.
 
 import { useCallback, useEffect, useRef, useState } from "react";

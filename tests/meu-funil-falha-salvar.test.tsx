@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, renderHook } from "@testing-library/react";
 import { mensagemDeErro } from "@/lib/mensagem-erro";
 
@@ -14,9 +14,21 @@ vi.mock("@/features/meu-funil/use-meu-funil", () => ({
 import { liberarPorFalha, useEstudoFunilPendente } from "@/features/meu-funil/use-estudo-pendente";
 import { diaSaoPaulo } from "@/features/metas-dia/metas-dia";
 
+// Quinta-feira 01/10/2026, meio-dia em São Paulo: o dia do estudo.
+const QUINTA = new Date("2026-10-01T15:00:00Z");
+// Sábado 03/10/2026: fora do dia do estudo.
+const SABADO = new Date("2026-10-03T15:00:00Z");
+
+beforeEach(() => {
+  // Só o relógio: o setInterval do useDia segue real.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(QUINTA);
+});
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  vi.useRealTimers();
 });
 
 describe("mensagemDeErro", () => {
@@ -33,8 +45,8 @@ describe("mensagemDeErro", () => {
   });
 });
 
-describe("estudo pendente × falha ao salvar", () => {
-  it("sem estudo salvo, o estudo fica pendente", () => {
+describe("estudo pendente × dia da semana e falha ao salvar", () => {
+  it("quinta sem estudo salvo: o estudo fica pendente", () => {
     const { result } = renderHook(() => useEstudoFunilPendente());
     expect(result.current).toBe(true);
   });
@@ -45,7 +57,13 @@ describe("estudo pendente × falha ao salvar", () => {
     expect(result.current).toBe(false);
   });
 
-  it("a liberação de ontem não vale hoje", () => {
+  it("fora da quinta o estudo não abre, mesmo sem estudo salvo", () => {
+    vi.setSystemTime(SABADO);
+    const { result } = renderHook(() => useEstudoFunilPendente());
+    expect(result.current).toBe(false);
+  });
+
+  it("a liberação de outro dia não vale hoje", () => {
     liberarPorFalha("c1", "2000-01-01");
     const { result } = renderHook(() => useEstudoFunilPendente());
     expect(result.current).toBe(true);

@@ -11,7 +11,7 @@ const MeuFunilView = lazy(() =>
 );
 
 // SEM gate de papel, como o Meu Raio-X: o recorte é do banco (a RPC
-// meu_funil_estudo lê só auth.uid()). O estudo OBRIGATÓRIO do dia é o
+// meu_funil_estudo lê só auth.uid()). O estudo OBRIGATÓRIO das quintas é o
 // MeuFunilGlobal no shell; esta página é para reabrir o funil a qualquer hora.
 export const Route = createFileRoute("/_authenticated/meu-funil")({
   head: () => ({ meta: [{ title: "Meu Funil — Seu Metro Quadrado" }] }),
