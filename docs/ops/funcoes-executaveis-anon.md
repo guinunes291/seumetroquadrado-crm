@@ -1,83 +1,92 @@
-# Funções SECURITY DEFINER ainda executáveis por `anon`
+# Funções SECURITY DEFINER e o papel `anon`
 
-Levantamento de 03/10/2026, feito no banco do harness com TODAS as migrations
-até `20261009120300_cron_distribuicao_sem_execute_publico.sql` aplicadas.
+Atualizado em 03/10/2026, com o banco do harness em
+`20261009120400_rpcs_sem_execute_anon.sql`.
 
 ## Por que isto importa
 
 Toda função criada sem `REVOKE ... FROM PUBLIC` nasce executável por qualquer
 papel — inclusive `anon`, o da chamada SEM login à API (PostgREST). Em função
-`SECURITY DEFINER` isso é sério por um detalhe do motor: muitas delas tratam
-`auth.uid() IS NULL` como "chamada do sistema" (cron, webhook com
-service_role). **A chamada anônima também chega com `auth.uid()` nulo** — e
-passa pela mesma porta do sistema.
+`SECURITY DEFINER` (roda como o dono, passando por cima do RLS) isso vira
+vazamento quando a função trata `auth.uid() IS NULL` como "chamada do
+sistema": **a chamada anônima também chega com `auth.uid()` nulo**.
 
-A migration `20261009120300` fechou o que era cron/job (o caso mais grave:
-`processar_distribuicao_automatica`, que qualquer anônimo rodava, e
-`resetar_presenca_diaria`, que zerava a presença de todos). O resto está
-abaixo para revisão uma a uma — algumas servem telas públicas (vitrine,
-landing) e não podem simplesmente perder o grant.
+## Correção desta lista
 
-## Como revisar uma linha
+A primeira versão deste documento classificava as funções lendo o corpo com
+uma expressão regular — e errou. Ela marcou como perigosas seis funções que
+fazem `IF _caller IS NULL OR NOT <papel> THEN RAISE 'forbidden'` (isso
+**recusa** uid nulo) e deixou passar a que tinha o padrão perigoso de verdade
+(`_sem_caller := (_caller IS NULL)`). A auditoria foi refeita **chamando cada
+função como `anon`**, numa transação desfeita no fim — o método abaixo.
+
+## Resultado
+
+| Momento                    | SECURITY DEFINER executáveis por anon | Executavam de fato para anon   |
+| -------------------------- | ------------------------------------- | ------------------------------ |
+| antes de `20261009120300`  | 52                                    | —                              |
+| antes de `20261009120400`  | 43                                    | 19                             |
+| depois de `20261009120400` | 18                                    | **0** — todas recusam no corpo |
+
+O que o anônimo conseguia e foi fechado:
+
+| Função                                               | O que vazava                                                              | Migration |
+| ---------------------------------------------------- | ------------------------------------------------------------------------- | --------- |
+| `processar_distribuicao_automatica()`                | rodada inteira de distribuição sob demanda                                | 120300    |
+| `resetar_presenca_diaria()` e outros jobs do pg_cron | zerar a presença de todos, gerar alertas/pushes                           | 120300    |
+| `dashboard_atividade_periodo(...)`                   | números da empresa inteira: leads, agendamentos, visitas, vendas, **VGV** | 120400    |
+| `regua_devolucao_candidatos_v1()`                    | leads candidatos a devolução (lead, corretor, status, dias parado)        | 120400    |
+| `produtividade_corretores()`                         | carteira, aguardando e % trabalhado de cada corretor                      | 120400    |
+| `mcp_aplicar_guardas()`                              | DDL como dono (cria triggers, sincroniza grants) — agora só service_role  | 120400    |
+| `mcp_log_bloqueio(...)`                              | gravar no `api_escrita_log`                                               | 120400    |
+| `copa_ranking(uuid)`                                 | ranking da Copa (id da edição é previsível)                               | 120400    |
+
+Regra aplicada em 120400: sai `PUBLIC`/`anon`, ficam `authenticated` e
+`service_role` (telas logadas e funções `SECURITY INVOKER` que as chamam
+continuam iguais). Nenhuma política RLS nem view usa essas funções, e as rotas
+públicas do app chamam RPC só pelo `service_role`.
+
+### As 18 que ainda aceitam anon — todas recusam no corpo
+
+Defesa em profundidade possível numa próxima passada (revogar `anon` também
+delas), mas hoje nenhuma entrega dado ao anônimo:
+
+| Função                                                                                 | Resposta à chamada anônima |
+| -------------------------------------------------------------------------------------- | -------------------------- |
+| `atribuir_oferta_ativa(uuid,uuid[])`                                                   | `28000` Não autenticado    |
+| `atribuir_oferta_ativa_lote(uuid,uuid[],integer)`                                      | `28000` Não autenticado    |
+| `copa_salvar_pontuacao_lote(uuid,integer,jsonb)`                                       | `P0001` forbidden          |
+| `copa_set_participante(uuid,uuid,uuid,text,boolean)`                                   | `P0001` forbidden          |
+| `dashboard_funil(timestamp with time zone,timestamp with time zone,uuid,text)`         | `P0001` unauthorized       |
+| `dashboard_kpis(timestamp with time zone,timestamp with time zone,uuid,text)`          | `P0001` unauthorized       |
+| `dashboard_leads_urgentes(uuid,integer)`                                               | `P0001` unauthorized       |
+| `dashboard_motivos_perda(timestamp with time zone,timestamp with time zone,uuid,text)` | `P0001` unauthorized       |
+| `dashboard_serie_diaria(timestamp with time zone,timestamp with time zone,uuid,text)`  | `P0001` unauthorized       |
+| `leads_com_sla(uuid)`                                                                  | `P0001` unauthorized       |
+| `marcar_presenca(boolean)`                                                             | `P0001` nao autenticado    |
+| `preview_oferta_ativa(jsonb,uuid)`                                                     | `P0001` unauthorized       |
+| `ranking_atividades(date,date)`                                                        | `P0001` unauthorized       |
+| `rel_evolucao_vendas(timestamp with time zone,timestamp with time zone,uuid)`          | `P0001` unauthorized       |
+| `rel_origem_efetiva(timestamp with time zone,timestamp with time zone,uuid)`           | `P0001` unauthorized       |
+| `rel_tempo_medio_por_etapa(timestamp with time zone,timestamp with time zone,uuid)`    | `P0001` unauthorized       |
+| `tempo_primeira_resposta(date,date,uuid)`                                              | `P0001` unauthorized       |
+| `transicionar_lead(uuid,lead_status,text,text,timestamp with time zone,text)`          | `42501` conta inativa      |
+
+## O guarda permanente
+
+`tests/db/rpcs-sem-execute-anon.test.ts` ("sonda") chama, como `anon`, TODA
+função `SECURITY DEFINER` que anon ainda pode executar e falha se alguma
+devolver resultado. Função nova que precise mesmo atender anônimo (ex.: uma
+RPC da vitrine pública) entra em `PUBLICAS_DE_PROPOSITO` no teste, com o
+motivo — decisão explícita, revisada no PR.
+
+## Como revisar uma função nova
 
 1. Quem chama? `grep -rn "<nome>" src supabase/functions` e
    `SELECT jobname, command FROM cron.job WHERE command ILIKE '%<nome>%'`.
-2. Se nenhuma tela SEM login usa: `REVOKE ALL ON FUNCTION ... FROM PUBLIC, anon;`
-   e `GRANT EXECUTE ... TO authenticated, service_role;` (ou só service_role,
-   se só o cron/edge function chama).
-3. Se a função trata "uid nulo" como sistema e o authenticated precisa dela,
-   a checagem de papel tem de barrar o authenticated sem permissão (como em
-   `processar_distribuicao_automatica`).
-4. Teste de banco com `has_function_privilege('anon', ..., 'EXECUTE') = false`.
-
-## Lista (prioridade de cima para baixo)
-
-"Checagem" é uma leitura automática do corpo da função (busca por
-`auth.uid()`, `has_role` e pelo padrão "uid nulo = sistema") — confirme no
-código antes de mexer.
-
-| Função                                                                                     | Efeito  | Checagem                        | Observação                                                   |
-| ------------------------------------------------------------------------------------------ | ------- | ------------------------------- | ------------------------------------------------------------ |
-| `copa_inicializar_dados()`                                                                 | escreve | uid nulo = sistema (anon passa) | escreve com uid nulo tratado como sistema — revisar primeiro |
-| `create_oferta_ativa(text,text,jsonb,uuid)`                                                | escreve | uid nulo = sistema (anon passa) | escreve com uid nulo tratado como sistema — revisar primeiro |
-| `dashboard_metricas_por_corretor(timestamp with time zone,timestamp with time zone,text)`  | lê      | uid nulo = sistema (anon passa) | métricas por corretor legíveis sem login                     |
-| `dashboard_redistribuicoes(timestamp with time zone,timestamp with time zone)`             | lê      | uid nulo = sistema (anon passa) | histórico de redistribuição legível sem login                |
-| `equipe_metricas_campanha(uuid)`                                                           | lê      | uid nulo = sistema (anon passa) | métricas de campanha legíveis sem login                      |
-| `rel_conversao_por_corretor(timestamp with time zone,timestamp with time zone)`            | lê      | uid nulo = sistema (anon passa) | conversão por corretor legível sem login                     |
-| `cadencia_cumprida_100(uuid)`                                                              | lê      | sem checagem                    |                                                              |
-| `cadencia_etapa_completa(uuid,text)`                                                       | lê      | sem checagem                    |                                                              |
-| `cadencia_horarios_tentados(uuid)`                                                         | lê      | sem checagem                    |                                                              |
-| `cadencia_prioridade_reativacao(uuid)`                                                     | lê      | sem checagem                    |                                                              |
-| `copa_ranking(uuid)`                                                                       | lê      | sem checagem                    |                                                              |
-| `corretor_elegivel(uuid)`                                                                  | lê      | sem checagem                    |                                                              |
-| `gestor_gere_corretor(uuid,uuid)`                                                          | lê      | sem checagem                    |                                                              |
-| `mcp_aplicar_guardas()`                                                                    | lê      | sem checagem                    |                                                              |
-| `pode_escrever(text,text)`                                                                 | lê      | sem checagem                    |                                                              |
-| `pontos_de(text)`                                                                          | lê      | sem checagem                    |                                                              |
-| `produtividade_corretores()`                                                               | lê      | sem checagem                    |                                                              |
-| `regua_devolucao_candidatos_v1()`                                                          | lê      | sem checagem                    |                                                              |
-| `roleta_da_zona(text)`                                                                     | lê      | sem checagem                    | devolve o slug da roleta (baixo risco)                       |
-| `zona_do_bairro(text)`                                                                     | lê      | sem checagem                    | tabela pública de bairros (baixo risco)                      |
-| `zona_do_lead(uuid)`                                                                       | lê      | sem checagem                    | devolve só a zona de um id de lead (baixo risco)             |
-| `atribuir_oferta_ativa(uuid,uuid[])`                                                       | escreve | checa usuário                   |                                                              |
-| `atribuir_oferta_ativa_lote(uuid,uuid[],integer)`                                          | escreve | checa usuário                   |                                                              |
-| `copa_salvar_pontuacao_lote(uuid,integer,jsonb)`                                           | escreve | checa usuário                   |                                                              |
-| `copa_set_participante(uuid,uuid,uuid,text,boolean)`                                       | escreve | checa usuário                   |                                                              |
-| `marcar_presenca(boolean)`                                                                 | escreve | checa usuário                   | exige usuário (auth.uid())                                   |
-| `mcp_log_bloqueio(text,text,text)`                                                         | escreve | checa usuário                   |                                                              |
-| `transicionar_lead(uuid,lead_status,text,text,timestamp with time zone,text)`              | escreve | checa usuário                   | exige usuário (auth.uid())                                   |
-| `dashboard_atividade_periodo(timestamp with time zone,timestamp with time zone,uuid,text)` | lê      | checa usuário                   |                                                              |
-| `dashboard_funil(timestamp with time zone,timestamp with time zone,uuid,text)`             | lê      | checa usuário                   |                                                              |
-| `dashboard_kpis(timestamp with time zone,timestamp with time zone,uuid,text)`              | lê      | checa usuário                   |                                                              |
-| `dashboard_leads_urgentes(uuid,integer)`                                                   | lê      | checa usuário                   |                                                              |
-| `dashboard_motivos_perda(timestamp with time zone,timestamp with time zone,uuid,text)`     | lê      | checa usuário                   |                                                              |
-| `dashboard_serie_diaria(timestamp with time zone,timestamp with time zone,uuid,text)`      | lê      | checa usuário                   |                                                              |
-| `is_mcp()`                                                                                 | lê      | checa usuário                   |                                                              |
-| `leads_com_sla(uuid)`                                                                      | lê      | checa usuário                   |                                                              |
-| `preview_oferta_ativa(jsonb,uuid)`                                                         | lê      | checa usuário                   |                                                              |
-| `ranking_atividades(date,date)`                                                            | lê      | checa usuário                   |                                                              |
-| `rel_evolucao_vendas(timestamp with time zone,timestamp with time zone,uuid)`              | lê      | checa usuário                   |                                                              |
-| `rel_origem_efetiva(timestamp with time zone,timestamp with time zone,uuid)`               | lê      | checa usuário                   |                                                              |
-| `rel_tempo_medio_por_etapa(timestamp with time zone,timestamp with time zone,uuid)`        | lê      | checa usuário                   |                                                              |
-| `tempo_primeira_resposta(date,date,uuid)`                                                  | lê      | checa usuário                   |                                                              |
-| `verificar_minhas_conquistas()`                                                            | lê      | checa usuário                   |                                                              |
+   Política ou view? `SELECT * FROM pg_policies WHERE qual ILIKE '%<nome>(%'`.
+2. Sem tela anônima nem política para anon: `REVOKE ALL ... FROM PUBLIC, anon;`
+   e `GRANT EXECUTE ... TO authenticated, service_role;` (ou só
+   `service_role` se só o cron/edge function chama).
+3. Se a função trata "uid nulo" como sistema e `authenticated` precisa dela,
+   a checagem de papel tem de barrar o `authenticated` sem permissão.
