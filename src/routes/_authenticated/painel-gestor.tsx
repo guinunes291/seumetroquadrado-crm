@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PainelDiaView } from "@/features/gestao/painel-dia/painel-dia-view";
 import { InsightsPanel } from "@/features/inteligencia/insights-panel";
 import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page";
+import { SimulacaoRegra65 } from "@/features/gestao/regra-65/simulacao-regra-65";
 import { MetasPage } from "@/routes/_authenticated/metas";
 import { ORIGEM_OPTIONS } from "@/features/leads/novo-lead-dialog";
 import type { FiltrosInteligencia } from "@/features/inteligencia/queries";
@@ -288,6 +289,9 @@ function PainelGestorPage() {
       {/* Fusão 2.3: performance do time e leads por corretor são a mesma
           pergunta ("como está cada pessoa?") — uma aba só. */}
       <TabsContent value="time" className="space-y-10">
+        {/* Regra dos 65 em modo sombra: no topo durante a semana de ensaio,
+            para a gestão ver os números antes de a regra ser ligada. */}
+        <SimulacaoRegra65 veCasaInteira={isAdmin || isSuperintendente} />
         <Suspense fallback={<AbaSkeleton />}>
           <PerformanceView
             corretorDrill={search.corretor ?? null}
