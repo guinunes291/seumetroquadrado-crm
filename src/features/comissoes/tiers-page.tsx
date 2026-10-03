@@ -45,9 +45,12 @@ export function TiersPage() {
   const regras = useQuery({
     queryKey: ["comissao-tier-regras"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("comissao_tier_regras").select("*").order("ordem");
+      const { data, error } = await supabase
+        .from("comissao_tier_regras")
+        .select("*")
+        .order("ordem");
       if (error) throw error;
-      return data as unknown as Regra[];
+      return (data ?? []) as Regra[];
     },
   });
   const ranking = useQuery({
@@ -174,7 +177,9 @@ export function TiersPage() {
                     <td className="py-2 pr-3 tabular-nums">{l.vendas_trimestre_anterior}</td>
                     <td className="py-2 pr-3 tabular-nums">{l.vendas_trimestre_atual}</td>
                     <td className="py-2 pr-3">
-                      <Badge variant="outline">{TIER_LABEL[l.tier_proximo] ?? l.tier_proximo}</Badge>
+                      <Badge variant="outline">
+                        {TIER_LABEL[l.tier_proximo] ?? l.tier_proximo}
+                      </Badge>
                     </td>
                   </tr>
                 ))}

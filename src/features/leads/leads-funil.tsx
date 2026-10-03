@@ -114,7 +114,7 @@ export function LeadsFunil({ params }: { params: Params }) {
     queryFn: async () => {
       const { data, error } = await rpc("leads_funil_registros_v1", params);
       if (error) throw error;
-      return montar((data ?? []) as unknown as { etapa: string; quantidade: number }[]);
+      return montar((data ?? []) as { etapa: string; quantidade: number }[]);
     },
   });
   return (

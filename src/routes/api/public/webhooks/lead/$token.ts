@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { Json, TablesUpdate } from "@/integrations/supabase/types";
+import { comRpcsPendentes } from "@/integrations/supabase/webhook-lead-pendente";
 import {
   blocoCamposExtras,
   blocoObservacoesCorretor,
@@ -138,12 +140,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         // Deduplicação global por telefone (inclui perdidos — decisão 01/10/2026).
         // Lead repetido volta pela roleta do token, com o mesmo motor de lead
         // novo (RPC redistribuir_duplicado_campanha). Venda fechada nunca sai.
-        const { data: dupGlobal } = await supabaseAdmin.rpc(
-          "buscar_lead_por_telefone_global_incl_perdido" as never,
-          { _telefone: data.telefone } as never,
+        const adminPendente = comRpcsPendentes(supabaseAdmin);
+        const { data: dupGlobal } = await adminPendente.rpc(
+          "buscar_lead_por_telefone_global_incl_perdido",
+          { _telefone: data.telefone },
         );
         if (dupGlobal) {
-          const dupId = dupGlobal as unknown as string;
+          const dupId = dupGlobal;
           const slugRoleta = campanha?.slug ?? `projeto:${projeto.id ?? "?"}`;
 
           // Idempotência: mesmo telefone na mesma roleta em < 10 min → mesma resposta.
@@ -178,9 +181,9 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             corretor_id?: string | null;
             status?: string | null;
           } = {};
-          const { data: redist, error: redistErr } = await supabaseAdmin.rpc(
-            "redistribuir_duplicado_campanha" as never,
-            { _lead_id: dupId, _roleta_slug: campanha && roletaAtiva ? campanha.slug : null } as never,
+          const { data: redist, error: redistErr } = await adminPendente.rpc(
+            "redistribuir_duplicado_campanha",
+            { _lead_id: dupId, _roleta_slug: campanha && roletaAtiva ? campanha.slug : null },
           );
           if (redistErr) {
             console.error("[webhooks/lead] redistribuição de duplicado falhou:", redistErr);
@@ -190,14 +193,15 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           }
 
           // Dados novos do formulário: só preenche o que faltava; projeto passa a ser o da roleta.
-          const patch: Record<string, unknown> = {
+          const patch: TablesUpdate<"leads"> = {
             projeto_nome: projetoNomeInteresse,
             updated_at: new Date().toISOString(),
           };
           if (projeto.id) patch.projeto_id = projeto.id;
           if (!leadAntes?.email && data.email) patch.email = data.email;
-          if (!leadAntes?.renda_informada && data.faixaRenda) patch.renda_informada = data.faixaRenda;
-          await supabaseAdmin.from("leads").update(patch as never).eq("id", dupId);
+          if (!leadAntes?.renda_informada && data.faixaRenda)
+            patch.renda_informada = data.faixaRenda;
+          await supabaseAdmin.from("leads").update(patch).eq("id", dupId);
 
           const ids = [r.previous_corretor_id, r.corretor_id].filter(Boolean) as string[];
           const { data: perfis } = ids.length
@@ -207,7 +211,11 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           const nomeAnt = perfil(r.previous_corretor_id)?.nome ?? "sem corretor";
           const nomeNovo = perfil(r.corretor_id)?.nome ?? nomeAnt;
           let telNovo = (perfil(r.corretor_id)?.telefone ?? "").replace(/\D/g, "");
-          if (telNovo && !telNovo.startsWith("55") && (telNovo.length === 10 || telNovo.length === 11))
+          if (
+            telNovo &&
+            !telNovo.startsWith("55") &&
+            (telNovo.length === 10 || telNovo.length === 11)
+          )
             telNovo = `55${telNovo}`;
 
           const nomeCampanha = campanha?.nome ?? projeto.nome;
@@ -253,8 +261,8 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
               campanha: data.campanha ?? null,
               camposExtras: data.camposExtras ?? null,
               resposta,
-            },
-          } as never);
+            } as Json,
+          });
 
           // Aviso de transferência para o n8n (WhatsApp do corretor novo).
           if (motivoDup === "redistribuido_pela_roleta" && r.corretor_id) {
@@ -351,7 +359,13 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
             });
             if (dupId2) {
               return Response.json(
-                { ok: true, duplicate: true, projeto: projeto.nome, lead_id: dupId2, distributed: false },
+                {
+                  ok: true,
+                  duplicate: true,
+                  projeto: projeto.nome,
+                  lead_id: dupId2,
+                  distributed: false,
+                },
                 { headers: corsHeaders },
               );
             }
