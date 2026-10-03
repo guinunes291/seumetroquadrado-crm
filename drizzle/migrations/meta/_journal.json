@@ -351,6 +351,20 @@
       "when": 1791558240000,
       "tag": "0049_rpcs_sem_execute_anon",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791558300000,
+      "tag": "0050_lead_origem_portal_espelho",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791558360000,
+      "tag": "0051_em_atendimento_teto_65_sombra",
+      "breakpoints": true
     }
   ]
 }
