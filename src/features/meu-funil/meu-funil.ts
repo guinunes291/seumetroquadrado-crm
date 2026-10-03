@@ -1,4 +1,4 @@
-// Meu Funil — lógica pura do estudo diário do corretor (sem React, sem banco).
+// Meu Funil — lógica pura do estudo semanal do corretor (sem React, sem banco).
 //
 // A RPC meu_funil_estudo devolve a COORTE dos leads recebidos no período, por
 // origem e grupo, com etapas CUMULATIVAS (quem chegou à pasta também agendou e
@@ -439,8 +439,16 @@ export function planoDoMes(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Obrigatoriedade diária
+// Obrigatoriedade semanal
 // ---------------------------------------------------------------------------
+
+/** Dia da semana do estudo obrigatório: 4 = quinta-feira (ISO, seg = 1). */
+export const DIA_DO_ESTUDO_ISO = 4;
+
+/** `dia` (YYYY-MM-DD, America/Sao_Paulo) é o dia do estudo obrigatório? */
+export function ehDiaDoEstudo(dia: string): boolean {
+  return diaDaSemanaIso(dia) === DIA_DO_ESTUDO_ISO;
+}
 
 export type EstudoDia = {
   dia: string;
@@ -451,14 +459,17 @@ export type EstudoDia = {
 };
 
 /**
- * Deve abrir o estudo obrigatório? Só corretor e só sem registro de HOJE (o
- * banco é a fonte). Todos os dias, fim de semana inclusive — não há "pular".
+ * Deve abrir o estudo obrigatório? Uma vez por semana, às QUINTAS-feiras (dia
+ * de São Paulo): só corretor e só sem registro de hoje (o banco é a fonte).
+ * Nos outros dias não abre — o Meu Funil segue no BI para quem quiser rever.
+ * Na quinta não há "pular": a única saída é concluir.
  */
 export function precisaEstudar(input: {
   ehCorretor: boolean;
+  dia: string;
   estudoHoje: EstudoDia | null | undefined;
 }): boolean {
-  return input.ehCorretor && !input.estudoHoje;
+  return input.ehCorretor && ehDiaDoEstudo(input.dia) && !input.estudoHoje;
 }
 
 // ---------------------------------------------------------------------------

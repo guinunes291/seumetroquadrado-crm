@@ -1,4 +1,4 @@
-// Meu Funil — o estudo que o corretor faz todo dia antes de trabalhar.
+// Meu Funil — o estudo que o corretor faz toda quinta-feira antes de trabalhar.
 // Mesma view na página /meu-funil e no estudo obrigatório (meu-funil-global).
 
 import { useEffect, useMemo, useState } from "react";

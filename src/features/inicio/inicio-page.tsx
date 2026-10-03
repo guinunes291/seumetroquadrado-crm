@@ -49,7 +49,7 @@ const AgendaDoDiaCard = lazy(() =>
     default: AgendaDoDiaCard,
   })),
 );
-// O estudo diário do Meu Funil abre antes das metas — também já no hub, senão
+// O estudo do Meu Funil (quintas) abre antes das metas — também já no hub, senão
 // as metas (que esperam por ele) nunca abririam aqui.
 const MeuFunilGlobal = lazy(() =>
   import("@/features/meu-funil/meu-funil-global").then(({ MeuFunilGlobal }) => ({

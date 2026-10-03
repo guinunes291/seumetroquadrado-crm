@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { diaSaoPaulo } from "@/features/metas-dia/metas-dia";
-import { precisaEstudar } from "@/features/meu-funil/meu-funil";
+import { ehDiaDoEstudo, precisaEstudar } from "@/features/meu-funil/meu-funil";
 import { useEstudoDeHoje } from "@/features/meu-funil/use-meu-funil";
 
 /** Relógio de "dia": vira à meia-noite de São Paulo mesmo com a aba aberta. */
@@ -59,7 +59,9 @@ export function useEstudoFunilPendente(): boolean | null {
   const { isCorretor, loading } = useUserRoles();
   const uid = user?.id ?? "";
   const dia = useDia();
-  const hojeQ = useEstudoDeHoje(dia, !!uid && isCorretor);
+  const diaDoEstudo = ehDiaDoEstudo(dia);
+  // Fora da quinta nem consulta o banco: não há estudo a cobrar.
+  const hojeQ = useEstudoDeHoje(dia, !!uid && isCorretor && diaDoEstudo);
   const [liberado, setLiberado] = useState(() => lerLiberado(uid, dia));
   useEffect(() => {
     const atualizar = () => setLiberado(lerLiberado(uid, dia));
@@ -70,8 +72,10 @@ export function useEstudoFunilPendente(): boolean | null {
 
   if (!uid || loading) return null;
   if (!isCorretor) return false;
+  // Antes do isPending: com a query desligada ela fica "pending" para sempre.
+  if (!diaDoEstudo) return false;
   if (liberado) return false;
   if (hojeQ.isError) return false;
   if (hojeQ.isPending) return null;
-  return precisaEstudar({ ehCorretor: isCorretor, estudoHoje: hojeQ.data });
+  return precisaEstudar({ ehCorretor: isCorretor, dia, estudoHoje: hojeQ.data });
 }

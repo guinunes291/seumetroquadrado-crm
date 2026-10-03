@@ -7,6 +7,7 @@ import {
   normalizarMeuFunil,
   passagens,
   planoDoMes,
+  ehDiaDoEstudo,
   precisaEstudar,
   resumoPorOrigem,
   somarGrupo,
@@ -177,12 +178,30 @@ describe("planoDoMes", () => {
 });
 
 describe("precisaEstudar", () => {
-  it("corretor sem estudo hoje → abre, todo dia; já estudou ou não é corretor → não", () => {
-    expect(precisaEstudar({ ehCorretor: true, estudoHoje: null })).toBe(true);
-    expect(precisaEstudar({ ehCorretor: false, estudoHoje: null })).toBe(false);
+  // 01/10/2026 é quinta-feira; 28/09 segunda; 03/10 sábado.
+  const QUINTA = "2026-10-01";
+
+  it("só às quintas: corretor sem estudo na quinta → abre; outro dia → não", () => {
+    expect(precisaEstudar({ ehCorretor: true, dia: QUINTA, estudoHoje: null })).toBe(true);
+    for (const dia of [
+      "2026-09-28",
+      "2026-09-29",
+      "2026-09-30",
+      "2026-10-02",
+      "2026-10-03",
+      "2026-10-04",
+    ]) {
+      expect(precisaEstudar({ ehCorretor: true, dia, estudoHoje: null }), dia).toBe(false);
+    }
+    expect(ehDiaDoEstudo("2026-10-08")).toBe(true);
+  });
+
+  it("já estudou na quinta ou não é corretor → não abre", () => {
+    expect(precisaEstudar({ ehCorretor: false, dia: QUINTA, estudoHoje: null })).toBe(false);
     expect(
       precisaEstudar({
         ehCorretor: true,
+        dia: QUINTA,
         estudoHoje: {
           dia: "x",
           foco: "agendar",
