@@ -1,6 +1,6 @@
 /**
  * REGISTRO MÃE (clientes) e REGISTROS FILHOS (leads) — Fatia A
- * (migration 20261009120700, desenho em docs/ops/registro-mae.md).
+ * (migration 20261010120300, desenho em docs/ops/registro-mae.md).
  *
  * Decisões do dono (03/10/2026) que esta suíte trava:
  *

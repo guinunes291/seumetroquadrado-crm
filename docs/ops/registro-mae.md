@@ -1,7 +1,7 @@
 # Registro mãe e registros filhos
 
 Decisões do dono em 03/10/2026. Migration da Fatia A:
-`20261009120700_registro_mae_clientes` (Drizzle `0052`). Testes:
+`20261010120300_registro_mae_clientes` (Drizzle `0054`). Testes:
 `tests/db/registro-mae.test.ts` (banco) e `tests/buscar-oportunidade.test.tsx`
 (tela).
 

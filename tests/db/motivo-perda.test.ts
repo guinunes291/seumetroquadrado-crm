@@ -85,7 +85,7 @@ describe("motivo_perda_sem_retrabalho", () => {
       "sem_retorno_cadencia",
       "numero_invalido",
       "opt_out",
-      // Registro mãe (20261009120700): o filho encerrado porque outro corretor
+      // Registro mãe (20261010120300): o filho encerrado porque outro corretor
       // levou o cliente a Visita realizada. Sem retrabalho, gravado pelo sistema.
       "seguiu_outro_corretor",
     ]) {
