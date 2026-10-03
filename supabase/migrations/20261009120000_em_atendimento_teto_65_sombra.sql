@@ -117,6 +117,13 @@ END $$;
 -- Bolsão): proprio (lead_origem_conquistada — nunca sai do corretor),
 -- pago (lead_origem_paga — volta para a roleta), estoque (vai para o Bolsão).
 --
+-- PORTAL É PAGO NESTA REGRA (decisão do dono, 03/10/2026), mas ainda não em
+-- `lead_origem_paga`: aquela função também decide quem o lote da Prospecção
+-- pode puxar, e mudá-la agora tiraria os leads de Portal do lote em produção
+-- no mesmo dia — efeito vivo que uma fatia em sombra não pode ter. A Fatia 3
+-- move o Portal para lá, junto com a regra ligada. Comparação por texto para
+-- não depender do valor do enum na criação da função.
+--
 -- Fora de tudo: venda viva (regra nº 1 da diretoria), perdido, contrato
 -- fechado, pós-venda, lixeira e arquivados.
 CREATE OR REPLACE FUNCTION public._em_atendimento_classificar(_corretores uuid[])
@@ -169,7 +176,8 @@ AS $$
       COALESCE(NULLIF(l.projeto_nome, ''), pr.nome)         AS projeto_nome,
       CASE
         WHEN public.lead_origem_conquistada(l.origem)                 THEN 'proprio'
-        WHEN public.lead_origem_paga(l.origem, l.sdr_entregue_em)     THEN 'pago'
+        WHEN public.lead_origem_paga(l.origem, l.sdr_entregue_em)
+          OR l.origem::text = 'portal'                                THEN 'pago'
         ELSE 'estoque'
       END                                                   AS grupo,
       CASE

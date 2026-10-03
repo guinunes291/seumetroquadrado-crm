@@ -1,0 +1,13 @@
+-- ============================================================================
+-- Espelho da origem "portal" (Drizzle 0044_lead_origem_portal)
+-- ============================================================================
+-- O valor entrou em produção pelo Drizzle (commit 38019ca, "Adicionou origem
+-- Portal ao banco") sem a migration correspondente aqui. O harness de banco
+-- aplica só supabase/migrations, então o enum dele divergia do de produção e
+-- nenhum teste conseguia criar um lead de Portal — a regra dos 65 trata Portal
+-- como origem paga e precisa provar isso.
+--
+-- Em produção é no-op (IF NOT EXISTS). Não há espelho Drizzle novo: a 0044 já
+-- é o espelho. Arquivo próprio porque o valor novo de um enum só pode ser
+-- usado depois do COMMIT da transação que o criou.
+ALTER TYPE public.lead_origem ADD VALUE IF NOT EXISTS 'portal';

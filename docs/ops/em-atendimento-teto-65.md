@@ -182,35 +182,52 @@ produção por outro caminho.
 - A medição de produção foi gerada do **mesmo corpo** da função: um script
   extrai o SQL da migration e troca só a config e a lista de corretores.
 
-## 6. Pontos em aberto antes de ligar (Fatia 3)
+## 6. Decisões do dono depois da medição (03/10/2026)
 
-1. **Cliente duplicado.** A regra do dono ("vários corretores com o mesmo
-   cliente; o primeiro a chegar em Visita realizada fica, os outros registros
-   são encerrados, sem aviso") supõe que o mesmo cliente pode estar em dois
-   leads ativos. Hoje o banco **proíbe** isso: `leads_telefone_unico_ativo_uidx`
-   (desde 02/09) permite um lead ativo por telefone na base inteira. Em
-   produção há **zero** telefones repetidos em 98 mil leads vivos. Ou se mantém
-   a proibição (e a regra vira só uma guarda, que é o que a Fatia 1 conta), ou
-   se relaxa o índice. Relaxar mexe em dedup, roleta e na regra do lead
-   repetido; não é para a Fatia 3 decidir sozinha.
-2. **Ritmo da devolução.** Ligar tudo de uma vez manda 829 leads pagos à roleta
-   e 2.383 ao Bolsão num dia só. A roleta precisa de vazão (por exemplo, por
-   lote diário) para não despejar centenas de leads em quem tem vaga.
-3. **Mudança de status feita pelo corretor conta como toque?** Hoje não conta
-   (é o caso do Eduardo). Contar seria a opção "qualquer edição no lead", que o
-   dono rejeitou.
-4. **A régua de devolução da Fatia 4 nunca foi ligada.** Ela está em
-   `modo = sombra` em produção desde 14/09 (`gestao_config.bolsao`), e é por
-   isso que nada parado jamais saiu de ninguém. A regra dos 65 a substitui;
-   ligar as duas ao mesmo tempo daria dois motores devolvendo o mesmo lead.
-5. **Origens sem classificação clara:** `portal` e `investimento_corretor`
-   caem hoje em "estoque". Se o portal for pago, ou se `investimento_corretor`
-   for lead próprio, é uma linha em `lead_origem_paga` / `lead_origem_conquistada`.
+Quatro pontos apareceram com os números de produção e foram decididos pelo dono.
+
+1. **Cliente duplicado: permitir vários corretores com o mesmo cliente.** Hoje
+   o banco **proíbe** isso: `leads_telefone_unico_ativo_uidx` (desde 02/09)
+   permite um lead ativo por telefone na base inteira, e há **zero** telefones
+   repetidos em 98 mil leads vivos. Mais que isso, a **regra do lead repetido**
+   (01/10, `webhooks/lead/$token.ts` → `redistribuir_duplicado_campanha`) faz
+   o oposto da decisão: quando o cliente volta por outra campanha, o MESMO
+   registro é redistribuído pela roleta e pode trocar do corretor A para o B.
+   Permitir vários corretores exige, numa fatia própria:
+   - trocar o índice global por um que permita o mesmo telefone em corretores
+     diferentes (e mantenha um por corretor);
+   - fazer o webhook criar um registro novo para o corretor da roleta em vez de
+     redistribuir o existente;
+   - a regra do dono no avanço: o primeiro registro a chegar em Visita
+     realizada encerra os outros como perda "cliente seguiu com outro
+     corretor", que não conta como perda do corretor, sem aviso.
+     A Fatia 1 já conta esses casos (`em_atendimento_portas_v1`); hoje são zero.
+2. **Ritmo: tudo no dia da virada.** 829 leads pagos à roleta e 2.383 ao Bolsão
+   no mesmo dia. A trava de 60/150 continua valendo, então a roleta só entrega a
+   quem tem vaga; o que não couber espera na fila da roleta.
+3. **Mudança de status feita pelo corretor não conta como toque.** Só ligação,
+   WhatsApp, chamada e mensagem. É como a Fatia 1 já calcula.
+4. **Portal é origem paga:** parado, volta à roleta. Já vale na simulação. Fica
+   fora de `lead_origem_paga` até a Fatia 3, porque aquela função também
+   decide o lote da Prospecção, e mudá-la agora tiraria os leads de Portal do
+   lote em produção no mesmo dia. A migration `20261009115900` espelha o valor
+   `portal` do enum, que só existia no Drizzle (0044), para o harness poder
+   testar.
+
+Continuam em aberto:
+
+- **A régua de devolução da Fatia 4 nunca foi ligada.** Ela está em
+  `modo = sombra` em produção desde 14/09 (`gestao_config.bolsao`), e é por
+  isso que nada parado jamais saiu de ninguém. A regra dos 65 a substitui;
+  ligar as duas ao mesmo tempo daria dois motores devolvendo o mesmo lead.
+- **`investimento_corretor`** cai hoje em "estoque". Se for lead próprio, é
+  uma linha em `lead_origem_conquistada`.
 
 ## 7. Próximas fatias
 
-| Fatia          | O que entra                                                                                                                                                                                                                |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **2. Telas**   | Contador X/65 no chip da página de Leads, na Fila e no Kanban; janela de troca; os 4 desfechos com data de até 30 dias; nome "Minha base"; tela para o corretor escolher os seus 65 (lê `em_atendimento_sombra_leads_v1`). |
-| **3. Ligar**   | Portas fechadas (cadência, lote e transição para Em atendimento exigem resposta + passo); os 5.438 sem dono voltam para Aguardando atendimento; trava da roleta; os dois relógios; virada no 8º dia; alertas.              |
-| **4. Revisar** | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                         |
+| Fatia             | O que entra                                                                                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **2. Telas**      | Contador X/65 no chip da página de Leads, na Fila e no Kanban; janela de troca; os 4 desfechos com data de até 30 dias; nome "Minha base"; tela para o corretor escolher os seus 65 (lê `em_atendimento_sombra_leads_v1`).                                   |
+| **3. Ligar**      | Portas fechadas (cadência, lote e transição para Em atendimento exigem resposta + passo); os 5.438 sem dono voltam para Aguardando atendimento; trava da roleta; os dois relógios; virada no 8º dia, tudo de uma vez; Portal em `lead_origem_paga`; alertas. |
+| **3b. Duplicado** | Vários corretores com o mesmo cliente (§6.1): índice por corretor, webhook cria registro novo em vez de redistribuir, encerramento no avanço para Visita realizada.                                                                                          |
+| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                                                           |

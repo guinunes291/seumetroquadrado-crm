@@ -278,6 +278,19 @@ describe("Em atendimento com 5 dias sem toque perde a vaga", () => {
 // ---------------------------------------------------------------------------
 
 describe("Minha base: 5 dias sem toque sai do corretor", () => {
+  it("Portal é pago nesta regra: volta à roleta, não ao Bolsão", async () => {
+    const portal = await lead({
+      status: "aguardando_atendimento",
+      origem: "portal",
+      horasSemToque: 6 * 24,
+    });
+    expect((await classificar()).get(portal)).toMatchObject({
+      grupo: "pago",
+      acao: "sem_toque",
+      destino: "roleta",
+    });
+  });
+
   it("estoque vai para o Bolsão, pago para a roleta, próprio fica com alerta", async () => {
     const h = 6 * 24;
     const estoque = await lead({
