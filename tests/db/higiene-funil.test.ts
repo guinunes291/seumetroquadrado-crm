@@ -59,12 +59,17 @@ async function lead(opts: {
   // baixo do trigger — mesmo recurso que helpers.criarUsuario usa para
   // auth.users. Não afrouxa a guarda: ela segue valendo no caminho real.
   if (opts.semTriggers) await c.query(`SET session_replication_role = replica`);
+  // Com gatilhos desligados o vínculo com o registro mãe (também gatilho)
+  // não roda: a mãe é criada aqui, no mesmo comando.
   const r = await c.query(
-    `INSERT INTO public.leads
+    `WITH mae AS (INSERT INTO public.clientes DEFAULT VALUES RETURNING id)
+     INSERT INTO public.leads
        (nome, telefone, status, temperatura, corretor_id, na_lixeira,
-        ultima_interacao, ultimo_contato, created_at)
-     VALUES ($1, $2, $3::public.lead_status, $4::public.lead_temperatura, $5, $6,
-             $7, $8, now() - make_interval(days => $9))
+        ultima_interacao, ultimo_contato, created_at, cliente_id)
+     SELECT $1, $2, $3::public.lead_status, $4::public.lead_temperatura, $5::uuid,
+            $6::boolean, $7::timestamptz, $8::timestamptz,
+            now() - make_interval(days => $9::int), mae.id
+       FROM mae
      RETURNING id`,
     [
       opts.nome,

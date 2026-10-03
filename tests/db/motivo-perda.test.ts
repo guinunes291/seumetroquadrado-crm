@@ -85,11 +85,14 @@ describe("motivo_perda_sem_retrabalho", () => {
       "sem_retorno_cadencia",
       "numero_invalido",
       "opt_out",
+      // Registro mãe (20261010120300): o filho encerrado porque outro corretor
+      // levou o cliente a Visita realizada. Sem retrabalho, gravado pelo sistema.
+      "seguiu_outro_corretor",
     ]) {
       expect(def, `categoria ${cat} sumiu do CHECK`).toContain(cat);
     }
-    // 14 categorias e nada além delas.
-    expect((def.match(/'/g) ?? []).length).toBe(28);
+    // 15 categorias e nada além delas.
+    expect((def.match(/'/g) ?? []).length).toBe(30);
   });
 
   it("NULL continua reciclável — lead sem categoria de perda não é excluído", async () => {
