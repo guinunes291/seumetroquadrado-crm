@@ -13465,6 +13465,7 @@ export type Database = {
         | "investimento_corretor"
         | "impulso_smq"
         | "acao_rua"
+        | "portal"
       lead_status:
         | "novo"
         | "aguardando_atendimento"
@@ -13715,6 +13716,7 @@ export const Constants = {
         "investimento_corretor",
         "impulso_smq",
         "acao_rua",
+        "portal",
       ],
       lead_status: [
         "novo",
