@@ -16,14 +16,13 @@ type Pub = Database["public"];
 export type DatabaseWebhookLead = Omit<Database, "public"> & {
   public: Omit<Pub, "Functions"> & {
     Functions: Pub["Functions"] & {
-      /** Lead ativo OU perdido com o telefone (dedup global, decisão 01/10/2026). */
-      buscar_lead_por_telefone_global_incl_perdido: {
-        Args: { _telefone: string };
-        Returns: string | null;
-      };
-      /** Devolve o lead repetido à roleta da campanha, com o motor de lead novo. */
-      redistribuir_duplicado_campanha: {
-        Args: { _lead_id: string; _roleta_slug: string | null };
+      /**
+       * Registro mãe, Fatia B (20261010120400): decide a entrada de quem já
+       * passou pelo CRM e, na volta por anúncio, cria o registro filho.
+       * Contrato do retorno em src/lib/webhook-lead-volta.ts.
+       */
+      registrar_volta_campanha: {
+        Args: { _lead: Json };
         Returns: Json;
       };
     };
