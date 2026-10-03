@@ -44,6 +44,7 @@
 DO $revoga$
 DECLARE
   _fn text;
+  _p regprocedure;
 BEGIN
   FOREACH _fn IN ARRAY ARRAY[
     -- as seis da lista original (já recusavam anon no corpo)
@@ -73,8 +74,13 @@ BEGIN
     'public.zona_do_bairro(text)',
     'public.zona_do_lead(uuid)'
   ] LOOP
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', _fn::regprocedure);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', _fn::regprocedure);
+    -- A que não existe no banco é pulada: a produção não tem
+    -- verificar_minhas_conquistas() nem copa_ranking(uuid) (lá a Copa usa
+    -- copa_ranking() sem argumento) — só o replay do repositório as cria.
+    _p := to_regprocedure(_fn);
+    CONTINUE WHEN _p IS NULL;
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', _p);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', _p);
   END LOOP;
 END;
 $revoga$;
