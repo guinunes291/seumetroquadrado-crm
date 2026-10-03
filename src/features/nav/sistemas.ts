@@ -179,7 +179,11 @@ export const SISTEMAS: Sistema[] = [
     // quê"). Ver docs/ops/carteira-ativa-40-fatia3.md §8.2.
     secoes: [
       { id: "fila", label: "Fila Única", icon: ListChecks, to: "/fila" },
-      { id: "reserva", label: "Reserva", icon: Archive, to: "/reserva" },
+      // Regra dos 65 (Fatia 2): quem disputa as vagas de Em atendimento e a
+      // escolha do corretor. "Minha base" é o nome de tela da Reserva (o que é
+      // do corretor antes de Em atendimento) — decisão 2.4 do dono.
+      { id: "meus-65", label: "Meus 65", icon: Crosshair, to: "/meus-65" },
+      { id: "reserva", label: "Minha base", icon: Archive, to: "/reserva" },
       // O terceiro nível: o que não é de ninguém. Fila = trabalho agora;
       // Reserva = meu, esperando vaga; Bolsão = da casa, sem dono. Ver
       // docs/ops/bolsao-oportunidades-fatia4.md §1.

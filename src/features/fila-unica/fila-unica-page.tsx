@@ -45,7 +45,8 @@ import {
   type FilaUnicaItem,
 } from "@/features/fila-unica/derive";
 import { FilaCard } from "@/features/fila-unica/fila-card";
-import { FilaCockpit } from "@/features/fila-unica/fila-cockpit";
+import { FilaCockpit, type CarteiraNoCockpit } from "@/features/fila-unica/fila-cockpit";
+import { useEmAtendimentoContador } from "@/features/em-atendimento/use-em-atendimento";
 import { resumoCarteira } from "@/features/carteira-ativa/derive";
 import {
   TETO_PADRAO,
@@ -183,12 +184,25 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   // para ninguém achar que o lead novo sumiu.
   const formacaoQ = useCarteiraFormacao(alvo);
   const emFormacao = formacaoQ.data?.em_formacao ?? 0;
-  const carteira = carteiraQ.data
-    ? (() => {
-        const r = resumoCarteira(carteiraQ.data, configQ.data?.teto ?? TETO_PADRAO);
-        return { ocupadas: r.ocupadas, teto: r.teto, estourou: r.estourou };
-      })()
-    : null;
+  // Regra dos 65 (Fatia 2): o 65 passou a ser o STATUS Em atendimento. Com o
+  // contador disponível, o anel mostra X/65 em atendimento — o mesmo número
+  // da trava "entra um, sai um" — em vez da carteira ativa de antes (fundo +
+  // conversa + resgate), que dava outro total para a mesma pergunta.
+  const contadorQ = useEmAtendimentoContador(alvo);
+  const carteira: CarteiraNoCockpit | null = contadorQ.data?.corretor
+    ? {
+        ocupadas: contadorQ.data.em_atendimento,
+        teto: contadorQ.data.teto,
+        estourou: contadorQ.data.lotado,
+        rotulo: "em atendimento",
+        fonte: "em_atendimento",
+      }
+    : carteiraQ.data
+      ? (() => {
+          const r = resumoCarteira(carteiraQ.data, configQ.data?.teto ?? TETO_PADRAO);
+          return { ocupadas: r.ocupadas, teto: r.teto, estourou: r.estourou };
+        })()
+      : null;
   const nomeDoAlvo = outro
     ? (equipe.data?.find((r) => r.corretor_id === alvo)?.nome ?? "outro corretor")
     : null;
@@ -406,8 +420,8 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
                 <Timer className="h-4 w-4 text-primary" />
                 <span>
                   {emFormacao === 1
-                    ? "1 lead na base em formação"
-                    : `${emFormacao} leads na base em formação`}{" "}
+                    ? "1 lead na Minha base, em formação"
+                    : `${emFormacao} leads na Minha base, em formação`}{" "}
                   — fora dos {carteira?.teto ?? TETO_PADRAO}, até avançar.
                 </span>
                 {!outro && (

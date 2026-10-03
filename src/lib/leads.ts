@@ -139,8 +139,16 @@ export function stagesDaFase(fase?: FaseFunil): LeadStatus[] | undefined {
   return FUNNEL_STAGES.filter((s) => set.includes(s));
 }
 
-/** Transições que exigem um modal para capturar dados antes de mudar o status. */
-export type StageModal = "agendado" | "visita_realizada" | "analise_credito" | "contrato_fechado";
+/** Transições que exigem um modal para capturar dados antes de mudar o status.
+ *  `pediu_retorno` e `esfriou` são os desfechos de Em atendimento que pedem a
+ *  data do retorno (regra dos 65, Fatia 2). */
+export type StageModal =
+  | "agendado"
+  | "visita_realizada"
+  | "analise_credito"
+  | "contrato_fechado"
+  | "pediu_retorno"
+  | "esfriou";
 
 export const STAGE_MODAL: Partial<Record<LeadStatus, StageModal>> = {
   agendado: "agendado",
@@ -155,15 +163,72 @@ export function stageRequiresModal(status: LeadStatus): boolean {
 
 /** Decisão única de roteamento, usada tanto pelo menu quanto pelo drop do Kanban. */
 export type StageAction =
-  | { kind: "direct" }
-  | { kind: "modal"; modal: StageModal }
-  | { kind: "perdido" };
+  { kind: "direct" } | { kind: "modal"; modal: StageModal } | { kind: "perdido" };
 
-export function resolveStageAction(target: LeadStatus): StageAction {
+export function resolveStageAction(target: LeadStatus, de?: string): StageAction {
   if (target === "perdido") return { kind: "perdido" };
+  // De Em atendimento, "Aguardando retorno" é o desfecho "Pediu retorno": a
+  // data é obrigatória e até 30 dias (regra dos 65, Fatia 2).
+  if (de === "em_atendimento" && target === "aguardando_retorno") {
+    return { kind: "modal", modal: "pediu_retorno" };
+  }
   const modal = STAGE_MODAL[target];
   return modal ? { kind: "modal", modal } : { kind: "direct" };
 }
+
+// ---------------------------------------------------------------------------
+// Desfechos de Em atendimento (regra dos 65, Fatia 2 — decisão do dono,
+// 03/10/2026): a tela só oferece estes cinco para sair. O banco ainda aceita
+// outras saídas até a Fatia 3 ligar a regra; `transicaoLeadPermitida` continua
+// espelhando o banco e `saidaOferecida` é a camada da tela por cima dele.
+// ---------------------------------------------------------------------------
+
+export type DesfechoEmAtendimento = {
+  id: "agendou" | "pediu_retorno" | "esfriou" | "mandou_doc" | "perdido";
+  label: string;
+  target: LeadStatus;
+  action: StageAction;
+};
+
+export const DESFECHOS_EM_ATENDIMENTO: DesfechoEmAtendimento[] = [
+  {
+    id: "agendou",
+    label: "Agendou",
+    target: "agendado",
+    action: { kind: "modal", modal: "agendado" },
+  },
+  {
+    id: "pediu_retorno",
+    label: "Pediu retorno",
+    target: "aguardando_retorno",
+    action: { kind: "modal", modal: "pediu_retorno" },
+  },
+  {
+    id: "esfriou",
+    label: "Esfriou",
+    target: "aguardando_retorno",
+    action: { kind: "modal", modal: "esfriou" },
+  },
+  {
+    id: "mandou_doc",
+    label: "Mandou doc",
+    target: "analise_credito",
+    action: { kind: "modal", modal: "analise_credito" },
+  },
+  { id: "perdido", label: "Perdido", target: "perdido", action: { kind: "perdido" } },
+];
+
+const SAIDAS_EM_ATENDIMENTO = new Set<LeadStatus>(DESFECHOS_EM_ATENDIMENTO.map((d) => d.target));
+
+/** `true` se a tela oferece mover o lead de `de` para `para`. Só restringe a
+ *  saída de Em atendimento; o resto segue a máquina de estados do banco. */
+export function saidaOferecida(de: string, para: LeadStatus): boolean {
+  if (de !== "em_atendimento" || de === para) return true;
+  return SAIDAS_EM_ATENDIMENTO.has(para);
+}
+
+export const MOTIVO_SAIDA_NAO_OFERECIDA =
+  'De "Em atendimento" o lead sai por um desfecho: Agendou, Pediu retorno, Esfriou, Mandou doc ou Perdido.';
 
 /** Ação sugerida ("botão inteligente") por etapa: o avanço mais provável do
  *  funil a partir do status atual. Não é o próximo linear — é o próximo passo
@@ -339,7 +404,15 @@ export const MOTIVO_PERDA_LABEL: Record<MotivoPerdaCategoria, string> = {
   outro: "Outro (descrever)",
 };
 
+/** Categorias gravadas só pelo sistema — fora do menu do corretor, mas com
+ *  nome legível na ficha e nos relatórios. */
+export const MOTIVO_PERDA_LABEL_SISTEMA: Record<string, string> = {
+  // Regra dos 65, Fatia 2: retorno combinado para além de 30 dias. A
+  // reativação volta a ele perto da data.
+  retorno_futuro: "Retorno futuro (além de 30 dias)",
+};
+
 export function motivoPerdaLabel(cat: string | null | undefined): string | null {
   if (!cat) return null;
-  return MOTIVO_PERDA_LABEL[cat as MotivoPerdaCategoria] ?? cat;
+  return MOTIVO_PERDA_LABEL[cat as MotivoPerdaCategoria] ?? MOTIVO_PERDA_LABEL_SISTEMA[cat] ?? cat;
 }

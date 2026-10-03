@@ -52,6 +52,7 @@ import { Route as AuthenticatedMeuFunilRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedMeuPainelRouteImport } from './routes/_authenticated/meu-painel'
 import { Route as AuthenticatedMeuPerfilRouteImport } from './routes/_authenticated/meu-perfil'
 import { Route as AuthenticatedMeuRaioXRouteImport } from './routes/_authenticated/meu-raio-x'
+import { Route as AuthenticatedMeus65RouteImport } from './routes/_authenticated/meus-65'
 import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authenticated/modo-visita'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
@@ -343,6 +344,11 @@ const AuthenticatedMeuPerfilRoute = AuthenticatedMeuPerfilRouteImport.update({
 const AuthenticatedMeuRaioXRoute = AuthenticatedMeuRaioXRouteImport.update({
   id: '/meu-raio-x',
   path: '/meu-raio-x',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMeus65Route = AuthenticatedMeus65RouteImport.update({
+  id: '/meus-65',
+  path: '/meus-65',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedModoVisitaRoute = AuthenticatedModoVisitaRouteImport.update({
@@ -753,6 +759,7 @@ export interface FileRoutesByFullPath {
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
+  '/meus-65': typeof AuthenticatedMeus65Route
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
@@ -864,6 +871,7 @@ export interface FileRoutesByTo {
   '/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
+  '/meus-65': typeof AuthenticatedMeus65Route
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
@@ -977,6 +985,7 @@ export interface FileRoutesById {
   '/_authenticated/meu-painel': typeof AuthenticatedMeuPainelRoute
   '/_authenticated/meu-perfil': typeof AuthenticatedMeuPerfilRoute
   '/_authenticated/meu-raio-x': typeof AuthenticatedMeuRaioXRoute
+  '/_authenticated/meus-65': typeof AuthenticatedMeus65Route
   '/_authenticated/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
@@ -1090,6 +1099,7 @@ export interface FileRouteTypes {
     | '/meu-painel'
     | '/meu-perfil'
     | '/meu-raio-x'
+    | '/meus-65'
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
@@ -1201,6 +1211,7 @@ export interface FileRouteTypes {
     | '/meu-painel'
     | '/meu-perfil'
     | '/meu-raio-x'
+    | '/meus-65'
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
@@ -1313,6 +1324,7 @@ export interface FileRouteTypes {
     | '/_authenticated/meu-painel'
     | '/_authenticated/meu-perfil'
     | '/_authenticated/meu-raio-x'
+    | '/_authenticated/meus-65'
     | '/_authenticated/modo-visita'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/pipeline'
@@ -1725,6 +1737,13 @@ declare module '@tanstack/react-router' {
       path: '/meu-raio-x'
       fullPath: '/meu-raio-x'
       preLoaderRoute: typeof AuthenticatedMeuRaioXRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/meus-65': {
+      id: '/_authenticated/meus-65'
+      path: '/meus-65'
+      fullPath: '/meus-65'
+      preLoaderRoute: typeof AuthenticatedMeus65RouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/modo-visita': {
@@ -2234,6 +2253,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMeuPainelRoute: typeof AuthenticatedMeuPainelRoute
   AuthenticatedMeuPerfilRoute: typeof AuthenticatedMeuPerfilRoute
   AuthenticatedMeuRaioXRoute: typeof AuthenticatedMeuRaioXRoute
+  AuthenticatedMeus65Route: typeof AuthenticatedMeus65Route
   AuthenticatedModoVisitaRoute: typeof AuthenticatedModoVisitaRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
@@ -2305,6 +2325,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMeuPainelRoute: AuthenticatedMeuPainelRoute,
   AuthenticatedMeuPerfilRoute: AuthenticatedMeuPerfilRoute,
   AuthenticatedMeuRaioXRoute: AuthenticatedMeuRaioXRoute,
+  AuthenticatedMeus65Route: AuthenticatedMeus65Route,
   AuthenticatedModoVisitaRoute: AuthenticatedModoVisitaRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,

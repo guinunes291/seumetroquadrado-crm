@@ -225,11 +225,81 @@ Continuam em aberto:
 - **`investimento_corretor`** cai hoje em "estoque". Se for lead próprio, é
   uma linha em `lead_origem_conquistada`.
 
-## 7. Próximas fatias
+## 7. Fatia 2: as telas e a troca (03/10/2026)
 
-| Fatia             | O que entra                                                                                                                                                                                                                                                  |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **2. Telas**      | Contador X/65 no chip da página de Leads, na Fila e no Kanban; janela de troca; os 4 desfechos com data de até 30 dias; nome "Minha base"; tela para o corretor escolher os seus 65 (lê `em_atendimento_sombra_leads_v1`).                                   |
-| **3. Ligar**      | Portas fechadas (cadência, lote e transição para Em atendimento exigem resposta + passo); os 5.438 sem dono voltam para Aguardando atendimento; trava da roleta; os dois relógios; virada no 8º dia, tudo de uma vez; Portal em `lead_origem_paga`; alertas. |
-| **3b. Duplicado** | Vários corretores com o mesmo cliente (§6.1): índice por corretor, webhook cria registro novo em vez de redistribuir, encerramento no avanço para Visita realizada.                                                                                          |
-| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                                                           |
+Migration `20261010120500_em_atendimento_fatia2_troca_escolha` (Drizzle
+`0056`). Testes: `tests/db/em-atendimento-fatia2.test.ts` (banco, 24 testes)
+e `tests/em-atendimento-fatia2.test.tsx` (telas). Nada aqui move lead por
+robô: tudo é ação do corretor.
+
+### 7.1 Decisões do dono para esta fatia
+
+| Pergunta                                          | Decisão                                                                                                               |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Escolher os seus 65 protege do relógio de 5 dias? | **Não.** A escolha põe o lead na frente da disputa; escolhido sem ligação ou WhatsApp em 5 dias desce do mesmo jeito. |
+| A troca "entra um, sai um" com a regra em sombra  | **Já obrigatória.** Com 65 em Em atendimento, o corretor só põe mais um liberando outro no mesmo passo.               |
+| Saídas de Em atendimento                          | **Cinco desfechos:** Agendou, Pediu retorno, Esfriou, Perdido e **Mandou doc**. A tela não oferece outra saída.       |
+| Retorno combinado para mais de 30 dias            | **Categoria nova "Retorno futuro"**, reciclável pela reativação. Lead próprio não perde: fica com a data longa.       |
+
+### 7.2 O que o banco faz
+
+| Peça                             | O que é                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Trava em `transicionar_lead`     | Entrada em Em atendimento com `em_atendimento_ocupacao >= teto` é recusada com o código **EA065** e os números no DETAIL. Vale para o **próprio corretor dono** (com papel de corretor); gestão, serviço e quem age na carteira de outro (SDR agendando) seguem como antes. Cadeado por corretor: duas entradas ao mesmo tempo contam uma de cada vez. |
+| `trocar_vaga_em_atendimento`     | Numa transação: quem sai recebe o desfecho (retorno, esfriou ou perdido) e **depois** quem entra passa pela trava de sempre, com a vaga já livre. Sem passe-livre: quem sai sem liberar vaga (lixeira) não abre espaço. Falhou qualquer parte, nada muda.                                                                                              |
+| `registrar_retorno_lead`         | "Pediu retorno" e "Esfriou" → Aguardando retorno com a data (até `retorno_max_dias`). Além disso, perda seca `retorno_futuro` (sem a redistribuição do "Marcar como perdido") e evento com a data. "Esfriou" deixa o lead frio.                                                                                                                        |
+| `em_atendimento_escolhas`        | Os leads que o corretor escolheu manter. `escolher_em_atendimento` (só o dono, só lead em Em atendimento, no máximo o teto). A escolha é o **primeiro critério** da disputa em `_em_atendimento_classificar`; o filtro de 5 dias continua antes dela.                                                                                                  |
+| `em_atendimento_contador_v1`     | X/65, escolhidos, Minha base, trava, modo. O mesmo `em_atendimento_ocupacao` da trava — a tela nunca diz 64 quando o banco recusa por 65.                                                                                                                                                                                                              |
+| `em_atendimento_sombra_leads_v2` | O detalhe por lead com a coluna `escolhido` (base da tela "Meus 65" e da janela de troca).                                                                                                                                                                                                                                                             |
+
+Por que a trava mora no banco: são mais de nove telas que mudam status, mais
+a API pública. Uma trava só na tela vazaria pela primeira que esquecesse.
+
+### 7.3 O que a tela faz
+
+- **Contador X/65** no chip da Base de leads (corretor), no anel da Fila
+  (que passa a mostrar "em atendimento" em vez da carteira ativa antiga) e na
+  coluna Em atendimento do Kanban. Verde até 60, âmbar até 65, vermelho lotado.
+- **Janela de troca:** quando o banco recusa (EA065), a mutação de etapa abre
+  a janela em vez do toast — em qualquer tela, porque ela mora uma vez no
+  layout autenticado. Sugere os 5 mais parados; o corretor escolhe quem sai e
+  com qual desfecho (retorno com data, esfriou, perdido). Agendou e Mandou doc
+  liberam vaga pela ficha.
+- **Saída de Em atendimento só por desfecho:** menu "⋯" do card, trilha da
+  ficha e arrastar do Kanban oferecem só os cinco. `transicaoLeadPermitida`
+  continua espelhando o banco (que ainda aceita outras saídas até a Fatia 3);
+  `saidaOferecida` é a camada da tela por cima dele.
+- **Pediu retorno / Esfriou:** diálogo com a data; acima de 30 dias avisa que
+  vira "Retorno futuro" antes de confirmar.
+- **"Meus 65"** (`/meus-65`): a lista na ordem da disputa, a posição, os dias
+  sem toque, a ação da regra e a escolha ("Manter"). Escolhido parado mostra
+  "toque até dd/mm para manter". A gestão abre a tela de um corretor em
+  leitura (`?corretor=`).
+- **"Minha base"** é o nome de tela da Reserva (menu e título); a rota
+  `/reserva` fica.
+
+### 7.4 Como foi conferido
+
+- Banco: 24 testes com teto 3 (a regra lê o teto da mesma chave). Cobrem a
+  trava para o dono e a liberdade de gestão, serviço, SDR e conta sem papel;
+  lixeira e arquivado fora da ocupação; duas entradas simultâneas com uma vaga;
+  a troca como transação (falha, lixeira, perdido); retorno até 30 dias, além
+  (perda seca) e lead próprio; a escolha na frente da disputa, sem proteger do
+  relógio, com limite e perdendo o efeito ao sair; o contador e o acesso.
+- **Checagem de mutação, nove vezes.** Sete derrubaram testes de primeira.
+  Duas sobreviveram e viraram correção: a trava sem o "só o dono" (faltava o
+  SDR agendando para um corretor lotado — teste novo) e a marca de passe-livre
+  da troca (código morto: o desfecho já libera a vaga antes da entrada; a
+  marca foi removida, e um teste novo garante que quem sai da lixeira não
+  abre vaga).
+- Telas: a trava vira janela, os cinco desfechos, o aviso de retorno futuro,
+  a ordem dos mais parados, a escolha e os pontos de fiação (mutação de
+  etapa, layout, Kanban, ficha, menu).
+
+## 8. Próximas fatias
+
+| Fatia             | O que entra                                                                                                                                                                                                                                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **3. Ligar**      | Portas fechadas (cadência, lote e transição para Em atendimento exigem resposta + passo; saída só por desfecho também no banco); os 5.438 sem dono voltam para Aguardando atendimento; trava da roleta; os dois relógios; virada no 8º dia, tudo de uma vez; Portal em `lead_origem_paga`; alertas em 60 e 65. |
+| **3b. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                                                                                                                                                                                                                                                |
+| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                                                                                                             |

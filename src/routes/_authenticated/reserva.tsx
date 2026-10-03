@@ -8,7 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Reserva de outro corretor para a gestão (leitura; o resgate é sempre para a
 // própria carteira e o banco recusa o resto). O escopo é decidido no banco.
 export const Route = createFileRoute("/_authenticated/reserva")({
-  head: () => ({ meta: [{ title: "Reserva — Seu Metro Quadrado" }] }),
+  // "Minha base" é o nome da tela (regra dos 65, decisão 2.4): o que é do
+  // corretor antes de Em atendimento. Por dentro continua a Reserva.
+  head: () => ({ meta: [{ title: "Minha base — Seu Metro Quadrado" }] }),
   validateSearch: (search: Record<string, unknown>): { corretor?: string } => ({
     corretor: typeof search.corretor === "string" && search.corretor ? search.corretor : undefined,
   }),

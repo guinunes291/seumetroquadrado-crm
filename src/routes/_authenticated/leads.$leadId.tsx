@@ -34,12 +34,15 @@ import {
   FUNNEL_STAGES,
   PROXIMA_ACAO,
   leadStatusLabel,
+  MOTIVO_SAIDA_NAO_OFERECIDA,
   motivoTransicaoBloqueada,
   resolveStageAction,
+  saidaOferecida,
   transicaoLeadPermitida,
   type StageLead,
   type LeadStatus,
 } from "@/lib/leads";
+import { DesfechosEmAtendimento } from "@/features/em-atendimento/desfechos-em-atendimento";
 import { useUserRoles } from "@/hooks/use-auth";
 import { useLigarLead } from "@/hooks/use-ligar-lead";
 import {
@@ -228,11 +231,16 @@ function LeadDetailPage() {
       toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
       return;
     }
+    // De Em atendimento só se sai por desfecho (regra dos 65, Fatia 2).
+    if (!saidaOferecida(lead.status, target)) {
+      toast.error(MOTIVO_SAIDA_NAO_OFERECIDA);
+      return;
+    }
     if (target === "agendado" && sdrDonoNaoEntregue) {
       setAgendarSdrOpen(true);
       return;
     }
-    const action = resolveStageAction(target);
+    const action = resolveStageAction(target, lead.status);
     if (action.kind === "perdido") setPerdidoLead(stageLead);
     else if (action.kind === "modal") setModalState({ modal: action.modal, lead: stageLead });
     else mudarStatus.mutate({ id: lead.id, status: target });
@@ -438,13 +446,32 @@ function LeadDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pb-4">
+          {/* Em atendimento sai só por desfecho (regra dos 65, Fatia 2): os
+              cinco botões ficam em destaque e a trilha abaixo só aceita esses
+              destinos. "Agendou" passa por goToStage (o SDR dono tem entrega). */}
+          {lead.status === "em_atendimento" && (
+            <div className="mb-3 space-y-1.5">
+              <p className="text-xs text-muted-foreground">Desfecho — sai de Em atendimento:</p>
+              <DesfechosEmAtendimento
+                lead={stageLead}
+                gestao={gestao}
+                pendente={mudarStatus.isPending}
+                onPickModal={(modal, target) => {
+                  if (target === "agendado") goToStage(target);
+                  else setModalState({ modal, lead: stageLead });
+                }}
+                onPickPerdido={() => setPerdidoLead(stageLead)}
+              />
+            </div>
+          )}
           <ol className="flex flex-wrap items-center gap-x-1 gap-y-2">
             {FUNNEL_STAGES.map((s, idx) => {
               const currentIdx = FUNNEL_STAGES.indexOf(lead.status as LeadStatus);
               const isCurrent = s === lead.status;
               const isPast = currentIdx >= 0 && idx < currentIdx;
               const permitida =
-                s === "contrato_fechado" || transicaoLeadPermitida(lead.status, s, gestao);
+                (s === "contrato_fechado" || transicaoLeadPermitida(lead.status, s, gestao)) &&
+                saidaOferecida(lead.status, s);
               const ultimo = idx === FUNNEL_STAGES.length - 1;
               return (
                 <li key={s} className="flex items-center gap-x-1">
@@ -456,7 +483,9 @@ function LeadDetailPage() {
                     title={
                       isCurrent || permitida
                         ? LEAD_STATUS_LABEL[s]
-                        : motivoTransicaoBloqueada(lead.status, s, gestao)
+                        : saidaOferecida(lead.status, s)
+                          ? motivoTransicaoBloqueada(lead.status, s, gestao)
+                          : MOTIVO_SAIDA_NAO_OFERECIDA
                     }
                     className={cn(
                       "press-scale inline-flex h-8 items-center gap-1.5 rounded-md px-1.5 text-xs transition-colors",
