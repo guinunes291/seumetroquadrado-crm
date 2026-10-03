@@ -46,8 +46,11 @@ let superintendente: UsuarioTeste;
 //   corretor:        round(123456.78 * 1.234 / 100, 2) = 1523.46
 //   gerente:         round(123456.78 * 0.555 / 100, 2) =  685.19
 //   superintendente: round(123456.78 * 0.125 / 100, 2) =  154.32
+// O percentual do corretor não é digitado: na venda registrada pelo corretor o
+// gatilho de tier (trg_vendas_tier_comissao) grava total × fatia do tier —
+// aqui tier_1, lead da empresa, 40%: 3,085 × 40% = 1,234.
 const VALOR_VENDA = "123456.78";
-const PCT = { corretor: "1.234", gerente: "0.555", superintendente: "0.125" };
+const PCT = { total: "3.085", corretor: "1.234", gerente: "0.555", superintendente: "0.125" };
 const ESPERADO = { corretor: "1523.46", gerente: "685.19", superintendente: "154.32" };
 const SOMA_ESPERADA = "2362.97";
 
@@ -90,11 +93,11 @@ async function registrarVendaComoCorretor(leadId: string): Promise<string> {
   await comoUsuario(c, corretor.id);
   const r = await c.query(
     `INSERT INTO public.vendas
-       (lead_id, corretor_id, criado_por_id, valor_venda, data_assinatura,
+       (lead_id, corretor_id, criado_por_id, valor_venda, data_assinatura, percentual_comissao,
         percentual_corretor, percentual_gerente, percentual_superintendente, status_venda)
-     VALUES ($1, $2, $2, $3, current_date, $4, $5, $6, 'pendente'::public.status_venda)
+     VALUES ($1, $2, $2, $3, current_date, $4, $5, $6, $7, 'pendente'::public.status_venda)
      RETURNING id`,
-    [leadId, corretor.id, VALOR_VENDA, PCT.corretor, PCT.gerente, PCT.superintendente],
+    [leadId, corretor.id, VALOR_VENDA, PCT.total, PCT.corretor, PCT.gerente, PCT.superintendente],
   );
   return r.rows[0].id as string;
 }

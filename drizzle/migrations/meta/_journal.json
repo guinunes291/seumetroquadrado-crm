@@ -365,6 +365,20 @@
       "when": 1791558360000,
       "tag": "0051_em_atendimento_teto_65_sombra",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1791644400000,
+      "tag": "0052_tier_comissao_sem_anon",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791644460000,
+      "tag": "0053_esteira_marquinhos_so_robo",
+      "breakpoints": true
     }
   ]
 }

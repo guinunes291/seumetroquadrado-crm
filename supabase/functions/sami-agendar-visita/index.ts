@@ -139,6 +139,9 @@ Deno.serve(async (req: Request) => {
     const registro: Record<string, unknown> = {
       lead_id: lead.id,
       corretor_id: corretor.id,
+      // Quem pede à Sami é o corretor: ele é o autor. Visita sem autor conta
+      // como do robô Marquinhos na esteira de comissão (lead_esteira_comissao).
+      criado_por_id: corretor.id,
       tipo: TIPO_VISITA,
       status: STATUS_NOVA,
       titulo,

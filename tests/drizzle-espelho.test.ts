@@ -16,7 +16,11 @@
  *     o migrator o pula em silêncio (as entradas criadas pelo próprio Lovable
  *     têm "when" do relógio e podem ficar para trás; os espelhos, não);
  *  3. todo .sql de drizzle/migrations está no journal, e os snapshots seguem
- *     encadeados (prevId = id do anterior).
+ *     encadeados (prevId = id do anterior);
+ *  4. o caminho inverso: migration que o PRÓPRIO Lovable criou (só em
+ *     drizzle/, já aplicada em produção) é trazida para supabase/migrations
+ *     SEM espelho — reaplicar seria redundante. Fica em TRAZIDAS_DO_LOVABLE,
+ *     e o corpo de cada função tem de ser o mesmo do Lovable.
  *
  * Para espelhar: `espelhar()` de scripts/academia/converter-lote.mjs.
  */
@@ -37,9 +41,23 @@ const sqlDrizzle = new Map(
   entradas.map((e) => [e.tag, readFileSync(join(DRIZZLE, `${e.tag}.sql`))]),
 );
 
+/**
+ * Migrations de supabase/migrations que trazem para o replay do CI o que o
+ * Lovable criou e aplicou direto em produção (entradas só-drizzle do journal).
+ */
+const TRAZIDAS_DO_LOVABLE: Record<string, string[]> = {
+  "20261010120000_migrations_do_lovable.sql": [
+    "0013_vendas_total_empresa",
+    "0015_comissao_tier_esteira",
+    "0022_corretor_agenda_nao_vira_lead_sdr",
+    "0037_leads_funil_registros_v1",
+  ],
+};
+
 const migrationsSupabase = readdirSync(SUPABASE)
   .filter((f) => f.endsWith(".sql") && f >= PRIMEIRA_ESPELHADA)
   .sort();
+const migrationsComEspelho = migrationsSupabase.filter((f) => !(f in TRAZIDAS_DO_LOVABLE));
 
 /** Entrada do journal cujo arquivo é idêntico ao da migration do Supabase. */
 function espelhoDe(arquivo: string): Entrada | undefined {
@@ -47,18 +65,20 @@ function espelhoDe(arquivo: string): Entrada | undefined {
   return entradas.find((e) => sqlDrizzle.get(e.tag)?.equals(fonte));
 }
 
+const espacos = (s: string) => s.replace(/\s+/g, " ").trim();
+
 describe("espelho drizzle das migrations (o que o Lovable aplica em produção)", () => {
   it("toda migration nova tem cópia byte a byte no journal, na mesma ordem", () => {
     expect(migrationsSupabase[0]).toBe(PRIMEIRA_ESPELHADA);
-    const semEspelho = migrationsSupabase.filter((f) => !espelhoDe(f));
+    const semEspelho = migrationsComEspelho.filter((f) => !espelhoDe(f));
     expect(semEspelho, "sem espelho em drizzle/migrations (não chegam à produção)").toEqual([]);
 
-    const ordem = migrationsSupabase.map((f) => espelhoDe(f)!.idx);
+    const ordem = migrationsComEspelho.map((f) => espelhoDe(f)!.idx);
     expect(ordem).toEqual([...ordem].sort((a, b) => a - b));
   });
 
   it("o when de cada espelho passa o de toda entrada anterior (o migrator não pula)", () => {
-    const espelhos = new Set(migrationsSupabase.flatMap((f) => espelhoDe(f)?.tag ?? []));
+    const espelhos = new Set(migrationsComEspelho.flatMap((f) => espelhoDe(f)?.tag ?? []));
     let maior = 0;
     const pulados: string[] = [];
     for (const e of entradas) {
@@ -88,6 +108,37 @@ describe("espelho drizzle das migrations (o que o Lovable aplica em produção)"
       ) as { id: string; prevId: string };
       if (anterior !== null) expect(snap.prevId, e.tag).toBe(anterior);
       anterior = snap.id;
+    }
+  });
+
+  it("o que veio do Lovable entra no replay com o mesmo SQL e sem espelho", () => {
+    const tags = new Set(entradas.map((e) => e.tag));
+    const gemeasDoSupabase = new Set(
+      readdirSync(SUPABASE)
+        .filter((f) => f.endsWith(".sql"))
+        .flatMap((f) => espelhoDe(f)?.tag ?? []),
+    );
+    for (const [arquivo, origens] of Object.entries(TRAZIDAS_DO_LOVABLE)) {
+      expect(migrationsSupabase, arquivo).toContain(arquivo);
+      // Espelhar reaplicaria em produção o que o Lovable já aplicou.
+      expect(espelhoDe(arquivo), `${arquivo} não pode ter espelho`).toBeUndefined();
+
+      const trazida = espacos(readFileSync(join(SUPABASE, arquivo), "utf8"));
+      for (const tag of origens) {
+        expect(tags.has(tag), `${tag} fora do journal`).toBe(true);
+        expect(gemeasDoSupabase.has(tag), `${tag} já tem par em supabase/`).toBe(false);
+        expect(trazida, arquivo).toContain(`drizzle/migrations/${tag}.sql`);
+
+        // Corpo de cada função (entre $tag$) idêntico ao do Lovable; sem
+        // função (ALTER TYPE), o arquivo inteiro.
+        const original = sqlDrizzle.get(tag)!.toString("utf8");
+        const corpos = [...original.matchAll(/\$(\w*)\$([\s\S]*?)\$\1\$/g)].map((m) => m[2]);
+        for (const trecho of corpos.length > 0 ? corpos : [original]) {
+          expect(trazida, `${tag}: SQL diferente do aplicado em produção`).toContain(
+            espacos(trecho),
+          );
+        }
+      }
     }
   });
 });
