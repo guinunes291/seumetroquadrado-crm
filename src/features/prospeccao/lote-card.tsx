@@ -28,7 +28,7 @@ import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import type { ZonaProjeto } from "@/lib/zonas";
 import {
   TAMANHO_LOTE,
-  ZONAS_LOTE,
+  zonasDoLote,
   bancoDoLoteAtualizado,
   fetchStatusLote,
   rotuloDaZona,
@@ -93,8 +93,8 @@ export function LoteProspeccaoCard() {
               Pedir lote de {s?.tamanho ?? TAMANHO_LOTE} do Bolsão
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Clientes sem dono da zona que você escolher. Entram direto na sua cadência e não
-              ocupam vaga da sua carteira ativa — quem responder fica com você.
+              Clientes sem dono de uma zona da sua região de atuação. Entram direto na sua cadência
+              e não ocupam vaga da sua carteira ativa — quem responder fica com você.
             </p>
           </div>
         </div>
@@ -108,7 +108,7 @@ export function LoteProspeccaoCard() {
               <SelectValue placeholder="Escolha a zona" />
             </SelectTrigger>
             <SelectContent>
-              {ZONAS_LOTE.map((z) => (
+              {zonasDoLote(s).map((z) => (
                 <SelectItem key={z} value={z}>
                   {rotuloDaZona(z)}
                 </SelectItem>

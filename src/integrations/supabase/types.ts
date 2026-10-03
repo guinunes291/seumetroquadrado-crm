@@ -11306,6 +11306,10 @@ export type Database = {
         }[]
       }
       copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
+      corretor_atende_zona: {
+        Args: { _corretor: string; _zona: string }
+        Returns: boolean
+      }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       corretor_tier: {
         Args: { p_corretor: string; p_ref?: string }
@@ -12711,6 +12715,7 @@ export type Database = {
         Args: { _projeto_id: string }
         Returns: string
       }
+      regiao_do_corretor: { Args: { _corretor: string }; Returns: string[] }
       registrar_documentacao_remocao: {
         Args: { _ator_id: string; _documentacao_id: string }
         Returns: string
@@ -13102,7 +13107,12 @@ export type Database = {
         }[]
       }
       transferir_leads: {
-        Args: { _corretor: string; _ids: string[] }
+        Args: {
+          _corretor: string
+          _forcar_fora_da_zona?: boolean
+          _ids: string[]
+          _motivo_fora_da_zona?: string
+        }
         Returns: number
       }
       transicao_lead_permitida: {
@@ -13381,6 +13391,7 @@ export type Database = {
         Returns: boolean
       }
       zona_do_bairro: { Args: { _txt: string }; Returns: string }
+      zona_canonica: { Args: { _txt: string }; Returns: string }
       zona_do_lead: { Args: { _lead_id: string }; Returns: string }
       zona_normalizar: { Args: { _txt: string }; Returns: string }
     }

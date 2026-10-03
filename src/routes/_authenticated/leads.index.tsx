@@ -145,6 +145,12 @@ import type { SortingState } from "@/components/ui/data-table";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { isTypingTarget } from "@/lib/shortcuts";
 import { origemLabel } from "@/lib/origem";
+import { ExcecaoForaDaRegiaoFields } from "@/features/distribuicao/excecao-fora-da-regiao";
+import {
+  EXCECAO_ZONA_VAZIA,
+  excecaoZonaValida,
+  type ExcecaoForaDaRegiao,
+} from "@/lib/zona-estrita";
 
 export const Route = createFileRoute("/_authenticated/leads/")({
   head: () => ({ meta: [{ title: "Leads — Seu Metro Quadrado" }] }),
@@ -244,6 +250,7 @@ function LeadsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
   const [bulkTarget, setBulkTarget] = useState<string>("");
+  const [bulkExcecaoZona, setBulkExcecaoZona] = useState<ExcecaoForaDaRegiao>(EXCECAO_ZONA_VAZIA);
   const [bulkFollowupOpen, setBulkFollowupOpen] = useState(false);
   const [bulkFollowupData, setBulkFollowupData] = useState<string>("");
   // Descarte em lote com motivo (higiene do funil).
@@ -1817,7 +1824,6 @@ function LeadsPage() {
                           </div>
                         )}
 
-
                         <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
                           <Button
                             size="icon"
@@ -2035,17 +2041,25 @@ function LeadsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <ExcecaoForaDaRegiaoFields
+                  value={bulkExcecaoZona}
+                  onChange={setBulkExcecaoZona}
+                  disabled={bulkTransferir.isPending}
+                />
               </div>
               <DialogFooter>
                 <Button variant="ghost" onClick={() => setBulkTransferOpen(false)}>
                   Cancelar
                 </Button>
                 <Button
-                  disabled={!bulkTarget || bulkTransferir.isPending}
+                  disabled={
+                    !bulkTarget || bulkTransferir.isPending || !excecaoZonaValida(bulkExcecaoZona)
+                  }
                   onClick={() =>
                     bulkTransferir.mutate({
                       ids: Array.from(selectedIds),
                       corretorId: bulkTarget,
+                      excecaoZona: bulkExcecaoZona,
                     })
                   }
                 >

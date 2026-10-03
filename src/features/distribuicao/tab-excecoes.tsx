@@ -51,6 +51,13 @@ import {
   useResolverExcecao,
   type ExcecaoLinha,
 } from "./queries";
+import {
+  EXCECAO_ZONA_VAZIA,
+  excecaoZonaValida,
+  paramsExcecaoAtribuicao,
+  type ExcecaoForaDaRegiao,
+} from "@/lib/zona-estrita";
+import { ExcecaoForaDaRegiaoFields } from "./excecao-fora-da-regiao";
 
 // Fonte única: o enum gerado do banco (nunca uma cópia manual que diverge).
 const ORIGENS = Constants.public.Enums.lead_origem;
@@ -188,12 +195,17 @@ function ResolverExcecaoDialog({
   const [corretorId, setCorretorId] = useState("");
   const [roleta, setRoleta] = useState("");
   const [origem, setOrigem] = useState("");
+  const [excecaoZona, setExcecaoZona] = useState<ExcecaoForaDaRegiao>(EXCECAO_ZONA_VAZIA);
   const corretoresQ = useCorretoresDisponiveis(!!alvo);
 
   const executar = () => {
     if (!alvo) return;
-    const params: Record<string, string> = {};
-    if (acao === "atribuir_manual") params.corretor_id = corretorId;
+    const params: Record<string, string | boolean> = {};
+    if (acao === "atribuir_manual") {
+      params.corretor_id = corretorId;
+      // Zona estrita: corretor fora da região só com a exceção da gestão.
+      Object.assign(params, paramsExcecaoAtribuicao(excecaoZona));
+    }
     if (acao === "escolher_roleta") params.roleta_slug = roleta;
     if (acao === "corrigir_origem") params.origem = origem;
     resolver.mutate(
@@ -205,7 +217,7 @@ function ResolverExcecaoDialog({
   const pronto =
     acao === "reprocessar" ||
     acao === "arquivar" ||
-    (acao === "atribuir_manual" && !!corretorId) ||
+    (acao === "atribuir_manual" && !!corretorId && excecaoZonaValida(excecaoZona)) ||
     (acao === "escolher_roleta" && !!roleta) ||
     (acao === "corrigir_origem" && !!origem);
 
@@ -254,6 +266,11 @@ function ResolverExcecaoDialog({
                   ))}
                 </SelectContent>
               </Select>
+              <ExcecaoForaDaRegiaoFields
+                value={excecaoZona}
+                onChange={setExcecaoZona}
+                disabled={resolver.isPending}
+              />
             </div>
           )}
 

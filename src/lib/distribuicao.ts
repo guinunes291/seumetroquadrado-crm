@@ -12,23 +12,23 @@ import type { Database } from "@/integrations/supabase/types";
 export type LeadOrigem = Database["public"]["Enums"]["lead_origem"];
 
 // Roletas de ZONA (decisão 2026-08-16): a roleta É a zona — o gestor define
-// os corretores de cada uma, e o motor roteia zona-primeiro (roleta_da_zona).
-export type ZonaRoletaSlug = "zona-norte" | "zona-sul" | "zona-leste" | "zona-oeste";
+// os corretores de cada uma. ZONA ESTRITA (2026-10-03): a participação nelas
+// é a REGIÃO DE ATUAÇÃO do corretor, e lead com zona só vai para quem atende
+// a zona (sem desvio para outra zona). Centro e Grande SP ganharam roleta.
+export type ZonaRoletaSlug =
+  "zona-norte" | "zona-sul" | "zona-leste" | "zona-oeste" | "zona-centro" | "zona-grande-sp";
 
 export const ZONA_ROLETAS: readonly ZonaRoletaSlug[] = [
   "zona-norte",
   "zona-sul",
   "zona-leste",
   "zona-oeste",
+  "zona-centro",
+  "zona-grande-sp",
 ] as const;
 
 export type RoletaSlug =
-  | "plantao"
-  | "marquinhos"
-  | "landing"
-  | "base"
-  | "agendados-sdr"
-  | ZonaRoletaSlug;
+  "plantao" | "marquinhos" | "landing" | "base" | "agendados-sdr" | ZonaRoletaSlug;
 
 export const ROLETA_LABEL: Record<RoletaSlug, string> = {
   plantao: "Roleta Plantão",
@@ -40,6 +40,8 @@ export const ROLETA_LABEL: Record<RoletaSlug, string> = {
   "zona-sul": "Roleta Zona Sul",
   "zona-leste": "Roleta Zona Leste",
   "zona-oeste": "Roleta Zona Oeste",
+  "zona-centro": "Roleta Centro",
+  "zona-grande-sp": "Roleta Grande SP",
 };
 
 /** Nome vindo do banco (roletas.nome) vence o mapa fixo — campanha e roleta
@@ -101,7 +103,10 @@ export type MotivoExcecao =
   | "origem_nao_mapeada"
   | "falha_tecnica"
   | "corretor_anterior_inativo"
-  | "dados_incompletos";
+  | "dados_incompletos"
+  | "sem_corretor_na_zona"
+  | "zona_sem_time"
+  | "zona_sem_roleta";
 
 export const MOTIVO_EXCECAO_LABEL: Record<MotivoExcecao, string> = {
   sem_corretor_ativo: "Nenhum corretor ativo na roleta",
@@ -111,6 +116,9 @@ export const MOTIVO_EXCECAO_LABEL: Record<MotivoExcecao, string> = {
   falha_tecnica: "Falha técnica na distribuição",
   corretor_anterior_inativo: "Corretor anterior inativo",
   dados_incompletos: "Lead sem dados mínimos",
+  sem_corretor_na_zona: "Esperando o time da zona (ninguém da zona apto agora)",
+  zona_sem_time: "Zona sem time montado",
+  zona_sem_roleta: "Zona sem roleta vinculada",
 };
 
 export function motivoExcecaoLabel(motivo: string): string {

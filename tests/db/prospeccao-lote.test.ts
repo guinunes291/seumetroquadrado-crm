@@ -29,6 +29,7 @@ import {
   criarLead,
   criarProjeto,
   criarUsuario,
+  darRegiao,
   errCode,
   limparDados,
   novoClient,
@@ -64,6 +65,11 @@ beforeEach(async () => {
   admin = await criarUsuario(c, { nome: "Admin Lote", papel: "admin" });
   corretor = await criarUsuario(c, { nome: "Corretor Lote", papel: "corretor" });
   outro = await criarUsuario(c, { nome: "Outro Corretor", papel: "corretor" });
+  // Zona estrita (20261009120100): o corretor só pede lote da própria região.
+  // Aqui os dois atendem as seis zonas — o recorte por região tem a própria
+  // seção no fim do arquivo e em zona-estrita.test.ts.
+  await darRegiao(c, corretor.id);
+  await darRegiao(c, outro.id);
 });
 
 type Resultado = {
@@ -704,6 +710,7 @@ describe("Grande SP como 6ª zona do lote", () => {
     expect(await doCorretor(outro)).toEqual([deSantana]);
 
     const terceiro = await criarUsuario(c, { nome: "Terceiro Corretor", papel: "corretor" });
+    await darRegiao(c, terceiro.id);
     expect(await pedir(terceiro, "Sul")).toMatchObject({ ok: true, entregues: 1 });
     expect(await doCorretor(terceiro)).toEqual([doAbc]);
 

@@ -81,6 +81,32 @@ export async function criarUsuario(
   return { id, email, nome, papel, equipeId: opts.equipeId ?? null };
 }
 
+/** As seis zonas da distribuição (mesma lista de `_zonas_canonicas()`). */
+export const TODAS_AS_ZONAS = ["Norte", "Sul", "Leste", "Oeste", "Centro", "Grande SP"] as const;
+
+/**
+ * Dá ao corretor a REGIÃO de atuação (migration 20261009120000): participação
+ * ativa nas roletas de zona — o banco espelha em profiles.zonas. Com a zona
+ * estrita, corretor sem região só recebe/disca/pede lead SEM zona; testes de
+ * outros recursos que usam leads com zona declaram a região aqui.
+ */
+export async function darRegiao(
+  c: Client,
+  corretorId: string,
+  zonas: readonly string[] = TODAS_AS_ZONAS,
+): Promise<void> {
+  await comoSuperuser(c);
+  await c.query(
+    `INSERT INTO public.roleta_participantes (roleta_id, corretor_id, ativo)
+     SELECT r.id, $1::uuid, true
+       FROM public.zonas_roletas zr
+       JOIN public.roletas r ON r.slug = zr.roleta_slug
+      WHERE zr.zona = ANY($2::text[])
+     ON CONFLICT (roleta_id, corretor_id) DO UPDATE SET ativo = true`,
+    [corretorId, zonas],
+  );
+}
+
 export async function criarEquipe(
   c: Client,
   opts: { nome?: string; gestorId?: string | null } = {},

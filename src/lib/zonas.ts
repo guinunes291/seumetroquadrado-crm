@@ -14,10 +14,13 @@
 // GRANDE SP (decisão 4 de 2026-09-02, docs/revisao-projetos-foco.md): o estoque
 // de Guarulhos, Osasco e ABC é zona de primeira classe na prateleira — antes
 // caía em "Sem zona". É reconhecida por `zona_smq`/`regiao` ("Grande SP", "ABC")
-// ou pela cidade/bairro ("Ponte Grande (Guarulhos)"). As telas de LEAD e a
-// distribuição seguem com as cinco zonas de `ZONAS_ORDEM` (o motor e a tabela
-// zonas_bairros só conhecem essas), por isso há dois tipos: `Zona` (lead) e
-// `ZonaProjeto` (prateleira).
+// ou pela cidade/bairro ("Ponte Grande (Guarulhos)").
+//
+// ZONA ESTRITA (03/10/2026, docs/distribuicao-por-zonas.md): a distribuição
+// passou a usar as MESMAS seis zonas — a zona do lead sai da regra da vitrine
+// (`zona_canonica`/`_zona_do_lead_campos` no banco) e a região do corretor é
+// uma lista dessas seis (`ZONAS_REGIAO`). `Zona` (cinco da capital) continua
+// existindo para o que é só da capital (mapa, zonas_bairros).
 
 /** As cinco zonas da capital, como o CRM as nomeia. */
 export const ZONAS_CAPITAL = ["Norte", "Oeste", "Centro", "Leste", "Sul"] as const;
@@ -65,6 +68,13 @@ export type ZonaProjeto = Zona | typeof GRANDE_SP;
 
 /** Zonas de PROJETO na ordem dos chips da prateleira: capital primeiro, Grande SP depois. */
 export const ZONAS_PROJETO_ORDEM: readonly ZonaProjeto[] = [...ZONAS_ORDEM, GRANDE_SP] as const;
+
+/**
+ * As seis zonas da distribuição, na ordem dos chips: a zona de um LEAD e a
+ * região de atuação de um CORRETOR (= roletas de zona em que ele participa)
+ * são sempre uma destas. Mesma lista de `_zonas_canonicas()` no banco.
+ */
+export const ZONAS_REGIAO: readonly ZonaProjeto[] = ZONAS_PROJETO_ORDEM;
 
 /** Rótulo do balde de quem não tem zona reconhecível — nunca some da tela. */
 export const SEM_ZONA = "Sem zona";
