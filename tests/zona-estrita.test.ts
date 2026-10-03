@@ -145,11 +145,13 @@ describe("lote de prospecção: só zonas da região", () => {
 });
 
 describe("contrato das migrations", () => {
-  it("são as MAIORES do diretório (o runner do Supabase recusa migration no meio)", () => {
+  it("vêm depois da última migration da base (o runner do Supabase recusa migration no meio)", () => {
     const todas = readdirSync(DIR)
       .filter((f) => f.endsWith(".sql"))
       .sort();
-    expect(todas.slice(-2)).toEqual([REGIAO, MOTOR]);
+    // Última migration da main quando a zona estrita foi escrita.
+    expect(REGIAO > "20261008120600_academia_lote3_m09.sql").toBe(true);
+    expect(todas.indexOf(MOTOR)).toBe(todas.indexOf(REGIAO) + 1);
   });
 
   it("região = participação nas roletas de zona; profiles.zonas é espelho blindado", () => {

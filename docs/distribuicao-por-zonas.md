@@ -124,6 +124,23 @@ UPDATE public.distribuicao_settings SET valor = 'false' WHERE chave = 'zona_estr
 Motores e guarda voltam ao comportamento anterior linha a linha. A região
 única (parte 1) continua — ela não muda quem recebe nada sozinha.
 
+### Repasse por SLA de lead de campanha (20261009120200)
+
+O repasse imediato (tela, quando o relógio zera) e o cron de leads parados
+mandavam o lead de campanha para a roleta ponderada de lead NOVO, que recusa
+lead com dono (`ja_atribuido`). O lead ficava com quem estourou o SLA, nunca
+escalava, e no cron de parados voltava como candidato a cada minuto — ~50
+leads assim travavam o repasse de todos os outros. Agora os três caminhos de
+repasse (imediato, parados e cron de SLA) usam `_repassar_lead_campanha`:
+
+- repassa **dentro da equipe da campanha** (SWRR por tier, cota diária),
+  pulando quem já teve o lead, mantendo o pino e **reiniciando o relógio**;
+- respeita a zona estrita: campanha comum com lead de zona → time da zona;
+  equipe fixa → quem da equipe atende a zona, senão o time da zona;
+- campanha desligada → triagem normal;
+- ninguém para receber → o lead fica com o dono atual e abre exceção
+  (`sem_corretor_elegivel`), com alerta e o backoff do cron.
+
 ### SQL de verificação (banco do CRM)
 
 ```sql
