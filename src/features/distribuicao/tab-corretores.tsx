@@ -32,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ZONAS_ORDEM, type Zona } from "@/lib/zonas";
+import { ZONAS_REGIAO, type ZonaProjeto } from "@/lib/zonas";
 import {
   useAtualizarCorretorDistribuicao,
   useCorretoresDistribuicao,
@@ -69,9 +69,10 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
     <TooltipProvider delayDuration={150}>
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Elegibilidade do corretor para TODAS as filas: presença do dia, zonas atendidas, vínculo e
-          onboarding (exigidos pelo motor v2) e carteira contra o teto. O cadastro geral (telefone,
-          equipe, papel) continua em Configurações → Pessoas.
+          Elegibilidade do corretor para TODAS as filas: presença do dia, região de atuação (só
+          recebe lead dessas zonas, de qualquer origem), vínculo e onboarding (exigidos pelo motor
+          v2) e carteira contra o teto. O cadastro geral (telefone, equipe, papel) continua em
+          Configurações → Pessoas.
         </p>
 
         <Card>
@@ -88,7 +89,7 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
                   <TableRow>
                     <TableHead>Corretor</TableHead>
                     <TableHead>Presença hoje</TableHead>
-                    <TableHead>Zonas</TableHead>
+                    <TableHead>Região de atuação</TableHead>
                     {temV2 && <TableHead>Vínculo</TableHead>}
                     {temV2 && <TableHead>Onboarding</TableHead>}
                     <TableHead>Filas em que participa</TableHead>
@@ -256,8 +257,10 @@ export function TabCorretores({ somenteLeitura }: { somenteLeitura: boolean }) {
   );
 }
 
+/** Região de atuação: as roletas de zona em que o corretor participa (o banco
+ *  espelha em profiles.zonas). Sem região = só recebe lead sem zona. */
 function ZonasBadges({ zonas }: { zonas: string[] }) {
-  if (zonas.length === 0) return <span className="text-muted-foreground">Todas</span>;
+  if (zonas.length === 0) return <StatusBadge intent="warning">Sem região</StatusBadge>;
   return (
     <div className="flex flex-wrap gap-1">
       {zonas.map((z) => (
@@ -269,8 +272,10 @@ function ZonasBadges({ zonas }: { zonas: string[] }) {
   );
 }
 
-/** Zonas atendidas — rascunho + Salvar (padrão da casa), gravando pela RPC
- *  auditada. Nenhuma marcada = recebe de todas. */
+/** Região de atuação — rascunho + Salvar (padrão da casa), gravando pela RPC
+ *  auditada, que inclui/remove o corretor das roletas de zona (a região é uma
+ *  só: a aba Filas mostra o mesmo time). Nenhuma marcada = só lead sem zona;
+ *  quem atende tudo é marcado nas seis zonas, explicitamente. */
 function ZonasEditor({
   corretor,
   onSalvar,
@@ -286,7 +291,7 @@ function ZonasEditor({
   const mudou =
     rascunho !== null && (rascunho.size !== atual.size || [...rascunho].some((z) => !atual.has(z)));
 
-  const toggle = (z: Zona) => {
+  const toggle = (z: ZonaProjeto) => {
     const next = new Set(marcadas);
     if (next.has(z)) next.delete(z);
     else next.add(z);
@@ -298,7 +303,7 @@ function ZonasEditor({
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 min-w-[120px] justify-start gap-1">
           {corretor.zonas.length === 0 ? (
-            <span className="text-muted-foreground">Todas</span>
+            <span className="text-warning">Sem região</span>
           ) : (
             <span className="truncate">{corretor.zonas.join(", ")}</span>
           )}
@@ -306,9 +311,9 @@ function ZonasEditor({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-52 p-2">
         <p className="px-1 pb-2 text-xs text-muted-foreground">
-          Sem marcação, recebe leads de todas as zonas.
+          Recebe lead só destas zonas, de qualquer origem. Sem marcação, só lead sem zona.
         </p>
-        {ZONAS_ORDEM.map((z) => (
+        {ZONAS_REGIAO.map((z) => (
           <label
             key={z}
             className="flex cursor-pointer items-center gap-2 rounded px-1 py-1.5 text-sm hover:bg-muted"
@@ -324,7 +329,7 @@ function ZonasEditor({
               className="w-full"
               disabled={pending}
               onClick={() => {
-                onSalvar(ZONAS_ORDEM.filter((z) => marcadas.has(z)));
+                onSalvar(ZONAS_REGIAO.filter((z) => marcadas.has(z)));
                 setRascunho(null);
               }}
             >

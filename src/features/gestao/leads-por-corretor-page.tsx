@@ -56,6 +56,13 @@ import {
 } from "@/lib/leads";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { notificarTransferenciaEmLote } from "@/lib/notificar-transferencia";
+import { ExcecaoForaDaRegiaoFields } from "@/features/distribuicao/excecao-fora-da-regiao";
+import {
+  EXCECAO_ZONA_VAZIA,
+  argsExcecaoTransferencia,
+  excecaoZonaValida,
+  type ExcecaoForaDaRegiao,
+} from "@/lib/zona-estrita";
 
 type Corretor = { id: string; nome: string; ativo: boolean };
 type Lead = {
@@ -116,6 +123,7 @@ export function LeadsPorCorretorPage() {
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
   const [targetCorretor, setTargetCorretor] = useState<string>("");
+  const [excecaoZona, setExcecaoZona] = useState<ExcecaoForaDaRegiao>(EXCECAO_ZONA_VAZIA);
 
   const { data: corretores } = useQuery({
     queryKey: ["corretores-min-ativos"],
@@ -288,12 +296,23 @@ export function LeadsPorCorretorPage() {
   }, [leads, leadsDoCorretor, selectedCorretor, escopoEfetivo, prazos, statusFilter, search]);
 
   const transferMutation = useMutation({
-    mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
+    mutationFn: async ({
+      ids,
+      corretorId,
+      excecaoZona,
+    }: {
+      ids: string[];
+      corretorId: string;
+      excecaoZona: ExcecaoForaDaRegiao;
+    }) => {
       // RPC canônica: renova data_distribuicao (sem isso o job de redistribuição
       // desfazia a transferência em minutos) e registra em distribution_log.
+      // Zona estrita: lead de zona que o destino não atende só vai com a
+      // exceção da gestão (motivo) — senão o banco recusa com mensagem pronta.
       const { error } = await supabase.rpc("transferir_leads", {
         _ids: ids,
         _corretor: corretorId,
+        ...argsExcecaoTransferencia(excecaoZona),
       });
       if (error) throw error;
       // Notifica via WhatsApp: UMA mensagem de resumo para o corretor, qualquer
@@ -306,6 +325,7 @@ export function LeadsPorCorretorPage() {
       setSelectedLeads(new Set());
       setTransferOpen(false);
       setTargetCorretor("");
+      setExcecaoZona(EXCECAO_ZONA_VAZIA);
       qc.invalidateQueries({ queryKey: ["leads-por-corretor"] });
       qc.invalidateQueries({ queryKey: ["leads-do-corretor"] });
       qc.invalidateQueries({ queryKey: ["leads-stats-corretor"] });
@@ -606,18 +626,24 @@ export function LeadsPorCorretorPage() {
                 ))}
               </SelectContent>
             </Select>
+            <ExcecaoForaDaRegiaoFields
+              value={excecaoZona}
+              onChange={setExcecaoZona}
+              disabled={transferMutation.isPending}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTransferOpen(false)}>
               Cancelar
             </Button>
             <Button
-              disabled={!targetCorretor}
+              disabled={!targetCorretor || !excecaoZonaValida(excecaoZona)}
               loading={transferMutation.isPending}
               onClick={() =>
                 transferMutation.mutate({
                   ids: [...selectedLeads],
                   corretorId: targetCorretor,
+                  excecaoZona,
                 })
               }
             >

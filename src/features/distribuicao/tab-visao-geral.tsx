@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { proximoDaVez, roletaLabel, RESULTADO_LABEL } from "@/lib/distribuicao";
+import { proximoDaVez, roletaLabel, RESULTADO_LABEL, ZONA_ROLETAS } from "@/lib/distribuicao";
 import type { RoletaSlug } from "@/lib/distribuicao";
 import { useElegibilidadeRoleta, useHistoricoDistribuicao, useNomesPerfis } from "./queries";
 
@@ -24,6 +24,8 @@ const ROLETA_ICON = {
   "zona-sul": Compass,
   "zona-leste": Compass,
   "zona-oeste": Compass,
+  "zona-centro": Compass,
+  "zona-grande-sp": Compass,
 } as const;
 
 function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
@@ -55,7 +57,11 @@ function RoletaSaudeCard({ slug }: { slug: RoletaSlug }) {
               </span>
             </div>
             {aptos.length === 0 ? (
-              <StatusBadge intent="danger">Sem corretor apto — leads irão para exceção</StatusBadge>
+              <StatusBadge intent="danger">
+                {slug.startsWith("zona-")
+                  ? "Sem corretor apto — leads da zona esperam (não vão para outra zona)"
+                  : "Sem corretor apto — leads irão para exceção"}
+              </StatusBadge>
             ) : (
               <div className="text-xs text-muted-foreground">
                 Próximo da vez:{" "}
@@ -79,13 +85,13 @@ export function TabVisaoGeral({ onVerExcecoes }: { onVerExcecoes: () => void }) 
 
   return (
     <div className="space-y-4">
-      {/* Roletas por zona primeiro — é para onde o motor roteia leads com
-          zona resolvida (roleta_da_zona); as de origem são o fallback. */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <RoletaSaudeCard slug="zona-norte" />
-        <RoletaSaudeCard slug="zona-sul" />
-        <RoletaSaudeCard slug="zona-leste" />
-        <RoletaSaudeCard slug="zona-oeste" />
+      {/* Roletas por zona primeiro — todo lead com zona vai para a roleta da
+          zona dele e só para ela (zona estrita); as de origem atendem só o
+          lead SEM zona. */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {ZONA_ROLETAS.map((slug) => (
+          <RoletaSaudeCard key={slug} slug={slug} />
+        ))}
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <RoletaSaudeCard slug="plantao" />

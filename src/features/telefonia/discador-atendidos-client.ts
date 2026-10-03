@@ -16,6 +16,7 @@ import { z } from "zod";
 import { useAuth } from "@/hooks/use-auth";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import { rpc } from "@/features/dashboard/queries";
+import { MOTIVO_DISCADOR_FORA_DA_REGIAO } from "@/lib/zona-estrita";
 
 export const ATENDIDOS_KEY = "discador-atendidos-meus";
 
@@ -88,6 +89,7 @@ export const MOTIVO_ASSUMIR: Record<string, string> = {
   lead_inexistente: "Lead não encontrado.",
   porta_fechada_use_lote:
     "Assumir cliente do Bolsão pelo Discador está fechado para o corretor desde 28/09. Registre o contato; para trabalhar clientes do Bolsão, peça um lote na Prospecção.",
+  fora_da_regiao: MOTIVO_DISCADOR_FORA_DA_REGIAO,
 };
 
 export const MOTIVO_ENCERRAMENTO: Record<string, string> = {

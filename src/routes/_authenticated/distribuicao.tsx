@@ -24,6 +24,8 @@ const TAB_LEGADO: Record<string, string | undefined> = {
   "zona-sul": "zona-sul",
   "zona-leste": "zona-leste",
   "zona-oeste": "zona-oeste",
+  "zona-centro": "zona-centro",
+  "zona-grande-sp": "zona-grande-sp",
 };
 
 export const Route = createFileRoute("/_authenticated/distribuicao")({

@@ -2,6 +2,11 @@
 // comportamento (mesmos payloads, invalidações, toasts e ordem de efeitos).
 // Os estados (seleção, dialogs) continuam na página; o hook recebe callbacks.
 
+import {
+  EXCECAO_ZONA_VAZIA,
+  argsExcecaoTransferencia,
+  type ExcecaoForaDaRegiao,
+} from "@/lib/zona-estrita";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -136,7 +141,16 @@ export function useLeadMutations(opts: {
   };
 
   const bulkTransferir = useMutation({
-    mutationFn: async ({ ids, corretorId }: { ids: string[]; corretorId: string }) => {
+    mutationFn: async ({
+      ids,
+      corretorId,
+      excecaoZona = EXCECAO_ZONA_VAZIA,
+    }: {
+      ids: string[];
+      corretorId: string;
+      /** Exceção da gestão à zona estrita (com motivo) — ver zona-estrita.ts. */
+      excecaoZona?: ExcecaoForaDaRegiao;
+    }) => {
       if (!ids.length) throw new Error("Selecione ao menos um lead.");
       if (!corretorId) throw new Error("Selecione o corretor de destino.");
 
@@ -151,7 +165,7 @@ export function useLeadMutations(opts: {
         const lote = ids.slice(i, i + batchSize);
         const { error } = await supabase.rpc(
           "transferir_leads" as never,
-          { _ids: lote, _corretor: corretorId } as never,
+          { _ids: lote, _corretor: corretorId, ...argsExcecaoTransferencia(excecaoZona) } as never,
         );
         if (error) {
           console.error("[bulkTransferir]", { error, loteInicio: i, loteTamanho: lote.length });

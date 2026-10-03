@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { maskPhoneBR, maskCPF } from "@/lib/masks";
-import { ZONAS_ORDEM } from "@/lib/zonas";
+import { ZONAS_REGIAO } from "@/lib/zonas";
 import { ORIGEM_LABEL } from "@/lib/origem";
 import { useUserRoles } from "@/hooks/use-auth";
 import type { DossieLead } from "@/features/leads/dossie/types";
@@ -216,7 +216,7 @@ export function EditarLeadDialog({ leadId, lead }: { leadId: string; lead: Dossi
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Automática (bairro/projeto)</SelectItem>
-                  {ZONAS_ORDEM.map((z) => (
+                  {ZONAS_REGIAO.map((z) => (
                     <SelectItem key={z} value={z}>
                       {z}
                     </SelectItem>

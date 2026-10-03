@@ -15,6 +15,7 @@ import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { rpc } from "@/features/dashboard/queries";
 import { GRANDE_SP, ZONAS_PROJETO_ORDEM, type ZonaProjeto } from "@/lib/zonas";
+import { MOTIVO_LOTE_REGIAO } from "@/lib/zona-estrita";
 
 export const TAMANHO_LOTE = 30;
 
@@ -51,6 +52,9 @@ const statusSchema = z.object({
   pode_pedir: z.boolean(),
   motivo: z.string().nullable(),
   portas_legadas: z.boolean().optional(),
+  // Zona estrita (20261009120100): as zonas da região do corretor — só elas
+  // podem ser pedidas. null/ausente = regra desligada ou banco antigo: todas.
+  regiao: z.array(z.string()).nullable().optional(),
 });
 
 export type StatusLote = z.infer<typeof statusSchema>;
@@ -96,6 +100,14 @@ export async function pedirLote(zona: ZonaProjeto): Promise<ResultadoPedido> {
   return parseResultadoPedido(data);
 }
 
+/** As zonas que o corretor pode pedir: as da região dele, na ordem dos chips.
+ *  Sem a informação (regra desligada ou banco antigo), as seis. */
+export function zonasDoLote(s: Pick<StatusLote, "regiao"> | undefined): readonly ZonaProjeto[] {
+  const regiao = s?.regiao;
+  if (!regiao) return ZONAS_LOTE;
+  return ZONAS_LOTE.filter((z) => regiao.includes(z));
+}
+
 /** Por que o botão está travado — texto para o corretor, ou null se pode pedir. */
 export function motivoBloqueio(
   s: Pick<StatusLote, "motivo" | "em_cadencia" | "em_cadencia_total" | "teto">,
@@ -111,6 +123,9 @@ export function motivoBloqueio(
       return `Sua carteira ativa está no teto (${s.teto}). Abra vagas para pedir um lote — quem responde no lote sobe para a carteira.`;
     case "so_corretor":
       return "Só corretores ativos pedem lote.";
+    case "sem_regiao":
+    case "zona_fora_da_regiao":
+      return MOTIVO_LOTE_REGIAO[s.motivo];
     default:
       return "Não é possível pedir um lote agora.";
   }

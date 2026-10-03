@@ -1,6 +1,13 @@
 // PATCH /api/public/leads/:id/corretor → troca o corretor do lead
-// Body: { corretor_id: uuid, motivo?: string, origem?: string }
+// Body: { corretor_id: uuid, motivo?: string, origem?: string,
+//         forcar_fora_da_zona?: boolean }
 // Auth: cliente com escopo leads:write. Toda escrita é auditada em api_escrita_log.
+//
+// Zona estrita (migration 20261009120100): o corretor só recebe lead da própria
+// região. Destino que não atende a zona do lead → 409 { codigo:
+// "fora_da_regiao" }, com a mensagem do banco. A exceção da gestão (indicação,
+// cliente que pediu o corretor) é forcar_fora_da_zona: true + motivo (mín. 5
+// caracteres), que fica no distribution_log.
 import { createFileRoute } from "@tanstack/react-router";
 import {
   jsonResponse,
@@ -15,6 +22,11 @@ import {
   restrictedCorretorIds,
 } from "@/lib/api-client-auth.server";
 import { auditarEscrita, clientIp } from "@/lib/write-api-auth";
+import {
+  MOTIVO_EXCECAO_MINIMO,
+  argsExcecaoTransferencia,
+  ehErroForaDaRegiao,
+} from "@/lib/zona-estrita";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -54,6 +66,15 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
         }
 
         const motivo = typeof body.motivo === "string" ? body.motivo.trim() : "";
+        const forcarForaDaZona = body.forcar_fora_da_zona === true;
+        if (forcarForaDaZona && motivo.length < MOTIVO_EXCECAO_MINIMO) {
+          return jsonResponse(
+            {
+              error: `forcar_fora_da_zona exige motivo (mínimo ${MOTIVO_EXCECAO_MINIMO} caracteres)`,
+            },
+            422,
+          );
+        }
         const origem =
           typeof body.origem === "string" && body.origem.trim()
             ? body.origem.trim()
@@ -97,18 +118,28 @@ export const Route = createFileRoute("/api/public/leads/$id/corretor")({
         const { error: upErr } = await supabaseAdmin.rpc("transferir_leads", {
           _ids: [id],
           _corretor: corretorId,
+          ...argsExcecaoTransferencia({ ativa: forcarForaDaZona, motivo }),
         });
         if (upErr) {
+          const foraDaRegiao = ehErroForaDaRegiao(upErr);
+          const status = foraDaRegiao ? 409 : 500;
           await auditarEscrita({
             agente,
             acao: "lead.corretor",
             lead_id: id,
-            payload: { corretor_id: corretorId, motivo: motivo || null, origem },
+            payload: {
+              corretor_id: corretorId,
+              motivo: motivo || null,
+              origem,
+              forcar_fora_da_zona: forcarForaDaZona,
+            },
             resultado: "erro",
-            http_status: 500,
+            http_status: status,
             ip,
           });
-          return jsonResponse({ error: upErr.message }, 500);
+          return foraDaRegiao
+            ? jsonResponse({ error: upErr.message, codigo: "fora_da_regiao" }, 409)
+            : jsonResponse({ error: upErr.message }, 500);
         }
 
         const { data: updated, error: selErr } = await supabaseAdmin
