@@ -91,31 +91,105 @@ sem esperar o backoff de 30 min do cron.
   `SELECT set_config('app.zona_override', 'on', true);` — vale só até o fim
   daquela transação. Use para restaurar estado, nunca para distribuir.
 
+### Como a virada chega à produção
+
+O Lovable aplica no banco de produção o que está em **`drizzle/migrations`**,
+pelo migrator do drizzle (`drizzle.__drizzle_migrations`): toda entrada do
+journal com `when` maior que o da última aplicada roda, **numa transação só**,
+quando `drizzle/` chega ao `main`. `supabase/migrations` é o que o CI aplica — o
+runner do Supabase não registra nada em produção desde 16/09.
+
+O PR #234 levou as cinco migrations só para `supabase/migrations`: CI verde,
+nada em produção. Conferido no banco vivo em 03/10 (18:54 UTC): nenhuma função
+nova, `zonas_roletas` com as quatro zonas antigas, anônimo ainda executando
+`processar_distribuicao_automatica()`. O espelho é
+`drizzle/migrations/0045`–`0049` (cópia byte a byte, `when` de 09/10), e
+`tests/drizzle-espelho.test.ts` agora reprova migration sem espelho.
+
+Simulado com o migrator do drizzle de verdade, num banco no estado da produção
+(até a 0043, `search_path` sem `extensions`): aplica só as cinco, em ~85 ms;
+segunda passada não aplica nada.
+
+**Times em produção em 03/10** (participação ativa): Leste 6, Norte 2, Oeste 9,
+**Sul 0**; Centro e Grande SP ainda não existem. Com a regra ligada, lead da Sul
+(e do ABC, que é Sul) e da Grande SP (Guarulhos) espera até a zona ter time.
+
+### Prévia: como cada time fica (rodar ANTES da virada)
+
+Usa só tabelas que já existem. Conferida contra o resultado real do migrator
+num banco simulado: bate nas seis zonas.
+
+```sql
+-- fica  = já participa ativo da roleta da zona;
+-- entra = tem a zona no cadastro (profiles.zonas) e nunca esteve na roleta
+--         (quem a gestão removeu da roleta NÃO volta).
+WITH c AS (
+  SELECT p.id, p.nome, p.zonas
+    FROM public.profiles p
+    JOIN public.user_roles ur ON ur.user_id = p.id AND ur.role = 'corretor'
+   WHERE p.ativo
+), z(zona, slug) AS (
+  VALUES ('Norte', 'zona-norte'), ('Sul', 'zona-sul'), ('Leste', 'zona-leste'),
+         ('Oeste', 'zona-oeste'), ('Centro', 'zona-centro'), ('Grande SP', 'zona-grande-sp')
+)
+SELECT z.zona,
+       count(*) FILTER (WHERE rp.ativo OR (rp.corretor_id IS NULL AND z.zona = ANY (c.zonas))) AS time_depois,
+       string_agg(c.nome, ', ' ORDER BY c.nome) FILTER (WHERE rp.ativo) AS fica,
+       string_agg(c.nome, ', ' ORDER BY c.nome)
+         FILTER (WHERE rp.corretor_id IS NULL AND z.zona = ANY (c.zonas)) AS entra
+  FROM z
+ CROSS JOIN c
+  LEFT JOIN public.roletas r ON r.slug = z.slug
+  LEFT JOIN public.roleta_participantes rp ON rp.roleta_id = r.id AND rp.corretor_id = c.id
+ GROUP BY z.zona
+ ORDER BY z.zona;
+```
+
 ### Runbook da virada
 
-> Ordem importa: **montar os times ANTES do deploy** evita fila de espera na
-> primeira hora. A migration não move nenhum lead já atribuído.
+A migration não move nenhum lead já atribuído. Há dois jeitos de virar:
 
-1. **Antes do deploy — quem fica sem região?** A migration preserva tudo o que
-   já estava declarado: quem tinha zona no cadastro (`profiles.zonas`) e nunca
-   participou daquela roleta entra nela (log `incluido`, motivo "Região única").
-   Quem foi REMOVIDO da roleta pela gestão não volta. O valor antigo de cada
-   cadastro alterado fica em `audit_log`.
-2. **Depois do deploy — montar Centro e Grande SP.** As roletas `zona-centro` e
-   `zona-grande-sp` nascem vazias. Central de Distribuição → Corretores → coluna
-   **Região de atuação** (ou aba Filas → Centro / Grande SP → Incluir corretor).
-   Até lá, leads dessas zonas esperam com `zona_sem_time`.
-3. **Revisar "Sem região"** na aba Corretores (selo amarelo). Esses corretores só
-   recebem lead sem zona e não pedem lote.
-4. **Cotas**: o limite diário (padrão 10) é por roleta. Sem o desvio para o
-   Plantão, a roleta da zona é o único caminho do lead da zona — se o time é
-   pequeno, aumente o limite individual (aba Filas → zona → Limite).
-5. **Presença**: as roletas de zona exigem "Cheguei". Leads da madrugada
-   esperam o primeiro da zona marcar presença (e saem no minuto seguinte).
-6. **Acompanhar** pela fila de Exceções e pelos cards das seis zonas na Visão
-   Geral ("Sem corretor apto — leads da zona esperam").
+**A) Em duas etapas — quando alguma zona fica sem time na prévia.** Centro e
+Grande SP só ganham roleta COM a migration, então o time delas não pode ser
+montado antes; a Sul, em 03/10, também estava vazia.
 
-**Rollback (1 UPDATE, ou Central → Configurações):**
+1. No SQL Editor, ANTES do merge do espelho (a migration respeita a chave que
+   já existe — `ON CONFLICT DO NOTHING`):
+
+   ```sql
+   INSERT INTO public.distribuicao_settings (chave, valor, descricao)
+   VALUES ('zona_estrita', 'false'::jsonb, 'Virada em duas etapas: ligar depois de montar os times')
+   ON CONFLICT (chave) DO UPDATE SET valor = EXCLUDED.valor;
+   ```
+
+2. Merge do espelho. Entram a região única, as roletas Centro e Grande SP, o
+   repasse por SLA de campanha e o fechamento das RPCs para anônimo — essas
+   correções valem com a regra desligada. A distribuição segue com os desvios
+   antigos.
+3. Montar os times: Central de Distribuição → Corretores → coluna **Região de
+   atuação** (ou aba Filas → zona → Incluir corretor). Rodar a consulta "Times
+   por zona" (SQL de verificação) até nenhuma zona ficar vazia.
+4. Ligar: Central → **Configurações** → "Zona estrita" (ou o UPDATE do
+   rollback com `'true'`).
+
+**B) Direto — quando a prévia não mostra zona vazia.** Merge do espelho; a regra
+nasce ligada. Zona que ficar sem time segura os leads dela com `zona_sem_time`
+até a gestão incluir alguém.
+
+Nos dois casos, depois de ligada:
+
+- **Revisar "Sem região"** na aba Corretores (selo amarelo). Esses corretores
+  só recebem lead sem zona e não pedem lote.
+- **Cotas**: o limite diário (padrão 10) é por roleta. Sem o desvio para o
+  Plantão, a roleta da zona é o único caminho do lead da zona — se o time é
+  pequeno, aumente o limite individual (aba Filas → zona → Limite). Norte com
+  dois corretores segura 20 leads/dia.
+- **Presença**: as roletas de zona exigem "Cheguei". Leads da madrugada
+  esperam o primeiro da zona marcar presença (e saem no minuto seguinte).
+- **Acompanhar** pela fila de Exceções e pelos cards das seis zonas na Visão
+  Geral ("Sem corretor apto — leads da zona esperam").
+
+**Rollback (Central → Configurações → "Zona estrita", ou 1 UPDATE):**
 
 ```sql
 UPDATE public.distribuicao_settings SET valor = 'false' WHERE chave = 'zona_estrita';
