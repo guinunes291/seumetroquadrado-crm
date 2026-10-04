@@ -53,6 +53,8 @@ import {
   rotuloProgresso,
   type EtapaCadencia,
 } from "@/features/cadencia/templates";
+import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
+import { erroLotado } from "@/lib/em-atendimento";
 import { ArrowSquareOut, CheckCircle, Envelope, Phone, WhatsappLogo } from "@phosphor-icons/react";
 
 /** "Etapa Lead chegou completa — o lead já está no 1º follow-up." */
@@ -343,6 +345,10 @@ function DialogRespondeu({
   const [acao, setAcao] = useState("");
   const [data, setData] = useState("");
 
+  // Regra dos 65: com o teto cheio o banco recusa a resposta (EA065) e a
+  // janela "entra um, sai um" abre; depois da troca o lead já está em
+  // atendimento e o mesmo pedido grava o passo combinado.
+  const janela = useJanelaTroca();
   const salvar = useMutation({
     mutationFn: () => {
       if (!item) throw new Error("sem lead");
@@ -354,7 +360,13 @@ function DialogRespondeu({
       setData("");
       onSalvo();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      if (item && janela && erroLotado(e)) {
+        janela.abrir({ id: item.id, nome: item.nome, onDone: () => salvar.mutate() });
+        return;
+      }
+      toast.error(e.message);
+    },
   });
 
   const dataValida = Boolean(data) && new Date(data).getTime() > Date.now();

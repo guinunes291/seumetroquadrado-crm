@@ -78,10 +78,30 @@ export function Meus65Page({ corretorId }: { corretorId?: string }) {
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-64 w-full" />
         </div>
+      ) : contador.isError || meus.isError ? (
+        // Erro de verdade (ex.: corretor abrindo os 65 de outro) não é "sem
+        // dado": a mensagem do banco diz o que foi.
+        <Card>
+          <CardContent className="py-8 text-sm text-destructive" data-testid="meus-65-erro">
+            {(contador.error ?? meus.error)?.message ?? "Não foi possível carregar."}
+          </CardContent>
+        </Card>
       ) : !c || meus.data === null ? (
         <Card>
           <CardContent className="py-8 text-sm text-muted-foreground">
             Sem dado: a regra dos 65 ainda não está disponível neste ambiente.
+          </CardContent>
+        </Card>
+      ) : !c.corretor ? (
+        // Conta sem papel de corretor (gestão) não tem teto: os 65 são de um
+        // corretor — o Painel do Gestor abre os de cada um.
+        <Card>
+          <CardContent
+            className="py-8 text-sm text-muted-foreground"
+            data-testid="meus-65-sem-teto"
+          >
+            Esta conta não tem teto de corretor. Abra os {teto} de um corretor pelo Painel do
+            Gestor, aba Time.
           </CardContent>
         </Card>
       ) : (

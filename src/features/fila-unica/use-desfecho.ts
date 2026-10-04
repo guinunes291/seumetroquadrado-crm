@@ -20,6 +20,8 @@ import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { concluirToquesDeHoje } from "@/features/followup/fila-client";
 import { transicionarLead } from "@/lib/lead-transitions";
+import { erroLotado } from "@/lib/em-atendimento";
+import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
 import {
   descreverProximo,
   tituloDaInteracao,
@@ -214,28 +216,47 @@ export function useDesfecho(
 ) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const janela = useJanelaTroca();
   const [pendente, setPendente] = useState<string | null>(null);
   const registros = useRef(new Map<string, DesfechoRegistrado>());
   const onRegistrado = useRef(opts.onRegistrado);
   onRegistrado.current = opts.onRegistrado;
-
-  const executar = async (vars: DesfechoVars) => {
-    if (!user) throw new Error("Sessão expirada. Entre de novo.");
-    setPendente(vars.item.lead.id);
-    try {
-      const r = await executarDesfecho(vars, user.id);
-      registros.current.set(vars.item.lead.id, r);
-      onRegistrado.current?.(r, vars);
-    } finally {
-      setPendente(null);
-    }
-  };
+  // O último desfecho bateu no teto cheio: o contato ficou registrado, a
+  // etapa entra pela janela de troca — e o toast tem de dizer isso.
+  const lotado = useRef(false);
 
   const invalidar = () => {
     for (const k of DESFECHO_INVALIDA) void qc.invalidateQueries({ queryKey: [...k] });
   };
 
+  const executar = async (vars: DesfechoVars) => {
+    if (!user) throw new Error("Sessão expirada. Entre de novo.");
+    setPendente(vars.item.lead.id);
+    lotado.current = false;
+    try {
+      const r = await executarDesfecho(vars, user.id);
+      registros.current.set(vars.item.lead.id, r);
+      onRegistrado.current?.(r, vars);
+    } catch (e) {
+      // Regra dos 65: a interação e o passo já foram gravados (o contato
+      // aconteceu); só a etapa foi recusada. A janela "entra um, sai um" é a
+      // resposta, não o toast de erro com "Tentar novamente" (que regravaria
+      // interação e tarefa).
+      if (janela && erroLotado(e)) {
+        lotado.current = true;
+        janela.abrir({ id: vars.item.lead.id, nome: vars.item.lead.nome, onDone: invalidar });
+        return;
+      }
+      throw e;
+    } finally {
+      setPendente(null);
+    }
+  };
+
   const mensagem = (vars: DesfechoVars) => {
+    if (lotado.current) {
+      return "Contato registrado. O lead entra em atendimento quando você liberar uma vaga.";
+    }
     const prox = descreverProximo(vars.opcao, vars.agora ?? new Date());
     return prox ? `Registrado. Próximo passo: ${prox}` : "Registrado.";
   };
