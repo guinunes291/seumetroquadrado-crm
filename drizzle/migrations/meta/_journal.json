@@ -393,6 +393,13 @@
       "when": 1791644580000,
       "tag": "0055_registro_mae_volta_campanha",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1791644640000,
+      "tag": "0056_em_atendimento_fatia2_troca_escolha",
+      "breakpoints": true
     }
   ]
 }

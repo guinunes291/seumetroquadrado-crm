@@ -88,11 +88,19 @@ describe("motivo_perda_sem_retrabalho", () => {
       // Registro mãe (20261010120300): o filho encerrado porque outro corretor
       // levou o cliente a Visita realizada. Sem retrabalho, gravado pelo sistema.
       "seguiu_outro_corretor",
+      // Regra dos 65, Fatia 2 (20261010120500): retorno combinado para além de
+      // 30 dias. Reciclável — a reativação volta a ele perto da data.
+      "retorno_futuro",
     ]) {
       expect(def, `categoria ${cat} sumiu do CHECK`).toContain(cat);
     }
-    // 15 categorias e nada além delas.
-    expect((def.match(/'/g) ?? []).length).toBe(30);
+    // 16 categorias e nada além delas.
+    expect((def.match(/'/g) ?? []).length).toBe(32);
+  });
+
+  it("retorno futuro é reciclável: a reativação volta a ele", async () => {
+    const r = await c.query(`SELECT public.motivo_perda_sem_retrabalho('retorno_futuro') AS x`);
+    expect(r.rows[0].x).toBe(false);
   });
 
   it("NULL continua reciclável — lead sem categoria de perda não é excluído", async () => {

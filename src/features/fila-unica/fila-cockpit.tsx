@@ -21,12 +21,14 @@ function AnelDoDia({
   tamanho = 72,
   traco = 6,
   grande = false,
+  rotulo = "carteira ativa",
 }: {
   valor: number;
   teto: number;
   tamanho?: number;
   traco?: number;
   grande?: boolean;
+  rotulo?: string;
 }) {
   const [desenhado, setDesenhado] = useState(false);
   useEffect(() => {
@@ -76,7 +78,7 @@ function AnelDoDia({
               {valor}
               <span className="text-base font-medium text-muted-foreground">/{teto}</span>
             </span>
-            <span className="mt-1 text-xs text-muted-foreground">carteira ativa</span>
+            <span className="mt-1 text-xs text-muted-foreground">{rotulo}</span>
           </>
         ) : (
           <>
@@ -146,7 +148,15 @@ function Numero({
  *  carteira de verdade — é a diferença entre "40 cards nesta tela" e "40
  *  clientes sob sua responsabilidade". Ausente (banco antigo, sem a migration
  *  da Fatia 3), o anel volta a contar o que a fila carregou. */
-export type CarteiraNoCockpit = { ocupadas: number; teto: number; estourou: boolean };
+export type CarteiraNoCockpit = {
+  ocupadas: number;
+  teto: number;
+  estourou: boolean;
+  /** Rótulo sob o número do anel (default "carteira ativa"). */
+  rotulo?: string;
+  /** Regra dos 65 (Fatia 2): o anel é o status Em atendimento, X/65. */
+  fonte?: "carteira" | "em_atendimento";
+};
 
 export function FilaCockpit({
   fila,
@@ -185,9 +195,16 @@ export function FilaCockpit({
         )}
       >
         {grande ? (
-          <AnelDoDia valor={noDia} teto={teto} tamanho={150} traco={9} grande />
+          <AnelDoDia
+            valor={noDia}
+            teto={teto}
+            tamanho={150}
+            traco={9}
+            grande
+            rotulo={carteira?.rotulo}
+          />
         ) : (
-          <AnelDoDia valor={noDia} teto={teto} />
+          <AnelDoDia valor={noDia} teto={teto} rotulo={carteira?.rotulo} />
         )}
         <div className={cn("grid grid-cols-3", grande ? "gap-2.5" : "gap-1.5")}>
           <Numero
@@ -220,7 +237,13 @@ export function FilaCockpit({
             </span>
           )}
           {excedente > 0 &&
-            (carteira?.estourou ? (
+            (carteira?.fonte === "em_atendimento" ? (
+              // Acima dos 65 só quem já estava assim antes da regra: a trava
+              // não deixa entrar mais ninguém, e cada desfecho abre uma vaga.
+              <span className="text-warning">
+                +{excedente} acima dos {teto} — saia por desfecho até caber
+              </span>
+            ) : carteira?.estourou ? (
               // Estourar o teto só acontece pelo fundo do funil, que nunca é
               // devolvido. Dizer "entram conforme saem" aqui seria mentira: o
               // que está travado é a ENTRADA, não a carteira.

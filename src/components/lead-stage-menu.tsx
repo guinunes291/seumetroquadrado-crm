@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
+  DESFECHOS_EM_ATENDIMENTO,
   FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
   resolveStageAction,
@@ -58,32 +59,54 @@ export function LeadStageMenuItems({
     <>
       <DropdownMenuLabel className="flex items-center gap-1.5">
         <ArrowCircleRight className="h-3.5 w-3.5 text-muted-foreground" />
-        Mover para
+        {lead.status === "em_atendimento" ? "Desfecho" : "Mover para"}
       </DropdownMenuLabel>
-      {FUNNEL_STAGES.map((s) => (
-        <DropdownMenuItem
-          key={s}
-          disabled={s === lead.status || !podeMover(s)}
-          onSelect={() => {
-            const action = resolveStageAction(s);
-            if (action.kind === "modal") onPickModal(action.modal, s);
-            else onPickDirect(s);
-          }}
-        >
-          {LEAD_STATUS_LABEL[s]}
-          {stageRequiresModal(s) && (
-            // Sinal claro de que a etapa abre um formulário antes de mover
-            // (o antigo "…" de 10px passava despercebido).
-            <span
-              className="ml-auto inline-flex items-center text-muted-foreground"
-              title="Abre formulário para registrar os dados da etapa"
+      {/* De Em atendimento o lead sai só por desfecho (regra dos 65, Fatia 2):
+          Agendou, Pediu retorno, Esfriou, Mandou doc — e Perdido, abaixo. */}
+      {lead.status === "em_atendimento"
+        ? DESFECHOS_EM_ATENDIMENTO.filter((d) => d.action.kind !== "perdido").map((d) => (
+            <DropdownMenuItem
+              key={d.id}
+              disabled={!podeMover(d.target)}
+              onSelect={() => {
+                if (d.action.kind === "modal") onPickModal(d.action.modal, d.target);
+                else onPickDirect(d.target);
+              }}
             >
-              <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only">(abre formulário)</span>
-            </span>
-          )}
-        </DropdownMenuItem>
-      ))}
+              {d.label}
+              <span
+                className="ml-auto inline-flex items-center text-muted-foreground"
+                title="Abre formulário para registrar o desfecho"
+              >
+                <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">(abre formulário)</span>
+              </span>
+            </DropdownMenuItem>
+          ))
+        : FUNNEL_STAGES.map((s) => (
+            <DropdownMenuItem
+              key={s}
+              disabled={s === lead.status || !podeMover(s)}
+              onSelect={() => {
+                const action = resolveStageAction(s, lead.status);
+                if (action.kind === "modal") onPickModal(action.modal, s);
+                else onPickDirect(s);
+              }}
+            >
+              {LEAD_STATUS_LABEL[s]}
+              {stageRequiresModal(s) && (
+                // Sinal claro de que a etapa abre um formulário antes de mover
+                // (o antigo "…" de 10px passava despercebido).
+                <span
+                  className="ml-auto inline-flex items-center text-muted-foreground"
+                  title="Abre formulário para registrar os dados da etapa"
+                >
+                  <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="sr-only">(abre formulário)</span>
+                </span>
+              )}
+            </DropdownMenuItem>
+          ))}
       <DropdownMenuSeparator />
       <DropdownMenuItem
         className="text-destructive focus:text-destructive"

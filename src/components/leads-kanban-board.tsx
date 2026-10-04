@@ -29,13 +29,16 @@ import {
   FUNNEL_STAGES,
   LEAD_STATUS_LABEL,
   LEAD_STATUS_COLUMN_TONE,
+  MOTIVO_SAIDA_NAO_OFERECIDA,
   PROXIMA_ACAO,
   motivoTransicaoBloqueada,
   resolveStageAction,
+  saidaOferecida,
   transicaoLeadPermitida,
   type LeadStatus,
 } from "@/lib/leads";
 import { useUserRoles } from "@/hooks/use-auth";
+import { useEmAtendimentoContador } from "@/features/em-atendimento/use-em-atendimento";
 import { TemperatureChip } from "@/components/ui/temperature-chip";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { LeadStageMenu } from "@/components/lead-stage-menu";
@@ -363,6 +366,12 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
 
+  // Regra dos 65: a coluna Em atendimento do corretor mostra "N/65". Para
+  // contas sem o papel (gestão olhando a casa) o banco devolve corretor=false
+  // e a coluna fica como sempre.
+  const contador65 = useEmAtendimentoContador();
+  const teto65 = contador65.data?.corretor ? contador65.data.teto : null;
+
   const updateStatus = useLeadStatusMutation({
     invalidateKeys: [["pipeline-stage-v2"], ["pipeline-snapshot-v2"]],
     onSuccess: (vars) => {
@@ -383,7 +392,12 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
       toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
       return;
     }
-    const action = resolveStageAction(target);
+    // De Em atendimento só se sai por desfecho (regra dos 65, Fatia 2).
+    if (!saidaOferecida(lead.status, target)) {
+      toast.error(MOTIVO_SAIDA_NAO_OFERECIDA);
+      return;
+    }
+    const action = resolveStageAction(target, lead.status);
     if (action.kind === "direct") updateStatus.mutate({ id: lead.id, status: target });
     else if (action.kind === "modal") setModalState({ modal: action.modal, lead });
     else setPerdidoLead(lead);
@@ -555,7 +569,9 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
           listClassName="w-full sm:w-full"
           items={columns.map((column) => ({
             value: column.id,
-            label: `${column.label} · ${Number(snapshotByStage.get(column.id)?.quantidade ?? 0)}`,
+            label: `${column.label} · ${Number(snapshotByStage.get(column.id)?.quantidade ?? 0)}${
+              column.id === "em_atendimento" && teto65 ? `/${teto65}` : ""
+            }`,
           }))}
         >
           {null}
@@ -655,6 +671,14 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                   <div className="flex items-center justify-between px-1 py-2">
                     <h2 id={`kanban-col-${col.id}`} className="font-semibold text-sm">
                       {col.label}
+                      {col.id === "em_atendimento" && teto65 && (
+                        <span
+                          className="ml-1 font-normal tabular-nums text-muted-foreground"
+                          data-testid="kanban-teto-65"
+                        >
+                          · {quantidade}/{teto65}
+                        </span>
+                      )}
                     </h2>
                     <div className="flex items-center gap-1">
                       {(() => {

@@ -11,6 +11,9 @@ import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { NavBreadcrumb } from "@/features/nav/nav-breadcrumb";
+// A janela de troca "entra um, sai um" (regra dos 65) mora aqui, uma vez: a
+// mutação de etapa de qualquer tela pede a abertura pelo contexto.
+import { JanelaTrocaProvider } from "@/features/em-atendimento/janela-troca-context";
 
 const SamiQLauncher = lazy(() =>
   import("@/components/samiq/samiq-launcher").then(({ SamiQLauncher }) => ({
@@ -84,66 +87,68 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    // bg-ambient: luz radial estática no contêiner que NÃO rola (o scroll vive
-    // no <main>) — profundidade sem repaint durante a rolagem.
-    <div className="flex min-h-screen bg-background bg-ambient">
-      <a
-        href="#conteudo-principal"
-        className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
-      >
-        Pular para o conteúdo
-      </a>
-      <AppSidebar />
-      <main id="conteudo-principal" tabIndex={-1} className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-background/70 backdrop-blur-md px-4 md:px-8 h-14">
-          <MobileSidebar />
-          {/* Trilha "Módulo › Seção" com o ícone na cor do módulo — desktop; no
+    <JanelaTrocaProvider>
+      {/* bg-ambient: luz radial estática no contêiner que NÃO rola (o scroll vive
+        no <main>) — profundidade sem repaint durante a rolagem. */}
+      <div className="flex min-h-screen bg-background bg-ambient">
+        <a
+          href="#conteudo-principal"
+          className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Pular para o conteúdo
+        </a>
+        <AppSidebar />
+        <main id="conteudo-principal" tabIndex={-1} className="flex-1 overflow-y-auto">
+          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-background/70 backdrop-blur-md px-4 md:px-8 h-14">
+            <MobileSidebar />
+            {/* Trilha "Módulo › Seção" com o ícone na cor do módulo — desktop; no
               celular o título da página já diz onde o corretor está. */}
-          <NavBreadcrumb className="hidden min-w-0 md:flex" />
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-muted-foreground gap-2"
-              aria-label="Abrir busca global"
-              onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-            >
-              <MagnifyingGlass className="h-4 w-4" />
-              <span className="hidden sm:inline">Buscar</span>
-              <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
-                ⌘K
-              </kbd>
-            </Button>
-            <Suspense fallback={null}>
-              <RegistrarVendaDialog />
-            </Suspense>
-            <ThemeToggle />
-            <NotificationBell />
-          </div>
-        </header>
-        {/* Mobile: tira das metas do dia, grudada sob o header (sem cobrir a
+            <NavBreadcrumb className="hidden min-w-0 md:flex" />
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground gap-2"
+                aria-label="Abrir busca global"
+                onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+              >
+                <MagnifyingGlass className="h-4 w-4" />
+                <span className="hidden sm:inline">Buscar</span>
+                <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
+                  ⌘K
+                </kbd>
+              </Button>
+              <Suspense fallback={null}>
+                <RegistrarVendaDialog />
+              </Suspense>
+              <ThemeToggle />
+              <NotificationBell />
+            </div>
+          </header>
+          {/* Mobile: tira das metas do dia, grudada sob o header (sem cobrir a
             faixa inferior, disputada por barras de ação e pelo BottomNav). */}
-        <div id="metas-dia-slot" className="sticky top-14 z-10 md:hidden" />
-        {/* pb-24 reserva o espaço do BottomNav no mobile. */}
-        <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
-          <AvatarRequiredBanner />
-          <Outlet />
-        </div>
-      </main>
-      <BottomNav />
-      <Suspense fallback={null}>
-        <SamiQLauncher />
-        <SprintGlobal />
-        <CommandPalette />
-        <NovoLeadDialogHost />
-        <KeyboardShortcutsHelp />
-        <ChamadaAtivaHost />
-        <OnboardingGlobal />
-        <MeuFunilGlobal />
-        <MetasDiaGlobal />
-      </Suspense>
-      <CelebrationHost />
-      <Toaster richColors closeButton />
-    </div>
+          <div id="metas-dia-slot" className="sticky top-14 z-10 md:hidden" />
+          {/* pb-24 reserva o espaço do BottomNav no mobile. */}
+          <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
+            <AvatarRequiredBanner />
+            <Outlet />
+          </div>
+        </main>
+        <BottomNav />
+        <Suspense fallback={null}>
+          <SamiQLauncher />
+          <SprintGlobal />
+          <CommandPalette />
+          <NovoLeadDialogHost />
+          <KeyboardShortcutsHelp />
+          <ChamadaAtivaHost />
+          <OnboardingGlobal />
+          <MeuFunilGlobal />
+          <MetasDiaGlobal />
+        </Suspense>
+        <CelebrationHost />
+        <Toaster richColors closeButton />
+      </div>
+    </JanelaTrocaProvider>
   );
 }

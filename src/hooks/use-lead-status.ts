@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import type { LeadStatus } from "@/lib/leads";
 import { criarFollowUpAutomatico, followUpParaStatus } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
+import { erroLotado } from "@/lib/em-atendimento";
+import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
 
 type Vars = {
   id: string;
@@ -32,6 +34,9 @@ type Options = {
 export function useLeadStatusMutation(opts: Options = {}) {
   const qc = useQueryClient();
   const { optimisticKeys = [], invalidateKeys = optimisticKeys, onSuccess } = opts;
+  // A janela de troca "entra um, sai um" (regra dos 65). Null fora do layout
+  // autenticado: aí o teto cheio vira o toast de sempre, com a mensagem do banco.
+  const janela = useJanelaTroca();
 
   // Referência à própria mutação para permitir "Tentar novamente" no toast de erro.
   const mutateRef = useRef<((vars: Vars) => void) | null>(null);
@@ -67,6 +72,16 @@ export function useLeadStatusMutation(opts: Options = {}) {
       // Reverte o update otimista e oferece retry visível (o card "voltar" de
       // coluna no Kanban pode passar despercebido sem isso).
       ctx?.snapshots.forEach(({ key, data }) => qc.setQueryData(key, data));
+      // Teto cheio não é erro: é a troca "entra um, sai um". O banco recusou a
+      // entrada (EA065); a janela deixa o corretor liberar uma vaga e entrar
+      // no mesmo passo. Qualquer outro erro segue o toast com "Tentar novamente".
+      if (janela && erroLotado(err)) {
+        janela.abrir({
+          id: vars.id,
+          onDone: () => invalidateKeys.forEach((key) => qc.invalidateQueries({ queryKey: key })),
+        });
+        return;
+      }
       toast.error(err.message, {
         action: {
           label: "Tentar novamente",

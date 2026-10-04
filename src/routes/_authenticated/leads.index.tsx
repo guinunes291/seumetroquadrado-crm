@@ -5,6 +5,7 @@ import { LeadsFunil } from "@/features/leads/leads-funil";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { ContadorEmAtendimento } from "@/features/em-atendimento/contador-chip";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -176,7 +177,7 @@ export const Route = createFileRoute("/_authenticated/leads/")({
 const LEADS_PAGE_SIZE = 50;
 
 function LeadsPage() {
-  const { isAdmin, isGestor } = useUserRoles();
+  const { isAdmin, isGestor, isCorretor } = useUserRoles();
   const { user } = useAuth();
   const canManage = isAdmin || isGestor;
   // Abre o wa.me e registra a interação na timeline (ação única de WhatsApp).
@@ -1027,6 +1028,8 @@ function LeadsPage() {
                   <div className="space-y-3">
                     {/* Chips de status com contagem */}
                     <div className="flex flex-wrap gap-2">
+                      {/* Regra dos 65: o corretor vê sempre o seu X/65. */}
+                      {isCorretor && !canManage && <ContadorEmAtendimento />}
                       <button
                         type="button"
                         onClick={() => setStatusFilter("all")}

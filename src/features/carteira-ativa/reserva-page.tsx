@@ -180,7 +180,7 @@ export function ReservaPage({ corretorId }: { corretorId?: string }) {
   return (
     <div>
       <PageHeader
-        title="Reserva"
+        title="Minha base"
         description={
           resumo
             ? fraseDoPlacar(resumo)

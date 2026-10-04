@@ -4,6 +4,7 @@ import { VisitFeedbackDialog } from "./visit-feedback-dialog";
 import { CreditAnalysisDialog } from "./credit-analysis-dialog";
 import { ContractSaleDialog } from "./contract-sale-dialog";
 import { PerdidoDialog } from "./perdido-dialog";
+import { RetornoDialog } from "@/features/em-atendimento/retorno-dialog";
 
 export type StageModalState = { modal: StageModal; lead: StageLead } | null;
 export type PerdidoState = StageLead | null;
@@ -53,6 +54,15 @@ export function LeadStageModals({
       {modalState?.modal === "contrato_fechado" && (
         <ContractSaleDialog
           lead={modalState.lead}
+          onOpenChange={onModalOpenChange}
+          onDone={onDone}
+        />
+      )}
+      {/* Desfechos de Em atendimento com data (regra dos 65, Fatia 2). */}
+      {(modalState?.modal === "pediu_retorno" || modalState?.modal === "esfriou") && (
+        <RetornoDialog
+          lead={modalState.lead}
+          tipo={modalState.modal}
           onOpenChange={onModalOpenChange}
           onDone={onDone}
         />
