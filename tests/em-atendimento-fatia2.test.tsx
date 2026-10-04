@@ -472,3 +472,66 @@ describe("fiação", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Correções da revisão adversarial (docs §7.5)
+// ---------------------------------------------------------------------------
+
+describe("revisão: janela de troca", () => {
+  it("avisa quando a data de quem sai passa de 30 dias", async () => {
+    estado.contador.data = contador({ em_atendimento: 65, lotado: true });
+    estado.meus.data = [linha({ lead_id: id(11), nome: "Parado 9", dias_sem_toque: 9 })];
+    montar(
+      <JanelaTroca
+        entra={{ id: id(1), nome: "Carla Cliente" }}
+        onOpenChange={vi.fn()}
+        onDone={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId("troca-aviso-futuro")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Retornar em *"), {
+      target: { value: paraInputData(new Date(Date.now() + 45 * DIA)) },
+    });
+    expect(screen.getByTestId("troca-aviso-futuro").textContent).toContain("Retorno futuro");
+  });
+});
+
+describe("revisão: Meus 65", () => {
+  it("erro de verdade mostra a mensagem; conta sem teto não vê placar 0/65", () => {
+    estado.contador.data = contador({ corretor: false });
+    estado.meus.data = [];
+    montar(<Meus65Page />);
+    expect(screen.getByTestId("meus-65-sem-teto")).toBeTruthy();
+    expect(screen.queryByTestId("meus-65-placar")).toBeNull();
+  });
+});
+
+describe("revisão: fiação", () => {
+  it("Kanban mostra a ocupação do banco, não a contagem filtrada pela busca", () => {
+    const k = read("src/components/leads-kanban-board.tsx");
+    expect(k).toContain("· {ocupacao65}/{teto65}");
+    expect(k).toContain("`${column.label} · ${ocupacao65}/${teto65}`");
+    expect(k).not.toContain("{quantidade}/{teto65}");
+  });
+
+  it("Iniciar atendimento muda a etapa ANTES de gravar a interação e abre a janela na trava", () => {
+    const m = read("src/features/leads/use-lead-mutations.ts");
+    const etapa = m.indexOf('status: "em_atendimento" });');
+    const interacao = m.indexOf(
+      'titulo:\n          tipo === "whatsapp" ? "Contato inicial via WhatsApp"',
+    );
+    expect(etapa).toBeGreaterThan(0);
+    expect(interacao).toBeGreaterThan(etapa);
+    expect(m).toContain("if (janela && erroLotado(e)) {");
+    expect(m).toContain("jaEmAtendimento: true");
+  });
+
+  it("Fila Única e cadência abrem a janela na trava", () => {
+    expect(read("src/features/fila-unica/use-desfecho.ts")).toContain(
+      "janela.abrir({ id: vars.item.lead.id",
+    );
+    expect(read("src/features/cadencia/fila-view.tsx")).toContain(
+      "janela.abrir({ id: item.id, nome: item.nome",
+    );
+  });
+});

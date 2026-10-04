@@ -37,6 +37,7 @@ import {
   DESFECHO_RETORNO_LABEL,
   DIAS_SUGERIDOS,
   deInputData,
+  destinoDoRetorno,
   maisParados,
   paraInputData,
 } from "@/lib/em-atendimento";
@@ -84,6 +85,13 @@ export function JanelaTroca({ entra, onOpenChange, onDone }: Props) {
   const [detalhe, setDetalhe] = useState("");
 
   const escolhida = deInputData(data);
+  const maxDias = contador.data?.retorno_max_dias ?? 30;
+  // O mesmo aviso do diálogo de retorno: acima do máximo, quem sai vira perda
+  // "Retorno futuro" — o corretor precisa saber antes de trocar (revisão).
+  const viraRetornoFuturo =
+    desfecho !== "perdido" &&
+    !!escolhida &&
+    destinoDoRetorno(escolhida, new Date(), maxDias, null) === "retorno_futuro";
   const pronto =
     !!sai &&
     (desfecho === "perdido"
@@ -102,9 +110,15 @@ export function JanelaTroca({ entra, onOpenChange, onDone }: Props) {
         detalhe,
       });
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
       const quemSaiu = candidatos.find((c) => c.lead_id === sai)?.nome ?? "o lead";
-      toast.success(`${nomeEntra} entrou em atendimento no lugar de ${quemSaiu}.`);
+      const saida =
+        r.saida?.categoria === "retorno_futuro"
+          ? `${quemSaiu} virou Retorno futuro e volta pela reativação`
+          : r.saida?.destino === "perdido"
+            ? `${quemSaiu} foi marcado como perdido`
+            : `${quemSaiu} foi para Aguardando retorno`;
+      toast.success(`${nomeEntra} entrou em atendimento; ${saida}.`);
       invalidarEmAtendimento(qc);
       entra.onDone?.();
       onDone?.();
@@ -221,6 +235,12 @@ export function JanelaTroca({ entra, onOpenChange, onDone }: Props) {
               </div>
             )}
           </div>
+          {viraRetornoFuturo && (
+            <p className="text-xs text-warning" data-testid="troca-aviso-futuro">
+              Mais de {maxDias} dias: quem sai vira perda "Retorno futuro" e volta pela reativação
+              perto da data. Lead próprio (indicação, captação, plantão) fica com você.
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="troca-detalhe">
               {desfecho === "perdido" && categoria === "outro"

@@ -371,6 +371,10 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
   // e a coluna fica como sempre.
   const contador65 = useEmAtendimentoContador();
   const teto65 = contador65.data?.corretor ? contador65.data.teto : null;
+  // O numerador é a ocupação do banco (a mesma da trava), não a contagem da
+  // coluna: com busca ativa a coluna mostra só os que casam com o texto, e
+  // "1/65" para quem está lotado seria mentira (revisão).
+  const ocupacao65 = contador65.data?.corretor ? contador65.data.em_atendimento : null;
 
   const updateStatus = useLeadStatusMutation({
     invalidateKeys: [["pipeline-stage-v2"], ["pipeline-snapshot-v2"]],
@@ -569,9 +573,10 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
           listClassName="w-full sm:w-full"
           items={columns.map((column) => ({
             value: column.id,
-            label: `${column.label} · ${Number(snapshotByStage.get(column.id)?.quantidade ?? 0)}${
-              column.id === "em_atendimento" && teto65 ? `/${teto65}` : ""
-            }`,
+            label:
+              column.id === "em_atendimento" && teto65 && ocupacao65 !== null
+                ? `${column.label} · ${ocupacao65}/${teto65}`
+                : `${column.label} · ${Number(snapshotByStage.get(column.id)?.quantidade ?? 0)}`,
           }))}
         >
           {null}
@@ -676,7 +681,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                           className="ml-1 font-normal tabular-nums text-muted-foreground"
                           data-testid="kanban-teto-65"
                         >
-                          · {quantidade}/{teto65}
+                          · {ocupacao65}/{teto65}
                         </span>
                       )}
                     </h2>

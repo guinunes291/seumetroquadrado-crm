@@ -17,6 +17,8 @@ import { notaSistemaPayload } from "@/lib/interacoes";
 import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
 import { notificarTransferenciaEmLote } from "@/lib/notificar-transferencia";
+import { erroLotado } from "@/lib/em-atendimento";
+import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
 import type { Lead } from "./types";
 
 export function useLeadMutations(opts: {
@@ -34,6 +36,8 @@ export function useLeadMutations(opts: {
 }) {
   const { clearSelection, fecharDialogs } = opts;
   const qc = useQueryClient();
+  // A janela de troca "entra um, sai um" (regra dos 65), para o teto cheio.
+  const janela = useJanelaTroca();
 
   const distribuir = useMutation({
     mutationFn: async (leadId: string) => {
@@ -422,9 +426,24 @@ export function useLeadMutations(opts: {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Iniciar atendimento + registrar interação do tipo de contato escolhido
+  // Iniciar atendimento + registrar interação do tipo de contato escolhido.
+  // A etapa vem ANTES da interação: com o teto cheio o banco recusa (EA065,
+  // regra dos 65) e nada fica gravado — antes, o lead recusado ganhava um
+  // "toque" que zerava o relógio de 5 dias sem ter entrado. Depois da troca,
+  // a janela repete o pedido já com o lead em atendimento (jaEmAtendimento).
   const iniciarAtendimento = useMutation({
-    mutationFn: async ({ lead, tipo }: { lead: Lead; tipo: "ligacao" | "whatsapp" }) => {
+    mutationFn: async ({
+      lead,
+      tipo,
+      jaEmAtendimento = false,
+    }: {
+      lead: Lead;
+      tipo: "ligacao" | "whatsapp";
+      jaEmAtendimento?: boolean;
+    }) => {
+      if (!jaEmAtendimento) {
+        await transicionarLead({ id: lead.id, nome: lead.nome, status: "em_atendimento" });
+      }
       const { data: u } = await supabase.auth.getUser();
       const { error: e1 } = await supabase.from("interacoes").insert({
         lead_id: lead.id,
@@ -436,7 +455,6 @@ export function useLeadMutations(opts: {
         conteudo: `Atendimento iniciado pelo corretor (${tipo}).`,
       });
       if (e1) throw e1;
-      await transicionarLead({ id: lead.id, nome: lead.nome, status: "em_atendimento" });
       return { lead, tipo };
     },
     onSuccess: ({ lead, tipo }) => {
@@ -448,7 +466,17 @@ export function useLeadMutations(opts: {
       fecharDialogs?.contato?.();
       qc.invalidateQueries({ queryKey: ["leads"] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, vars) => {
+      if (janela && erroLotado(e)) {
+        janela.abrir({
+          id: vars.lead.id,
+          nome: vars.lead.nome,
+          onDone: () => iniciarAtendimento.mutate({ ...vars, jaEmAtendimento: true }),
+        });
+        return;
+      }
+      toast.error(e.message);
+    },
   });
 
   return {

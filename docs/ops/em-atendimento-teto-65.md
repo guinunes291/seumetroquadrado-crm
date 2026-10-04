@@ -296,6 +296,40 @@ a API pública. Uma trava só na tela vazaria pela primeira que esquecesse.
   a ordem dos mais parados, a escolha e os pontos de fiação (mutação de
   etapa, layout, Kanban, ficha, menu).
 
+### 7.5 A revisão adversarial (04/10/2026)
+
+Antes do merge, o diff da Fatia 2 passou por quatro revisores independentes
+(SQL, telas, regressão, deploy), e cada achado por três céticos com a ordem
+de refutar. Sobreviveram e viraram a migration
+`20261010120600_em_atendimento_fatia2_revisao` (Drizzle `0057`) e o PR de
+correção:
+
+| Achado                                                                                                                                                          | Correção                                                                                                                                             |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Pediu retorno" / "Esfriou" gravavam a data direto em `proximo_followup`, que é espelho das tarefas: a próxima mexida em tarefas apagava a data combinada.      | O desfecho cria a tarefa do retorno (como a cadência faz); o espelho se preenche sozinho e o retorno fica protegido até a data.                      |
+| Quem entrava pela troca ficava sem próximo passo (a entrada normal ganha follow-up em 1 dia pelo hook).                                                         | A troca cria a tarefa de quem entra.                                                                                                                 |
+| A janela de troca aceitava data acima de 30 dias sem avisar; quem saía virava "retorno futuro" em silêncio.                                                     | O mesmo aviso do diálogo de retorno, e o toast diz o que aconteceu com quem saiu.                                                                    |
+| A escolha do dono anterior engolia a do dono novo; escolha de lead que saía revivia quando ele voltava; arquivado contava como escolhido.                       | Escolha é do dono atual; gatilho apaga a escolha quando o lead sai de Em atendimento ou troca de dono; o recorte de "vivo" é o da ocupação.          |
+| A troca aceitava dois leads sem dono como "mesma carteira".                                                                                                     | Exige dono.                                                                                                                                          |
+| `cadencia_marcar_respondeu` gravava Em atendimento por fora da trava: o corretor lotado entrava pela Fila do Dia.                                               | A trava virou uma função só (`_em_atendimento_travar`), usada por `transicionar_lead` e pela cadência; a tela da cadência abre a janela.             |
+| "Iniciar atendimento" (Base de leads) e "Falei · qualificar" (Fila Única) não abriam a janela e deixavam interação gravada; o primeiro dava um "toque" ao lead. | "Iniciar atendimento" muda a etapa antes de gravar a interação; os dois abrem a janela na trava, com o toast dizendo que o contato ficou registrado. |
+| A coluna Em atendimento do Kanban mostrava N/65 com N filtrado pela busca.                                                                                      | O numerador é a ocupação do banco, a mesma da trava.                                                                                                 |
+
+Refutados pelos céticos, e registrados aqui para não voltarem:
+
+- **Retorno futuro reciclado pelo SDR em 30 dias**, antes da data pedida. É a
+  política vigente do SDR (`sdr_perdidos_dias`) por cima da decisão do dono
+  ("volta pela reativação"); a data fica em `lead_eventos`. Se a reativação
+  passar a respeitar a data, é decisão à parte.
+- **Entrada por posse**: lote da Prospecção, discador e oferta ativa entregam
+  lead que já está em `em_atendimento` sem dono; o corretor lotado recebe sem
+  trava. É comportamento anterior à regra e a porta que a Fatia 3 fecha ao
+  devolver os 5.438 para Aguardando atendimento.
+- **Janela de bloqueio do deploy**: o migrador do Drizzle aplica todas as
+  pendentes numa transação só; `0054` (backfill do registro mãe) dita o tempo
+  com `leads` travada, e `0056`/`0057` acrescentam milissegundos. Publicar fora
+  do pico; se der para configurar, `lock_timeout` na sessão do migrador.
+
 ## 8. Próximas fatias
 
 | Fatia             | O que entra                                                                                                                                                                                                                                                                                                    |

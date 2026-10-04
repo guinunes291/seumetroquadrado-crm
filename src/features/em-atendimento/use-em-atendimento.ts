@@ -107,7 +107,14 @@ const trocaResultadoSchema = z.object({
   entra: z.string().uuid(),
   sai: z.string().uuid(),
   desfecho: z.string(),
+  // O que aconteceu com quem saiu: a tela diz se virou retorno futuro.
+  saida: z
+    .object({ destino: z.string(), categoria: z.string().optional() })
+    .passthrough()
+    .optional(),
 });
+
+export type TrocaResultado = z.infer<typeof trocaResultadoSchema>;
 
 export type DesfechoTroca = DesfechoRetorno | "perdido";
 
