@@ -518,7 +518,9 @@ describe("as saídas do lote", () => {
     expect(n.data_distribuicao?.toISOString()).toBe("2026-01-10T12:00:00.000Z");
     expect(await lead(eraAtendimento)).toMatchObject({
       corretor_id: null,
-      status: "em_atendimento",
+      // Regra dos 65, Fatia 3a: lead sem corretor não fica em Em atendimento —
+      // nasce e volta ao Bolsão como Aguardando atendimento.
+      status: "aguardando_atendimento",
       // A classe de antes do lote (o padrão da coluna) volta junto.
       classe_lead: "quente",
       cadencia_etapa: null,

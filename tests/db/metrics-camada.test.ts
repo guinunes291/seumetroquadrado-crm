@@ -65,10 +65,16 @@ beforeAll(async () => {
     corretorId: corretorA.id,
     status: "aguardando_atendimento",
   });
+  // Porta de Em atendimento (regra dos 65, Fatia 3a): fora da cadência, com
+  // contato registrado e passo com data.
+  await c.query(
+    `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
+    [leadComHistorico],
+  );
   await comoUsuario(c, corretorA.id);
   await c.query(
     `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL,
-       'Ligar para o cliente', NULL, NULL)`,
+       'Ligar para o cliente', now() + interval '1 day', NULL)`,
     [leadComHistorico],
   );
   await comoSuperuser(c);

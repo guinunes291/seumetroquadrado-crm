@@ -182,10 +182,18 @@ describe("transicionar_lead: transições válidas e efeitos colaterais", () => 
       corretorId: corretor.id,
       status: "aguardando_atendimento",
     });
+    // Porta de Em atendimento (regra dos 65, Fatia 3a): fora da cadência (a
+    // atribuição pôs o lead em D0), contato registrado e passo com data.
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
+      [leadId],
+    );
 
     await comoUsuario(c, corretor.id);
     const r = await transicionar(leadId, "em_atendimento", {
       proximaAcao: "Ligar para o cliente amanhã",
+      followup: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
     expect(r.rows[0].status).toBe("em_atendimento");
 
@@ -256,8 +264,11 @@ describe("transicionar_lead: transições válidas e efeitos colaterais", () => 
       status: "aguardando_atendimento",
     });
 
+    // Em atendimento tem porta própria desde a Fatia 3a (EA066/EA067/EA068,
+    // tests/db/em-atendimento-fatia3a.test.ts); a regra genérica fica visível
+    // num status ativo sem porta própria.
     await comoUsuario(c, corretor.id);
-    const erro = await erroDe(transicionar(leadId, "em_atendimento"));
+    const erro = await erroDe(transicionar(leadId, "qualificado"));
     expect(erro).not.toBeNull();
     expect(erro!.code).toBe("22023");
     expect(erro!.message).toMatch(/informe próxima ação ou follow-up/);

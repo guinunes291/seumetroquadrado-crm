@@ -125,6 +125,8 @@ export async function trocarVaga(input: {
   data?: Date | null;
   categoria?: string | null;
   detalhe?: string | null;
+  /** Contato que abriu a janela (Iniciar atendimento): registrado para quem entra. */
+  contato?: "ligacao" | "whatsapp" | null;
 }) {
   const { data, error } = await rpc("trocar_vaga_em_atendimento", {
     _entra: input.entra,
@@ -133,6 +135,7 @@ export async function trocarVaga(input: {
     _data: input.data ? input.data.toISOString() : null,
     _categoria: input.categoria ?? null,
     _detalhe: input.detalhe?.trim() || null,
+    _contato_tipo: input.contato ?? null,
   });
   if (error) throw error;
   return trocaResultadoSchema.parse(data);

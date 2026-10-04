@@ -105,7 +105,10 @@ describe("espelhos do front", () => {
       true,
     );
     expect(transicaoLeadPermitida("aguardando_retorno", "qualificacao_corretor", false)).toBe(true);
-    expect(transicaoLeadPermitida("em_atendimento", "qualificacao_corretor", false)).toBe(true);
+    // Regra dos 65, Fatia 3a: de Em atendimento o corretor sai só por desfecho;
+    // devolver à Qualificação Corretor é correção de dado, da gestão.
+    expect(transicaoLeadPermitida("em_atendimento", "qualificacao_corretor", false)).toBe(false);
+    expect(transicaoLeadPermitida("em_atendimento", "qualificacao_corretor", true)).toBe(true);
     expect(transicaoLeadPermitida("qualificacao_corretor", "em_atendimento", false)).toBe(true);
     expect(transicaoLeadPermitida("qualificacao_corretor", "agendado", false)).toBe(true);
     // Não pula direto para a venda nem volta para a fila de espera.

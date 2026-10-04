@@ -246,17 +246,24 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
     });
   });
 
-  it("3. corretor inicia atendimento: em_atendimento com próxima ação persistida", async () => {
+  it("3. cliente respondeu na Fila do Dia: em_atendimento com próxima ação persistida", async () => {
+    // A atribuição pôs o lead em D0. Desde a regra dos 65 (Fatia 3a) a ficha
+    // não tira o lead da cadência: quem entra em Em atendimento é a resposta
+    // do cliente, registrada pela Fila do Dia (cadencia_marcar_respondeu), com
+    // o próximo passo e a data — que vira tarefa.
     await comoUsuario(c, corretorJ1.id);
-    const r = await transicionar(leadId, "em_atendimento", {
-      proximaAcao: "Ligar e qualificar o cliente",
-    });
-    expect(r.rows[0].status).toBe("em_atendimento");
-    expect(r.rows[0].proxima_acao).toBe("Ligar e qualificar o cliente");
+    const r = await c.query(
+      `SELECT public.cadencia_marcar_respondeu($1, 'Ligar e qualificar o cliente', $2) AS r`,
+      [leadId, vencFollowup1],
+    );
+    expect(r.rows[0].r).toMatchObject({ ok: true, etapa_anterior: "D0" });
 
     const lead = await leadRow(leadId);
     expect(lead.status).toBe("em_atendimento");
     expect(lead.proxima_acao).toBe("Ligar e qualificar o cliente");
+    await comoSuperuser(c);
+    const etapa = await c.query(`SELECT cadencia_etapa FROM public.leads WHERE id = $1`, [leadId]);
+    expect(etapa.rows[0].cadencia_etapa).toBe("respondeu");
   });
 
   it("4. follow-up criado como o app (INSERT em tarefas pelo corretor) espelha em leads.proximo_followup", async () => {
@@ -272,6 +279,14 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       [tarefaFollowup1],
     );
     expect(upd.rowCount).toBe(1);
+    // O passo combinado no "Cliente respondeu" (passo 3) também é tarefa, com
+    // o mesmo vencimento: concluída junto, o espelho fica vazio.
+    const upd2 = await c.query(
+      `UPDATE public.tarefas SET status = 'concluida', data_conclusao = now()
+        WHERE lead_id = $1 AND origem_automatica AND status = 'pendente'`,
+      [leadId],
+    );
+    expect(upd2.rowCount).toBe(1);
 
     const lead = await leadRow(leadId);
     expect(lead.proximo_followup).toBeNull();
@@ -441,7 +456,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       { de: "analise_credito", para: "contrato_fechado" },
     ]);
 
-    // Trilha de lead_eventos: 4 transições via RPC + 1 saída da cadência +
+    // Trilha de lead_eventos: 3 transições via RPC + 1 saída da cadência +
     // 1 efetivacao_venda (marcos ligados no passo 9) + 1 venda_aprovada.
     // (A atribuição inicial novo->aguardando_atendimento é do motor de
     // distribuição, que loga em distribution_log, não em lead_eventos; o
@@ -456,12 +471,10 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       [leadId],
     );
     expect(eventos.rows).toEqual([
-      { tipo: "transicao_lead", de: "aguardando_atendimento", para: "em_atendimento" },
-      // Base em formação (20260925120000): a atribuição pôs o lead em Lead chegou (D0), e o
-      // passo 3 (corretor inicia o atendimento pela ficha) é avançar de fase —
-      // o lead sai da cadência para a carteira. Sem esta saída ele chegaria em
-      // `agendado` ainda em D0, e `cadencia_vencidos` o devolveria à roleta no
-      // meio da venda.
+      // Regra dos 65, Fatia 3a: o passo 3 é "Cliente respondeu" na Fila do Dia
+      // (cadencia_marcar_respondeu), que muda o status por dentro da cadência
+      // e registra a saída dela — não há 'transicao_lead' aqui; a transição
+      // aparece em lead_status_transitions (gatilho) como as outras.
       { tipo: "cadencia_etapa", de: null, para: null },
       { tipo: "transicao_lead", de: "em_atendimento", para: "agendado" },
       { tipo: "transicao_lead", de: "agendado", para: "visita_realizada" },
@@ -480,7 +493,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       [leadId],
     );
     expect(saida.rows).toEqual([
-      { cadencia_etapa: "respondeu", de: "D0", para: "respondeu", via: "status" },
+      { cadencia_etapa: "respondeu", de: "D0", para: "respondeu", via: null },
     ]);
 
     // Cada transição também vira uma interação 'mudanca_status' no histórico.
@@ -561,8 +574,18 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
   });
 
   it("2. tentativas de contato registradas em interacoes atualizam ultima_interacao do lead", async () => {
+    // Porta de Em atendimento (regra dos 65, Fatia 3a): fora da cadência, com
+    // contato registrado e passo com data.
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
+      [leadId],
+    );
     await comoUsuario(c, corretorJ2.id);
-    await transicionar(leadId, "em_atendimento", { proximaAcao: "Tentar contato" });
+    await transicionar(leadId, "em_atendimento", {
+      proximaAcao: "Tentar contato",
+      followup: daquiDias(1),
+    });
 
     await c.query(
       `INSERT INTO public.interacoes (lead_id, autor_id, tipo, direcao, conteudo)

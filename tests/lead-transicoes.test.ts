@@ -7,7 +7,8 @@ import {
   type LeadStatus,
 } from "../src/lib/leads";
 
-// Espelho de public.transicao_lead_permitida (migration 20260715191457).
+// Espelho de public.transicao_lead_permitida (migrations 20260811151000 e
+// 20261010120700, regra dos 65 — Fatia 3a).
 // Estes testes fixam o contrato: se a função SQL mudar, o espelho (e estes
 // casos) precisam mudar juntos — senão a UI volta a oferecer destino inválido.
 
@@ -69,6 +70,27 @@ describe("transicaoLeadPermitida — espelho da máquina de estados do banco", (
     expect(transicaoLeadPermitida("contrato_fechado", "pos_venda", true)).toBe(true);
     expect(transicaoLeadPermitida("contrato_fechado", "analise_credito", true)).toBe(true);
     expect(transicaoLeadPermitida("pos_venda", "aguardando_retorno", true)).toBe(true);
+  });
+
+  it("de Em atendimento o corretor sai só por desfecho; a gestão mantém as correções", () => {
+    for (const alvo of [
+      "aguardando_retorno",
+      "agendado",
+      "analise_credito",
+      "perdido",
+    ] as LeadStatus[]) {
+      expect(transicaoLeadPermitida("em_atendimento", alvo, false)).toBe(true);
+      expect(transicaoLeadPermitida("em_atendimento", alvo, true)).toBe(true);
+    }
+    for (const alvo of [
+      "qualificacao_corretor",
+      "qualificado",
+      "visita_realizada",
+    ] as LeadStatus[]) {
+      expect(transicaoLeadPermitida("em_atendimento", alvo, false)).toBe(false);
+      expect(transicaoLeadPermitida("em_atendimento", alvo, true)).toBe(true);
+    }
+    expect(motivoTransicaoBloqueada("em_atendimento", "qualificado", false)).toContain("desfecho");
   });
 
   it("status desconhecido nunca transiciona", () => {
