@@ -1,8 +1,10 @@
 // Entrega manual com motivo (decisão 2026-09-04): lead qualificado ou com
 // documento que ainda não marcou visita. Motivo obrigatório (vai para o log
 // de distribuição); o lead cai em "Qualificação Corretor" na base do corretor.
+// Zona de interesse obrigatória (05/10/2026): o lead vai só para quem atende
+// a zona que o SDR escolher aqui.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -16,8 +18,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { motivoEntregaValido, sdrRegraLabel } from "@/lib/sdr";
-import { entregarLeadSdr, useInvalidarSdr } from "./client";
+import { motivoEntregaValido, sdrRegraLabel, zonaInteresseValida } from "@/lib/sdr";
+import { entregarLeadSdr, useInvalidarSdr, useZonaDoLead } from "./client";
+import { ZonaInteresseField } from "./zona-interesse-field";
 
 type Props = {
   lead: { id: string; nome: string };
@@ -29,12 +32,25 @@ type Props = {
 export function EntregarLeadSdrDialog({ lead, open, onOpenChange, onDone }: Props) {
   const invalidar = useInvalidarSdr();
   const [motivo, setMotivo] = useState("");
+  const [zona, setZona] = useState<string | null>(null);
+  const [tentou, setTentou] = useState(false);
+  // A zona que a ficha já indica entra como sugestão; o SDR confirma ou troca.
+  const sugerida = useZonaDoLead(lead.id, open);
+  useEffect(() => {
+    if (zona === null && zonaInteresseValida(sugerida.data)) setZona(sugerida.data);
+  }, [sugerida.data, zona]);
 
   const entregar = useMutation({
-    mutationFn: () => entregarLeadSdr(lead.id, motivo.trim()),
+    mutationFn: async () => {
+      if (!zonaInteresseValida(zona)) {
+        setTentou(true);
+        throw new Error("Escolha a zona em que o cliente tem interesse.");
+      }
+      return entregarLeadSdr(lead.id, motivo.trim(), zona);
+    },
     onSuccess: (res) => {
       toast.success(`Entregue a ${res.corretor_nome ?? "um corretor"}`, {
-        description: `${sdrRegraLabel(res.regra)} · o lead entra em Qualificação Corretor na base dele.`,
+        description: `${sdrRegraLabel(res.regra)} · zona ${zona} · o lead entra em Qualificação Corretor na base dele.`,
       });
       invalidar(lead.id);
       onOpenChange(false);
@@ -66,13 +82,24 @@ export function EntregarLeadSdrDialog({ lead, open, onOpenChange, onDone }: Prop
             <p className="text-xs text-destructive">Mínimo de 5 caracteres.</p>
           )}
         </div>
+        <ZonaInteresseField
+          value={zona}
+          onChange={(z) => {
+            setZona(z);
+            setTentou(false);
+          }}
+          carregando={sugerida.isPending && zona === null}
+          faltou={tentou}
+        />
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
             type="button"
-            disabled={!motivoEntregaValido(motivo) || entregar.isPending}
+            disabled={
+              !motivoEntregaValido(motivo) || !zonaInteresseValida(zona) || entregar.isPending
+            }
             onClick={() => entregar.mutate()}
           >
             {entregar.isPending ? "Entregando…" : "Entregar ao corretor"}
