@@ -2372,6 +2372,127 @@ export type Database = {
           },
         ]
       }
+      cliente_eventos: {
+        Row: {
+          autor_id: string | null
+          campo: string
+          cliente_id: string
+          corretor_id: string | null
+          em: string
+          id: number
+          lead_id: string | null
+          valor_anterior: Json | null
+          valor_novo: Json | null
+        }
+        Insert: {
+          autor_id?: string | null
+          campo: string
+          cliente_id: string
+          corretor_id?: string | null
+          em?: string
+          id?: never
+          lead_id?: string | null
+          valor_anterior?: Json | null
+          valor_novo?: Json | null
+        }
+        Update: {
+          autor_id?: string | null
+          campo?: string
+          cliente_id?: string
+          corretor_id?: string | null
+          em?: string
+          id?: never
+          lead_id?: string | null
+          valor_anterior?: Json | null
+          valor_novo?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_eventos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cliente_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cliente_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "cliente_eventos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
+      clientes: {
+        Row: {
+          chave_telefone: string | null
+          cpf: string | null
+          created_at: string
+          dados: Json
+          email: string | null
+          id: string
+          nome: string | null
+          opt_out: boolean
+          telefone: string | null
+          telefone_e164: string | null
+          updated_at: string
+        }
+        Insert: {
+          chave_telefone?: string | null
+          cpf?: string | null
+          created_at?: string
+          dados?: Json
+          email?: string | null
+          id?: string
+          nome?: string | null
+          opt_out?: boolean
+          telefone?: string | null
+          telefone_e164?: string | null
+          updated_at?: string
+        }
+        Update: {
+          chave_telefone?: string | null
+          cpf?: string | null
+          created_at?: string
+          dados?: Json
+          email?: string | null
+          id?: string
+          nome?: string | null
+          opt_out?: boolean
+          telefone?: string | null
+          telefone_e164?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       comissao_ledger: {
         Row: {
           beneficiario_id: string | null
@@ -4271,6 +4392,74 @@ export type Database = {
           },
         ]
       }
+      em_atendimento_escolhas: {
+        Row: {
+          corretor_id: string
+          escolhido_em: string
+          lead_id: string
+        }
+        Insert: {
+          corretor_id: string
+          escolhido_em?: string
+          lead_id: string
+        }
+        Update: {
+          corretor_id?: string
+          escolhido_em?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "em_atendimento_escolhas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_escolhas_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_escolhas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_escolhas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_escolhas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_escolhas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_escolhas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           ativo: boolean
@@ -5078,6 +5267,7 @@ export type Database = {
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
+          cliente_id: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -5127,6 +5317,7 @@ export type Database = {
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -5169,6 +5360,7 @@ export type Database = {
           campanha?: string | null
           canal_entrada?: string | null
           classe_lead?: string
+          cliente_id: string
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -5218,6 +5410,7 @@ export type Database = {
           proxima_acao?: string | null
           proximo_followup?: string | null
           reativado?: boolean
+          registro_adicional?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
@@ -5260,6 +5453,7 @@ export type Database = {
           campanha?: string | null
           canal_entrada?: string | null
           classe_lead?: string
+          cliente_id?: string
           consentimento_lgpd?: boolean | null
           construtora?: string | null
           copiloto_notificado_em?: string | null
@@ -5309,6 +5503,7 @@ export type Database = {
           proxima_acao?: string | null
           proximo_followup?: string | null
           reativado?: boolean
+          registro_adicional?: boolean
           renda_estimada?: number | null
           renda_informada?: string | null
           resumo_qualificacao?: string | null
@@ -5342,6 +5537,13 @@ export type Database = {
           zona?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_projeto_id_fkey"
             columns: ["projeto_id"]
@@ -9976,6 +10178,18 @@ export type Database = {
         Args: { _em_formacao: number; _ocupadas: number }
         Returns: number
       }
+      _cliente_achar: {
+        Args: { _cpf: string; _email: string; _telefone: string }
+        Returns: {
+          cliente_id: string
+          match_por: string
+        }[]
+      }
+      _cliente_campos: { Args: never; Returns: string[] }
+      _cliente_lead_avancado: {
+        Args: { _cliente_id: string; _exceto_corretor?: string }
+        Returns: string
+      }
       _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
       _devolver_lead_ao_sdr: {
         Args: { _gatilho: string; _lead_id: string; _motivo: string }
@@ -10089,6 +10303,55 @@ export type Database = {
           ultimo_lead_em: string
         }[]
       }
+      _em_atendimento_classificar: {
+        Args: { _corretores: string[] }
+        Returns: {
+          acao: string
+          camada: string
+          corretor_id: string
+          destino: string
+          dias_sem_toque: number
+          escolhido: boolean
+          escreveu_em: string
+          grupo: string
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          origem: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+        }[]
+      }
+      _em_atendimento_contato_recente: {
+        Args: { _horas: number; _lead_id: string }
+        Returns: boolean
+      }
+      _em_atendimento_corretores_visiveis: {
+        Args: { _caller: string }
+        Returns: string[]
+      }
+      _em_atendimento_recebe_lead: {
+        Args: { _corretor: string }
+        Returns: boolean
+      }
+      _em_atendimento_travar: {
+        Args: {
+          _cadencia_etapa: string
+          _corretor_id: string
+          _followup: string
+          _gestao: boolean
+          _lead_id: string
+          _origem: string
+          _status_atual: Database["public"]["Enums"]["lead_status"]
+          _uid: string
+        }
+        Returns: undefined
+      }
       _escalar_lead_gestor: {
         Args: { _lead_id: string; _tentativas: number }
         Returns: undefined
@@ -10111,6 +10374,10 @@ export type Database = {
         Returns: number
       }
       _modelo_v2_ativo: { Args: never; Returns: boolean }
+      _msg_fora_da_regiao: {
+        Args: { _corretor: string; _zona: string }
+        Returns: string
+      }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _notificar_handoff_novo_dono: {
@@ -10129,6 +10396,7 @@ export type Database = {
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
+          cliente_id: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -10178,6 +10446,7 @@ export type Database = {
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -10272,6 +10541,15 @@ export type Database = {
         }
         Returns: string
       }
+      _repassar_lead_campanha: {
+        Args: {
+          _contexto_extra?: Json
+          _gatilho: string
+          _lead_id: string
+          _roleta_slug: string
+        }
+        Returns: Json
+      }
       _resolver_roleta_lead: {
         Args: {
           _canal: string
@@ -10280,6 +10558,7 @@ export type Database = {
         Returns: string
       }
       _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
+      _rotulo_zona: { Args: { _zona: string }; Returns: string }
       _sdr_agenda_conflita: {
         Args: { _corretor_id: string; _fim: string; _inicio: string }
         Returns: boolean
@@ -10332,9 +10611,18 @@ export type Database = {
         }
         Returns: string
       }
+      _sincronizar_zonas_corretor: {
+        Args: { _corretor: string }
+        Returns: undefined
+      }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
       _zona_chave: { Args: { _txt: string }; Returns: string }
+      _zona_destravar_espera: { Args: { _corretor: string }; Returns: number }
+      _zona_do_lead_campos: {
+        Args: { _bairro: string; _projeto_id: string; _zona: string }
+        Returns: string
+      }
       _zona_do_projeto: {
         Args: {
           _bairro: string
@@ -10346,6 +10634,9 @@ export type Database = {
       }
       _zona_eh_abc: { Args: { _txt: string }; Returns: boolean }
       _zona_eh_grande_sp: { Args: { _txt: string }; Returns: boolean }
+      _zona_estrita: { Args: never; Returns: boolean }
+      _zonas_canonicas: { Args: never; Returns: string[] }
+      _zonas_da_regiao: { Args: { _corretor: string }; Returns: string[] }
       academia_atribuir: {
         Args: {
           _corretor: string
@@ -10862,6 +11153,10 @@ export type Database = {
         Returns: string
       }
       buscar_lead_por_telefone: { Args: { _telefone: string }; Returns: string }
+      buscar_oportunidade: {
+        Args: { _cpf?: string; _email?: string; _telefone?: string }
+        Returns: Json
+      }
       cadencia_auditoria: {
         Args: { _limite?: number }
         Returns: {
@@ -11166,6 +11461,12 @@ export type Database = {
           rate_limits_deleted: number
         }[]
       }
+      cliente_chave_do_telefone: {
+        Args: { _telefone: string }
+        Returns: string
+      }
+      cliente_chave_telefone: { Args: { _telefone: string }; Returns: string }
+      cliente_registro_mae_v1: { Args: { _lead_id: string }; Returns: Json }
       comissao_sugerida_corretor: {
         Args: { p_corretor: string; p_data?: string; p_lead: string }
         Returns: {
@@ -11306,6 +11607,10 @@ export type Database = {
         }[]
       }
       copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
+      corretor_atende_zona: {
+        Args: { _corretor: string; _zona: string }
+        Returns: boolean
+      }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       corretor_tier: {
         Args: { p_corretor: string; p_ref?: string }
@@ -11326,6 +11631,10 @@ export type Database = {
         Returns: string
       }
       criar_lead_dedup: { Args: { _payload: Json }; Returns: Json }
+      criar_registro_filho: {
+        Args: { _cliente_id: string; _payload?: Json }
+        Returns: Json
+      }
       criar_roleta_campanha: {
         Args: {
           _equipe_fixa?: boolean
@@ -11675,6 +11984,105 @@ export type Database = {
           ultimo_lead_em: string
         }[]
       }
+      em_atendimento_config: { Args: never; Returns: Json }
+      em_atendimento_contador_v1: {
+        Args: { _corretor?: string }
+        Returns: Json
+      }
+      em_atendimento_escolhidos: {
+        Args: { _corretor: string }
+        Returns: number
+      }
+      em_atendimento_minha_base: {
+        Args: { _corretor: string }
+        Returns: number
+      }
+      em_atendimento_ocupacao: { Args: { _corretor: string }; Returns: number }
+      em_atendimento_portas_v1: {
+        Args: never
+        Returns: {
+          clientes_duplicados: number
+          em_atendimento_dono_inativo: number
+          em_atendimento_em_cadencia: number
+          em_atendimento_sem_dono: number
+          registros_em_conflito: number
+          registros_encerrariam: number
+        }[]
+      }
+      em_atendimento_sombra_leads_v1: {
+        Args: { _camada?: string; _corretor?: string }
+        Returns: {
+          acao: string
+          camada: string
+          destino: string
+          dias_sem_toque: number
+          escreveu_em: string
+          grupo: string
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          origem: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+        }[]
+      }
+      em_atendimento_sombra_leads_v2: {
+        Args: { _camada?: string; _corretor?: string }
+        Returns: {
+          acao: string
+          camada: string
+          destino: string
+          dias_sem_toque: number
+          escolhido: boolean
+          escreveu_em: string
+          grupo: string
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          origem: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+        }[]
+      }
+      em_atendimento_sombra_v1: {
+        Args: never
+        Returns: {
+          alerta_proprio: number
+          base: number
+          base_cadencia: number
+          base_depois: number
+          corretor_id: string
+          em_atendimento: number
+          excedente: number
+          ficam: number
+          fundo: number
+          fundo_desfecho: number
+          fundo_gestor: number
+          nome: string
+          perde_vaga: number
+          porta_cadencia: number
+          qualificacao_vencida: number
+          recebe_lead: boolean
+          retorno_protegido: number
+          sai_bolsao: number
+          sai_reativacao: number
+          sai_roleta: number
+          teto: number
+          teto_base: number
+          trava: string
+          trava_roleta: number
+        }[]
+      }
       enqueue_push: {
         Args: {
           _body: string
@@ -11697,6 +12105,10 @@ export type Database = {
           leads_janela: number
           vendas_janela: number
         }[]
+      }
+      escolher_em_atendimento: {
+        Args: { _escolher?: boolean; _lead_id: string }
+        Returns: Json
       }
       excluir_venda: {
         Args: { p_motivo?: string; p_venda_id: string }
@@ -12711,6 +13123,20 @@ export type Database = {
         Args: { _projeto_id: string }
         Returns: string
       }
+      regiao_do_corretor: { Args: { _corretor: string }; Returns: string[] }
+      registrar_contato_lead: {
+        Args: {
+          _conteudo?: string
+          _criar_tarefa?: boolean
+          _lead_id: string
+          _proxima_acao?: string
+          _proximo_followup?: string
+          _resultado: string
+          _tipo: string
+          _titulo?: string
+        }
+        Returns: Json
+      }
       registrar_documentacao_remocao: {
         Args: { _ator_id: string; _documentacao_id: string }
         Returns: string
@@ -12727,6 +13153,10 @@ export type Database = {
         }
         Returns: number
       }
+      registrar_retorno_lead: {
+        Args: { _data: string; _lead_id: string; _nota?: string; _tipo: string }
+        Returns: Json
+      }
       registrar_vitrine_evento: {
         Args: {
           _cta_tipo?: string
@@ -12737,6 +13167,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      registrar_volta_campanha: { Args: { _lead: Json }; Returns: Json }
       regua_devolucao_candidatos_v1: {
         Args: never
         Returns: {
@@ -12979,6 +13410,7 @@ export type Database = {
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
+          cliente_id: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -13028,6 +13460,7 @@ export type Database = {
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -13102,7 +13535,12 @@ export type Database = {
         }[]
       }
       transferir_leads: {
-        Args: { _corretor: string; _ids: string[] }
+        Args: {
+          _corretor: string
+          _forcar_fora_da_zona?: boolean
+          _ids: string[]
+          _motivo_fora_da_zona?: string
+        }
         Returns: number
       }
       transicao_lead_permitida: {
@@ -13132,6 +13570,7 @@ export type Database = {
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
+          cliente_id: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -13181,6 +13620,7 @@ export type Database = {
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -13237,6 +13677,7 @@ export type Database = {
           campanha: string | null
           canal_entrada: string | null
           classe_lead: string
+          cliente_id: string
           consentimento_lgpd: boolean | null
           construtora: string | null
           copiloto_notificado_em: string | null
@@ -13286,6 +13727,7 @@ export type Database = {
           proxima_acao: string | null
           proximo_followup: string | null
           reativado: boolean
+          registro_adicional: boolean
           renda_estimada: number | null
           renda_informada: string | null
           resumo_qualificacao: string | null
@@ -13327,6 +13769,20 @@ export type Database = {
       }
       triar_e_distribuir_lead: {
         Args: { _gatilho?: string; _lead_id: string }
+        Returns: Json
+      }
+      trocar_vaga_em_atendimento: {
+        Args: {
+          _categoria?: string
+          _contato_tipo?: string
+          _data?: string
+          _desfecho: string
+          _detalhe?: string
+          _entra: string
+          _proxima_acao?: string
+          _proximo_followup?: string
+          _sai: string
+        }
         Returns: Json
       }
       validar_visita: {
@@ -13380,6 +13836,7 @@ export type Database = {
         Args: { _urls: string[] }
         Returns: boolean
       }
+      zona_canonica: { Args: { _txt: string }; Returns: string }
       zona_do_bairro: { Args: { _txt: string }; Returns: string }
       zona_do_lead: { Args: { _lead_id: string }; Returns: string }
       zona_normalizar: { Args: { _txt: string }; Returns: string }

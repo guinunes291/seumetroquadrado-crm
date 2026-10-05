@@ -2,7 +2,7 @@
 
 Aprovada em 05/10/2026 pelo Guilherme (admin SMQ). Implementada na migration
 `20261011120000_roleta_sdr_permanencia_semanal.sql` (espelho drizzle
-`0060_roleta_sdr_permanencia_semanal`), atrás da chave
+`0062_roleta_sdr_permanencia_semanal`), atrás da chave
 `roleta_sdr_regra_ativa` (nasce desligada).
 
 Até aqui o time da roleta `agendados-sdr` era montado à mão pelo admin. Agora a
@@ -147,7 +147,7 @@ corretor vê só a própria linha; ninguém escreve fora da apuração.
 | Peça                                                         | Onde                                                                    |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | Migration (chaves, tabela, funções, crons)                   | `supabase/migrations/20261011120000_roleta_sdr_permanencia_semanal.sql` |
-| Espelho para o Lovable aplicar em produção                   | `drizzle/migrations/0060_roleta_sdr_permanencia_semanal.sql`            |
+| Espelho para o Lovable aplicar em produção                   | `drizzle/migrations/0062_roleta_sdr_permanencia_semanal.sql`            |
 | Regras puras (contagem, cascata, efeito, textos)             | `src/lib/roleta-sdr-semanal.ts`                                         |
 | Testes das regras puras                                      | `tests/roleta-sdr-semanal.test.ts`                                      |
 | Leituras da tela (RPC + zod, sem tocar no `types.ts` gerado) | `src/features/distribuicao/roleta-sdr-semanal-queries.ts`               |

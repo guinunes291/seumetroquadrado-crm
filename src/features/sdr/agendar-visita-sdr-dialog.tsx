@@ -2,9 +2,10 @@
 // 2026-09-04): o SDR só escolhe o horário; quem atende é decidido pelo motor
 // (corretor original com prioridade, senão roleta de agendados pulando
 // conflito de agenda) e o agendamento já nasce no nome do corretor. O SDR
-// recebe as tarefas de confirmação D-1/D-0.
+// recebe as tarefas de confirmação D-1/D-0. Zona de interesse obrigatória
+// (05/10/2026): a roleta só considera quem atende a zona que o SDR escolher.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -20,8 +21,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { sdrRegraLabel } from "@/lib/sdr";
-import { agendarVisitaSdr, useInvalidarSdr } from "./client";
+import { sdrRegraLabel, zonaInteresseValida } from "@/lib/sdr";
+import { agendarVisitaSdr, useInvalidarSdr, useZonaDoLead } from "./client";
+import { ZonaInteresseField } from "./zona-interesse-field";
 
 function toLocal(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -49,6 +51,13 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
   const [titulo, setTitulo] = useState(`Visita - ${lead.nome}`);
   const [local, setLocal] = useState(lead.projeto_nome ?? "");
   const [descricao, setDescricao] = useState("");
+  const [zona, setZona] = useState<string | null>(null);
+  const [tentou, setTentou] = useState(false);
+  // A zona que a ficha já indica entra como sugestão; o SDR confirma ou troca.
+  const sugerida = useZonaDoLead(lead.id, open);
+  useEffect(() => {
+    if (zona === null && zonaInteresseValida(sugerida.data)) setZona(sugerida.data);
+  }, [sugerida.data, zona]);
 
   const diaAtual = dataInicio.slice(0, 10);
   const horaAtual = dataInicio.slice(11, 16);
@@ -77,10 +86,15 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
           "Informe o endereço da visita. O corretor recebe a mensagem com endereço e horário.",
         );
       }
+      if (!zonaInteresseValida(zona)) {
+        setTentou(true);
+        throw new Error("Escolha a zona em que o cliente tem interesse.");
+      }
       const fim = new Date(inicio.getTime() + 60 * 60 * 1000);
       return agendarVisitaSdr({
         leadId: lead.id,
         dataInicio: inicio.toISOString(),
+        zona,
         dataFim: fim.toISOString(),
         titulo: titulo.trim() || null,
         local: local.trim(),
@@ -90,7 +104,7 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
     onSuccess: async (res) => {
       // O WhatsApp ao corretor (endereço, horário, resumo) sai do banco.
       toast.success(`Visita marcada com ${res.corretor_nome ?? "o corretor"}`, {
-        description: `${sdrRegraLabel(res.regra)} · o corretor recebe o WhatsApp com endereço e horário; você confirma a visita (D-1 e no dia).`,
+        description: `${sdrRegraLabel(res.regra)} · zona ${zona} · o corretor recebe o WhatsApp com endereço e horário; você confirma a visita (D-1 e no dia).`,
       });
       invalidar(lead.id);
       onOpenChange(false);
@@ -105,12 +119,21 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
         <DialogHeader>
           <DialogTitle>Agendar visita e entregar ao corretor</DialogTitle>
           <DialogDescription>
-            A roleta escolhe o corretor apto e com agenda livre neste horário. Se o lead já tem
-            corretor ativo, ele tem prioridade.
+            A roleta escolhe o corretor apto, que atende a zona do cliente e tem agenda livre neste
+            horário. Se o lead já tem corretor ativo da zona, ele tem prioridade.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <ZonaInteresseField
+            value={zona}
+            onChange={(z) => {
+              setZona(z);
+              setTentou(false);
+            }}
+            carregando={sugerida.isPending && zona === null}
+            faltou={tentou}
+          />
           <div className="space-y-1.5">
             <Label>Dia</Label>
             <div className="flex flex-wrap gap-1.5">
@@ -197,7 +220,11 @@ export function AgendarVisitaSdrDialog({ lead, open, onOpenChange, onDone }: Pro
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="button" disabled={agendar.isPending} onClick={() => agendar.mutate()}>
+          <Button
+            type="button"
+            disabled={agendar.isPending || !zonaInteresseValida(zona)}
+            onClick={() => agendar.mutate()}
+          >
             {agendar.isPending ? "Rodando a roleta…" : "Agendar e entregar"}
           </Button>
         </DialogFooter>

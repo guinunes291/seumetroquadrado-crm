@@ -6,6 +6,29 @@
 // segunda fonte de verdade.
 
 import type { LeadStatus } from "@/lib/leads";
+import { ZONAS_REGIAO, type ZonaProjeto } from "@/lib/zonas";
+
+// ---------------------------------------------------------------------------
+// Zona de interesse (decisão do dono, 05/10/2026): o lead que o SDR agenda ou
+// entrega precisa da zona em que o cliente tem interesse, escolhida no
+// registro — a roleta entrega só a quem atende a zona. O banco recusa sem
+// ela (SQLSTATE SMQZ2, migration 20261010120900); aqui a tela trava antes.
+// ---------------------------------------------------------------------------
+
+/** Código do Postgres para "zona de interesse obrigatória". */
+export const ZONA_SDR_ERRCODE = "SMQZ2";
+
+/** As zonas que o SDR pode escolher (as mesmas seis do banco). */
+export const ZONAS_SDR: readonly ZonaProjeto[] = ZONAS_REGIAO;
+
+export function zonaInteresseValida(z: string | null | undefined): z is ZonaProjeto {
+  return !!z && (ZONAS_REGIAO as readonly string[]).includes(z);
+}
+
+/** O erro do banco quando a zona faltou (para a tela apontar o campo). */
+export function erroZonaObrigatoria(e: unknown): boolean {
+  return !!e && typeof e === "object" && (e as { code?: string }).code === ZONA_SDR_ERRCODE;
+}
 
 /** Etapas em que o lead ainda está "na mão" do SDR (funil reutilizado). */
 export const SDR_ETAPAS_BASE = [

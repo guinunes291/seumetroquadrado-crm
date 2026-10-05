@@ -425,8 +425,22 @@
     {
       "idx": 60,
       "version": "7",
+      "when": 1791214024584,
+      "tag": "0060_noshow_lead_sdr_nao_trava",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
       "when": 1791644880000,
-      "tag": "0060_roleta_sdr_permanencia_semanal",
+      "tag": "0061_sdr_zona_obrigatoria",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1791644940000,
+      "tag": "0062_roleta_sdr_permanencia_semanal",
       "breakpoints": true
     }
   ]
