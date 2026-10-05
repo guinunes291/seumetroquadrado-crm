@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useRegra65Config } from "@/features/gestao/regra-65/use-regra-65";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -100,7 +101,7 @@ export function ReguaFollowUpConfigCard() {
   );
 }
 
-function ReguaEditor({
+export function ReguaEditor({
   row,
   onSave,
   saving,
@@ -109,6 +110,11 @@ function ReguaEditor({
   onSave: (valor: unknown) => void;
   saving: boolean;
 }) {
+  // Regra dos 65, Fatia 5: um motor só. Com a regra ligada (ou agendada) a
+  // devolução por SLA não liga — o banco recusa (SMQ65); aqui a chave já
+  // nasce travada, com o motivo escrito.
+  const regra65 = useRegra65Config();
+  const regra65Ligada = regra65.data?.modo === "ligado";
   // parseRegua é tolerante: config parcial/malformada vira um draft completo.
   const [inicial] = useState(() => parseRegua(row.valor));
   const [maxToques, setMaxToques] = useState(String(inicial.maxToques));
@@ -312,11 +318,18 @@ function ReguaEditor({
               <Switch
                 checked={devolucaoAtiva}
                 onCheckedChange={setDevolucaoAtiva}
+                disabled={regra65Ligada && !devolucaoAtiva}
                 aria-label="Devolução automática ativa"
               />
               <Label className="cursor-pointer">Devolução automática ativa</Label>
             </div>
           </div>
+          {regra65Ligada && (
+            <p data-testid="regua-um-motor" className="text-xs text-muted-foreground">
+              A regra dos 65 está ligada (ou agendada): a devolução por SLA fica desligada — um
+              motor só devolvendo lead. Para usar esta régua, desligue a regra dos 65 antes.
+            </p>
+          )}
           {devolucaoAtiva && (
             <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning">
               Atenção: com a devolução ativa, um lead com follow-up vencido há{" "}

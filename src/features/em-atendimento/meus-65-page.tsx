@@ -4,6 +4,7 @@
 // mas NÃO segura o relógio (decisão do dono, 03/10/2026): escolhido sem toque
 // em 5 dias desce do mesmo jeito — por isso cada escolhido mostra até quando
 // precisa de um toque. A gestão abre a tela de um corretor em leitura.
+import { AvisoViradaRegra65 } from "@/features/em-atendimento/aviso-virada";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ export function Meus65Page({ corretorId }: { corretorId?: string }) {
             : "Quem fica nas suas vagas de Em atendimento. Escolha quem você quer manter; a escolha põe o lead na frente da disputa."}
         </p>
       </header>
+      <AvisoViradaRegra65 />
 
       {contador.isPending || meus.isPending ? (
         <div className="space-y-2">
