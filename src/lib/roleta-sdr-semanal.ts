@@ -725,3 +725,133 @@ export function parseApuracoes(input: unknown): ApuracaoSemana[] {
     b.semana_inicio.localeCompare(a.semana_inicio),
   );
 }
+
+// ---------------------------------------------------------------------------
+// Aviso de quarta DENTRO do CRM (migration 20261011120400): pop-up com o card
+// do placar. O aviso é o mesmo alerta do sino; o card lê o placar ao vivo.
+// ---------------------------------------------------------------------------
+
+/** Hash do link do sino que (re)abre o pop-up em qualquer tela do CRM. */
+export const HASH_AVISO_ROLETA_SDR = "#aviso-roleta-sdr";
+
+const meuAvisoSchema = z.object({
+  alerta_id: z.string(),
+  lida: z.boolean(),
+  criado_em: z.string(),
+  semana_inicio: z.string(),
+  sombra: z.boolean(),
+});
+
+export type MeuAvisoRoletaSdr = z.infer<typeof meuAvisoSchema>;
+
+/** `roleta_sdr_meu_aviso()`: o alerta da semana em curso do próprio corretor (null = não há). */
+export function parseMeuAviso(input: unknown): MeuAvisoRoletaSdr | null {
+  if (input == null) return null;
+  return meuAvisoSchema.parse(input);
+}
+
+/** "10/10, 09:00" no relógio de São Paulo. */
+export function dataHoraCurta(instante: string | Date): string {
+  const p = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(instante));
+  const v = (t: Intl.DateTimeFormatPartTypes) => p.find((x) => x.type === t)?.value ?? "";
+  return `${v("day")}/${v("month")}, ${v("hour")}:${v("minute")}`;
+}
+
+export type TileAviso = {
+  qtd: number;
+  /** "visita realizada" / "visitas realizadas" / "pasta" / "pastas". */
+  rotulo: string;
+  /** Quanto essa produção vale: "1 pt", "3 pts". */
+  vale: string;
+};
+
+/** Tudo o que o card do pop-up mostra, já em texto — a tela só desenha. */
+export type CardAvisoRoletaSdr = {
+  /** Primeiro nome para o "Olá, Ana!" (null = sem nome no cadastro). */
+  primeiroNome: string | null;
+  /** "03/10 a 09/10". */
+  semana: string;
+  /** Pontos da semana sem a unidade: "2,5". */
+  pontos: string;
+  /** Meta com a unidade: "3 pts". */
+  meta: string;
+  /** Progresso até a meta, 0 a 100. */
+  pct: number;
+  batida: boolean;
+  visitas: TileAviso;
+  pastas: TileAviso;
+  /** "Falta 1 visita ou 1 pasta até sexta (09/10)" — null com a meta batida. */
+  falta: string | null;
+  /** Para que serve bater a meta (ou o que a meta batida garante). */
+  objetivo: string | null;
+  situacao: SituacaoRoleta;
+  situacaoTexto: string;
+};
+
+const SITUACAO_TEXTO: Record<SituacaoRoleta, string> = {
+  recebendo: "Você está recebendo agendados do SDR",
+  pausado: "Você está pausado na roleta do SDR",
+  fora: "Você ainda não está na roleta do SDR",
+};
+
+const primeiraMaiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export function cardAvisoRoletaSdr(
+  linha: Pick<
+    LinhaPlacarTela,
+    "nome" | "visitas" | "pastas" | "pontos" | "na_roleta" | "participante_ativo" | "pausado_ate"
+  >,
+  semanaInicio: string,
+  cfg: Pick<ConfigRoletaSdr, "peso_visita" | "peso_pasta" | "meta_pontos">,
+  agora: Date = new Date(),
+): CardAvisoRoletaSdr {
+  const nome = linha.nome.trim();
+  const primeiroNome = nome && nome !== "Corretor sem nome" ? nome.split(/\s+/)[0] : null;
+  const sexta = rotuloSemana(semanaInicio).slice(-5);
+  const batida = bateuMeta(linha.pontos, cfg);
+  const pct =
+    cfg.meta_pontos > 0
+      ? Math.max(0, Math.min(100, Math.round((100 * linha.pontos) / cfg.meta_pontos)))
+      : 100;
+  const situacao = situacaoNaRoleta(linha, agora);
+  const resto = resumoFalta(faltaParaMeta(linha.pontos, cfg));
+
+  let situacaoTexto = SITUACAO_TEXTO[situacao];
+  if (situacao === "pausado" && linha.pausado_ate) {
+    situacaoTexto += ` até ${dataHoraCurta(linha.pausado_ate)}`;
+  }
+
+  return {
+    primeiroNome,
+    semana: rotuloSemana(semanaInicio),
+    pontos: formatarPontos(linha.pontos).replace(/ pts?$/, ""),
+    meta: formatarPontos(cfg.meta_pontos),
+    pct,
+    batida,
+    visitas: {
+      qtd: linha.visitas,
+      rotulo: linha.visitas === 1 ? "visita realizada" : "visitas realizadas",
+      vale: formatarPontos(linha.visitas * cfg.peso_visita),
+    },
+    pastas: {
+      qtd: linha.pastas,
+      rotulo: linha.pastas === 1 ? "pasta" : "pastas",
+      vale: formatarPontos(linha.pastas * cfg.peso_pasta),
+    },
+    falta: batida || !resto ? null : `${primeiraMaiuscula(resto)} até sexta (${sexta})`,
+    objetivo: batida
+      ? "Meta da semana batida: você recebe agendados do SDR a partir de sábado."
+      : resto
+        ? `${PARA[situacao]}.`
+        : null,
+    situacao,
+    situacaoTexto,
+  };
+}
