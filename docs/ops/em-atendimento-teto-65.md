@@ -527,7 +527,7 @@ sair errado, `em_atendimento_desfazer(execucao)` devolve a rodada e
 
 ### 8.9 Fatia 4: a revisão mensal (05/10/2026)
 
-Migration `20261010121100_em_atendimento_fatia4_revisao` (Drizzle `0065`).
+Migration `20261011120200_em_atendimento_fatia4_revisao` (Drizzle `0067`).
 Nada se move: é o painel que o §2.5 pediu para revisar a regra depois de
 ligada, com as duas perguntas do dono respondidas por mês e por corretor.
 

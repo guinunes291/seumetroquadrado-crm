@@ -1,5 +1,5 @@
 /**
- * REGRA DOS 65 — Fatia 4: a revisão mensal (migration 20261010121100).
+ * REGRA DOS 65 — Fatia 4: a revisão mensal (migration 20261011120200).
  *
  *  1. TOQUE É CONTATO REAL, o mesmo recorte da regra: interação que entra ou
  *     que sai com autor, mensagem do cliente ou do corretor, chamada feita.
