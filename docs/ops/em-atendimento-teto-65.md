@@ -170,6 +170,22 @@ A `0050` e a `0051` vêm logo depois das espelhadas da zona estrita (`0049`,
 por isso nunca seria aplicada pelo migrador; o enum `portal` existe em produção
 por outro caminho, e o espelho `0050` é no-op lá.
 
+**O que a publicação de 05/10 mostrou.** Quatro chegadas de `drizzle/` ao
+`main` (16:41, 18:18, 18:29 e a publicação manual das 19:03 UTC) não rodaram
+o migrator: o banco seguiu na `0061` e `drizzle.__drizzle_migrations` não
+ganhou linha. O banco vivo é o da **Lovable Cloud** (a ferramenta de banco do
+projeto na Lovable); o projeto "smq-operacional" do Supabase é outro banco,
+com 45 funções e sem o schema `drizzle` — logs e SQL dele não dizem nada
+sobre produção. Procedimento, até o gatilho do migrator da Lovable ficar
+claro: depois de cada merge que toca `drizzle/`, conferir no banco da Lovable
+o `count(*)` de `drizzle.__drizzle_migrations` e os objetos da migration; se
+não entraram, aplicar os arquivos de `drizzle/migrations` na ordem do
+journal pela ferramenta de banco da Lovable (cada um é idempotente) e
+registrar cada um em `drizzle.__drizzle_migrations` com `hash` = sha256 do
+arquivo e `created_at` = `when` do journal, para o migrator não reaplicar.
+Foi assim que `0062`, `0067` e `0068` entraram em 05/10 (`0065`/`0066` já
+tinham sido aplicadas direto pelo #247 e só foram registradas).
+
 ### 5.4 Como foi conferido
 
 - Postgres 16 com as 428 migrations aplicadas do zero.
