@@ -10089,6 +10089,33 @@ export type Database = {
           ultimo_lead_em: string
         }[]
       }
+      _em_atendimento_classificar: {
+        Args: { _corretores: string[] }
+        Returns: {
+          acao: string
+          camada: string
+          corretor_id: string
+          destino: string
+          dias_sem_toque: number
+          escreveu_em: string
+          grupo: string
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          origem: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+        }[]
+      }
+      _em_atendimento_corretores_visiveis: {
+        Args: { _caller: string }
+        Returns: string[]
+      }
       _escalar_lead_gestor: {
         Args: { _lead_id: string; _tentativas: number }
         Returns: undefined
@@ -10111,6 +10138,10 @@ export type Database = {
         Returns: number
       }
       _modelo_v2_ativo: { Args: never; Returns: boolean }
+      _msg_fora_da_regiao: {
+        Args: { _corretor: string; _zona: string }
+        Returns: string
+      }
       _norm_bairro: { Args: { _t: string }; Returns: string }
       _norm_projeto_nome: { Args: { txt: string }; Returns: string }
       _notificar_handoff_novo_dono: {
@@ -10272,6 +10303,15 @@ export type Database = {
         }
         Returns: string
       }
+      _repassar_lead_campanha: {
+        Args: {
+          _contexto_extra?: Json
+          _gatilho: string
+          _lead_id: string
+          _roleta_slug: string
+        }
+        Returns: Json
+      }
       _resolver_roleta_lead: {
         Args: {
           _canal: string
@@ -10280,6 +10320,7 @@ export type Database = {
         Returns: string
       }
       _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
+      _rotulo_zona: { Args: { _zona: string }; Returns: string }
       _sdr_agenda_conflita: {
         Args: { _corretor_id: string; _fim: string; _inicio: string }
         Returns: boolean
@@ -10332,9 +10373,18 @@ export type Database = {
         }
         Returns: string
       }
+      _sincronizar_zonas_corretor: {
+        Args: { _corretor: string }
+        Returns: undefined
+      }
       _telefone_e164_br: { Args: { _telefone: string }; Returns: string }
       _wip_corretor: { Args: { _corretor_id: string }; Returns: number }
       _zona_chave: { Args: { _txt: string }; Returns: string }
+      _zona_destravar_espera: { Args: { _corretor: string }; Returns: number }
+      _zona_do_lead_campos: {
+        Args: { _bairro: string; _projeto_id: string; _zona: string }
+        Returns: string
+      }
       _zona_do_projeto: {
         Args: {
           _bairro: string
@@ -10346,6 +10396,9 @@ export type Database = {
       }
       _zona_eh_abc: { Args: { _txt: string }; Returns: boolean }
       _zona_eh_grande_sp: { Args: { _txt: string }; Returns: boolean }
+      _zona_estrita: { Args: never; Returns: boolean }
+      _zonas_canonicas: { Args: never; Returns: string[] }
+      _zonas_da_regiao: { Args: { _corretor: string }; Returns: string[] }
       academia_atribuir: {
         Args: {
           _corretor: string
@@ -11306,6 +11359,10 @@ export type Database = {
         }[]
       }
       copiloto_set_secret: { Args: { _secret: string }; Returns: undefined }
+      corretor_atende_zona: {
+        Args: { _corretor: string; _zona: string }
+        Returns: boolean
+      }
       corretor_elegivel: { Args: { _corretor_id: string }; Returns: boolean }
       corretor_tier: {
         Args: { p_corretor: string; p_ref?: string }
@@ -11673,6 +11730,69 @@ export type Database = {
           recebidos_hoje: number
           recebidos_mes: number
           ultimo_lead_em: string
+        }[]
+      }
+      em_atendimento_config: { Args: never; Returns: Json }
+      em_atendimento_portas_v1: {
+        Args: never
+        Returns: {
+          clientes_duplicados: number
+          em_atendimento_dono_inativo: number
+          em_atendimento_em_cadencia: number
+          em_atendimento_sem_dono: number
+          registros_em_conflito: number
+          registros_encerrariam: number
+        }[]
+      }
+      em_atendimento_sombra_leads_v1: {
+        Args: { _camada?: string; _corretor?: string }
+        Returns: {
+          acao: string
+          camada: string
+          destino: string
+          dias_sem_toque: number
+          escreveu_em: string
+          grupo: string
+          lead_id: string
+          motivo: string
+          movimento: string
+          nome: string
+          origem: string
+          posicao: number
+          projeto_nome: string
+          proximo_followup: string
+          status: string
+          telefone: string
+          temperatura: string
+        }[]
+      }
+      em_atendimento_sombra_v1: {
+        Args: never
+        Returns: {
+          alerta_proprio: number
+          base: number
+          base_cadencia: number
+          base_depois: number
+          corretor_id: string
+          em_atendimento: number
+          excedente: number
+          ficam: number
+          fundo: number
+          fundo_desfecho: number
+          fundo_gestor: number
+          nome: string
+          perde_vaga: number
+          porta_cadencia: number
+          qualificacao_vencida: number
+          recebe_lead: boolean
+          retorno_protegido: number
+          sai_bolsao: number
+          sai_reativacao: number
+          sai_roleta: number
+          teto: number
+          teto_base: number
+          trava: string
+          trava_roleta: number
         }[]
       }
       enqueue_push: {
@@ -12711,6 +12831,7 @@ export type Database = {
         Args: { _projeto_id: string }
         Returns: string
       }
+      regiao_do_corretor: { Args: { _corretor: string }; Returns: string[] }
       registrar_documentacao_remocao: {
         Args: { _ator_id: string; _documentacao_id: string }
         Returns: string
@@ -13102,7 +13223,12 @@ export type Database = {
         }[]
       }
       transferir_leads: {
-        Args: { _corretor: string; _ids: string[] }
+        Args: {
+          _corretor: string
+          _forcar_fora_da_zona?: boolean
+          _ids: string[]
+          _motivo_fora_da_zona?: string
+        }
         Returns: number
       }
       transicao_lead_permitida: {
@@ -13380,6 +13506,7 @@ export type Database = {
         Args: { _urls: string[] }
         Returns: boolean
       }
+      zona_canonica: { Args: { _txt: string }; Returns: string }
       zona_do_bairro: { Args: { _txt: string }; Returns: string }
       zona_do_lead: { Args: { _lead_id: string }; Returns: string }
       zona_normalizar: { Args: { _txt: string }; Returns: string }
