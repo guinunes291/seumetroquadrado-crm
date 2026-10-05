@@ -95,14 +95,8 @@ export function PlacarRoletaSdrCard() {
       })
       .sort((a, b) => {
         // Aptos (vai ficar/voltar) primeiro, depois pausa, fora e removidos.
-        const grupo = (l: typeof a) =>
-          ehApto(l.resultado)
-            ? 0
-            : l.resultado === "pausado"
-              ? 1
-              : l.resultado === "bloqueado_admin"
-                ? 3
-                : 2;
+        const ordem = { fica: 0, entra: 0, volta: 0, pausa: 1, fora: 2, bloqueado: 3 };
+        const grupo = (l: typeof a) => ordem[l.previsto] ?? 2;
         return (
           grupo(a) - grupo(b) ||
           (b.peso_rodizio ?? 0) - (a.peso_rodizio ?? 0) ||
