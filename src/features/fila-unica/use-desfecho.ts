@@ -23,6 +23,7 @@ import { transicionarLead } from "@/lib/lead-transitions";
 import {
   antesDeEmAtendimento,
   clienteRespondeu,
+  tentativaMoveParaRetorno,
   erroLotado,
   parseContatoRegistrado,
 } from "@/lib/em-atendimento";
@@ -57,6 +58,8 @@ export type DesfechoRegistrado = {
   etapaMudou: boolean;
   /** O cliente respondeu mas o teto estava cheio: contato gravado, etapa não. */
   lotado: boolean;
+  /** Fatia 6: a tentativa não atendida passou o lead a Aguardando retorno. */
+  aguardaRetorno: boolean;
   /** "cobrar o correspondente · qua, 17 set" — para o card e o toast. */
   proximoTexto: string | null;
 };
@@ -91,6 +94,7 @@ export async function executarDesfecho(
     objecoesAntes: null,
     etapaMudou: false,
     lotado: false,
+    aguardaRetorno: false,
     proximoTexto: descreverProximo(opcao, agora),
   };
   const vencimento = opcao.proximo ? vencimentoDe(opcao.proximo.quando, agora).toISOString() : null;
@@ -116,8 +120,9 @@ export async function executarDesfecho(
   if (iErr) throw iErr;
   const r = parseContatoRegistrado(contato);
   registro.interacaoId = r.interacao_id;
-  registro.etapaMudou = r.entrou;
+  registro.etapaMudou = r.entrou || r.moveu === true;
   registro.lotado = !r.entrou && r.lotado != null;
+  registro.aguardaRetorno = r.moveu === true;
 
   // 2) A objeção entra na lista do lead (a Sami e o dossiê leem daqui).
   if (opcao.pedeTexto === "objecao" && texto) {
@@ -277,6 +282,12 @@ export function useDesfecho(
       return "Contato registrado. O lead entra em atendimento quando você liberar uma vaga.";
     }
     const prox = descreverProximo(vars.opcao, vars.agora ?? new Date());
+    // Fatia 6: a tentativa não atendida passou o lead a Aguardando retorno.
+    if (registros.current.get(vars.item.lead.id)?.aguardaRetorno) {
+      return prox
+        ? `Registrado · ${vars.item.lead.nome} aguarda retorno. Próximo passo: ${prox}`
+        : `Registrado · ${vars.item.lead.nome} aguarda retorno.`;
+    }
     return prox ? `Registrado. Próximo passo: ${prox}` : "Registrado.";
   };
 
@@ -309,7 +320,11 @@ export function useDesfecho(
     // desfaz pelo botão, como já era com a etapa direta.
     const entraPorConsequencia =
       clienteRespondeu(vars.opcao.resultado) && antesDeEmAtendimento(vars.item.lead.status);
-    if (vars.opcao.etapa?.kind === "direct" || entraPorConsequencia) semDesfazer.mutate(vars);
+    // Fatia 6: a tentativa não atendida que muda a etapa (→ Aguardando
+    // retorno) também não se desfaz pelo botão.
+    const moveParaRetorno = tentativaMoveParaRetorno(vars.item.lead.status, vars.opcao.resultado);
+    if (vars.opcao.etapa?.kind === "direct" || entraPorConsequencia || moveParaRetorno)
+      semDesfazer.mutate(vars);
     else comDesfazer.mutate(vars);
   };
 

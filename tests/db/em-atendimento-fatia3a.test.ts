@@ -180,6 +180,7 @@ type Contato = {
   tarefa_id: string | null;
   respondeu: boolean;
   entrou: boolean;
+  moveu: boolean;
   via: string | null;
   status: string;
   lotado: { em_atendimento?: number; teto?: number; lead_id?: string } | null;
@@ -700,15 +701,16 @@ describe("trava da roleta (60/150)", () => {
 // ---------------------------------------------------------------------------
 
 describe("registrar_contato_lead", () => {
-  it("tentativa (não atendeu): interação e follow-up gravados; a etapa fica", async () => {
+  it("tentativa (não atendeu): interação e follow-up gravados; o lead passa a Aguardando retorno (Fatia 6)", async () => {
     const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
     const r = await contato(ana, id, { tipo: "whatsapp", resultado: "nao_atendeu" });
     expect(r).toMatchObject({
       ok: true,
       respondeu: false,
       entrou: false,
+      moveu: true,
       via: null,
-      status: "aguardando_atendimento",
+      status: "aguardando_retorno",
       lotado: null,
     });
     expect(await interacoes(id)).toEqual([
@@ -722,7 +724,7 @@ describe("registrar_contato_lead", () => {
     const t = await tarefasAbertas(id);
     expect(t).toHaveLength(1);
     expect(t[0]).toMatchObject({ id: r.tarefa_id, titulo: "Mandar o book", prioridade: "media" });
-    expect((await estado(id)).status).toBe("aguardando_atendimento");
+    expect((await estado(id)).status).toBe("aguardando_retorno");
   });
 
   it("o cliente respondeu antes de Em atendimento: entra, com o passo com data e UMA tarefa (alta)", async () => {
@@ -806,16 +808,17 @@ describe("registrar_contato_lead", () => {
     // A cadência cria a tarefa do passo; a RPC não cria outra.
     expect(r.tarefa_id).toBeNull();
     expect(await tarefasAbertas(id)).toHaveLength(1);
-    // Uma tentativa (não atendeu) na cadência não mexe na etapa nem na
-    // cadência — e não cria tarefa: um follow-up com data encerraria a
-    // cadência (trg_cadencia_sai_por_tarefa); a régua marca o próximo toque.
+    // Uma tentativa (não atendeu) na cadência passa o lead a Aguardando
+    // retorno (Fatia 6) sem mexer na cadência — e não cria tarefa: um
+    // follow-up com data encerraria a cadência (trg_cadencia_sai_por_tarefa);
+    // a régua marca o próximo toque.
     const d2 = await lead({ status: "aguardando_atendimento", cadencia: "D2" });
     const t = await contato(ana, d2, { resultado: "nao_atendeu" });
-    expect(t).toMatchObject({ entrou: false, via: null, tarefa_id: null });
+    expect(t).toMatchObject({ entrou: false, moveu: true, via: null, tarefa_id: null });
     expect(await tarefasAbertas(d2)).toHaveLength(0);
     expect(await interacoes(d2)).toHaveLength(1);
     expect(await estado(d2)).toMatchObject({
-      status: "aguardando_atendimento",
+      status: "aguardando_retorno",
       cadencia_etapa: "D2",
     });
   });

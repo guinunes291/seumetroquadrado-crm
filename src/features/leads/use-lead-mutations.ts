@@ -444,8 +444,13 @@ export function useLeadMutations(opts: {
     },
     onSuccess: ({ lead, contato }) => {
       // Lead na cadência D0–D3 não ganha follow-up (a régua marca o próximo toque).
+      // Fatia 6: a tentativa não atendida já passa o lead a Aguardando retorno.
       toast.success(
-        contato.tarefa_id ? "WhatsApp registrado · follow-up amanhã" : "WhatsApp registrado",
+        contato.moveu
+          ? `WhatsApp registrado · ${lead.nome} aguarda retorno`
+          : contato.tarefa_id
+            ? "WhatsApp registrado · follow-up amanhã"
+            : "WhatsApp registrado",
       );
       const msg = mensagemPrimeiroContato(lead.nome, lead.projeto_nome);
       window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");

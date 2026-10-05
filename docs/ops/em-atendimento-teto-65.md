@@ -31,16 +31,17 @@ que o corretor e o gestor enxergam.
 
 ### 2.2 O limite no dia a dia
 
-| #   | Decisão                                                                                                                                                                                                                                                                           |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6   | Em 65/65, vale a **troca "entra um, sai um"**: o sistema sugere os 5 mais parados e o corretor escolhe quem libera a vaga.                                                                                                                                                        |
-| 7   | Para sair de Em atendimento, **um de 4 desfechos**: agendou, pediu retorno (data obrigatória), esfriou (data obrigatória), perdido com motivo.                                                                                                                                    |
-| 8   | **Anti-ioiô**: o lead só volta para Em atendimento quando o **cliente** responde, nunca porque o corretor declarou.                                                                                                                                                               |
-| 9   | "Pediu retorno" e "Esfriou" vão para **Aguardando retorno com data de até 30 dias**. Data maior vira perda "retorno futuro" e volta pela reativação (o lead próprio, não).                                                                                                        |
-| 10  | A roleta **para de mandar lead novo** com **60** em Em atendimento (5 de folga para as respostas da própria base) ou **150** na Minha base.                                                                                                                                       |
-| 11  | Quando o sistema decide sozinho quem fica nos 65: passo com data futura > cliente escreveu em 7 dias > quente > toque mais recente > origem paga.                                                                                                                                 |
-| 12  | Cliente duplicado: o primeiro corretor a levar o cliente a Visita realizada fica com ele; os outros registros viram perda "cliente seguiu com outro corretor", sem aviso (ver §6.1).                                                                                              |
-| 13  | **Em atendimento não se escolhe** (05/10/2026): o corretor nunca "seleciona" a etapa. O lead entra como consequência de uma sequência — registrou o contato, o cliente respondeu, há um próximo passo com data. Só a gestão move para lá à mão, como correção de dado (ver §8.7). |
+| #   | Decisão                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6   | Em 65/65, vale a **troca "entra um, sai um"**: o sistema sugere os 5 mais parados e o corretor escolhe quem libera a vaga.                                                                                                                                                                                                                                                                                                  |
+| 7   | Para sair de Em atendimento, **um de 4 desfechos**: agendou, pediu retorno (data obrigatória), esfriou (data obrigatória), perdido com motivo.                                                                                                                                                                                                                                                                              |
+| 8   | **Anti-ioiô**: o lead só volta para Em atendimento quando o **cliente** responde, nunca porque o corretor declarou.                                                                                                                                                                                                                                                                                                         |
+| 9   | "Pediu retorno" e "Esfriou" vão para **Aguardando retorno com data de até 30 dias**. Data maior vira perda "retorno futuro" e volta pela reativação (o lead próprio, não).                                                                                                                                                                                                                                                  |
+| 10  | A roleta **para de mandar lead novo** com **60** em Em atendimento (5 de folga para as respostas da própria base) ou **150** na Minha base.                                                                                                                                                                                                                                                                                 |
+| 11  | Quando o sistema decide sozinho quem fica nos 65: passo com data futura > cliente escreveu em 7 dias > quente > toque mais recente > origem paga.                                                                                                                                                                                                                                                                           |
+| 12  | Cliente duplicado: o primeiro corretor a levar o cliente a Visita realizada fica com ele; os outros registros viram perda "cliente seguiu com outro corretor", sem aviso (ver §6.1).                                                                                                                                                                                                                                        |
+| 13  | **Em atendimento não se escolhe** (05/10/2026): o corretor nunca "seleciona" a etapa. O lead entra como consequência de uma sequência — registrou o contato, o cliente respondeu, há um próximo passo com data. Só a gestão move para lá à mão, como correção de dado (ver §8.7).                                                                                                                                           |
+| 14  | **A tentativa sem resposta muda a etapa** (05/10/2026): tentativa do corretor dono não atendida em lead Novo ou Aguardando atendimento leva a **Aguardando retorno** — já foi feito algo; a vez é do cliente. Aguardando atendimento passa a ser "ninguém tentou ainda". Qualificação Corretor fica no seu relógio; a entrada por tentativa segue os 5 dias sem toque, não a data + 2; nada muda na publicação (ver §8.11). |
 
 ### 2.3 O relógio de 5 dias
 
@@ -660,6 +661,62 @@ travada no cartão da régua.
 antigo estiverem ligados ao mesmo tempo na hora do publish, a migration
 avisa (WARNING) em vez de travar o deploy: desligue um dos dois.
 
+### 8.11 Fatia 6: a tentativa sem resposta (05/10/2026)
+
+Decisão 14 do dono, olhando a timeline de um lead ("Contato — não atendeu ·
+WhatsApp" e o lead ainda em Aguardando atendimento): _"o lead que não
+atendeu deve ir para o status de Aguardando retorno, e não continuar
+aguardando atendimento, pois já foi feito algo com aquele lead"_. A etapa
+passa a dizer **de quem é a vez**: Aguardando atendimento é "ninguém tentou
+ainda"; Aguardando retorno é "o corretor tentou e espera o cliente".
+Migration `20261011120500_em_atendimento_fatia6_tentativa` (Drizzle `0070`).
+
+**As três escolhas do dono (05/10).** Qualificação Corretor **fica**: o
+relógio de 1 dia da decisão 3 não se escapa com um clique. A entrada por
+tentativa segue o relógio de **5 dias sem toque**, não o do retorno
+combinado (data + 2 dias): o follow-up da tentativa é lembrete do corretor,
+não promessa ao cliente. E **nada muda na publicação**: só tentativas novas
+movem. "Sem interesse" não é tentativa sem resposta (o cliente falou): fica
+como estava, e o desfecho honesto é Perdido com motivo.
+
+| Peça                                     | O que é                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registrar_contato_lead`                 | Tentativa `nao_atendeu` do corretor **dono** (papel corretor, sem papel de gestão) em lead Novo ou Aguardando atendimento → `transicionar_lead` com origem `tentativa` para Aguardando retorno. A resposta volta com `moveu`. Gestão, SDR e serviço só gravam o contato. Na cadência D0–D3 a tarefa continua não sendo criada (a régua marca o próximo toque). |
+| `transicionar_lead` (origem `tentativa`) | Passa sem abrir a matriz (a ficha continua sem esse destino: decisão 13) e sem exigir follow-up futuro — o passo é a tarefa que a RPC cria fora da cadência, ou a régua dentro dela. A origem vai para o payload do `lead_eventos` (`tentativa`, `resposta`, `troca`; a transição comum não grava nada).                                                       |
+| `_cadencia_status_prospeccao`            | Aguardando retorno conta como prospecção: a tentativa **não encerra a cadência** (`tg_cadencia_sai_por_status` é o único uso). `cadencia_marcar_respondeu` passa a levar Aguardando retorno a Em atendimento — sem isto o "Cliente respondeu" da Fila do Dia deixaria o lead parado.                                                                           |
+| `_em_atendimento_classificar`            | CTE `tentativa`: a entrada **mais recente** em Aguardando retorno (rastro de `lead_status_transitions`, que cobre o robô da 3b) é a transição com origem `tentativa` → não valem `retorno_acima_maximo`, `retorno_protegido` nem `retorno_vencido`; vale `sem_toque` aos 5 dias. Entrada posterior por outro caminho (desfecho, robô) vence.                   |
+
+**O que a tela faz.** O diálogo Registrar contato avisa, em Não atendeu num
+lead que ninguém tentou, que o lead vai para Aguardando retorno (o passo
+continua opcional: é lembrete). Os toasts dizem "aguarda retorno" no
+diálogo, no WhatsApp em um clique da lista e na Fila Única; na Fila Única a
+tentativa que muda a etapa não tem "Desfazer", como a resposta. A matriz da
+ficha não muda. O manual descreve as duas etapas pelo novo sentido.
+
+**O que isto muda no dia a dia.** Fila Única e Painel: o balde "Primeiro
+contato (SLA)" passa a ter só quem ninguém tentou; a tentativa leva o lead
+para "Follow-up". O repasse por SLA (lead quente do webhook parado 15 min
+úteis em Aguardando atendimento vai ao próximo corretor) **não olhava se o
+corretor tinha tentado**; agora a tentativa tira o lead da etapa e o repasse
+para — o SLA passa a medir a primeira tentativa. A trava 150 da Minha base
+já contava as duas etapas juntas: nada muda. Medido em 05/10 (somente
+leitura): 3.079 leads em Aguardando atendimento com dono, 1.171 com alguma
+tentativa na timeline (SDR, dono anterior), **91** com tentativa do dono
+atual (39 fora da carteira do SDR, 19 nos últimos 5 dias) — a regra pesa
+pouco no estoque e muito no fluxo.
+
+**Como foi conferido.** `tests/db/em-atendimento-fatia6.test.ts` (18 casos:
+a consequência e o rastro; de Novo; dedup da segunda tentativa; Qualificação
+fica; sem interesse fica; só o dono move — gestão, dono com papel de
+gestão, SDR, outra carteira; a resposta depois da tentativa; a cadência
+continua e o "Cliente respondeu" entra de Aguardando retorno pela Fila do
+Dia e pela RPC; o gatilho; a ficha e a matriz continuam fechadas e a origem
+posta à mão não vale para a gestão; o classificador: 4 dias `base_ok`, 5
+dias `sem_toque`, retorno combinado `retorno_vencido`, a entrada mais
+recente manda — inclusive quando o robô escreve o status direto —, cadência). Os dois casos da 3a que diziam "a etapa fica"
+passaram a dizer o novo. `tests/em-atendimento-fatia6.test.tsx`: o helper,
+o contrato do retorno, o diálogo (aviso e toasts) e a fiação. Checagem de mutação, dez vezes (`scratchpad/f6/mutacoes.py`: cadência sem Aguardando retorno, Cliente respondeu sem Aguardando retorno, sem interesse move, Qualificação move, RPC sem dono, origem fora do payload, tentativa exigindo follow-up, retorno_vencido ignorando a tentativa, entrada posterior não vence, transicionar_lead sem exigir dono): oito derrubam pelo menos um teste; duas (cadência e Cliente respondeu) nem chegam a aplicar — a sanidade da própria migration as barra.
+
 ## 9. Próximas fatias
 
 | Fatia             | O que entra                                                                              |
@@ -668,3 +725,4 @@ avisa (WARNING) em vez de travar o deploy: desligue um dos dois.
 | **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                          |
 | **4. Revisar**    | Feito (§8.9): painel mensal, tempo entre toques nos 65 e taxa Em atendimento → Agendado. |
 | **5. Virada**     | Feito (§8.10): aviso ao corretor na regra agendada e recém-ligada; um motor só.          |
+| **6. Tentativa**  | Feito (§8.11): tentativa sem resposta leva a Aguardando retorno; a cadência continua.    |

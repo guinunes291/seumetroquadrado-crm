@@ -491,6 +491,13 @@
       "when": 1791645240000,
       "tag": "0069_roleta_sdr_aviso_no_crm",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1791645300000,
+      "tag": "0070_em_atendimento_fatia6_tentativa",
+      "breakpoints": true
     }
   ]
 }
