@@ -1,10 +1,25 @@
 name: CI
 
+# Um run por commit de PR. Até 05/10/2026 o push em `claude/**`/`codex/**`
+# disparava um run E o `pull_request` do mesmo commit disparava outro: 8 jobs
+# por push numa conta que, medida em três rodadas seguidas naquele dia, pegava
+# runner para 2 a 4 jobs por vez e CANCELAVA o que ficasse 15 minutos na fila
+# (o job morria "cancelled" sem executar um passo, e o run ficava vermelho sem
+# nenhum teste ter falhado — PRs #250 e #251). Agora a branch de trabalho roda
+# só pelo PR (abra o PR, mesmo rascunho, para ter CI) e a `main` continua
+# rodando a cada merge.
 on:
   push:
-    branches: ["main", "claude/**", "codex/**"]
+    branches: ["main"]
   pull_request:
     branches: ["main"]
+
+# Push novo no mesmo PR cancela o run que ficou para trás: o commit anterior já
+# não é o que vai ser mesclado, e cada job dele é um lugar na fila que o commit
+# atual precisa. Na `main` nada é cancelado — cada merge tem o seu run inteiro.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
