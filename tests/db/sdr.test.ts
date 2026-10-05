@@ -20,8 +20,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   comoSuperuser,
   comoUsuario,
-  criarLead,
+  criarLead as criarLeadBase,
   criarUsuario,
+  darRegiao,
   errCode,
   limparDados,
   novoClient,
@@ -61,6 +62,20 @@ async function lead(id: string) {
   return r.rows[0];
 }
 
+/** Zona de interesse (migration 20261010120900): toda entrega do SDR exige
+ *  a zona do lead. Esta suíte testa o resto do motor, então todo lead nasce
+ *  com zona e todos os corretores atendem todas as zonas (darRegiao abaixo);
+ *  a regra em si vive em sdr-zona.test.ts. */
+async function comZona(id: string, zona = "Sul") {
+  await comoSuperuser(c);
+  await c.query(`UPDATE public.leads SET zona = $2 WHERE id = $1`, [id, zona]);
+}
+const criarLead: typeof criarLeadBase = async (cli, opts) => {
+  const id = await criarLeadBase(cli, opts);
+  await comZona(id);
+  return id;
+};
+
 async function veLead(user: UsuarioTeste, id: string): Promise<boolean> {
   await comoUsuario(c, user.id);
   const r = await c.query(`SELECT id FROM public.leads WHERE id = $1`, [id]);
@@ -90,6 +105,10 @@ beforeAll(async () => {
     corretorC.id,
   ]);
 
+  // Zona de interesse: todos atendem todas as zonas; o que se testa aqui é o motor.
+  await darRegiao(c, corretorA.id);
+  await darRegiao(c, corretorB.id);
+  await darRegiao(c, corretorC.id);
   const r = await c.query(`SELECT id FROM public.roletas WHERE slug = 'agendados-sdr'`);
   roletaId = r.rows[0].id as string;
   // Só a Ana está na roleta de agendados.
@@ -211,6 +230,7 @@ describe("carteira própria e RLS", () => {
     expect(l.corretor_id).toBeNull();
     expect(l.status).toBe("aguardando_atendimento");
     expect(l.classe_lead).toBe("base");
+    await comZona(leadId);
   });
 
   it("corretor e outro SDR não veem a base; SDR dono e admin veem", async () => {

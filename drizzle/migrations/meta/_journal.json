@@ -428,6 +428,13 @@
       "when": 1791214024584,
       "tag": "0060_noshow_lead_sdr_nao_trava",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1791644880000,
+      "tag": "0061_sdr_zona_obrigatoria",
+      "breakpoints": true
     }
   ]
 }

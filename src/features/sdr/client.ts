@@ -8,12 +8,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { rpc } from "@/features/dashboard/queries";
 
 /** Códigos de "coluna/relação/função ainda não existe" (migration pendente). */
 const FONTE_AUSENTE = new Set(["42703", "42P01", "42883", "PGRST204", "PGRST202", "PGRST205"]);
 
 function erro(e: { message?: string; code?: string } | null, fallback: string): Error {
-  return new Error(e?.message || fallback);
+  // O código do Postgres segue junto (SMQZ2 = zona de interesse obrigatória).
+  return Object.assign(new Error(e?.message || fallback), { code: e?.code });
 }
 
 // ---------------------------------------------------------------------------
@@ -163,18 +165,24 @@ export async function leadReaquecivelSdr(leadId: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 // Escritas (sempre RPC)
 // ---------------------------------------------------------------------------
+// Zona de interesse (decisão do dono, 05/10/2026): o SDR escolhe a zona no
+// registro e a RPC grava em leads.zona antes da roleta — o lead vai só para
+// quem atende a zona. As duas RPCs ganharam `_zona` (migration
+// 20261010120900) e passam pela fronteira `rpc` até os types serem regerados.
 export async function agendarVisitaSdr(input: {
   leadId: string;
   dataInicio: string;
+  zona: string;
   dataFim?: string | null;
   titulo?: string | null;
   local?: string | null;
   descricao?: string | null;
   proximaAcao?: string | null;
 }): Promise<EntregaResultado> {
-  const { data, error } = await supabase.rpc("agendar_visita_sdr", {
+  const { data, error } = await rpc("agendar_visita_sdr", {
     _lead_id: input.leadId,
     _data_inicio: input.dataInicio,
+    _zona: input.zona,
     ...(input.dataFim ? { _data_fim: input.dataFim } : {}),
     ...(input.titulo ? { _titulo: input.titulo } : {}),
     ...(input.local ? { _local: input.local } : {}),
@@ -185,13 +193,35 @@ export async function agendarVisitaSdr(input: {
   return data as EntregaResultado;
 }
 
-export async function entregarLeadSdr(leadId: string, motivo: string): Promise<EntregaResultado> {
-  const { data, error } = await supabase.rpc("entregar_lead_sdr", {
+export async function entregarLeadSdr(
+  leadId: string,
+  motivo: string,
+  zona: string,
+): Promise<EntregaResultado> {
+  const { data, error } = await rpc("entregar_lead_sdr", {
     _lead_id: leadId,
     _motivo: motivo,
+    _zona: zona,
   });
   if (error) throw erro(error, "Não foi possível entregar o lead.");
   return data as EntregaResultado;
+}
+
+/** A zona que o banco já resolve para o lead (zona da ficha, bairro ou
+ *  projeto) — sugestão inicial do campo; o SDR confirma ou troca. */
+export async function zonaDoLead(leadId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("zona_do_lead", { _lead_id: leadId });
+  if (error) throw erro(error, "Não foi possível ler a zona do lead.");
+  return (data as string | null) ?? null;
+}
+
+export function useZonaDoLead(leadId: string, enabled = true) {
+  return useQuery({
+    queryKey: ["sdr:zona-do-lead", leadId],
+    enabled,
+    staleTime: 60_000,
+    queryFn: () => zonaDoLead(leadId),
+  });
 }
 
 export async function pegarLeadSdr(leadId: string): Promise<void> {
