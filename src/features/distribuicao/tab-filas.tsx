@@ -5,7 +5,7 @@
 // painel de Campanhas — participantes SEMPRE pelo RPC auditado
 // (gerenciar_participante_roleta), propriedades SEMPRE por atualizar_roleta.
 
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Plus } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,14 @@ import { useCriarRoletaCampanha, useRoletas, type RoletaRow } from "./queries";
 import { FilaPropriedades } from "./fila-propriedades";
 import { RoletaTab } from "./roleta-tab";
 
+// Placar da permanência semanal (só admin, só na fila do SDR): lazy para não
+// pesar no chunk principal de quem nunca abre a fila.
+const PlacarRoletaSdrCard = lazy(() =>
+  import("./placar-roleta-sdr").then(({ PlacarRoletaSdrCard }) => ({
+    default: PlacarRoletaSdrCard,
+  })),
+);
+
 type Grupo = "zonas" | "sistema" | "campanhas" | "sdr";
 
 const GRUPO_LABEL: Record<Grupo, string> = {
@@ -45,7 +53,7 @@ const DESCRICAO_GRUPO: Record<Grupo, string> = {
     "Plantão, Marquinhos e Landing são o fallback de quem não tem zona resolvida. A Base é a esteira universal do modelo v2: rodízio puro para todos os aptos.",
   campanhas:
     "Cada campanha tem token de webhook próprio e equipe própria (distribuição ponderada por tier). Equipe fixa: o lead nunca sai do time, seja qual for a zona.",
-  sdr: "Roleta de agendados do SDR: recebe o lead que o SDR agendou ou entregou com motivo. Aptidão própria — perfil ativo, telefone, teto de carteira e agenda livre no horário da visita; sem presença do dia nem cota diária. O corretor original de um lead reaquecido tem prioridade e nem passa por aqui.",
+  sdr: "Roleta de agendados do SDR: recebe o lead que o SDR agendou ou entregou com motivo. Aptidão própria — perfil ativo, telefone, teto de carteira e agenda livre no horário da visita; sem presença do dia nem cota diária. O corretor original de um lead reaquecido tem prioridade e nem passa por aqui. Com a regra semanal ligada, o time é montado pela produção: quem faz 3 pontos na semana (visita 1, pasta 1,5) fica para a seguinte.",
 };
 
 function grupoDe(r: RoletaRow): Grupo {
@@ -167,6 +175,12 @@ export function TabFilas({
           {fila && (
             <>
               <FilaPropriedades roleta={fila} somenteLeitura={somenteLeitura} />
+              {/* Placar de todos os corretores: leitura de admin (o banco recorta o resto). */}
+              {fila.slug === "agendados-sdr" && !somenteLeitura && (
+                <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+                  <PlacarRoletaSdrCard />
+                </Suspense>
+              )}
               <RoletaTab
                 slug={fila.slug}
                 nome={fila.nome}

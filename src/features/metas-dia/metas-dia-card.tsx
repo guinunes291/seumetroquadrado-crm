@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { celebrate } from "@/components/ui/celebration";
@@ -227,6 +227,7 @@ export function MetasDiaCard({
   realizado,
   contatosHoje,
   mediaContatosDia,
+  extra,
   onEditar,
 }: {
   uid: string;
@@ -237,6 +238,8 @@ export function MetasDiaCard({
   contatosHoje?: number | null;
   /** Média diária de contatos do corretor na janela (null = sem dado). */
   mediaContatosDia?: number | null;
+  /** Bloco extra no card aberto (ex.: placar da roleta do SDR). */
+  extra?: ReactNode;
   onEditar: () => void;
 }) {
   const [recolhido, setRecolhido] = usePreference<boolean>(PREF_CARD_RECOLHIDO, false);
@@ -299,6 +302,7 @@ export function MetasDiaCard({
             <div className="space-y-2 pb-1 pt-1.5">
               <Barras prog={prog} visiveis={visiveis} realizado={realizado} />
               <Contatos n={contatosHoje} media={mediaContatosDia} todasBatidas={todasBatidas} />
+              {extra}
             </div>
           )}
         </div>,
@@ -323,6 +327,7 @@ export function MetasDiaCard({
           <div className="space-y-2.5 px-3 pb-3">
             <Barras prog={prog} visiveis={visiveis} realizado={realizado} />
             <Contatos n={contatosHoje} media={mediaContatosDia} todasBatidas={todasBatidas} />
+            {extra}
           </div>
         )}
       </aside>

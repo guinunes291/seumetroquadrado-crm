@@ -442,6 +442,34 @@
       "when": 1791644940000,
       "tag": "0062_em_atendimento_fatia3b_relogios",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1791219117000,
+      "tag": "0063_prospeccao_lote_zona_atalho",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1791220150000,
+      "tag": "0064_prospeccao_lote_zona_por_combinacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1791645000000,
+      "tag": "0065_roleta_sdr_permanencia_semanal",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1791645060000,
+      "tag": "0066_roleta_sdr_peso_rodizio",
+      "breakpoints": true
     }
   ]
 }
