@@ -446,8 +446,22 @@
     {
       "idx": 63,
       "version": "7",
+      "when": 1791644960000,
+      "tag": "0063_prospeccao_lote_zona_atalho",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1791644980000,
+      "tag": "0064_prospeccao_lote_zona_por_combinacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
       "when": 1791645000000,
-      "tag": "0063_em_atendimento_fatia4_revisao",
+      "tag": "0065_em_atendimento_fatia4_revisao",
       "breakpoints": true
     }
   ]
