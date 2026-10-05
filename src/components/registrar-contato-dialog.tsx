@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -20,18 +20,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { InteracaoTipo } from "@/lib/interacoes";
-import { garantirFollowUpAberto } from "@/lib/follow-up";
+import { rpc } from "@/features/dashboard/queries";
+import {
+  antesDeEmAtendimento,
+  clienteRespondeu,
+  parseContatoRegistrado,
+  type ResultadoContatoLead,
+} from "@/lib/em-atendimento";
+import { invalidarEmAtendimento } from "@/features/em-atendimento/use-em-atendimento";
+import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
 
-// Resultado do contato vira o título da interação na timeline.
-const RESULTADOS = [
-  { key: "atendeu", label: "Atendeu", titulo: "Contato — atendeu" },
-  { key: "nao_atendeu", label: "Não atendeu", titulo: "Contato — não atendeu" },
-  { key: "interessado", label: "Interessado", titulo: "Contato — interessado" },
-  { key: "sem_interesse", label: "Sem interesse", titulo: "Contato — sem interesse" },
-  { key: "pediu_retorno", label: "Pediu retorno", titulo: "Contato — pediu retorno" },
-] as const;
+// Resultado do contato vira o título da interação na timeline (o banco usa o
+// mesmo vocabulário: registrar_contato_lead).
+const RESULTADOS: { key: ResultadoContatoLead; label: string }[] = [
+  { key: "atendeu", label: "Atendeu" },
+  { key: "nao_atendeu", label: "Não atendeu" },
+  { key: "interessado", label: "Interessado" },
+  { key: "sem_interesse", label: "Sem interesse" },
+  { key: "pediu_retorno", label: "Pediu retorno" },
+];
 
-// Próximo follow-up: cria a tarefa e marca proximo_followup do lead num gesto só.
+// Próximo follow-up: a tarefa do passo (leads.proximo_followup é espelho dela).
 const FOLLOWUPS = [
   { key: "amanha", label: "Amanhã", dias: 1 },
   { key: "2d", label: "+2 dias", dias: 2 },
@@ -52,74 +61,80 @@ const CANAIS: { value: InteracaoTipo; label: string }[] = [
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lead: { id: string; nome: string; corretor_id: string | null };
+  lead: { id: string; nome: string; corretor_id: string | null; status?: string | null };
   defaultTipo?: InteracaoTipo;
+  /** "Cliente respondeu…" abre já com o resultado certo. */
+  defaultResultado?: ResultadoContatoLead;
   onDone?: () => void;
 };
 
 /**
- * Registra um contato (interação) E agenda o próximo follow-up de uma só vez —
- * o "registrar ligação + marcar retorno" que antes eram dois fluxos separados.
+ * Registra um contato (interação) E o próximo passo (tarefa) numa RPC só —
+ * registrar_contato_lead. Regra dos 65, Fatia 3a.2: o corretor não escolhe
+ * "Em atendimento"; quando o cliente RESPONDEU (atendeu, interessado, pediu
+ * retorno) e o lead ainda está antes de Em atendimento, o banco o põe lá, com
+ * o passo com data — pela cadência quando o lead está em D0–D3. Com o teto
+ * cheio o contato fica gravado e a janela "entra um, sai um" abre.
  */
 export function RegistrarContatoDialog({
   open,
   onOpenChange,
   lead,
   defaultTipo = "ligacao",
+  defaultResultado = "atendeu",
   onDone,
 }: Props) {
   const qc = useQueryClient();
+  const janela = useJanelaTroca();
   const [tipo, setTipo] = useState<InteracaoTipo>(defaultTipo);
-  const [resultado, setResultado] = useState<string>("atendeu");
+  const [resultado, setResultado] = useState<ResultadoContatoLead>(defaultResultado);
   const [conteudo, setConteudo] = useState("");
   const [followup, setFollowup] = useState<string>("amanha");
 
+  const prospeccao = antesDeEmAtendimento(lead.status);
+  const respondeu = clienteRespondeu(resultado);
+  // A entrada em Em atendimento exige passo com data: sem follow-up não há
+  // como o cliente ter respondido "para nada".
+  const vaiEntrar = prospeccao && respondeu;
+  const semPasso = vaiEntrar && followup === "nenhum";
+
   const salvar = useMutation({
     mutationFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id ?? null;
-      const res = RESULTADOS.find((r) => r.key === resultado) ?? RESULTADOS[0];
-
-      // 1) Interação na timeline.
-      const { error: iErr } = await supabase.from("interacoes").insert({
-        lead_id: lead.id,
-        autor_id: uid,
-        tipo,
-        direcao: "saida",
-        titulo: res.titulo,
-        conteudo: conteudo.trim() || res.label,
-      });
-      if (iErr) throw iErr;
-
-      // 2) Próximo follow-up: só a tarefa. `leads.proximo_followup` é espelho
-      //    derivado no banco (trigger em `tarefas`) — não escrevemos direto.
       const fu = FOLLOWUPS.find((f) => f.key === followup) ?? FOLLOWUPS[0];
-      let comFollowUp = false;
+      let vencimento: string | null = null;
       if (fu.dias != null) {
         const venc = new Date();
         venc.setDate(venc.getDate() + fu.dias);
-        // Dedup por (lead, tipo=follow_up, ±1 dia) — fonte única compartilhada.
-        await garantirFollowUpAberto({
-          leadId: lead.id,
-          tipo: "follow_up",
-          titulo: `Follow-up com ${lead.nome}`,
-          prioridade: "media",
-          vencimento: venc.toISOString(),
-          corretorId: lead.corretor_id ?? uid,
-          criadoPorId: uid,
-        });
-        comFollowUp = true;
+        vencimento = venc.toISOString();
       }
-      return { comFollowUp };
+      const { data, error } = await rpc("registrar_contato_lead", {
+        _lead_id: lead.id,
+        _tipo: tipo,
+        _resultado: resultado,
+        _conteudo: conteudo.trim() || null,
+        _proxima_acao: `Follow-up com ${lead.nome}`,
+        _proximo_followup: vencimento,
+      });
+      if (error) throw error;
+      return parseContatoRegistrado(data);
     },
     onSuccess: (r) => {
-      toast.success(
-        r?.comFollowUp ? "Contato registrado · follow-up agendado" : "Contato registrado",
-      );
+      if (r.entrou) {
+        toast.success(`Contato registrado · ${lead.nome} entrou em atendimento`);
+      } else if (r.lotado) {
+        toast.success(
+          "Contato registrado. O lead entra em atendimento quando você liberar uma vaga.",
+        );
+      } else {
+        toast.success(
+          r.tarefa_id ? "Contato registrado · follow-up agendado" : "Contato registrado",
+        );
+      }
       setConteudo("");
       onOpenChange(false);
       qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
       qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+      qc.invalidateQueries({ queryKey: ["lead-detail"] });
       qc.invalidateQueries({ queryKey: ["tarefas-lead", lead.id] });
       qc.invalidateQueries({ queryKey: ["tarefas"] });
       qc.invalidateQueries({ queryKey: ["meu-dia:sem-acao"] });
@@ -129,6 +144,19 @@ export function RegistrarContatoDialog({
       // sem isto o card só sumia quando o realtime chegasse (ou não chegasse).
       qc.invalidateQueries({ queryKey: ["atendimento:inbox"] });
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads-status-counts"] });
+      if (r.entrou || r.lotado) invalidarEmAtendimento(qc);
+      if (r.lotado && !r.entrou && janela) {
+        janela.abrir({
+          id: lead.id,
+          nome: lead.nome,
+          onDone: () => {
+            invalidarEmAtendimento(qc);
+            qc.invalidateQueries({ queryKey: ["leads"] });
+            qc.invalidateQueries({ queryKey: ["lead-detail"] });
+          },
+        });
+      }
       onDone?.();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -139,12 +167,18 @@ export function RegistrarContatoDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Registrar contato — {lead.nome}</DialogTitle>
+          {prospeccao && (
+            <DialogDescription data-testid="contato-consequencia">
+              Atendeu, Interessado ou Pediu retorno põem {lead.nome} em atendimento, com o próximo
+              passo. Em atendimento não se escolhe: é o que acontece quando o cliente responde.
+            </DialogDescription>
+          )}
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div>
             <Label>Canal</Label>
             <Select value={tipo} onValueChange={(v) => setTipo(v as InteracaoTipo)}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Canal">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -158,12 +192,14 @@ export function RegistrarContatoDialog({
           </div>
           <div>
             <Label>Resultado</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Resultado">
               {RESULTADOS.map((r) => (
                 <Button
                   key={r.key}
                   type="button"
                   size="sm"
+                  role="radio"
+                  aria-checked={resultado === r.key}
                   variant={resultado === r.key ? "default" : "outline"}
                   className="h-8"
                   onClick={() => setResultado(r.key)}
@@ -184,13 +220,19 @@ export function RegistrarContatoDialog({
             />
           </div>
           <div>
-            <Label>Próximo follow-up</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <Label>{vaiEntrar ? "Próximo passo com data *" : "Próximo follow-up"}</Label>
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="radiogroup"
+              aria-label="Próximo follow-up"
+            >
               {FOLLOWUPS.map((f) => (
                 <Button
                   key={f.key}
                   type="button"
                   size="sm"
+                  role="radio"
+                  aria-checked={followup === f.key}
                   variant={followup === f.key ? "default" : "outline"}
                   className="h-8"
                   onClick={() => setFollowup(f.key)}
@@ -199,13 +241,18 @@ export function RegistrarContatoDialog({
                 </Button>
               ))}
             </div>
+            {semPasso && (
+              <p className="mt-1 text-xs text-destructive" data-testid="contato-sem-passo">
+                Quando o cliente responde, o próximo passo com data é obrigatório.
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+          <Button onClick={() => salvar.mutate()} disabled={salvar.isPending || semPasso}>
             Registrar
           </Button>
         </DialogFooter>

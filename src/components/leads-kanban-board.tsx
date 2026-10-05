@@ -47,6 +47,7 @@ import {
   type StageModalState,
   type PerdidoState,
 } from "@/components/lead-stage/lead-stage-modals";
+import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { SlaBadge } from "@/components/sla-badge";
 import { TransferSlaBadge, useTransferTimeouts } from "@/components/transfer-sla-badge";
@@ -365,6 +366,9 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
 
   const [modalState, setModalState] = useState<StageModalState>(null);
   const [perdidoLead, setPerdidoLead] = useState<PerdidoState>(null);
+  // "Registrar contato" a partir do Kanban: soltar na coluna Em atendimento,
+  // o botão inteligente e "Cliente respondeu…" no menu (regra dos 65, Fatia 3a.2).
+  const [contatoLead, setContatoLead] = useState<Lead | null>(null);
 
   // Regra dos 65: a coluna Em atendimento do corretor mostra "N/65". Para
   // contas sem o papel (gestão olhando a casa) o banco devolve corretor=false
@@ -392,6 +396,12 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
   // registra a venda para aprovação; a etapa muda no fluxo de aprovação).
   const routeStage = (lead: Lead, target: LeadStatus) => {
     if (lead.status === target) return;
+    // Regra dos 65, Fatia 3a.2: Em atendimento é consequência do contato —
+    // soltar na coluna abre "Registrar contato" (cliente respondeu + passo).
+    if (target === "em_atendimento" && !gestao) {
+      setContatoLead(lead);
+      return;
+    }
     if (target !== "contrato_fechado" && !transicaoLeadPermitida(lead.status, target, gestao)) {
       toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
       return;
@@ -528,7 +538,8 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
     if (!acao) return;
     const lead = peekLead;
     setPeekLead(null);
-    routeStage(lead, acao.target);
+    if ("target" in acao) routeStage(lead, acao.target);
+    else setContatoLead(lead);
   };
 
   return (
@@ -863,7 +874,8 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const acao = PROXIMA_ACAO[lead.status as LeadStatus]!;
-                                  routeStage(lead, acao.target);
+                                  if ("target" in acao) routeStage(lead, acao.target);
+                                  else setContatoLead(lead);
                                 }}
                               >
                                 {PROXIMA_ACAO[lead.status as LeadStatus]!.label}
@@ -878,6 +890,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                               }
                               onPickModal={(modal) => setModalState({ modal, lead })}
                               onPickPerdido={() => setPerdidoLead(lead)}
+                              onPickContato={() => setContatoLead(lead)}
                             />
                             {lead.status !== "perdido" && (
                               <Button
@@ -918,6 +931,19 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
             })}
           </div>
         </div>
+      )}
+      {contatoLead && (
+        <RegistrarContatoDialog
+          open
+          onOpenChange={(o) => !o && setContatoLead(null)}
+          lead={{
+            id: contatoLead.id,
+            nome: contatoLead.nome,
+            corretor_id: contatoLead.corretor_id ?? null,
+            status: contatoLead.status,
+          }}
+          defaultResultado="atendeu"
+        />
       )}
       <LeadStageModals
         modalState={modalState}

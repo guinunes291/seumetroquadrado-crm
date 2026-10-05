@@ -1,6 +1,5 @@
 // Ações por linha/card da listagem de leads (resumo financeiro, menu ⋯ e o
-// split "Iniciar atendimento") — extraídas de leads.index.tsx sem mudança de
-// comportamento.
+// split "Contato por WhatsApp/ligação") — extraídas de leads.index.tsx.
 
 import {
   ArrowsLeftRight,
@@ -94,6 +93,7 @@ export function LeadRowMenu({
   onLixeira,
   onFocar,
   onFollowup,
+  onPickContato,
 }: {
   lead: Lead;
   canManage: boolean;
@@ -108,6 +108,8 @@ export function LeadRowMenu({
   onFocar?: () => void;
   /** "+ Follow-up": agenda o próximo follow-up sem abrir o lead. */
   onFollowup?: () => void;
+  /** "Cliente respondeu…": abre Registrar contato (regra dos 65, Fatia 3a.2). */
+  onPickContato?: () => void;
 }) {
   const showStages = canAct && !lead.na_lixeira && lead.status !== "aguardando_atendimento";
   const showTrabalhar = !!(onFocar || onFollowup);
@@ -148,6 +150,7 @@ export function LeadRowMenu({
             onPickDirect={onPickDirect}
             onPickModal={(modal) => onPickModal(modal)}
             onPickPerdido={onPickPerdido}
+            onPickContato={onPickContato}
           />
         )}
         {canManage && (
@@ -179,8 +182,11 @@ export function LeadRowMenu({
 }
 
 /**
- * Split "Iniciar {WhatsApp|ligação}": um clique repete o último tipo de contato;
- * a seta abre as alternativas. Usado na tabela e nos cards (mesma UX).
+ * Split "Contato por {WhatsApp|ligação}": um clique repete o último canal; a
+ * seta abre as alternativas. Usado na tabela e nos cards (mesma UX). Regra dos
+ * 65, Fatia 3a.2: é o CONTATO que se registra — WhatsApp abre a conversa e
+ * grava a tentativa; ligação abre o diálogo para o resultado. O lead entra em
+ * Em atendimento como consequência da resposta do cliente, nunca por este botão.
  */
 export function IniciarSplitButton({
   lead,
@@ -205,14 +211,16 @@ export function IniciarSplitButton({
         className="rounded-r-none"
         onClick={() => onIniciar(lead, lastContactType)}
         disabled={pending}
-        title={`Iniciar por ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
+        title={`Contato por ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
       >
         {lastContactType === "whatsapp" ? (
           <WhatsappLogo className="h-3.5 w-3.5 mr-1" />
         ) : (
           <Phone className="h-3.5 w-3.5 mr-1" />
         )}
-        {compact ? "Iniciar" : `Iniciar ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
+        {compact
+          ? "Contato"
+          : `Contato por ${lastContactType === "whatsapp" ? "WhatsApp" : "ligação"}`}
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -226,10 +234,10 @@ export function IniciarSplitButton({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => onIniciar(lead, "whatsapp")}>
-            <WhatsappLogo className="h-4 w-4 mr-2" /> Iniciar por WhatsApp
+            <WhatsappLogo className="h-4 w-4 mr-2" /> Contato por WhatsApp
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => onIniciar(lead, "ligacao")}>
-            <Phone className="h-4 w-4 mr-2" /> Iniciar por ligação
+            <Phone className="h-4 w-4 mr-2" /> Contato por ligação
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => onEscolher(lead)}>

@@ -65,16 +65,14 @@ beforeAll(async () => {
     corretorId: corretorA.id,
     status: "aguardando_atendimento",
   });
-  // Porta de Em atendimento (regra dos 65, Fatia 3a): fora da cadência, com
-  // contato registrado e passo com data.
-  await c.query(
-    `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
-    [leadComHistorico],
-  );
+  // Regra dos 65, Fatia 3a.2: o corretor não escolhe Em atendimento; o lead
+  // entra como consequência do contato com "atendeu" + passo com data
+  // (registrar_contato_lead → transicionar_lead, mesmo gatilho de transição).
+  await c.query(`UPDATE public.leads SET cadencia_etapa = NULL WHERE id = $1`, [leadComHistorico]);
   await comoUsuario(c, corretorA.id);
   await c.query(
-    `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL,
-       'Ligar para o cliente', now() + interval '1 day', NULL)`,
+    `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', NULL,
+       'Ligar para o cliente', now() + interval '1 day')`,
     [leadComHistorico],
   );
   await comoSuperuser(c);

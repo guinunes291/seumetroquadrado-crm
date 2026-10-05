@@ -233,13 +233,17 @@ export const MOTIVO_SAIDA_NAO_OFERECIDA =
 /** Ação sugerida ("botão inteligente") por etapa: o avanço mais provável do
  *  funil a partir do status atual. Não é o próximo linear — é o próximo passo
  *  comercial. Usado no card e na lista para reduzir cliques. */
-export type ProximaAcao = { label: string; target: LeadStatus };
+export type ProximaAcao =
+  | { label: string; target: LeadStatus; kind?: "etapa" }
+  /** Regra dos 65, Fatia 3a.2: antes de Em atendimento a ação é o CONTATO
+   *  (registrar + cliente respondeu + passo com data); o status é consequência. */
+  | { label: string; kind: "contato" };
 
 export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
-  novo: { label: "Iniciar atendimento", target: "em_atendimento" },
-  aguardando_atendimento: { label: "Iniciar atendimento", target: "em_atendimento" },
-  aguardando_retorno: { label: "Retomar atendimento", target: "em_atendimento" },
-  qualificacao_corretor: { label: "Iniciar atendimento", target: "em_atendimento" },
+  novo: { label: "Registrar contato", kind: "contato" },
+  aguardando_atendimento: { label: "Registrar contato", kind: "contato" },
+  aguardando_retorno: { label: "Registrar contato", kind: "contato" },
+  qualificacao_corretor: { label: "Registrar contato", kind: "contato" },
   em_atendimento: { label: "Agendar visita", target: "agendado" },
   agendado: { label: "Marcar visita realizada", target: "visita_realizada" },
   visita_realizada: { label: "Enviar p/ análise", target: "analise_credito" },
@@ -248,35 +252,26 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
 
 // ---------------------------------------------------------------------------
 // Máquina de estados do funil — espelho fiel de public.transicao_lead_permitida
-// (migrations 20260811151000 e 20261010120700). O banco é a autoridade: a RPC transicionar_lead
+// (migrations 20260811151000, 20261010120700 e 20261010120800). O banco é a autoridade: a RPC transicionar_lead
 // rejeita qualquer transição fora deste mapa. O espelho existe para a UI só
 // OFERECER destinos válidos (menu, stepper, drag do Kanban) em vez de deixar o
 // corretor tentar e receber erro. Ao alterar a função SQL, atualize aqui junto.
 // ---------------------------------------------------------------------------
 
 const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
-  aguardando_corretor: [
-    "novo",
-    "aguardando_atendimento",
-    "em_atendimento",
-    "qualificacao_corretor",
-    "perdido",
-  ],
-  novo: [
-    "aguardando_atendimento",
-    "em_atendimento",
-    "qualificacao_corretor",
-    "qualificado",
-    "perdido",
-  ],
-  aguardando_atendimento: ["em_atendimento", "qualificacao_corretor", "qualificado", "perdido"],
+  // Regra dos 65, Fatia 3a.2 (migration 20261010120800): Em atendimento é
+  // consequência — o corretor registra o contato e a resposta do cliente com o
+  // próximo passo, e o lead entra sozinho. Só a gestão escolhe o status
+  // (TRANSICOES_GESTAO), para corrigir dado.
+  aguardando_corretor: ["novo", "aguardando_atendimento", "qualificacao_corretor", "perdido"],
+  novo: ["aguardando_atendimento", "qualificacao_corretor", "qualificado", "perdido"],
+  aguardando_atendimento: ["qualificacao_corretor", "qualificado", "perdido"],
   // Regra dos 65, Fatia 3a (migration 20261010120700, decisão 7): de Em
   // atendimento o corretor sai só por desfecho — Agendou, Pediu retorno /
   // Esfriou (aguardando_retorno), Mandou doc (analise_credito), Perdido.
   // A gestão mantém as saídas antigas para corrigir dado (TRANSICOES_GESTAO).
   em_atendimento: ["aguardando_retorno", "agendado", "analise_credito", "perdido"],
   aguardando_retorno: [
-    "em_atendimento",
     "qualificacao_corretor",
     "qualificado",
     "agendado",
@@ -285,7 +280,6 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   qualificacao_corretor: [
-    "em_atendimento",
     "aguardando_retorno",
     "qualificado",
     "agendado",
@@ -294,7 +288,6 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   qualificado: [
-    "em_atendimento",
     "aguardando_retorno",
     "qualificacao_corretor",
     "agendado",
@@ -304,7 +297,6 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   agendado: [
-    "em_atendimento",
     "aguardando_retorno",
     "qualificacao_corretor",
     "visita_realizada",
@@ -313,7 +305,6 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   visita_realizada: [
-    "em_atendimento",
     "aguardando_retorno",
     "qualificacao_corretor",
     "agendado",
@@ -323,7 +314,6 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   proposta_enviada: [
-    "em_atendimento",
     "aguardando_retorno",
     "qualificacao_corretor",
     "analise_credito",
@@ -331,7 +321,6 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   analise_credito: [
-    "em_atendimento",
     "aguardando_retorno",
     "qualificacao_corretor",
     "visita_realizada",
@@ -347,8 +336,22 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
 
 /** Destinos que SÓ a gestão alcança, além dos de TRANSICOES (correção de dado). */
 const TRANSICOES_GESTAO: Partial<Record<LeadStatus, LeadStatus[]>> = {
+  aguardando_corretor: ["em_atendimento"],
+  novo: ["em_atendimento"],
+  aguardando_atendimento: ["em_atendimento"],
   em_atendimento: ["qualificacao_corretor", "qualificado", "visita_realizada"],
+  aguardando_retorno: ["em_atendimento"],
+  qualificacao_corretor: ["em_atendimento"],
+  qualificado: ["em_atendimento"],
+  agendado: ["em_atendimento"],
+  visita_realizada: ["em_atendimento"],
+  proposta_enviada: ["em_atendimento"],
+  analise_credito: ["em_atendimento"],
 };
+
+/** Por que o corretor não escolhe Em atendimento (toast do Kanban/menu). */
+export const MOTIVO_EM_ATENDIMENTO_CONSEQUENCIA =
+  "Em atendimento não se escolhe: registre o contato e, quando o cliente responder, o próximo passo com data. O lead entra sozinho.";
 
 /** Etapas cuja SAÍDA exige papel de gestão (admin/gestor/superintendente). */
 const SAIDA_EXIGE_GESTAO = new Set<LeadStatus>(["contrato_fechado", "perdido", "pos_venda"]);
@@ -371,8 +374,11 @@ export function motivoTransicaoBloqueada(de: string, para: LeadStatus, gestao: b
   if (origem === "em_atendimento") {
     return MOTIVO_SAIDA_NAO_OFERECIDA;
   }
+  if (para === "em_atendimento") {
+    return MOTIVO_EM_ATENDIMENTO_CONSEQUENCIA;
+  }
   if (origem === "aguardando_atendimento") {
-    return `Inicie o atendimento antes: mova para "${LEAD_STATUS_LABEL.em_atendimento}" e depois para "${LEAD_STATUS_LABEL[para]}".`;
+    return `Registre o contato antes: o lead entra em "${LEAD_STATUS_LABEL.em_atendimento}" quando o cliente responde, e daí vai para "${LEAD_STATUS_LABEL[para]}".`;
   }
   return `O funil não permite mover de "${leadStatusLabel(de)}" direto para "${LEAD_STATUS_LABEL[para]}".`;
 }

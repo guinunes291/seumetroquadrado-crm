@@ -249,15 +249,16 @@ function PeekBody({
                 setModalState({ modal, lead: stageLead });
               }}
               onPickPerdido={() => setPerdidoLead(stageLead)}
+              onPickContato={() => setContatoOpen(true)}
             />
           </DropdownMenuContent>
         </DropdownMenu>
-        {proxima && onProximaAcao && (
+        {proxima && (onProximaAcao || !("target" in proxima)) && (
           <Button
             size="sm"
             variant="outline"
             className="min-h-11"
-            onClick={() => onProximaAcao(lead)}
+            onClick={() => ("target" in proxima ? onProximaAcao?.(lead) : setContatoOpen(true))}
           >
             {proxima.label}
           </Button>
@@ -379,7 +380,7 @@ function PeekBody({
       <RegistrarContatoDialog
         open={contatoOpen}
         onOpenChange={setContatoOpen}
-        lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id }}
+        lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id, status: lead.status }}
       />
       <LeadStageModals
         modalState={modalState}

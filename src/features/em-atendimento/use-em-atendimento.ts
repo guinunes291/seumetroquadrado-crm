@@ -125,7 +125,7 @@ export async function trocarVaga(input: {
   data?: Date | null;
   categoria?: string | null;
   detalhe?: string | null;
-  /** Contato que abriu a janela (Iniciar atendimento): registrado para quem entra. */
+  /** Contato a registrar para quem entra, quando o fluxo de origem o desfez (EA065). */
   contato?: "ligacao" | "whatsapp" | null;
 }) {
   const { data, error } = await rpc("trocar_vaga_em_atendimento", {

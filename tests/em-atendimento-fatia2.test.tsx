@@ -514,16 +514,18 @@ describe("revisão: fiação", () => {
     expect(k).not.toContain("{quantidade}/{teto65}");
   });
 
-  it("Iniciar atendimento é uma RPC (contato + etapa numa transação) e abre a janela na trava", () => {
+  it("o contato é uma RPC (interação + passo numa transação); a etapa é consequência", () => {
+    // Fatia 3a.2 substituiu iniciar_atendimento_lead por registrar_contato_lead:
+    // a tela nunca grava a interação direto nem escolhe Em atendimento.
     const m = read("src/features/leads/use-lead-mutations.ts");
-    expect(m).toContain('rpc("iniciar_atendimento_lead", {');
-    // A interação não é mais gravada pela tela: o banco grava e, se o teto
-    // recusar, desfaz — o lead recusado não ganha toque.
+    expect(m).toContain('rpc("registrar_contato_lead", {');
+    expect(m).not.toContain("iniciar_atendimento_lead");
     expect(m).not.toContain("Contato inicial via WhatsApp");
-    expect(m).toContain("if (janela && erroLotado(e)) {");
-    expect(m).toContain("contato: vars.tipo,");
-    expect(m).toContain("jaEmAtendimento: true");
-    // A troca leva o contato para quem entra.
+    const d = read("src/components/registrar-contato-dialog.tsx");
+    expect(d).toContain('rpc("registrar_contato_lead", {');
+    // Teto cheio: o contato fica gravado (não é erro) e a janela de troca abre.
+    expect(d).toContain("if (r.lotado && !r.entrou && janela) {");
+    // A troca ainda leva um contato para quem entra quando o pedido vem com um.
     expect(read("src/features/em-atendimento/janela-troca.tsx")).toContain(
       "contato: entra.contato ?? null",
     );

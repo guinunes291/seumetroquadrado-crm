@@ -2,14 +2,18 @@
  * REGRA DOS 65 — Fatia 3a: as portas de Em atendimento fechadas no banco
  * (migration 20261010120700, desenho em docs/ops/em-atendimento-teto-65.md §9).
  *
- *  1. ENTRADA pelo próprio corretor dono: lead em cadência só pela Fila do
- *     Dia (EA067); contato registrado nas últimas 24 h (EA066); passo com
- *     DATA (EA068); e o teto (EA065). Gestão, serviço e SDR seguem livres.
+ *  1. ENTRADA pelo próprio corretor dono — a porta (_em_atendimento_travar):
+ *     lead em cadência só pela Fila do Dia (EA067); contato registrado nas
+ *     últimas 24 h (EA066); passo com DATA (EA068); e o teto (EA065). Gestão,
+ *     serviço e SDR seguem livres. Fatia 3a.2 (migration 20261010120800): o
+ *     corretor não ESCOLHE Em atendimento pela ficha (22023 na matriz) — o
+ *     lead entra como consequência de registrar_contato_lead (o cliente
+ *     respondeu + passo com data), pela cadência quando está nela.
  *  2. SAÍDA só por desfecho (corretor dono); gestão e SDR mantêm as antigas.
  *  3. Lead sem corretor não está em atendimento (gatilho); posse de lead
  *     nesse estado entra na Minha base.
  *  4. Trava da roleta (60/150) só com a regra ligada; em sombra, true.
- *  5. iniciar_atendimento_lead: contato + entrada numa transação só.
+ *  5. registrar_contato_lead: contato + consequência + passo numa transação.
  *  6. Portal é origem paga.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -153,6 +157,92 @@ async function entrar(
   }
 }
 
+/** A porta em si (_em_atendimento_travar), como o banco a chama para o
+ *  corretor dono do lead: cada motivo no seu código, por origem. */
+async function porta(
+  leadId: string,
+  opts: { origem?: string; followup?: string | null } = {},
+): Promise<string | null> {
+  await comoSuperuser(c);
+  return errCode(
+    c.query(
+      `SELECT public._em_atendimento_travar($1, l.status, l.corretor_id, l.corretor_id, false,
+                                            $2::timestamptz, l.cadencia_etapa, $3)
+         FROM public.leads AS l WHERE l.id = $1`,
+      [leadId, opts.followup === undefined ? futuro(1) : opts.followup, opts.origem ?? "resposta"],
+    ),
+  );
+}
+
+type Contato = {
+  ok: true;
+  interacao_id: string | null;
+  tarefa_id: string | null;
+  respondeu: boolean;
+  entrou: boolean;
+  via: string | null;
+  status: string;
+  lotado: { em_atendimento?: number; teto?: number; lead_id?: string } | null;
+};
+
+/** O contato como a tela registra (registrar_contato_lead). */
+async function contato(
+  como: UsuarioTeste,
+  leadId: string,
+  opts: {
+    tipo?: string;
+    resultado?: string;
+    conteudo?: string | null;
+    acao?: string | null;
+    followup?: string | null;
+    titulo?: string | null;
+    criarTarefa?: boolean;
+  } = {},
+): Promise<Contato> {
+  return rpc<Contato>(
+    como,
+    `SELECT public.registrar_contato_lead($1, $2, $3, $4, $5, $6::timestamptz, $7, $8::boolean) AS r`,
+    [
+      leadId,
+      opts.tipo ?? "ligacao",
+      opts.resultado ?? "atendeu",
+      opts.conteudo ?? null,
+      opts.acao === undefined ? "Mandar o book" : opts.acao,
+      opts.followup === undefined ? futuro(1) : opts.followup,
+      opts.titulo ?? null,
+      opts.criarTarefa ?? true,
+    ],
+  );
+}
+
+/** Os contatos da timeline (a "Mudança de status" que a transição grava fica fora). */
+async function interacoes(leadId: string) {
+  await comoSuperuser(c);
+  return (
+    await c.query(
+      `SELECT tipo::text AS tipo, titulo, autor_id, metadata
+         FROM public.interacoes
+        WHERE lead_id = $1 AND deleted_at IS NULL AND tipo <> 'mudanca_status'
+        ORDER BY ocorreu_em, id`,
+      [leadId],
+    )
+  ).rows;
+}
+
+async function tarefasAbertas(leadId: string) {
+  await comoSuperuser(c);
+  return (
+    await c.query(
+      `SELECT id, titulo, tipo::text AS tipo, prioridade::text AS prioridade, data_vencimento
+         FROM public.tarefas
+        WHERE lead_id = $1 AND deleted_at IS NULL
+          AND status IN ('pendente', 'em_andamento')
+        ORDER BY data_vencimento, id`,
+      [leadId],
+    )
+  ).rows;
+}
+
 async function comoServico<T>(fn: () => Promise<T>): Promise<T> {
   await c.query(`RESET ROLE`);
   await c.query(`SELECT set_config('request.jwt.claims', $1, false)`, [
@@ -221,35 +311,30 @@ async function ligar(mudar: Record<string, unknown>) {
 // 1. A entrada
 // ---------------------------------------------------------------------------
 
-describe("entrada em Em atendimento: contato registrado", () => {
-  it("sem contato nas últimas 24 h, a ficha recusa (EA066); com contato, entra", async () => {
+describe("a porta de Em atendimento (_em_atendimento_travar): cada motivo no seu código", () => {
+  it("sem contato nas últimas 24 h recusa (EA066); com contato passa", async () => {
     const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
-    expect(await errCode(entrar(ana, id))).toBe("EA066");
-    expect((await estado(id)).status).toBe("aguardando_atendimento");
-
+    expect(await porta(id)).toBe("EA066");
     await interacao(id, ana.id, "ligacao", "saida");
-    await entrar(ana, id);
-    expect((await estado(id)).status).toBe("em_atendimento");
+    expect(await porta(id)).toBeNull();
   });
 
   it("contato de 30 horas não vale; de 1 hora vale (ultimo_contato: a cadência grava assim)", async () => {
     const velho = await lead({ status: "aguardando_atendimento", horasSemContato: 30 });
-    expect(await errCode(entrar(ana, velho))).toBe("EA066");
+    expect(await porta(velho)).toBe("EA066");
     const recente = await lead({ status: "aguardando_atendimento", horasSemContato: 1 });
-    await entrar(ana, recente);
-    expect((await estado(recente)).status).toBe("em_atendimento");
+    expect(await porta(recente)).toBeNull();
   });
 
   it("o que conta: cliente escreveu, chamada feita, WhatsApp do corretor; nota e mudança de status não", async () => {
     const porNota = await lead({ status: "aguardando_atendimento", horasSemContato: null });
     await interacao(porNota, ana.id, "nota", "interna");
     await interacao(porNota, null, "mudanca_status", "interna");
-    expect(await errCode(entrar(ana, porNota))).toBe("EA066");
+    expect(await porta(porNota)).toBe("EA066");
 
     const escreveu = await lead({ status: "aguardando_atendimento", horasSemContato: null });
     await interacao(escreveu, null, "whatsapp", "entrada");
-    await entrar(ana, escreveu);
-    expect((await estado(escreveu)).status).toBe("em_atendimento");
+    expect(await porta(escreveu)).toBeNull();
 
     const chamada = await lead({ status: "aguardando_atendimento", horasSemContato: null });
     await comoSuperuser(c);
@@ -258,19 +343,68 @@ describe("entrada em Em atendimento: contato registrado", () => {
        VALUES ($1, $2, '11999990000', 'saida', 'atendida', now() - interval '2 hours')`,
       [chamada, ana.id],
     );
-    await entrar(ana, chamada);
-    expect((await estado(chamada)).status).toBe("em_atendimento");
+    expect(await porta(chamada)).toBeNull();
   });
 
   it("anti-ioiô: de Aguardando retorno só volta com contato registrado", async () => {
     const id = await lead({ status: "aguardando_retorno", horasSemContato: 48 });
-    expect(await errCode(entrar(ana, id))).toBe("EA066");
+    expect(await porta(id)).toBe("EA066");
     await interacao(id, null, "whatsapp", "entrada");
-    await entrar(ana, id);
-    expect((await estado(id)).status).toBe("em_atendimento");
+    expect(await porta(id)).toBeNull();
   });
 
-  it("a exigência é do corretor dono: gestão, serviço e SDR na carteira de outro seguem livres", async () => {
+  it("texto sem data não basta (EA068); tarefa futura existente basta; data no pedido basta", async () => {
+    const semData = await lead({ status: "aguardando_atendimento" });
+    expect(await porta(semData, { followup: null })).toBe("EA068");
+
+    const comTarefa = await lead({ status: "aguardando_atendimento" });
+    await comoSuperuser(c);
+    await c.query(
+      `INSERT INTO public.tarefas (lead_id, corretor_id, titulo, tipo, status, prioridade, data_vencimento)
+       VALUES ($1, $2, 'Ligar amanhã', 'ligacao', 'pendente', 'alta', now() + interval '1 day')`,
+      [comTarefa, ana.id],
+    );
+    expect(await porta(comTarefa, { followup: null })).toBeNull();
+
+    const comData = await lead({ status: "aguardando_atendimento" });
+    expect(await porta(comData, { followup: futuro(2) })).toBeNull();
+  });
+
+  it("a ordem das portas: cadência, contato, passo, teto", async () => {
+    await lotar();
+    const id = await lead({
+      status: "aguardando_atendimento",
+      cadencia: "D1",
+      horasSemContato: null,
+    });
+    // Pela ficha (origem 'transicao') a cadência vem primeiro.
+    expect(await porta(id, { origem: "transicao", followup: null })).toBe("EA067");
+    // Pela resposta (registrar_contato_lead) a cadência não é motivo — a
+    // resposta é o que a cadência pede; aí o primeiro motivo que o corretor
+    // resolve é o contato.
+    expect(await porta(id, { followup: null })).toBe("EA066");
+    await interacao(id, ana.id, "ligacao", "saida");
+    expect(await porta(id, { followup: null })).toBe("EA068");
+    expect(await porta(id)).toBe("EA065");
+  });
+
+  it("a origem muda o que se exige: troca e cadência não pedem contato; só a ficha pede fora da cadência", async () => {
+    await lotar();
+    const id = await lead({
+      status: "aguardando_atendimento",
+      cadencia: "D2",
+      horasSemContato: null,
+    });
+    // 'troca' e 'cadencia' já carregam o contato (a troca registra o seu; a
+    // cadência só chama pela resposta): passam direto ao passo e ao teto.
+    expect(await porta(id, { origem: "troca", followup: null })).toBe("EA068");
+    expect(await porta(id, { origem: "cadencia", followup: null })).toBe("EA068");
+    expect(await porta(id, { origem: "troca" })).toBe("EA065");
+    expect(await porta(id, { origem: "cadencia" })).toBe("EA065");
+    expect(await porta(id, { origem: "ficha" })).toBe("22023");
+  });
+
+  it("a porta é do corretor dono: gestão, serviço e SDR na carteira de outro seguem livres", async () => {
     const a = await lead({ status: "aguardando_atendimento", horasSemContato: null });
     await entrar(admin, a);
     expect((await estado(a)).status).toBe("em_atendimento");
@@ -292,42 +426,45 @@ describe("entrada em Em atendimento: contato registrado", () => {
   });
 });
 
-describe("entrada em Em atendimento: passo com data", () => {
-  it("texto sem data não basta (EA068); tarefa futura existente basta; data no pedido basta", async () => {
-    const semData = await lead({ status: "aguardando_atendimento" });
-    expect(await errCode(entrar(ana, semData, { followup: null }))).toBe("EA068");
-
-    const comTarefa = await lead({ status: "aguardando_atendimento" });
-    await comoSuperuser(c);
-    await c.query(
-      `INSERT INTO public.tarefas (lead_id, corretor_id, titulo, tipo, status, prioridade, data_vencimento)
-       VALUES ($1, $2, 'Ligar amanhã', 'ligacao', 'pendente', 'alta', now() + interval '1 day')`,
-      [comTarefa, ana.id],
-    );
-    await entrar(ana, comTarefa, { followup: null });
-    expect((await estado(comTarefa)).status).toBe("em_atendimento");
-
-    const comData = await lead({ status: "aguardando_atendimento" });
-    await entrar(ana, comData, { followup: futuro(2) });
-    expect((await estado(comData)).status).toBe("em_atendimento");
+describe("pela ficha, o corretor dono não escolhe Em atendimento (Fatia 3a.2)", () => {
+  it("de nenhum status, mesmo com contato e passo com data: 22023 na matriz, nada muda", async () => {
+    for (const status of [
+      "novo",
+      "aguardando_atendimento",
+      "aguardando_retorno",
+      "qualificacao_corretor",
+      "qualificado",
+      "agendado",
+      "analise_credito",
+    ]) {
+      const id = await lead({ status, horasSemContato: 1 });
+      expect(await errCode(entrar(ana, id)), status).toBe("22023");
+      expect((await estado(id)).status, status).toBe(status);
+    }
   });
 
-  it("a ordem das portas: cadência, contato, passo, teto", async () => {
-    await lotar();
-    const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
-    // Lotado, sem contato e sem data: o primeiro motivo que o corretor consegue
-    // resolver é o contato.
-    expect(await errCode(entrar(ana, id, { followup: null }))).toBe("EA066");
-    await interacao(id, ana.id, "ligacao", "saida");
-    expect(await errCode(entrar(ana, id, { followup: null }))).toBe("EA068");
-    expect(await errCode(entrar(ana, id))).toBe("EA065");
+  it("a matriz diz o mesmo: só a gestão tem Em atendimento como destino", async () => {
+    await comoSuperuser(c);
+    const r = await c.query(`
+      SELECT bool_or(public.transicao_lead_permitida(s, 'em_atendimento', false)) AS corretor,
+             bool_and(public.transicao_lead_permitida(s, 'em_atendimento', true)) AS gestao
+        FROM unnest(ARRAY['novo','aguardando_corretor','aguardando_atendimento','aguardando_retorno',
+                          'qualificacao_corretor','qualificado','agendado','visita_realizada',
+                          'proposta_enviada','analise_credito']::public.lead_status[]) AS s`);
+    expect(r.rows[0]).toEqual({ corretor: false, gestao: true });
+    const fechado = await c.query(
+      `SELECT public.transicao_lead_permitida('contrato_fechado', 'em_atendimento', true) AS r`,
+    );
+    expect(fechado.rows[0].r).toBe(false);
   });
 });
 
 describe("entrada em Em atendimento: lead na cadência", () => {
-  it("D0–D3 só entra pela Fila do Dia (EA067); 'Cliente respondeu' entra e tira da cadência", async () => {
+  it("D0–D3 só entra pela Fila do Dia; 'Cliente respondeu' entra e tira da cadência", async () => {
     const id = await lead({ status: "aguardando_atendimento", cadencia: "D1" });
-    expect(await errCode(entrar(ana, id))).toBe("EA067");
+    // Pela ficha o corretor nem chega na porta (Fatia 3a.2: 22023 na matriz);
+    // a EA067 fica para quem entra pela porta com origem 'transicao' (acima).
+    expect(await errCode(entrar(ana, id))).toBe("22023");
     expect((await estado(id)).cadencia_etapa).toBe("D1");
 
     // A cadência registra cada tentativa; "respondeu" não repete a exigência
@@ -559,46 +696,231 @@ describe("trava da roleta (60/150)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. iniciar_atendimento_lead
+// 5. registrar_contato_lead — o contato é a ação; Em atendimento, a consequência
 // ---------------------------------------------------------------------------
 
-describe("iniciar_atendimento_lead", () => {
-  it("registra o contato, entra e cria a tarefa do passo, numa transação", async () => {
+describe("registrar_contato_lead", () => {
+  it("tentativa (não atendeu): interação e follow-up gravados; a etapa fica", async () => {
     const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
-    await rpc(
-      ana,
-      `SELECT public.iniciar_atendimento_lead($1, 'whatsapp', 'Mandar o book', $2) AS r`,
-      [id, futuro(1)],
-    );
+    const r = await contato(ana, id, { tipo: "whatsapp", resultado: "nao_atendeu" });
+    expect(r).toMatchObject({
+      ok: true,
+      respondeu: false,
+      entrou: false,
+      via: null,
+      status: "aguardando_atendimento",
+      lotado: null,
+    });
+    expect(await interacoes(id)).toEqual([
+      {
+        tipo: "whatsapp",
+        titulo: "Contato — não atendeu",
+        autor_id: ana.id,
+        metadata: { origem: "registrar_contato", resultado: "nao_atendeu" },
+      },
+    ]);
+    const t = await tarefasAbertas(id);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({ id: r.tarefa_id, titulo: "Mandar o book", prioridade: "media" });
+    expect((await estado(id)).status).toBe("aguardando_atendimento");
+  });
+
+  it("o cliente respondeu antes de Em atendimento: entra, com o passo com data e UMA tarefa (alta)", async () => {
+    // Sem contato prévio: a RPC registra o seu na mesma transação, por isso
+    // a porta nunca devolve EA066 por aqui.
+    const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
+    const r = await contato(ana, id, { conteudo: "Quer ver o decorado sábado" });
+    expect(r).toMatchObject({
+      respondeu: true,
+      entrou: true,
+      via: "resposta",
+      status: "em_atendimento",
+    });
     expect(await estado(id)).toMatchObject({
       status: "em_atendimento",
       proxima_acao: "Mandar o book",
     });
+    expect(await interacoes(id)).toEqual([
+      {
+        tipo: "ligacao",
+        titulo: "Contato — atendeu",
+        autor_id: ana.id,
+        metadata: { origem: "registrar_contato", resultado: "atendeu" },
+      },
+    ]);
+    const t = await tarefasAbertas(id);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({
+      id: r.tarefa_id,
+      titulo: "Mandar o book",
+      tipo: "follow_up",
+      prioridade: "alta",
+    });
+    // A auditoria da transição é do corretor (a consequência corre como ele).
     await comoSuperuser(c);
-    const i = await c.query(
-      `SELECT titulo, autor_id FROM public.interacoes WHERE lead_id = $1 AND tipo = 'whatsapp'`,
+    const ev = await c.query(
+      `SELECT payload->>'de_status' AS de, payload->>'para_status' AS para, payload->>'alterado_por' AS por
+         FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'transicao_lead'`,
       [id],
     );
-    expect(i.rows).toEqual([{ titulo: "Contato inicial via WhatsApp", autor_id: ana.id }]);
-    const t = await c.query(
-      `SELECT titulo FROM public.tarefas WHERE lead_id = $1 AND status = 'pendente' AND deleted_at IS NULL`,
-      [id],
-    );
-    expect(t.rows).toEqual([{ titulo: "Mandar o book" }]);
+    expect(ev.rows).toEqual([
+      { de: "aguardando_atendimento", para: "em_atendimento", por: ana.id },
+    ]);
   });
 
-  it("lotado: EA065 e o contato não fica gravado (nada de toque no lead recusado)", async () => {
-    await lotar();
+  it("sem data no pedido, o passo é amanhã (a porta nunca vê EA068 por aqui)", async () => {
+    const id = await lead({ status: "novo", horasSemContato: null });
+    const r = await contato(ana, id, { followup: null, acao: null });
+    expect(r).toMatchObject({ entrou: true, status: "em_atendimento" });
+    const e = await estado(id);
+    expect(e.proxima_acao).toMatch(/^Follow-up com /);
+    const venc = (e.proximo_followup as Date).getTime();
+    expect(venc).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000);
+    expect(venc).toBeLessThan(Date.now() + 25 * 60 * 60 * 1000);
+  });
+
+  it("'interessado' e 'pediu retorno' também entram; 'sem interesse' não", async () => {
+    for (const resultado of ["interessado", "pediu_retorno"]) {
+      const id = await lead({ status: "aguardando_retorno", horasSemContato: null });
+      expect((await contato(ana, id, { resultado })).entrou, resultado).toBe(true);
+      expect((await estado(id)).status, resultado).toBe("em_atendimento");
+    }
+    const frio = await lead({ status: "aguardando_retorno", horasSemContato: null });
+    const r = await contato(ana, frio, { resultado: "sem_interesse" });
+    expect(r).toMatchObject({ respondeu: false, entrou: false, status: "aguardando_retorno" });
+  });
+
+  it("lead na cadência D0–D3 entra pela Fila do Dia (via 'cadencia') e sai da cadência", async () => {
+    const id = await lead({
+      status: "aguardando_atendimento",
+      cadencia: "D1",
+      horasSemContato: null,
+    });
+    const r = await contato(ana, id, { acao: "Ligar quinta", followup: futuro(2) });
+    expect(r).toMatchObject({ entrou: true, via: "cadencia", status: "em_atendimento" });
+    expect(await estado(id)).toMatchObject({
+      status: "em_atendimento",
+      cadencia_etapa: "respondeu",
+      proxima_acao: "Ligar quinta",
+    });
+    // A cadência cria a tarefa do passo; a RPC não cria outra.
+    expect(r.tarefa_id).toBeNull();
+    expect(await tarefasAbertas(id)).toHaveLength(1);
+    // Uma tentativa (não atendeu) na cadência não mexe na etapa nem na
+    // cadência — e não cria tarefa: um follow-up com data encerraria a
+    // cadência (trg_cadencia_sai_por_tarefa); a régua marca o próximo toque.
+    const d2 = await lead({ status: "aguardando_atendimento", cadencia: "D2" });
+    const t = await contato(ana, d2, { resultado: "nao_atendeu" });
+    expect(t).toMatchObject({ entrou: false, via: null, tarefa_id: null });
+    expect(await tarefasAbertas(d2)).toHaveLength(0);
+    expect(await interacoes(d2)).toHaveLength(1);
+    expect(await estado(d2)).toMatchObject({
+      status: "aguardando_atendimento",
+      cadencia_etapa: "D2",
+    });
+  });
+
+  it("já em atendimento ou no fundo do funil: só o contato e o follow-up; a etapa fica", async () => {
+    const dentro = await lead();
+    const r1 = await contato(ana, dentro);
+    expect(r1).toMatchObject({
+      respondeu: true,
+      entrou: false,
+      via: null,
+      status: "em_atendimento",
+    });
+    expect(await tarefasAbertas(dentro)).toHaveLength(1);
+
+    const fundo = await lead({ status: "agendado" });
+    const r2 = await contato(ana, fundo);
+    expect(r2).toMatchObject({ entrou: false, status: "agendado" });
+    expect((await estado(fundo)).status).toBe("agendado");
+  });
+
+  it("teto cheio: o contato e o passo ficam gravados, `lotado` volta e a troca faz o resto", async () => {
+    const [sai] = await lotar();
     const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
-    expect(
-      await errCode(rpc(ana, `SELECT public.iniciar_atendimento_lead($1, 'ligacao') AS r`, [id])),
-    ).toBe("EA065");
-    await comoSuperuser(c);
-    expect(
-      (await c.query(`SELECT count(*)::int AS n FROM public.interacoes WHERE lead_id = $1`, [id]))
-        .rows[0].n,
-    ).toBe(0);
+    const r = await contato(ana, id);
+    expect(r).toMatchObject({
+      respondeu: true,
+      entrou: false,
+      via: "resposta",
+      status: "aguardando_atendimento",
+      lotado: { em_atendimento: TETO, teto: TETO, lead_id: id },
+    });
+    expect(await interacoes(id)).toHaveLength(1);
+    expect(await tarefasAbertas(id)).toHaveLength(1);
     expect((await estado(id)).status).toBe("aguardando_atendimento");
+    // Nada de "Em atendimento" na auditoria: a transição não aconteceu.
+    await comoSuperuser(c);
+    const ev = await c.query(
+      `SELECT count(*)::int AS n FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'transicao_lead'`,
+      [id],
+    );
+    expect(ev.rows[0].n).toBe(0);
+
+    // A janela "entra um, sai um": o contato já está lá, a troca só move.
+    await rpc(
+      ana,
+      `SELECT public.trocar_vaga_em_atendimento($1, $2, 'esfriou', $3, NULL, NULL, NULL, NULL, NULL) AS r`,
+      [id, sai, futuro(5)],
+    );
+    expect((await estado(id)).status).toBe("em_atendimento");
+    expect(await interacoes(id)).toHaveLength(1);
+  });
+
+  it("a Fila do Dia pede sem tarefa (_criar_tarefa false): nada de tarefa dupla", async () => {
+    const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
+    const r = await contato(ana, id, { criarTarefa: false, titulo: "Contato — atendeu · Fila" });
+    expect(r).toMatchObject({ entrou: true, tarefa_id: null });
+    expect(await tarefasAbertas(id)).toHaveLength(0);
+    expect((await interacoes(id))[0].titulo).toBe("Contato — atendeu · Fila");
+  });
+
+  it("dedup do passo: follow-up aberto a ±1 dia é atualizado, não duplicado", async () => {
+    const id = await lead({ status: "aguardando_atendimento", horasSemContato: null });
+    await comoSuperuser(c);
+    const existente = (
+      await c.query(
+        `INSERT INTO public.tarefas (lead_id, corretor_id, titulo, tipo, status, prioridade, data_vencimento)
+         VALUES ($1, $2, 'Ligar amanhã', 'follow_up', 'pendente', 'media', now() + interval '1 day')
+         RETURNING id`,
+        [id, ana.id],
+      )
+    ).rows[0].id;
+    const r = await contato(ana, id, { followup: futuro(1) });
+    expect(r.tarefa_id).toBe(existente);
+    const t = await tarefasAbertas(id);
+    expect(t).toHaveLength(1);
+    expect(t[0]).toMatchObject({ id: existente, titulo: "Mandar o book", prioridade: "alta" });
+  });
+
+  it("gestão e SDR registram pelo mesmo caminho (sem a trava do dono)", async () => {
+    await lotar();
+    const a = await lead({ status: "aguardando_atendimento", horasSemContato: null });
+    const r = await contato(admin, a);
+    expect(r).toMatchObject({ entrou: true, lotado: null, status: "em_atendimento" });
+
+    const d = await lead({ status: "aguardando_atendimento", horasSemContato: null });
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.leads SET sdr_id = $2 WHERE id = $1`, [d, sdr.id]);
+    expect((await contato(sdr, d)).entrou).toBe(true);
+  });
+
+  it("recusas: resultado ou canal inválidos, nota, lead de outro, lead inexistente", async () => {
+    const id = await lead({ status: "aguardando_atendimento" });
+    expect(await errCode(contato(ana, id, { resultado: "talvez" }))).toBe("22023");
+    expect(await errCode(contato(ana, id, { tipo: "pombo" }))).toBe("22023");
+    expect(await errCode(contato(ana, id, { tipo: "nota" }))).toBe("22023");
+    expect(await errCode(contato(ana, id, { tipo: "mudanca_status" }))).toBe("22023");
+    const daBia = await lead({ status: "aguardando_atendimento", dono: bia });
+    expect(await errCode(contato(ana, daBia))).toBe("42501");
+    // Também a tentativa (sem transição por trás para barrar): a carteira é
+    // conferida pela própria RPC, antes de gravar qualquer coisa.
+    expect(await errCode(contato(ana, daBia, { resultado: "nao_atendeu" }))).toBe("42501");
+    expect(await interacoes(daBia)).toHaveLength(0);
+    expect(await errCode(contato(ana, "00000000-0000-4000-8000-000000000000"))).toBe("P0002");
+    expect(await interacoes(id)).toHaveLength(0);
   });
 
   it("depois da troca, quem entra tem o contato registrado pela própria troca", async () => {
@@ -618,17 +940,15 @@ describe("iniciar_atendimento_lead", () => {
     expect(i.rows).toEqual([{ titulo: "Contato inicial por ligação" }]);
   });
 
-  it("lead em cadência: a RPC também manda para a Fila do Dia; lead de outro: fora da carteira", async () => {
-    const d1 = await lead({ status: "aguardando_atendimento", cadencia: "D1" });
-    expect(
-      await errCode(rpc(ana, `SELECT public.iniciar_atendimento_lead($1, 'ligacao') AS r`, [d1])),
-    ).toBe("EA067");
-    const daBia = await lead({ status: "aguardando_atendimento", dono: bia });
-    expect(
-      await errCode(
-        rpc(ana, `SELECT public.iniciar_atendimento_lead($1, 'ligacao') AS r`, [daBia]),
-      ),
-    ).toBe("42501");
+  it("acesso: a RPC para quem está logado; iniciar_atendimento_lead não existe mais", async () => {
+    await comoSuperuser(c);
+    const r = await c.query(`
+      SELECT has_function_privilege('authenticated',
+               'public.registrar_contato_lead(uuid,text,text,text,text,timestamptz,text,boolean)', 'EXECUTE') AS auth,
+             has_function_privilege('anon',
+               'public.registrar_contato_lead(uuid,text,text,text,text,timestamptz,text,boolean)', 'EXECUTE') AS anon,
+             (SELECT count(*)::int FROM pg_proc WHERE proname = 'iniciar_atendimento_lead') AS antiga`);
+    expect(r.rows[0]).toEqual({ auth: true, anon: false, antiga: 0 });
   });
 });
 

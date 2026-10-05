@@ -492,6 +492,7 @@ function FocusBody({
             <LeadStageMenuItems
               lead={{ id: lead.id, nome: lead.nome, status: lead.status }}
               onPickDirect={(target) => mudarStatus.mutate({ id: lead.id, status: target })}
+              onPickContato={() => setContatoOpen(true)}
               onPickModal={(modal: StageModal, target) => {
                 void target;
                 setModalState({
@@ -521,7 +522,12 @@ function FocusBody({
         <RegistrarContatoDialog
           open={contatoOpen}
           onOpenChange={setContatoOpen}
-          lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id }}
+          lead={{
+            id: lead.id,
+            nome: lead.nome,
+            corretor_id: lead.corretor_id,
+            status: lead.status,
+          }}
           onDone={onAvancar}
         />
         <LeadStageModals

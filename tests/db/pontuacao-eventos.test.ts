@@ -251,7 +251,9 @@ describe("documentação: primeira entrada em análise no mês", () => {
     const antes = (await contadores(corretor.id)).documentacoes;
     await transicionar(corretor.id, lead, "analise_credito");
     expect((await contadores(corretor.id)).documentacoes).toBe(antes + 1);
-    await transicionar(corretor.id, lead, "em_atendimento");
+    // Regra dos 65, Fatia 3a.2: voltar para Em atendimento é correção da
+    // gestão (o corretor não escolhe a etapa); a reentrada em análise é dele.
+    await transicionar(admin.id, lead, "em_atendimento");
     await transicionar(corretor.id, lead, "analise_credito");
     expect((await contadores(corretor.id)).documentacoes).toBe(antes + 1);
   });

@@ -212,18 +212,16 @@ export function desfechoPara(item: FilaUnicaItem, opts: { gestao?: boolean } = {
     return {
       pergunta: `Primeiro contato com ${nome}`,
       opcoes: [
-        comEtapa(
-          {
-            id: "qualificar",
-            rotulo: "Falei · qualificar",
-            resultado: "atendeu",
-            canal: "ligacao",
-            proximo: passo("Qualificar: renda, FGTS, urgência", { emHoras: 2 }),
-          },
-          status,
-          { kind: "direct", status: "em_atendimento" },
-          gestao,
-        ),
+        // Regra dos 65, Fatia 3a.2: "Falei" é resposta do cliente — o banco
+        // (registrar_contato_lead) põe o lead em atendimento como consequência,
+        // com o passo abaixo; a opção não carrega etapa.
+        {
+          id: "qualificar",
+          rotulo: "Falei · qualificar",
+          resultado: "atendeu",
+          canal: "ligacao",
+          proximo: passo("Qualificar: renda, FGTS, urgência", { emHoras: 2 }),
+        },
         naoAtendeu(1),
         {
           id: "whatsapp_enviado",
