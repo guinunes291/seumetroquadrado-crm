@@ -127,9 +127,12 @@ export function PlacarRoletaSdrCard() {
           <p className="text-xs text-muted-foreground">
             Visita realizada = {formatarPontos(cfg.peso_visita)} · pasta ={" "}
             {formatarPontos(cfg.peso_pasta)} · meta {formatarPontos(cfg.meta_pontos)} na semana
-            (sábado a sexta). Abaixo de {cfg.minimo_aptos} aptos entram, nessa ordem, quem vendeu
-            nos últimos {cfg.venda_janela_dias} dias e quem tem mais pontos. A apuração roda no
-            sábado 08:00; quem não bate fica pausado até o sábado seguinte 09:00.
+            (sábado a sexta). Quem vendeu nos últimos {cfg.venda_janela_dias} dias também entra,
+            mesmo passando de {cfg.minimo_aptos}; abaixo de {cfg.minimo_aptos} aptos entra quem tem
+            mais pontos. No rodízio, meta vale peso {cfg.peso_rodizio_meta} e venda ou complemento,
+            peso {cfg.peso_rodizio_reduzido}
+            {cfg.vendas_peso_cheio > 0 && ` (${cfg.vendas_peso_cheio}+ vendas: peso cheio)`}. A
+            apuração roda no sábado 08:00; quem não bate fica pausado até o sábado seguinte 09:00.
           </p>
         )}
       </CardHeader>
@@ -179,6 +182,7 @@ export function PlacarRoletaSdrCard() {
                     <TableHead className="text-right">Pontos</TableHead>
                     <TableHead className="text-right">Venda 15 dias</TableHead>
                     <TableHead>Status previsto</TableHead>
+                    <TableHead className="text-right">Peso</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -204,6 +208,18 @@ export function PlacarRoletaSdrCard() {
                             </span>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell
+                        className="text-right tabular-nums"
+                        title={
+                          l.peso_rodizio === null
+                            ? undefined
+                            : l.peso_rodizio < (cfg?.peso_rodizio_meta ?? 0)
+                              ? "Peso menor no rodízio"
+                              : "Peso cheio no rodízio"
+                        }
+                      >
+                        {l.peso_rodizio ?? "—"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -273,6 +289,7 @@ function UltimasApuracoes({
                         <TableCell className="py-1.5 font-medium">{l.nome}</TableCell>
                         <TableCell className="py-1.5 text-right text-xs text-muted-foreground tabular-nums">
                           {l.visitas} vis · {l.pastas} pas
+                          {l.peso_rodizio != null && ` · peso ${l.peso_rodizio}`}
                         </TableCell>
                         <TableCell className="py-1.5 text-right font-semibold tabular-nums">
                           {formatarPontos(l.pontos)}

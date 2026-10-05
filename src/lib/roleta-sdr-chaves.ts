@@ -1,5 +1,5 @@
 // Chaves da permanência semanal na roleta do SDR em distribuicao_settings
-// (migration 20261011120000), na ordem da Central → Política. Módulo à parte
+// (migrations 20261011120000 e 20261011120100), na ordem da Central → Política. Módulo à parte
 // para a aba Política (chunk principal) não puxar as regras da roleta inteiras.
 export const CHAVES_ROLETA_SDR = [
   "roleta_sdr_regra_ativa",
@@ -9,4 +9,7 @@ export const CHAVES_ROLETA_SDR = [
   "roleta_sdr_meta_pontos",
   "roleta_sdr_minimo_aptos",
   "roleta_sdr_venda_janela_dias",
+  "roleta_sdr_peso_rodizio_meta",
+  "roleta_sdr_peso_rodizio_reduzido",
+  "roleta_sdr_vendas_peso_cheio",
 ] as const;

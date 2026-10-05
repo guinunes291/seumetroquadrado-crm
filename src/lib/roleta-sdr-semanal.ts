@@ -12,8 +12,10 @@
 //   pasta ......... entrada em análise de crédito; não conta se o mesmo lead
 //                   já tinha entrado nos 30 dias anteriores ...... 1,5 ponto
 //   meta .......... 3 pontos ("3 visitas OU 2 pastas", combinações valem)
-//   cascata ....... meta batida (sem teto) → venda nos últimos 15 dias →
-//                   mais pontos (> 0), só até o mínimo de 3 aptos
+//   cascata ....... meta batida (sem teto) → venda nos últimos 15 dias (sem
+//                   teto) → mais pontos (> 0), só até o mínimo de 3 aptos
+//   peso .......... no rodízio da semana seguinte: meta = 2; 1 venda ou
+//                   complemento = 1; 2+ vendas = 2 (migration 20261011120100)
 
 import { z } from "zod";
 import { inicioSemanaSdr } from "@/features/dashboard/semana-sdr";
@@ -31,6 +33,12 @@ export type ConfigRoletaSdr = {
   meta_pontos: number;
   minimo_aptos: number;
   venda_janela_dias: number;
+  /** Peso no rodízio de quem bateu a meta (ou tem vendas_peso_cheio vendas). */
+  peso_rodizio_meta: number;
+  /** Peso no rodízio de quem entrou por 1 venda ou pelo complemento. */
+  peso_rodizio_reduzido: number;
+  /** Vendas na janela que dão peso cheio sem a meta (0 = nunca). */
+  vendas_peso_cheio: number;
 };
 
 /** Padrões da migration — os mesmos que o banco assume sem a chave. */
@@ -42,6 +50,9 @@ export const CONFIG_ROLETA_SDR_PADRAO: ConfigRoletaSdr = {
   meta_pontos: 3,
   minimo_aptos: 3,
   venda_janela_dias: 15,
+  peso_rodizio_meta: 2,
+  peso_rodizio_reduzido: 1,
+  vendas_peso_cheio: 2,
 };
 
 /** Chaves editáveis na Central → Política (ordem da tela). */
@@ -64,6 +75,10 @@ export function lerConfigRoletaSdr(raw: unknown): ConfigRoletaSdr {
     meta_pontos: numero(o.meta_pontos, p.meta_pontos),
     minimo_aptos: Math.floor(numero(o.minimo_aptos, p.minimo_aptos)),
     venda_janela_dias: Math.floor(numero(o.venda_janela_dias, p.venda_janela_dias)),
+    // Pesos do rodízio: inteiros >= 1, como no banco.
+    peso_rodizio_meta: Math.floor(numero(o.peso_rodizio_meta, p.peso_rodizio_meta, 1)),
+    peso_rodizio_reduzido: Math.floor(numero(o.peso_rodizio_reduzido, p.peso_rodizio_reduzido, 1)),
+    vendas_peso_cheio: Math.floor(numero(o.vendas_peso_cheio, p.vendas_peso_cheio)),
   };
 }
 
@@ -408,24 +423,54 @@ export type LinhaPlacar = {
 
 export type LinhaApurada<T extends LinhaPlacar = LinhaPlacar> = T & {
   resultado: ResultadoApuracao;
+  /** Peso no rodízio da semana seguinte (null para pausado / removido). */
+  peso_rodizio: number | null;
 };
+
+type CfgCascata = Pick<
+  ConfigRoletaSdr,
+  | "meta_pontos"
+  | "minimo_aptos"
+  | "peso_rodizio_meta"
+  | "peso_rodizio_reduzido"
+  | "vendas_peso_cheio"
+>;
+
+/**
+ * Peso no rodízio ponderado: meta = cheio; venda = menor, salvo quem tem
+ * vendas_peso_cheio vendas ou mais na janela; complemento = menor.
+ */
+export function pesoRodizio(
+  resultado: ResultadoApuracao,
+  vendasJanela: number,
+  cfg: Pick<ConfigRoletaSdr, "peso_rodizio_meta" | "peso_rodizio_reduzido" | "vendas_peso_cheio">,
+): number | null {
+  if (resultado === "apto_meta") return cfg.peso_rodizio_meta;
+  if (resultado === "apto_venda")
+    return cfg.vendas_peso_cheio > 0 && vendasJanela >= cfg.vendas_peso_cheio
+      ? cfg.peso_rodizio_meta
+      : cfg.peso_rodizio_reduzido;
+  if (resultado === "apto_complemento") return cfg.peso_rodizio_reduzido;
+  return null;
+}
 
 const porNome = (a: LinhaPlacar, b: LinhaPlacar) =>
   a.nome.localeCompare(b.nome, "pt-BR") || a.corretor_id.localeCompare(b.corretor_id);
 
 /**
- * Monta os aptos da semana seguinte, na ordem da política, e para quando a
- * lista atinge o mínimo:
+ * Monta os aptos da semana seguinte, na ordem da política:
  *  1. meta batida — sem teto: se 10 baterem, entram os 10;
- *  2. (abaixo do mínimo) venda na janela, por pontos e, no empate, pela venda
- *     mais recente;
- *  3. (ainda abaixo) mais pontos na semana, desde que > 0.
+ *  2. venda na janela — também sem teto (decisão de 05/10/2026): todo mundo
+ *     com venda entra, mesmo passando do mínimo, mas com peso menor no
+ *     rodízio (salvo 2+ vendas);
+ *  3. só se ainda faltar gente para o mínimo: mais pontos na semana (> 0),
+ *     com peso menor.
  * Ninguém se qualificou → todo mundo "pausado" (roleta vazia).
  * Empate final por nome — determinístico, para a apuração ser idempotente.
  */
 export function montarCascata<T extends LinhaPlacar>(
   placar: ReadonlyArray<T>,
-  cfg: Pick<ConfigRoletaSdr, "meta_pontos" | "minimo_aptos">,
+  cfg: CfgCascata,
 ): Array<LinhaApurada<T>> {
   const resultado = new Map<string, ResultadoApuracao>();
   const elegiveis = placar.filter((l) => !l.bloqueado_admin);
@@ -433,29 +478,22 @@ export function montarCascata<T extends LinhaPlacar>(
   const faixa1 = elegiveis.filter((l) => bateuMeta(l.pontos, cfg));
   faixa1.forEach((l) => resultado.set(l.corretor_id, "apto_meta"));
 
-  let vagas = Math.max(cfg.minimo_aptos - faixa1.length, 0);
-  const faixa2 = elegiveis
-    .filter((l) => !resultado.has(l.corretor_id) && l.vendas_janela > 0)
-    .sort(
-      (a, b) =>
-        b.pontos - a.pontos ||
-        (b.ultima_venda ?? "").localeCompare(a.ultima_venda ?? "") ||
-        porNome(a, b),
-    )
-    .slice(0, vagas);
+  const faixa2 = elegiveis.filter((l) => !resultado.has(l.corretor_id) && l.vendas_janela > 0);
   faixa2.forEach((l) => resultado.set(l.corretor_id, "apto_venda"));
 
-  vagas = Math.max(vagas - faixa2.length, 0);
+  const vagas = Math.max(cfg.minimo_aptos - faixa1.length - faixa2.length, 0);
   elegiveis
     .filter((l) => !resultado.has(l.corretor_id) && l.pontos > 0)
     .sort((a, b) => b.pontos - a.pontos || b.pastas - a.pastas || porNome(a, b))
     .slice(0, vagas)
     .forEach((l) => resultado.set(l.corretor_id, "apto_complemento"));
 
-  return placar.map((l) => ({
-    ...l,
-    resultado: l.bloqueado_admin ? "bloqueado_admin" : (resultado.get(l.corretor_id) ?? "pausado"),
-  }));
+  return placar.map((l) => {
+    const r: ResultadoApuracao = l.bloqueado_admin
+      ? "bloqueado_admin"
+      : (resultado.get(l.corretor_id) ?? "pausado");
+    return { ...l, resultado: r, peso_rodizio: pesoRodizio(r, l.vendas_janela, cfg) };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -649,6 +687,8 @@ const linhaApuracaoSchema = z.object({
   pontos: z.coerce.number(),
   vendas_janela: z.coerce.number(),
   resultado: z.enum(RESULTADOS),
+  // Coluna nova (migration 20261011120100): banco sem ela devolve sem a chave.
+  peso_rodizio: z.coerce.number().nullable().optional(),
   sombra: z.boolean(),
   aplicado_em: z.string().nullable(),
   apurado_em: z.string(),

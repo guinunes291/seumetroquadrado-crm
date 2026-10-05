@@ -32,6 +32,8 @@ let gil: UsuarioTeste; // 2 pastas, pausado pelo SLA (pausa alheia)
 let helena: UsuarioTeste; // 3 visitas, fora da roleta → incluída
 let ivo: UsuarioTeste; // 3,5 pts, pausado pela regra → reativado
 let jonas: UsuarioTeste; // removido por processo automático, 3 visitas → reativado
+let kleber: UsuarioTeste; // 1 venda na janela, 0 pt → entra por venda com peso menor
+let lia: UsuarioTeste; // 2 vendas na janela, 0 pt → entra por venda com peso cheio
 let sdr: UsuarioTeste; // papel sdr: fora do universo
 let inativo: UsuarioTeste; // perfil inativo: fora do universo
 
@@ -146,7 +148,7 @@ async function resultados(semana: string): Promise<Record<string, Record<string,
   await comoSuperuser(c);
   const r = await c.query(
     `SELECT corretor_id, visitas, pastas, pontos::float AS pontos, vendas_janela, resultado,
-            sombra, aplicado_em
+            peso_rodizio, sombra, aplicado_em
        FROM public.roleta_sdr_apuracoes WHERE semana_inicio = $1::date`,
     [semana],
   );
@@ -177,6 +179,8 @@ beforeAll(async () => {
   helena = await criarUsuario(c, { nome: "Helena" });
   ivo = await criarUsuario(c, { nome: "Ivo" });
   jonas = await criarUsuario(c, { nome: "Jonas" });
+  kleber = await criarUsuario(c, { nome: "Kleber" });
+  lia = await criarUsuario(c, { nome: "Lia" });
   sdr = await criarUsuario(c, { nome: "Sara SDR", papel: "sdr" });
   inativo = await criarUsuario(c, { nome: "Ícaro Inativo" });
   await c.query(`UPDATE public.profiles SET ativo = false WHERE id = $1`, [inativo.id]);
@@ -243,14 +247,20 @@ beforeAll(async () => {
   await pasta(ivo, sp(dia(W, 3)));
   // Jonas: 3 visitas.
   for (let i = 0; i < 3; i++) await visita(jonas, sp(dia(W, 1 + i)));
+  // Kleber: 1 venda na janela de W, sem ponto. Lia: 2 vendas, sem ponto.
+  await venda(kleber, dia(W, 2));
+  await venda(lia, dia(W, 1));
+  await venda(lia, dia(W, 3));
   // Quem está fora do universo produz e não aparece.
   await c.query(`DELETE FROM public.user_roles WHERE user_id = $1 AND role = 'corretor'`, [sdr.id]);
   await visita(inativo, sp(dia(W, 2)));
 
   // ---- Semana W-7 (cenário da cascata, recálculo histórico) ----------------
   const W7 = dia(W, -7);
-  await venda(ana, dia(W7, 3)); // na janela
-  await venda(bia, dia(W7, 1)); // na janela
+  // Vendas dentro da janela de W-7 e FORA da de W (sexta de W - 15 dias):
+  // em W a Ana e a Bia seguem testando a pausa, não a exceção.
+  await venda(ana, dia(W7, -5)); // na janela de W-7
+  await venda(bia, dia(W7, -4)); // na janela de W-7
   await visita(bia, sp(dia(W7, 2))); // 1 pt
   await visita(caio, sp(dia(W7, 2))); // 1 visita…
   await pasta(caio, sp(dia(W7, 3))); // … + 1 pasta = 2,5
@@ -457,7 +467,7 @@ describe("apuração da última semana fechada (W)", () => {
     expect(r).toMatchObject({
       ok: true,
       sombra: false,
-      efeito: { incluidos: 1, reativados: 2, pausados: 2 },
+      efeito: { incluidos: 3, reativados: 2, pausados: 2 },
     });
     const res = await resultados(W);
     expect(res[helena.id].resultado).toBe("apto_meta");
@@ -465,8 +475,13 @@ describe("apuração da última semana fechada (W)", () => {
     expect(res[ivo.id].resultado).toBe("apto_meta");
     expect(res[jonas.id].resultado).toBe("apto_meta");
     expect(res[fabio.id].resultado).toBe("bloqueado_admin");
-    // Faixa 1 já tem 4 ≥ 3: ninguém entra por exceção.
-    expect(res[ana.id].resultado).toBe("pausado");
+    // Faixa 1 já tem 4 ≥ 3, mas a exceção por venda não tem teto: Kleber e
+    // Lia entram mesmo assim — Kleber (1 venda) com peso menor, Lia (2) cheio.
+    expect(res[kleber.id]).toMatchObject({ resultado: "apto_venda", peso_rodizio: 1 });
+    expect(res[lia.id]).toMatchObject({ resultado: "apto_venda", peso_rodizio: 2 });
+    expect(res[helena.id].peso_rodizio).toBe(2);
+    // Sem venda e sem meta: complemento só até o mínimo, que já foi atingido.
+    expect(res[ana.id]).toMatchObject({ resultado: "pausado", peso_rodizio: null });
     expect(res[caio.id].resultado).toBe("pausado");
     expect(Object.values(res).every((x) => x.sombra === false && x.aplicado_em !== null)).toBe(
       true,
@@ -514,6 +529,11 @@ describe("apuração da última semana fechada (W)", () => {
     const acao = (u: UsuarioTeste) =>
       logs.rows.filter((l) => l.corretor_id === u.id).map((l) => l.acao);
     expect(acao(helena)).toEqual(["incluido"]);
+    expect(acao(kleber)).toEqual(["incluido"]);
+    expect(acao(lia)).toEqual(["incluido"]);
+    const motivoKleber = logs.rows.find((l) => l.corretor_id === kleber.id)!.motivo as string;
+    expect(motivoKleber).toContain("apto por exceção (venda nos últimos 15 dias)");
+    expect(motivoKleber).toContain("Peso no rodízio: 1.");
     expect(acao(ivo)).toEqual(["reativado"]);
     expect(acao(jonas)).toEqual(["reativado"]);
     expect(acao(ana)).toEqual(["pausado"]);
@@ -618,6 +638,98 @@ describe("apuração da última semana fechada (W)", () => {
     expect(alertas.rows[0].mensagem).toContain(
       "Roleta do SDR sem aptos nesta semana: entregas pela entrega manual do admin",
     );
+  });
+});
+
+describe("rodízio ponderado (regra valendo)", () => {
+  async function distribuir(n: number): Promise<Record<string, number>> {
+    await comoSuperuser(c);
+    const contagem: Record<string, number> = {};
+    for (let i = 0; i < n; i++) {
+      const lead = await criarLead(c, { nome: `Lead SDR ${i}` });
+      await c.query(`UPDATE public.leads SET sdr_id = $1 WHERE id = $2`, [sdr.id, lead]);
+      const r = await c.query(
+        `SELECT public._distribuir_lead_sdr($1, 'teste do rodízio', NULL, NULL, 'teste') AS r`,
+        [lead],
+      );
+      expect(r.rows[0].r.ok, JSON.stringify(r.rows[0].r)).toBe(true);
+      const id = r.rows[0].r.corretor_id as string;
+      contagem[id] = (contagem[id] ?? 0) + 1;
+    }
+    return contagem;
+  }
+
+  beforeAll(async () => {
+    await setting("roleta_sdr_modo_sombra", false);
+    await comoSuperuser(c);
+    // Só Helena (meta, peso 2) e Kleber (1 venda, peso 1) com telefone: os
+    // únicos aptos da roleta de agendados neste bloco.
+    await c.query(`UPDATE public.profiles SET telefone = NULL WHERE id <> ALL($1::uuid[])`, [
+      [helena.id, kleber.id],
+    ]);
+    await c.query(
+      `UPDATE public.profiles SET telefone = '11999990000' WHERE id = ANY($1::uuid[])`,
+      [[helena.id, kleber.id]],
+    );
+  });
+
+  it("o peso vigente vem da última semana aplicada; incluído à mão ou sem linha = peso cheio", async () => {
+    await comoSuperuser(c);
+    const peso = async (u: UsuarioTeste) =>
+      (await c.query(`SELECT public._roleta_sdr_peso_atual($1) AS p`, [u.id])).rows[0].p;
+    expect(await peso(helena)).toBe(2);
+    expect(await peso(kleber)).toBe(1);
+    expect(await peso(lia)).toBe(2);
+    expect(await peso(ana)).toBe(2); // pausada: se o admin a incluir à mão, peso cheio
+  });
+
+  it("a apuração aplicada zera o crédito do rodízio da semana anterior", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.roleta_participantes SET wrr_current = 7 WHERE roleta_id = $1`, [
+      roletaId,
+    ]);
+    await apurar(W);
+    const r = await c.query(
+      `SELECT count(*)::int AS n FROM public.roleta_participantes WHERE roleta_id = $1 AND wrr_current <> 0`,
+      [roletaId],
+    );
+    expect(r.rows[0].n).toBe(0);
+  });
+
+  it("meta (peso 2) recebe 2 agendados para cada 1 de quem entrou com 1 venda (peso 1)", async () => {
+    const contagem = await distribuir(6);
+    expect(contagem[helena.id]).toBe(4);
+    expect(contagem[kleber.id]).toBe(2);
+    await comoSuperuser(c);
+    const ctx = await c.query(
+      `SELECT c.contexto FROM public.distribuicao_log_contexto c
+         JOIN public.distribution_log l ON l.id = c.log_id
+        WHERE l.motivo = 'teste do rodízio' ORDER BY l.created_at DESC LIMIT 1`,
+    );
+    expect(ctx.rows[0].contexto.rodizio_ponderado).toBe(true);
+  });
+
+  it("em sombra o rodízio volta a ser o de sempre (há mais tempo sem receber)", async () => {
+    await setting("roleta_sdr_modo_sombra", true);
+    await comoSuperuser(c);
+    expect((await c.query(`SELECT public._roleta_sdr_ponderado() AS p`)).rows[0].p).toBe(false);
+    const contagem = await distribuir(4);
+    expect(contagem[helena.id]).toBe(2);
+    expect(contagem[kleber.id]).toBe(2);
+    await setting("roleta_sdr_modo_sombra", false);
+  });
+
+  it("o motor só escolhe quem a prévia aceitou: função de escolha fechada para a API", async () => {
+    await comoUsuario(c, admin.id);
+    expect(
+      await errCode(
+        c.query(`SELECT public._roleta_sdr_escolher_ponderado($1, ARRAY[$2]::uuid[])`, [
+          roletaId,
+          helena.id,
+        ]),
+      ),
+    ).toBe("42501");
+    await comoSuperuser(c);
   });
 });
 

@@ -79,6 +79,9 @@ describe("Placar da semana (Central → Filas → SDR)", () => {
     expect(within(linhaDe("Ana")).getByText("3 pts")).toBeInTheDocument();
     expect(within(linhaDe("Bia")).getByText("Vai entrar")).toBeInTheDocument();
     expect(within(linhaDe("Bia")).getByText("exceção: venda")).toBeInTheDocument();
+    // Peso no rodízio: meta 2, uma venda 1, removido sem peso.
+    expect(within(linhaDe("Ana")).getByTitle("Peso cheio no rodízio")).toHaveTextContent("2");
+    expect(within(linhaDe("Bia")).getByTitle("Peso menor no rodízio")).toHaveTextContent("1");
     expect(within(linhaDe("Caio")).getByText("Vai ficar")).toBeInTheDocument();
     expect(within(linhaDe("Caio")).getByText("exceção: complemento")).toBeInTheDocument();
     expect(within(linhaDe("Davi")).getByText("Vai pausar")).toBeInTheDocument();

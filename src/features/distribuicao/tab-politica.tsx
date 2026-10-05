@@ -409,9 +409,28 @@ export function TabPolitica() {
               <SettingNumero
                 chave="roleta_sdr_venda_janela_dias"
                 label="Exceção por venda: janela"
-                hint="Venda assinada até N dias antes da sexta do fechamento."
+                hint="Venda assinada até N dias antes da sexta do fechamento. Quem vendeu entra mesmo passando do mínimo."
                 min={0}
                 sufixo="dias"
+              />
+              <SettingNumero
+                chave="roleta_sdr_peso_rodizio_meta"
+                label="Peso no rodízio: meta batida"
+                hint="Quanto maior, mais agendados por volta do rodízio. Padrão 2."
+                sufixo="peso"
+              />
+              <SettingNumero
+                chave="roleta_sdr_peso_rodizio_reduzido"
+                label="Peso no rodízio: exceção (1 venda) e complemento"
+                hint="Padrão 1: recebe 1 agendado para cada 2 de quem bateu a meta."
+                sufixo="peso"
+              />
+              <SettingNumero
+                chave="roleta_sdr_vendas_peso_cheio"
+                label="Vendas na janela que dão peso cheio"
+                hint="Sem a meta, quem tem esse número de vendas ou mais recebe como meta batida. 0 = nunca."
+                min={0}
+                sufixo="vendas"
               />
             </div>
           </CardContent>

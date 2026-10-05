@@ -14,6 +14,7 @@ import {
   parsePlacar,
   pausaAte,
   planejarEfeitos,
+  pesoRodizio,
   pontuar,
   resumoFalta,
   semanaDoInstante,
@@ -192,7 +193,7 @@ describe("exceção por venda: janela de 15 dias até a sexta do fechamento", ()
   });
 });
 
-describe("cascata até o mínimo de 3 aptos", () => {
+describe("cascata: meta e venda sem teto, complemento até o mínimo de 3", () => {
   it("0 pela meta + 2 com venda em 15 dias + 1 com 2,5 pts → 3 aptos (2 venda + 1 complemento)", () => {
     const r = montarCascata(
       [
@@ -211,26 +212,47 @@ describe("cascata até o mínimo de 3 aptos", () => {
     expect(resultadoDe(r, "eva")).toBe("pausado");
   });
 
-  it("faixa 1 não tem teto: 10 bateram, entram os 10 e ninguém por exceção", () => {
+  it("faixa 1 não tem teto: 10 bateram, entram os 10 — e quem vendeu entra também", () => {
     const linhas = Array.from({ length: 10 }, (_, i) => placar(`c${i}`, 3, 0));
-    linhas.push(placar("vendedor", 0, 0, { vendas_janela: 2, ultima_venda: "2026-10-05" }));
+    linhas.push(placar("vendedor", 0, 0, { vendas_janela: 1, ultima_venda: "2026-10-05" }));
+    linhas.push(placar("sem_venda", 2, 0)); // 2 pts: complemento não abre, mínimo já atingido
     const r = montarCascata(linhas, CFG);
     expect(r.filter((l) => l.resultado === "apto_meta")).toHaveLength(10);
-    expect(resultadoDe(r, "vendedor")).toBe("pausado");
+    expect(resultadoDe(r, "vendedor")).toBe("apto_venda");
+    expect(resultadoDe(r, "sem_venda")).toBe("pausado");
   });
 
-  it("venda: ordena por pontos e, no empate, pela venda mais recente — e para no mínimo", () => {
+  it("venda não tem teto: todo mundo com venda entra, mesmo passando do mínimo de 3", () => {
     const r = montarCascata(
       [
         placar("meta1", 3, 0),
         placar("meta2", 0, 2),
         placar("venda_antiga", 1, 0, { vendas_janela: 1, ultima_venda: "2026-09-25" }),
         placar("venda_nova", 1, 0, { vendas_janela: 1, ultima_venda: "2026-10-08" }),
+        placar("venda_zerada", 0, 0, { vendas_janela: 1, ultima_venda: "2026-10-01" }),
       ],
       CFG,
     );
+    expect(r.filter((l) => l.resultado.startsWith("apto"))).toHaveLength(5);
     expect(resultadoDe(r, "venda_nova")).toBe("apto_venda");
-    expect(resultadoDe(r, "venda_antiga")).toBe("pausado");
+    expect(resultadoDe(r, "venda_antiga")).toBe("apto_venda");
+    expect(resultadoDe(r, "venda_zerada")).toBe("apto_venda");
+  });
+
+  it("complemento só fecha o que falta para o mínimo depois de meta e venda", () => {
+    const r = montarCascata(
+      [
+        placar("venda", 0, 0, { vendas_janela: 1, ultima_venda: "2026-10-01" }),
+        placar("dois", 2, 0),
+        placar("um_e_meio", 0, 1),
+        placar("um", 1, 0),
+      ],
+      CFG,
+    );
+    expect(resultadoDe(r, "venda")).toBe("apto_venda");
+    expect(resultadoDe(r, "dois")).toBe("apto_complemento");
+    expect(resultadoDe(r, "um_e_meio")).toBe("apto_complemento");
+    expect(resultadoDe(r, "um")).toBe("pausado");
   });
 
   it("complemento exige ponto > 0 e respeita a ordem decrescente", () => {
@@ -246,6 +268,30 @@ describe("cascata até o mínimo de 3 aptos", () => {
   it("ninguém se qualificou: roleta vazia (todos pausados)", () => {
     const r = montarCascata([placar("a", 0, 0), placar("b", 0, 0)], CFG);
     expect(r.every((l) => l.resultado === "pausado")).toBe(true);
+  });
+
+  it("peso no rodízio: meta 2; 1 venda 1; 2+ vendas 2; complemento 1; fora da roleta nada", () => {
+    const r = montarCascata(
+      [
+        placar("meta", 3, 0),
+        placar("uma_venda", 0, 0, { vendas_janela: 1, ultima_venda: "2026-10-01" }),
+        placar("duas_vendas", 0, 0, { vendas_janela: 2, ultima_venda: "2026-10-02" }),
+        placar("meta_e_venda", 2, 1, { vendas_janela: 1, ultima_venda: "2026-10-02" }), // 3,5: meta
+        placar("parado", 0, 0),
+      ],
+      { ...CFG, minimo_aptos: 5 },
+    );
+    const peso = (id: string) => r.find((l) => l.corretor_id === id)?.peso_rodizio;
+    expect(peso("meta")).toBe(2);
+    expect(peso("uma_venda")).toBe(1);
+    expect(peso("duas_vendas")).toBe(2);
+    expect(peso("meta_e_venda")).toBe(2);
+    expect(peso("parado")).toBeNull();
+    // Complemento sempre peso menor.
+    expect(pesoRodizio("apto_complemento", 0, CFG)).toBe(1);
+    // vendas_peso_cheio = 0: venda nunca dá peso cheio.
+    expect(pesoRodizio("apto_venda", 5, { ...CFG, vendas_peso_cheio: 0 })).toBe(1);
+    expect(pesoRodizio("bloqueado_admin", 9, CFG)).toBeNull();
   });
 
   it("removido manualmente pelo admin nunca entra — nem pela meta", () => {
