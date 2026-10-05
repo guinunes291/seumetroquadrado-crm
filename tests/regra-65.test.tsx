@@ -2,7 +2,7 @@
 // A regra mora no banco; aqui se trava o que a tela faz com o que ele devolve:
 // validação fail-closed, os totais do topo e o texto que diz "nada foi movido".
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import {
   descemDos65,
   linhasComCarteira,
@@ -10,6 +10,12 @@ import {
   parseRegra65,
   saemDaBase,
   totaisRegra65,
+  descreverExecucao,
+  estadoDaRegra,
+  parseConfigRegra65,
+  parseExecucoesRegra65,
+  type ConfigRegra65,
+  type ExecucaoRegra65,
   type LinhaRegra65,
   type PortasRegra65,
 } from "@/features/gestao/regra-65/derive";
@@ -125,10 +131,18 @@ const estado = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   portas: { data: undefined as PortasRegra65 | null | undefined },
+  config: { data: undefined as ConfigRegra65 | null | undefined },
+  execucoes: { data: undefined as ExecucaoRegra65[] | null | undefined },
+  ligar: { mutate: vi.fn(), isPending: false },
+  desligar: { mutate: vi.fn(), isPending: false },
 }));
 vi.mock("@/features/gestao/regra-65/use-regra-65", () => ({
   useRegra65Sombra: () => estado.sombra,
   useRegra65Portas: () => estado.portas,
+  useRegra65Config: () => estado.config,
+  useRegra65Execucoes: () => estado.execucoes,
+  useLigarRegra65: () => estado.ligar,
+  useDesligarRegra65: () => estado.desligar,
 }));
 
 import { SimulacaoRegra65 } from "@/features/gestao/regra-65/simulacao-regra-65";
@@ -139,6 +153,104 @@ afterEach(() => {
   estado.sombra.isPending = false;
   estado.sombra.isError = false;
   estado.portas.data = undefined;
+  estado.config.data = undefined;
+  estado.execucoes.data = undefined;
+  estado.ligar.mutate.mockReset();
+  estado.desligar.mutate.mockReset();
+});
+
+const cfg = (p: Partial<ConfigRegra65> = {}): ConfigRegra65 => ({
+  modo: "sombra",
+  virada_em: null,
+  teto: 65,
+  trava_roleta: 60,
+  teto_base: 150,
+  ...p,
+});
+
+const execucao = (p: Partial<ExecucaoRegra65> = {}): ExecucaoRegra65 => ({
+  id: "33333333-3333-4333-8333-333333333333",
+  modo: "sombra",
+  gatilho: "cron",
+  iniciado_em: "2026-10-06T09:41:00Z",
+  terminado_em: "2026-10-06T09:42:00Z",
+  avaliados: 4793,
+  aplicados: 0,
+  alertas: 0,
+  erros: 0,
+  resumo: { perde_vaga: 1608, sem_toque: 2688, fundo_desfecho: 208 },
+  ...p,
+});
+
+describe("Fatia 3b: estado da regra e rodadas (derivação)", () => {
+  it("sombra / agendada / ligada seguem o mesmo juízo do banco", () => {
+    const agora = new Date("2026-10-06T12:00:00Z");
+    expect(estadoDaRegra(cfg(), agora)).toBe("sombra");
+    expect(estadoDaRegra(cfg({ modo: "ligado", virada_em: "2026-10-13T09:00:00Z" }), agora)).toBe(
+      "agendada",
+    );
+    expect(estadoDaRegra(cfg({ modo: "ligado", virada_em: "2026-10-06T09:00:00Z" }), agora)).toBe(
+      "ligada",
+    );
+    expect(estadoDaRegra(cfg({ modo: "ligado" }), agora)).toBe("ligada");
+  });
+
+  it("parse fail-closed da config e das rodadas", () => {
+    expect(parseConfigRegra65({ ...cfg(), extra: 1 }).teto).toBe(65);
+    expect(() => parseConfigRegra65({ modo: "talvez" })).toThrow();
+    expect(parseExecucoesRegra65([execucao()])).toHaveLength(1);
+    expect(() => parseExecucoesRegra65([{ id: "x" }])).toThrow();
+  });
+
+  it("descreve a rodada: sombra 'seriam', ligada 'aplicados', maiores primeiro", () => {
+    expect(descreverExecucao(execucao())).toBe(
+      "sombra: 4.793 lead(s) seriam movidos ou avisados (2.688 saem por 5 dias sem toque, 1.608 perdem a vaga, 208 fundo parado 10+ dias)",
+    );
+    expect(
+      descreverExecucao(execucao({ modo: "ligado", aplicados: 4500, alertas: 12, erros: 2 })),
+    ).toMatch(/^ligada: 4\.500 de 4\.793 aplicados .* · 12 aviso\(s\) ao gestor · 2 erro\(s\)$/);
+  });
+});
+
+describe("Fatia 3b: o interruptor e a última rodada no cartão", () => {
+  it("admin em sombra vê 'Ligar a regra' com a data da virada; quem não é admin não vê", () => {
+    estado.sombra.data = [jefferson];
+    estado.config.data = cfg();
+    const { rerender } = render(<SimulacaoRegra65 veCasaInteira admin />);
+    expect(screen.getByTestId("regra-65-controle")).toBeTruthy();
+    const botao = screen.getByText("Ligar a regra");
+    fireEvent.change(screen.getByLabelText("Data da virada"), {
+      target: { value: "2026-10-13T06:00" },
+    });
+    fireEvent.click(botao);
+    expect(estado.ligar.mutate).toHaveBeenCalledWith(new Date("2026-10-13T06:00").toISOString());
+    rerender(<SimulacaoRegra65 veCasaInteira admin={false} />);
+    expect(screen.queryByTestId("regra-65-controle")).toBeNull();
+  });
+
+  it("agendada: cabeçalho diz a virada e o botão é 'Desligar'; ligada: 'Regra ligada'", () => {
+    estado.sombra.data = [jefferson];
+    estado.config.data = cfg({ modo: "ligado", virada_em: "2099-01-10T09:00:00Z" });
+    const { rerender } = render(<SimulacaoRegra65 veCasaInteira admin />);
+    expect(screen.getByText(/Modo sombra até a virada em/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Desligar (voltar à sombra)"));
+    expect(estado.desligar.mutate).toHaveBeenCalled();
+
+    estado.config.data = cfg({ modo: "ligado", virada_em: "2020-01-10T09:00:00Z" });
+    rerender(<SimulacaoRegra65 veCasaInteira admin />);
+    expect(screen.getByText(/Regra ligada: o cron move e avisa a cada hora/)).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Regra dos 65" })).toBeTruthy();
+  });
+
+  it("mostra a última rodada do cron", () => {
+    estado.sombra.data = [jefferson];
+    estado.config.data = cfg();
+    estado.execucoes.data = [execucao()];
+    render(<SimulacaoRegra65 veCasaInteira />);
+    expect(screen.getByTestId("regra-65-ultima-rodada").textContent).toMatch(
+      /sombra: 4\.793 lead\(s\) seriam movidos/,
+    );
+  });
 });
 
 describe("SimulacaoRegra65", () => {
