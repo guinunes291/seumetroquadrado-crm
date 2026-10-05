@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PainelDiaView } from "@/features/gestao/painel-dia/painel-dia-view";
 import { InsightsPanel } from "@/features/inteligencia/insights-panel";
 import { LeadsPorCorretorPage } from "@/features/gestao/leads-por-corretor-page";
+import { RevisaoRegra65 } from "@/features/gestao/regra-65/revisao-regra-65";
 import { SimulacaoRegra65 } from "@/features/gestao/regra-65/simulacao-regra-65";
 import { MetasPage } from "@/routes/_authenticated/metas";
 import { ORIGEM_OPTIONS } from "@/features/leads/novo-lead-dialog";
@@ -292,6 +293,7 @@ function PainelGestorPage() {
         {/* Regra dos 65 em modo sombra: no topo durante a semana de ensaio,
             para a gestão ver os números antes de a regra ser ligada. */}
         <SimulacaoRegra65 veCasaInteira={isAdmin || isSuperintendente} admin={isAdmin} />
+        <RevisaoRegra65 />
         <Suspense fallback={<AbaSkeleton />}>
           <PerformanceView
             corretorDrill={search.corretor ?? null}

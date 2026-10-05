@@ -525,10 +525,79 @@ rodada ligada aplica tudo (minutos, não horas: são updates por lead). Se algo
 sair errado, `em_atendimento_desfazer(execucao)` devolve a rodada e
 "Desligar" volta à sombra.
 
+### 8.9 Fatia 4: a revisão mensal (05/10/2026)
+
+Migration `20261010121100_em_atendimento_fatia4_revisao` (Drizzle `0063`).
+Nada se move: é o painel que o §2.5 pediu para revisar a regra depois de
+ligada, com as duas perguntas do dono respondidas por mês e por corretor.
+
+| Pergunta                           | Como se mede                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Meta                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **Tempo entre toques nos 65**      | Toque = contato real, **o mesmo recorte da regra** (§4): interação que entra ou que sai com autor, mensagem do cliente ou do corretor, chamada feita; status e nota não contam. Toques a menos de 60 min do anterior são **uma conversa**; a espera vai do fim de uma conversa ao começo da seguinte. Só conta o que aconteceu **enquanto o lead estava em Em atendimento** (períodos de `lead_status_transitions`). O número é a **mediana** das esperas do mês. | mediana ≤ 72 h (65 ÷ 20 toques/dia = 3,25 dias) |
+| **Taxa Em atendimento → Agendado** | **Safra** por mês de entrada: de cada lead que entrou em Em atendimento no mês (uma vez só, mesmo que entre duas vezes), a **primeira saída** foi para o fundo (agendado, visita realizada, proposta, análise de crédito, contrato)? Quem ainda não saiu fica em "em aberto", para o mês corrente ser lido com a reserva certa. Mesma definição da medição de 12/09 (`fila-unica-fatia1.md`: 7% contra 70%).                                                      | 70% (meta da casa)                              |
+
+Ao lado delas, o que a regra fez no mês (de `em_atendimento_movimentos`,
+só rodadas ligadas, aplicadas e não desfeitas): quem perdeu a vaga, quem saiu
+da base (roleta, Bolsão, reativação) e as trocas "entra um, sai um".
+
+**Banco.** `em_atendimento_revisao_v1(_meses)` devolve, para os últimos N
+meses (calendário de America/Sao_Paulo, como os outros painéis mensais), uma
+linha por corretor e **a linha da casa** (`casa = true`, a mediana de todas as
+esperas do escopo, não a média das medianas). O escopo é o da simulação:
+gestor vê a equipe; admin e superintendência, a casa; corretor e anon não
+leem. `_em_atendimento_toques(lead, de, até)` é a lista de contatos no mesmo
+recorte que `_em_atendimento_classificar` agrega (sem grant); o teste confere
+que o último desta lista é o `movimento` que a simulação dá ao mesmo lead —
+se a revisão medisse por outro relógio, o painel diria "72 h" para quem a
+regra acabou de punir. As metas e a janela de conversa moram na config
+(`revisao_toque_meta_horas`, `revisao_agendado_meta_pct`,
+`revisao_conversa_min`). Índice parcial novo em `lead_status_transitions`
+por saída de Em atendimento.
+
+**Tela.** Painel do Gestor → Time, logo abaixo do cartão da regra: "Revisão
+mensal — regra dos 65", com o seletor de mês, as duas respostas da casa com a
+meta escrita ao lado (e a cor: verde na meta, âmbar até 1,5× / metade, vermelho
+além), conversas por dia e os movimentos da regra; a tabela por corretor traz
+nos 65, sem toque no mês, conversas/dia, mediana entre toques, safra, taxa,
+perderam a vaga, saíram da base e trocas.
+
+**O que a produção mostrou** (05/10, somente leitura; a consulta de 6 meses
+levou 0,4 s):
+
+| Mês            | Nos 65 | Tocados no mês | Conversas | Mediana entre toques | Entraram | → Agendado |     Taxa |
+| -------------- | -----: | -------------: | --------: | -------------------: | -------: | ---------: | -------: |
+| Agosto         |  2.495 |            325 |       442 |                310 h |    4.078 |        106 |     2,6% |
+| **Setembro**   |  2.631 |      519 (20%) |       723 |             **97 h** |    2.798 |         88 | **3,1%** |
+| Outubro (5 d.) |  1.892 |             98 |        99 |                411 h |      225 |          5 |     2,2% |
+
+Em setembro, 80% dos leads que estiveram nos 65 não receberam um toque sequer
+no mês, e de quem foi tocado a espera mediana foi de 4 dias — contra 72 h de
+meta. A taxa para Agendado ficou em 3,1% contra 70%. Entre os corretores:
+graziele (264 conversas, mediana 166 h, 6,7%), Jefferson (81 conversas,
+mediana 17 h, 1,4%), Leticia Brandão (217 nos 65, zero toques). Como as
+entradas de agosto e setembro incluem as mudanças de status automáticas (§4),
+a safra só passa a ser limpa com a porta da Fatia 3a.2; o painel é o
+instrumento para ver isso virar.
+
+**Como foi conferido.** `tests/db/em-atendimento-revisao.test.ts` (10
+casos): recorte do toque (status, nota, saída automática, bot e chamada falha
+fora; mensagem do cliente dentro), conversa fundida e a espera do fim da
+anterior, toque depois da saída fora, lead de antes do mês nos 65, safra por
+mês de entrada com a primeira saída (agendado via Aguardando retorno não
+conta; entrada dupla conta uma vez), movimentos (sombra, desfeito, não
+aplicado e "fica com alerta" fora) e trocas, linha da casa e escopo do
+gestor, meses e dias decorridos, janela de conversa pela config, contrato com
+o `movimento` da simulação, acesso. **Mutação** sobre a migration: dezoito
+variações, todas mortas (ver o PR). `tests/regra-65-revisao.test.tsx` cobre a
+derivação, o juízo contra a meta e o cartão.
+
+**Deploy.** Só funções, config e um índice; nada se move no publish. O cartão
+aparece assim que a migration entrar.
+
 ## 9. Próximas fatias
 
-| Fatia             | O que entra                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| **3b. Relógios**  | Feito (§8.7): cron, virada, alertas 60/65, desfazer.                               |
-| **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                    |
-| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado. |
+| Fatia             | O que entra                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| **3b. Relógios**  | Feito (§8.8): cron, virada, alertas 60/65, desfazer.                                     |
+| **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                          |
+| **4. Revisar**    | Feito (§8.9): painel mensal, tempo entre toques nos 65 e taxa Em atendimento → Agendado. |
