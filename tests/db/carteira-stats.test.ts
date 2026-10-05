@@ -133,10 +133,12 @@ beforeAll(async () => {
     status: "aguardando_atendimento",
   });
   // Balcão: leads em tratativa SEM dono. O teto é por corretor — a linha do
-  // balcão não é a carteira de ninguém e não pode ser cortada em 65.
+  // balcão não é a carteira de ninguém e não pode ser cortada em 65. Desde a
+  // Fatia 3a lead sem dono não fica em Em atendimento (gatilho), então o
+  // balcão em tratativa é o fundo (agendado).
   const semDono: string[] = [];
   for (let i = 0; i < 3; i++) {
-    semDono.push(await criarLead(c, { nome: `Balcao ${i}`, status: "em_atendimento" }));
+    semDono.push(await criarLead(c, { nome: `Balcao ${i}`, status: "agendado" }));
   }
   // O banco exige `motivo_perda_categoria` para nascer perdido; cria vivo e
   // transiciona com os triggers desligados, como a suíte já faz em outros casos.

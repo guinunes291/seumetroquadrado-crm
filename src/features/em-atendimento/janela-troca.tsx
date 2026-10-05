@@ -49,7 +49,14 @@ import {
   type DesfechoTroca,
 } from "./use-em-atendimento";
 
-export type PedidoTroca = { id: string; nome?: string | null; onDone?: () => void };
+export type PedidoTroca = {
+  id: string;
+  nome?: string | null;
+  /** Contato que abriu o pedido ("Iniciar atendimento"): a troca o registra
+   *  para quem entra, já que o EA065 desfez o original (Fatia 3a). */
+  contato?: "ligacao" | "whatsapp" | null;
+  onDone?: () => void;
+};
 
 type Props = {
   entra: PedidoTroca;
@@ -108,6 +115,7 @@ export function JanelaTroca({ entra, onOpenChange, onDone }: Props) {
         data: desfecho === "perdido" ? null : escolhida,
         categoria: desfecho === "perdido" ? categoria : null,
         detalhe,
+        contato: entra.contato ?? null,
       });
     },
     onSuccess: (r) => {

@@ -540,7 +540,15 @@ describe("quem vê o quê", () => {
 describe("portas", () => {
   it("conta em atendimento sem dono e com dono inativo", async () => {
     await lead({ corretorId: undefined }); // com o corretor ativo: não conta
-    await criarLead(c, { corretorId: null, status: "em_atendimento" });
+    // Desde a Fatia 3a o gatilho trg_zz_em_atendimento_posse impede este
+    // estado; a porta continua contada como monitor do legado.
+    await comoSuperuser(c);
+    await c.query(`ALTER TABLE public.leads DISABLE TRIGGER trg_zz_em_atendimento_posse`);
+    try {
+      await criarLead(c, { corretorId: null, status: "em_atendimento" });
+    } finally {
+      await c.query(`ALTER TABLE public.leads ENABLE TRIGGER trg_zz_em_atendimento_posse`);
+    }
     const saiu = await criarUsuario(c, { papel: "corretor" });
     await lead({ corretorId: saiu.id });
     await comoSuperuser(c);

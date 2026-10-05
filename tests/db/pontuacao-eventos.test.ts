@@ -69,9 +69,17 @@ async function contadores(id: string): Promise<Contadores> {
 }
 
 async function transicionar(uid: string, leadId: string, status: string): Promise<void> {
+  // Porta de Em atendimento (regra dos 65, Fatia 3a): contato registrado nas
+  // últimas 24 h, fora da cadência, e passo com data.
+  await comoSuperuser(c);
+  await c.query(
+    `UPDATE public.leads SET ultimo_contato = now(), cadencia_etapa = NULL WHERE id = $1`,
+    [leadId],
+  );
   await comoUsuario(c, uid);
   await c.query(
-    `SELECT public.transicionar_lead($1, $2::public.lead_status, 'teste', 'próxima ação de teste')`,
+    `SELECT public.transicionar_lead($1, $2::public.lead_status, 'teste', 'próxima ação de teste',
+                                     now() + interval '1 day')`,
     [leadId, status],
   );
   await comoSuperuser(c);

@@ -232,8 +232,12 @@ describe("a troca", () => {
   });
 
   it("dois leads sem dono não são a mesma carteira", async () => {
+    // Desde a Fatia 3a lead sem corretor não fica em Em atendimento (gatilho):
+    // o "sai" sem dono nem chega a existir nesse status, e a troca é recusada
+    // de qualquer jeito — pela carteira ou pelo status de quem sai.
     const x = await criarLead(c, { status: "em_atendimento" });
     const y = await criarLead(c, { status: "aguardando_atendimento" });
+    expect((await estado(x)).status).toBe("aguardando_atendimento");
     expect(
       await errCode(
         rpc(admin, `SELECT public.trocar_vaga_em_atendimento($1, $2, 'esfriou', $3) AS r`, [
@@ -243,7 +247,7 @@ describe("a troca", () => {
         ]),
       ),
     ).toBe("22023");
-    expect((await estado(x)).status).toBe("em_atendimento");
+    expect((await estado(x)).status).toBe("aguardando_atendimento");
     expect((await estado(y)).status).toBe("aguardando_atendimento");
   });
 });
@@ -399,7 +403,7 @@ describe("cadência: cliente respondeu", () => {
       (
         await c.query(
           `SELECT has_function_privilege('authenticated',
-             'public._em_atendimento_travar(uuid, public.lead_status, uuid, uuid, boolean)', 'EXECUTE') AS r`,
+             'public._em_atendimento_travar(uuid, public.lead_status, uuid, uuid, boolean, timestamptz, text, text)', 'EXECUTE') AS r`,
         )
       ).rows[0].r,
     ).toBe(false);

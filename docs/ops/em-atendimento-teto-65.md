@@ -267,7 +267,7 @@ a API pública. Uma trava só na tela vazaria pela primeira que esquecesse.
   liberam vaga pela ficha.
 - **Saída de Em atendimento só por desfecho:** menu "⋯" do card, trilha da
   ficha e arrastar do Kanban oferecem só os cinco. `transicaoLeadPermitida`
-  continua espelhando o banco (que ainda aceita outras saídas até a Fatia 3);
+  continua espelhando o banco (que passou a exigir o desfecho na Fatia 3a, §8);
   `saidaOferecida` é a camada da tela por cima dele.
 - **Pediu retorno / Esfriou:** diálogo com a data; acima de 30 dias avisa que
   vira "Retorno futuro" antes de confirmar.
@@ -330,10 +330,88 @@ Refutados pelos céticos, e registrados aqui para não voltarem:
   com `leads` travada, e `0056`/`0057` acrescentam milissegundos. Publicar fora
   do pico; se der para configurar, `lock_timeout` na sessão do migrador.
 
-## 8. Próximas fatias
+## 8. Fatia 3a: as portas fechadas no banco (04/10/2026)
 
-| Fatia             | O que entra                                                                                                                                                                                                                                                                                                    |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **3. Ligar**      | Portas fechadas (cadência, lote e transição para Em atendimento exigem resposta + passo; saída só por desfecho também no banco); os 5.438 sem dono voltam para Aguardando atendimento; trava da roleta; os dois relógios; virada no 8º dia, tudo de uma vez; Portal em `lead_origem_paga`; alertas em 60 e 65. |
-| **3b. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                                                                                                                                                                                                                                                |
-| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                                                                                                             |
+Migration `20261010120700_em_atendimento_fatia3a_portas` (Drizzle `0058`),
+idempotente. Testes: `tests/db/em-atendimento-fatia3a.test.ts` (banco) e os
+ajustes nas suítes que entravam em Em atendimento pela porta antiga. Nada
+aqui move lead por relógio: isso é a Fatia 3b.
+
+### 8.1 O que a produção mostrou antes (04/10, somente leitura)
+
+- **7.238** em Em atendimento; **5.438 sem dono** (importação 2.547, "outro"
+  2.152, planilha 732; só 3 pagos; **nenhum tocado em 5 dias**). **55** deles
+  são carteira do SDR (`sdr_id`), que fica como está.
+- Só **uma trava** existia (`_em_atendimento_travar`) e só duas portas
+  passavam por ela; **nenhuma roleta** lia 60/150.
+- A porta do §3 continuava aberta: a entrada exigia "próxima ação **ou**
+  follow-up", e aceitava texto sem data e lead sem nenhum contato.
+- Dos robôs que devolvem lead, só a cadência e a devolução do SDR estão
+  ativos; posse expirada e follow-up vencido estão desligados pelo modelo v2
+  (`_modelo_v2_ativo() = false`); higiene e régua de devolução, em sombra.
+
+### 8.2 O que o banco faz agora
+
+| Peça                                           | O que é                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `_em_atendimento_travar` (assinatura nova)     | A porta, uma função só, chamada por `transicionar_lead`, pela cadência e pela troca. Para o **próprio corretor dono** (papel corretor), nesta ordem: **EA067** lead em cadência D0–D3 só entra pela Fila do Dia ("Cliente respondeu"); **EA066** sem contato registrado nas últimas 24 h (`entrada_contato_horas`); **EA068** sem próximo passo com data futura (follow-up no pedido, tarefa ou agendamento); **EA065** teto. Gestão, serviço e SDR seguem livres. |
+| `_em_atendimento_contato_recente`              | O recorte de toque do classificador (§4): interação de entrada ou com autor (nota e mudança de status não), mensagem recebida ou enviada pelo corretor, chamada feita, ou `ultimo_contato` (a cadência grava a cada tentativa).                                                                                                                                                                                                                                    |
+| `transicao_lead_permitida` (saída)             | De Em atendimento o corretor sai só por desfecho: `aguardando_retorno`, `agendado`, `analise_credito`, `perdido`. A gestão mantém `qualificacao_corretor`, `qualificado` e `visita_realizada` para corrigir dado. Em `transicionar_lead`, quem **não** é o corretor dono (SDR entregando, serviço) recebe a matriz ampla; `entregar_lead_sdr` passa a consultá-la assim.                                                                                           |
+| `trg_zz_em_atendimento_posse`                  | **Lead sem corretor não está em atendimento.** Perdeu o dono (Bolsão, régua, devolução do lote) ou nasceu sem dono → Aguardando atendimento; ganhou dono por posse de um lead que estava "em atendimento" sem ninguém (lote, discador, roleta) → Aguardando atendimento (decisão 2). Fora: lead do SDR (`sdr_id`) e serviço (a telefonia passa por Em atendimento a caminho de Agendado em lead do Bolsão). Os **5.383** do Bolsão foram movidos pela migration.   |
+| `_em_atendimento_recebe_lead` (decisão 10)     | Com `modo = 'ligado'`: 60 em Em atendimento ou 150 na Minha base (`em_atendimento_minha_base`, a mesma conta do contador) param a roleta — v3 e estoque pela `_elegibilidade_roleta` (motivo `regra_65_sem_vaga`), campanha ponderada e repasse pelo filtro inline. Em sombra devolve `true`: a virada liga tudo de uma vez.                                                                                                                                       |
+| `iniciar_atendimento_lead`                     | "Iniciar atendimento" numa transação: registra o contato (ligação/WhatsApp), entra pela porta e cria a tarefa do passo. Se o teto recusar, nada fica gravado.                                                                                                                                                                                                                                                                                                      |
+| `trocar_vaga_em_atendimento(…, _contato_tipo)` | A troca registra o contato de quem entra quando a janela abriu a partir de "Iniciar atendimento" (o EA065 desfez o original), e a entrada leva a marca da troca (não repete a exigência).                                                                                                                                                                                                                                                                          |
+| `lead_origem_paga`                             | Portal é origem paga (decisão 4 do §6): parado, volta à roleta; sai do lote da Prospecção.                                                                                                                                                                                                                                                                                                                                                                         |
+
+### 8.3 O que a tela faz
+
+- **Erros novos como mensagem:** a tela já mostra a mensagem do banco no
+  toast; EA067 diz para registrar a resposta pela Fila do Dia, EA066 para
+  registrar o contato, EA068 para dar o passo com data.
+- **"Iniciar atendimento"** chama a RPC; na trava abre a janela com o contato
+  escolhido, que a troca registra para quem entra.
+- **Espelho da matriz** (`TRANSICOES` + `TRANSICOES_GESTAO`): de Em atendimento
+  o corretor vê só os desfechos; `saidaOferecida` continua a camada da tela.
+
+### 8.4 O que isto muda no dia a dia
+
+- Lead que chega pela roleta ou pelo lote entra em cadência D0: a ficha e o
+  Kanban **não** o põem em Em atendimento. Quem põe é "Cliente respondeu" na
+  Fila do Dia, com o passo e a data. É o fechamento da porta do §3.
+- Lead fora da cadência (Aguardando retorno, Qualificação Corretor, base
+  antiga): registre o contato e dê o passo com data — "Iniciar atendimento"
+  faz os dois.
+- O Bolsão não tem mais lead "em atendimento": o lote entrega em Aguardando
+  atendimento e a cadência começa de verdade.
+
+### 8.5 Como foi conferido
+
+- 31 testes de banco (teto 3): cada porta e sua exceção (gestão, serviço, SDR
+  com `sdr_id`), a ordem dos erros, a cadência pela RPC e pela ficha, a saída
+  por desfecho para o corretor e ampla para gestão/SDR, o gatilho (nasce sem
+  dono, perde o dono, carteira do SDR, serviço de passagem, posse do estado
+  legado), a trava da roleta em sombra e ligada (ocupação e Minha base) com o
+  motivo na elegibilidade, a RPC de iniciar (contato + tarefa, rollback no
+  EA065, troca com contato, cadência, carteira de outro) e Portal.
+- **Checagem de mutação, treze vezes** (contato, cadência, passo, saída,
+  gatilho sem dono, gatilho posse, roleta, elegibilidade, troca sem contato,
+  iniciar sem contato, portal, saída restrita para todos, serviço convertido):
+  onze derrubam pelo menos um teste; duas (matriz de saída e Portal) nem
+  chegam a aplicar — a sanidade no fim da própria migration as barra.
+- As suítes que entravam pela porta antiga foram ajustadas para a nova:
+  a jornada do lead passa pela Fila do Dia; o balcão da carteira usa o fundo;
+  o lote devolve ao Bolsão em Aguardando atendimento.
+
+### 8.6 Deploy
+
+`0058` entra na mesma transação de `0054`–`0057`. O UPDATE dos 5.383 leads
+roda com os gatilhos da tabela (zona, métricas, transição): segundos, não
+minutos; a `0054` continua ditando a janela. Publicar fora do pico.
+
+## 9. Próximas fatias
+
+| Fatia             | O que entra                                                                                                                                                                                                                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **3b. Relógios**  | O cron da regra sobre `_em_atendimento_classificar`: perde a vaga → Minha base; sem toque, retorno vencido e qualificação vencida → roleta / Bolsão / alerta ao gestor; fundo só alerta. Sombra registra, ligado aplica; virada no 8º dia, tudo de uma vez; alertas ao gestor em 60 e 65. |
+| **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                                                                                                                                                                                                                           |
+| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                                                                                        |

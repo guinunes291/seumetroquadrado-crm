@@ -514,16 +514,22 @@ describe("revisão: fiação", () => {
     expect(k).not.toContain("{quantidade}/{teto65}");
   });
 
-  it("Iniciar atendimento muda a etapa ANTES de gravar a interação e abre a janela na trava", () => {
+  it("Iniciar atendimento é uma RPC (contato + etapa numa transação) e abre a janela na trava", () => {
     const m = read("src/features/leads/use-lead-mutations.ts");
-    const etapa = m.indexOf('status: "em_atendimento" });');
-    const interacao = m.indexOf(
-      'titulo:\n          tipo === "whatsapp" ? "Contato inicial via WhatsApp"',
-    );
-    expect(etapa).toBeGreaterThan(0);
-    expect(interacao).toBeGreaterThan(etapa);
+    expect(m).toContain('rpc("iniciar_atendimento_lead", {');
+    // A interação não é mais gravada pela tela: o banco grava e, se o teto
+    // recusar, desfaz — o lead recusado não ganha toque.
+    expect(m).not.toContain("Contato inicial via WhatsApp");
     expect(m).toContain("if (janela && erroLotado(e)) {");
+    expect(m).toContain("contato: vars.tipo,");
     expect(m).toContain("jaEmAtendimento: true");
+    // A troca leva o contato para quem entra.
+    expect(read("src/features/em-atendimento/janela-troca.tsx")).toContain(
+      "contato: entra.contato ?? null",
+    );
+    expect(read("src/features/em-atendimento/use-em-atendimento.ts")).toContain(
+      "_contato_tipo: input.contato ?? null",
+    );
   });
 
   it("Fila Única e cadência abrem a janela na trava", () => {

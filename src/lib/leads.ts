@@ -248,7 +248,7 @@ export const PROXIMA_ACAO: Partial<Record<LeadStatus, ProximaAcao>> = {
 
 // ---------------------------------------------------------------------------
 // Máquina de estados do funil — espelho fiel de public.transicao_lead_permitida
-// (migration 20260811151000). O banco é a autoridade: a RPC transicionar_lead
+// (migrations 20260811151000 e 20261010120700). O banco é a autoridade: a RPC transicionar_lead
 // rejeita qualquer transição fora deste mapa. O espelho existe para a UI só
 // OFERECER destinos válidos (menu, stepper, drag do Kanban) em vez de deixar o
 // corretor tentar e receber erro. Ao alterar a função SQL, atualize aqui junto.
@@ -270,15 +270,11 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
     "perdido",
   ],
   aguardando_atendimento: ["em_atendimento", "qualificacao_corretor", "qualificado", "perdido"],
-  em_atendimento: [
-    "aguardando_retorno",
-    "qualificacao_corretor",
-    "qualificado",
-    "agendado",
-    "visita_realizada",
-    "analise_credito",
-    "perdido",
-  ],
+  // Regra dos 65, Fatia 3a (migration 20261010120700, decisão 7): de Em
+  // atendimento o corretor sai só por desfecho — Agendou, Pediu retorno /
+  // Esfriou (aguardando_retorno), Mandou doc (analise_credito), Perdido.
+  // A gestão mantém as saídas antigas para corrigir dado (TRANSICOES_GESTAO).
+  em_atendimento: ["aguardando_retorno", "agendado", "analise_credito", "perdido"],
   aguardando_retorno: [
     "em_atendimento",
     "qualificacao_corretor",
@@ -349,6 +345,11 @@ const TRANSICOES: Record<LeadStatus, LeadStatus[]> = {
   pos_venda: ["em_atendimento", "aguardando_retorno", "qualificacao_corretor"],
 };
 
+/** Destinos que SÓ a gestão alcança, além dos de TRANSICOES (correção de dado). */
+const TRANSICOES_GESTAO: Partial<Record<LeadStatus, LeadStatus[]>> = {
+  em_atendimento: ["qualificacao_corretor", "qualificado", "visita_realizada"],
+};
+
 /** Etapas cuja SAÍDA exige papel de gestão (admin/gestor/superintendente). */
 const SAIDA_EXIGE_GESTAO = new Set<LeadStatus>(["contrato_fechado", "perdido", "pos_venda"]);
 
@@ -357,7 +358,8 @@ export function transicaoLeadPermitida(de: string, para: LeadStatus, gestao: boo
   if (de === para) return true;
   const origem = de as LeadStatus;
   if (SAIDA_EXIGE_GESTAO.has(origem) && !gestao) return false;
-  return TRANSICOES[origem]?.includes(para) ?? false;
+  if (TRANSICOES[origem]?.includes(para)) return true;
+  return gestao && (TRANSICOES_GESTAO[origem]?.includes(para) ?? false);
 }
 
 /** Mensagem curta para explicar um destino bloqueado (toast do Kanban). */
@@ -365,6 +367,9 @@ export function motivoTransicaoBloqueada(de: string, para: LeadStatus, gestao: b
   const origem = de as LeadStatus;
   if (SAIDA_EXIGE_GESTAO.has(origem) && !gestao) {
     return `Só a gestão pode mover um lead que está em "${leadStatusLabel(de)}".`;
+  }
+  if (origem === "em_atendimento") {
+    return MOTIVO_SAIDA_NAO_OFERECIDA;
   }
   if (origem === "aguardando_atendimento") {
     return `Inicie o atendimento antes: mova para "${LEAD_STATUS_LABEL.em_atendimento}" e depois para "${LEAD_STATUS_LABEL[para]}".`;

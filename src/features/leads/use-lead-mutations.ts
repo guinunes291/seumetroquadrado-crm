@@ -14,8 +14,9 @@ import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { mensagemPrimeiroContato } from "@/lib/whatsapp";
 import { notaSistemaPayload } from "@/lib/interacoes";
-import { garantirFollowUpAberto } from "@/lib/follow-up";
+import { followUpParaStatus, garantirFollowUpAberto } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
+import { rpc } from "@/features/dashboard/queries";
 import { notificarTransferenciaEmLote } from "@/lib/notificar-transferencia";
 import { erroLotado } from "@/lib/em-atendimento";
 import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
@@ -427,10 +428,11 @@ export function useLeadMutations(opts: {
   });
 
   // Iniciar atendimento + registrar interação do tipo de contato escolhido.
-  // A etapa vem ANTES da interação: com o teto cheio o banco recusa (EA065,
-  // regra dos 65) e nada fica gravado — antes, o lead recusado ganhava um
-  // "toque" que zerava o relógio de 5 dias sem ter entrado. Depois da troca,
-  // a janela repete o pedido já com o lead em atendimento (jaEmAtendimento).
+  // Contato e etapa numa transação só (iniciar_atendimento_lead, regra dos 65,
+  // Fatia 3a): o banco exige contato registrado e passo com data para entrar
+  // em Em atendimento, e com o teto cheio recusa (EA065) desfazendo o contato —
+  // o lead recusado não ganha "toque". A janela de troca registra o contato
+  // de quem entra; depois dela o pedido volta só para o toast (jaEmAtendimento).
   const iniciarAtendimento = useMutation({
     mutationFn: async ({
       lead,
@@ -442,19 +444,15 @@ export function useLeadMutations(opts: {
       jaEmAtendimento?: boolean;
     }) => {
       if (!jaEmAtendimento) {
-        await transicionarLead({ id: lead.id, nome: lead.nome, status: "em_atendimento" });
+        const tpl = followUpParaStatus("em_atendimento", { nome: lead.nome });
+        const { error } = await rpc("iniciar_atendimento_lead", {
+          _lead_id: lead.id,
+          _tipo: tipo,
+          _proxima_acao: tpl?.titulo ?? null,
+          _proximo_followup: tpl?.vencimento ?? null,
+        });
+        if (error) throw error;
       }
-      const { data: u } = await supabase.auth.getUser();
-      const { error: e1 } = await supabase.from("interacoes").insert({
-        lead_id: lead.id,
-        autor_id: u.user?.id ?? null,
-        tipo,
-        direcao: "saida",
-        titulo:
-          tipo === "whatsapp" ? "Contato inicial via WhatsApp" : "Contato inicial por ligação",
-        conteudo: `Atendimento iniciado pelo corretor (${tipo}).`,
-      });
-      if (e1) throw e1;
       return { lead, tipo };
     },
     onSuccess: ({ lead, tipo }) => {
@@ -471,6 +469,7 @@ export function useLeadMutations(opts: {
         janela.abrir({
           id: vars.lead.id,
           nome: vars.lead.nome,
+          contato: vars.tipo,
           onDone: () => iniciarAtendimento.mutate({ ...vars, jaEmAtendimento: true }),
         });
         return;

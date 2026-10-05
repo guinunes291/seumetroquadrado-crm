@@ -56,6 +56,9 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // Um teste que falha dentro de BEGIN deixaria a conexão abortada e o teto
+  // em 3 para as suítes seguintes.
+  await c.query(`ROLLBACK`).catch(() => undefined);
   await comoSuperuser(c);
   if (tetoAntes !== undefined) {
     await c.query(
@@ -118,7 +121,7 @@ async function entrar(como: UsuarioTeste, leadId: string) {
   try {
     await c.query(
       `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status,
-                                       NULL, 'Dar sequência ao atendimento', NULL)`,
+                                       NULL, 'Dar sequência ao atendimento', now() + interval '1 day')`,
       [leadId],
     );
   } finally {
@@ -193,7 +196,7 @@ describe("entra um, sai um", () => {
     await comoUsuario(c, ana.id);
     const msg = await c
       .query(
-        `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', NULL)`,
+        `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', now() + interval '1 day')`,
         [novo],
       )
       .then(
@@ -261,13 +264,13 @@ describe("entra um, sai um", () => {
       await comoUsuario(c, ana.id);
       await c.query(`BEGIN`);
       await c.query(
-        `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', NULL)`,
+        `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', now() + interval '1 day')`,
         [x],
       );
       await comoUsuario(c2, ana.id);
       const segunda = c2
         .query(
-          `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', NULL)`,
+          `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', now() + interval '1 day')`,
           [y],
         )
         .then(
@@ -606,8 +609,8 @@ describe("acesso", () => {
     await comoSuperuser(c);
     const r = await c.query(`
       SELECT
-        has_function_privilege('anon', 'public.trocar_vaga_em_atendimento(uuid,uuid,text,timestamptz,text,text,text,timestamptz)', 'EXECUTE') AS anon_troca,
-        has_function_privilege('authenticated', 'public.trocar_vaga_em_atendimento(uuid,uuid,text,timestamptz,text,text,text,timestamptz)', 'EXECUTE') AS auth_troca,
+        has_function_privilege('anon', 'public.trocar_vaga_em_atendimento(uuid,uuid,text,timestamptz,text,text,text,timestamptz,text)', 'EXECUTE') AS anon_troca,
+        has_function_privilege('authenticated', 'public.trocar_vaga_em_atendimento(uuid,uuid,text,timestamptz,text,text,text,timestamptz,text)', 'EXECUTE') AS auth_troca,
         has_function_privilege('authenticated', 'public.escolher_em_atendimento(uuid,boolean)', 'EXECUTE') AS auth_escolha,
         has_function_privilege('authenticated', 'public.registrar_retorno_lead(uuid,text,timestamptz,text)', 'EXECUTE') AS auth_retorno,
         has_function_privilege('authenticated', 'public.em_atendimento_contador_v1(uuid)', 'EXECUTE') AS auth_contador,
