@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -30,6 +30,14 @@ import { MetasDiaDialog } from "@/features/metas-dia/metas-dia-dialog";
 import { MetasDiaCard } from "@/features/metas-dia/metas-dia-card";
 import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 import { useEstudoFunilPendente } from "@/features/meu-funil/use-estudo-pendente";
+
+// Placar da roleta do SDR dentro do card: lazy, porque só aparece com a regra
+// semanal ligada e não deve pesar no chunk do shell.
+const PlacarRoletaSdrCorretor = lazy(() =>
+  import("@/features/metas-dia/roleta-sdr-placar").then(({ PlacarRoletaSdrCorretor }) => ({
+    default: PlacarRoletaSdrCorretor,
+  })),
+);
 
 /** Evento global para reabrir o popup de qualquer lugar (command palette, atalhos). */
 export const EVENTO_ABRIR_METAS_DIA = "open-metas-dia";
@@ -251,6 +259,11 @@ export function MetasDiaGlobal() {
           realizado={realizado}
           contatosHoje={contatosHoje?.total ?? null}
           mediaContatosDia={taxas.media_contatos_dia}
+          extra={
+            <Suspense fallback={null}>
+              <PlacarRoletaSdrCorretor uid={uid} />
+            </Suspense>
+          }
           onEditar={() => setEditar(true)}
         />
       )}

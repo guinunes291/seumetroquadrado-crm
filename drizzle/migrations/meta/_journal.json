@@ -421,6 +421,13 @@
       "when": 1791644820000,
       "tag": "0059_em_atendimento_fatia3a2_consequencia",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791644880000,
+      "tag": "0060_roleta_sdr_permanencia_semanal",
+      "breakpoints": true
     }
   ]
 }

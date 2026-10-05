@@ -166,6 +166,10 @@ Todas editáveis na Central de Distribuição → Política ("Outras chaves").
   tabela `sdr_avisos_corretor` (`consumido_em` preenchido = função nova
   recebeu).
 - Montar o time da roleta `agendados-sdr` na Central de Distribuição → Filas → SDR.
+  Desde 05/10/2026 o time passa a ser **semanal e por produção** (3 pontos na
+  semana: visita realizada 1, pasta 1,5), com apuração no sábado 08:00 e aviso
+  na quarta 18:00 — regra, rollout e rollback em
+  [`docs/politica-roleta-sdr-semanal.md`](./politica-roleta-sdr-semanal.md).
 - 3C Plus: estudar a integração de discador para o SDR (sem documentação da API
   ainda). Até lá, ligação e WhatsApp pela ficha do lead.
 - A suíte `tests/db/dedup-leads.test.ts` já falhava antes desta entrega por causa

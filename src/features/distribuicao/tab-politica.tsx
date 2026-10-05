@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { Json } from "@/integrations/supabase/types";
+import { CHAVES_ROLETA_SDR } from "@/lib/roleta-sdr-chaves";
 import { useAtualizarSetting, useDistribuicaoSettings } from "./queries";
 import { SettingBooleano, SettingNumero } from "./setting-fields";
 
@@ -51,6 +52,8 @@ export const CHAVES_COBERTAS: string[] = [
   "posse_dias_atendimento",
   "posse_dias_avancado",
   "disjuntor_wip",
+  // Aba Política (permanência semanal na roleta do SDR)
+  ...CHAVES_ROLETA_SDR,
 ];
 
 /** Flag do motor v2 — muda o comportamento de PRODUÇÃO, então liga/desliga
@@ -106,6 +109,60 @@ function FlagMotorV2() {
               }}
             >
               {confirmando ? "Ligar motor v2" : "Desligar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/** Sair do modo sombra é o que faz a regra semanal pausar e incluir gente de
+ *  verdade — por isso pede confirmação, como o motor v2. */
+function FlagSombraRoletaSdr() {
+  const settingsQ = useDistribuicaoSettings();
+  const salvar = useAtualizarSetting();
+  const valor = settingsQ.data?.["roleta_sdr_modo_sombra"]?.valor;
+  const sombra = valor === undefined ? true : valor === true;
+  const [confirmando, setConfirmando] = useState(false);
+
+  const gravar = (v: boolean) => salvar.mutate({ chave: "roleta_sdr_modo_sombra", valor: v });
+
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+      <div>
+        <Label>Modo sombra (calcula sem mexer na roleta)</Label>
+        <p className="text-xs text-muted-foreground">
+          Ligado: a apuração de sábado grava o placar e o resultado, mas não pausa nem inclui
+          ninguém, e o aviso de quarta sai com &quot;[Teste]&quot;. Desligue na véspera da primeira
+          semana valendo.
+        </p>
+      </div>
+      <Switch
+        checked={sombra}
+        disabled={settingsQ.isLoading || salvar.isPending}
+        onCheckedChange={(v) => (v ? gravar(true) : setConfirmando(true))}
+      />
+      <AlertDialog open={confirmando} onOpenChange={(o) => !o && setConfirmando(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair do modo sombra?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A partir da próxima apuração (sábado 08:00), quem não fizer a meta na semana fica
+              pausado na roleta Agendados do SDR até o sábado seguinte, e quem fizer entra mesmo sem
+              estar no time. O que já está com cada corretor (visitas, leads, tarefas) não muda.
+              Rollback: religar o modo sombra ou desligar a regra.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                gravar(false);
+                setConfirmando(false);
+              }}
+            >
+              Valer de verdade
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -294,6 +351,69 @@ export function TabPolitica() {
               hint="Atingiu o teto, para de receber (quente e base) até dar baixa na carteira."
               sufixo="leads"
             />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">
+              Roleta do SDR — permanência semanal por produção
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Quem converte na semana (sábado a sexta) recebe agendados do SDR na semana seguinte;
+              quem não converte fica pausado. Apuração no sábado 08:00, aviso na quarta 18:00.
+              Removido manualmente nunca volta pela regra. Placar ao vivo em Filas → SDR.
+            </p>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <SettingBooleano
+                chave="roleta_sdr_regra_ativa"
+                label="Regra semanal ligada"
+                hint="Desligada, a apuração e o aviso não rodam e o time segue manual. Rollback = desligar e despausar quem tem motivo 'Regra semanal' (SQL no doc da política)."
+              />
+              <FlagSombraRoletaSdr />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <SettingNumero
+                chave="roleta_sdr_peso_visita"
+                label="Pontos por visita realizada"
+                hint="Presença validada, 1 por lead por semana."
+                min={0}
+                step={0.5}
+                sufixo="pts"
+              />
+              <SettingNumero
+                chave="roleta_sdr_peso_pasta"
+                label="Pontos por pasta"
+                hint="Entrada em análise de crédito, 1 por lead a cada 30 dias."
+                min={0}
+                step={0.5}
+                sufixo="pts"
+              />
+              <SettingNumero
+                chave="roleta_sdr_meta_pontos"
+                label="Meta da semana"
+                hint="Padrão 3: 3 visitas OU 2 pastas (combinações valem)."
+                min={0}
+                step={0.5}
+                sufixo="pts"
+              />
+              <SettingNumero
+                chave="roleta_sdr_minimo_aptos"
+                label="Mínimo de aptos"
+                hint="Abaixo disso entram quem vendeu na janela e, depois, quem tem mais pontos."
+                min={0}
+                sufixo="corretores"
+              />
+              <SettingNumero
+                chave="roleta_sdr_venda_janela_dias"
+                label="Exceção por venda: janela"
+                hint="Venda assinada até N dias antes da sexta do fechamento."
+                min={0}
+                sufixo="dias"
+              />
+            </div>
           </CardContent>
         </Card>
       </div>

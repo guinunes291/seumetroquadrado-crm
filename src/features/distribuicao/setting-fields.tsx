@@ -31,12 +31,15 @@ export function SettingNumero({
   label,
   hint,
   min = 1,
+  step,
   sufixo,
 }: {
   chave: string;
   label: string;
   hint?: string;
   min?: number;
+  /** Passo do campo (ex.: 0.5 para pesos fracionados). Padrão do navegador: 1. */
+  step?: number;
   sufixo?: string;
 }) {
   const settingsQ = useDistribuicaoSettings();
@@ -55,6 +58,7 @@ export function SettingNumero({
           <Input
             type="number"
             min={min}
+            step={step}
             className="w-28"
             value={exibido}
             onChange={(e) => setValor(e.target.value)}
