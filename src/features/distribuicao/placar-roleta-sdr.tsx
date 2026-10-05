@@ -93,7 +93,17 @@ export function PlacarRoletaSdrCard() {
         const situacao = situacaoNaRoleta(l, agora);
         return { ...l, situacao, previsto: statusPrevisto(l.resultado, situacao) };
       })
-      .sort((a, b) => b.pontos - a.pontos || a.nome.localeCompare(b.nome, "pt-BR"));
+      .sort((a, b) => {
+        // Aptos (vai ficar/voltar) primeiro, depois pausa, fora e removidos.
+        const ordem = { fica: 0, entra: 0, volta: 0, pausa: 1, fora: 2, bloqueado: 3 };
+        const grupo = (l: typeof a) => ordem[l.previsto] ?? 2;
+        return (
+          grupo(a) - grupo(b) ||
+          (b.peso_rodizio ?? 0) - (a.peso_rodizio ?? 0) ||
+          b.pontos - a.pontos ||
+          a.nome.localeCompare(b.nome, "pt-BR")
+        );
+      });
   }, [cfg, placarQ.data, agora]);
 
   const aptos = linhas.filter((l) => ehApto(l.resultado));
