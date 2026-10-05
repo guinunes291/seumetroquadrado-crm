@@ -4460,6 +4460,145 @@ export type Database = {
           },
         ]
       }
+      em_atendimento_execucoes: {
+        Row: {
+          alertas: number
+          aplicados: number
+          avaliados: number
+          erros: number
+          gatilho: string
+          id: string
+          iniciado_em: string
+          modo: string
+          resumo: Json
+          terminado_em: string | null
+        }
+        Insert: {
+          alertas?: number
+          aplicados?: number
+          avaliados?: number
+          erros?: number
+          gatilho?: string
+          id?: string
+          iniciado_em?: string
+          modo: string
+          resumo?: Json
+          terminado_em?: string | null
+        }
+        Update: {
+          alertas?: number
+          aplicados?: number
+          avaliados?: number
+          erros?: number
+          gatilho?: string
+          id?: string
+          iniciado_em?: string
+          modo?: string
+          resumo?: Json
+          terminado_em?: string | null
+        }
+        Relationships: []
+      }
+      em_atendimento_movimentos: {
+        Row: {
+          acao: string
+          aplicado: boolean
+          camada: string | null
+          corretor_antes: string | null
+          corretor_id: string | null
+          created_at: string
+          desfeito_em: string | null
+          destino: string | null
+          erro: string | null
+          execucao_id: string
+          grupo: string | null
+          id: string
+          lead_id: string
+          modo: string
+          motivo: string | null
+          status_antes: string | null
+        }
+        Insert: {
+          acao: string
+          aplicado?: boolean
+          camada?: string | null
+          corretor_antes?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          desfeito_em?: string | null
+          destino?: string | null
+          erro?: string | null
+          execucao_id: string
+          grupo?: string | null
+          id?: string
+          lead_id: string
+          modo: string
+          motivo?: string | null
+          status_antes?: string | null
+        }
+        Update: {
+          acao?: string
+          aplicado?: boolean
+          camada?: string | null
+          corretor_antes?: string | null
+          corretor_id?: string | null
+          created_at?: string
+          desfeito_em?: string | null
+          destino?: string | null
+          erro?: string | null
+          execucao_id?: string
+          grupo?: string | null
+          id?: string
+          lead_id?: string
+          modo?: string
+          motivo?: string | null
+          status_antes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "em_atendimento_movimentos_execucao_id_fkey"
+            columns: ["execucao_id"]
+            isOneToOne: false
+            referencedRelation: "em_atendimento_execucoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_movimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_movimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_base"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_movimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_fila"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_movimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_higiene_pastas_travadas"
+            referencedColumns: ["lead_id"]
+          },
+          {
+            foreignKeyName: "em_atendimento_movimentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_parados"
+            referencedColumns: ["lead_id"]
+          },
+        ]
+      }
       equipes: {
         Row: {
           ativo: boolean
@@ -7465,6 +7604,75 @@ export type Database = {
         }
         Relationships: []
       }
+      roleta_sdr_apuracoes: {
+        Row: {
+          aplicado_em: string | null
+          apurado_em: string
+          corretor_id: string
+          id: string
+          parametros: Json
+          pastas: number
+          peso_rodizio: number | null
+          pontos: number
+          resultado: string
+          semana_fim: string
+          semana_inicio: string
+          sombra: boolean
+          ultima_venda: string | null
+          vendas_janela: number
+          visitas: number
+        }
+        Insert: {
+          aplicado_em?: string | null
+          apurado_em?: string
+          corretor_id: string
+          id?: string
+          parametros?: Json
+          pastas?: number
+          peso_rodizio?: number | null
+          pontos?: number
+          resultado: string
+          semana_fim: string
+          semana_inicio: string
+          sombra: boolean
+          ultima_venda?: string | null
+          vendas_janela?: number
+          visitas?: number
+        }
+        Update: {
+          aplicado_em?: string | null
+          apurado_em?: string
+          corretor_id?: string
+          id?: string
+          parametros?: Json
+          pastas?: number
+          peso_rodizio?: number | null
+          pontos?: number
+          resultado?: string
+          semana_fim?: string
+          semana_inicio?: string
+          sombra?: boolean
+          ultima_venda?: string | null
+          vendas_janela?: number
+          visitas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roleta_sdr_apuracoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roleta_sdr_apuracoes_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "v_wip_corretor"
+            referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
       roleta_tier_historico: {
         Row: {
           agendamentos_janela: number
@@ -10303,6 +10511,38 @@ export type Database = {
           ultimo_lead_em: string
         }[]
       }
+      _em_atendimento_alertar: {
+        Args: {
+          _janela?: string
+          _link: string
+          _mensagem: string
+          _ref: string
+          _titulo: string
+          _user: string
+        }
+        Returns: boolean
+      }
+      _em_atendimento_alertar_gestores: {
+        Args: {
+          _link: string
+          _mensagem: string
+          _ref: string
+          _titulo: string
+        }
+        Returns: number
+      }
+      _em_atendimento_aplicar: {
+        Args: {
+          _acao: string
+          _corretor: string
+          _destino: string
+          _lead: string
+          _motivo: string
+          _nome: string
+          _proximo_followup: string
+        }
+        Returns: boolean
+      }
       _em_atendimento_classificar: {
         Args: { _corretores: string[] }
         Returns: {
@@ -10338,6 +10578,23 @@ export type Database = {
       _em_atendimento_recebe_lead: {
         Args: { _corretor: string }
         Returns: boolean
+      }
+      _em_atendimento_soltar: {
+        Args: {
+          _acao: string
+          _corretor: string
+          _destino: string
+          _lead: string
+          _motivo: string
+          _nome: string
+        }
+        Returns: boolean
+      }
+      _em_atendimento_toques: {
+        Args: { _ate: string; _de: string; _lead: string }
+        Returns: {
+          em: string
+        }[]
       }
       _em_atendimento_travar: {
         Args: {
@@ -10558,6 +10815,46 @@ export type Database = {
         Returns: string
       }
       _roleta_pronta: { Args: { _slug: string }; Returns: boolean }
+      _roleta_sdr_bool: {
+        Args: { _chave: string; _padrao: boolean }
+        Returns: boolean
+      }
+      _roleta_sdr_escolher_ponderado: {
+        Args: { _candidatos: string[]; _roleta_id: string }
+        Returns: string
+      }
+      _roleta_sdr_fmt_pts: { Args: { _n: number }; Returns: string }
+      _roleta_sdr_motivo_pausa: {
+        Args: {
+          _ini: string
+          _meta: number
+          _pastas: number
+          _pontos: number
+          _visitas: number
+        }
+        Returns: string
+      }
+      _roleta_sdr_num: {
+        Args: { _chave: string; _padrao: number }
+        Returns: number
+      }
+      _roleta_sdr_peso_atual: { Args: { _corretor: string }; Returns: number }
+      _roleta_sdr_plural: {
+        Args: { _n: number; _plural: string; _singular: string }
+        Returns: string
+      }
+      _roleta_sdr_ponderado: { Args: never; Returns: boolean }
+      _roleta_sdr_semana_de: { Args: { _dia: string }; Returns: string }
+      _roleta_sdr_texto_aviso: {
+        Args: {
+          _cfg: Json
+          _pastas: number
+          _pontos: number
+          _situacao: string
+          _visitas: number
+        }
+        Returns: string
+      }
       _rotulo_zona: { Args: { _zona: string }; Returns: string }
       _sdr_agenda_conflita: {
         Args: { _corretor_id: string; _fim: string; _inicio: string }
@@ -11994,10 +12291,29 @@ export type Database = {
         Args: { _corretor?: string }
         Returns: Json
       }
+      em_atendimento_desfazer: { Args: { _execucao: string }; Returns: number }
+      em_atendimento_desligar: { Args: never; Returns: Json }
       em_atendimento_escolhidos: {
         Args: { _corretor: string }
         Returns: number
       }
+      em_atendimento_execucoes_v1: {
+        Args: { _limite?: number }
+        Returns: {
+          alertas: number
+          aplicados: number
+          avaliados: number
+          erros: number
+          gatilho: string
+          id: string
+          iniciado_em: string
+          modo: string
+          resumo: Json
+          terminado_em: string
+        }[]
+      }
+      em_atendimento_ligada: { Args: never; Returns: boolean }
+      em_atendimento_ligar: { Args: { _virada_em?: string }; Returns: Json }
       em_atendimento_minha_base: {
         Args: { _corretor: string }
         Returns: number
@@ -12012,6 +12328,39 @@ export type Database = {
           em_atendimento_sem_dono: number
           registros_em_conflito: number
           registros_encerrariam: number
+        }[]
+      }
+      em_atendimento_processar: {
+        Args: { _limite?: number; _modo?: string }
+        Returns: {
+          acao: string
+          aplicados: number
+          avaliados: number
+          destino: string
+          execucao_id: string
+          modo: string
+        }[]
+      }
+      em_atendimento_revisao_v1: {
+        Args: { _meses?: number }
+        Returns: {
+          agendaram: number
+          casa: boolean
+          corretor_id: string
+          dias: number
+          em_aberto: number
+          entraram: number
+          intervalos: number
+          leads_65: number
+          leads_tocados: number
+          mediana_horas: number
+          mes: string
+          nome: string
+          perderam_vaga: number
+          sairam_base: number
+          taxa_agendado: number
+          toques: number
+          trocas: number
         }[]
       }
       em_atendimento_sombra_leads_v1: {
@@ -13259,6 +13608,66 @@ export type Database = {
         Returns: boolean
       }
       roleta_da_zona: { Args: { _zona: string }; Returns: string }
+      roleta_sdr_apuracoes_recentes: {
+        Args: { _semanas?: number }
+        Returns: {
+          aplicado_em: string
+          apurado_em: string
+          corretor_id: string
+          nome: string
+          pastas: number
+          peso_rodizio: number
+          pontos: number
+          resultado: string
+          semana_inicio: string
+          sombra: boolean
+          vendas_janela: number
+          visitas: number
+        }[]
+      }
+      roleta_sdr_apurar_semana: {
+        Args: { _semana_inicio?: string }
+        Returns: Json
+      }
+      roleta_sdr_aviso_meio_semana: { Args: never; Returns: Json }
+      roleta_sdr_config: { Args: never; Returns: Json }
+      roleta_sdr_meu_aviso: { Args: never; Returns: Json }
+      roleta_sdr_placar: {
+        Args: { _semana_inicio?: string }
+        Returns: {
+          bloqueado_admin: boolean
+          corretor_id: string
+          motivo_pausa: string
+          na_roleta: boolean
+          nome: string
+          participante_ativo: boolean
+          pastas: number
+          pausado_ate: string
+          pontos: number
+          ultima_venda: string
+          vendas_janela: number
+          visitas: number
+        }[]
+      }
+      roleta_sdr_previa: {
+        Args: { _semana_inicio?: string }
+        Returns: {
+          bloqueado_admin: boolean
+          corretor_id: string
+          motivo_pausa: string
+          na_roleta: boolean
+          nome: string
+          participante_ativo: boolean
+          pastas: number
+          pausado_ate: string
+          peso_rodizio: number
+          pontos: number
+          resultado: string
+          ultima_venda: string
+          vendas_janela: number
+          visitas: number
+        }[]
+      }
       salvar_modo_visita: {
         Args: {
           p_agendamento_id: string
