@@ -62,7 +62,7 @@ no registro vale mais que a da ficha (o SDR acabou de falar com o cliente).
 
 ## 5. Deploy
 
-`0060` entra na mesma transação das pendentes (`0054`–`0059`) no próximo
+`0061` entra na mesma transação das pendentes (`0054`–`0059` e a `0060` do Lovable) no próximo
 publish; só funções, sem dado movido. Depois do publish, os types gerados do
 Supabase podem ser regerados para tipar `_zona` (hoje as duas chamadas passam
 pela fronteira `rpc`).

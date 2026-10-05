@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { mensagemDeErro as mensagemDeErroBase } from "@/lib/mensagem-erro";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
 import { invalidateAgendamentoQueries } from "@/lib/agendamentos";
@@ -220,8 +221,7 @@ function syncGoogleEmBackground(agendamentoId: string) {
     });
 }
 
-const mensagemDeErro = (e: unknown) =>
-  e instanceof Error ? e.message : "Tente novamente em instantes.";
+const mensagemDeErro = (e: unknown) => mensagemDeErroBase(e) ?? "Tente novamente em instantes.";
 
 export function useAcoesAgenda() {
   const { user } = useAuth();
