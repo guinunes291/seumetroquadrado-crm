@@ -209,7 +209,7 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
           // Canal de chegada: só leads via_webhook entram no SLA de minutos.
           via_webhook: true,
           canal_entrada: "webhook_chatbot",
-        } satisfies TablesInsert<"leads">;
+        } satisfies Omit<TablesInsert<"leads">, "cliente_id">;
 
         // Quem já passou pelo CRM (registro mãe, Fatia B — decisão do dono em
         // 03/10/2026: "sempre filho novo pela roleta"). O banco decide sob o
@@ -309,7 +309,8 @@ export const Route = createFileRoute("/api/public/webhooks/lead/$token")({
         if (!lead) {
           const { data: inserido, error } = await supabaseAdmin
             .from("leads")
-            .insert(novoLead)
+            // cliente_id é preenchido pelo gatilho trg_zz_cliente_vincular.
+            .insert(novoLead as TablesInsert<"leads">)
             .select("id")
             .single();
 

@@ -421,6 +421,13 @@
       "when": 1791644820000,
       "tag": "0059_em_atendimento_fatia3a2_consequencia",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1791214024584,
+      "tag": "0060_noshow_lead_sdr_nao_trava",
+      "breakpoints": true
     }
   ]
 }
