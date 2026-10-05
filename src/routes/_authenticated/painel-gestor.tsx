@@ -291,7 +291,7 @@ function PainelGestorPage() {
       <TabsContent value="time" className="space-y-10">
         {/* Regra dos 65 em modo sombra: no topo durante a semana de ensaio,
             para a gestão ver os números antes de a regra ser ligada. */}
-        <SimulacaoRegra65 veCasaInteira={isAdmin || isSuperintendente} />
+        <SimulacaoRegra65 veCasaInteira={isAdmin || isSuperintendente} admin={isAdmin} />
         <Suspense fallback={<AbaSkeleton />}>
           <PerformanceView
             corretorDrill={search.corretor ?? null}

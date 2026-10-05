@@ -481,10 +481,54 @@ da própria migration a barra. No front, a suíte
 `tests/em-atendimento-fatia3a2.test.tsx` trava o espelho da matriz, a fiação
 de cada tela e o diálogo.
 
+### 8.8 Fatia 3b: os relógios, a virada e os alertas (05/10/2026)
+
+Migration `20261010121000_em_atendimento_fatia3b_relogios`. A regra única da
+Fatia 1 (`_em_atendimento_classificar`) deixa de só olhar: o cron a executa.
+Ensaio e execução saem da mesma consulta — a fotografia da sombra é, linha a
+linha, a leitura da simulação.
+
+**O que a produção faria hoje** (05/10, somente leitura — é o tamanho da
+virada): 1.608 perdem a vaga (desce para a Minha base); 8 excedentes; 2.688
+saem da Minha base por 5 dias sem toque (1.881 Bolsão, 802 roleta, 5 próprios
+com alerta); 222 retornos vencidos; 267 qualificações vencidas; 208 no fundo
+há 10+ dias e 11 há 5+ (só alerta).
+
+| Peça                                                            | O que é                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `em_atendimento_processar(modo, limite)`                        | A rodada (cron `em-atendimento-processar`, `41 * * * *`). Classifica a carteira de todo corretor ativo e, para cada lead com ação, **faz** (ligado) ou **registra o que faria** (sombra). Em sombra registra uma vez por dia e só a última fotografia fica. Uma rodada por vez (advisory lock). Admin, service e o cron rodam; anon e corretor, não.                                                                                                                                                                                                                                                                   |
+| `_em_atendimento_aplicar` / `_em_atendimento_soltar`            | perde a vaga/excedente → `aguardando_retorno` com o dono e a data do passo; porta de cadência → `aguardando_atendimento`; sem toque/retorno vencido/qualificação vencida → roleta (pago: `aguardando_corretor` sem dono, a triagem do minuto distribui pela zona), Bolsão (estoque: sem dono, classe base) ou fica com alerta ao gestor (próprio); retorno além de 30 dias → perda "retorno futuro" (volta pela reativação); fundo só alerta. Cada movimento deixa `lead_eventos` (`em_atendimento_regra`), `distribution_log` (`regra_65_<acao>`) e aviso ao corretor. Lote de prospecção volta pelo caminho do lote. |
+| `em_atendimento_execucoes` / `em_atendimento_movimentos`        | O registro de cada rodada e de cada lead (status e dono de antes). Sem leitura direta; o painel lê `em_atendimento_execucoes_v1` (gestão).                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `em_atendimento_desfazer(execucao)`                             | Emergência: devolve dono e status a quem ainda está como a rodada deixou (lead que já ganhou outro dono não é mexido). Admin.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `em_atendimento_ligar(virada_em)` / `em_atendimento_desligar()` | A virada (§2.5): marca `modo = ligado` e a data. Até a data a regra continua em sombra — inclusive a trava da roleta, que passa a ler `em_atendimento_ligada()` (modo ligado **e** virada passada). No dia, a primeira rodada aplica tudo de uma vez (decisão 2 do §6); a trava 60/150 segura a roleta e o que não couber espera na fila. Recusa ligar com a régua de devolução da Fatia 4 ativa (dois motores, não). Admin.                                                                                                                                                                                           |
+| Alertas 60 / 65                                                 | A cada rodada ligada, o gestor (admin + gestor) recebe "chegou a 60/65" e "está lotado (65/65)" por corretor, no máximo um por dia. Os avisos de lead (próprio parado, fundo 5 e 10 dias) seguem a mesma janela.                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+**O que a tela faz.** O cartão "Regra dos 65" do Painel do Gestor (aba Time)
+ganha o estado (sombra / agendada / ligada), a última rodada do cron e, para o
+admin, o interruptor: "Ligar a regra" com a data da virada, "Desligar (voltar à
+sombra)". Os avisos chegam pelos alertas de sempre.
+
+**Como foi conferido.** `tests/db/em-atendimento-fatia3b.test.ts` (15 casos):
+sombra registra e não move, uma fotografia por dia, igual à simulação; ligar só
+pelo admin, virada futura mantém sombra e a trava da roleta, régua ativa barra;
+ligado move cada caso da regra (perde a vaga com o passo, excedente respeitando
+a escolha, cadência, pago/estoque/próprio, retorno protegido × vencido,
+qualificação, retorno futuro, fundo só alerta), avisos 60/65 uma vez por dia e
+nenhum em sombra; desfazer devolve e não mexe em quem mudou de dono; acesso e
+cron. No front, `tests/regra-65.test.tsx` cobre o estado, a descrição da rodada
+e o interruptor.
+
+**Deploy e virada.** A migration só cria funções, tabelas e o job; nada se
+move no publish. Operação: publicar; acompanhar a fotografia diária da sombra
+no cartão; no dia escolhido, o admin liga com a data da virada; a primeira
+rodada ligada aplica tudo (minutos, não horas: são updates por lead). Se algo
+sair errado, `em_atendimento_desfazer(execucao)` devolve a rodada e
+"Desligar" volta à sombra.
+
 ## 9. Próximas fatias
 
-| Fatia             | O que entra                                                                                                                                                                                                                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **3b. Relógios**  | O cron da regra sobre `_em_atendimento_classificar`: perde a vaga → Minha base; sem toque, retorno vencido e qualificação vencida → roleta / Bolsão / alerta ao gestor; fundo só alerta. Sombra registra, ligado aplica; virada no 8º dia, tudo de uma vez; alertas ao gestor em 60 e 65. |
-| **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                                                                                                                                                                                                                           |
-| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado.                                                                                                                                                                                                        |
+| Fatia             | O que entra                                                                        |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| **3b. Relógios**  | Feito (§8.7): cron, virada, alertas 60/65, desfazer.                               |
+| **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                    |
+| **4. Revisar**    | Painel mensal: tempo mediano entre toques nos 65 e taxa Em atendimento → Agendado. |

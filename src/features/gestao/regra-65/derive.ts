@@ -108,3 +108,76 @@ export function totaisRegra65(linhas: LinhaRegra65[]): TotaisRegra65 {
 export function linhasComCarteira(linhas: LinhaRegra65[]): LinhaRegra65[] {
   return linhas.filter((l) => l.em_atendimento + l.base + l.fundo > 0);
 }
+
+// ---------------------------------------------------------------------------
+// Fatia 3b: o estado da regra (sombra / agendada / ligada) e as rodadas
+// ---------------------------------------------------------------------------
+
+export const configRegra65Schema = z
+  .object({
+    modo: z.enum(["sombra", "ligado"]),
+    virada_em: z.string().nullable().optional(),
+    teto: z.number().int(),
+    trava_roleta: z.number().int(),
+    teto_base: z.number().int(),
+  })
+  .passthrough();
+
+export type ConfigRegra65 = z.infer<typeof configRegra65Schema>;
+
+export function parseConfigRegra65(input: unknown): ConfigRegra65 {
+  return configRegra65Schema.parse(input);
+}
+
+export type EstadoRegra65 = "sombra" | "agendada" | "ligada";
+
+/** O mesmo juízo de `em_atendimento_ligada()` no banco: ligado E virada passada. */
+export function estadoDaRegra(cfg: ConfigRegra65, agora: Date = new Date()): EstadoRegra65 {
+  if (cfg.modo !== "ligado") return "sombra";
+  if (cfg.virada_em && new Date(cfg.virada_em).getTime() > agora.getTime()) return "agendada";
+  return "ligada";
+}
+
+export const execucaoRegra65Schema = z.object({
+  id: z.string().uuid(),
+  modo: z.enum(["sombra", "ligado"]),
+  gatilho: z.string(),
+  iniciado_em: z.string(),
+  terminado_em: z.string().nullable(),
+  avaliados: z.number().int(),
+  aplicados: z.number().int(),
+  alertas: z.number().int(),
+  erros: z.number().int(),
+  resumo: z.record(z.string(), z.number().int()),
+});
+
+export type ExecucaoRegra65 = z.infer<typeof execucaoRegra65Schema>;
+
+export function parseExecucoesRegra65(input: unknown): ExecucaoRegra65[] {
+  return z.array(execucaoRegra65Schema).parse(input ?? []);
+}
+
+const ROTULO_ACAO: Record<string, string> = {
+  perde_vaga: "perdem a vaga",
+  excedente: "acima do teto",
+  porta_cadencia: "voltam à cadência",
+  sem_toque: "saem por 5 dias sem toque",
+  retorno_vencido: "retorno vencido",
+  qualificacao_vencida: "qualificação vencida",
+  retorno_acima_maximo: "retorno além de 30 dias",
+  fundo_gestor: "fundo parado 5+ dias",
+  fundo_desfecho: "fundo parado 10+ dias",
+};
+
+/** "ontem 06:41 · sombra: 120 teriam saído (73 perdem a vaga, …)". */
+export function descreverExecucao(e: ExecucaoRegra65): string {
+  const partes = Object.entries(e.resumo)
+    .sort((a, b) => b[1] - a[1])
+    .map(([acao, n]) => `${n.toLocaleString("pt-BR")} ${ROTULO_ACAO[acao] ?? acao}`);
+  const detalhe = partes.length ? ` (${partes.join(", ")})` : "";
+  if (e.modo === "sombra") {
+    return `sombra: ${e.avaliados.toLocaleString("pt-BR")} lead(s) seriam movidos ou avisados${detalhe}`;
+  }
+  const erros = e.erros > 0 ? ` · ${e.erros} erro(s)` : "";
+  return `ligada: ${e.aplicados.toLocaleString("pt-BR")} de ${e.avaliados.toLocaleString("pt-BR")} aplicados${detalhe} · ${e.alertas} aviso(s) ao gestor${erros}`;
+}
