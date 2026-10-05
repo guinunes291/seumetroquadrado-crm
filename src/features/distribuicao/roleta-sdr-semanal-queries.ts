@@ -8,25 +8,31 @@
 // resposta validada fail-closed. Em banco sem a migration tudo degrada para
 // "regra desligada" (rpcWithFallback) e a tela some em vez de quebrar.
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { rpc } from "@/features/dashboard/queries";
 import { rpcWithFallback } from "@/lib/supabase-errors";
 import {
   CONFIG_ROLETA_SDR_PADRAO,
   lerConfigRoletaSdr,
   parseApuracoes,
+  parseMeuAviso,
   parsePlacar,
   type ApuracaoSemana,
   type ConfigRoletaSdr,
   type LinhaPlacarTela,
+  type MeuAvisoRoletaSdr,
 } from "@/lib/roleta-sdr-semanal";
 
-export type { ApuracaoSemana, LinhaPlacarTela } from "@/lib/roleta-sdr-semanal";
+export type { ApuracaoSemana, LinhaPlacarTela, MeuAvisoRoletaSdr } from "@/lib/roleta-sdr-semanal";
 
 export const ROLETA_SDR_KEYS = {
   config: ["roleta-sdr:config"] as const,
   placar: (semana: string) => ["roleta-sdr:placar", semana] as const,
   apuracoes: (qtd: number) => ["roleta-sdr:apuracoes", qtd] as const,
+  // Sob o prefixo "alertas": o realtime do sino invalida ["alertas"] e o aviso
+  // que o cron grava às 18h de quarta chega sem esperar o próximo refetch.
+  meuAviso: (semana: string) => ["alertas", "roleta-sdr:meu-aviso", semana] as const,
 };
 
 export function useRoletaSdrConfig(enabled = true) {
@@ -79,5 +85,39 @@ export function useUltimasApuracoesRoletaSdr(qtd = 4, enabled = true) {
         },
         () => [],
       ),
+  });
+}
+
+/**
+ * O aviso de quarta do próprio corretor na semana em curso (o mesmo alerta do
+ * sino), ou null. Banco sem a migration 20261011120200 = sem aviso.
+ */
+export function useMeuAvisoRoletaSdr(semana: string, enabled = true) {
+  return useQuery({
+    queryKey: ROLETA_SDR_KEYS.meuAviso(semana),
+    enabled,
+    staleTime: 60_000,
+    refetchInterval: 5 * 60_000,
+    queryFn: () =>
+      rpcWithFallback<MeuAvisoRoletaSdr | null>(
+        async () => {
+          const { data, error } = await rpc("roleta_sdr_meu_aviso", {});
+          if (error) throw error;
+          return parseMeuAviso(data);
+        },
+        () => null,
+      ),
+  });
+}
+
+/** "Entendi": marca o alerta como lido — some do pop-up e do contador do sino. */
+export function useMarcarAvisoRoletaSdrLido() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (alertaId: string) => {
+      const { error } = await supabase.from("alertas").update({ lida: true }).eq("id", alertaId);
+      if (error) throw error;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["alertas"] }),
   });
 }

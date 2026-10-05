@@ -793,6 +793,58 @@ describe("aviso de meio de semana (semana em curso)", () => {
     expect(daBia).toHaveLength(1);
     expect(daBia[0].titulo).toBe("Roleta do SDR: sua semana");
     expect(daBia[0].mensagem.startsWith("Sua semana na roleta do SDR:")).toBe(true);
-    expect(daBia[0].link).toBe("/fila");
+    // O link do sino reabre o pop-up do placar (migration 20261011120200).
+    expect(daBia[0].link).toBe("/fila#aviso-roleta-sdr");
+  });
+});
+
+describe("aviso no CRM (pop-up do placar)", () => {
+  async function meuAviso(u: UsuarioTeste | null) {
+    if (u) await comoUsuario(c, u.id);
+    else await comoSuperuser(c);
+    const r = (await c.query(`SELECT public.roleta_sdr_meu_aviso() AS r`)).rows[0].r;
+    await comoSuperuser(c);
+    return r;
+  }
+
+  it("o corretor recebe o próprio aviso da semana; quem bateu a meta não tem aviso", async () => {
+    const atual = dia(W, 7);
+    const daAna = await meuAviso(ana);
+    expect(daAna).toMatchObject({ lida: false, semana_inicio: atual, sombra: true });
+    const id = (
+      await c.query(
+        `SELECT id FROM public.alertas
+          WHERE user_id = $1 AND ref_id = md5('roleta-sdr-aviso:' || $1 || ':' || $2)::uuid`,
+        [ana.id, atual],
+      )
+    ).rows[0].id;
+    expect(daAna.alerta_id).toBe(id);
+    // A Bia recebeu o aviso já fora da sombra.
+    expect(await meuAviso(bia)).toMatchObject({ lida: false, sombra: false });
+    expect(await meuAviso(helena)).toBeNull();
+    // Sem usuário (cron, SQL do admin): não há "meu" aviso.
+    expect(await meuAviso(null)).toBeNull();
+  });
+
+  it("'Entendi' marca o alerta como lido pela própria RLS do sino", async () => {
+    const daAna = await meuAviso(ana);
+    await comoUsuario(c, ana.id);
+    await c.query(`UPDATE public.alertas SET lida = true WHERE id = $1`, [daAna.alerta_id]);
+    await comoSuperuser(c);
+    expect(await meuAviso(ana)).toMatchObject({ alerta_id: daAna.alerta_id, lida: true });
+    // Outro corretor não enxerga o aviso da Ana.
+    await comoUsuario(c, bia.id);
+    const r = await c.query(`UPDATE public.alertas SET lida = false WHERE id = $1`, [
+      daAna.alerta_id,
+    ]);
+    expect(r.rowCount).toBe(0);
+    await comoSuperuser(c);
+  });
+
+  it("anon não executa", async () => {
+    await comoSuperuser(c);
+    await c.query(`SET ROLE anon`);
+    expect(await errCode(c.query(`SELECT public.roleta_sdr_meu_aviso()`))).toBe("42501");
+    await comoSuperuser(c);
   });
 });

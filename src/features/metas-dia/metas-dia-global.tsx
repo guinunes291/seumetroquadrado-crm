@@ -39,6 +39,14 @@ const PlacarRoletaSdrCorretor = lazy(() =>
   })),
 );
 
+// Aviso de quarta da roleta do SDR (pop-up com o card do placar): lazy pelo
+// mesmo motivo — só existe com a regra ligada e só abre uma vez por semana.
+const AvisoRoletaSdrHost = lazy(() =>
+  import("@/features/metas-dia/aviso-roleta-sdr").then(({ AvisoRoletaSdrHost }) => ({
+    default: AvisoRoletaSdrHost,
+  })),
+);
+
 /** Evento global para reabrir o popup de qualquer lugar (command palette, atalhos). */
 export const EVENTO_ABRIR_METAS_DIA = "open-metas-dia";
 
@@ -221,18 +229,32 @@ export function MetasDiaGlobal() {
   }, [habilitado, metaHoje, realizado, dia, uid, taxas, qc]);
 
   if (!habilitado) return null;
+
+  // O aviso da roleta do SDR nunca abre por cima de outro pop-up (onboarding,
+  // estudo do funil, metas do dia) nem na tela cheia de campo. Fica sempre
+  // como 1º filho do fragmento para não remontar quando as metas carregam.
+  const rotaSemCard = ROTAS_SEM_CARD.some((r) => pathname.startsWith(r));
+  const avisoRoletaSdr = (outroPopup: boolean) => (
+    <Suspense fallback={null}>
+      <AvisoRoletaSdrHost
+        uid={uid}
+        bloqueado={outroPopup || onboardingPendente || estudoFunilPendente !== false || rotaSemCard}
+      />
+    </Suspense>
+  );
+
   // Enquanto o banco não respondeu, não decide nada: evita abrir o popup por
   // um instante e fechá-lo (flash) para quem já respondeu em outro aparelho.
-  if (hojeQ.isPending) return null;
+  if (hojeQ.isPending) return <>{avisoRoletaSdr(true)}</>;
   // Falha de rede/RLS: não bloqueia o CRM inteiro por causa do popup.
-  if (hojeQ.isError) return null;
+  if (hojeQ.isError) return <>{avisoRoletaSdr(false)}</>;
 
   const dialogAberto = (primeira && ultimaPronta && ontemPronto) || editar;
-  const mostrarCard =
-    !!metaHoje && !dialogAberto && !ROTAS_SEM_CARD.some((r) => pathname.startsWith(r));
+  const mostrarCard = !!metaHoje && !dialogAberto && !rotaSemCard;
 
   return (
     <>
+      {avisoRoletaSdr(dialogAberto)}
       <MetasDiaDialog
         open={dialogAberto}
         dia={dia}

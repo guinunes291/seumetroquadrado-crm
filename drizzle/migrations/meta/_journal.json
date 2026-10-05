@@ -470,6 +470,13 @@
       "when": 1791645060000,
       "tag": "0066_roleta_sdr_peso_rodizio",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1791645120000,
+      "tag": "0067_roleta_sdr_aviso_no_crm",
+      "breakpoints": true
     }
   ]
 }

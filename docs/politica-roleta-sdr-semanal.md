@@ -4,8 +4,10 @@ Aprovada em 05/10/2026 pelo Guilherme (admin SMQ). Implementada nas migrations
 `20261011120000_roleta_sdr_permanencia_semanal.sql` (espelho drizzle
 `0065_roleta_sdr_permanencia_semanal`) e
 `20261011120100_roleta_sdr_peso_rodizio.sql` (espelho `0066_roleta_sdr_peso_rodizio`,
-peso no rodízio e exceção por venda sem teto, decidido no mesmo dia), atrás da
-chave `roleta_sdr_regra_ativa` (nasce desligada).
+peso no rodízio e exceção por venda sem teto, decidido no mesmo dia) e
+`20261011120200_roleta_sdr_aviso_no_crm.sql` (espelho `0067_roleta_sdr_aviso_no_crm`,
+aviso de quarta como pop-up dentro do CRM), atrás da chave
+`roleta_sdr_regra_ativa` (nasce desligada).
 
 Até aqui o time da roleta `agendados-sdr` era montado à mão pelo admin. Agora a
 composição é **semanal e por produção**: quem converteu na semana recebe
@@ -97,7 +99,7 @@ receber".
 
 8. **Aviso de meio de semana** (quarta 18:00 BRT), para quem ainda não bateu
    os 3 pontos na semana em curso (removidos pelo admin ficam de fora):
-   - **Sino** (`public.alertas`, link `/fila`), dedup por
+   - **Sino** (`public.alertas`, link `/fila#aviso-roleta-sdr`), dedup por
      `ref_id = md5('roleta-sdr-aviso:' || corretor || ':' || semana)`, mesmo
      padrão de `metas_dia_alerta_checkpoint`.
    - Texto com o placar e o que falta pelos dois caminhos (o mais curto de
@@ -111,7 +113,22 @@ receber".
      sem pausa), "voltar a receber" (pausado) ou "entrar na roleta e receber"
      (fora dela).
 
-   - **WhatsApp: pendente** (ver seção 7).
+   - **Pop-up no CRM com o card do placar** (decisão de 05/10/2026: o aviso
+     fica **só no CRM**, sem WhatsApp). É o mesmo alerta do sino, apresentado
+     como um card: "Olá, Ana!", pontos da semana e a barra até a meta,
+     visitas e pastas com quanto cada uma vale, o que falta até sexta, a
+     situação de hoje na roleta e o selo "Teste" em sombra.
+     - Quem abre o CRM depois das 18h de quarta com o alerta **não lido** vê
+       o pop-up na hora — depois do pop-up de metas do dia, do onboarding e
+       do estudo do funil, nunca por cima deles, e nunca no Modo Visita.
+     - Se o alerta chega com o CRM **aberto**, sai um toast "Ver placar" em
+       vez do pop-up, para não tomar a tela de quem está atendendo; o pop-up
+       abre na próxima vez que o CRM carregar, se o alerta seguir não lido.
+     - **"Entendi"** (ou fechar) marca o alerta como lido: some do contador
+       do sino também. O link do sino reabre o pop-up a qualquer hora.
+     - O card lê o placar **ao vivo**: quem fez visita na quinta abre o
+       pop-up com o número novo; quem bateu a meta depois do aviso vê "Meta
+       da semana batida".
 9. **Modo sombra:** a apuração calcula e grava tudo (`sombra = true`), mas não
    pausa nem inclui ninguém; o aviso de quarta e o alerta de "sem aptos" saem
    com o prefixo **"[Teste]"**.
@@ -149,6 +166,7 @@ derrubar o cron de sábado.
 | `roleta_sdr_apuracoes_recentes(n)`                   | tela (últimas apurações)                                                | As últimas `n` semanas gravadas, com o nome. SECURITY INVOKER: a RLS da tabela decide o que cada um vê. |
 | `roleta_sdr_apurar_semana(semana?)`                  | cron `roleta-sdr-apuracao-semanal` `0 11 * * 6` (sáb 08:00 BRT), admin  | Grava `roleta_sdr_apuracoes` e aplica o efeito (fora da sombra). Sem argumento = última semana fechada. |
 | `roleta_sdr_aviso_meio_semana()`                     | cron `roleta-sdr-aviso-meio-semana` `0 21 * * 3` (qua 18:00 BRT), admin | Sino para quem ainda não bateu a meta na semana em curso.                                               |
+| `roleta_sdr_meu_aviso()`                             | pop-up do aviso (corretor logado)                                       | O alerta da semana em curso do próprio usuário (id, lido, sombra) ou nulo. Sem usuário, nulo.           |
 
 Histórico em `roleta_sdr_apuracoes` (uma linha por corretor por semana:
 visitas, pastas, pontos, vendas na janela, resultado `apto_meta` |
@@ -167,6 +185,8 @@ corretor vê só a própria linha; ninguém escreve fora da apuração.
 - **Card Metas do dia** (corretor, em todo o CRM; a página Hoje virou a Fila
   em 12/09): bloco "Roleta do SDR" com o próprio placar, a barra até a meta e
   o que falta. Aparece só com a regra ligada; em sombra, com o selo "teste".
+- **Pop-up do aviso de quarta** (corretor, em todo o CRM): o card do placar
+  descrito no item 8 da seção 1.
 
 ## 5. Peças no repositório
 
@@ -181,7 +201,9 @@ corretor vê só a própria linha; ninguém escreve fora da apuração.
 | Card "Placar da semana"                                      | `src/features/distribuicao/placar-roleta-sdr.tsx` (em `tab-filas.tsx`)            |
 | Chaves na Política                                           | `src/features/distribuicao/tab-politica.tsx`                                      |
 | Bloco no card Metas do dia                                   | `src/features/metas-dia/roleta-sdr-placar.tsx`                                    |
-| Testes de tela                                               | `tests/roleta-sdr-placar-tela.test.tsx`                                           |
+| Aviso de quarta no CRM (RPC + link do sino)                  | `supabase/migrations/20261011120200_roleta_sdr_aviso_no_crm.sql` (espelho `0067`) |
+| Pop-up do aviso (card do placar, em `metas-dia-global.tsx`)  | `src/features/metas-dia/aviso-roleta-sdr.tsx`                                     |
+| Testes de tela                                               | `tests/roleta-sdr-placar-tela.test.tsx`, `tests/roleta-sdr-aviso-tela.test.tsx`   |
 | Suíte de banco (ponta a ponta)                               | `tests/db/roleta-sdr-semanal.test.ts`                                             |
 
 ## 6. Rollout
@@ -193,6 +215,11 @@ corretor vê só a própria linha; ninguém escreve fora da apuração.
    "[Teste]" se a sombra seguir ligada). Na **véspera da primeira apuração
    real (sexta 16/10)**, o admin desliga `roleta_sdr_modo_sombra`.
 3. **Primeira apuração real:** sábado **17/10/2026, 08:00**.
+
+O pop-up do aviso de quarta precisa das duas pontas: a migration
+`20261011120200` no banco (sem ela a tela trata como "sem aviso" e só o sino
+aparece) e o front publicado. O primeiro aviso com pop-up é o de **quarta
+07/10, 18:00**, com o selo "Teste".
 
 ### Simulação de uma semana (sem gravar nada)
 
@@ -241,12 +268,11 @@ SELECT p.nome, l.created_at, l.motivo
 
 ## 7. Pendências
 
-- **WhatsApp do aviso de quarta.** O único canal pronto de WhatsApp ao
-  corretor é a Edge Function `notify-lead-transfer`, específica de entrega de
-  lead (token de uso único por agendamento em `sdr_avisos_corretor`). Por
-  decisão desta entrega ela **não** foi adaptada: o aviso sai só no sino.
-  Próximo passo: um canal genérico de aviso ao corretor (Edge Function com
-  token por mensagem) e uma linha em `roleta_sdr_aviso_meio_semana` chamando-o.
+- ~~WhatsApp do aviso de quarta.~~ Decidido em 05/10/2026: o aviso fica só
+  no CRM (pop-up com o card do placar, migration 20261011120200). Disparar
+  ~45 WhatsApps no mesmo minuto pela mesma instância da Z-API é o padrão que
+  o WhatsApp trata como spam — o mesmo motivo que levou a transferência em
+  lote a mandar uma mensagem só (`_shared/notificacao-transferencia.ts`).
 - **Quem validou a presença.** `agendamentos` guarda `realizado_em`, mas não
   quem marcou a visita como realizada. Hoje o próprio corretor dono pode
   validar (`salvar_modo_visita` só exige acesso ao lead), e só o `audit_log`
