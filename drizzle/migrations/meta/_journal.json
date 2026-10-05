@@ -414,6 +414,13 @@
       "when": 1791644760000,
       "tag": "0058_em_atendimento_fatia3a_portas",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791644820000,
+      "tag": "0059_em_atendimento_fatia3a2_consequencia",
+      "breakpoints": true
     }
   ]
 }

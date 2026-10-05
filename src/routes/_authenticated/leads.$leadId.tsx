@@ -227,6 +227,11 @@ function LeadDetailPage() {
 
   const goToStage = (target: LeadStatus) => {
     if (target === lead.status) return;
+    // Regra dos 65, Fatia 3a.2: Em atendimento é consequência do contato.
+    if (target === "em_atendimento" && !gestao) {
+      setContatoOpen(true);
+      return;
+    }
     if (target !== "contrato_fechado" && !transicaoLeadPermitida(lead.status, target, gestao)) {
       toast.error(motivoTransicaoBloqueada(lead.status, target, gestao));
       return;
@@ -246,8 +251,14 @@ function LeadDetailPage() {
     else mudarStatus.mutate({ id: lead.id, status: target });
   };
 
-  // Ação comercial sugerida para a etapa atual (botão inteligente).
+  // Ação comercial sugerida para a etapa atual (botão inteligente). Antes de
+  // Em atendimento ela é o contato (o status é consequência da resposta).
   const acaoSugerida = PROXIMA_ACAO[lead.status as LeadStatus] ?? null;
+  const executarAcaoSugerida = () => {
+    if (!acaoSugerida) return;
+    if ("target" in acaoSugerida) goToStage(acaoSugerida.target);
+    else setContatoOpen(true);
+  };
 
   // Instrumentos do resumo executivo: score de prioridade + sinais de risco.
   const scoreInfo = scoreLead({
@@ -403,11 +414,7 @@ function LeadDetailPage() {
           </div>
           <div className="hidden shrink-0 gap-2 md:flex">
             {acaoSugerida && (
-              <Button
-                size="sm"
-                disabled={mudarStatus.isPending}
-                onClick={() => goToStage(acaoSugerida.target)}
-              >
+              <Button size="sm" disabled={mudarStatus.isPending} onClick={executarAcaoSugerida}>
                 {acaoSugerida.label} <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             )}
@@ -706,7 +713,7 @@ function LeadDetailPage() {
           className="flex-1 px-2"
           disabled={!acaoSugerida || mudarStatus.isPending}
           aria-label={acaoSugerida ? `Próxima etapa: ${acaoSugerida.label}` : "Sem próxima etapa"}
-          onClick={() => acaoSugerida && goToStage(acaoSugerida.target)}
+          onClick={executarAcaoSugerida}
         >
           <ArrowRight aria-hidden="true" />
           <span>Próxima etapa</span>
@@ -725,7 +732,7 @@ function LeadDetailPage() {
       <RegistrarContatoDialog
         open={contatoOpen}
         onOpenChange={setContatoOpen}
-        lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id }}
+        lead={{ id: lead.id, nome: lead.nome, corretor_id: lead.corretor_id, status: lead.status }}
       />
     </div>
   );

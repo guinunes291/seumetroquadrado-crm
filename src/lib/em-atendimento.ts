@@ -174,3 +174,58 @@ export const ACAO_LABEL: Record<string, string> = {
   perde_vaga: "perde a vaga",
   porta_cadencia: "em cadência",
 };
+
+// ---------------------------------------------------------------------------
+// Fatia 3a.2 — Em atendimento é consequência (registrar_contato_lead)
+// ---------------------------------------------------------------------------
+
+/** Status em que o lead ainda não está em atendimento (a "Minha base" + a chegada). */
+export const ANTES_DE_EM_ATENDIMENTO = new Set([
+  "novo",
+  "aguardando_corretor",
+  "aguardando_atendimento",
+  "aguardando_retorno",
+  "qualificacao_corretor",
+  "qualificado",
+]);
+
+export function antesDeEmAtendimento(status: string | null | undefined): boolean {
+  return !!status && ANTES_DE_EM_ATENDIMENTO.has(status);
+}
+
+export type ResultadoContatoLead =
+  "atendeu" | "nao_atendeu" | "interessado" | "sem_interesse" | "pediu_retorno";
+
+/** Resultados em que o CLIENTE respondeu: é o que põe o lead em atendimento. */
+export const RESPOSTAS_DO_CLIENTE: ReadonlySet<string> = new Set([
+  "atendeu",
+  "interessado",
+  "pediu_retorno",
+]);
+
+export function clienteRespondeu(resultado: string): boolean {
+  return RESPOSTAS_DO_CLIENTE.has(resultado);
+}
+
+const contatoRegistradoSchema = z
+  .object({
+    ok: z.literal(true),
+    interacao_id: z.string().nullable(),
+    tarefa_id: z.string().nullable(),
+    respondeu: z.boolean(),
+    entrou: z.boolean(),
+    via: z.enum(["cadencia", "resposta"]).nullable(),
+    status: z.string(),
+    lotado: z
+      .object({ em_atendimento: z.number().int().optional(), teto: z.number().int().optional() })
+      .passthrough()
+      .nullable(),
+  })
+  .passthrough();
+
+export type ContatoRegistrado = z.infer<typeof contatoRegistradoSchema>;
+
+/** Fail-closed: o retorno de registrar_contato_lead fora do contrato derruba. */
+export function parseContatoRegistrado(data: unknown): ContatoRegistrado {
+  return contatoRegistradoSchema.parse(data);
+}

@@ -574,18 +574,18 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
   });
 
   it("2. tentativas de contato registradas em interacoes atualizam ultima_interacao do lead", async () => {
-    // Porta de Em atendimento (regra dos 65, Fatia 3a): fora da cadência, com
-    // contato registrado e passo com data.
+    // Regra dos 65, Fatia 3a.2: o corretor não escolhe Em atendimento. O lead
+    // entra como consequência do primeiro contato atendido (RPC), fora da
+    // cadência (a distribuição pôs D0) para entrar pela resposta direta.
     await comoSuperuser(c);
-    await c.query(
-      `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
-      [leadId],
-    );
+    await c.query(`UPDATE public.leads SET cadencia_etapa = NULL WHERE id = $1`, [leadId]);
     await comoUsuario(c, corretorJ2.id);
-    await transicionar(leadId, "em_atendimento", {
-      proximaAcao: "Tentar contato",
-      followup: daquiDias(1),
-    });
+    const entrada = await c.query(
+      `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', 'Atendeu, pediu para ligar depois',
+                'Tentar contato', $2::timestamptz) AS r`,
+      [leadId, daquiDias(1)],
+    );
+    expect(entrada.rows[0].r).toMatchObject({ entrou: true, status: "em_atendimento" });
 
     await c.query(
       `INSERT INTO public.interacoes (lead_id, autor_id, tipo, direcao, conteudo)
@@ -600,7 +600,8 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
         WHERE lead_id = $1 AND tipo IN ('ligacao','whatsapp') AND autor_id = $2`,
       [leadId, corretorJ2.id],
     );
-    expect(tentativas.rows[0].n).toBe(2);
+    // As 2 tentativas + o contato atendido que pôs o lead em atendimento.
+    expect(tentativas.rows[0].n).toBe(3);
 
     const lead = await leadRow(leadId);
     expect(lead.ultima_interacao).not.toBeNull();

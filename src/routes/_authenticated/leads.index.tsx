@@ -129,6 +129,7 @@ import { LeadPeekDrawer } from "@/features/leads/lead-peek-drawer";
 import { ORIGEM_OPTIONS, abrirNovoLead } from "@/features/leads/novo-lead-dialog";
 import type { Lead } from "@/features/leads/types";
 import { LeadRowMenu, IniciarSplitButton } from "@/features/leads/row-actions";
+import { RegistrarContatoDialog } from "@/components/registrar-contato-dialog";
 import { rpcLeadsFiltered, rpcLeadsStatusCounts } from "@/features/leads/leads-rpc";
 import {
   fetchLeadsFiltered,
@@ -267,16 +268,25 @@ function LeadsPage() {
   // "Selecionar todos os N do filtro" (cap 1000) — busca os ids paginando a RPC.
   const [selecionandoTudo, setSelecionandoTudo] = useState(false);
   const [contactLead, setContactLead] = useState<Lead | null>(null);
-  // Último tipo de contato usado, para o split "Iniciar atendimento" em 1 clique.
+  // Último canal usado, para o split "Contato por WhatsApp/ligação" em 1 clique.
   const [lastContactType, setLastContactType] = useState<"ligacao" | "whatsapp">(() => {
     if (typeof window === "undefined") return "whatsapp";
     const v = window.localStorage.getItem("smq:lastContactType");
     return v === "ligacao" || v === "whatsapp" ? v : "whatsapp";
   });
+  // Regra dos 65, Fatia 3a.2: o clique registra o CONTATO, não a etapa.
+  // WhatsApp abre a conversa e grava a tentativa; ligação abre o diálogo para
+  // o resultado (atendeu → o lead entra em atendimento como consequência).
+  const [contactTipo, setContactTipo] = useState<"ligacao" | "whatsapp">("ligacao");
   const iniciarComTipo = (lead: Lead, tipo: "ligacao" | "whatsapp") => {
     setLastContactType(tipo);
     if (typeof window !== "undefined") window.localStorage.setItem("smq:lastContactType", tipo);
-    iniciarAtendimento.mutate({ lead, tipo });
+    if (tipo === "whatsapp") {
+      contatoWhatsApp.mutate({ lead });
+    } else {
+      setContactTipo("ligacao");
+      setContactLead(lead);
+    }
   };
 
   // Visões salvas (localStorage por usuário)
@@ -792,7 +802,7 @@ function LeadsPage() {
     bulkRegistrarLigacao,
     bulkDescartar,
     bulkRoleta,
-    iniciarAtendimento,
+    contatoWhatsApp,
   } = useLeadMutations({
     clearSelection: () => setSelectedIds(new Set()),
     fecharDialogs: {
@@ -804,7 +814,6 @@ function LeadsPage() {
         setBulkFollowupOpen(false);
         setBulkFollowupData("");
       },
-      contato: () => setContactLead(null),
     },
   });
 
@@ -813,6 +822,12 @@ function LeadsPage() {
   const executarProximaAcao = (l: Lead) => {
     const acao = PROXIMA_ACAO[l.status as LeadStatus];
     if (!acao) return;
+    // Antes de Em atendimento a ação é o contato (o status é consequência).
+    if (!("target" in acao)) {
+      setContactTipo("ligacao");
+      setContactLead(l);
+      return;
+    }
     const action = resolveStageAction(acao.target);
     if (action.kind === "modal") setModalState({ modal: action.modal, lead: l });
     else if (action.kind === "perdido") setPerdidoLead(l);
@@ -1599,7 +1614,7 @@ function LeadsPage() {
                   transferTimeouts={transferTimeouts}
                   transferInfoMap={transferInfoMap}
                   lastContactType={lastContactType}
-                  iniciarPending={iniciarAtendimento.isPending}
+                  iniciarPending={contatoWhatsApp.isPending}
                   proximaAcaoPending={updateStatus.isPending}
                   selected={selectedIds}
                   onSelectedChange={setSelectedIds}
@@ -1855,7 +1870,7 @@ function LeadsPage() {
                             <IniciarSplitButton
                               lead={l}
                               lastContactType={lastContactType}
-                              pending={iniciarAtendimento.isPending}
+                              pending={contatoWhatsApp.isPending}
                               onIniciar={iniciarComTipo}
                               onEscolher={setContactLead}
                             />
@@ -1869,13 +1884,7 @@ function LeadsPage() {
                                 variant="outline"
                                 className="min-h-11"
                                 disabled={updateStatus.isPending}
-                                onClick={() => {
-                                  const action = resolveStageAction(proxima.target);
-                                  if (action.kind === "modal")
-                                    setModalState({ modal: action.modal, lead: l });
-                                  else if (action.kind === "perdido") setPerdidoLead(l);
-                                  else updateStatus.mutate({ id: l.id, status: proxima.target });
-                                }}
+                                onClick={() => executarProximaAcao(l)}
                               >
                                 {proxima.label}
                               </Button>
@@ -1966,14 +1975,8 @@ function LeadsPage() {
             }
             onWhatsApp={(pl) => abrirWhatsApp(pl as Lead)}
             onProximaAcao={(pl) => {
-              const l = pl as Lead;
-              const acao = PROXIMA_ACAO[l.status as LeadStatus];
-              if (!acao) return;
-              const action = resolveStageAction(acao.target);
               setPeekLead(null);
-              if (action.kind === "modal") setModalState({ modal: action.modal, lead: l });
-              else if (action.kind === "perdido") setPerdidoLead(l);
-              else updateStatus.mutate({ id: l.id, status: acao.target });
+              executarProximaAcao(pl as Lead);
             }}
           />
 
@@ -1986,42 +1989,23 @@ function LeadsPage() {
             origem="leads"
           />
 
-          {/* Tipo de contato ao iniciar atendimento */}
-          <Dialog open={!!contactLead} onOpenChange={(o) => !o && setContactLead(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Iniciar atendimento</DialogTitle>
-                <DialogDescription>
-                  Como você está fazendo o primeiro contato com {contactLead?.nome}?
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-3 py-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    contactLead && iniciarAtendimento.mutate({ lead: contactLead, tipo: "ligacao" })
-                  }
-                  disabled={iniciarAtendimento.isPending}
-                  className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
-                >
-                  <Phone className="h-10 w-10 text-info" />
-                  <span className="font-medium">Ligação</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    contactLead &&
-                    iniciarAtendimento.mutate({ lead: contactLead, tipo: "whatsapp" })
-                  }
-                  disabled={iniciarAtendimento.isPending}
-                  className="flex flex-col items-center gap-2 rounded-lg border p-6 hover:bg-muted transition disabled:opacity-50"
-                >
-                  <WhatsappLogo className="h-10 w-10 text-success" />
-                  <span className="font-medium">WhatsApp</span>
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {/* Registrar contato (regra dos 65, Fatia 3a.2): o resultado decide a
+              etapa — atendeu, interessado ou pediu retorno põem o lead em
+              atendimento com o próximo passo; o corretor não escolhe o status. */}
+          {contactLead && (
+            <RegistrarContatoDialog
+              open
+              onOpenChange={(o) => !o && setContactLead(null)}
+              lead={{
+                id: contactLead.id,
+                nome: contactLead.nome,
+                corretor_id: contactLead.corretor_id,
+                status: contactLead.status,
+              }}
+              defaultTipo={contactTipo}
+              defaultResultado="atendeu"
+            />
+          )}
 
           {/* Transferir em lote */}
           <Dialog open={bulkTransferOpen} onOpenChange={setBulkTransferOpen}>

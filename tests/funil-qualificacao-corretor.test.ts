@@ -109,7 +109,10 @@ describe("espelhos do front", () => {
     // devolver à Qualificação Corretor é correção de dado, da gestão.
     expect(transicaoLeadPermitida("em_atendimento", "qualificacao_corretor", false)).toBe(false);
     expect(transicaoLeadPermitida("em_atendimento", "qualificacao_corretor", true)).toBe(true);
-    expect(transicaoLeadPermitida("qualificacao_corretor", "em_atendimento", false)).toBe(true);
+    // Fatia 3a.2: Em atendimento é consequência da resposta do cliente — o
+    // corretor não o escolhe; a gestão ainda pode, como correção de dado.
+    expect(transicaoLeadPermitida("qualificacao_corretor", "em_atendimento", false)).toBe(false);
+    expect(transicaoLeadPermitida("qualificacao_corretor", "em_atendimento", true)).toBe(true);
     expect(transicaoLeadPermitida("qualificacao_corretor", "agendado", false)).toBe(true);
     // Não pula direto para a venda nem volta para a fila de espera.
     expect(transicaoLeadPermitida("qualificacao_corretor", "contrato_fechado", false)).toBe(false);
@@ -122,10 +125,11 @@ describe("espelhos do front", () => {
     expect(transicaoLeadPermitida("contrato_fechado", "qualificacao_corretor", true)).toBe(false);
   });
 
-  it("botão inteligente: da qualificação, o próximo passo é iniciar o atendimento", () => {
+  it("botão inteligente: da qualificação, o próximo passo é registrar o contato", () => {
+    // Fatia 3a.2: a ação é o contato; a etapa (Em atendimento) é consequência.
     expect(PROXIMA_ACAO.qualificacao_corretor).toEqual({
-      label: "Iniciar atendimento",
-      target: "em_atendimento",
+      label: "Registrar contato",
+      kind: "contato",
     });
   });
 

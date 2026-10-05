@@ -31,15 +31,16 @@ que o corretor e o gestor enxergam.
 
 ### 2.2 O limite no dia a dia
 
-| #   | Decisão                                                                                                                                                                              |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 6   | Em 65/65, vale a **troca "entra um, sai um"**: o sistema sugere os 5 mais parados e o corretor escolhe quem libera a vaga.                                                           |
-| 7   | Para sair de Em atendimento, **um de 4 desfechos**: agendou, pediu retorno (data obrigatória), esfriou (data obrigatória), perdido com motivo.                                       |
-| 8   | **Anti-ioiô**: o lead só volta para Em atendimento quando o **cliente** responde, nunca porque o corretor declarou.                                                                  |
-| 9   | "Pediu retorno" e "Esfriou" vão para **Aguardando retorno com data de até 30 dias**. Data maior vira perda "retorno futuro" e volta pela reativação (o lead próprio, não).           |
-| 10  | A roleta **para de mandar lead novo** com **60** em Em atendimento (5 de folga para as respostas da própria base) ou **150** na Minha base.                                          |
-| 11  | Quando o sistema decide sozinho quem fica nos 65: passo com data futura > cliente escreveu em 7 dias > quente > toque mais recente > origem paga.                                    |
-| 12  | Cliente duplicado: o primeiro corretor a levar o cliente a Visita realizada fica com ele; os outros registros viram perda "cliente seguiu com outro corretor", sem aviso (ver §6.1). |
+| #   | Decisão                                                                                                                                                                                                                                                                           |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6   | Em 65/65, vale a **troca "entra um, sai um"**: o sistema sugere os 5 mais parados e o corretor escolhe quem libera a vaga.                                                                                                                                                        |
+| 7   | Para sair de Em atendimento, **um de 4 desfechos**: agendou, pediu retorno (data obrigatória), esfriou (data obrigatória), perdido com motivo.                                                                                                                                    |
+| 8   | **Anti-ioiô**: o lead só volta para Em atendimento quando o **cliente** responde, nunca porque o corretor declarou.                                                                                                                                                               |
+| 9   | "Pediu retorno" e "Esfriou" vão para **Aguardando retorno com data de até 30 dias**. Data maior vira perda "retorno futuro" e volta pela reativação (o lead próprio, não).                                                                                                        |
+| 10  | A roleta **para de mandar lead novo** com **60** em Em atendimento (5 de folga para as respostas da própria base) ou **150** na Minha base.                                                                                                                                       |
+| 11  | Quando o sistema decide sozinho quem fica nos 65: passo com data futura > cliente escreveu em 7 dias > quente > toque mais recente > origem paga.                                                                                                                                 |
+| 12  | Cliente duplicado: o primeiro corretor a levar o cliente a Visita realizada fica com ele; os outros registros viram perda "cliente seguiu com outro corretor", sem aviso (ver §6.1).                                                                                              |
+| 13  | **Em atendimento não se escolhe** (05/10/2026): o corretor nunca "seleciona" a etapa. O lead entra como consequência de uma sequência — registrou o contato, o cliente respondeu, há um próximo passo com data. Só a gestão move para lá à mão, como correção de dado (ver §8.7). |
 
 ### 2.3 O relógio de 5 dias
 
@@ -407,6 +408,78 @@ aqui move lead por relógio: isso é a Fatia 3b.
 `0058` entra na mesma transação de `0054`–`0057`. O UPDATE dos 5.383 leads
 roda com os gatilhos da tabela (zona, métricas, transição): segundos, não
 minutos; a `0054` continua ditando a janela. Publicar fora do pico.
+
+### 8.7 Fatia 3a.2: Em atendimento por consequência (05/10/2026)
+
+Decisão 13 do dono, logo depois do merge da 3a: _"o corretor não deve mais
+poder selecionar para levar o cliente ao status de Em atendimento; isso deve
+ser uma consequência de uma sequência de ações que ele realizar com o lead"_.
+A 3a tinha fechado as portas (contato + passo + cadência + teto), mas ainda
+deixava o corretor **escolher** a etapa — pelo menu "Mover para", pelo
+arrastar do Kanban, pelo botão "Iniciar atendimento". A 3a.2 tira a escolha e
+põe no lugar a sequência. Migration `20261010120800_em_atendimento_fatia3a2_consequencia`
+(Drizzle `0059`).
+
+**A sequência.** O corretor registra o **contato** (canal + resultado). Se o
+cliente **respondeu** (atendeu, interessado, pediu retorno) e o lead ainda
+está antes de Em atendimento (novo, aguardando corretor/atendimento/retorno,
+qualificação, qualificado), o banco o põe em atendimento **com o próximo
+passo com data** — pela cadência quando o lead está em D0–D3 (é o "Cliente
+respondeu" da Fila do Dia), pela transição com origem `resposta` fora dela.
+Não atendeu, sem interesse: só o contato e o follow-up; a etapa fica. Lead já
+em atendimento ou no fundo do funil: só o contato e o follow-up.
+
+| Peça                                               | O que é                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `transicao_lead_permitida` (entrada)               | `em_atendimento` deixa de ser destino do corretor a partir de **qualquer** status; a gestão continua podendo (correção de dado). As saídas de Em atendimento ficam as da 3a.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `transicionar_lead`                                | Lê a origem da entrada (`app.em_atendimento_origem`: `resposta` posta por `registrar_contato_lead`, `troca` pela troca) e, para o corretor dono, só deixa `em_atendimento` passar pela matriz quando a origem é uma dessas. Pela ficha, 22023 ("transição não permitida") antes de qualquer porta.                                                                                                                                                                                                                                                                                          |
+| `_em_atendimento_travar` (origem `resposta`)       | A porta aceita a quarta origem: exige contato (que a própria RPC acabou de gravar) e passo com data, e conta o teto; a regra da cadência (EA067) vale só para `transicao`, porque a resposta de um lead em cadência chega pela própria cadência.                                                                                                                                                                                                                                                                                                                                            |
+| `registrar_contato_lead(lead, tipo, resultado, …)` | **A RPC da sequência**, numa transação: grava a interação (com o resultado no título e em `metadata`), decide a consequência (acima), e grava o próximo passo como tarefa `follow_up` (dedup a ±1 dia, prioridade alta quando o cliente respondeu). Sem data no pedido, o passo é amanhã — a porta nunca devolve EA068 por aqui. Teto cheio não é erro: o contato e o passo ficam, e a resposta volta com `lotado` (ocupação, teto) para a tela abrir a janela de troca. Tentativa em lead D0–D3 não cria tarefa (um follow-up com data encerra a cadência; a régua marca o próximo toque). |
+| `iniciar_atendimento_lead`                         | **Derrubada.** Era "contato + etapa" com o corretor escolhendo a etapa; a sequência acima a substitui.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+**O que a tela faz.** Nenhuma tela do corretor oferece Em atendimento:
+
+- O menu de etapas (lista, Kanban, peek, foco, ficha) troca o item "Em
+  atendimento" por **"Cliente respondeu…"**, que abre Registrar contato com o
+  resultado "Atendeu". Arrastar o card para a coluna abre o mesmo diálogo.
+  Para a gestão o item continua "Em atendimento".
+- O botão "inteligente" antes de Em atendimento vira **"Registrar contato"**
+  (tipo `contato`, sem etapa). O split da lista vira "Contato por
+  WhatsApp/ligação": WhatsApp registra a tentativa em um clique e abre a
+  conversa; ligação abre o diálogo.
+- O diálogo **Registrar contato** explica a consequência quando o lead está
+  antes de Em atendimento, exige o passo com data quando o cliente respondeu
+  (o botão trava sem ele) e, no teto cheio, abre a janela de troca com o
+  contato já gravado.
+- A Fila Única manda "Falei · qualificar" pela RPC sem criar tarefa (ela cria
+  a sua, com os títulos da Fila) e trata `lotado` abrindo a janela; a opção
+  não carrega mais a etapa. A resposta que põe o lead em atendimento não se
+  desfaz pelo botão, como já era com a etapa direta.
+- O motivo do destino bloqueado passa a explicar a sequência ("Em atendimento
+  não se escolhe: registre o contato e, quando o cliente responder, o próximo
+  passo com data. O lead entra sozinho.").
+
+**O que isto muda no dia a dia.** Quem "selecionava Em atendimento para
+marcar que está trabalhando o lead" agora registra o contato — que é o que a
+regra sempre quis medir. A etapa vira o retrato do que aconteceu com o
+cliente, não uma declaração do corretor; o teto e o relógio (3b) passam a
+contar sobre leads que de fato responderam.
+
+**Como foi conferido.** Os casos de banco da 3a que entravam pela ficha
+passaram a testar a porta diretamente (`_em_atendimento_travar`, por origem)
+e a matriz (22023 para o corretor de todo status; gestão, serviço e SDR
+seguem); treze casos novos cobrem a RPC (tentativa, resposta, passo padrão,
+interessado/pediu retorno, cadência, já em atendimento/fundo, teto cheio e
+troca, sem tarefa, dedup, gestão/SDR, recusas, troca com contato, acesso). As
+suítes que entravam como corretor (fatia 2, contrato de transições, métricas,
+jornada 2, pontuação) passaram a entrar pela RPC ou pela gestão. **Checagem
+de mutação, catorze vezes** (matriz, origem na transição, EA065 virando
+erro, passo padrão, tarefa na cadência, cadência e contato na porta, troca
+sem origem, carteira, dedup, sem interesse, fundo, prioridade): todas
+derrubam pelo menos um teste; a da matriz nem chega a aplicar — a sanidade
+da própria migration a barra. No front, a suíte
+`tests/em-atendimento-fatia3a2.test.tsx` trava o espelho da matriz, a fiação
+de cada tela e o diálogo.
 
 ## 9. Próximas fatias
 

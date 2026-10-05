@@ -20,8 +20,13 @@ describe("transicaoLeadPermitida — espelho da máquina de estados do banco", (
   });
 
   it("fluxo feliz do corretor avança etapa a etapa", () => {
-    expect(transicaoLeadPermitida("novo", "em_atendimento", false)).toBe(true);
-    expect(transicaoLeadPermitida("aguardando_atendimento", "em_atendimento", false)).toBe(true);
+    // Regra dos 65, Fatia 3a.2: Em atendimento não se escolhe — o lead entra
+    // quando o cliente responde (registrar_contato_lead). Só a gestão move
+    // para lá à mão, como correção de dado.
+    expect(transicaoLeadPermitida("novo", "em_atendimento", false)).toBe(false);
+    expect(transicaoLeadPermitida("aguardando_atendimento", "em_atendimento", false)).toBe(false);
+    expect(transicaoLeadPermitida("novo", "em_atendimento", true)).toBe(true);
+    expect(transicaoLeadPermitida("aguardando_atendimento", "em_atendimento", true)).toBe(true);
     expect(transicaoLeadPermitida("em_atendimento", "agendado", false)).toBe(true);
     expect(transicaoLeadPermitida("agendado", "visita_realizada", false)).toBe(true);
     expect(transicaoLeadPermitida("visita_realizada", "analise_credito", false)).toBe(true);

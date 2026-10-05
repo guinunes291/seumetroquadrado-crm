@@ -391,7 +391,8 @@ export function VolumeView() {
             </Button>
             {(() => {
               const proxima = PROXIMA_ACAO[current.status as LeadStatus];
-              if (!proxima) return null;
+              // Antes de Em atendimento a ação é "Registrar contato" (botão acima).
+              if (!proxima || !("target" in proxima)) return null;
               return (
                 <Button
                   variant="secondary"
@@ -448,7 +449,12 @@ export function VolumeView() {
         <RegistrarContatoDialog
           open={contatoOpen}
           onOpenChange={setContatoOpen}
-          lead={{ id: current.id, nome: current.nome, corretor_id: current.corretor_id }}
+          lead={{
+            id: current.id,
+            nome: current.nome,
+            corretor_id: current.corretor_id,
+            status: current.status,
+          }}
           onDone={next}
         />
       )}

@@ -29,6 +29,9 @@ type LeadStageItemsProps = {
   onPickModal: (modal: StageModal, target: LeadStatus) => void;
   /** "Marcar como perdido" escolhido. */
   onPickPerdido: () => void;
+  /** "Cliente respondeu…": abre Registrar contato (regra dos 65, Fatia 3a.2 —
+   *  o corretor não escolhe Em atendimento; o lead entra pela resposta). */
+  onPickContato?: () => void;
 };
 
 type LeadStageMenuProps = LeadStageItemsProps & {
@@ -47,6 +50,7 @@ export function LeadStageMenuItems({
   onPickDirect,
   onPickModal,
   onPickPerdido,
+  onPickContato,
 }: LeadStageItemsProps) {
   const { isAdmin, isGestor, isSuperintendente } = useUserRoles();
   const gestao = isAdmin || isGestor || isSuperintendente;
@@ -83,30 +87,48 @@ export function LeadStageMenuItems({
               </span>
             </DropdownMenuItem>
           ))
-        : FUNNEL_STAGES.map((s) => (
-            <DropdownMenuItem
-              key={s}
-              disabled={s === lead.status || !podeMover(s)}
-              onSelect={() => {
-                const action = resolveStageAction(s, lead.status);
-                if (action.kind === "modal") onPickModal(action.modal, s);
-                else onPickDirect(s);
-              }}
-            >
-              {LEAD_STATUS_LABEL[s]}
-              {stageRequiresModal(s) && (
-                // Sinal claro de que a etapa abre um formulário antes de mover
-                // (o antigo "…" de 10px passava despercebido).
-                <span
-                  className="ml-auto inline-flex items-center text-muted-foreground"
-                  title="Abre formulário para registrar os dados da etapa"
-                >
-                  <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span className="sr-only">(abre formulário)</span>
-                </span>
-              )}
-            </DropdownMenuItem>
-          ))}
+        : FUNNEL_STAGES.map((s) =>
+            s === "em_atendimento" && !gestao ? (
+              // Regra dos 65, Fatia 3a.2: o corretor não escolhe Em atendimento.
+              // O lead entra quando o cliente responde — "Cliente respondeu…"
+              // abre Registrar contato (atendeu + próximo passo com data).
+              onPickContato && lead.status !== "em_atendimento" ? (
+                <DropdownMenuItem key={s} onSelect={() => onPickContato()}>
+                  Cliente respondeu…
+                  <span
+                    className="ml-auto inline-flex items-center text-muted-foreground"
+                    title="Registra o contato; o lead entra em atendimento com o próximo passo"
+                  >
+                    <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="sr-only">(abre formulário)</span>
+                  </span>
+                </DropdownMenuItem>
+              ) : null
+            ) : (
+              <DropdownMenuItem
+                key={s}
+                disabled={s === lead.status || !podeMover(s)}
+                onSelect={() => {
+                  const action = resolveStageAction(s, lead.status);
+                  if (action.kind === "modal") onPickModal(action.modal, s);
+                  else onPickDirect(s);
+                }}
+              >
+                {LEAD_STATUS_LABEL[s]}
+                {stageRequiresModal(s) && (
+                  // Sinal claro de que a etapa abre um formulário antes de mover
+                  // (o antigo "…" de 10px passava despercebido).
+                  <span
+                    className="ml-auto inline-flex items-center text-muted-foreground"
+                    title="Abre formulário para registrar os dados da etapa"
+                  >
+                    <NotePencil className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span className="sr-only">(abre formulário)</span>
+                  </span>
+                )}
+              </DropdownMenuItem>
+            ),
+          )}
       <DropdownMenuSeparator />
       <DropdownMenuItem
         className="text-destructive focus:text-destructive"
@@ -132,6 +154,7 @@ export function LeadStageMenu({
   onPickDirect,
   onPickModal,
   onPickPerdido,
+  onPickContato,
   align = "end",
   triggerClassName,
   disabled,
@@ -159,6 +182,7 @@ export function LeadStageMenu({
           onPickDirect={onPickDirect}
           onPickModal={onPickModal}
           onPickPerdido={onPickPerdido}
+          onPickContato={onPickContato}
         />
       </DropdownMenuContent>
     </DropdownMenu>

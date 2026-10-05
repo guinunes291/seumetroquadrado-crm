@@ -14,12 +14,11 @@ import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { buildWhatsAppUrl } from "@/lib/templates";
 import { mensagemPrimeiroContato } from "@/lib/whatsapp";
 import { notaSistemaPayload } from "@/lib/interacoes";
-import { followUpParaStatus, garantirFollowUpAberto } from "@/lib/follow-up";
+import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { transicionarLead } from "@/lib/lead-transitions";
 import { rpc } from "@/features/dashboard/queries";
+import { parseContatoRegistrado } from "@/lib/em-atendimento";
 import { notificarTransferenciaEmLote } from "@/lib/notificar-transferencia";
-import { erroLotado } from "@/lib/em-atendimento";
-import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
 import type { Lead } from "./types";
 
 export function useLeadMutations(opts: {
@@ -31,14 +30,10 @@ export function useLeadMutations(opts: {
     transferir?: () => void;
     /** Fecha o dialog de follow-up em lote e limpa a data escolhida. */
     followup?: () => void;
-    /** Fecha o dialog "Iniciar atendimento" (escolha de tipo de contato). */
-    contato?: () => void;
   };
 }) {
   const { clearSelection, fecharDialogs } = opts;
   const qc = useQueryClient();
-  // A janela de troca "entra um, sai um" (regra dos 65), para o teto cheio.
-  const janela = useJanelaTroca();
 
   const distribuir = useMutation({
     mutationFn: async (leadId: string) => {
@@ -427,55 +422,38 @@ export function useLeadMutations(opts: {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Iniciar atendimento + registrar interação do tipo de contato escolhido.
-  // Contato e etapa numa transação só (iniciar_atendimento_lead, regra dos 65,
-  // Fatia 3a): o banco exige contato registrado e passo com data para entrar
-  // em Em atendimento, e com o teto cheio recusa (EA065) desfazendo o contato —
-  // o lead recusado não ganha "toque". A janela de troca registra o contato
-  // de quem entra; depois dela o pedido volta só para o toast (jaEmAtendimento).
-  const iniciarAtendimento = useMutation({
-    mutationFn: async ({
-      lead,
-      tipo,
-      jaEmAtendimento = false,
-    }: {
-      lead: Lead;
-      tipo: "ligacao" | "whatsapp";
-      jaEmAtendimento?: boolean;
-    }) => {
-      if (!jaEmAtendimento) {
-        const tpl = followUpParaStatus("em_atendimento", { nome: lead.nome });
-        const { error } = await rpc("iniciar_atendimento_lead", {
-          _lead_id: lead.id,
-          _tipo: tipo,
-          _proxima_acao: tpl?.titulo ?? null,
-          _proximo_followup: tpl?.vencimento ?? null,
-        });
-        if (error) throw error;
-      }
-      return { lead, tipo };
+  // Primeiro contato por WhatsApp em um clique (lista de leads). Regra dos 65,
+  // Fatia 3a.2: o clique registra a TENTATIVA pela RPC registrar_contato_lead
+  // (interação + follow-up para amanhã) e abre o WhatsApp com a mensagem da
+  // casa. O lead entra em Em atendimento quando o cliente responde — pelo
+  // diálogo "Registrar contato" (atendeu) ou pela Fila do Dia —, nunca aqui.
+  const contatoWhatsApp = useMutation({
+    mutationFn: async ({ lead }: { lead: Lead }) => {
+      const amanha = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await rpc("registrar_contato_lead", {
+        _lead_id: lead.id,
+        _tipo: "whatsapp",
+        _resultado: "nao_atendeu",
+        _titulo: "WhatsApp — enviado, aguardando resposta",
+        _conteudo: "Primeiro contato por WhatsApp.",
+        _proxima_acao: `Aguardar a resposta de ${lead.nome}`,
+        _proximo_followup: amanha,
+      });
+      if (error) throw error;
+      return { lead, contato: parseContatoRegistrado(data) };
     },
-    onSuccess: ({ lead, tipo }) => {
-      toast.success("Atendimento iniciado");
-      if (tipo === "whatsapp") {
-        const msg = mensagemPrimeiroContato(lead.nome, lead.projeto_nome);
-        window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");
-      }
-      fecharDialogs?.contato?.();
+    onSuccess: ({ lead, contato }) => {
+      // Lead na cadência D0–D3 não ganha follow-up (a régua marca o próximo toque).
+      toast.success(
+        contato.tarefa_id ? "WhatsApp registrado · follow-up amanhã" : "WhatsApp registrado",
+      );
+      const msg = mensagemPrimeiroContato(lead.nome, lead.projeto_nome);
+      window.open(buildWhatsAppUrl(lead.telefone, msg), "_blank", "noopener,noreferrer");
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["tarefas"] });
+      qc.invalidateQueries({ queryKey: ["interacoes", lead.id] });
     },
-    onError: (e: Error, vars) => {
-      if (janela && erroLotado(e)) {
-        janela.abrir({
-          id: vars.lead.id,
-          nome: vars.lead.nome,
-          contato: vars.tipo,
-          onDone: () => iniciarAtendimento.mutate({ ...vars, jaEmAtendimento: true }),
-        });
-        return;
-      }
-      toast.error(e.message);
-    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   return {
@@ -487,6 +465,6 @@ export function useLeadMutations(opts: {
     bulkRegistrarLigacao,
     bulkDescartar,
     bulkRoleta,
-    iniciarAtendimento,
+    contatoWhatsApp,
   };
 }

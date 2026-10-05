@@ -52,8 +52,9 @@ import {
 export type PedidoTroca = {
   id: string;
   nome?: string | null;
-  /** Contato que abriu o pedido ("Iniciar atendimento"): a troca o registra
-   *  para quem entra, já que o EA065 desfez o original (Fatia 3a). */
+  /** Contato a registrar para quem entra, quando o pedido vem de um fluxo em
+   *  que o EA065 desfez o original (Fatia 3a). Pelo diálogo Registrar contato
+   *  (Fatia 3a.2) a interação já ficou gravada e nada é passado aqui. */
   contato?: "ligacao" | "whatsapp" | null;
   onDone?: () => void;
 };

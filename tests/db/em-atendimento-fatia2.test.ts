@@ -115,10 +115,32 @@ async function lotar(dono = ana): Promise<string[]> {
   return ids;
 }
 
-/** Entrada em Em atendimento pela porta única, como a tela faz. */
+/**
+ * Entrada em Em atendimento como a tela faz. Regra dos 65, Fatia 3a.2: o
+ * corretor dono não escolhe a etapa — registra o contato com "atendeu" e a
+ * RPC registrar_contato_lead põe o lead lá; teto cheio volta como `lotado`
+ * (o contato fica gravado), que aqui vira erro EA065 para os casos lerem a
+ * trava como antes. Gestão e SDR movem pela ficha (transicionar_lead).
+ */
 async function entrar(como: UsuarioTeste, leadId: string) {
   await comoUsuario(c, como.id);
   try {
+    if (como.papel === "corretor") {
+      const r = (
+        await c.query(
+          `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', NULL,
+                    'Dar sequência ao atendimento', now() + interval '1 day') AS r`,
+          [leadId],
+        )
+      ).rows[0].r as { entrou: boolean; lotado: Record<string, unknown> | null };
+      if (!r.entrou && r.lotado) {
+        throw Object.assign(
+          new Error(`Em atendimento lotado: ${r.lotado.em_atendimento} de ${r.lotado.teto}.`),
+          { code: "EA065", detail: JSON.stringify(r.lotado) },
+        );
+      }
+      return;
+    }
     await c.query(
       `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status,
                                        NULL, 'Dar sequência ao atendimento', now() + interval '1 day')`,
@@ -193,7 +215,10 @@ describe("entra um, sai um", () => {
   it("o erro diz quantos e o que fazer", async () => {
     await lotar();
     const novo = await lead({ status: "aguardando_atendimento" });
+    // A trava fala pela porta da resposta (a que registrar_contato_lead usa);
+    // pela ficha o corretor nem chega nela (Fatia 3a.2: 22023 na matriz).
     await comoUsuario(c, ana.id);
+    await c.query(`SELECT set_config('app.em_atendimento_origem', 'resposta', false)`);
     const msg = await c
       .query(
         `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', now() + interval '1 day')`,
@@ -202,11 +227,24 @@ describe("entra um, sai um", () => {
       .then(
         () => "",
         (e: Error & { detail?: string }) => `${e.message} | ${e.detail}`,
-      );
+      )
+      .finally(() => c.query(`SELECT set_config('app.em_atendimento_origem', '', false)`));
     await comoSuperuser(c);
     expect(msg).toContain(`${TETO} de ${TETO}`);
     expect(msg).toContain("entra um, sai um");
     expect(msg).toContain(`"teto": ${TETO}`);
+
+    // E a RPC devolve os mesmos números em `lotado`, com o contato gravado.
+    await comoUsuario(c, ana.id);
+    const r = (
+      await c.query(
+        `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', NULL, 'Ligar', now() + interval '1 day') AS r`,
+        [novo],
+      )
+    ).rows[0].r;
+    await comoSuperuser(c);
+    expect(r).toMatchObject({ entrou: false, lotado: { em_atendimento: TETO, teto: TETO } });
+    expect((await estado(novo)).status).toBe("aguardando_atendimento");
   });
 
   it("gestão e serviço seguem livres (cadência, webhook, ajuste da gestão)", async () => {
@@ -264,17 +302,19 @@ describe("entra um, sai um", () => {
       await comoUsuario(c, ana.id);
       await c.query(`BEGIN`);
       await c.query(
-        `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', now() + interval '1 day')`,
+        `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', NULL, 'Ligar', now() + interval '1 day')`,
         [x],
       );
       await comoUsuario(c2, ana.id);
+      // A segunda espera o lock da primeira; quando ela comita, o teto está
+      // cheio e a RPC devolve `lotado` (o contato fica, a etapa não).
       const segunda = c2
         .query(
-          `SELECT public.transicionar_lead($1, 'em_atendimento'::public.lead_status, NULL, 'Ligar', now() + interval '1 day')`,
+          `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', NULL, 'Ligar', now() + interval '1 day') AS r`,
           [y],
         )
         .then(
-          () => null,
+          (res) => (res.rows[0].r.entrou ? null : res.rows[0].r.lotado ? "EA065" : "sem_lotado"),
           (e: { code?: string }) => e.code ?? "erro",
         );
       await new Promise((ok) => setTimeout(ok, 200));

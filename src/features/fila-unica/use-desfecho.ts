@@ -20,7 +20,13 @@ import { useUndoableMutation } from "@/hooks/use-undoable-mutation";
 import { garantirFollowUpAberto } from "@/lib/follow-up";
 import { concluirToquesDeHoje } from "@/features/followup/fila-client";
 import { transicionarLead } from "@/lib/lead-transitions";
-import { erroLotado } from "@/lib/em-atendimento";
+import {
+  antesDeEmAtendimento,
+  clienteRespondeu,
+  erroLotado,
+  parseContatoRegistrado,
+} from "@/lib/em-atendimento";
+import { rpc } from "@/features/dashboard/queries";
 import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
 import {
   descreverProximo,
@@ -49,6 +55,8 @@ export type DesfechoRegistrado = {
   tarefaId: string | null;
   objecoesAntes: string[] | null;
   etapaMudou: boolean;
+  /** O cliente respondeu mas o teto estava cheio: contato gravado, etapa não. */
+  lotado: boolean;
   /** "cobrar o correspondente · qua, 17 set" — para o card e o toast. */
   proximoTexto: string | null;
 };
@@ -82,27 +90,34 @@ export async function executarDesfecho(
     tarefaId: null,
     objecoesAntes: null,
     etapaMudou: false,
+    lotado: false,
     proximoTexto: descreverProximo(opcao, agora),
   };
+  const vencimento = opcao.proximo ? vencimentoDe(opcao.proximo.quando, agora).toISOString() : null;
 
-  // 1) A interação: o resultado no título, o que o corretor escreveu no corpo.
+  // 1) A interação pela RPC registrar_contato_lead (regra dos 65, Fatia 3a.2):
+  //    o resultado no título, o que o corretor escreveu no corpo. Se o cliente
+  //    respondeu e o lead estava antes de Em atendimento, o próprio banco o põe
+  //    em atendimento (pela cadência quando está nela), com o passo abaixo como
+  //    data. Teto cheio não é erro: a RPC devolve `lotado` e a janela abre.
+  //    A tarefa continua sendo gravada aqui (passo 3), com os títulos da Fila.
   const conteudo =
     opcao.pedeTexto === "objecao" && texto ? `Objeção: ${texto}` : texto || opcao.rotulo;
-  const { data: inter, error: iErr } = await supabase
-    .from("interacoes")
-    .insert({
-      lead_id: lead.id,
-      autor_id: autorId,
-      tipo: opcao.canal,
-      direcao: "saida",
-      titulo: tituloDaInteracao(opcao),
-      conteudo,
-      metadata: { origem: "fila-unica", desfecho: opcao.id },
-    })
-    .select("id")
-    .single();
+  const { data: contato, error: iErr } = await rpc("registrar_contato_lead", {
+    _lead_id: lead.id,
+    _tipo: opcao.canal,
+    _resultado: opcao.resultado,
+    _conteudo: conteudo,
+    _titulo: tituloDaInteracao(opcao),
+    _proxima_acao: opcao.proximo?.titulo ?? null,
+    _proximo_followup: vencimento,
+    _criar_tarefa: false,
+  });
   if (iErr) throw iErr;
-  registro.interacaoId = inter?.id ?? null;
+  const r = parseContatoRegistrado(contato);
+  registro.interacaoId = r.interacao_id;
+  registro.etapaMudou = r.entrou;
+  registro.lotado = !r.entrou && r.lotado != null;
 
   // 2) A objeção entra na lista do lead (a Sami e o dossiê leem daqui).
   if (opcao.pedeTexto === "objecao" && texto) {
@@ -126,10 +141,8 @@ export async function executarDesfecho(
   //    (mesmo caminho da Fila de follow-up): sem isso cada desfecho deixava a
   //    tarefa antiga aberta e o lead acumulava toques duplicados. Se falhar, o
   //    desfecho falha — não se engole o erro, senão a duplicata volta calada.
-  let vencimento: string | null = null;
-  if (opcao.proximo) {
+  if (opcao.proximo && vencimento) {
     await concluirToquesDeHoje(lead.id);
-    vencimento = vencimentoDe(opcao.proximo.quando, agora).toISOString();
     await garantirFollowUpAberto({
       leadId: lead.id,
       tipo: opcao.proximo.tipo,
@@ -237,6 +250,12 @@ export function useDesfecho(
       const r = await executarDesfecho(vars, user.id);
       registros.current.set(vars.item.lead.id, r);
       onRegistrado.current?.(r, vars);
+      // O cliente respondeu com o teto cheio: o contato ficou gravado e a
+      // etapa entra pela janela "entra um, sai um".
+      if (r.lotado && janela) {
+        lotado.current = true;
+        janela.abrir({ id: vars.item.lead.id, nome: vars.item.lead.nome, onDone: invalidar });
+      }
     } catch (e) {
       // Regra dos 65: a interação e o passo já foram gravados (o contato
       // aconteceu); só a etapa foi recusada. A janela "entra um, sai um" é a
@@ -286,7 +305,11 @@ export function useDesfecho(
   });
 
   const registrar = (vars: DesfechoVars) => {
-    if (vars.opcao.etapa?.kind === "direct") semDesfazer.mutate(vars);
+    // A resposta que põe o lead em atendimento (consequência no banco) não se
+    // desfaz pelo botão, como já era com a etapa direta.
+    const entraPorConsequencia =
+      clienteRespondeu(vars.opcao.resultado) && antesDeEmAtendimento(vars.item.lead.status);
+    if (vars.opcao.etapa?.kind === "direct" || entraPorConsequencia) semDesfazer.mutate(vars);
     else comDesfazer.mutate(vars);
   };
 

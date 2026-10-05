@@ -177,25 +177,25 @@ describe("contrato da matriz de transições (TS × SQL)", () => {
 // ---------------------------------------------------------------------------
 
 describe("transicionar_lead: transições válidas e efeitos colaterais", () => {
-  it("corretor dono realiza aguardando_atendimento -> em_atendimento e a operação grava lead_eventos E lead_status_transitions", async () => {
+  it("corretor dono: o cliente respondeu (registrar_contato_lead) leva aguardando_atendimento -> em_atendimento e grava lead_eventos E lead_status_transitions", async () => {
     const leadId = await criarLead(c, {
       corretorId: corretor.id,
       status: "aguardando_atendimento",
     });
-    // Porta de Em atendimento (regra dos 65, Fatia 3a): fora da cadência (a
-    // atribuição pôs o lead em D0), contato registrado e passo com data.
+    // Regra dos 65, Fatia 3a.2: o corretor não escolhe Em atendimento — a
+    // ficha recusa (22023, abaixo). O lead entra como consequência do contato
+    // com "atendeu" + passo com data, pela RPC; fora da cadência (a
+    // atribuição pôs o lead em D0) para a entrada ser pela resposta direta.
     await comoSuperuser(c);
-    await c.query(
-      `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
-      [leadId],
-    );
+    await c.query(`UPDATE public.leads SET cadencia_etapa = NULL WHERE id = $1`, [leadId]);
 
     await comoUsuario(c, corretor.id);
-    const r = await transicionar(leadId, "em_atendimento", {
-      proximaAcao: "Ligar para o cliente amanhã",
-      followup: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    });
-    expect(r.rows[0].status).toBe("em_atendimento");
+    const r = await c.query(
+      `SELECT public.registrar_contato_lead($1, 'ligacao', 'atendeu', NULL,
+                'Ligar para o cliente amanhã', $2::timestamptz) AS r`,
+      [leadId, new Date(Date.now() + 24 * 60 * 60 * 1000)],
+    );
+    expect(r.rows[0].r).toMatchObject({ entrou: true, via: "resposta", status: "em_atendimento" });
 
     await comoSuperuser(c);
     const lead = await c.query(`SELECT status::text FROM public.leads WHERE id = $1`, [leadId]);
@@ -229,6 +229,46 @@ describe("transicionar_lead: transições válidas e efeitos colaterais", () => 
       corretor_id: corretor.id,
       alterado_por: corretor.id,
     });
+  });
+
+  it("corretor dono não escolhe em_atendimento pela ficha (22023) e não deixa rastro; a gestão escolhe", async () => {
+    const leadId = await criarLead(c, {
+      corretorId: corretor.id,
+      status: "aguardando_atendimento",
+    });
+    await comoSuperuser(c);
+    await c.query(
+      `UPDATE public.leads SET cadencia_etapa = NULL, ultimo_contato = now() WHERE id = $1`,
+      [leadId],
+    );
+    await comoUsuario(c, corretor.id);
+    const erro = await transicionar(leadId, "em_atendimento", {
+      proximaAcao: "Ligar para o cliente amanhã",
+      followup: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    }).then(
+      () => null,
+      (e: { code?: string; message: string }) => e,
+    );
+    expect(erro?.code).toBe("22023");
+    expect(erro?.message).toContain("não permitida");
+
+    await comoSuperuser(c);
+    const lead = await c.query(`SELECT status::text FROM public.leads WHERE id = $1`, [leadId]);
+    expect(lead.rows[0].status).toBe("aguardando_atendimento");
+    const rastro = await c.query(
+      `SELECT (SELECT count(*) FROM public.lead_eventos WHERE lead_id = $1 AND tipo = 'transicao_lead')::int AS eventos,
+              (SELECT count(*) FROM public.lead_status_transitions WHERE lead_id = $1)::int AS transicoes`,
+      [leadId],
+    );
+    expect(rastro.rows[0]).toEqual({ eventos: 0, transicoes: 0 });
+
+    // Correção de dado é da gestão.
+    await comoUsuario(c, gestor.id);
+    const r = await transicionar(leadId, "em_atendimento", {
+      proximaAcao: "Ligar para o cliente amanhã",
+      followup: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+    expect(r.rows[0].status).toBe("em_atendimento");
   });
 
   it("transição inválida (aguardando_atendimento -> agendado) é rejeitada com erro claro e não deixa rastro", async () => {

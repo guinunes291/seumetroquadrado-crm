@@ -79,11 +79,15 @@ describe("desfechoPara — a matriz do mockup", () => {
     expect(ids(d)).toEqual(["visita_feita", "no_show", "remarcou", "perdeu"]);
   });
 
-  it("chegou agora: 'qualificar' move para em atendimento (direto) — de novo e de aguardando", () => {
+  it("chegou agora: 'qualificar' é a resposta do cliente — a etapa vem do banco, não da opção", () => {
     for (const status of ["novo", "aguardando_atendimento"]) {
       const d = desfechoPara(item({ status, bucket: "sla" }));
       expect(d.pergunta).toBe("Primeiro contato com Josivana");
-      expect(d.opcoes[0].etapa).toEqual({ kind: "direct", status: "em_atendimento" });
+      // Fatia 3a.2: registrar_contato_lead põe o lead em atendimento como
+      // consequência de "atendeu" + passo com data; a opção não carrega etapa.
+      expect(d.opcoes[0].etapa).toBeUndefined();
+      expect(d.opcoes[0].resultado).toBe("atendeu");
+      expect(d.opcoes[0].proximo?.titulo).toBe("Qualificar: renda, FGTS, urgência");
       expect(ids(d)).toEqual(["qualificar", "nao_atendeu", "whatsapp_enviado", "perdeu"]);
     }
     const zap = desfechoPara(item({ status: "novo", bucket: "sla" })).opcoes[2];
