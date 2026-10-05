@@ -10564,6 +10564,10 @@ export type Database = {
         Returns: boolean
       }
       _sdr_ativo: { Args: never; Returns: boolean }
+      _sdr_exigir_zona: {
+        Args: { _lead_id: string; _zona: string }
+        Returns: string
+      }
       _sdr_gate_lead: {
         Args: {
           _lead: Database["public"]["Tables"]["leads"]["Row"]
@@ -10792,6 +10796,7 @@ export type Database = {
           _local?: string
           _proxima_acao?: string
           _titulo?: string
+          _zona?: string
         }
         Returns: Json
       }
@@ -12094,7 +12099,7 @@ export type Database = {
         Returns: undefined
       }
       entregar_lead_sdr: {
-        Args: { _lead_id: string; _motivo: string }
+        Args: { _lead_id: string; _motivo: string; _zona?: string }
         Returns: Json
       }
       equipe_metricas_campanha: {
