@@ -5,7 +5,7 @@ Aprovada em 05/10/2026 pelo Guilherme (admin SMQ). Implementada nas migrations
 `0065_roleta_sdr_permanencia_semanal`) e
 `20261011120100_roleta_sdr_peso_rodizio.sql` (espelho `0066_roleta_sdr_peso_rodizio`,
 peso no rodízio e exceção por venda sem teto, decidido no mesmo dia) e
-`20261011120200_roleta_sdr_aviso_no_crm.sql` (espelho `0067_roleta_sdr_aviso_no_crm`,
+`20261011120400_roleta_sdr_aviso_no_crm.sql` (espelho `0069_roleta_sdr_aviso_no_crm`,
 aviso de quarta como pop-up dentro do CRM), atrás da chave
 `roleta_sdr_regra_ativa` (nasce desligada).
 
@@ -201,7 +201,7 @@ corretor vê só a própria linha; ninguém escreve fora da apuração.
 | Card "Placar da semana"                                      | `src/features/distribuicao/placar-roleta-sdr.tsx` (em `tab-filas.tsx`)            |
 | Chaves na Política                                           | `src/features/distribuicao/tab-politica.tsx`                                      |
 | Bloco no card Metas do dia                                   | `src/features/metas-dia/roleta-sdr-placar.tsx`                                    |
-| Aviso de quarta no CRM (RPC + link do sino)                  | `supabase/migrations/20261011120200_roleta_sdr_aviso_no_crm.sql` (espelho `0067`) |
+| Aviso de quarta no CRM (RPC + link do sino)                  | `supabase/migrations/20261011120400_roleta_sdr_aviso_no_crm.sql` (espelho `0069`) |
 | Pop-up do aviso (card do placar, em `metas-dia-global.tsx`)  | `src/features/metas-dia/aviso-roleta-sdr.tsx`                                     |
 | Testes de tela                                               | `tests/roleta-sdr-placar-tela.test.tsx`, `tests/roleta-sdr-aviso-tela.test.tsx`   |
 | Suíte de banco (ponta a ponta)                               | `tests/db/roleta-sdr-semanal.test.ts`                                             |
@@ -217,7 +217,7 @@ corretor vê só a própria linha; ninguém escreve fora da apuração.
 3. **Primeira apuração real:** sábado **17/10/2026, 08:00**.
 
 O pop-up do aviso de quarta precisa das duas pontas: a migration
-`20261011120200` no banco (sem ela a tela trata como "sem aviso" e só o sino
+`20261011120400` no banco (sem ela a tela trata como "sem aviso" e só o sino
 aparece) e o front publicado. O primeiro aviso com pop-up é o de **quarta
 07/10, 18:00**, com o selo "Teste".
 
@@ -269,7 +269,7 @@ SELECT p.nome, l.created_at, l.motivo
 ## 7. Pendências
 
 - ~~WhatsApp do aviso de quarta.~~ Decidido em 05/10/2026: o aviso fica só
-  no CRM (pop-up com o card do placar, migration 20261011120200). Disparar
+  no CRM (pop-up com o card do placar, migration 20261011120400). Disparar
   ~45 WhatsApps no mesmo minuto pela mesma instância da Z-API é o padrão que
   o WhatsApp trata como spam — o mesmo motivo que levou a transferência em
   lote a mandar uma mensagem só (`_shared/notificacao-transferencia.ts`).

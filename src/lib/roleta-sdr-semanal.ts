@@ -727,7 +727,7 @@ export function parseApuracoes(input: unknown): ApuracaoSemana[] {
 }
 
 // ---------------------------------------------------------------------------
-// Aviso de quarta DENTRO do CRM (migration 20261011120200): pop-up com o card
+// Aviso de quarta DENTRO do CRM (migration 20261011120400): pop-up com o card
 // do placar. O aviso é o mesmo alerta do sino; o card lê o placar ao vivo.
 // ---------------------------------------------------------------------------
 

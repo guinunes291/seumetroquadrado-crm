@@ -1,4 +1,4 @@
-// Aviso de quarta da roleta do SDR dentro do CRM (migration 20261011120200):
+// Aviso de quarta da roleta do SDR dentro do CRM (migration 20261011120400):
 // o card do placar (regra pura) e o pop-up — quando abre sozinho, quando vira
 // toast, o "Entendi" que marca o alerta como lido e o link do sino.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

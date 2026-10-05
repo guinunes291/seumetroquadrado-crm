@@ -475,7 +475,21 @@
       "idx": 67,
       "version": "7",
       "when": 1791645120000,
-      "tag": "0067_roleta_sdr_aviso_no_crm",
+      "tag": "0067_em_atendimento_fatia4_revisao",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1791645180000,
+      "tag": "0068_em_atendimento_fatia5_um_motor",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1791645240000,
+      "tag": "0069_roleta_sdr_aviso_no_crm",
       "breakpoints": true
     }
   ]

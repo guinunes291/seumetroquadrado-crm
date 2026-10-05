@@ -1,4 +1,4 @@
-// Aviso de quarta da roleta do SDR DENTRO do CRM (migration 20261011120200):
+// Aviso de quarta da roleta do SDR DENTRO do CRM (migration 20261011120400):
 // pop-up com o card do placar da semana do próprio corretor. Decisão de
 // 05/10/2026 — só no CRM, sem WhatsApp (docs/politica-roleta-sdr-semanal.md).
 //

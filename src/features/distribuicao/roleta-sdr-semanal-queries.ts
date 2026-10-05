@@ -90,7 +90,7 @@ export function useUltimasApuracoesRoletaSdr(qtd = 4, enabled = true) {
 
 /**
  * O aviso de quarta do próprio corretor na semana em curso (o mesmo alerta do
- * sino), ou null. Banco sem a migration 20261011120200 = sem aviso.
+ * sino), ou null. Banco sem a migration 20261011120400 = sem aviso.
  */
 export function useMeuAvisoRoletaSdr(semana: string, enabled = true) {
   return useQuery({

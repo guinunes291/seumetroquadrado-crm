@@ -793,7 +793,7 @@ describe("aviso de meio de semana (semana em curso)", () => {
     expect(daBia).toHaveLength(1);
     expect(daBia[0].titulo).toBe("Roleta do SDR: sua semana");
     expect(daBia[0].mensagem.startsWith("Sua semana na roleta do SDR:")).toBe(true);
-    // O link do sino reabre o pop-up do placar (migration 20261011120200).
+    // O link do sino reabre o pop-up do placar (migration 20261011120400).
     expect(daBia[0].link).toBe("/fila#aviso-roleta-sdr");
   });
 });
