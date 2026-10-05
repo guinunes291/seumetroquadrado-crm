@@ -435,6 +435,13 @@
       "when": 1791644880000,
       "tag": "0061_sdr_zona_obrigatoria",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1791218456433,
+      "tag": "0062_prospeccao_lote_rapido",
+      "breakpoints": true
     }
   ]
 }
