@@ -16,9 +16,11 @@ import {
   parseExecucoesRegra65,
   parsePortasRegra65,
   parseRegra65,
+  parseRevisaoRegra65,
   type ConfigRegra65,
   type ExecucaoRegra65,
   type LinhaRegra65,
+  type LinhaRevisao65,
   type PortasRegra65,
 } from "@/features/gestao/regra-65/derive";
 
@@ -26,6 +28,7 @@ export const REGRA_65_KEY = "regra-65:sombra";
 export const REGRA_65_PORTAS_KEY = "regra-65:portas";
 export const REGRA_65_CONFIG_KEY = "regra-65:config";
 export const REGRA_65_EXECUCOES_KEY = "regra-65:execucoes";
+export const REGRA_65_REVISAO_KEY = "regra-65:revisao";
 
 export function useRegra65Sombra(enabled = true) {
   const { user } = useAuth();
@@ -146,5 +149,30 @@ export function useDesligarRegra65() {
     },
     onError: (e: Error) =>
       toast.error("Não foi possível desligar a regra", { description: e.message }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Fatia 4: a revisão mensal
+// ---------------------------------------------------------------------------
+
+/** Os últimos N meses, por corretor e a linha da casa (gestão). Sem a RPC, null. */
+export function useRegra65Revisao(meses = 6, enabled = true) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: [REGRA_65_REVISAO_KEY, user?.id, meses],
+    enabled: enabled && !!user,
+    // Varre as transições e os toques de meses: leitura de revisão, não de
+    // acompanhamento ao vivo.
+    staleTime: 5 * 60_000,
+    queryFn: () =>
+      rpcWithFallback<LinhaRevisao65[] | null>(
+        async () => {
+          const { data, error } = await rpc("em_atendimento_revisao_v1", { _meses: meses });
+          if (error) throw error;
+          return parseRevisaoRegra65(data);
+        },
+        () => null,
+      ),
   });
 }

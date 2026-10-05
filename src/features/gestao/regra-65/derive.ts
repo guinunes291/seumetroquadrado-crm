@@ -4,6 +4,7 @@
 // somam os totais da casa para o topo do cartão.
 
 import { z } from "zod";
+import type { Intent } from "@/lib/status-tones";
 
 export const linhaRegra65Schema = z.object({
   corretor_id: z.string().uuid(),
@@ -120,6 +121,9 @@ export const configRegra65Schema = z
     teto: z.number().int(),
     trava_roleta: z.number().int(),
     teto_base: z.number().int(),
+    // Fatia 4: as metas da revisão mensal (ausentes antes da migration).
+    revisao_toque_meta_horas: z.number().int().optional(),
+    revisao_agendado_meta_pct: z.number().int().optional(),
   })
   .passthrough();
 
@@ -180,4 +184,119 @@ export function descreverExecucao(e: ExecucaoRegra65): string {
   }
   const erros = e.erros > 0 ? ` · ${e.erros} erro(s)` : "";
   return `ligada: ${e.aplicados.toLocaleString("pt-BR")} de ${e.avaliados.toLocaleString("pt-BR")} aplicados${detalhe} · ${e.alertas} aviso(s) ao gestor${erros}`;
+}
+
+// ---------------------------------------------------------------------------
+// Fatia 4: a revisão mensal (as duas perguntas do dono, §2.5 do desenho)
+// ---------------------------------------------------------------------------
+// As contas moram no banco (`em_atendimento_revisao_v1`): aqui só se valida
+// o que ele devolve, se escolhe o mês e se julga cada número contra a meta.
+
+export const revisaoRegra65Schema = z.object({
+  mes: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  casa: z.boolean(),
+  corretor_id: z.string().uuid().nullable(),
+  nome: z.string().nullable(),
+  dias: z.number().int(),
+  leads_65: z.number().int(),
+  leads_tocados: z.number().int(),
+  toques: z.number().int(),
+  intervalos: z.number().int(),
+  mediana_horas: z.number().nullable(),
+  entraram: z.number().int(),
+  agendaram: z.number().int(),
+  em_aberto: z.number().int(),
+  taxa_agendado: z.number().nullable(),
+  perderam_vaga: z.number().int(),
+  sairam_base: z.number().int(),
+  trocas: z.number().int(),
+});
+
+export type LinhaRevisao65 = z.infer<typeof revisaoRegra65Schema>;
+
+/** FAIL-CLOSED, como as outras leituras da regra. */
+export function parseRevisaoRegra65(input: unknown): LinhaRevisao65[] {
+  return z.array(revisaoRegra65Schema).parse(input ?? []);
+}
+
+/** Os meses devolvidos, do mais recente ao mais antigo. */
+export function mesesDaRevisao(linhas: LinhaRevisao65[]): string[] {
+  return [...new Set(linhas.map((l) => l.mes))].sort().reverse();
+}
+
+export function linhaDaCasa(linhas: LinhaRevisao65[], mes: string): LinhaRevisao65 | null {
+  return linhas.find((l) => l.casa && l.mes === mes) ?? null;
+}
+
+function temMovimento(l: LinhaRevisao65): boolean {
+  return l.leads_65 + l.toques + l.entraram + l.perderam_vaga + l.sairam_base + l.trocas > 0;
+}
+
+/** Só corretor com algo no mês entra na tabela, em ordem alfabética. */
+export function linhasDosCorretores(linhas: LinhaRevisao65[], mes: string): LinhaRevisao65[] {
+  return linhas
+    .filter((l) => !l.casa && l.mes === mes && temMovimento(l))
+    .sort((a, b) => (a.nome ?? "").localeCompare(b.nome ?? "", "pt-BR"));
+}
+
+/** "outubro de 2026" a partir de "2026-10-01", sem depender do fuso do navegador. */
+export function rotuloMes(mes: string): string {
+  const [ano, m] = mes.split("-").map(Number);
+  return new Date(Date.UTC(ano, m - 1, 1)).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export function toquesPorDia(l: LinhaRevisao65): number {
+  return l.dias > 0 ? l.toques / l.dias : 0;
+}
+
+export type MetasRevisao65 = { toqueHoras: number; agendadoPct: number };
+
+/** As metas vêm da config (`revisao_*`); sem ela, as do desenho: 72 h e 70%. */
+export function metasDaConfig(cfg: ConfigRegra65 | null | undefined): MetasRevisao65 {
+  return {
+    toqueHoras: cfg?.revisao_toque_meta_horas ?? 72,
+    agendadoPct: cfg?.revisao_agendado_meta_pct ?? 70,
+  };
+}
+
+/** Dentro da meta, verde; até 1,5× a meta, âmbar; além, vermelho. Sem dado, neutro. */
+export function avaliarToque(mediana: number | null, metaHoras: number): Intent {
+  if (mediana == null) return "neutral";
+  if (mediana <= metaHoras) return "success";
+  if (mediana <= metaHoras * 1.5) return "warning";
+  return "danger";
+}
+
+/** Na meta, verde; de metade da meta para cima, âmbar; abaixo, vermelho. */
+export function avaliarTaxa(taxa: number | null, metaPct: number): Intent {
+  if (taxa == null) return "neutral";
+  if (taxa >= metaPct) return "success";
+  if (taxa >= metaPct / 2) return "warning";
+  return "danger";
+}
+
+/** "36 h" · "96 h (4 dias)". */
+export function fmtHoras(h: number): string {
+  const horas = `${Math.round(h).toLocaleString("pt-BR")} h`;
+  if (h < 48) return horas;
+  return `${horas} (${(h / 24).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} dias)`;
+}
+
+export function fmtPct(p: number): string {
+  return `${p.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+}
+
+/** A série da casa, do mês mais antigo ao mais recente, só com meses medidos. */
+export function serieDaCasa(
+  linhas: LinhaRevisao65[],
+  campo: "mediana_horas" | "taxa_agendado",
+): number[] {
+  return linhas
+    .filter((l) => l.casa && l[campo] != null)
+    .sort((a, b) => a.mes.localeCompare(b.mes))
+    .map((l) => l[campo] as number);
 }
