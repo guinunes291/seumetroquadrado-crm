@@ -229,3 +229,39 @@ export type ContatoRegistrado = z.infer<typeof contatoRegistradoSchema>;
 export function parseContatoRegistrado(data: unknown): ContatoRegistrado {
   return contatoRegistradoSchema.parse(data);
 }
+
+// ---------------------------------------------------------------------------
+// Fatia 5: o aviso da virada ao corretor
+// ---------------------------------------------------------------------------
+// A regra "agendada" (modo ligado, virada no futuro) não muda nada ainda — e
+// é exatamente a semana em que o corretor precisa saber o que vem (§2.5 e
+// §4 do desenho: contato fora do CRM passa a custar a vaga; tem de ser
+// comunicado antes). Depois da virada o aviso fica mais alguns dias.
+
+/** O recorte da config que o aviso lê (em_atendimento_config()). */
+export type ConfigDaRegra = {
+  modo: string;
+  virada_em?: string | null;
+  ligado_em?: string | null;
+};
+
+export const DIAS_DE_AVISO_APOS_VIRADA = 7;
+
+export type AvisoVirada =
+  { estado: "agendada"; viradaEm: Date } | { estado: "ligada"; desde: Date };
+
+/** null = nada a avisar (sombra, ou ligada há mais de 7 dias). */
+export function avisoDaVirada(
+  cfg: ConfigDaRegra | null | undefined,
+  agora: Date = new Date(),
+): AvisoVirada | null {
+  if (!cfg || cfg.modo !== "ligado") return null;
+  const virada = cfg.virada_em ? new Date(cfg.virada_em) : null;
+  if (virada && !Number.isNaN(virada.getTime()) && virada.getTime() > agora.getTime()) {
+    return { estado: "agendada", viradaEm: virada };
+  }
+  const desde = virada ?? (cfg.ligado_em ? new Date(cfg.ligado_em) : null);
+  if (!desde || Number.isNaN(desde.getTime())) return null;
+  if (agora.getTime() - desde.getTime() > DIAS_DE_AVISO_APOS_VIRADA * 86_400_000) return null;
+  return { estado: "ligada", desde };
+}

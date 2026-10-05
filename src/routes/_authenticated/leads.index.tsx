@@ -5,6 +5,7 @@ import { LeadsFunil } from "@/features/leads/leads-funil";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
+import { AvisoViradaRegra65 } from "@/features/em-atendimento/aviso-virada";
 import { ContadorEmAtendimento } from "@/features/em-atendimento/contador-chip";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -994,6 +995,7 @@ function LeadsPage() {
           </div>
         }
       />
+      {isCorretor && !canManage && <AvisoViradaRegra65 />}
 
       {activeView === "kanban" ? (
         // Kanban herda a busca e o corretor da lista — trocar de visão não

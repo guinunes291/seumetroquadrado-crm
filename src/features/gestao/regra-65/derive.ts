@@ -124,6 +124,9 @@ export const configRegra65Schema = z
     // Fatia 4: as metas da revisão mensal (ausentes antes da migration).
     revisao_toque_meta_horas: z.number().int().optional(),
     revisao_agendado_meta_pct: z.number().int().optional(),
+    // Fatia 5: o aviso da virada ao corretor lê daqui.
+    ligado_em: z.string().nullable().optional(),
+    dias_sem_toque: z.number().int().optional(),
   })
   .passthrough();
 

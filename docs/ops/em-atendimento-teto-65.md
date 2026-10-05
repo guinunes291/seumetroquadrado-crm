@@ -594,6 +594,56 @@ derivação, o juízo contra a meta e o cartão.
 **Deploy.** Só funções, config e um índice; nada se move no publish. O cartão
 aparece assim que a migration entrar.
 
+### 8.10 Fatia 5: a virada segura (05/10/2026)
+
+Migration `20261011120300_em_atendimento_fatia5_um_motor` (Drizzle `0068`).
+Nada se move. Dois itens que o desenho deixou em aberto e que a virada
+precisa resolvidos antes de o admin clicar "Ligar a regra":
+
+**O aviso ao corretor (§2.5, §4).** A regra "agendada" (modo ligado, virada
+no futuro) não muda nada ainda — e é exatamente a semana em que o corretor
+precisa saber o que vem, porque contato fora do CRM passa a custar a vaga.
+Enquanto a regra está agendada, as telas de Leads, Fila Única e Meus 65
+mostram o aviso: a data da virada, o que muda (teto, 5 dias sem contato
+registrado perde a vaga, 5 dias na Minha base o lead sai, a trava 60/150) e
+a porta para escolher os seus 65. Nos primeiros 7 dias ligada, o aviso vira
+"está valendo desde…". Em sombra, e depois da primeira semana, some. Os
+números vêm da config (`em_atendimento_config()`, que expõe `virada_em` e
+`ligado_em`), nunca de texto fixo.
+
+**Um motor só (§6).** A casa tem dois motores antigos de devolução, ambos
+desligados em produção: a régua de devolução do Bolsão
+(`gestao_config.bolsao.modo = ativo`, cron `regua_devolucao_processar`) e a
+devolução por follow-up vencido (`regua_followup.devolucao_ativa`, cron
+`devolver_leads_followup_vencido`). A Fatia 3b fez `em_atendimento_ligar()`
+recusar ligar com qualquer um deles ativo — mas o inverso ficou aberto: com
+a regra ligada ou agendada, o admin ainda podia ligar a régua pelo cartão de
+gestão, e no dia da virada os dois motores devolveriam o mesmo lead. O fecho
+mora na tabela: o gatilho `trg_gestao_config_um_motor` (BEFORE INSERT OR
+UPDATE em `gestao_config`) recusa, com SQLSTATE `SMQ65`, a transição para
+ligado em qualquer direção — a régua ou o Bolsão com a regra dos 65 em
+`modo = ligado` (agendada inclusive), e a regra com um deles ativo, agora
+também pelo UPDATE direto. Só a transição é barrada: desligar, salvar a
+régua com a devolução desligada e as outras chaves passam. O cartão da
+régua de follow-up mostra a chave travada com o motivo quando a regra está
+ligada; o Bolsão não tem tela para o modo (só SQL), e o gatilho o cobre do
+mesmo jeito. Em produção, `authenticated` tem UPDATE em `gestao_config`
+(grant fora das migrations); o harness reproduz o grant no teste para
+provar que o gatilho alcança o caminho da tela.
+
+**Como foi conferido.** `tests/db/em-atendimento-fatia5.test.ts` (7 casos):
+gatilho presente e sem EXECUTE; em sombra os motores ligam e desligam; com a
+regra agendada e ligada nenhum liga (UPDATE direto, admin sob RLS, INSERT da
+chave), desligar e as outras chaves passam; o inverso por UPDATE direto e
+pela RPC; a RPC expõe `virada_em` e `ligado_em`.
+`tests/em-atendimento-fatia5.test.tsx`: quando avisar (sombra, agendada,
+ligada até 7 dias, `ligado_em` como fallback), o texto do aviso e a chave
+travada no cartão da régua.
+
+**Deploy.** Só o gatilho; nada se move. Se por acaso a regra e um motor
+antigo estiverem ligados ao mesmo tempo na hora do publish, a migration
+avisa (WARNING) em vez de travar o deploy: desligue um dos dois.
+
 ## 9. Próximas fatias
 
 | Fatia             | O que entra                                                                              |
@@ -601,3 +651,4 @@ aparece assim que a migration entrar.
 | **3b. Relógios**  | Feito (§8.8): cron, virada, alertas 60/65, desfazer.                                     |
 | **3c. Duplicado** | Feito: registro mãe, Fatias A e B (`docs/ops/registro-mae.md`).                          |
 | **4. Revisar**    | Feito (§8.9): painel mensal, tempo entre toques nos 65 e taxa Em atendimento → Agendado. |
+| **5. Virada**     | Feito (§8.10): aviso ao corretor na regra agendada e recém-ligada; um motor só.          |

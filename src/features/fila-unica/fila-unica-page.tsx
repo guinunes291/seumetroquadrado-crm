@@ -17,6 +17,7 @@ import { useAuth, useUserRoles } from "@/hooks/use-auth";
 import { useLigarLead } from "@/hooks/use-ligar-lead";
 import { useLeadStatusMutation } from "@/hooks/use-lead-status";
 import { PageHeader } from "@/components/page-header";
+import { AvisoViradaRegra65 } from "@/features/em-atendimento/aviso-virada";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatTile } from "@/components/ui/stat-tile";
@@ -317,6 +318,7 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
 
   return (
     <div className="space-y-3 md:space-y-4">
+      <AvisoViradaRegra65 />
       {/* Hero do mockup: à esquerda data, título, tese e as duas portas da
           página; à direita o cockpit grande. No celular é só data + título,
           colado no placar compacto. */}
