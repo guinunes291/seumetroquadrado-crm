@@ -25,6 +25,7 @@ import {
   antesDeEmAtendimento,
   clienteRespondeu,
   parseContatoRegistrado,
+  tentativaMoveParaRetorno,
   type ResultadoContatoLead,
 } from "@/lib/em-atendimento";
 import { invalidarEmAtendimento } from "@/features/em-atendimento/use-em-atendimento";
@@ -97,6 +98,8 @@ export function RegistrarContatoDialog({
   // como o cliente ter respondido "para nada".
   const vaiEntrar = prospeccao && respondeu;
   const semPasso = vaiEntrar && followup === "nenhum";
+  // Fatia 6: não atendeu em lead que ninguém tinha tentado → Aguardando retorno.
+  const vaiAguardarRetorno = tentativaMoveParaRetorno(lead.status, resultado);
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -125,6 +128,8 @@ export function RegistrarContatoDialog({
         toast.success(
           "Contato registrado. O lead entra em atendimento quando você liberar uma vaga.",
         );
+      } else if (r.moveu) {
+        toast.success(`Contato registrado · ${lead.nome} aguarda retorno`);
       } else {
         toast.success(
           r.tarefa_id ? "Contato registrado · follow-up agendado" : "Contato registrado",
@@ -171,6 +176,12 @@ export function RegistrarContatoDialog({
             <DialogDescription data-testid="contato-consequencia">
               Atendeu, Interessado ou Pediu retorno põem {lead.nome} em atendimento, com o próximo
               passo. Em atendimento não se escolhe: é o que acontece quando o cliente responde.
+            </DialogDescription>
+          )}
+          {vaiAguardarRetorno && (
+            <DialogDescription data-testid="contato-aguarda-retorno">
+              Não atendeu leva {lead.nome} para Aguardando retorno: você já tentou, agora é a vez do
+              cliente. O follow-up abaixo é o seu lembrete de voltar.
             </DialogDescription>
           )}
         </DialogHeader>

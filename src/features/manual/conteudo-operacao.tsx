@@ -101,8 +101,11 @@ export function ConteudoOperacao() {
           <Tabela
             cabecalho={["Etapa", "O que significa"]}
             linhas={[
-              ["Aguardando atendimento", "Recebeu o cliente e ainda não fez o primeiro contato."],
-              ["Aguardando retorno", "O cliente pediu para falar depois."],
+              ["Aguardando atendimento", "Recebeu o cliente e ninguém tentou contato ainda."],
+              [
+                "Aguardando retorno",
+                "Você já tentou: ligou ou mandou WhatsApp e o cliente não atendeu, ou ele pediu para falar depois. A vez é dele.",
+              ],
               [
                 "Qualificação Corretor",
                 "Chegou pelo bot ou pela pré-venda, já com interesse confirmado.",

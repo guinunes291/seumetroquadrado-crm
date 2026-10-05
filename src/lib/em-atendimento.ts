@@ -207,6 +207,22 @@ export function clienteRespondeu(resultado: string): boolean {
   return RESPOSTAS_DO_CLIENTE.has(resultado);
 }
 
+/** Fatia 6 (decisão 14): etapas em que ninguém tentou ainda. A tentativa NÃO
+ *  atendida do corretor dono leva o lead daqui a Aguardando retorno — já foi
+ *  feito algo; a vez é do cliente. Qualificação Corretor fica no seu relógio
+ *  de 1 dia; "sem interesse" é resposta (negativa), não tentativa. */
+export const AGUARDAM_PRIMEIRA_TENTATIVA: ReadonlySet<string> = new Set([
+  "novo",
+  "aguardando_atendimento",
+]);
+
+export function tentativaMoveParaRetorno(
+  status: string | null | undefined,
+  resultado: string,
+): boolean {
+  return !!status && AGUARDAM_PRIMEIRA_TENTATIVA.has(status) && resultado === "nao_atendeu";
+}
+
 const contatoRegistradoSchema = z
   .object({
     ok: z.literal(true),
@@ -214,6 +230,8 @@ const contatoRegistradoSchema = z
     tarefa_id: z.string().nullable(),
     respondeu: z.boolean(),
     entrou: z.boolean(),
+    /** Fatia 6: a tentativa levou o lead a Aguardando retorno. */
+    moveu: z.boolean().optional(),
     via: z.enum(["cadencia", "resposta"]).nullable(),
     status: z.string(),
     lotado: z
