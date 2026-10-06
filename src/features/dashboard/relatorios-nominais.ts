@@ -74,12 +74,13 @@ export type VendaNominal = {
   data_distrato: string | null;
   motivo_distrato: string | null;
   lead: LeadRef;
+  projeto: { construtora: string | null } | null;
 };
 
 // Literal único de propósito: concatenação vira `string` e o parser de
 // types do supabase-js perde a inferência do embed (GenericStringError).
 const VENDA_SELECT =
-  "id, lead_id, corretor_id, projeto_id, projeto_nome, unidade, valor_venda, data_assinatura, status_recebimento, data_distrato, motivo_distrato, lead:leads(id, nome, telefone)";
+  "id, lead_id, corretor_id, projeto_id, projeto_nome, unidade, valor_venda, data_assinatura, status_recebimento, data_distrato, motivo_distrato, lead:leads(id, nome, telefone), projeto:projetos(construtora)";
 
 /** Vendas APROVADAS e não distratadas, pela data de ASSINATURA (data do
  *  negócio — mesma régua do VGV do hero). */

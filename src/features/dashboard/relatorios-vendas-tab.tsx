@@ -106,6 +106,19 @@ export function RelatoriosVendasTab({
       ),
     [rows],
   );
+  const porConstrutora = useMemo(() => {
+    const m = new Map<string, { vendas: number; vgv: number }>();
+    for (const v of rows) {
+      const nome = v.projeto?.construtora?.trim() || "Sem construtora";
+      const acc = m.get(nome) ?? { vendas: 0, vgv: 0 };
+      acc.vendas += 1;
+      acc.vgv += Number(v.valor_venda) || 0;
+      m.set(nome, acc);
+    }
+    return Array.from(m.entries())
+      .map(([construtora, x]) => ({ construtora, ...x }))
+      .sort((a, b) => b.vendas - a.vendas || b.vgv - a.vgv);
+  }, [rows]);
   const meses12 = useMemo(() => agruparVendasPorMes(vendas12Q.data ?? []), [vendas12Q.data]);
   const conversao = useMemo(
     () =>
@@ -166,6 +179,14 @@ export function RelatoriosVendasTab({
           html: pdf.tabelaPdf(
             ["Empreendimento", "Vendas", "VGV"],
             top.map((r) => [r.projeto, r.vendas, fmtBRLCompacto(r.vgv)]),
+            { direita: [1, 2] },
+          ),
+        },
+        {
+          titulo: "Vendas por construtora",
+          html: pdf.tabelaPdf(
+            ["Construtora", "Vendas", "VGV"],
+            porConstrutora.map((r) => [r.construtora, r.vendas, fmtBRLCompacto(r.vgv)]),
             { direita: [1, 2] },
           ),
         },
@@ -397,6 +418,51 @@ export function RelatoriosVendasTab({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Buildings className="h-4 w-4" /> Vendas por construtora
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AsyncBoundary
+            isLoading={vendasQ.isLoading}
+            isError={vendasQ.isError}
+            error={vendasQ.error}
+            errorTitle="Não foi possível carregar as construtoras."
+            onRetry={() => vendasQ.refetch()}
+            loadingFallback={<Skeleton className="h-32 w-full" />}
+          >
+            {porConstrutora.length === 0 ? (
+              <VazioPeriodo>Sem vendas aprovadas neste período.</VazioPeriodo>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Construtora</TableHead>
+                      <TableHead className="text-right">Qtd. de vendas</TableHead>
+                      <TableHead className="text-right">VGV</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {porConstrutora.map((r) => (
+                      <TableRow key={r.construtora}>
+                        <TableCell className="font-medium">{r.construtora}</TableCell>
+                        <TableCell className="text-right tabular-nums font-semibold">
+                          {r.vendas}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtBRL(r.vgv)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </AsyncBoundary>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
