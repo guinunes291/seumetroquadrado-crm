@@ -112,11 +112,19 @@ export function RelatoriosVendasTab({
     queryKey: ["vendas_construtora_avulsa"],
     staleTime: 10 * 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Tabela nova (migration 0071); tipos gerados podem ainda não conhecê-la.
+      const { data, error } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => Promise<{
+            data: { projeto_nome: string; construtora: string }[] | null;
+            error: Error | null;
+          }>;
+        };
+      })
         .from("vendas_construtora_avulsa")
         .select("projeto_nome, construtora");
       if (error) throw error;
-      return new Map(data.map((r) => [r.projeto_nome.trim().toLowerCase(), r.construtora]));
+      return new Map((data ?? []).map((r) => [r.projeto_nome.trim().toLowerCase(), r.construtora]));
     },
   });
   const porConstrutora = useMemo(() => {
