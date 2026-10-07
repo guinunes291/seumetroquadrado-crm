@@ -9167,6 +9167,24 @@ export type Database = {
           },
         ]
       }
+      vendas_construtora_avulsa: {
+        Row: {
+          construtora: string
+          projeto_nome: string
+          updated_at: string
+        }
+        Insert: {
+          construtora: string
+          projeto_nome: string
+          updated_at?: string
+        }
+        Update: {
+          construtora?: string
+          projeto_nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       visita_execucoes: {
         Row: {
           agendamento_id: string
