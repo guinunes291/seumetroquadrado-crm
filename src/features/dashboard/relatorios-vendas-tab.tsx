@@ -4,6 +4,8 @@
 // conversão por empreendimento e distratos do período.
 
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Bar,
   CartesianGrid,
@@ -106,10 +108,32 @@ export function RelatoriosVendasTab({
       ),
     [rows],
   );
+  const avulsasQ = useQuery({
+    queryKey: ["vendas_construtora_avulsa"],
+    staleTime: 10 * 60_000,
+    queryFn: async () => {
+      // Tabela nova (migration 0071); tipos gerados podem ainda não conhecê-la.
+      const { data, error } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => Promise<{
+            data: { projeto_nome: string; construtora: string }[] | null;
+            error: Error | null;
+          }>;
+        };
+      })
+        .from("vendas_construtora_avulsa")
+        .select("projeto_nome, construtora");
+      if (error) throw error;
+      return new Map((data ?? []).map((r) => [r.projeto_nome.trim().toLowerCase(), r.construtora]));
+    },
+  });
   const porConstrutora = useMemo(() => {
     const m = new Map<string, { vendas: number; vgv: number }>();
     for (const v of rows) {
-      const nome = v.projeto?.construtora?.trim() || "Sem construtora";
+      const nome =
+        v.projeto?.construtora?.trim() ||
+        avulsasQ.data?.get((v.projeto_nome ?? "").trim().toLowerCase()) ||
+        "Sem construtora";
       const acc = m.get(nome) ?? { vendas: 0, vgv: 0 };
       acc.vendas += 1;
       acc.vgv += Number(v.valor_venda) || 0;
@@ -118,7 +142,7 @@ export function RelatoriosVendasTab({
     return Array.from(m.entries())
       .map(([construtora, x]) => ({ construtora, ...x }))
       .sort((a, b) => b.vendas - a.vendas || b.vgv - a.vgv);
-  }, [rows]);
+  }, [rows, avulsasQ.data]);
   const meses12 = useMemo(() => agruparVendasPorMes(vendas12Q.data ?? []), [vendas12Q.data]);
   const conversao = useMemo(
     () =>
