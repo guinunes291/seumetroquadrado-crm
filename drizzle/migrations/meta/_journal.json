@@ -505,6 +505,13 @@
       "when": 1791332126368,
       "tag": "0071_construtora_vendas_avulsas",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1791332263238,
+      "tag": "0072_construtora_vendas_avulsas_v2",
+      "breakpoints": true
     }
   ]
 }
