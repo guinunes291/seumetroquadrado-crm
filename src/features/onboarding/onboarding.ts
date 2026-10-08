@@ -114,6 +114,12 @@ export const TELAS_QUE_IMPORTAM: Array<{
     quando: "primeira semana, e sempre que entrar produto novo",
     to: "/projetos-foco",
   },
+  {
+    tela: "Prospecção",
+    responde: "“como recebo base nova?”",
+    quando: "quando a carteira estiver abaixo de 65: pedir lote de 30 da sua zona",
+    to: "/prospeccao",
+  },
 ];
 
 export const BLOCOS_DO_DIA: Array<{ hora: string; bloco: string; oque: string }> = [
@@ -129,7 +135,11 @@ export const BLOCOS_DO_DIA: Array<{ hora: string; bloco: string; oque: string }>
     bloco: "Agendar",
     oque: "Esfriando → pasta travada → oferecer visita em toda conversa",
   },
-  { hora: "15:30", bloco: "Anti-ociosidade", oque: "Reserva → Modo Foco → Discador → Bolsão" },
+  {
+    hora: "15:30",
+    bloco: "Anti-ociosidade",
+    oque: "Reserva → Modo Foco → Discador → Pedir lote de 30 (sua zona, cadência D+3)",
+  },
   { hora: "17:30", bloco: "Fechar", oque: "Os dois zeros: vencidos = 0, sem próximo passo = 0" },
 ];
 
