@@ -84,7 +84,7 @@ function Passo2() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        O CRM tem dezenas de telas. Você vai viver em cinco. Toque em qualquer linha para abrir numa
+        O CRM tem dezenas de telas. Você vai viver em seis. Toque em qualquer linha para abrir numa
         aba nova.
       </p>
       <ul className="space-y-2">
@@ -388,7 +388,7 @@ function Passo6({
 
 const TITULOS = [
   "Como este CRM funciona",
-  "As 5 telas que importam",
+  "As telas que importam",
   "Seu dia",
   "Os números da casa",
   "Sua meta",
