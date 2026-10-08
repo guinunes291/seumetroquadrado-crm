@@ -1,48 +1,57 @@
-// Host global da trilha de onboarding. Montado no shell /_authenticated ANTES
-// do MetasDiaGlobal: não faz sentido pedir a meta do dia para quem ainda não
-// sabe o que é a fila.
+// Host global do onboarding. Montado no shell /_authenticated ANTES do
+// MetasDiaGlobal: não faz sentido pedir a meta do dia para quem ainda não
+// sabe operar a fila.
 //
-// Não é bloqueante: dá para fechar e voltar depois. Fechado, reabre no próximo
-// acesso enquanto não estiver concluído. O item "Como usar o CRM" do menu
-// dispara EVENTO_ABRIR_ONBOARDING e reabre a qualquer momento.
+// Desde outubro/2026 o onboarding é o TREINO PRÁTICO (telas de treino com
+// cliques obrigatórios). Para corretor que ainda não concluiu a versão atual
+// (PREF_ONBOARDING_PRATICO), abre sozinho e não fecha até concluir — inclusive
+// para quem já tinha concluído a trilha antiga. O item "Como usar o CRM" do
+// menu dispara EVENTO_ABRIR_ONBOARDING e reabre o treino, aí podendo fechar.
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth, useUserRoles } from "@/hooks/use-auth";
-import { EVENTO_ABRIR_ONBOARDING, deveAbrirSozinho } from "@/features/onboarding/onboarding";
-import { useOnboardingStatus } from "@/features/onboarding/use-onboarding";
-import { OnboardingDialog } from "@/features/onboarding/onboarding-dialog";
+import { usePreference } from "@/hooks/use-preference";
+import { pullPrefs } from "@/lib/user-prefs";
+import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
+import { PREF_ONBOARDING_PRATICO, praticoConcluido } from "@/features/onboarding/pratico";
+import { OnboardingPratico } from "@/features/onboarding/onboarding-pratico";
 
 export function OnboardingGlobal() {
   const { user } = useAuth();
+  const uid = user?.id ?? "";
   const { isCorretor, loading: papeisCarregando } = useUserRoles();
-  const { data: status } = useOnboardingStatus();
-  const [aberto, setAberto] = useState(false);
-  const [fechadoNestaSessao, setFechadoNestaSessao] = useState(false);
+  const [conclusao, setConclusao] = usePreference<unknown>(PREF_ONBOARDING_PRATICO, null);
+  // Mesma query que o usePreference usa: espera o servidor antes de obrigar,
+  // para não abrir para quem concluiu em outro aparelho.
+  const prefs = useQuery({
+    queryKey: ["user-prefs", uid],
+    enabled: !!uid,
+    staleTime: 5 * 60_000,
+    queryFn: () => pullPrefs(uid),
+  });
+  const [reaberto, setReaberto] = useState(false);
 
   useEffect(() => {
-    const abrir = () => setAberto(true);
+    const abrir = () => setReaberto(true);
     window.addEventListener(EVENTO_ABRIR_ONBOARDING, abrir);
     return () => window.removeEventListener(EVENTO_ABRIR_ONBOARDING, abrir);
   }, []);
 
-  useEffect(() => {
-    if (papeisCarregando || aberto) return;
-    if (deveAbrirSozinho({ status, ehCorretor: isCorretor, fechadoNestaSessao })) {
-      setAberto(true);
-    }
-  }, [aberto, fechadoNestaSessao, isCorretor, papeisCarregando, status]);
-
   if (!user) return null;
 
+  const obrigatorio =
+    !papeisCarregando && isCorretor && prefs.isFetched && !praticoConcluido(conclusao);
+
   return (
-    <OnboardingDialog
-      open={aberto}
-      onOpenChange={(v) => {
-        setAberto(v);
-        if (!v) setFechadoNestaSessao(true);
+    <OnboardingPratico
+      open={obrigatorio || reaberto}
+      obrigatorio={obrigatorio}
+      onConcluir={() => {
+        setConclusao({ concluido_em: new Date().toISOString() });
+        setReaberto(false);
       }}
-      status={status ?? null}
-      uid={user.id}
+      onFechar={() => setReaberto(false)}
     />
   );
 }
