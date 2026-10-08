@@ -16,6 +16,7 @@ import { pullPrefs } from "@/lib/user-prefs";
 import { EVENTO_ABRIR_ONBOARDING } from "@/features/onboarding/onboarding";
 import { PREF_ONBOARDING_PRATICO, praticoConcluido } from "@/features/onboarding/pratico";
 import { OnboardingPratico } from "@/features/onboarding/onboarding-pratico";
+import { useConcluirOnboarding, useOnboardingStatus } from "@/features/onboarding/use-onboarding";
 
 export function OnboardingGlobal() {
   const { user } = useAuth();
@@ -31,6 +32,9 @@ export function OnboardingGlobal() {
     queryFn: () => pullPrefs(uid),
   });
   const [reaberto, setReaberto] = useState(false);
+  // A conclusão antiga (banco) é requisito da roleta: grava junto, best-effort.
+  const { data: statusAntigo } = useOnboardingStatus();
+  const concluirAntigo = useConcluirOnboarding();
 
   useEffect(() => {
     const abrir = () => setReaberto(true);
@@ -50,6 +54,7 @@ export function OnboardingGlobal() {
       onConcluir={() => {
         setConclusao({ concluido_em: new Date().toISOString() });
         setReaberto(false);
+        if (statusAntigo && !statusAntigo.concluido_em) concluirAntigo.mutate();
       }}
       onFechar={() => setReaberto(false)}
     />
