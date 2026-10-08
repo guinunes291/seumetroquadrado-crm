@@ -31,11 +31,16 @@ export function mensagemEmpreendimento(
   const local = [empreendimento.bairro, empreendimento.zona ? `Zona ${empreendimento.zona}` : null]
     .filter(Boolean)
     .join(", ");
-  const detalhe = [local || null, empreendimento.precoLabel ? `a partir de ${empreendimento.precoLabel}` : null]
+  const detalhe = [
+    local || null,
+    empreendimento.precoLabel ? `a partir de ${empreendimento.precoLabel}` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
   const linha = `${empreendimento.nome}${detalhe ? ` (${detalhe})` : ""}`;
-  const book = empreendimento.bookUrl ? `\n\nBook do empreendimento: ${empreendimento.bookUrl}` : "";
+  const book = empreendimento.bookUrl
+    ? `\n\nBook do empreendimento: ${empreendimento.bookUrl}`
+    : "";
   return (
     `Oi, ${primeiroNome}! Separei um empreendimento que combina com o que você procura: ${linha}.` +
     ` Quer que eu te mande o book e a tabela completa?${book}`
@@ -43,3 +48,28 @@ export function mensagemEmpreendimento(
 }
 
 export const WHATSAPP_TITULO_EMPREENDIMENTO = "Empreendimento enviado via WhatsApp";
+
+/**
+ * Endereço de um stand de vendas para mandar ao cliente (Mapa de Lojas). Leva
+ * a rota pelo ENDEREÇO, não pelo pino do mapa — o pino pode ser estimado. A
+ * observação do stand ("sem decorado", "decorado de 2 dorm") vai junto porque
+ * evita a viagem perdida de quem foi ver um decorado que não existe.
+ */
+export function mensagemLoja(loja: {
+  construtora: string;
+  nome: string;
+  endereco: string;
+  bairro?: string | null;
+  obs?: string | null;
+  rotaUrl: string;
+}): string {
+  const local = [loja.endereco, loja.bairro].filter(Boolean).join(" — ");
+  const obs = loja.obs ? `\nBom saber: ${loja.obs.replace(/\.?\s*$/, ".")}` : "";
+  return (
+    `Olá! Segue o endereço do stand de vendas da ${loja.construtora} (${loja.nome}):\n` +
+    `${local}\n` +
+    `Como chegar: ${loja.rotaUrl}` +
+    obs +
+    `\n\nMe avise quando estiver a caminho que eu deixo tudo pronto para te receber.`
+  );
+}

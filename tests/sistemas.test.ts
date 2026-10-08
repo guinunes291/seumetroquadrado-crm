@@ -74,6 +74,7 @@ describe("visibilidade por papel", () => {
     expect(secoesVisiveis(sistema("docs-projetos"), corretor).map((s) => s.id)).toEqual([
       "projetos-foco",
       "vitrine",
+      "mapa-lojas",
     ]);
   });
 
@@ -318,6 +319,7 @@ describe("sistemaAtivo (pathname + search)", () => {
     expect(em("/financeiro", { tab: "dre" })).toBe("financeiro");
     expect(em("/projetos/xyz")).toBe("docs-projetos");
     expect(em("/vitrine")).toBe("docs-projetos");
+    expect(em("/mapa-lojas")).toBe("docs-projetos");
     expect(em("/meu-raio-x")).toBe("bi");
     expect(em("/ranking")).toBe("bi");
     expect(em("/painel-gestor", { tab: "time" })).toBe("bi");
