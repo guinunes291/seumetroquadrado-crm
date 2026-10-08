@@ -70,6 +70,77 @@ Quando um corretor da zona marca **"Cheguei"** (ou entra no time), as
 exceções de espera daquela zona zeram a contagem e voltam no minuto seguinte —
 sem esperar o backoff de 30 min do cron.
 
+### Lead do Marquinhos: Roleta Marquinhos da zona (20261012120000)
+
+Relato de 08/10: _"os leads do Marquinhos não estão seguindo a roleta do
+Marquinhos, estão respeitando apenas a roleta de zona"_. Com a zona estrita, o
+lead COM zona ia sempre direto para a roleta da zona — e o Marquinhos manda a
+região de interesse da qualificação, que vira `leads.zona`. Na prática nenhum
+lead do bot chegava ao time da Roleta Marquinhos.
+
+Agora, com a zona estrita ligada, o lead cuja origem resolve para a roleta
+`marquinhos` (mapeamento origem → roleta; hoje `chatbot`) segue a mesma ideia
+da campanha de equipe fixa:
+
+1. **Roleta Marquinhos, só quem atende a zona do lead** (participa da roleta da
+   zona). Quem é da Marquinhos mas de outra zona fica auditado em
+   `fora_da_regiao`.
+2. **Ninguém da Marquinhos apto naquela zona** (ninguém da zona no time,
+   ausência, cota, pausa, trava dos 65, já teve o lead, fora do horário da
+   roleta) → **time da zona**, na mesma chamada. O lead nunca espera pelo bot
+   nem sai da zona; o contexto da decisão traz `roleta_pedida: "marquinhos"` e
+   `marquinhos_sem_apto_na_zona: true`, e o motivo no Histórico diz "ninguém da
+   Roleta Marquinhos apto na Zona X".
+3. **Repasse por SLA/parado**: a entrega pela Marquinhos não grava pino de zona,
+   então o repasse tenta de novo a Marquinhos da zona (sem quem já teve o lead)
+   antes do time da zona.
+
+Exemplo: Mara (Leste, na Marquinhos), Lia (Leste, fora da Marquinhos) e Otto
+(Oeste, na Marquinhos). Lead do bot da Leste → Mara, mesmo que a Lia seja a
+próxima da vez na zona. Lead do bot da Norte → time da Norte (ninguém da
+Marquinhos atende a Norte). Mara ausente → lead do bot da Leste vai para a Lia.
+
+Não muda: lead do bot sem zona (Roleta Marquinhos inteira), leads de outras
+origens (roleta da zona), Roleta Marquinhos desativada ou `chatbot` reapontado
+para outra roleta em Configurações (o lead do bot vai direto para a zona), e o
+rollback da zona estrita (caminho antigo).
+
+**Cota**: a entrega pela Marquinhos conta na cota diária da Roleta Marquinhos,
+não na da zona (a cota é por roleta). Se um corretor recebe muito lead do bot,
+ajuste o limite dele na aba Filas → Marquinhos.
+
+**Desligar** (volta ao "zona direto"): Central → Configurações → "Lead do
+Marquinhos vai primeiro para a Roleta Marquinhos", ou
+
+```sql
+UPDATE public.distribuicao_settings SET valor = 'false' WHERE chave = 'marquinhos_antes_da_zona';
+```
+
+Conferência (banco do CRM):
+
+```sql
+-- Leads do bot nas últimas 24h: por qual roleta saíram e quantos desviaram.
+SELECT dl.roleta_slug, public.zona_do_lead(dl.lead_id) AS zona,
+       count(*) FILTER (WHERE (ctx.contexto->>'marquinhos_sem_apto_na_zona')::boolean) AS desvio_para_zona,
+       count(*) AS total
+  FROM public.distribution_log dl
+  JOIN public.leads l ON l.id = dl.lead_id
+  LEFT JOIN public.distribuicao_log_contexto ctx ON ctx.log_id = dl.id
+ WHERE dl.resultado = 'sucesso' AND l.origem = 'chatbot'
+   AND dl.created_at > now() - interval '24 hours'
+ GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- Cobertura: em quais zonas a Roleta Marquinhos tem gente (zona sem ninguém
+-- = todo lead do bot dessa zona vai para o time da zona).
+SELECT zr.zona, string_agg(p.nome, ', ' ORDER BY p.nome) AS marquinhos_na_zona
+  FROM public.zonas_roletas zr
+  LEFT JOIN public.roleta_participantes rp
+         ON rp.ativo AND rp.roleta_id = (SELECT id FROM public.roletas WHERE slug = 'marquinhos')
+        AND public.corretor_atende_zona(rp.corretor_id, zr.zona)
+  LEFT JOIN public.profiles p ON p.id = rp.corretor_id
+ GROUP BY 1 ORDER BY 1;
+```
+
 ### O que continua permitido (de propósito)
 
 - **Lead sem zona** (sem zona, bairro reconhecido nem empreendimento com zona):
