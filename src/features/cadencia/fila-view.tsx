@@ -9,7 +9,7 @@
 // autodeclaração que a validação dos 100% existe para eliminar.
 
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
@@ -53,7 +53,9 @@ import {
   rotuloProgresso,
   type EtapaCadencia,
 } from "@/features/cadencia/templates";
+import { textosRespondeu } from "@/features/cadencia/respondeu";
 import { useJanelaTroca } from "@/features/em-atendimento/janela-troca-context";
+import { abrirDepoisDeRegistrar } from "@/lib/aba-reservada";
 import { erroLotado } from "@/lib/em-atendimento";
 import { ArrowSquareOut, CheckCircle, Envelope, Phone, WhatsappLogo } from "@phosphor-icons/react";
 
@@ -67,6 +69,11 @@ function mensagemEtapa(res: {
     return `${ROTULO_ETAPA[res.etapa]} completo — o lead já está em ${ROTULO_ETAPA[res.etapa_nova]}.`;
   }
   if (res.etapa_completa) {
+    // O Encerramento nunca avança na escrita, em modo nenhum: quem o fecha é o
+    // cadencia_encerrar, depois da espera pós-D3. Completo sem etapa nova é o
+    // normal dele — "modo sombra" aqui mentiria com o motor ativo, e a tela não
+    // sabe o modo.
+    if (res.etapa === "D3") return `${ROTULO_ETAPA.D3} completo.`;
     // Etapa fechada mas sem avanço: o motor está em sombra. Dizer "vai
     // avançar" aqui seria prometer algo que não vai acontecer enquanto a
     // chave não virar.
@@ -124,6 +131,11 @@ export function FilaCadenciaView() {
   const whatsapp = useMutation({
     mutationFn: ({ lead, templateId }: { lead: CadenciaItem; templateId: string | null }) =>
       registrarWhatsApp(lead.id, templateId),
+    // Sem rede, o padrão ("online") PAUSA a mutação: a aba reservada ficaria
+    // em branco sem aviso e a gravação sairia sozinha quando a rede voltasse —
+    // talvez com a aba já fechada, contando um WhatsApp que nunca abriu.
+    // "always" tenta já: offline a chamada falha, o erro aparece e a aba fecha.
+    networkMode: "always",
     onSuccess: (res) => {
       toast.success(mensagemEtapa(res) ?? "WhatsApp registrado.");
       invalidar();
@@ -182,7 +194,10 @@ export function FilaCadenciaView() {
             ligando={ligacao.isPending}
             enviando={whatsapp.isPending}
             onLigou={(resultado) => ligacao.mutate({ lead: item, resultado })}
-            onEnviouWhatsApp={(templateId) => whatsapp.mutate({ lead: item, templateId })}
+            // mutateAsync (e não mutate): a linha espera a gravação para só
+            // então levar a aba ao wa.me. Os toasts continuam nos callbacks
+            // da mutação; a rejeição é tratada em abrirDepoisDeRegistrar.
+            onEnviouWhatsApp={(templateId) => whatsapp.mutateAsync({ lead: item, templateId })}
             onRespondeu={() => setRespondendo(item)}
           />
         ))}
@@ -214,7 +229,7 @@ function LinhaDaFila({
   ligando: boolean;
   enviando: boolean;
   onLigou: (resultado: ResultadoLigacao) => void;
-  onEnviouWhatsApp: (templateId: string | null) => void;
+  onEnviouWhatsApp: (templateId: string | null) => Promise<unknown>;
   onRespondeu: () => void;
 }) {
   const primaria = acaoPrimaria(item);
@@ -228,18 +243,32 @@ function LinhaDaFila({
     return linkWhatsApp(item.telefone, texto);
   }, [template, item.nome, item.projeto_nome, item.telefone]);
 
-  // Abre a conversa e SÓ ENTÃO registra: se o wa.me não abrir (bloqueio de
-  // pop-up), a tentativa não é gravada. Gravar antes de abrir contaria uma
-  // mensagem que o cliente nunca recebeu — e essa mentira entraria na conta
-  // dos 100% que manda o lead para a reativação.
+  // Mensagem que não abriu não conta: se o navegador bloquear a aba, a
+  // tentativa não é gravada. Contar uma mensagem que o cliente nunca recebeu
+  // seria uma mentira na conta dos 100% que manda o lead para a reativação.
+  //
+  // A aba é reservada em branco no clique (dentro do gesto, o bloqueador
+  // deixa passar), a tentativa é gravada e só então a aba vai para o wa.me;
+  // se a gravação falhar, a aba fecha. Gravar antes de navegar é o desenho do
+  // dossiê e garante "abriu ⇔ gravou". Antes, o window.open ia direto para o
+  // wa.me com "noopener" — e com ele o spec manda devolver null mesmo quando
+  // a aba abre: todo clique virava "pop-up bloqueado" e nenhuma etapa fechava.
+  // Ver src/lib/aba-reservada.ts.
+  //
+  // `emVoo` segura o clique duplo: o `enviando` do pai só desabilita o botão
+  // no render seguinte, e até lá um segundo clique gravaria de novo.
+  const emVoo = useRef(false);
   const enviarWhatsApp = () => {
-    if (!link) return;
-    const aba = window.open(link, "_blank", "noopener,noreferrer");
-    if (!aba) {
+    if (!link || emVoo.current) return;
+    const desfecho = abrirDepoisDeRegistrar(link, () => onEnviouWhatsApp(template?.id ?? null));
+    if (!desfecho) {
       toast.error("O navegador bloqueou a janela do WhatsApp. Libere os pop-ups e tente de novo.");
       return;
     }
-    onEnviouWhatsApp(template?.id ?? null);
+    emVoo.current = true;
+    void desfecho.finally(() => {
+      emVoo.current = false;
+    });
   };
 
   return (
@@ -345,6 +374,14 @@ function DialogRespondeu({
   const [acao, setAcao] = useState("");
   const [data, setData] = useState("");
 
+  // Para onde o lead vai depende da etapa dele (o banco só põe em atendimento
+  // quem ainda está antes dela) — ver features/cadencia/respondeu.ts. Na
+  // animação de saída o diálogo ainda aparece, já com `item` null: o texto
+  // segue o último lead aberto em vez de trocar no meio do fechamento.
+  const [statusAberto, setStatusAberto] = useState(item?.status ?? null);
+  if (item && item.status !== statusAberto) setStatusAberto(item.status);
+  const textos = textosRespondeu(item?.status ?? statusAberto);
+
   // Regra dos 65: com o teto cheio o banco recusa a resposta (EA065) e a
   // janela "entra um, sai um" abre; depois da troca o lead já está em
   // atendimento e o mesmo pedido grava o passo combinado.
@@ -355,7 +392,7 @@ function DialogRespondeu({
       return marcarRespondeu(item.id, acao, new Date(data));
     },
     onSuccess: () => {
-      toast.success("Lead na qualificação, com o próximo passo agendado.");
+      toast.success(textos.sucesso);
       setAcao("");
       setData("");
       onSalvo();
@@ -378,8 +415,8 @@ function DialogRespondeu({
         <DialogHeader>
           <DialogTitle>Cliente respondeu</DialogTitle>
           <DialogDescription>
-            O lead sai da cadência e vai para a qualificação. Combine o próximo passo com data — ele
-            volta a aparecer na sua fila quando chegar o dia.
+            {textos.destino} Combine o próximo passo com data — ele volta a aparecer na sua fila
+            quando chegar o dia.
           </DialogDescription>
         </DialogHeader>
 
@@ -413,7 +450,7 @@ function DialogRespondeu({
             Cancelar
           </Button>
           <Button disabled={!podeSalvar} onClick={() => salvar.mutate()}>
-            Salvar e qualificar
+            {textos.botao}
           </Button>
         </DialogFooter>
       </DialogContent>
