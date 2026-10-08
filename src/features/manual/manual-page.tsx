@@ -22,6 +22,7 @@ const SUMARIO: { id: string; titulo: string }[] = [
   { id: "bi", titulo: "13. Inteligência do Negócio" },
   { id: "config", titulo: "14. Configurações" },
   { id: "global", titulo: "15. Recursos do dia a dia" },
+  { id: "novidades", titulo: "16. Novidades — outubro/2026" },
 ];
 
 export function ManualPage() {
