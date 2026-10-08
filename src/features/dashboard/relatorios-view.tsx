@@ -62,6 +62,14 @@ import {
 import type { DashboardKpisFlat } from "@/features/dashboard/derive";
 import { ticketMedio } from "@/features/dashboard/relatorios-derive";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useCorretoresAtivos,
   useCorretorNomes,
   usePipelineEtapaNominal,
 } from "@/features/dashboard/relatorios-nominais";
@@ -139,7 +147,13 @@ export function RelatoriosView() {
   const { user } = useAuth();
   const { isAdmin, isGestor } = useUserRoles();
   const canSeeAll = isAdmin || isGestor;
-  const scope = canSeeAll ? null : (user?.id ?? null);
+  const [corretorFiltro, setCorretorFiltro] = useState<string>("all");
+  const corretoresQ = useCorretoresAtivos(canSeeAll);
+  const scope = canSeeAll
+    ? corretorFiltro === "all"
+      ? null
+      : corretorFiltro
+    : (user?.id ?? null);
 
   const [preset, setPreset] = useState<PeriodPreset>("this_month");
   const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
@@ -161,14 +175,31 @@ export function RelatoriosView() {
           // controles de data disputando a mesma tela.
           // Aprovações idem: aprovação vigente é ESTADO (vale até a validade),
           // não evento do período.
-          aba === "sdr" || aba === "aprovacoes" ? null : (
-            <PeriodFilter
-              preset={preset}
-              onPresetChange={setPreset}
-              custom={custom}
-              onCustomChange={setCustom}
-            />
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            {canSeeAll && aba !== "sdr" && aba !== "time" && aba !== "corretores" && (
+              <Select value={corretorFiltro} onValueChange={setCorretorFiltro}>
+                <SelectTrigger className="w-[220px]" aria-label="Filtrar por corretor">
+                  <SelectValue placeholder="Todos os corretores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os corretores</SelectItem>
+                  {(corretoresQ.data ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome || c.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {aba === "sdr" || aba === "aprovacoes" ? null : (
+              <PeriodFilter
+                preset={preset}
+                onPresetChange={setPreset}
+                custom={custom}
+                onCustomChange={setCustom}
+              />
+            )}
+          </div>
         }
       />
 
