@@ -61,6 +61,13 @@ export function TabConfiguracoes() {
               label="Zona estrita: corretor só recebe lead da própria região"
               hint="Região = participação nas roletas de zona (aba Corretores). Desligado volta aos desvios antigos: lead de uma zona pode ir para corretor de outra."
             />
+            {/* _distribuir_lead_v3 (20261012120000): chave ausente = ligada. */}
+            <SettingBooleano
+              chave="marquinhos_antes_da_zona"
+              padrao
+              label="Lead do Marquinhos vai primeiro para a Roleta Marquinhos (da zona dele)"
+              hint="Com zona estrita: recebe quem da Roleta Marquinhos atende a zona do lead; sem ninguém apto ali, vai para o time da zona. Desligado: o lead do bot vai direto para a roleta da zona."
+            />
             <SettingNumero
               chave="percentual_minimo_trabalhado"
               label="Percentual mínimo de leads trabalhados (Roleta Plantão)"

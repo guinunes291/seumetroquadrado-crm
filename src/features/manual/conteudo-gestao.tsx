@@ -358,6 +358,72 @@ export function ConteudoGestao() {
           <Tela src="meu-perfil" legenda="Meu perfil — dados, notificações e elegibilidade." />
         </Bloco>
       </Capitulo>
+
+      <Capitulo
+        id="novidades"
+        numero="16"
+        titulo="Novidades — outubro de 2026"
+        resumo="O que mudou no CRM nas últimas semanas: lote do Bolsão, regras de carteira, telas de Leads e Relatórios, estudo diário e zonas."
+      >
+        <Bloco titulo="Pedir lote de 30 do Bolsão (/prospeccao)" quem="Corretor">
+          <p>
+            É a forma de receber base nova, além das roletas e redistribuições. Você escolhe a zona
+            e o sistema entrega até 30 clientes do Bolsão daquela zona, já em cadência D+3.
+          </p>
+          <Passos
+            itens={[
+              'Abra Prospecção e clique em "Pedir lote".',
+              "Escolha a zona — só aparecem as zonas para as quais a gestão liberou você.",
+              "Os clientes entram na sua carteira em “Aguardando retorno” com a cadência D+3.",
+              "Trabalhe o lote até o fim da cadência; quem respondeu fica na sua carteira ativa.",
+            ]}
+          />
+          <Aviso>
+            Só pode pedir um lote novo quando o anterior terminar a cadência e a sua carteira estiver
+            abaixo de 65 clientes. Se a zona tiver menos de 30, vem o que houver.
+          </Aviso>
+        </Bloco>
+
+        <Bloco titulo="Regras da carteira ativa" quem="Corretor · Gestor">
+          <Tabela
+            cabecalho={["Situação", "O que acontece"]}
+            linhas={[
+              ["Cliente parado há mais de 30 dias (Bolsão) ou 60 dias (corretor)", "Volta para a roleta ou para o Bolsão"],
+              ["Cliente sem próximo passo marcado há vários dias", "Pode ser devolvido — sempre marque o próximo passo"],
+              ["Carteira acima de 65 clientes", "Os parados há mais tempo saem até caber"],
+              ["Cliente em “Qualificação Corretor”", "Fica protegido com você durante o prazo da etapa"],
+              ["Visita, proposta, análise, venda ou cliente que você mesmo captou", "Nunca sai da sua carteira por essas regras"],
+            ]}
+          />
+          <Aviso tipo="atencao">
+            Toda devolução fica registrada e pode ser desfeita pela gestão. Registre o desfecho e o
+            próximo passo em todo contato — é isso que mantém o cliente com você.
+          </Aviso>
+        </Bloco>
+
+        <Bloco titulo="Tela de Leads e Relatórios" quem="Todos">
+          <Passos
+            itens={[
+              "Leads: um card por linha, com empreendimento, origem, renda, entrada, FGTS, corretor, último contato, próximo follow-up e resumo já visíveis.",
+              "Funil da Gestão de Leads: conta os clientes que entraram no período e até onde chegaram, não só a etapa de hoje.",
+              "Relatórios › Vendas: novo quadro “Vendas por construtora”, com quantidade e VGV, pela data de assinatura.",
+              "Relatórios: novo filtro de corretor ao lado do período, para ver Resumo, Vendas, Atividades e Aprovações de uma pessoa.",
+              "Admin pode corrigir a Origem do cliente no botão Editar da ficha.",
+            ]}
+          />
+        </Bloco>
+
+        <Bloco titulo="Estudo diário e zonas" quem="Corretor">
+          <Passos
+            itens={[
+              "O estudo obrigatório aparece uma vez por dia. Depois de concluir, não volta ao trocar de página.",
+              "Todo o ABC (Santo André, São Bernardo, São Caetano, Diadema, Mauá, Ribeirão Pires e Rio Grande da Serra) conta como Zona Sul.",
+              "Cliente fora da sua zona não é entregue a você — a regra vale para roleta, lote e devoluções.",
+              "Visita que você mesmo agendou não passa pela fila do SDR.",
+            ]}
+          />
+        </Bloco>
+      </Capitulo>
     </>
   );
 }
