@@ -15,8 +15,10 @@ export const PLANILHA_MERCADO = {
   gid: "1832124720",
 } as const;
 
-export function gvizUrl(id: string, gid: string): string {
-  return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/gviz/tq?gid=${encodeURIComponent(gid)}&headers=0&tqx=out:json`;
+/** Sem `gid`, o Google devolve a primeira aba (é o caso da planilha de lojas). */
+export function gvizUrl(id: string, gid?: string): string {
+  const aba = gid ? `gid=${encodeURIComponent(gid)}&` : "";
+  return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/gviz/tq?${aba}headers=0&tqx=out:json`;
 }
 
 export type PlanilhaEmpreendimento = {

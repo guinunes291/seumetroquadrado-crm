@@ -45,6 +45,7 @@ import { Route as AuthenticatedLeadsPorCorretorRouteImport } from './routes/_aut
 import { Route as AuthenticatedLinksUteisRouteImport } from './routes/_authenticated/links-uteis'
 import { Route as AuthenticatedLixeiraRouteImport } from './routes/_authenticated/lixeira'
 import { Route as AuthenticatedManualRouteImport } from './routes/_authenticated/manual'
+import { Route as AuthenticatedMapaLojasRouteImport } from './routes/_authenticated/mapa-lojas'
 import { Route as AuthenticatedMatchRouteImport } from './routes/_authenticated/match'
 import { Route as AuthenticatedMensagensRouteImport } from './routes/_authenticated/mensagens'
 import { Route as AuthenticatedMetasRouteImport } from './routes/_authenticated/metas'
@@ -70,6 +71,7 @@ import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedVitrineRouteImport } from './routes/_authenticated/vitrine'
 import { Route as ApiBookPdfRouteImport } from './routes/api/book-pdf'
 import { Route as ApiDocumentacaoRouteImport } from './routes/api/documentacao'
+import { Route as ApiLojasPlanilhaRouteImport } from './routes/api/lojas-planilha'
 import { Route as ApiMercadoPlanilhaRouteImport } from './routes/api/mercado-planilha'
 import { Route as ApiVitrineLinksRouteImport } from './routes/api/vitrine-links'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -311,6 +313,11 @@ const AuthenticatedManualRoute = AuthenticatedManualRouteImport.update({
   path: '/manual',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMapaLojasRoute = AuthenticatedMapaLojasRouteImport.update({
+  id: '/mapa-lojas',
+  path: '/mapa-lojas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMatchRoute = AuthenticatedMatchRouteImport.update({
   id: '/match',
   path: '/match',
@@ -437,6 +444,11 @@ const ApiBookPdfRoute = ApiBookPdfRouteImport.update({
 const ApiDocumentacaoRoute = ApiDocumentacaoRouteImport.update({
   id: '/api/documentacao',
   path: '/api/documentacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLojasPlanilhaRoute = ApiLojasPlanilhaRouteImport.update({
+  id: '/api/lojas-planilha',
+  path: '/api/lojas-planilha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMercadoPlanilhaRoute = ApiMercadoPlanilhaRouteImport.update({
@@ -752,6 +764,7 @@ export interface FileRoutesByFullPath {
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
   '/manual': typeof AuthenticatedManualRoute
+  '/mapa-lojas': typeof AuthenticatedMapaLojasRoute
   '/match': typeof AuthenticatedMatchRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
@@ -777,6 +790,7 @@ export interface FileRoutesByFullPath {
   '/vitrine': typeof AuthenticatedVitrineRoute
   '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
+  '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -864,6 +878,7 @@ export interface FileRoutesByTo {
   '/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/lixeira': typeof AuthenticatedLixeiraRoute
   '/manual': typeof AuthenticatedManualRoute
+  '/mapa-lojas': typeof AuthenticatedMapaLojasRoute
   '/match': typeof AuthenticatedMatchRoute
   '/mensagens': typeof AuthenticatedMensagensRoute
   '/metas': typeof AuthenticatedMetasRoute
@@ -889,6 +904,7 @@ export interface FileRoutesByTo {
   '/vitrine': typeof AuthenticatedVitrineRoute
   '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
+  '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -978,6 +994,7 @@ export interface FileRoutesById {
   '/_authenticated/links-uteis': typeof AuthenticatedLinksUteisRoute
   '/_authenticated/lixeira': typeof AuthenticatedLixeiraRoute
   '/_authenticated/manual': typeof AuthenticatedManualRoute
+  '/_authenticated/mapa-lojas': typeof AuthenticatedMapaLojasRoute
   '/_authenticated/match': typeof AuthenticatedMatchRoute
   '/_authenticated/mensagens': typeof AuthenticatedMensagensRoute
   '/_authenticated/metas': typeof AuthenticatedMetasRoute
@@ -1003,6 +1020,7 @@ export interface FileRoutesById {
   '/_authenticated/vitrine': typeof AuthenticatedVitrineRoute
   '/api/book-pdf': typeof ApiBookPdfRoute
   '/api/documentacao': typeof ApiDocumentacaoRoute
+  '/api/lojas-planilha': typeof ApiLojasPlanilhaRoute
   '/api/mercado-planilha': typeof ApiMercadoPlanilhaRoute
   '/api/vitrine-links': typeof ApiVitrineLinksRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -1092,6 +1110,7 @@ export interface FileRouteTypes {
     | '/links-uteis'
     | '/lixeira'
     | '/manual'
+    | '/mapa-lojas'
     | '/match'
     | '/mensagens'
     | '/metas'
@@ -1117,6 +1136,7 @@ export interface FileRouteTypes {
     | '/vitrine'
     | '/api/book-pdf'
     | '/api/documentacao'
+    | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
@@ -1204,6 +1224,7 @@ export interface FileRouteTypes {
     | '/links-uteis'
     | '/lixeira'
     | '/manual'
+    | '/mapa-lojas'
     | '/match'
     | '/mensagens'
     | '/metas'
@@ -1229,6 +1250,7 @@ export interface FileRouteTypes {
     | '/vitrine'
     | '/api/book-pdf'
     | '/api/documentacao'
+    | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
@@ -1317,6 +1339,7 @@ export interface FileRouteTypes {
     | '/_authenticated/links-uteis'
     | '/_authenticated/lixeira'
     | '/_authenticated/manual'
+    | '/_authenticated/mapa-lojas'
     | '/_authenticated/match'
     | '/_authenticated/mensagens'
     | '/_authenticated/metas'
@@ -1342,6 +1365,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vitrine'
     | '/api/book-pdf'
     | '/api/documentacao'
+    | '/api/lojas-planilha'
     | '/api/mercado-planilha'
     | '/api/vitrine-links'
     | '/.lovable/oauth/consent'
@@ -1406,6 +1430,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiBookPdfRoute: typeof ApiBookPdfRoute
   ApiDocumentacaoRoute: typeof ApiDocumentacaoRoute
+  ApiLojasPlanilhaRoute: typeof ApiLojasPlanilhaRoute
   ApiMercadoPlanilhaRoute: typeof ApiMercadoPlanilhaRoute
   ApiVitrineLinksRoute: typeof ApiVitrineLinksRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
@@ -1690,6 +1715,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManualRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mapa-lojas': {
+      id: '/_authenticated/mapa-lojas'
+      path: '/mapa-lojas'
+      fullPath: '/mapa-lojas'
+      preLoaderRoute: typeof AuthenticatedMapaLojasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/match': {
       id: '/_authenticated/match'
       path: '/match'
@@ -1863,6 +1895,13 @@ declare module '@tanstack/react-router' {
       path: '/api/documentacao'
       fullPath: '/api/documentacao'
       preLoaderRoute: typeof ApiDocumentacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/lojas-planilha': {
+      id: '/api/lojas-planilha'
+      path: '/api/lojas-planilha'
+      fullPath: '/api/lojas-planilha'
+      preLoaderRoute: typeof ApiLojasPlanilhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/mercado-planilha': {
@@ -2246,6 +2285,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLinksUteisRoute: typeof AuthenticatedLinksUteisRoute
   AuthenticatedLixeiraRoute: typeof AuthenticatedLixeiraRoute
   AuthenticatedManualRoute: typeof AuthenticatedManualRoute
+  AuthenticatedMapaLojasRoute: typeof AuthenticatedMapaLojasRoute
   AuthenticatedMatchRoute: typeof AuthenticatedMatchRoute
   AuthenticatedMensagensRoute: typeof AuthenticatedMensagensRoute
   AuthenticatedMetasRoute: typeof AuthenticatedMetasRoute
@@ -2318,6 +2358,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLinksUteisRoute: AuthenticatedLinksUteisRoute,
   AuthenticatedLixeiraRoute: AuthenticatedLixeiraRoute,
   AuthenticatedManualRoute: AuthenticatedManualRoute,
+  AuthenticatedMapaLojasRoute: AuthenticatedMapaLojasRoute,
   AuthenticatedMatchRoute: AuthenticatedMatchRoute,
   AuthenticatedMensagensRoute: AuthenticatedMensagensRoute,
   AuthenticatedMetasRoute: AuthenticatedMetasRoute,
@@ -2401,6 +2442,7 @@ const rootRouteChildren: RootRouteChildren = {
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiBookPdfRoute: ApiBookPdfRoute,
   ApiDocumentacaoRoute: ApiDocumentacaoRoute,
+  ApiLojasPlanilhaRoute: ApiLojasPlanilhaRoute,
   ApiMercadoPlanilhaRoute: ApiMercadoPlanilhaRoute,
   ApiVitrineLinksRoute: ApiVitrineLinksRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,

@@ -28,6 +28,7 @@ import {
 import type { EmpreendimentoMercado } from "@/lib/vitrine/mercado";
 import type { Situacao } from "@/lib/vitrine/vitrine";
 import { formatBRL } from "@/lib/projetos";
+import { carregarGeoSP } from "@/lib/mapa-geo-sp";
 import { cn } from "@/lib/utils";
 
 /** Centro e zoom iniciais: a mancha urbana de São Paulo inteira. */
@@ -57,25 +58,6 @@ const COR_ENQUADRAMENTO: Record<Enquadramento, string> = {
 
 function corDaSituacao(situacao: Situacao): string {
   return COR_SITUACAO[situacao];
-}
-
-type GeoLinha = { nome: string; cor: string; coords: [number, number][] };
-type GeoMercado = { zonas: GeoLinha[]; metro: GeoLinha[] };
-
-// Zonas + metrô são ~50 KB de coordenadas: ficam em public/ e são buscadas uma
-// única vez por sessão, na primeira vez que alguma das camadas é ligada.
-let geoPromise: Promise<GeoMercado> | null = null;
-function carregarGeo(): Promise<GeoMercado> {
-  geoPromise ??= fetch("/mercado-geo.json")
-    .then((r) => {
-      if (!r.ok) throw new Error(`geo_status_${r.status}`);
-      return r.json() as Promise<GeoMercado>;
-    })
-    .catch((erro) => {
-      geoPromise = null; // deixa tentar de novo no próximo toggle
-      throw erro;
-    });
-  return geoPromise;
 }
 
 type Props = {
@@ -268,7 +250,7 @@ export function MercadoMap({
     }
 
     let cancelado = false;
-    void carregarGeo()
+    void carregarGeoSP()
       .then((geo) => {
         if (cancelado || !mapaRef.current) return;
         zonasRef.current ??= L.layerGroup(

@@ -48,6 +48,7 @@ import {
   PhoneOutgoing,
   Shuffle,
   Star,
+  Storefront,
   SunHorizon,
   Target,
   Trophy,
@@ -458,7 +459,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "docs-projetos",
     titulo: "Documentação & Projetos",
-    descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapa e materiais.",
+    descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapas, lojas e materiais.",
     icon: Buildings,
     home: { to: "/projetos-foco" },
     cor: "projetos",
@@ -478,6 +479,12 @@ export const SISTEMAS: Sistema[] = [
         roles: PAPEIS_CATALOGO,
       },
       { id: "vitrine", label: "Vitrine (mapa)", icon: MapTrifold, to: "/vitrine" },
+      // Mapa de Lojas (2026-10-08): os stands de vendas das construtoras, para
+      // o atendimento ("qual o stand mais perto de mim?"). É PÁGINA, não aba
+      // da Vitrine: a Vitrine mostra onde está o produto, este mapa mostra onde
+      // o cliente é atendido — e o stand costuma ficar longe da obra. Todos os
+      // papéis, SDR incluso: quem agenda visita precisa saber para onde mandar.
+      { id: "mapa-lojas", label: "Mapa de Lojas", icon: Storefront, to: "/mapa-lojas" },
       {
         id: "materiais",
         label: "Materiais (gestão)",
