@@ -353,7 +353,7 @@ export function FilaFollowUpView() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span className="text-sm font-semibold text-foreground">Fila do dia</span>
+        <span className="text-sm font-semibold text-foreground">Fila do dia da régua</span>
         <Badge variant="secondary" className="text-xs">
           {total === 0 ? "0 leads" : `${pos} de ${total}`}
         </Badge>

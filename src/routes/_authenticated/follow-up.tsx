@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserRoles } from "@/hooks/use-auth";
 import { FilaFollowUpView } from "@/features/followup/fila-view";
+import { FollowUpTopo } from "@/features/followup/followup-topo";
 
 // Módulo Follow-Up — a régua de 13 toques virou processo: a fila do dia diz
 // quem tocar e por qual canal; KPIs mostram a curva de resposta por
@@ -64,9 +65,12 @@ function FollowUpPage() {
     <div className="space-y-4">
       <PageHeader
         title="Follow-Up"
-        description="A régua de toques: quem contatar hoje e por qual canal, até a resposta — ou a decisão."
+        description="A cadência até o cliente responder. Depois, a régua dos 13 toques."
       />
 
+      {/* Na abertura do módulo, o processo inteiro antes da fila (identidade
+          Lançamento, como no vídeo): a cadência por etapa e a régua. */}
+      {!tab && <FollowUpTopo />}
       {!tab && <FilaFollowUpView />}
       {tab === "kpis" && (
         <Suspense fallback={<AbaSkeleton />}>

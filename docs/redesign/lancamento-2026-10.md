@@ -169,15 +169,46 @@ página tem a alternância Lista / Kanban:
   duplo do StrictMode marcava "já cheguei" na limpeza). Agora cada animação
   parte do valor que está na tela. Testado em `tests/animated-number.test.tsx`.
 
+## Fase 5 — Follow-Up (05) ✅
+
+O quadro do vídeo é a abertura do módulo (`/follow-up`). O topo novo
+(`followup-topo.tsx`, conta em `topo-derive.ts`) vem antes da fila da régua,
+que segue igual — agora chamada "Fila do dia da régua", para não confundir com
+a Fila do Dia da cadência:
+
+- **"Até o cliente responder: a cadência"** — um cartão por etapa, cada um
+  com o checklist do que a fecha e, em cada item, quantos clientes da etapa já
+  o cumpriram ("2 de 3"); item cumprido por todos ganha o ✓ verde do vídeo.
+  Os prazos ("1 venceu", "2 vencem hoje") aparecem quando há o que cobrar.
+  Atalhos para a Fila do Dia e o Kanban da cadência. No celular, os cartões
+  viram uma faixa que desliza (quatro empilhados empurrariam a fila para
+  longe).
+- **"Depois da resposta: a régua dos 13 toques"** — a linha de passos do
+  vídeo, com o telefone nos toques por ligação e, em dourado, os toques em
+  que estão os clientes da fila de hoje (com a quantidade). O teto e os
+  toques por ligação vêm da régua configurada, não do texto.
+- Sem consulta nova: a cadência é a mesma leitura do Kanban da cadência
+  (`cadencia_kanban_v1`) e a régua, a mesma da fila logo abaixo
+  (`followup_fila_v1`) — mesmas chaves de cache.
+
+Onde a tela diverge do vídeo, de propósito — o vídeo resume, a tela não pode
+ensinar um processo diferente do que o motor cobra:
+
+| O vídeo mostra                                      | A tela mostra                                                        | Por quê                                                                                                                                                                                                                |
+| --------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Três dias: D1, D2, D3                               | Quatro etapas: Lead chegou, 1º follow-up, 2º follow-up, encerramento | É a cadência de 4 etapas e 10 toques (decisão de 26/09, `20261001120000`). Juntar os dois follow-ups num cartão esconderia uma etapa que vence e manda o lead para a roleta.                                           |
+| "Mensagem de abertura" e "WhatsApp" como dois itens | 1ª ligação, 2ª ligação, WhatsApp de abertura                         | A abertura É o WhatsApp do Lead chegou (template `cadencia_D0`); `cadencia_etapa_completa` conta 2 ligações + 1 WhatsApp. E a ordem é a da Fila do Dia: liga antes, porque a mensagem diz "acabei de tentar te ligar". |
+| Selo "D1" no primeiro dia                           | Ícone no Lead chegou; D1, D2 e D3 nos follow-ups e no encerramento   | "D0" é código interno — "o primeiro toque não é um follow-up" (decisão do dono). D1, D2 e D3 são as palavras da operação.                                                                                              |
+| "Depois do D3: a régua dos 13 toques"               | "Depois da resposta: a régua dos 13 toques"                          | A régua assume quando o cliente responde. Quem cumpre o encerramento sem responder vai para o descanso e a reativação (`docs/ops/cadencia-followup-reativacao.md`), não para a régua.                                  |
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
 de composição e acabamento. Ordem sugerida pelo uso diário (Central de
-Comando, Prospecção e Gestão de Carteira estão feitas — acima):
+Comando, Prospecção, Gestão de Carteira e Follow-Up estão feitas — acima):
 
 | Módulo                     | O vídeo mostra                                                                                                | O que já existe                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 05 Follow-Up               | D1 / D2 / D3 lado a lado com checklist e a régua dos 13 toques como linha de passos                           | `/cadencia` (Fila do Dia, Kanban) e `/follow-up` (régua)         |
 | 04 Modo Visita             | Cartão navy da visita (Ligar, WhatsApp, Rota, Documentos), briefing de 30 s, potencial de crédito e checklist | `briefing-visita.tsx`, simulador de financiamento                |
 | 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar          | Projetos em Foco já tem renda e "Só o que cabe"                  |
 | 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período         | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
