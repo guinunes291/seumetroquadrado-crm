@@ -951,20 +951,24 @@ function LeadsPage() {
 
   return (
     <div className="space-y-6">
+      {/* A porta da Gestão de Carteira leva o nome do módulo (identidade
+          Lançamento, como no vídeo); a trilha e a sidebar dizem "Base de
+          leads". */}
       <PageHeader
-        title="Leads"
-        description="Funil de leads, distribuição e qualificação."
+        title="Gestão de Carteira"
+        description="Base de leads, kanban, agenda e tarefas num só lugar."
         actions={
           // Quebra linha em vez de rolar de lado: no celular a rolagem
           // horizontal escondia "Novo lead" fora da tela, que é justamente a
           // ação principal da página.
           <div className="flex max-w-full flex-wrap items-center gap-2 [&_a]:min-h-11 [&_button]:min-h-11">
-            <div className="inline-flex rounded-md border bg-card p-0.5">
+            <div className="inline-flex rounded-full border border-border-subtle bg-card p-1">
               <Button
                 size="sm"
                 variant={activeView === "lista" ? "default" : "ghost"}
                 aria-pressed={activeView === "lista"}
                 onClick={() => setView("lista")}
+                className="rounded-full px-4"
               >
                 <List className="h-4 w-4 mr-1" /> Lista
               </Button>
@@ -973,6 +977,7 @@ function LeadsPage() {
                 variant={activeView === "kanban" ? "default" : "ghost"}
                 aria-pressed={activeView === "kanban"}
                 onClick={() => setView("kanban")}
+                className="rounded-full px-4"
               >
                 <Kanban className="h-4 w-4 mr-1" /> Kanban
               </Button>

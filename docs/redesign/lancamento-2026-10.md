@@ -138,15 +138,41 @@ O Modo Foco (`/prospeccao`, a porta do módulo) ficou como o quadro do vídeo:
 Testes: `tests/prospeccao-lancamento.test.tsx` (campos, posição, atalhos,
 silêncio com o foco aberto e com modificador, botões).
 
+## Fase 4 — Gestão de Carteira (03) ✅
+
+O quadro do vídeo é a Base de leads (`/leads`) na visão Kanban — a mesma
+página tem a alternância Lista / Kanban:
+
+- **Título do módulo** ("Gestão de Carteira", eyebrow `MÓDULO 03`) e o
+  subtítulo do vídeo; a trilha e a sidebar continuam dizendo "Base de
+  leads". A alternância Lista / Kanban virou pílula.
+- **Cartão enxuto** (`leads-kanban-board.tsx`, vale também para o
+  `/pipeline`): nome e temperatura, o empreendimento e "próximo passo: …".
+  Saíram do cartão o telefone e o e-mail (estão no dossiê-relâmpago, no
+  clique do nome) e a alça de arrasto (o cartão inteiro arrasta). O nome do
+  corretor só aparece para a gestão — para o corretor a carteira é toda
+  dele. Os prazos (SLA, transferência, dias parado) só aparecem quando há o
+  que cobrar.
+- **"Próximo passo" continua com alvo de 44 px** (decisão travada em
+  `tests/final-regressions.test.ts`), agora com cara de linha de texto.
+- **Menu de etapa e descarte** aparecem no canto ao passar o mouse ou focar
+  o cartão no desktop; no toque ficam sempre visíveis.
+- **Coluna** em painel cinza-claro, título em Sora e a contagem como número
+  simples. O fio de 2 px da cor da etapa ficou: com ~10 colunas lado a lado
+  ele é o que ajuda a achar a etapa (o vídeo mostra 4).
+- **Correção de passagem:** `useCountUp` (números que "contam" — kanban,
+  ranking, KPIs) ficava parado em 0 no modo de desenvolvimento (o efeito
+  duplo do StrictMode marcava "já cheguei" na limpeza). Agora cada animação
+  parte do valor que está na tela. Testado em `tests/animated-number.test.tsx`.
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
 de composição e acabamento. Ordem sugerida pelo uso diário (Central de
-Comando e Prospecção estão feitas — acima):
+Comando, Prospecção e Gestão de Carteira estão feitas — acima):
 
 | Módulo                     | O vídeo mostra                                                                                                | O que já existe                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 03 Gestão de Carteira      | Kanban de 4 colunas com cartões enxutos (temperatura, horário, próximo passo) e alternador Lista / Kanban     | `/pipeline`, `leads-kanban-board.tsx`                            |
 | 05 Follow-Up               | D1 / D2 / D3 lado a lado com checklist e a régua dos 13 toques como linha de passos                           | `/cadencia` (Fila do Dia, Kanban) e `/follow-up` (régua)         |
 | 04 Modo Visita             | Cartão navy da visita (Ligar, WhatsApp, Rota, Documentos), briefing de 30 s, potencial de crédito e checklist | `briefing-visita.tsx`, simulador de financiamento                |
 | 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar          | Projetos em Foco já tem renda e "Só o que cabe"                  |
