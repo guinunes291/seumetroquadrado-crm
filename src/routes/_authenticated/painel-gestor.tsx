@@ -3,6 +3,7 @@ import { lazy, Suspense, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRoles } from "@/hooks/use-auth";
+import { PageHeader } from "@/components/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
@@ -193,6 +194,12 @@ function PainelGestorPage() {
 
   return (
     <Tabs value={activeTab} onValueChange={onTabChange} className="space-y-4">
+      {/* Identidade Lançamento (como no vídeo): o título do módulo e a frase
+          antes das abas. */}
+      <PageHeader
+        title="BI · Relatórios"
+        description="Seu Raio-X individual e os painéis da operação, ao vivo."
+      />
       {totalEmpresa && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border bg-card px-4 py-2 text-sm">
           <span className="font-medium text-muted-foreground">Vendas da empresa</span>
@@ -207,13 +214,29 @@ function PainelGestorPage() {
           </span>
         </div>
       )}
-      <TabsList className="h-auto flex-wrap justify-start">
-        <TabsTrigger value="dia">Dia</TabsTrigger>
-        <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-        <TabsTrigger value="funil">Funil</TabsTrigger>
-        <TabsTrigger value="time">Time</TabsTrigger>
-        <TabsTrigger value="metas">Metas & Ritmo</TabsTrigger>
-      </TabsList>
+      <div className="flex flex-wrap items-center gap-3">
+        <TabsList className="h-auto flex-wrap justify-start">
+          <TabsTrigger value="dia">Dia</TabsTrigger>
+          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          <TabsTrigger value="funil">Funil</TabsTrigger>
+          <TabsTrigger value="time">Time</TabsTrigger>
+          <TabsTrigger value="metas">Metas & Ritmo</TabsTrigger>
+        </TabsList>
+        {/* Só a aba Dia se atualiza sozinha (exceções a cada 2 min, números
+            a cada 1) — o selo não aparece onde o dado é de consulta. */}
+        {activeTab === "dia" && (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive"
+            title="Atualiza sozinho: exceções a cada 2 minutos, números do mês a cada minuto."
+          >
+            <span
+              aria-hidden="true"
+              className="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive motion-reduce:animate-none"
+            />
+            ao vivo
+          </span>
+        )}
+      </div>
 
       {/* Filtros persistentes na URL das abas analíticas (compartilháveis) */}
       {mostraFiltros && (

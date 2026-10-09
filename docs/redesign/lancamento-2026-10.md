@@ -294,18 +294,40 @@ aqui deixaria o sistema desigual) e o valor da venda com centavos (numa
 aprovação financeira o valor exato importa; estimativa sem centavos é a do
 Modo Visita).
 
+## Fase 9 — BI · Relatórios (09) ✅
+
+O quadro do vídeo é o painel da gestão (`/painel-gestor`, aba Dia) — a porta
+do BI para gestão; o corretor continua entrando pelo Meu Raio-X.
+
+- **O título do módulo antes das abas** ("BI · Relatórios", eyebrow
+  `MÓDULO 09`, a frase do vídeo) e o selo **● ao vivo** ao lado das abas —
+  só na aba Dia, que é a que se atualiza sozinha (exceções a cada 2 min,
+  números a cada minuto); nas outras o dado é de consulta e o selo mentiria.
+- **O topo da aba Dia** (`dia-topo.tsx`, conta em `dia-resumo.ts`):
+  - os quatro números do mês — vendas, VGV, visitas e conversão — de
+    `dashboard_kpis`, a mesma fonte dos Relatórios;
+  - **Vendas · últimas 12 semanas**, somando `dashboard_serie_diaria` por
+    semana de segunda a domingo no calendário de São Paulo; a semana atual em
+    dourado ("ainda em andamento");
+  - **Exceções**: as três mais graves do mesmo feed da aba (ordenadas por
+    severidade e R$ no banco), com a borda da cor da gravidade e "Ver todas",
+    que desce até o feed completo — seleção em lote, transferência e
+    exportação continuam lá.
+- **Conversão** não tinha número único no CRM: o topo usa vendas do mês ÷
+  leads que entraram no mês, e diz isso na dica ("leitura do mês, não
+  coorte").
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
 de composição e acabamento. Ordem sugerida pelo uso diário (Central de
 Comando, Prospecção, Gestão de Carteira, Follow-Up, Modo Visita, Documentação &
-Projetos e Assinaturas & Comissões estão feitas — acima):
+Projetos, Assinaturas & Comissões e BI · Relatórios estão feitas — acima):
 
-| Módulo             | O vídeo mostra                                                                                               | O que já existe                               |
-| ------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| 09 BI · Relatórios | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$ | Painel do Gestor já tem as abas e as exceções |
-| 06 Pré-venda (SDR) | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                      | Hub `/sdr`; a roda é desenho novo             |
-| 10 Academia        | Trilha em 5 passos, quiz e certificado                                                                       | Trilha, quiz e certificado existem            |
+| Módulo             | O vídeo mostra                                                          | O que já existe                    |
+| ------------------ | ----------------------------------------------------------------------- | ---------------------------------- |
+| 06 Pré-venda (SDR) | Quatro colunas de contagem e a roleta desenhada como roda de corretores | Hub `/sdr`; a roda é desenho novo  |
+| 10 Academia        | Trilha em 5 passos, quiz e certificado                                  | Trilha, quiz e certificado existem |
 
 Fora de escopo de propósito: o contador `00 / 10` e a pílula com a URL são
 recursos de edição do vídeo, não do produto. O logo continua o PNG da marca
