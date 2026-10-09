@@ -106,24 +106,27 @@ própria do dono — ver §9.
 
 ## 3. Filiais e localização
 
-A migration cria as três filiais com os endereços passados pelo dono:
+A migration cria as três filiais com endereço e coordenadas passados pelo
+dono (09/10/2026 — o pino de cada loja no Google Maps), raio de 300 m:
 
-| Filial      | Endereço                                                                  |
-| ----------- | ------------------------------------------------------------------------- |
-| Barra Funda | Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003 |
-| Liberdade   | Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001             |
-| Belém       | Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002          |
+| Filial      | Endereço                                                                  | Coordenadas            |
+| ----------- | ------------------------------------------------------------------------- | ---------------------- |
+| Barra Funda | Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003 | -23.520116, -46.676975 |
+| Liberdade   | Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001             | -23.561250, -46.638897 |
+| Belém       | Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002          | -23.544943, -46.585915 |
 
-**As coordenadas NÃO vêm na migration.** O ambiente onde ela foi escrita não
-alcançava nenhum geocodificador (OpenStreetMap, Google, ArcGIS, ViaCEP), e os
-sites de CEP só dão o centro do trecho do CEP — o 01502-001 cobre a Av. da
-Liberdade "do 370 ao fim, lado par". Com raio de 300 m, um ponto chutado faria
-check-in legítimo aparecer "fora do raio". Para preencher (admin ou gestor):
-**/presenca → Filiais → "Buscar pelo endereço"** (consulta o OpenStreetMap no
-navegador, o mesmo do Mapa de Lojas) → **"Ver no mapa"** para conferir →
-**Salvar**. Se a busca achar só a avenida (não o número), a tela avisa; nesse
-caso, no Google Maps, botão direito na porta da loja → clique nos números →
-cole no campo.
+Conferência: o ponto da Barra Funda fica a 222 m do centro da Av. Marquês de
+São Vicente; o da Liberdade, a **491 m** do centro do CEP 01502-001 (que cobre
+a avenida "do 370 ao fim"). É por isso que as coordenadas vêm do pino da loja e
+não do CEP: com raio de 300 m, o centro do CEP faria todo check-in legítimo na
+Liberdade aparecer "fora do raio" (`tests/db/presenca-filial.test.ts` prova os
+dois casos).
+
+**Filial nova** (ou para corrigir um ponto): /presenca → Filiais (admin ou
+gestor) → **"Buscar pelo endereço"** (consulta o OpenStreetMap no navegador, o
+mesmo do Mapa de Lojas) → **"Ver no mapa"** para conferir → **Salvar**. Se a
+busca achar só a avenida (não o número), a tela avisa; nesse caso, no Google
+Maps, botão direito na porta da loja → clique nos números → cole no campo.
 
 No check-in **na filial**, o celular informa a localização **só naquele
 momento**; o banco calcula a **distância até a loja** e descarta a coordenada
@@ -143,8 +146,7 @@ m)", "A 4,2 km da filial"). Para **exigir**: Central de Distribuição →
 Configurações → _"Check-in na filial exige a localização do celular"_. Ligado,
 fora do raio ou sem localização o check-in fica registrado mas não libera.
 
-**Recomendação:** depois de cadastrar as coordenadas, rode 1–2 semanas só
-informando, olhe no quadro quantos check-ins legítimos aparecem como "fora do
+**Recomendação:** rode as primeiras 1–2 semanas só informando, olhe no quadro quantos check-ins legítimos aparecem como "fora do
 raio" (computador de mesa na loja, sem Wi-Fi, costuma ter localização ruim) e
 só então ligue a exigência.
 
@@ -193,12 +195,12 @@ vendas sai. A presença obrigatória nas filas não tem chave: é a decisão 2.
    lead de nenhuma fila. Quem teve 3 ou mais vendas aprovadas no mês anterior
    recebe leads de casa o mês inteiro; abaixo disso, só no plantão. O CRM
    mostra quantas vendas você teve."_
-3. **Coordenadas das filiais** (§3): um clique por filial em /presenca.
-4. **Deploy:** o Lovable aplica `drizzle/migrations` ao chegar no `main`
+3. **Deploy:** o Lovable aplica `drizzle/migrations` ao chegar no `main`
    (`0074`, `when` maior que o da `0073`). Depois do merge, conferir:
 
 ```sql
-SELECT slug, endereco FROM public.filiais ORDER BY ordem;               -- 3, com endereço
+SELECT slug, endereco, latitude, longitude
+  FROM public.filiais ORDER BY ordem;                                    -- 3, com endereço e coordenadas
 SELECT chave, valor FROM public.distribuicao_settings
  WHERE chave LIKE 'presenca_%';                                          -- 3 / false
 SELECT slug FROM public.roletas

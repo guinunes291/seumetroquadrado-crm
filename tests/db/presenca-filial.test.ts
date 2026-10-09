@@ -45,7 +45,14 @@ let ana: UsuarioTeste;
 let beto: UsuarioTeste;
 let caio: UsuarioTeste;
 let mesAnterior: string; // YYYY-MM-01
-let enderecosOriginais: { slug: string; endereco: string | null }[];
+type FilialOriginal = {
+  slug: string;
+  endereco: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  raio_metros: number;
+};
+let filiaisOriginais: FilialOriginal[];
 
 type Status = {
   presente: boolean;
@@ -186,7 +193,9 @@ beforeAll(async () => {
   await venda(caio, noMesAnterior, "aprovada", true);
   await venda(caio, datas.atual, "aprovada");
 
-  enderecosOriginais = (await c.query(`SELECT slug, endereco FROM public.filiais`)).rows;
+  filiaisOriginais = (
+    await c.query(`SELECT slug, endereco, latitude, longitude, raio_metros FROM public.filiais`)
+  ).rows;
   await setting("presenca_casa_min_vendas_mes_anterior", 3);
   await setting("presenca_loja_exige_localizacao", false);
 });
@@ -194,9 +203,14 @@ beforeAll(async () => {
 afterAll(async () => {
   await setting("presenca_casa_min_vendas_mes_anterior", 3);
   await setting("presenca_loja_exige_localizacao", false);
-  await c.query(`UPDATE public.filiais SET latitude = NULL, longitude = NULL, raio_metros = 300`);
-  for (const f of enderecosOriginais) {
-    await c.query(`UPDATE public.filiais SET endereco = $2 WHERE slug = $1`, [f.slug, f.endereco]);
+  // Devolve as filiais como a migration as criou (endereço, coordenadas e
+  // raio do dono): os testes de localização mexem nelas.
+  for (const f of filiaisOriginais) {
+    await c.query(
+      `UPDATE public.filiais SET endereco = $2, latitude = $3, longitude = $4, raio_metros = $5
+        WHERE slug = $1`,
+      [f.slug, f.endereco, f.latitude, f.longitude, f.raio_metros],
+    );
   }
   await limparDados(c);
   await c.end();
@@ -219,6 +233,36 @@ describe("as filiais", () => {
       ["liberdade", "Liberdade", "Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001"],
       ["belem", "Belém", "Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002"],
     ]);
+  });
+
+  it("…e com as coordenadas do pino de cada loja (passadas pelo dono), raio de 300 m", async () => {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT slug, latitude, longitude, raio_metros FROM public.filiais ORDER BY ordem`,
+    );
+    expect(r.rows).toEqual([
+      { slug: "barra-funda", latitude: -23.520116, longitude: -46.676975, raio_metros: 300 },
+      { slug: "liberdade", latitude: -23.56125, longitude: -46.638897, raio_metros: 300 },
+      { slug: "belem", latitude: -23.544943, longitude: -46.585915, raio_metros: 300 },
+    ]);
+  });
+
+  it("check-in a ~80 m da loja da Liberdade conta como na filial; do centro do CEP (491 m), não", async () => {
+    // Corretora própria: a sequência de check-ins da Ana é conferida adiante.
+    const lia = await criarUsuario(c, { nome: "Lia Liberdade" });
+    const perto = await checkin(lia, "loja", "liberdade", {
+      lat: -23.56053,
+      lng: -46.63889,
+      precisao: 20,
+    });
+    expect(perto.checkin?.localizacao).toBe("confirmada");
+    expect(perto.checkin?.distancia_m).toBe(80);
+    const doCep = await checkin(lia, "loja", "liberdade", {
+      lat: -23.55737,
+      lng: -46.63659,
+      precisao: 20,
+    });
+    expect(doCep.checkin).toMatchObject({ localizacao: "fora_do_raio", distancia_m: 491 });
   });
 });
 
@@ -546,7 +590,11 @@ describe("conferência de localização (só na filial)", () => {
       const perto = await checkin(ana, "loja", "barra-funda", { lat: -23.5262, lng: -46.6661 });
       expect(perto.presente).toBe(true);
 
-      // filial sem coordenadas não tem como conferir: libera e marca o porquê
+      // filial sem coordenadas (ex.: uma filial nova) não tem como conferir:
+      // libera e marca o porquê
+      await c.query(
+        `UPDATE public.filiais SET latitude = NULL, longitude = NULL WHERE slug = 'liberdade'`,
+      );
       const lib = await checkin(ana, "loja", "liberdade");
       expect(lib.checkin).toMatchObject({
         apto_roleta: true,

@@ -40,9 +40,9 @@
 -- Distribuição → Configurações); 0 desliga a regra.
 --
 -- Peças:
---   1. filiais ............ Barra Funda, Liberdade, Belém, com os endereços do
---                           dono (coordenadas e raio pela gestão em /presenca;
---                           sem coordenadas, não há conferência de localização)
+--   1. filiais ............ Barra Funda, Liberdade, Belém, com endereço e
+--                           coordenadas passados pelo dono (raio 300 m; a
+--                           gestão ajusta em /presenca)
 --   2. presenca_checkins .. um registro por check-in (onde, se liberou roleta e
 --                           por quê, vendas do mês anterior). Não guarda a
 --                           coordenada do celular — só a DISTÂNCIA até a filial.
@@ -97,19 +97,26 @@ DROP TRIGGER IF EXISTS trg_filiais_updated_at ON public.filiais;
 CREATE TRIGGER trg_filiais_updated_at BEFORE UPDATE ON public.filiais
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Endereços passados pelo dono (09/10/2026). Coordenadas ficam para a gestão
--- em /presenca → Filiais ("Buscar pelo endereço" + conferir no mapa): sem um
--- geocodificador confiável aqui, ponto chutado a 300 m de raio faria check-in
--- legítimo aparecer "fora do raio".
-INSERT INTO public.filiais (slug, nome, ordem, endereco) VALUES
+-- Endereços e coordenadas passados pelo dono (09/10/2026; coordenadas do pino
+-- de cada loja no Google Maps, gravadas com 6 casas ≈ 10 cm). Não vêm do CEP de
+-- propósito: o centro do CEP da Liberdade (01502-001, "do 370 ao fim") fica a
+-- 491 m da loja — com raio de 300 m, todo check-in legítimo ali pareceria
+-- "fora do raio". Filial que já existir (reaplicação) só ganha o que faltar.
+INSERT INTO public.filiais (slug, nome, ordem, endereco, latitude, longitude) VALUES
   ('barra-funda', 'Barra Funda', 1,
-   'Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003'),
+   'Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003',
+   -23.520116, -46.676975),
   ('liberdade',   'Liberdade',   2,
-   'Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001'),
+   'Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001',
+   -23.561250, -46.638897),
   ('belem',       'Belém',       3,
-   'Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002')
-ON CONFLICT (slug) DO UPDATE SET endereco = EXCLUDED.endereco
-  WHERE public.filiais.endereco IS NULL;
+   'Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002',
+   -23.544943, -46.585915)
+ON CONFLICT (slug) DO UPDATE SET
+  endereco  = coalesce(public.filiais.endereco, EXCLUDED.endereco),
+  latitude  = coalesce(public.filiais.latitude, EXCLUDED.latitude),
+  longitude = CASE WHEN public.filiais.latitude IS NULL
+                   THEN EXCLUDED.longitude ELSE public.filiais.longitude END;
 
 ALTER TABLE public.filiais ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.filiais FROM PUBLIC, anon, authenticated;
