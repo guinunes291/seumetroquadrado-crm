@@ -36,6 +36,7 @@ import {
   TIPOS_ORDENADOS,
   type ExcecaoTipo,
 } from "./derive";
+import { DiaTopo } from "./dia-topo";
 import { ExcecaoItem } from "./excecao-item";
 import { usePainelDia } from "./use-painel-dia";
 import { ExcecaoForaDaRegiaoFields } from "@/features/distribuicao/excecao-fora-da-regiao";
@@ -172,8 +173,15 @@ export function PainelDiaView() {
 
   return (
     <div className="space-y-4 pb-24 md:pb-0">
+      {/* Identidade Lançamento (como no vídeo): os números do mês, as 12
+          semanas e as exceções mais graves; o feed completo segue abaixo. */}
+      <DiaTopo painel={painel} />
+
       {/* Cabeçalho: total, R$ em risco e frescor do dado */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <div
+        id="excecoes"
+        className="flex scroll-mt-24 flex-wrap items-baseline gap-x-3 gap-y-1 pt-2"
+      >
         <span className="font-display text-lg font-semibold">
           {resumo.total === 0
             ? "Nenhuma exceção agora"
