@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
+import { CheckinPendenteBanner } from "@/features/presenca/checkin-pendente-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { NavBreadcrumb } from "@/features/nav/nav-breadcrumb";
@@ -80,8 +81,9 @@ const MetasDiaGlobal = lazy(() =>
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  // Sessão, conta ativa e presença vivem no guard compartilhado com o hub
-  // /inicio (src/lib/auth-guard.ts) — uma única fonte de verdade.
+  // Sessão e conta ativa vivem no guard compartilhado com o hub /inicio
+  // (src/lib/auth-guard.ts) — uma única fonte de verdade. A presença virou
+  // check-in por filial (/presenca), cobrado pela CheckinPendenteBanner.
   beforeLoad: ({ location }) => guardarRotaAutenticada(location.href),
   component: AuthenticatedLayout,
 });
@@ -139,6 +141,7 @@ function AuthenticatedLayout() {
           {/* pb-24 reserva o espaço do BottomNav no mobile. */}
           <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
             <AvatarRequiredBanner />
+            <CheckinPendenteBanner />
             {/* O módulo da página vai por contexto ao eyebrow do PageHeader. */}
             <ModuloAtualProvider>
               <Outlet />

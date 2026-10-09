@@ -214,7 +214,7 @@ describe("JORNADA 1 — lead do intake até contrato_fechado via aprovar_venda",
       corretorJ1.id,
     ]);
     await comoUsuario(c, corretorJ1.id);
-    await c.query(`SELECT public.marcar_presenca(true)`);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
 
     await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT public.triar_e_distribuir_lead($1::uuid, 'jornada1') AS res`, [
@@ -558,7 +558,7 @@ describe("JORNADA 2 — lead distribuído que não responde até marcar_lead_per
       corretorJ2.id,
     ]);
     await comoUsuario(c, corretorJ2.id);
-    await c.query(`SELECT public.marcar_presenca(true)`);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
 
     leadId = await leadViaIntake("Cliente Jornada 2", "11977770002");
     await comoUsuario(c, admin.id);

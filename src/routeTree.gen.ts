@@ -57,6 +57,7 @@ import { Route as AuthenticatedMeus65RouteImport } from './routes/_authenticated
 import { Route as AuthenticatedModoVisitaRouteImport } from './routes/_authenticated/modo-visita'
 import { Route as AuthenticatedPainelGestorRouteImport } from './routes/_authenticated/painel-gestor'
 import { Route as AuthenticatedPipelineRouteImport } from './routes/_authenticated/pipeline'
+import { Route as AuthenticatedPresencaRouteImport } from './routes/_authenticated/presenca'
 import { Route as AuthenticatedProjetosFocoRouteImport } from './routes/_authenticated/projetos-foco'
 import { Route as AuthenticatedProjetosMateriaisRouteImport } from './routes/_authenticated/projetos-materiais'
 import { Route as AuthenticatedProspeccaoRouteImport } from './routes/_authenticated/prospeccao'
@@ -372,6 +373,11 @@ const AuthenticatedPainelGestorRoute =
 const AuthenticatedPipelineRoute = AuthenticatedPipelineRouteImport.update({
   id: '/pipeline',
   path: '/pipeline',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPresencaRoute = AuthenticatedPresencaRouteImport.update({
+  id: '/presenca',
+  path: '/presenca',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjetosFocoRoute =
@@ -776,6 +782,7 @@ export interface FileRoutesByFullPath {
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
+  '/presenca': typeof AuthenticatedPresencaRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
@@ -890,6 +897,7 @@ export interface FileRoutesByTo {
   '/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/pipeline': typeof AuthenticatedPipelineRoute
+  '/presenca': typeof AuthenticatedPresencaRoute
   '/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/prospeccao': typeof AuthenticatedProspeccaoRoute
@@ -1006,6 +1014,7 @@ export interface FileRoutesById {
   '/_authenticated/modo-visita': typeof AuthenticatedModoVisitaRoute
   '/_authenticated/painel-gestor': typeof AuthenticatedPainelGestorRoute
   '/_authenticated/pipeline': typeof AuthenticatedPipelineRoute
+  '/_authenticated/presenca': typeof AuthenticatedPresencaRoute
   '/_authenticated/projetos-foco': typeof AuthenticatedProjetosFocoRoute
   '/_authenticated/projetos-materiais': typeof AuthenticatedProjetosMateriaisRoute
   '/_authenticated/prospeccao': typeof AuthenticatedProspeccaoRoute
@@ -1122,6 +1131,7 @@ export interface FileRouteTypes {
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
+    | '/presenca'
     | '/projetos-foco'
     | '/projetos-materiais'
     | '/prospeccao'
@@ -1236,6 +1246,7 @@ export interface FileRouteTypes {
     | '/modo-visita'
     | '/painel-gestor'
     | '/pipeline'
+    | '/presenca'
     | '/projetos-foco'
     | '/projetos-materiais'
     | '/prospeccao'
@@ -1351,6 +1362,7 @@ export interface FileRouteTypes {
     | '/_authenticated/modo-visita'
     | '/_authenticated/painel-gestor'
     | '/_authenticated/pipeline'
+    | '/_authenticated/presenca'
     | '/_authenticated/projetos-foco'
     | '/_authenticated/projetos-materiais'
     | '/_authenticated/prospeccao'
@@ -1796,6 +1808,13 @@ declare module '@tanstack/react-router' {
       path: '/pipeline'
       fullPath: '/pipeline'
       preLoaderRoute: typeof AuthenticatedPipelineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/presenca': {
+      id: '/_authenticated/presenca'
+      path: '/presenca'
+      fullPath: '/presenca'
+      preLoaderRoute: typeof AuthenticatedPresencaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/projetos-foco': {
@@ -2297,6 +2316,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedModoVisitaRoute: typeof AuthenticatedModoVisitaRoute
   AuthenticatedPainelGestorRoute: typeof AuthenticatedPainelGestorRoute
   AuthenticatedPipelineRoute: typeof AuthenticatedPipelineRoute
+  AuthenticatedPresencaRoute: typeof AuthenticatedPresencaRoute
   AuthenticatedProjetosFocoRoute: typeof AuthenticatedProjetosFocoRoute
   AuthenticatedProjetosMateriaisRoute: typeof AuthenticatedProjetosMateriaisRoute
   AuthenticatedProspeccaoRoute: typeof AuthenticatedProspeccaoRoute
@@ -2371,6 +2391,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedModoVisitaRoute: AuthenticatedModoVisitaRoute,
   AuthenticatedPainelGestorRoute: AuthenticatedPainelGestorRoute,
   AuthenticatedPipelineRoute: AuthenticatedPipelineRoute,
+  AuthenticatedPresencaRoute: AuthenticatedPresencaRoute,
   AuthenticatedProjetosFocoRoute: AuthenticatedProjetosFocoRoute,
   AuthenticatedProjetosMateriaisRoute: AuthenticatedProjetosMateriaisRoute,
   AuthenticatedProspeccaoRoute: AuthenticatedProspeccaoRoute,

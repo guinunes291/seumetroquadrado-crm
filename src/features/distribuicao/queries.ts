@@ -648,6 +648,10 @@ export const DISTRIBUICAO_KEYS = [
   ["gestao:equipe-metricas"],
   ["gestao:tier-hist"],
   ["gestao:projetos-mini"],
+  // Presença por filial (20261013120000): o interruptor de presença da
+  // Central vira check-in "liberado pela gestão" — o quadro de /presenca e o
+  // card do corretor leem a mesma linha.
+  ["presenca"],
 ] as const;
 
 function useInvalidateDistribuicao() {
@@ -789,7 +793,11 @@ export function useMarcarPresencaAdmin() {
     },
     onSuccess: (_res, args) => {
       invalidate();
-      toast.success(args.presente ? "Presença marcada." : "Presença removida.");
+      toast.success(
+        args.presente
+          ? "Na roleta hoje — registrado como liberado pela gestão."
+          : "Presença encerrada: fora da roleta até o próximo check-in.",
+      );
     },
     onError: (e: Error) => toast.error(`Falha ao marcar presença: ${e.message}`),
   });

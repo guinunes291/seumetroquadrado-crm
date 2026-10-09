@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { PRESENCA_OBRIGATORIA_HINT, presencaObrigatoria } from "@/lib/distribuicao";
 import { useAtualizarRoleta, useProjetosMini, useRecalcularTiers, type RoletaRow } from "./queries";
 import { HorarioRoletaCell } from "./setting-fields";
 
@@ -71,13 +72,16 @@ export function FilaPropriedades({
             />
             Ativa
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label
+            className="flex items-center gap-2 text-sm"
+            title={presencaObrigatoria(roleta) ? PRESENCA_OBRIGATORIA_HINT : undefined}
+          >
             <Switch
               checked={roleta.exigir_presenca}
-              disabled={somenteLeitura || atualizar.isPending}
+              disabled={somenteLeitura || atualizar.isPending || presencaObrigatoria(roleta)}
               onCheckedChange={(v) => atualizar.mutate({ slug: roleta.slug, exigirPresenca: v })}
             />
-            Exigir presença
+            {presencaObrigatoria(roleta) ? "Exige presença (obrigatória)" : "Exigir presença"}
           </label>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Horário (BRT):</span>

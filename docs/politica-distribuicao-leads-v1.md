@@ -19,16 +19,16 @@ Prioridade declarada do modelo quando houver conflito: **velocidade > conversão
 
 Um corretor está apto a receber quando **todas** as condições valem:
 
-| Condição                            | Fonte                                                                         |
-| ----------------------------------- | ----------------------------------------------------------------------------- |
-| Perfil ativo com role de corretor   | `profiles.ativo` + `user_roles`                                               |
-| Telefone cadastrado                 | `profiles.telefone`                                                           |
-| Vínculo definido (fixo ou autônomo) | `profiles.modelo_contrato` (campo novo; NULL = cadastro pendente, inelegível) |
-| Onboarding concluído                | `profiles.onboarding_concluido_em` (campo novo)                               |
-| Presença marcada no dia             | `profiles.presente` + `presente_em` (botão Cheguei)                           |
-| Não pausado na roleta               | `roleta_participantes.pausado_ate` (manual ou automática)                     |
-| Abaixo do teto de 30 leads ativos   | `_wip_corretor()` contra `disjuntor_wip`                                      |
-| Dentro da cota diária da roleta     | `distribution_log` (mecanismo vigente)                                        |
+| Condição                            | Fonte                                                                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Perfil ativo com role de corretor   | `profiles.ativo` + `user_roles`                                                                                |
+| Telefone cadastrado                 | `profiles.telefone`                                                                                            |
+| Vínculo definido (fixo ou autônomo) | `profiles.modelo_contrato` (campo novo; NULL = cadastro pendente, inelegível)                                  |
+| Onboarding concluído                | `profiles.onboarding_concluido_em` (campo novo)                                                                |
+| Presença marcada no dia             | `profiles.presente` + `presente_em` (check-in por filial desde 13/10/2026: ver `docs/ops/presenca-filiais.md`) |
+| Não pausado na roleta               | `roleta_participantes.pausado_ate` (manual ou automática)                                                      |
+| Abaixo do teto de 30 leads ativos   | `_wip_corretor()` contra `disjuntor_wip`                                                                       |
+| Dentro da cota diária da roleta     | `distribution_log` (mecanismo vigente)                                                                         |
 
 Fora da roleta: docs-bot, contas administrativas, gerência e superintendência. Quem cai na régua extra do v2 aparece no contexto da decisão como `inaptos_v2`, com o motivo nomeado (`sem_modelo_contrato`, `onboarding_pendente`, `disjuntor_wip_N`).
 

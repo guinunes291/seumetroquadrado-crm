@@ -77,7 +77,7 @@ beforeAll(async () => {
   }
   for (const u of [cheio, vazio, novato]) {
     await comoUsuario(c, u.id);
-    await c.query(`SELECT public.marcar_presenca(true)`);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
   }
 
   // O corretor cheio aparece PRIMEIRO na roleta (há mais tempo sem receber) —

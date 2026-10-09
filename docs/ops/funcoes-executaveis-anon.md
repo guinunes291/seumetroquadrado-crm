@@ -46,7 +46,10 @@ Regra aplicada em 120400: sai `PUBLIC`/`anon`, ficam `authenticated` e
 continuam iguais). Nenhuma política RLS nem view usa essas funções, e as rotas
 públicas do app chamam RPC só pelo `service_role`.
 
-### As 18 que ainda aceitam anon — todas recusam no corpo
+### As 17 que ainda aceitam anon — todas recusam no corpo
+
+(Eram 18: `marcar_presenca(boolean)` perdeu o EXECUTE de `anon` na presença por
+filial, `20261013120000`.)
 
 Defesa em profundidade possível numa próxima passada (revogar `anon` também
 delas), mas hoje nenhuma entrega dado ao anônimo:
@@ -63,7 +66,6 @@ delas), mas hoje nenhuma entrega dado ao anônimo:
 | `dashboard_motivos_perda(timestamp with time zone,timestamp with time zone,uuid,text)` | `P0001` unauthorized       |
 | `dashboard_serie_diaria(timestamp with time zone,timestamp with time zone,uuid,text)`  | `P0001` unauthorized       |
 | `leads_com_sla(uuid)`                                                                  | `P0001` unauthorized       |
-| `marcar_presenca(boolean)`                                                             | `P0001` nao autenticado    |
 | `preview_oferta_ativa(jsonb,uuid)`                                                     | `P0001` unauthorized       |
 | `ranking_atividades(date,date)`                                                        | `P0001` unauthorized       |
 | `rel_evolucao_vendas(timestamp with time zone,timestamp with time zone,uuid)`          | `P0001` unauthorized       |

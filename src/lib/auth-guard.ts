@@ -3,33 +3,17 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { verificarContaAtiva } from "@/lib/conta-ativa";
 
-let lastPresenceMark = 0;
-const PRESENCE_MARK_INTERVAL_MS = 60 * 60 * 1000;
-
-function markPresenceSafely() {
-  const now = Date.now();
-  if (now - lastPresenceMark < PRESENCE_MARK_INTERVAL_MS) return;
-  lastPresenceMark = now;
-
-  void (async () => {
-    try {
-      const { error } = await supabase.rpc("marcar_presenca", { _presente: true });
-      if (error) {
-        lastPresenceMark = 0;
-        console.warn("Não foi possível atualizar presença do corretor", error.message);
-      }
-    } catch (error) {
-      lastPresenceMark = 0;
-      console.warn("Não foi possível atualizar presença do corretor", error);
-    }
-  })();
-}
-
 /**
  * Guard da porta autenticada: o shell /_authenticated (que desde a identidade
- * Lançamento, 2026-10, também abriga o hub /inicio). Concentra sessão, conta
- * ativa e presença num lugar só — inclusive o throttle de presença, que é
- * deste módulo.
+ * Lançamento, 2026-10, também abriga o hub /inicio). Concentra sessão e conta
+ * ativa num lugar só.
+ *
+ * Presença NÃO é mais marcada aqui (2026-10-13). O auto check-in a cada login
+ * colocava na roleta quem abrisse o CRM de casa, sem dizer onde estava. Agora
+ * o corretor faz o check-in na filial (ou em casa) em /presenca — a faixa do
+ * topo do shell avisa enquanto ele não fizer — e o banco aplica a regra do
+ * plantão (menos de 3 vendas no mês anterior: só na filial). Ver
+ * docs/ops/presenca-filiais.md.
  */
 export async function guardarRotaAutenticada(locationHref: string): Promise<{ user: User }> {
   const { data, error } = await supabase.auth.getUser();
@@ -61,7 +45,5 @@ export async function guardarRotaAutenticada(locationHref: string): Promise<{ us
     );
   }
 
-  // Auto check-in para liberar a distribuição automática de leads.
-  markPresenceSafely();
   return { user: data.user };
 }

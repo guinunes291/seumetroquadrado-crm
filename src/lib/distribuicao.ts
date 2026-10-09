@@ -76,7 +76,9 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   perfil_inativo: "Perfil inativo no CRM",
   sem_role_corretor: "Sem papel de corretor",
   sem_telefone: "Sem telefone cadastrado",
-  ausente_hoje: "Ausente no plantão hoje",
+  // Desde a presença por filial (2026-10-13), "presente" = check-in que libera
+  // a roleta: filial, ou em casa com o mínimo de vendas do mês anterior.
+  ausente_hoje: "Sem check-in que libere a roleta hoje",
   cota_diaria_atingida: "Cota diária de leads atingida",
   pct_trabalhado_abaixo_minimo: "% de leads trabalhados abaixo do mínimo",
   sem_modelo_contrato: "Sem modelo de contrato definido",
@@ -315,3 +317,17 @@ export function resumoDecisao(contexto: unknown): DecisaoContexto {
       dedup && typeof dedup.duplicado_id === "string" ? (dedup.duplicado_id as string) : null,
   };
 }
+
+/**
+ * Presença obrigatória em toda fila (decisão do dono, 09/10/2026; migration
+ * 20261013120000): o banco religa `exigir_presenca` em qualquer fila que não
+ * seja a do SDR — o interruptor da Central fica travado. A fila do SDR
+ * (Agendados do SDR) fica de fora por decisão do dono: entrega por agenda
+ * livre, "sem presença do dia" (docs/politica-sdr-v1.md, item 7).
+ */
+export function presencaObrigatoria(roleta: { tipo?: string | null }): boolean {
+  return roleta.tipo !== "sdr";
+}
+
+export const PRESENCA_OBRIGATORIA_HINT =
+  "Obrigatória em toda fila: só recebe quem fez check-in hoje (filial, ou em casa com a meta do mês anterior).";
