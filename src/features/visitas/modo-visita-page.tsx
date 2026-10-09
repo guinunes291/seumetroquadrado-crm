@@ -10,7 +10,6 @@ import {
   ClockAfternoon,
   FileText,
   FloppyDisk,
-  MapPin,
   Microphone,
   MicrophoneSlash,
   Path as RouteIcon,
@@ -25,7 +24,6 @@ import { z } from "zod";
 
 import { PageHeader } from "@/components/page-header";
 import { AsyncBoundary } from "@/components/ui/async-boundary";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,7 +40,7 @@ import {
 import { StickyActionRail } from "@/components/ui/sticky-action-rail";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
-import { BriefingVisita } from "@/features/visitas/briefing-visita";
+import { BriefingVisita, PotencialDeCreditoCard } from "@/features/visitas/briefing-visita";
 import {
   INTERESSE_LABEL,
   INTERESSE_VISITA,
@@ -57,9 +55,11 @@ import {
   listarFila,
   sincronizarFila,
 } from "@/features/visitas/fila-offline";
+import { briefingCurto, estadoDaVisita, quandoDaVisita } from "@/features/visitas/visita-derive";
 import { supabase } from "@/integrations/supabase/client";
 import { leadStatusLabel, type LeadStatus } from "@/lib/leads";
 import { buildWhatsAppUrl } from "@/lib/templates";
+import { cn } from "@/lib/utils";
 
 const agendaLeadSchema = z.object({
   id: z.string().uuid(),
@@ -169,13 +169,19 @@ type FormValues = z.infer<typeof formSchema>;
 type Agenda = z.infer<typeof agendaSchema>;
 type ChecklistKey = (typeof CHECKLIST)[number]["key"];
 
+// Rótulos curtos, como no vídeo de lançamento; as CHAVES são as gravadas em
+// visita_execucoes.checklist e não mudam.
 const CHECKLIST = [
-  { key: "horario_confirmado", label: "Horário confirmado com o cliente" },
-  { key: "documentos_separados", label: "Documentos necessários conferidos" },
-  { key: "simulacao_revisada", label: "Simulação e condições revisadas" },
-  { key: "projeto_apresentado", label: "Projeto e disponibilidade apresentados" },
-  { key: "objecoes_registradas", label: "Objeções e próximos passos registrados" },
+  { key: "horario_confirmado", label: "Horário confirmado" },
+  { key: "documentos_separados", label: "Documentos conferidos" },
+  { key: "simulacao_revisada", label: "Simulação revisada" },
+  { key: "projeto_apresentado", label: "Projeto apresentado" },
+  { key: "objecoes_registradas", label: "Objeções registradas" },
 ] as const;
+
+/** Botões do cartão navy da visita (Ligar, WhatsApp, Rota, Documentos). */
+const BOTAO_NAVY =
+  "min-h-11 justify-center border border-white/10 bg-white/[0.08] text-white hover:bg-white/15 hover:text-white";
 
 const CHECKLIST_INICIAL: Record<ChecklistKey, boolean> = {
   horario_confirmado: false,
@@ -570,6 +576,32 @@ export function ModoVisitaPage() {
   const submit = (concluir: boolean) =>
     form.handleSubmit((values) => saveMutation.mutate({ values, concluir }))();
 
+  // "Marcar como realizada" (cartão da visita): marca que o cliente compareceu
+  // e leva às perguntas que a conclusão exige — como o cliente saiu e o
+  // próximo passo. Concluir continua sendo o botão do formulário.
+  const marcarRealizada = () => {
+    form.setValue("desfecho", "realizada", { shouldDirty: true, shouldValidate: true });
+    document.getElementById("resultado-visita")?.scrollIntoView({ behavior: "smooth" });
+    window.setTimeout(
+      () => document.getElementById("interesse-visita")?.focus({ preventScroll: true }),
+      400,
+    );
+  };
+
+  // "Ditar nota da conversa" (checklist): com o consentimento já dado, começa
+  // o ditado; sem ele, leva ao aceite — o ditado nunca começa sem o cliente
+  // ter autorizado. Sem suporte no navegador, leva à nota para digitar.
+  const ditarNota = () => {
+    document.getElementById("notas-visita")?.scrollIntoView({ behavior: "smooth" });
+    if (!recognitionSupported) {
+      document.getElementById("nota-transcrita")?.focus({ preventScroll: true });
+    } else if (!speechConsent) {
+      document.getElementById("consentimento-ditado")?.focus({ preventScroll: true });
+    } else {
+      startDictation();
+    }
+  };
+
   const completed = execucaoQ.data?.status === "concluida";
   const naoCompareceu = form.watch("desfecho") === "nao_compareceu";
   const interesseAtual = (form.watch("interesse") || null) as InteresseVisita | null;
@@ -593,7 +625,32 @@ export function ModoVisitaPage() {
     <div className="pb-44 md:pb-8">
       <PageHeader
         title="Modo Visita"
-        description="Agenda, rota e próximo passo em um fluxo pensado para usar em campo."
+        description="Em campo com o cliente: rota, briefing de 30 segundos e o resultado da visita."
+        actions={
+          (agendaQ.data?.length ?? 0) > 0 ? (
+            <div className="w-full space-y-1.5 md:w-80">
+              <Label htmlFor="visita-atual" className="text-xs text-muted-foreground">
+                Visita em campo
+              </Label>
+              <Select value={selectedId ?? undefined} onValueChange={setSelectedId}>
+                <SelectTrigger id="visita-atual" className="min-h-11">
+                  <SelectValue placeholder="Selecione uma visita" />
+                </SelectTrigger>
+                <SelectContent>
+                  {agendaQ.data?.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {format(new Date(item.data_inicio), "EEE, dd/MM 'às' HH:mm", {
+                        locale: ptBR,
+                      })}
+                      {item.lead ? ` — ${item.lead.nome}` : ""}
+                      {isPast(new Date(item.data_fim)) ? " · pendente" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : undefined
+        }
       />
 
       <AsyncBoundary
@@ -648,26 +705,6 @@ export function ModoVisitaPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="visita-atual">Visita em campo</Label>
-              <Select value={selectedId ?? undefined} onValueChange={setSelectedId}>
-                <SelectTrigger id="visita-atual" className="min-h-11">
-                  <SelectValue placeholder="Selecione uma visita" />
-                </SelectTrigger>
-                <SelectContent>
-                  {agendaQ.data?.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {format(new Date(item.data_inicio), "EEE, dd/MM 'às' HH:mm", {
-                        locale: ptBR,
-                      })}
-                      {item.lead ? ` — ${item.lead.nome}` : ""}
-                      {isPast(new Date(item.data_fim)) ? " · pendente" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <AsyncBoundary
               isLoading={execucaoQ.isLoading}
               isError={execucaoQ.isError}
@@ -678,124 +715,153 @@ export function ModoVisitaPage() {
             >
               {selected && selected.lead ? (
                 <form id="modo-visita-form" onSubmit={(event) => event.preventDefault()}>
-                  <div className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-                    <div className="space-y-5">
-                      <Card>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <CardTitle className="text-lg">{selected.lead.nome}</CardTitle>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {selected.titulo}
-                              </p>
-                            </div>
-                            <Badge variant={completed ? "default" : "secondary"}>
-                              {completed ? "Concluída" : "Em campo"}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                          <InfoLine icon={ClockAfternoon}>
-                            {format(
-                              new Date(selected.data_inicio),
-                              "EEEE, dd 'de' MMMM 'às' HH:mm",
-                              {
-                                locale: ptBR,
-                              },
-                            )}
-                          </InfoLine>
-                          <InfoLine icon={MapPin}>
-                            {selected.local || "Local não informado"}
-                          </InfoLine>
-                          <InfoLine icon={UserCircle}>
-                            {leadStatusLabel(selected.lead.status)}
-                            {selected.lead.projeto_nome ? ` · ${selected.lead.projeto_nome}` : ""}
-                          </InfoLine>
-                          {selected.lead.renda_informada && (
-                            <p className="rounded-md bg-muted px-3 py-2">
-                              Renda informada: {selected.lead.renda_informada}
-                            </p>
-                          )}
-                          <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4 lg:grid-cols-2">
-                            {selected.lead.telefone ? (
-                              <Button variant="outline" asChild>
-                                <a href={`tel:${selected.lead.telefone}`}>
-                                  <Phone className="mr-2 h-4 w-4" /> Ligar
-                                </a>
-                              </Button>
-                            ) : (
-                              <Button variant="outline" disabled>
-                                <Phone className="mr-2 h-4 w-4" /> Ligar
-                              </Button>
-                            )}
-                            {whatsappUrl ? (
-                              <Button variant="outline" asChild>
-                                <a href={whatsappUrl} target="_blank" rel="noreferrer">
-                                  <WhatsappLogo className="mr-2 h-4 w-4" /> WhatsApp
-                                </a>
-                              </Button>
-                            ) : (
-                              <Button variant="outline" disabled>
-                                <WhatsappLogo className="mr-2 h-4 w-4" /> WhatsApp
-                              </Button>
-                            )}
-                            {mapUrl ? (
-                              <Button variant="outline" asChild>
-                                <a href={mapUrl} target="_blank" rel="noreferrer">
-                                  <RouteIcon className="mr-2 h-4 w-4" /> Rota
-                                </a>
-                              </Button>
-                            ) : (
-                              <Button variant="outline" disabled>
-                                <RouteIcon className="mr-2 h-4 w-4" /> Rota
-                              </Button>
-                            )}
-                            <Button variant="outline" asChild>
-                              <Link
-                                to="/leads/$leadId"
-                                params={{ leadId: selected.lead.id }}
-                                search={{ tab: "documentacao" }}
-                              >
-                                <FileText className="mr-2 h-4 w-4" /> Documentos
-                              </Link>
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                  {/* Identidade Lançamento (como no vídeo): a visita em navy, o
+                      potencial de crédito e o checklist lado a lado; embaixo, a
+                      ficha, as notas e o resultado. */}
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <section
+                      aria-label={`Visita com ${selected.lead.nome}`}
+                      className="flex flex-col rounded-2xl bg-gradient-command p-5 text-white shadow-elev-2 dark:ring-1 dark:ring-white/10"
+                    >
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gold-400">
+                        {estadoDaVisita(selected, completed)} ·{" "}
+                        {quandoDaVisita(selected.data_inicio)}
+                      </p>
+                      <h2 className="mt-2 truncate font-display text-2xl font-bold">
+                        {selected.lead.nome}
+                      </h2>
+                      <p className="mt-1 truncate text-sm text-white/70">
+                        {selected.local || "Local não informado"}
+                      </p>
+                      <p className="truncate text-xs text-white/50">
+                        {[selected.lead.projeto_nome, leadStatusLabel(selected.lead.status)]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        {selected.lead.telefone ? (
+                          <Button variant="ghost" className={BOTAO_NAVY} asChild>
+                            <a href={`tel:${selected.lead.telefone}`}>
+                              <Phone className="mr-2 h-4 w-4" /> Ligar
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" className={BOTAO_NAVY} disabled>
+                            <Phone className="mr-2 h-4 w-4" /> Ligar
+                          </Button>
+                        )}
+                        {whatsappUrl ? (
+                          <Button variant="ghost" className={BOTAO_NAVY} asChild>
+                            <a href={whatsappUrl} target="_blank" rel="noreferrer">
+                              <WhatsappLogo className="mr-2 h-4 w-4" /> WhatsApp
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" className={BOTAO_NAVY} disabled>
+                            <WhatsappLogo className="mr-2 h-4 w-4" /> WhatsApp
+                          </Button>
+                        )}
+                        {mapUrl ? (
+                          <Button variant="ghost" className={BOTAO_NAVY} asChild>
+                            <a href={mapUrl} target="_blank" rel="noreferrer">
+                              <RouteIcon className="mr-2 h-4 w-4" /> Rota
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" className={BOTAO_NAVY} disabled>
+                            <RouteIcon className="mr-2 h-4 w-4" /> Rota
+                          </Button>
+                        )}
+                        <Button variant="ghost" className={BOTAO_NAVY} asChild>
+                          <Link
+                            to="/leads/$leadId"
+                            params={{ leadId: selected.lead.id }}
+                            search={{ tab: "documentacao" }}
+                          >
+                            <FileText className="mr-2 h-4 w-4" /> Documentos
+                          </Link>
+                        </Button>
+                      </div>
+                      <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.06] p-3">
+                        <p className="text-xs font-semibold text-gold-400">
+                          Briefing de 30 segundos
+                        </p>
+                        <p className="mt-1 text-sm leading-relaxed text-white/85">
+                          {briefingCurto(selected.lead)}
+                        </p>
+                      </div>
+                      {/* Não conclui sozinho: concluir exige como o cliente saiu
+                          e o próximo passo. O botão marca "compareceu" e leva
+                          direto a essas perguntas. */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={cn(BOTAO_NAVY, "mt-4 w-full font-semibold lg:mt-auto")}
+                        onClick={marcarRealizada}
+                        disabled={completed}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        {completed ? "Visita concluída" : "Marcar como realizada"}
+                      </Button>
+                    </section>
 
+                    <PotencialDeCreditoCard lead={selected.lead} />
+
+                    <section
+                      aria-label="Checklist da visita"
+                      className="flex flex-col rounded-2xl border border-border-subtle bg-card p-5 text-card-foreground"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h2 className="font-display text-lg font-bold">Checklist da visita</h2>
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {CHECKLIST.filter((item) => checklist[item.key]).length} de{" "}
+                          {CHECKLIST.length}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-1">
+                        {CHECKLIST.map((item) => (
+                          <Label
+                            key={item.key}
+                            htmlFor={`check-${item.key}`}
+                            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-[15px] font-medium hover:bg-accent"
+                          >
+                            <Checkbox
+                              id={`check-${item.key}`}
+                              checked={checklist[item.key]}
+                              disabled={completed}
+                              className="h-6 w-6 rounded-full border-2 border-muted-foreground/30 data-[state=checked]:border-success data-[state=checked]:bg-success data-[state=checked]:text-success-foreground [&_svg]:h-3.5 [&_svg]:w-3.5"
+                              onCheckedChange={(checked) =>
+                                setChecklist((current) => ({
+                                  ...current,
+                                  [item.key]: checked === true,
+                                }))
+                              }
+                            />
+                            <span>{item.label}</span>
+                          </Label>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 min-h-11 w-full lg:mt-auto"
+                        onClick={listening ? stopDictation : ditarNota}
+                        disabled={completed}
+                      >
+                        {listening ? (
+                          <MicrophoneSlash className="mr-2 h-4 w-4" />
+                        ) : (
+                          <Microphone className="mr-2 h-4 w-4" />
+                        )}
+                        {listening ? "Parar ditado" : "Ditar nota da conversa"}
+                      </Button>
+                    </section>
+                  </div>
+
+                  <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                    <div className="space-y-5">
                       <BriefingVisita lead={selected.lead} />
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">Checklist da visita</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-1">
-                          {CHECKLIST.map((item) => (
-                            <Label
-                              key={item.key}
-                              htmlFor={`check-${item.key}`}
-                              className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-accent"
-                            >
-                              <Checkbox
-                                id={`check-${item.key}`}
-                                checked={checklist[item.key]}
-                                disabled={completed}
-                                onCheckedChange={(checked) =>
-                                  setChecklist((current) => ({
-                                    ...current,
-                                    [item.key]: checked === true,
-                                  }))
-                                }
-                              />
-                              <span>{item.label}</span>
-                            </Label>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    <div className="space-y-5">
-                      <Card>
+                      <Card id="notas-visita" className="scroll-mt-24">
                         <CardHeader>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <CardTitle className="text-base">Notas da conversa</CardTitle>
@@ -874,8 +940,10 @@ export function ModoVisitaPage() {
                           </FieldError>
                         </CardContent>
                       </Card>
+                    </div>
 
-                      <Card>
+                    <div className="space-y-5">
+                      <Card id="resultado-visita" className="scroll-mt-24">
                         <CardHeader>
                           <CardTitle className="text-base">Próximo passo</CardTitle>
                         </CardHeader>
@@ -1118,21 +1186,6 @@ export function ModoVisitaPage() {
           </div>
         )}
       </AsyncBoundary>
-    </div>
-  );
-}
-
-function InfoLine({
-  icon: Icon,
-  children,
-}: {
-  icon: typeof ClockAfternoon;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex min-h-8 items-start gap-2">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span>{children}</span>
     </div>
   );
 }

@@ -1,10 +1,15 @@
-// Briefing de campo do Modo Visita: o que o corretor precisa saber nos 30
-// segundos antes de cumprimentar o cliente, e o potencial de crédito dele.
+// Briefing de campo do Modo Visita: o que o corretor precisa saber antes de
+// cumprimentar o cliente, e o potencial de crédito dele.
 //
 // Nada aqui é dado novo — é `leads` + `interacoes` + a tabela APROVE 2026 que
 // já existiam, reunidos no momento em que a informação vale alguma coisa. O
 // corretor que revisa isso no carro chega sabendo a renda, o que foi
 // prometido no último contato e quanto o cliente consegue comprar.
+//
+// Na identidade Lançamento (como no vídeo), o briefing de 30 segundos — como
+// o cliente está e o que ficou combinado — mora no cartão da visita, e o
+// potencial de crédito é um cartão próprio (PotencialDeCreditoCard). Aqui fica
+// a ficha: faixa, renda, objeções e o que já foi conversado.
 
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -109,32 +114,22 @@ function useUltimasInteracoes(leadId: string | undefined, ativo: boolean) {
 
 export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ativo?: boolean }) {
   const interacoesQ = useUltimasInteracoes(lead.id, ativo);
-  const orcamento = orcamentoDoLead(lead);
-  const semContatoHa = desde(lead.ultima_interacao);
   const renda = paraNumero(lead.renda_informada);
+  const temSelos = Boolean(lead.faixa_mcmv || lead.tipo_renda || lead.usa_fgts);
 
   return (
-    <Card className="border-primary/30">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <SamiMark className="h-4 w-4 text-primary" /> Briefing de 30 segundos
+          <SamiMark className="h-4 w-4 text-primary" /> Antes de cumprimentar
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        <div className="flex flex-wrap gap-1.5">
-          {lead.temperatura && <Badge variant="outline">{lead.temperatura}</Badge>}
-          {lead.faixa_mcmv && <Badge variant="outline">Faixa {lead.faixa_mcmv}</Badge>}
-          {lead.tipo_renda && <Badge variant="outline">{lead.tipo_renda}</Badge>}
-          {lead.usa_fgts && <Badge variant="outline">Usa FGTS</Badge>}
-          {semContatoHa && <Badge variant="secondary">Último contato {semContatoHa}</Badge>}
-        </div>
-
-        {/* O que foi prometido: a pergunta que o cliente faz nos primeiros 30
-            segundos é sobre o que ficou combinado da última vez. */}
-        {lead.proxima_acao && (
-          <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2">
-            <p className="text-xs text-muted-foreground font-medium">Combinado no último contato</p>
-            <p className="font-medium">{lead.proxima_acao}</p>
+        {temSelos && (
+          <div className="flex flex-wrap gap-1.5">
+            {lead.faixa_mcmv && <Badge variant="outline">Faixa {lead.faixa_mcmv}</Badge>}
+            {lead.tipo_renda && <Badge variant="outline">{lead.tipo_renda}</Badge>}
+            {lead.usa_fgts && <Badge variant="outline">Usa FGTS</Badge>}
           </div>
         )}
 
@@ -175,8 +170,6 @@ export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ati
           )}
         </dl>
 
-        <PotencialDeCredito orcamento={orcamento} temRenda={renda !== null} />
-
         <div>
           <p className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
             <ChatText className="h-3.5 w-3.5" /> O que já foi conversado
@@ -208,56 +201,83 @@ export function BriefingVisita({ lead, ativo = true }: { lead: LeadBriefing; ati
 }
 
 /**
- * Poder de compra pela tabela oficial. Sempre rotulado como estimativa: o
- * número que vale é o da análise da Caixa, e prometer aprovação na visita é
- * exatamente o erro que a operação não pode cometer.
+ * Poder de compra pela tabela oficial — o cartão "Potencial de crédito" do
+ * vídeo: a faixa, o "compra até" em destaque, parcela e financiamento.
+ * Sempre rotulado como estimativa: o número que vale é o da análise da Caixa,
+ * e prometer aprovação na visita é exatamente o erro que a operação não pode
+ * cometer. Sem renda (ou fora da tabela) não há número — chutar na frente do
+ * cliente é pior que não ter.
  */
-function PotencialDeCredito({
-  orcamento,
-  temRenda,
-}: {
-  orcamento: ResultadoOrcamento | null;
-  temRenda: boolean;
-}) {
-  if (!orcamento || !orcamento.enquadra) {
-    return (
-      <div className="rounded-md border border-dashed px-3 py-2 text-muted-foreground">
-        <p className="flex items-center gap-1.5 text-xs font-medium">
-          <Calculator className="h-3.5 w-3.5" /> Potencial de crédito
-        </p>
-        <p>
-          {temRenda
-            ? (orcamento?.motivoNaoEnquadra ?? "Renda fora da tabela APROVE 2026.")
-            : "Informe a renda do cliente para estimar o poder de compra."}
-        </p>
-      </div>
-    );
-  }
+/** Real sem centavos: é estimativa — "R$ 1.049,99" sugere uma precisão que a
+ *  conta não tem. */
+function brlInteiro(valor: number): string {
+  return valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
+}
+
+export function PotencialDeCreditoCard({ lead }: { lead: LeadBriefing }) {
+  const orcamento = orcamentoDoLead(lead);
+  const renda = paraNumero(lead.renda_informada);
 
   return (
-    <div className="rounded-md border bg-muted/40 px-3 py-2">
-      <p className="mb-1.5 flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-        <Calculator className="h-3.5 w-3.5" /> Potencial de crédito · Faixa {orcamento.faixa} (
-        {orcamento.segmento})
-      </p>
-      <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
-        <dt className="text-muted-foreground">Compra até</dt>
-        <dd className="font-semibold">{brl(orcamento.tetoImovel)}</dd>
-        <dt className="text-muted-foreground">Parcela estimada</dt>
-        <dd>{brl(orcamento.parcelaEstimada)}</dd>
-        <dt className="text-muted-foreground">Financiamento</dt>
-        <dd>{brl(orcamento.financiamento)}</dd>
-        {orcamento.subsidio > 0 && (
-          <>
-            <dt className="text-muted-foreground">Subsídio</dt>
-            <dd className="text-success">{brl(orcamento.subsidio)}</dd>
-          </>
-        )}
-      </dl>
-      <p className="mt-1.5 text-xs text-muted-foreground">
-        Estimativa comercial pela tabela APROVE 2026, na hipótese mais conservadora (sem redutor,
-        sem dependente). Não é aprovação — quem aprova é a Caixa.
-      </p>
-    </div>
+    <section
+      aria-label="Potencial de crédito"
+      className="flex h-full flex-col rounded-2xl border border-border-subtle bg-card p-5 text-card-foreground"
+    >
+      <h2 className="font-display text-lg font-bold">Potencial de crédito</h2>
+      {!orcamento || !orcamento.enquadra ? (
+        <div className="mt-3 flex flex-1 flex-col justify-center rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+          <Calculator className="mx-auto mb-2 h-6 w-6" aria-hidden="true" />
+          {renda !== null
+            ? (orcamento?.motivoNaoEnquadra ?? "Renda fora da tabela APROVE 2026.")
+            : "Informe a renda do cliente para estimar o poder de compra."}
+        </div>
+      ) : (
+        <>
+          <span className="mt-2 w-fit rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-semibold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
+            Faixa {orcamento.faixa}
+          </span>
+          <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Compra até
+          </p>
+          <p className="font-display text-4xl font-bold tabular-nums tracking-tight">
+            {brlInteiro(orcamento.tetoImovel)}
+          </p>
+          <dl className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border-subtle px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Parcela
+              </dt>
+              <dd className="font-display text-lg font-bold tabular-nums">
+                {brlInteiro(orcamento.parcelaEstimada)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-border-subtle px-3 py-2.5">
+              <dt className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Financia
+              </dt>
+              <dd className="font-display text-lg font-bold tabular-nums">
+                {brlInteiro(orcamento.financiamento)}
+              </dd>
+            </div>
+          </dl>
+          {orcamento.subsidio > 0 && (
+            <p className="mt-2 text-sm">
+              Subsídio estimado:{" "}
+              <strong className="text-success tabular-nums">
+                {brlInteiro(orcamento.subsidio)}
+              </strong>
+            </p>
+          )}
+          <p className="mt-auto pt-4 text-xs text-muted-foreground">
+            Renda de {brl(renda!)} ({orcamento.segmento}). Estimativa conservadora pela tabela
+            APROVE 2026, sem redutor e sem dependente. Não é aprovação — quem aprova é a Caixa.
+          </p>
+        </>
+      )}
+    </section>
   );
 }

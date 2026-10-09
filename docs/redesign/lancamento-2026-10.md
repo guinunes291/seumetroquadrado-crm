@@ -201,20 +201,57 @@ ensinar um processo diferente do que o motor cobra:
 | Selo "D1" no primeiro dia                           | Ícone no Lead chegou; D1, D2 e D3 nos follow-ups e no encerramento   | "D0" é código interno — "o primeiro toque não é um follow-up" (decisão do dono). D1, D2 e D3 são as palavras da operação.                                                                                              |
 | "Depois do D3: a régua dos 13 toques"               | "Depois da resposta: a régua dos 13 toques"                          | A régua assume quando o cliente responde. Quem cumpre o encerramento sem responder vai para o descanso e a reativação (`docs/ops/cadencia-followup-reativacao.md`), não para a régua.                                  |
 
+## Fase 6 — Modo Visita (04) ✅
+
+O quadro do vídeo é o `/modo-visita`. A página continua a mesma ferramenta de
+campo — rascunho local, fila offline, ditado com consentimento e o resultado
+estruturado da visita —, só que na ordem do vídeo:
+
+- **Linha de cima, três cartões:**
+  - **A visita, em navy:** "VISITA EM CAMPO · HOJE 14:00" (ou "A VALIDAR",
+    quando o horário passou, e "CONCLUÍDA"), o nome, o local, Ligar /
+    WhatsApp / Rota / Documentos, o **briefing de 30 segundos** em duas
+    frases ("Morno, último contato há 2 dias. Combinado: …") e **Marcar como
+    realizada**.
+  - **Potencial de crédito:** a faixa, "Compra até" em destaque, parcela e
+    financiamento — a mesma conta APROVE 2026 conservadora de antes, agora
+    sem centavos (é estimativa: "R$ 1.049,99" sugere uma precisão que a conta
+    não tem) e sempre com "quem aprova é a Caixa".
+  - **Checklist da visita** com os rótulos curtos do vídeo (as chaves gravadas
+    em `visita_execucoes.checklist` não mudaram), o "2 de 5" e **Ditar nota da
+    conversa**.
+- **Embaixo:** a ficha "Antes de cumprimentar" (faixa, renda, objeções, o que
+  já foi conversado) e as notas à esquerda; o próximo passo à direita.
+- O seletor de visita subiu para o cabeçalho.
+
+Três decisões que valem registro:
+
+- **"Marcar como realizada" não conclui sozinho.** Concluir exige como o
+  cliente saiu e o próximo passo — é o dado que responde "por que as visitas
+  do mês não viraram venda". O botão marca que o cliente compareceu e leva o
+  foco direto a "Como o cliente saiu?"; concluir continua sendo o botão do
+  formulário.
+- **"Ditar nota da conversa" nunca começa o ditado sem o aceite.** Com o
+  consentimento já dado, começa; sem ele, leva ao "Confirmo que o cliente
+  autorizou o ditado"; sem suporte no navegador, leva à nota para digitar.
+- As datas do cartão são do calendário de São Paulo (`visita-derive.ts`): uma
+  visita às 22h não vira "amanhã" porque o aparelho ou o servidor estão em
+  outro fuso.
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
 de composição e acabamento. Ordem sugerida pelo uso diário (Central de
-Comando, Prospecção, Gestão de Carteira e Follow-Up estão feitas — acima):
+Comando, Prospecção, Gestão de Carteira, Follow-Up e Modo Visita estão feitas —
+acima):
 
-| Módulo                     | O vídeo mostra                                                                                                | O que já existe                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 04 Modo Visita             | Cartão navy da visita (Ligar, WhatsApp, Rota, Documentos), briefing de 30 s, potencial de crédito e checklist | `briefing-visita.tsx`, simulador de financiamento                |
-| 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar          | Projetos em Foco já tem renda e "Só o que cabe"                  |
-| 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período         | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
-| 09 BI · Relatórios         | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$  | Painel do Gestor já tem as abas e as exceções                    |
-| 06 Pré-venda (SDR)         | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                       | Hub `/sdr`; a roda é desenho novo                                |
-| 10 Academia                | Trilha em 5 passos, quiz e certificado                                                                        | Trilha, quiz e certificado existem                               |
+| Módulo                     | O vídeo mostra                                                                                               | O que já existe                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar         | Projetos em Foco já tem renda e "Só o que cabe"                  |
+| 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período        | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
+| 09 BI · Relatórios         | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$ | Painel do Gestor já tem as abas e as exceções                    |
+| 06 Pré-venda (SDR)         | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                      | Hub `/sdr`; a roda é desenho novo                                |
+| 10 Academia                | Trilha em 5 passos, quiz e certificado                                                                       | Trilha, quiz e certificado existem                               |
 
 Fora de escopo de propósito: o contador `00 / 10` e a pílula com a URL são
 recursos de edição do vídeo, não do produto. O logo continua o PNG da marca
