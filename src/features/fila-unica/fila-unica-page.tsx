@@ -324,7 +324,6 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
           colado no placar compacto. */}
       <div className="grid gap-3 md:grid-cols-[1.15fr_1fr] md:items-center md:gap-7 md:py-2">
         <div className="-mb-3 md:mb-0">
-          <p className="mb-1 text-xs text-muted-foreground md:text-sm">{dataPorExtenso()}</p>
           {outro && (
             <p
               className="mb-1 flex flex-wrap items-center gap-2 text-xs md:text-sm"
@@ -338,8 +337,10 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
               </Link>
             </p>
           )}
+          {/* A data do dia mora no eyebrow do módulo ("Módulo 01 · sexta-feira…"). */}
           <PageHeader
             title="Fila Única"
+            contexto={dataPorExtenso()}
             description={
               <span className="hidden md:inline">
                 Uma lista só, ordenada por <b className="text-foreground">dinheiro em risco</b>.

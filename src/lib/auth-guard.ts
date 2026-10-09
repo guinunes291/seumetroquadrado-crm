@@ -26,10 +26,10 @@ function markPresenceSafely() {
 }
 
 /**
- * Guard compartilhado pelas duas portas de entrada autenticadas: o shell
- * /_authenticated e o hub /inicio (que vive fora do shell por não ter
- * sidebar). Uma função só garante que sessão, conta ativa e presença nunca
- * divirjam entre elas — inclusive o throttle de presença, que é deste módulo.
+ * Guard da porta autenticada: o shell /_authenticated (que desde a identidade
+ * Lançamento, 2026-10, também abriga o hub /inicio). Concentra sessão, conta
+ * ativa e presença num lugar só — inclusive o throttle de presença, que é
+ * deste módulo.
  */
 export async function guardarRotaAutenticada(locationHref: string): Promise<{ user: User }> {
   const { data, error } = await supabase.auth.getUser();

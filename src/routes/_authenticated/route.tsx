@@ -4,13 +4,14 @@ import { guardarRotaAutenticada } from "@/lib/auth-guard";
 import { AppSidebar, MobileSidebar } from "@/components/app-sidebar";
 import { BottomNav } from "@/components/bottom-nav";
 import { NotificationBell } from "@/components/notification-bell";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AvatarRequiredBanner } from "@/components/avatar-required-banner";
 import { CelebrationHost } from "@/components/ui/celebration";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { NavBreadcrumb } from "@/features/nav/nav-breadcrumb";
+import { ModuloAtualProvider } from "@/features/nav/modulo-atual-provider";
 // A janela de troca "entra um, sai um" (regra dos 65) mora aqui, uma vez: a
 // mutação de etapa de qualquer tela pede a abertura pelo contexto.
 import { JanelaTrocaProvider } from "@/features/em-atendimento/janela-troca-context";
@@ -99,29 +100,36 @@ function AuthenticatedLayout() {
         </a>
         <AppSidebar />
         <main id="conteudo-principal" tabIndex={-1} className="flex-1 overflow-y-auto">
-          <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-background/70 backdrop-blur-md px-4 md:px-8 h-14">
+          {/* Header da identidade Lançamento (2026-10): trilha em texto à
+            esquerda e três quadrados à direita — busca, Registrar venda (o
+            único preenchido: é a ação que vale dinheiro) e notificações. O
+            tema mudou para o menu da pessoa, no rodapé da sidebar. */}
+          <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 border-b border-border/70 bg-background/80 px-4 backdrop-blur-md md:h-16 md:px-8">
             <MobileSidebar />
-            {/* Trilha "Módulo › Seção" com o ícone na cor do módulo — desktop; no
-              celular o título da página já diz onde o corretor está. */}
+            {/* Trilha "Módulos / Módulo / Página" — desktop; no celular o
+              título da página já diz onde o corretor está. */}
             <NavBreadcrumb className="hidden min-w-0 md:flex" />
             <div className="ml-auto flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-muted-foreground gap-2"
-                aria-label="Abrir busca global"
-                onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
-              >
-                <MagnifyingGlass className="h-4 w-4" />
-                <span className="hidden sm:inline">Buscar</span>
-                <kbd className="hidden md:inline pointer-events-none rounded border bg-muted px-1.5 text-[10px] font-medium">
-                  ⌘K
-                </kbd>
-              </Button>
-              <Suspense fallback={null}>
-                <RegistrarVendaDialog />
-              </Suspense>
-              <ThemeToggle />
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="text-muted-foreground"
+                      aria-label="Abrir busca global"
+                      aria-keyshortcuts="Meta+K"
+                      onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+                    >
+                      <MagnifyingGlass className="h-4 w-4" weight="regular" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Buscar lead, projeto ou tarefa (⌘K)</TooltipContent>
+                </Tooltip>
+                <Suspense fallback={null}>
+                  <RegistrarVendaDialog />
+                </Suspense>
+              </TooltipProvider>
               <NotificationBell />
             </div>
           </header>
@@ -131,7 +139,10 @@ function AuthenticatedLayout() {
           {/* pb-24 reserva o espaço do BottomNav no mobile. */}
           <div className="mx-auto max-w-7xl px-4 py-6 pb-24 md:px-8 md:py-8">
             <AvatarRequiredBanner />
-            <Outlet />
+            {/* O módulo da página vai por contexto ao eyebrow do PageHeader. */}
+            <ModuloAtualProvider>
+              <Outlet />
+            </ModuloAtualProvider>
           </div>
         </main>
         <BottomNav />

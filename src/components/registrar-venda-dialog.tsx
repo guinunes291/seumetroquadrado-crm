@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { celebrate } from "@/components/ui/celebration";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -205,15 +206,18 @@ export function RegistrarVendaDialog() {
 
   return (
     <>
-      <Button
-        size="sm"
-        className="gap-2"
-        onClick={() => setOpen(true)}
-        aria-label="Registrar venda"
-      >
-        <CurrencyDollar className="h-4 w-4" />
-        <span className="hidden sm:inline">Registrar venda</span>
-      </Button>
+      {/* Quadrado navy só com o "$" (identidade Lançamento, 2026-10): o único
+          botão preenchido do header, porque é a ação que vale dinheiro. O
+          nome aparece no tooltip e no aria-label. Pede um TooltipProvider
+          acima — o header do shell já tem. */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button size="icon" onClick={() => setOpen(true)} aria-label="Registrar venda">
+            <CurrencyDollar className="h-[18px] w-[18px]" weight="regular" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Registrar venda</TooltipContent>
+      </Tooltip>
 
       <Dialog
         open={open}

@@ -98,7 +98,8 @@ export type SistemaId =
 export type Sistema = {
   id: SistemaId;
   titulo: string;
-  /** Uma frase curta — o card corta em duas linhas (line-clamp-2). */
+  /** Uma frase curta (texto do vídeo de lançamento, 2026-10) — o card do hub
+   *  corta em três linhas (line-clamp-3). */
   descricao: string;
   icon: IconComponent;
   /** Destino do card no hub (padrão). */
@@ -149,8 +150,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "central-comando",
     titulo: "Central de Comando",
-    descricao:
-      "Uma lista só, na ordem em que o dinheiro está em risco: o que fazer agora e o funil das etapas.",
+    descricao: "Uma lista só, na ordem em que o dinheiro está em risco.",
     icon: SunHorizon,
     // A Fila Única é a porta para TODO papel (2026-09-12). Entre a retirada
     // da Hoje e a Fatia 2 a gestão caía no Painel do Gestor (aba Dia) porque
@@ -194,8 +194,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "prospeccao",
     titulo: "Prospecção",
-    descricao:
-      "O volumão do topo do funil: Modo Foco, Oferta Ativa e Discador para trabalhar um lead por vez.",
+    descricao: "Modo Foco, Oferta Ativa e Discador. Um lead por vez, sem distração.",
     icon: UsersThree,
     // Abre DIRETO no Modo Foco: o corretor escolhe a base (Aguardando
     // Atendimento / Aguardando Retorno / Em Qualificação), o sistema monta o
@@ -252,7 +251,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "carteira",
     titulo: "Gestão de Carteira",
-    descricao: "Sua carteira num só lugar: base de leads, kanban, agenda e tarefas.",
+    descricao: "Base de leads, kanban, agenda e tarefas num só lugar.",
     icon: Briefcase,
     // A porta da Carteira é a Base de leads (decisão 2026-09-11): a lista
     // completa, com filtros, é a visão mais geral do que o corretor tem em
@@ -313,8 +312,7 @@ export const SISTEMAS: Sistema[] = [
     // cada contador tem UM dono.
     id: "visita",
     titulo: "Modo Visita",
-    descricao:
-      "Em campo com o cliente: agenda do dia, rota, briefing do lead e o resultado da visita.",
+    descricao: "Em campo com o cliente: rota, briefing de 30 segundos e o resultado da visita.",
     icon: MapPinArea,
     home: { to: "/modo-visita" },
     roles: OPERACAO,
@@ -325,8 +323,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "follow-up",
     titulo: "Follow-Up",
-    descricao:
-      "As duas janelas do mesmo cliente: a cadência D1/D2/D3 até ele responder, a régua dos 13 toques depois disso.",
+    descricao: "A cadência D1, D2 e D3 até o cliente responder. Depois, a régua dos 13 toques.",
     icon: ArrowsClockwise,
     home: { to: "/follow-up" },
     // nav_pendencias.followups = tarefas de contato de hoje + vencidas — o
@@ -410,7 +407,7 @@ export const SISTEMAS: Sistema[] = [
     // enxerga tudo, como sempre). Decisões em docs/politica-sdr-v1.md.
     id: "sdr",
     titulo: "Pré-venda (SDR)",
-    descricao: "Esquente a base, qualifique e agende: o corretor recebe o lead pronto pela roleta.",
+    descricao: "Esquente, qualifique e agende. O corretor recebe o lead pronto pela roleta.",
     icon: Fire,
     home: { to: "/sdr" },
     roles: ["sdr"],
@@ -459,7 +456,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "docs-projetos",
     titulo: "Documentação & Projetos",
-    descricao: "Tudo dos empreendimentos: books, tabelas, catálogo, mapas, lojas e materiais.",
+    descricao: "Books, tabelas e catálogo. E só o que cabe na renda do cliente.",
     icon: Buildings,
     home: { to: "/projetos-foco" },
     cor: "projetos",
@@ -497,7 +494,7 @@ export const SISTEMAS: Sistema[] = [
   {
     id: "financeiro",
     titulo: "Assinaturas & Comissões",
-    descricao: "Fechamento de vendas, comissões e aprovações — cada papel vê o seu recorte.",
+    descricao: "Fechamento, aprovação e comissão. Cada papel vê o seu recorte.",
     icon: Wallet,
     home: { to: "/financeiro", search: { tab: "comissoes" } },
     badge: (b) => b.aprovacoes,
@@ -518,8 +515,8 @@ export const SISTEMAS: Sistema[] = [
   },
   {
     id: "bi",
-    titulo: "BI — Relatórios",
-    descricao: "Relatórios e indicadores: seu Raio-X individual e os painéis da operação.",
+    titulo: "BI · Relatórios",
+    descricao: "Seu Raio-X individual e os painéis da operação, ao vivo.",
     icon: ChartLineUp,
     home: { to: "/meu-raio-x" },
     homePorPapel: (ctx) =>
@@ -607,7 +604,7 @@ export const SISTEMAS: Sistema[] = [
 export const SISTEMA_ACADEMIA: Sistema = {
   id: "academia",
   titulo: "Academia",
-  descricao: "Formação do time: trilha, aulas, quiz, prática, gestão e certificados.",
+  descricao: "Trilha, aulas, quiz, prática e certificados para formar o time.",
   icon: GraduationCap,
   home: { to: "/academia" },
   homePorPapel: (ctx) =>
@@ -703,6 +700,16 @@ export function badgeDaSecao(s: Secao, badges: NavBadges | null, ctx: PapelCtx):
 
 export function homeDoSistema(s: Sistema, ctx: PapelCtx): Destino {
   return s.homePorPapel?.(ctx) ?? s.home;
+}
+
+/** Número fixo do módulo ("Módulo 01"), na ordem do registro — o mesmo para
+ *  todo papel, para "abra o módulo 04" valer no treino e no suporte. As
+ *  Configurações ficam de fora: não são módulo de trabalho, moram no rodapé
+ *  da sidebar (identidade Lançamento, 2026-10). Sem número = null. */
+export function numeroDoModulo(id: SistemaId, lista: Sistema[] = SISTEMAS_NAV): number | null {
+  const numerados = lista.filter((s) => s.id !== "configuracoes");
+  const i = numerados.findIndex((s) => s.id === id);
+  return i < 0 ? null : i + 1;
 }
 
 /** Atalhos do ⌘K que as seções não expressam: pulos direto a uma ABA
