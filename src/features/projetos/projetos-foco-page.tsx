@@ -422,7 +422,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
   if (projetosQ.isError) {
     return (
       <div className="p-6">
-        <PageHeader title="Projetos em Foco" />
+        <PageHeader title="Documentação & Projetos" />
         <QueryErrorState
           title="Não foi possível carregar os projetos."
           error={projetosQ.error}
@@ -437,9 +437,11 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-5 p-4 pb-28 md:p-6">
+        {/* Identidade Lançamento (como no vídeo): o título é o do módulo; a
+            trilha e a sidebar seguem dizendo "Projetos em Foco". */}
         <PageHeader
-          title="Projetos em Foco"
-          description="A prateleira de empreendimentos: o que vendemos agora, o que cabe na renda do cliente e o material para enviar — a um toque."
+          title="Documentação & Projetos"
+          description="Books, tabelas e catálogo. E só o que cabe na renda do cliente."
           actions={
             <>
               {podeGerir && (
@@ -506,6 +508,7 @@ export function ProjetosFocoPage({ leadId }: { leadId?: string }) {
           soQueCabe={filtros.soQueCabe}
           onSoQueCabe={(v) => set({ soQueCabe: v })}
           nomeLead={lead?.nome}
+          contagem={carregando ? undefined : ordenados.length}
         />
 
         {!carregando && modoCorredores && prateleira.emFoco.length > 0 && (

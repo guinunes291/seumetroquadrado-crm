@@ -238,16 +238,45 @@ Três decisões que valem registro:
   visita às 22h não vira "amanhã" porque o aparelho ou o servidor estão em
   outro fuso.
 
+## Fase 7 — Documentação & Projetos (07) ✅
+
+O quadro do vídeo é a prateleira (`/projetos-foco`), que já tinha tudo o que
+ele mostra — renda, "Só o que cabe", contagem, book, tabela e envio. A
+mudança é de composição:
+
+- **Título do módulo** ("Documentação & Projetos", eyebrow `MÓDULO 07`) e a
+  frase do vídeo; a trilha e a sidebar seguem dizendo "Projetos em Foco"
+  (mesmo critério da Gestão de Carteira).
+- **A renda numa linha** (`renda-cliente.tsx`): "Renda familiar", os chips com
+  o escolhido em navy, o campo "outra" para a renda que não está nos chips, o
+  "✓ Só o que cabe" dourado e a contagem de empreendimentos à direita. O aviso
+  de estimativa ("não é aprovação: a análise formal é da Caixa") continua logo
+  abaixo, sempre.
+- **O card** (`produto-card.tsx`): "A PARTIR DE" em caixa alta e o preço em
+  destaque; Book · Tabela · Enviar numa linha, como no vídeo. Comparar (a
+  sacola da Vitrine, uso real — decisão 18 de `docs/revisao-projetos-foco.md`)
+  e o menu "…" ficam numa linha discreta abaixo. A lista compacta não mudou.
+
+O que o vídeo mostra e **não** entrou, de propósito, por decisões do dono já
+registradas em `docs/revisao-projetos-foco.md`:
+
+- **Três cards por linha.** A decisão 11 é grade densa de 4–5 por linha no
+  desktop (e foto grande no celular) — a prateleira é mesa de trabalho.
+- **"Comissão turbinada" no card.** A decisão 10 deixa comissão no card só
+  para gestão e admin; para o corretor a campanha aparece como "Em foco" e no
+  banner.
+- O banner de campanha (decisões 14 e 22), os corredores em foco → parceiras
+  → outras (decisão 9) e os filtros de loja (o problema 7 do diagnóstico) ficam.
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
 de composição e acabamento. Ordem sugerida pelo uso diário (Central de
-Comando, Prospecção, Gestão de Carteira, Follow-Up e Modo Visita estão feitas —
-acima):
+Comando, Prospecção, Gestão de Carteira, Follow-Up, Modo Visita e
+Documentação & Projetos estão feitas — acima):
 
 | Módulo                     | O vídeo mostra                                                                                               | O que já existe                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar         | Projetos em Foco já tem renda e "Só o que cabe"                  |
 | 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período        | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
 | 09 BI · Relatórios         | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$ | Painel do Gestor já tem as abas e as exceções                    |
 | 06 Pré-venda (SDR)         | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                      | Hub `/sdr`; a roda é desenho novo                                |
