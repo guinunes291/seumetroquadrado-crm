@@ -22,7 +22,7 @@
  *   5. a conferência de localização (distância, nunca a coordenada) e a chave
  *      que a torna obrigatória;
  *   6. RLS, quadro da gestão, edição de filiais e o auto-checkout das 23h;
- *   7. presença obrigatória em toda fila — menos a do SDR (decisão pendente).
+ *   7. presença obrigatória em toda fila — menos a do SDR (decisão do dono).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -652,7 +652,7 @@ describe("presença obrigatória em toda fila (decisão do dono, 09/10/2026)", (
     await c.query(`DELETE FROM public.roletas WHERE slug = 'teste-sem-presenca'`);
   });
 
-  it("a fila do SDR continua podendo ser configurada (fica como está até a decisão)", async () => {
+  it("a fila do SDR fica de fora (decisão do dono): continua configurável, sem presença", async () => {
     await comoSuperuser(c);
     await c.query(`UPDATE public.roletas SET exigir_presenca = true WHERE slug = 'agendados-sdr'`);
     await c.query(`UPDATE public.roletas SET exigir_presenca = false WHERE slug = 'agendados-sdr'`);

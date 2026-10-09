@@ -322,8 +322,8 @@ export function resumoDecisao(contexto: unknown): DecisaoContexto {
  * Presença obrigatória em toda fila (decisão do dono, 09/10/2026; migration
  * 20261013120000): o banco religa `exigir_presenca` em qualquer fila que não
  * seja a do SDR — o interruptor da Central fica travado. A fila do SDR
- * (Agendados do SDR) entrega por agenda livre, "sem presença do dia"
- * (docs/politica-sdr-v1.md, item 7), até decisão própria.
+ * (Agendados do SDR) fica de fora por decisão do dono: entrega por agenda
+ * livre, "sem presença do dia" (docs/politica-sdr-v1.md, item 7).
  */
 export function presencaObrigatoria(roleta: { tipo?: string | null }): boolean {
   return roleta.tipo !== "sdr";

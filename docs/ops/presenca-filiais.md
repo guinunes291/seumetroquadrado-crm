@@ -87,11 +87,11 @@ migration liga essa chave em todas as filas e o gatilho
 depois (Central, `criar_roleta_campanha`, SQL avulso). Na Central, o
 interruptor "Exigir presença" aparece travado.
 
-**Exceção pendente: Agendados do SDR.** A elegibilidade dessa fila
-(`_elegibilidade_roleta_sdr`) nunca leu a presença: a política do SDR
+**Exceção, por decisão do dono: Agendados do SDR.** A elegibilidade dessa
+fila (`_elegibilidade_roleta_sdr`) nunca leu a presença: a política do SDR
 (04/09, `docs/politica-sdr-v1.md` item 7) entrega a visita marcada pelo SDR por
-**agenda livre no horário**, "sem presença do dia". Mudar isso é decisão
-própria do dono — ver §9.
+**agenda livre no horário**, "sem presença do dia" — o SDR marca às 19h uma
+visita para amanhã e o corretor recebe na hora. Continua assim (§9).
 
 ### Sem burla
 
@@ -252,18 +252,17 @@ SELECT p.nome, public._corretor_vendas_mes_anterior(p.id) AS vendas_mes_anterior
   caminho de quem está de fato na loja; o registro (com distância e hora) fica
   para auditoria.
 
-## 9. Pendências com o dono
+## 9. O que fica de fora (decisões do dono, 09/10/2026)
 
-1. **Fila Agendados do SDR** — exigir presença também? Hoje (política de
-   04/09) ela entrega a visita marcada pelo SDR a quem tem agenda livre no
-   horário, sem olhar presença: o SDR marca às 19h uma visita para amanhã e o
-   corretor recebe na hora. Exigindo presença, só quem está com check-in aberto
-   naquele momento entra no sorteio.
-2. **Lead que o corretor PUXA** (Bolsão, lote de prospecção, Discador) não é
-   fila: o corretor pede. Hoje funciona sem check-in. Se "não pegar lead em
-   casa" vale também para isso, é outra mudança.
-3. **Resposta 3 ("cai na geral")** foi dada para "se ninguém estiver na
-   filial". Como não há roleta por filial, não muda nada. Se a intenção for
-   "se ninguém da ZONA estiver presente, o lead vai para a geral", isso desfaz
-   a zona estrita de 03/10 (hoje o lead espera alguém da zona chegar) — pedir
-   confirmação explícita antes.
+1. **Fila Agendados do SDR não exige presença.** Continua entregando a visita
+   marcada pelo SDR a quem tem agenda livre no horário (política de 04/09). O
+   gatilho de presença obrigatória pula filas `tipo = 'sdr'` e o interruptor
+   dela segue editável na Central.
+2. **Lead que o corretor PUXA não exige check-in** (Bolsão, lote de
+   prospecção, Discador): não é fila — é o corretor pedindo. A regra do
+   plantão vale para o que as filas ENTREGAM.
+3. **Zona sem ninguém presente: o lead espera alguém da zona chegar.** É a
+   zona estrita de 03/10 (`docs/distribuicao-por-zonas.md`), sem mudança:
+   quando um corretor da zona faz o check-in, as esperas daquela zona voltam
+   no minuto seguinte (`tg_profiles_presenca_destrava_zona`, que dispara no
+   mesmo `profiles.presente` que o check-in liga). O lead nunca cai na geral.

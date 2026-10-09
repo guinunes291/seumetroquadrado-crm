@@ -13,10 +13,14 @@
 --     fila recebe depois do check-in em QUALQUER filial — não há roleta por
 --     filial;
 --   * presença é obrigatória em TODAS as filas em que o corretor está apto
---     (item 8; a fila Agendados do SDR fica de fora até decisão própria — a
---     política do SDR, de 04/09, entrega "sem presença do dia");
+--     (item 8), MENOS a fila Agendados do SDR, que segue entregando por agenda
+--     livre, "sem presença do dia" (política do SDR, 04/09 — confirmada);
 --   * com a meta batida, em casa ele entra em todas as filas em que está apto;
---   * a meta conta as vendas do MÊS ANTERIOR.
+--   * a meta conta as vendas do MÊS ANTERIOR;
+--   * lead que o corretor PUXA (Bolsão, lote de prospecção, Discador) não é
+--     fila e continua sem check-in;
+--   * zona sem ninguém presente: o lead ESPERA alguém da zona chegar (zona
+--     estrita de 03/10, sem mudança).
 --
 -- Como era: qualquer login marcava presença sozinho (auto check-in do
 -- auth-guard, a cada hora) e o corretor podia ligar `profiles.presente` com um
@@ -768,10 +772,10 @@ GRANT EXECUTE ON FUNCTION public.resetar_presenca_diaria() TO service_role;
 -- criar_roleta_campanha, SQL avulso): o gatilho liga de volta em vez de
 -- recusar, para nenhum caminho desconhecido quebrar.
 --
--- Fora: a fila do SDR (tipo 'sdr', Agendados do SDR). A elegibilidade dela
--- (_elegibilidade_roleta_sdr) não lê esta chave e entrega por agenda livre,
--- "sem presença do dia" (docs/politica-sdr-v1.md, item 7). Mudar isso é
--- decisão própria, pendente com o dono.
+-- Fora, por decisão do dono: a fila do SDR (tipo 'sdr', Agendados do SDR). A
+-- elegibilidade dela (_elegibilidade_roleta_sdr) não lê esta chave e entrega
+-- por agenda livre, "sem presença do dia" (docs/politica-sdr-v1.md, item 7) —
+-- o SDR marca a visita para outro dia e o corretor recebe na hora.
 UPDATE public.roletas
    SET exigir_presenca = true
  WHERE tipo IS DISTINCT FROM 'sdr'
