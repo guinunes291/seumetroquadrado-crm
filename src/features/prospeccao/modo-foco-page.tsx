@@ -14,16 +14,21 @@
 // - Aguardando Retorno: quem está há mais tempo sem contato vem primeiro.
 // - Em Qualificação: FIFO (ordem de entrada na etapa ≈ ordem de criação).
 //
+// Identidade Lançamento (2026-10, como no vídeo de lançamento): a escolha da
+// base e o primeiro lead dela ficam lado a lado — "Bases do dia" à esquerda,
+// o próximo lead com Ligar / WhatsApp / Registrar à direita. O Modo Foco em
+// tela cheia continua sendo onde se trabalha a fila inteira, um por um; ele
+// abre a partir do card ("Trabalhar a fila", F).
+//
 // Lote de prospecção (migration 20261005120000): o cartão do topo pede até 30
 // clientes do Bolsão. Enquanto estão na cadência eles ficam FORA da base ativa
 // do corretor — e portanto fora das três bases daqui (e do badge, que o banco
 // conta com a mesma regra). O trabalho deles é na Fila do Dia da cadência.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { ArrowRight, Crosshair, PhoneCall, UserCheck } from "@phosphor-icons/react";
-import { SamiMark } from "@/components/ui/sami-mark";
+import { Tray } from "@phosphor-icons/react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useRealtimeInvalidate } from "@/hooks/use-realtime-invalidate";
@@ -33,6 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/ui/query-error-state";
 import { FocusMode } from "@/features/leads/focus-mode";
 import { LoteProspeccaoCard } from "@/features/prospeccao/lote-card";
+import { ProximoLeadCard } from "@/features/prospeccao/proximo-lead-card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** Fora das bases: cliente de lote de prospecção ainda na cadência. É a mesma
@@ -42,45 +49,32 @@ export const FORA_DO_LOTE_ATIVO =
   "prospeccao_lote_id.is.null,cadencia_etapa.is.null,cadencia_etapa.not.in.(D0,D1,D2,D3)";
 
 export type BaseProspeccao =
-  | "aguardando_atendimento"
-  | "aguardando_retorno"
-  | "qualificacao_corretor";
+  "aguardando_atendimento" | "aguardando_retorno" | "qualificacao_corretor";
 
-const BASES: {
-  status: BaseProspeccao;
-  titulo: string;
-  descricao: string;
-  icon: typeof SamiMark;
-  iconClass: string;
-}[] = [
+/** As três bases do topo do funil, com o texto curto do vídeo. */
+const BASES: { status: BaseProspeccao; titulo: string; ordem: string }[] = [
   {
     status: "aguardando_atendimento",
-    titulo: "Clientes Aguardando Atendimento",
-    descricao:
-      "Leads novos na sua mesa, ainda sem o primeiro contato. Quem chegou primeiro sai na frente.",
-    icon: SamiMark,
-    iconClass: "bg-primary/10 text-primary",
+    titulo: "Aguardando atendimento",
+    ordem: "Quem chegou primeiro sai na frente",
   },
   {
     status: "aguardando_retorno",
-    titulo: "Clientes Aguardando Retorno",
-    descricao: "Quem ficou de receber um retorno seu. Os há mais tempo sem contato vêm primeiro.",
-    icon: PhoneCall,
-    iconClass: "bg-warning/15 text-warning",
+    titulo: "Aguardando retorno",
+    ordem: "Há mais tempo sem contato primeiro",
   },
   {
     status: "qualificacao_corretor",
-    titulo: "Clientes em Qualificação",
-    descricao: "Confirmar renda, FGTS e intenção antes de avançar o lead no funil.",
-    icon: UserCheck,
-    iconClass: "bg-info/15 text-info",
+    titulo: "Em qualificação",
+    ordem: "Renda, FGTS e intenção",
   },
 ];
 
 export function ModoFocoProspeccaoPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [base, setBase] = useState<BaseProspeccao | null>(null);
+  // A base que o corretor escolheu; sem escolha, a primeira com lead.
+  const [escolhida, setEscolhida] = useState<BaseProspeccao | null>(null);
   const [focoAberto, setFocoAberto] = useState(false);
 
   // Contagens da PRÓPRIA carteira (corretor_id = usuário): o Modo Foco é o
@@ -112,7 +106,18 @@ export function ModoFocoProspeccaoPage() {
     },
   });
 
+  // Só as contagens andam em tempo real. A fila NÃO: trocá-la por baixo do
+  // Modo Foco aberto deslocaria o lead que o corretor está trabalhando (o
+  // índice do J/K aponta para outro). Ela se refaz nas ações desta tela.
   useRealtimeInvalidate("leads", [["prospeccao:contagens"]]);
+
+  const contagens = contagensQ.data;
+  const temLead = (b: BaseProspeccao | null) => !!b && (contagens?.[b] ?? 0) > 0;
+  // A escolha vale enquanto a base tem lead; zerou, a tela passa para a
+  // próxima base com gente em vez de mostrar um card vazio.
+  const base: BaseProspeccao | null = temLead(escolhida)
+    ? escolhida
+    : (BASES.find((b) => temLead(b.status))?.status ?? null);
 
   // O lote: até 200 ids da base escolhida, na ordem operacional. staleTime
   // curto — reabrir o foco na mesma base remonta o lote do estado atual.
@@ -140,27 +145,10 @@ export function ModoFocoProspeccaoPage() {
     },
   });
 
-  // O foco só abre com o lote pronto E não-vazio; base zerada avisa e fica.
   const lote = loteQ.data ?? [];
-  const prontoParaAbrir = focoAberto && !!base && !loteQ.isLoading;
-  const loteVazio = prontoParaAbrir && !loteQ.isError && loteQ.data?.length === 0;
-  useEffect(() => {
-    if (!loteVazio) return;
-    // Corrida rara (contagem dizia >0, lote veio vazio): informa e rearma.
-    toast.info("Base zerada — nenhum lead para montar a fila agora.");
-    setFocoAberto(false);
-    setBase(null);
-  }, [loteVazio]);
+  const proximo = lote[0] ?? null;
 
-  const escolherBase = (b: BaseProspeccao) => {
-    setBase(b);
-    setFocoAberto(true);
-  };
-
-  const fecharFoco = (open: boolean) => {
-    if (open) return;
-    setFocoAberto(false);
-    setBase(null);
+  const atualizarBases = () => {
     // O lote trabalhado mudou o mundo: contagens e listas refletem na volta.
     void qc.invalidateQueries({ queryKey: ["prospeccao:contagens"] });
     void qc.invalidateQueries({ queryKey: ["prospeccao:lote"] });
@@ -168,16 +156,18 @@ export function ModoFocoProspeccaoPage() {
     void qc.invalidateQueries({ queryKey: ["nav-badges"] });
   };
 
-  const contagens = contagensQ.data;
+  const fecharFoco = (open: boolean) => {
+    if (open) return;
+    setFocoAberto(false);
+    atualizarBases();
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Prospecção — Modo Foco"
-        description="Escolha a base do dia. O sistema monta a fila e você trabalha um lead por vez, sem distração."
+        title="Prospecção"
+        description="Modo Foco, Oferta Ativa e Discador. Um lead por vez, sem distração."
       />
-
-      <LoteProspeccaoCard />
 
       {contagensQ.isError ? (
         <QueryErrorState
@@ -186,69 +176,112 @@ export function ModoFocoProspeccaoPage() {
           onRetry={() => void contagensQ.refetch()}
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {BASES.map(({ status, titulo, descricao, icon: Icon, iconClass }) => {
-            const total = contagens?.[status];
-            const carregando = contagensQ.isLoading;
-            const vazia = !carregando && (total ?? 0) === 0;
-            const montando = focoAberto && base === status && loteQ.isLoading;
-            return (
-              <button
-                key={status}
-                type="button"
-                disabled={carregando || vazia || montando}
-                onClick={() => escolherBase(status)}
-                className={cn(
-                  "group flex min-h-52 flex-col rounded-xl border border-border-subtle bg-card p-5 text-left shadow-elev-1 transition",
-                  vazia
-                    ? "opacity-60"
-                    : "hover-lift press-scale hover:border-primary/40 cursor-pointer",
-                )}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span
-                    className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-lg",
-                      iconClass,
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  {carregando ? (
-                    <Skeleton className="h-8 w-12" />
-                  ) : (
-                    <span className="font-display text-3xl font-bold tabular-nums">{total}</span>
-                  )}
+        <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] lg:items-start">
+          <section
+            aria-labelledby="bases-do-dia"
+            className="rounded-2xl border border-border-subtle bg-card p-4 md:p-5"
+          >
+            <h2 id="bases-do-dia" className="font-display text-lg font-bold">
+              Bases do dia
+            </h2>
+            <ul className="mt-4 space-y-2.5">
+              {BASES.map(({ status, titulo, ordem }) => {
+                const total = contagens?.[status];
+                const carregando = contagensQ.isLoading;
+                const vazia = !carregando && (total ?? 0) === 0;
+                const ativa = base === status;
+                return (
+                  <li key={status}>
+                    <button
+                      type="button"
+                      aria-pressed={ativa}
+                      disabled={carregando || vazia}
+                      onClick={() => setEscolhida(status)}
+                      className={cn(
+                        "w-full rounded-xl border p-4 text-left transition-colors",
+                        ativa
+                          ? "border-gold-400 bg-gold-50 dark:border-gold-500/60 dark:bg-gold-500/10"
+                          : "border-border-subtle bg-card hover:border-primary/30",
+                        vazia && "opacity-60",
+                      )}
+                    >
+                      {carregando ? (
+                        <Skeleton className="h-8 w-10" />
+                      ) : (
+                        <span className="block font-display text-3xl font-bold leading-none tabular-nums">
+                          {total}
+                        </span>
+                      )}
+                      <span className="mt-2 block font-semibold">{titulo}</span>
+                      <span className="mt-0.5 block text-[13px] text-muted-foreground">
+                        {vazia ? "Base zerada 🎉" : ordem}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          <div className="space-y-3">
+            <section
+              aria-label="Próximo lead da base"
+              className="min-h-[300px] rounded-2xl border border-border-subtle bg-card p-5 md:p-6"
+            >
+              {contagensQ.isLoading || (!!base && loteQ.isLoading) ? (
+                <div className="space-y-4" aria-busy="true">
+                  <Skeleton className="h-6 w-56" />
+                  <Skeleton className="h-10 w-72" />
+                  <Skeleton className="h-24 w-full" />
                 </div>
-                <h3 className="mt-4 font-display font-semibold leading-snug">{titulo}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{descricao}</p>
-                <span className="mt-auto flex items-center gap-1 pt-4 text-sm font-medium text-primary">
-                  {montando ? (
-                    "Montando a fila…"
-                  ) : vazia ? (
-                    "Base zerada 🎉"
-                  ) : (
-                    <>
-                      Montar fila e focar
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                    </>
-                  )}
-                </span>
-              </button>
-            );
-          })}
+              ) : loteQ.isError ? (
+                <QueryErrorState
+                  title="Não foi possível montar a fila desta base."
+                  error={loteQ.error}
+                  onRetry={() => void loteQ.refetch()}
+                />
+              ) : proximo ? (
+                <ProximoLeadCard
+                  key={proximo}
+                  leadId={proximo}
+                  posicao={1}
+                  total={lote.length}
+                  focoAberto={focoAberto}
+                  onAbrirFoco={() => setFocoAberto(true)}
+                  onTrabalhado={atualizarBases}
+                />
+              ) : (
+                <div className="flex h-full min-h-[250px] flex-col items-center justify-center gap-3 text-center">
+                  <Tray className="h-10 w-10 text-muted-foreground" />
+                  <p className="font-semibold">Nenhum lead nas suas bases agora.</p>
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    Peça um lote do Bolsão aqui embaixo ou abra a Oferta Ativa para trabalhar uma
+                    lista.
+                  </p>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/oferta-ativa">Abrir a Oferta Ativa</Link>
+                  </Button>
+                </div>
+              )}
+            </section>
+
+            <p className="hidden flex-wrap items-center gap-x-1.5 gap-y-1 px-1 text-xs text-muted-foreground md:flex">
+              No foco: <Kbd>J</Kbd>
+              <Kbd>K</Kbd> navegam · <Kbd>W</Kbd> WhatsApp · <Kbd>L</Kbd> ligar · <Kbd>R</Kbd>{" "}
+              registrar · <Kbd>F</Kbd> abre a fila · <Kbd>Esc</Kbd> volta
+            </p>
+          </div>
         </div>
       )}
 
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-        <Crosshair className="h-3.5 w-3.5" />
-        No foco: <Kbd>J</Kbd>/<Kbd>K</Kbd> navegam, <Kbd>W</Kbd> WhatsApp, <Kbd>L</Kbd> ligar,{" "}
-        <Kbd>R</Kbd> registrar contato, <Kbd>Esc</Kbd> volta para as bases.
-      </p>
+      {/* O lote do Bolsão é a porta de base NOVA — vem depois das bases que o
+          corretor já tem, que são o trabalho do dia. */}
+      <LoteProspeccaoCard />
 
       <FocusMode
         leadIds={lote}
-        open={prontoParaAbrir && lote.length > 0}
+        startId={proximo ?? undefined}
+        open={focoAberto && lote.length > 0}
         onOpenChange={fecharFoco}
         origem="prospeccao"
       />

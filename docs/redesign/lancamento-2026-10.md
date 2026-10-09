@@ -110,15 +110,42 @@ vídeo:
 Testes: `tests/central-comando-lancamento.test.tsx` (quedas, maior perda pela
 meta, safra sem venda, linhas e "Ver funil", card com anel e números).
 
+## Fase 3 — Prospecção (02) ✅
+
+O Modo Foco (`/prospeccao`, a porta do módulo) ficou como o quadro do vídeo:
+
+- **Título do módulo** ("Prospecção", eyebrow `MÓDULO 02`) e o subtítulo do
+  vídeo.
+- **"Bases do dia"** à esquerda: as três bases do topo do funil (Aguardando
+  atendimento, Aguardando retorno, Em qualificação) com a contagem e a regra
+  de ordem de cada uma. A escolhida fica em dourado; sem escolha, a primeira
+  com lead. Se a escolhida zera, a tela passa para a próxima com gente.
+- **O próximo lead** à direita (`ProximoLeadCard`): temperatura e etapa,
+  "1 de N", o nome e os seis campos do primeiro contato (empreendimento,
+  origem, renda, FGTS, entrada, último contato), e as ações **Ligar** (3C
+  Plus, "Chamando…" enquanto disca), **WhatsApp** e **Registrar contato**.
+  Antes, escolher a base abria direto o foco em tela cheia, sem prévia.
+- **O Modo Foco em tela cheia continua** sendo onde se trabalha a fila
+  inteira com J/K — abre do card ("Trabalhar a fila", tecla F) já no lead
+  mostrado. Os atalhos W/L/R/F do card se calam com o foco aberto (ele tem
+  os próprios) e com qualquer diálogo na tela.
+- **A fila não anda em tempo real** (só as contagens): trocá-la por baixo do
+  foco aberto deslocaria o lead do J/K. Ela se refaz nas ações da tela.
+- **O lote do Bolsão desceu** para depois das bases: é a porta de base
+  nova, e as bases que o corretor já tem são o trabalho do dia.
+- No celular as teclas somem (barra de atalhos e chips) — não há teclado.
+
+Testes: `tests/prospeccao-lancamento.test.tsx` (campos, posição, atalhos,
+silêncio com o foco aberto e com modificador, botões).
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
-de composição e acabamento. Ordem sugerida pelo uso diário (a Central de
-Comando, primeira da fila, está feita — acima):
+de composição e acabamento. Ordem sugerida pelo uso diário (Central de
+Comando e Prospecção estão feitas — acima):
 
 | Módulo                     | O vídeo mostra                                                                                                | O que já existe                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 02 Prospecção              | "Bases do dia" (contagem por base) + cartão do lead com renda, FGTS, entrada e atalhos L / W / R / J / K      | Modo Foco com bases, lote e atalhos                              |
 | 03 Gestão de Carteira      | Kanban de 4 colunas com cartões enxutos (temperatura, horário, próximo passo) e alternador Lista / Kanban     | `/pipeline`, `leads-kanban-board.tsx`                            |
 | 05 Follow-Up               | D1 / D2 / D3 lado a lado com checklist e a régua dos 13 toques como linha de passos                           | `/cadencia` (Fila do Dia, Kanban) e `/follow-up` (régua)         |
 | 04 Modo Visita             | Cartão navy da visita (Ligar, WhatsApp, Rota, Documentos), briefing de 30 s, potencial de crédito e checklist | `briefing-visita.tsx`, simulador de financiamento                |
