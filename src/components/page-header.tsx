@@ -1,5 +1,15 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { useModuloAtual } from "@/features/nav/modulo-atual";
+
+/** Dentro de um hub de abas que já mostra o título do módulo no topo
+ *  (Assinaturas & Comissões), o cabeçalho de cada aba vira título de SEÇÃO:
+ *  sem eyebrow, menor, com as mesmas ações. Dois títulos de página
+ *  empilhados competiriam pelo mesmo lugar. */
+const SecaoContext = createContext(false);
+
+export function CabecalhosDeSecao({ children }: { children: ReactNode }) {
+  return <SecaoContext.Provider value={true}>{children}</SecaoContext.Provider>;
+}
 
 /** Eyebrow dourado em caixa alta — o "MÓDULO 01" do vídeo de lançamento.
  *  gold-700 no claro passa AA (4,6:1 sobre o fundo); no escuro, gold-400. */
@@ -39,6 +49,23 @@ export function PageHeader({
   actions?: ReactNode;
   eyebrow?: ReactNode | false;
 }) {
+  const secao = useContext(SecaoContext);
+  if (secao) {
+    return (
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground">
+              {title}
+            </h2>
+            {titleAddon}
+          </div>
+          {description && <div className="mt-1 text-sm text-muted-foreground">{description}</div>}
+        </div>
+        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      </div>
+    );
+  }
   return (
     <div className="mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">

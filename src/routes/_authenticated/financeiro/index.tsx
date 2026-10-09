@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { CabecalhosDeSecao, PageHeader } from "@/components/page-header";
 import { ResponsiveTabs, ResponsiveTabsContent } from "@/components/ui/responsive-tabs";
 import { useUserRoles } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +49,23 @@ export const Route = createFileRoute("/_authenticated/financeiro/")({
   component: FinanceiroPage,
 });
 
+/**
+ * Identidade Lançamento (como no vídeo): o título do módulo e a frase vêm
+ * antes das abas; o cabeçalho de cada aba vira título de seção, com as
+ * mesmas ações (filtros, exportar, histórico).
+ */
+function HubFinanceiro({ children }: { children: ReactNode }) {
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Assinaturas & Comissões"
+        description="Fechamento, aprovação e comissão. Cada papel vê o seu recorte."
+      />
+      <CabecalhosDeSecao>{children}</CabecalhosDeSecao>
+    </div>
+  );
+}
+
 function FinanceiroPage() {
   const { isAdmin, isGestor, loading } = useUserRoles();
   const { tab } = Route.useSearch();
@@ -75,51 +94,55 @@ function FinanceiroPage() {
   // para uma opção única (as páginas têm PageHeader próprio).
   if (!podeFechamento) {
     return (
+      <HubFinanceiro>
+        <ResponsiveTabs
+          value={activeTab === "tiers" ? "tiers" : "comissoes"}
+          onValueChange={onTabChange}
+          ariaLabel="Visões do financeiro"
+          className="space-y-4"
+          items={[
+            { value: "comissoes", label: "Comissões" },
+            { value: "tiers", label: "Meu tier" },
+          ]}
+        >
+          <ResponsiveTabsContent value="comissoes">
+            <ComissoesPage />
+          </ResponsiveTabsContent>
+          <ResponsiveTabsContent value="tiers">
+            <TiersPage />
+          </ResponsiveTabsContent>
+        </ResponsiveTabs>
+      </HubFinanceiro>
+    );
+  }
+
+  return (
+    <HubFinanceiro>
       <ResponsiveTabs
-        value={activeTab === "tiers" ? "tiers" : "comissoes"}
+        value={activeTab}
         onValueChange={onTabChange}
         ariaLabel="Visões do financeiro"
         className="space-y-4"
         items={[
-          { value: "comissoes", label: "Comissões" },
-          { value: "tiers", label: "Meu tier" },
+          { value: "fechamento", label: "Fechamento" },
+          { value: "comissoes", label: "Comissões & Aprovação" },
+          { value: "tiers", label: "Tiers" },
+          { value: "dre", label: "DRE" },
         ]}
       >
+        <ResponsiveTabsContent value="fechamento">
+          <FechamentoPage />
+        </ResponsiveTabsContent>
         <ResponsiveTabsContent value="comissoes">
           <ComissoesPage />
         </ResponsiveTabsContent>
         <ResponsiveTabsContent value="tiers">
           <TiersPage />
         </ResponsiveTabsContent>
+        <ResponsiveTabsContent value="dre">
+          <DrePage />
+        </ResponsiveTabsContent>
       </ResponsiveTabs>
-    );
-  }
-
-  return (
-    <ResponsiveTabs
-      value={activeTab}
-      onValueChange={onTabChange}
-      ariaLabel="Visões do financeiro"
-      className="space-y-4"
-      items={[
-        { value: "fechamento", label: "Fechamento" },
-        { value: "comissoes", label: "Comissões & Aprovação" },
-        { value: "tiers", label: "Tiers" },
-        { value: "dre", label: "DRE" },
-      ]}
-    >
-      <ResponsiveTabsContent value="fechamento">
-        <FechamentoPage />
-      </ResponsiveTabsContent>
-      <ResponsiveTabsContent value="comissoes">
-        <ComissoesPage />
-      </ResponsiveTabsContent>
-      <ResponsiveTabsContent value="tiers">
-        <TiersPage />
-      </ResponsiveTabsContent>
-      <ResponsiveTabsContent value="dre">
-        <DrePage />
-      </ResponsiveTabsContent>
-    </ResponsiveTabs>
+    </HubFinanceiro>
   );
 }

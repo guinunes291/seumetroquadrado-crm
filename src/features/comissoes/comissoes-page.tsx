@@ -502,8 +502,8 @@ export function ComissoesPage() {
 
       {canManage && <PendingSalesApproval />}
 
-      {canManage && <VendasGestaoCard mes={mes} isAdmin={isAdmin} />}
-
+      {/* Como no vídeo: a aprovação e logo os números do período; o quadro de
+          distrato e exclusão (gestão) vem depois. */}
       <StatGrid>
         <StatTile
           title={canManage ? "VGV do período" : "Meu VGV do período"}
@@ -540,6 +540,8 @@ export function ComissoesPage() {
           loading={comissoesQ.isLoading}
         />
       </StatGrid>
+
+      {canManage && <VendasGestaoCard mes={mes} isAdmin={isAdmin} />}
 
       <div className="space-y-2">
         <DataTable
