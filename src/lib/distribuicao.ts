@@ -76,7 +76,9 @@ export const MOTIVO_INAPTIDAO_LABEL: Record<MotivoInaptidao, string> = {
   perfil_inativo: "Perfil inativo no CRM",
   sem_role_corretor: "Sem papel de corretor",
   sem_telefone: "Sem telefone cadastrado",
-  ausente_hoje: "Ausente no plantão hoje",
+  // Desde a presença por filial (2026-10-13), "presente" = check-in que libera
+  // a roleta: filial, ou em casa com o mínimo de vendas do mês.
+  ausente_hoje: "Sem check-in que libere a roleta hoje",
   cota_diaria_atingida: "Cota diária de leads atingida",
   pct_trabalhado_abaixo_minimo: "% de leads trabalhados abaixo do mínimo",
   sem_modelo_contrato: "Sem modelo de contrato definido",

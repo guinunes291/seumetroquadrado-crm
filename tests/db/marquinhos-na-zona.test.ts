@@ -95,9 +95,15 @@ async function excecoesAbertas(leadId: string): Promise<number> {
   return r.rows[0].n as number;
 }
 
+// Chegar = check-in numa filial (20261013120000: marcar_presenca(true) sozinho
+// não marca presença); sair = marcar_presenca(false).
 async function presenca(u: UsuarioTeste, presente: boolean) {
   await comoUsuario(c, u.id);
-  await c.query(`SELECT public.marcar_presenca($1)`, [presente]);
+  await c.query(
+    presente
+      ? `SELECT public.presenca_checkin('loja', 'barra-funda')`
+      : `SELECT public.marcar_presenca(false)`,
+  );
   await comoSuperuser(c);
 }
 

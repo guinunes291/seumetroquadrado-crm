@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { PushOptInCard } from "@/components/push-opt-in-banner";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import { MinhaElegibilidadeCard } from "@/components/minha-elegibilidade-card";
+import { CheckinCard } from "@/features/presenca/checkin-card";
 import { maskPhoneBR } from "@/lib/masks";
 import { AvatarUploadCard } from "@/components/avatar-upload-card";
 
@@ -33,31 +34,12 @@ function MeuPerfilPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "nome, email, telefone, cargo, bio, avatar_url, data_admissao, presente, presente_em",
-        )
+        .select("nome, email, telefone, cargo, bio, avatar_url, data_admissao")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-  });
-
-  const presenteHoje =
-    !!perfilQuery.data?.presente &&
-    !!perfilQuery.data?.presente_em &&
-    new Date(perfilQuery.data.presente_em).toDateString() === new Date().toDateString();
-
-  const togglePresenca = useMutation({
-    mutationFn: async (v: boolean) => {
-      const { error } = await supabase.rpc("marcar_presenca", { _presente: v });
-      if (error) throw error;
-    },
-    onSuccess: (_d, v) => {
-      toast.success(v ? "Bem-vindo! Você está presente." : "Presença removida.");
-      qc.invalidateQueries({ queryKey: ["meu-perfil"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const [nome, setNome] = useState("");
@@ -148,34 +130,9 @@ function MeuPerfilPage() {
           />
         </div>
 
-        <Card className="mb-4 border-primary/30">
-
-          <CardHeader>
-            <CardTitle className="text-base flex items-center justify-between">
-              <span>Presença de hoje</span>
-              <span
-                className={`text-xs px-2 py-0.5 rounded-full ${presenteHoje ? "bg-exito-500/15 text-exito-700" : "bg-muted text-muted-foreground"}`}
-              >
-                {presenteHoje ? "Presente" : "Ausente"}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between gap-4">
-            <div className="text-sm text-muted-foreground">
-              {presenteHoje
-                ? `Você marcou presença ${perfilQuery.data?.presente_em ? "às " + new Date(perfilQuery.data.presente_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "hoje"}. Você está elegível para receber leads da roleta automática.`
-                : "Marque presença para entrar na roleta de distribuição automática de leads. A presença é resetada todos os dias."}
-            </div>
-            <Button
-              size="sm"
-              variant={presenteHoje ? "outline" : "default"}
-              loading={togglePresenca.isPending}
-              onClick={() => togglePresenca.mutate(!presenteHoje)}
-            >
-              {presenteHoje ? "Sair" : "Cheguei"}
-            </Button>
-          </CardContent>
-        </Card>
+        {/* O antigo "Cheguei/Sair" virou o check-in por filial (2026-10-13):
+          o mesmo card de /presenca, com a regra do plantão explicada. */}
+        <CheckinCard className="mb-4 border-primary/30" />
 
         <div className="mb-4">
           <MinhaElegibilidadeCard />

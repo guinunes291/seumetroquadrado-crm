@@ -4719,6 +4719,48 @@ export type Database = {
         }
         Relationships: []
       }
+      filiais: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          endereco: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          nome: string
+          ordem: number
+          raio_metros: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          endereco?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          nome: string
+          ordem?: number
+          raio_metros?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          endereco?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          nome?: string
+          ordem?: number
+          raio_metros?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       funil_estudo_diario: {
         Row: {
           compromisso: string | null
@@ -6452,6 +6494,85 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_wip_corretor"
             referencedColumns: ["corretor_id"]
+          },
+        ]
+      }
+      presenca_checkins: {
+        Row: {
+          apto_roleta: boolean
+          corretor_id: string
+          created_at: string
+          dia: string
+          distancia_m: number | null
+          encerrado_em: string | null
+          filial_id: string | null
+          id: string
+          localizacao: string | null
+          modo: string
+          motivo: string | null
+          origem: string
+          precisao_m: number | null
+          registrado_por: string | null
+          vendas_mes: number
+          vendas_minimas: number
+        }
+        Insert: {
+          apto_roleta: boolean
+          corretor_id: string
+          created_at?: string
+          dia?: string
+          distancia_m?: number | null
+          encerrado_em?: string | null
+          filial_id?: string | null
+          id?: string
+          localizacao?: string | null
+          modo: string
+          motivo?: string | null
+          origem?: string
+          precisao_m?: number | null
+          registrado_por?: string | null
+          vendas_mes?: number
+          vendas_minimas?: number
+        }
+        Update: {
+          apto_roleta?: boolean
+          corretor_id?: string
+          created_at?: string
+          dia?: string
+          distancia_m?: number | null
+          encerrado_em?: string | null
+          filial_id?: string | null
+          id?: string
+          localizacao?: string | null
+          modo?: string
+          motivo?: string | null
+          origem?: string
+          precisao_m?: number | null
+          registrado_por?: string | null
+          vendas_mes?: number
+          vendas_minimas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presenca_checkins_corretor_id_fkey"
+            columns: ["corretor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presenca_checkins_filial_id_fkey"
+            columns: ["filial_id"]
+            isOneToOne: false
+            referencedRelation: "filiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presenca_checkins_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -10416,10 +10537,18 @@ export type Database = {
         Args: { _cliente_id: string; _exceto_corretor?: string }
         Returns: string
       }
+      _corretor_vendas_mes: {
+        Args: { _corretor: string; _ref?: string }
+        Returns: number
+      }
       _dentro_horario_comercial_brt: { Args: never; Returns: boolean }
       _devolver_lead_ao_sdr: {
         Args: { _gatilho: string; _lead_id: string; _motivo: string }
         Returns: boolean
+      }
+      _distancia_metros: {
+        Args: { _lat1: number; _lat2: number; _lng1: number; _lng2: number }
+        Returns: number
       }
       _distribuir_lead_sdr: {
         Args: {
@@ -10761,6 +10890,17 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      _presenca_aplicar: {
+        Args: { _corretor: string; _presente: boolean }
+        Returns: undefined
+      }
+      _presenca_encerrar_aberto: {
+        Args: { _corretor: string }
+        Returns: undefined
+      }
+      _presenca_loja_exige_localizacao: { Args: never; Returns: boolean }
+      _presenca_min_vendas_casa: { Args: never; Returns: number }
+      _presenca_status: { Args: { _corretor: string }; Returns: Json }
       _prospeccao_devolver_bolsao: {
         Args: { _corretor: string; _lead: string; _motivo: string }
         Returns: boolean
@@ -13387,6 +13527,39 @@ export type Database = {
         Returns: boolean
       }
       pontos_de: { Args: { _chave: string }; Returns: number }
+      presenca_checkin: {
+        Args: {
+          _corretor_id?: string
+          _filial?: string
+          _latitude?: number
+          _longitude?: number
+          _modo: string
+          _precisao_m?: number
+        }
+        Returns: Json
+      }
+      presenca_hoje_v1: {
+        Args: never
+        Returns: {
+          apto_roleta: boolean
+          avatar_url: string
+          checkin_em: string
+          corretor_id: string
+          distancia_m: number
+          encerrado_em: string
+          filial_nome: string
+          filial_slug: string
+          localizacao: string
+          modo: string
+          motivo: string
+          nome: string
+          origem: string
+          presente: boolean
+          vendas_mes: number
+          vendas_minimas: number
+        }[]
+      }
+      presenca_minha_v1: { Args: never; Returns: Json }
       preview_oferta_ativa: {
         Args: { _corretor?: string; _filtros: Json }
         Returns: Json

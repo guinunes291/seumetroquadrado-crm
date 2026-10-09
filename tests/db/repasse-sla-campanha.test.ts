@@ -129,7 +129,7 @@ beforeAll(async () => {
   }
   for (const u of [ana, bia, caio]) {
     await comoUsuario(c, u.id);
-    await c.query(`SELECT public.marcar_presenca(true)`);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
   }
   await comoSuperuser(c);
 });

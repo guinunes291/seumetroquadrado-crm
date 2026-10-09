@@ -11,7 +11,7 @@
  *    quando auth.uid() não é NULL; NULL = contexto de serviço/cron],
  *    distribuir_lead_v3 (wrapper com gate) -> _distribuir_lead_v3 (motor,
  *    EXECUTE só p/ service_role), gerenciar_participante_roleta,
- *    marcar_presenca, _elegibilidade_roleta, resolver_excecao /
+ *    presenca_checkin/marcar_presenca, _elegibilidade_roleta, resolver_excecao /
  *    reprocessar_excecao, distribuir_lead_ponderado (SWRR por tier,
  *    EXECUTE só p/ service_role).
  *  - Regra do motor: vencedor = apto há mais tempo sem receber NESTA roleta
@@ -89,11 +89,12 @@ beforeAll(async () => {
     corretorB.id,
   ]);
 
-  // Cada corretor marca a própria presença (RPC real do app).
+  // Cada corretor faz o próprio check-in numa filial (RPC real do app; desde
+  // 20261013120000 marcar_presenca(true) sozinho não marca presença).
   await comoUsuario(c, corretorA.id);
-  await c.query(`SELECT public.marcar_presenca(true)`);
+  await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
   await comoUsuario(c, corretorB.id);
-  await c.query(`SELECT public.marcar_presenca(true)`);
+  await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
 
   // Cursor determinístico: A está há mais tempo sem receber que B.
   await comoSuperuser(c);
@@ -366,9 +367,9 @@ describe("fila de exceções (lead nunca se perde)", () => {
 
   it("reprocessar_excecao (admin): com presença de volta, atribui e a exceção sai da fila como resolvida", async () => {
     await comoUsuario(c, corretorA.id);
-    await c.query(`SELECT public.marcar_presenca(true)`);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
     await comoUsuario(c, corretorB.id);
-    await c.query(`SELECT public.marcar_presenca(true)`);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
 
     await comoUsuario(c, admin.id);
     const r = await c.query(`SELECT public.reprocessar_excecao($1::uuid) AS res`, [excecaoId]);

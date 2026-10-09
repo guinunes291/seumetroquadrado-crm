@@ -68,6 +68,19 @@ export function TabConfiguracoes() {
               label="Lead do Marquinhos vai primeiro para a Roleta Marquinhos (da zona dele)"
               hint="Com zona estrita: recebe quem da Roleta Marquinhos atende a zona do lead; sem ninguém apto ali, vai para o time da zona. Desligado: o lead do bot vai direto para a roleta da zona."
             />
+            {/* presenca_checkin (20261013120000): chave ausente = 3. */}
+            <SettingNumero
+              chave="presenca_casa_min_vendas_mes"
+              label="Vendas no mês para receber leads trabalhando de casa"
+              hint="Abaixo disso, só o check-in numa filial (plantão) coloca o corretor na roleta. Vendas aprovadas, sem distrato, assinadas no mês. 0 = em casa sempre libera."
+              min={0}
+              sufixo="vendas"
+            />
+            <SettingBooleano
+              chave="presenca_loja_exige_localizacao"
+              label="Check-in na filial exige a localização do celular"
+              hint="Ligado: fora do raio da filial (ou sem localização) o check-in fica registrado, mas não libera a roleta. Só vale para filial com coordenadas cadastradas em /presenca."
+            />
             <SettingNumero
               chave="percentual_minimo_trabalhado"
               label="Percentual mínimo de leads trabalhados (Roleta Plantão)"

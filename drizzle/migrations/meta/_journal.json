@@ -519,6 +519,13 @@
       "when": 1791817200000,
       "tag": "0073_marquinhos_antes_da_zona",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1791903600000,
+      "tag": "0074_presenca_por_filial",
+      "breakpoints": true
     }
   ]
 }
