@@ -10,9 +10,8 @@ import {
   EFETIVACAO_FLAGS,
   type EfetivacaoFlagKey,
 } from "@/lib/vendas";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -46,6 +45,14 @@ type PendingSale = {
   leadNome: string;
   corretorNome: string;
 };
+
+/** "Mariana Costa" → "MC" — o avatar da linha da venda. */
+function iniciais(nome: string): string {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  const letras =
+    partes.length > 1 ? [partes[0][0], partes[partes.length - 1][0]] : [partes[0]?.[0]];
+  return letras.filter(Boolean).join("").toUpperCase() || "?";
+}
 
 function money(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -143,9 +150,17 @@ export function PendingSalesApproval() {
           percentual_gerente: number;
           percentual_superintendente: number;
           percentual_corretor?: number;
-        } = { percentual_comissao: total, percentual_gerente: gerente, percentual_superintendente: sup };
-        if (share != null) patch.percentual_corretor = Math.round(total * Number(share) * 100) / 10000;
-        const { error: upErr } = await supabase.from("vendas").update(patch).eq("id", decision.sale.id);
+        } = {
+          percentual_comissao: total,
+          percentual_gerente: gerente,
+          percentual_superintendente: sup,
+        };
+        if (share != null)
+          patch.percentual_corretor = Math.round(total * Number(share) * 100) / 10000;
+        const { error: upErr } = await supabase
+          .from("vendas")
+          .update(patch)
+          .eq("id", decision.sale.id);
         if (upErr) throw upErr;
       }
       const { error } = await supabase.rpc("aprovar_venda", {
@@ -198,21 +213,24 @@ export function PendingSalesApproval() {
 
   return (
     <>
-      <Card className="border-aviso-500/40">
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ClockAfternoon className="h-4 w-4 text-aviso-600" aria-hidden="true" />
-              Aprovações de venda
-            </CardTitle>
-            {!query.isLoading && (
-              <Badge variant="secondary">
-                {query.data?.length ?? 0} pendente(s) · {money(total)}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2" aria-live="polite">
+      {/* Identidade Lançamento (como no vídeo): uma linha por venda — quem
+          comprou, de quem e onde, o valor e a decisão — e os marcos de
+          efetivação logo abaixo. O quarto quadro é o ESTADO (em efetivação /
+          pronta), não um marco: ele não se marca, decorre dos outros três. */}
+      <section
+        aria-label="Aprovações de venda"
+        className="rounded-2xl border border-border-subtle bg-card p-4 text-card-foreground md:p-5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-bold">Aprovações de venda</h2>
+          {!query.isLoading && (
+            <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-semibold text-gold-800 dark:bg-gold-500/15 dark:text-gold-300">
+              {query.data?.length ?? 0} {(query.data?.length ?? 0) === 1 ? "pendente" : "pendentes"}{" "}
+              · {money(total)}
+            </span>
+          )}
+        </div>
+        <div className="mt-3 space-y-4" aria-live="polite">
           {query.isLoading ? (
             <div className="h-20 animate-pulse rounded-md bg-muted" />
           ) : (
@@ -220,16 +238,26 @@ export function PendingSalesApproval() {
               const efetivada = vendaEfetivada(sale);
               const pendentes = marcosPendentes(sale);
               return (
-                <div key={sale.id} className="space-y-2 rounded-lg border p-3">
+                <div key={sale.id} className="space-y-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{sale.leadNome}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {sale.corretorNome} · {sale.projeto_nome ?? "Sem projeto"} ·{" "}
-                        {new Date(`${sale.data_assinatura}T12:00:00`).toLocaleDateString("pt-BR")}
-                      </p>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+                      >
+                        {iniciais(sale.leadNome)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{sale.leadNome}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {sale.corretorNome} · {sale.projeto_nome ?? "Sem projeto"} ·{" "}
+                          {new Date(`${sale.data_assinatura}T12:00:00`).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
                     </div>
-                    <strong className="text-sm tabular-nums">{money(sale.valor_venda)}</strong>
+                    <strong className="font-display text-xl font-bold tabular-nums">
+                      {money(sale.valor_venda)}
+                    </strong>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -248,15 +276,16 @@ export function PendingSalesApproval() {
                       </Button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
                     {EFETIVACAO_FLAGS.map((flag) => (
                       <label
                         key={flag.key}
-                        className="flex cursor-pointer items-center gap-1.5 text-xs"
+                        className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border border-border-subtle px-3 text-sm hover:bg-accent"
                       >
                         <Checkbox
                           checked={sale[flag.key]}
                           disabled={flagMutation.isPending}
+                          className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 data-[state=checked]:border-success data-[state=checked]:bg-success data-[state=checked]:text-success-foreground [&_svg]:h-3 [&_svg]:w-3"
                           onCheckedChange={(checked) =>
                             flagMutation.mutate({
                               vendaId: sale.id,
@@ -268,16 +297,31 @@ export function PendingSalesApproval() {
                         {flag.label}
                       </label>
                     ))}
-                    <Badge variant={efetivada ? "default" : "secondary"} className="ml-auto">
+                    <div
+                      className={
+                        efetivada
+                          ? "flex min-h-11 items-center gap-2.5 rounded-xl bg-success/10 px-3 text-sm font-medium text-success"
+                          : "flex min-h-11 items-center gap-2.5 rounded-xl bg-muted px-3 text-sm font-medium text-muted-foreground"
+                      }
+                    >
+                      {efetivada ? (
+                        <CheckCircle
+                          className="h-5 w-5 shrink-0"
+                          weight="fill"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <ClockAfternoon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                      )}
                       {efetivada ? "Pronta para aprovar" : "Em efetivação"}
-                    </Badge>
+                    </div>
                   </div>
                 </div>
               );
             })
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <AlertDialog
         open={!!decision}

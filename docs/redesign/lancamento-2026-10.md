@@ -268,19 +268,44 @@ registradas em `docs/revisao-projetos-foco.md`:
 - O banner de campanha (decisões 14 e 22), os corredores em foco → parceiras
   → outras (decisão 9) e os filtros de loja (o problema 7 do diagnóstico) ficam.
 
+## Fase 8 — Assinaturas & Comissões (08) ✅
+
+O quadro do vídeo é o hub `/financeiro` na aba Comissões & Aprovação, que já
+tinha a aprovação de venda e os quatro números do período:
+
+- **O título do módulo acima das abas** ("Assinaturas & Comissões", eyebrow
+  `MÓDULO 08`, a frase do vídeo). O cabeçalho de cada aba (Fechamento,
+  Comissões, DRE) vira **título de seção** — `CabecalhosDeSecao` em
+  `page-header.tsx`: sem eyebrow, menor, com as mesmas ações (filtros,
+  exportar, histórico). Dois títulos de página empilhados competiriam pelo
+  mesmo lugar.
+- **Aprovações de venda** (`pending-sales-approval.tsx`): uma linha por venda
+  — iniciais, quem comprou, corretor · empreendimento · data, o valor e
+  Rejeitar / Aprovar — e os marcos em quadros. O quarto quadro do vídeo ("Em
+  efetivação") é o **estado**, não um marco: ele não se marca, decorre dos
+  outros três (contrato assinado, ato pago, apto para repasse); com os três,
+  vira "Pronta para aprovar" e o Aprovar libera — a trava do banco é a mesma.
+- **A ordem do vídeo:** a aprovação e logo os números do período; o quadro de
+  distrato e exclusão (gestão) desceu para depois deles.
+
+Ficam como estão, de propósito: as abas em controle segmentado (o vídeo
+desenha pílulas, mas o componente é o de todas as telas com abas — mudar só
+aqui deixaria o sistema desigual) e o valor da venda com centavos (numa
+aprovação financeira o valor exato importa; estimativa sem centavos é a do
+Modo Visita).
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
 de composição e acabamento. Ordem sugerida pelo uso diário (Central de
-Comando, Prospecção, Gestão de Carteira, Follow-Up, Modo Visita e
-Documentação & Projetos estão feitas — acima):
+Comando, Prospecção, Gestão de Carteira, Follow-Up, Modo Visita, Documentação &
+Projetos e Assinaturas & Comissões estão feitas — acima):
 
-| Módulo                     | O vídeo mostra                                                                                               | O que já existe                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período        | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
-| 09 BI · Relatórios         | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$ | Painel do Gestor já tem as abas e as exceções                    |
-| 06 Pré-venda (SDR)         | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                      | Hub `/sdr`; a roda é desenho novo                                |
-| 10 Academia                | Trilha em 5 passos, quiz e certificado                                                                       | Trilha, quiz e certificado existem                               |
+| Módulo             | O vídeo mostra                                                                                               | O que já existe                               |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| 09 BI · Relatórios | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$ | Painel do Gestor já tem as abas e as exceções |
+| 06 Pré-venda (SDR) | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                      | Hub `/sdr`; a roda é desenho novo             |
+| 10 Academia        | Trilha em 5 passos, quiz e certificado                                                                       | Trilha, quiz e certificado existem            |
 
 Fora de escopo de propósito: o contador `00 / 10` e a pílula com a URL são
 recursos de edição do vídeo, não do produto. O logo continua o PNG da marca
