@@ -199,7 +199,13 @@ export const Route = createFileRoute("/api/public/leads/$id")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const [leadRes, interRes] = await Promise.all([
-          supabaseAdmin.from("leads").select(PUBLIC_LEAD_SELECT).eq("id", id).maybeSingle(),
+          // Só este GET devolve observacoes e renda_informada (aviso ao corretor
+          // via agente externo); a lista e os demais endpoints seguem sem elas.
+          supabaseAdmin
+            .from("leads")
+            .select(`${PUBLIC_LEAD_SELECT},observacoes,renda_informada`)
+            .eq("id", id)
+            .maybeSingle(),
           supabaseAdmin
             .from("interacoes")
             // `leads:read` não autoriza exportar mensagens, metadata, autor ou
