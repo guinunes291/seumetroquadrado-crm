@@ -94,7 +94,7 @@ export function PresencaQuadro({ podeOperar }: { podeOperar: boolean }) {
           value={resumo.emCasaForaDaRoleta}
           icon={House}
           intent={resumo.emCasaForaDaRoleta > 0 ? "warning" : "neutral"}
-          hint="Abaixo do mínimo de vendas do mês"
+          hint="Abaixo do mínimo de vendas do mês anterior"
         />
         <StatTile
           title="Sem check-in"
@@ -188,8 +188,8 @@ function LinhaCorretor({
             <span>Saiu às {hora(r.encerrado_em)}</span>
           ) : null}
           {aberto && r.checkin_em && <span>desde {hora(r.checkin_em)}</span>}
-          <span>
-            · {r.vendas_mes}/{r.vendas_minimas} vendas
+          <span title="Vendas aprovadas no mês anterior / meta para trabalhar de casa">
+            · {r.vendas_mes_anterior}/{r.vendas_minimas} vendas no mês anterior
           </span>
           {casaBloqueada && <span className="text-warning">· abaixo do mínimo</span>}
           {evidencia && <StatusBadge intent={evidencia.intent}>{evidencia.texto}</StatusBadge>}

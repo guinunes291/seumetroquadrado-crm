@@ -8,30 +8,43 @@
 -- roletas de leads. Corretores com menos de 3 vendas no mês não podem pegar
 -- lead em casa, apenas com presença no plantão."
 --
+-- Decisões do dono na revisão (09/10/2026, noite):
+--   * filas continuam as de hoje (zona, campanha, Marquinhos...): quem está na
+--     fila recebe depois do check-in em QUALQUER filial — não há roleta por
+--     filial;
+--   * presença é obrigatória em TODAS as filas em que o corretor está apto
+--     (item 8; a fila Agendados do SDR fica de fora até decisão própria — a
+--     política do SDR, de 04/09, entrega "sem presença do dia");
+--   * com a meta batida, em casa ele entra em todas as filas em que está apto;
+--   * a meta conta as vendas do MÊS ANTERIOR.
+--
 -- Como era: qualquer login marcava presença sozinho (auto check-in do
 -- auth-guard, a cada hora) e o corretor podia ligar `profiles.presente` com um
 -- UPDATE direto no próprio perfil. Presença não dizia onde a pessoa estava.
 --
--- Desenho: TODOS os motores (roleta v3/_elegibilidade_roleta, campanha
--- ponderada, repasse por SLA, SDR, Escoar estoque) já leem a mesma chave,
+-- Desenho: os motores (roleta v3/_elegibilidade_roleta, campanha ponderada,
+-- repasse por SLA, Escoar estoque) já leem a mesma chave,
 -- `profiles.presente`. Nenhum deles muda aqui. A regra entra no ÚNICO lugar
 -- que liga essa chave — o check-in:
 --
---   check-in na FILIAL ............................ libera a roleta
---   check-in EM CASA com >= 3 vendas no mês ....... libera a roleta
---   check-in EM CASA com <  3 vendas no mês ....... registra, NÃO libera
+--   check-in na FILIAL ...................................... libera a roleta
+--   check-in EM CASA com >= 3 vendas no mês anterior ........ libera a roleta
+--   check-in EM CASA com <  3 vendas no mês anterior ........ registra, NÃO libera
 --
--- "Vendas no mês" = vendas aprovadas, sem distrato, com data de assinatura no
--- mês corrente (BRT) — o mesmo critério de corretor_vendas_trimestre (tier de
--- comissão), só que no mês. O "3" é a chave presenca_casa_min_vendas_mes
--- (Central de Distribuição → Configurações); 0 desliga a regra.
+-- "Vendas no mês anterior" = vendas aprovadas, sem distrato, com data de
+-- assinatura no mês-calendário anterior (BRT) — o mesmo critério de
+-- corretor_vendas_trimestre (tier de comissão), só que no mês. Em outubro
+-- valem as assinadas em setembro: a meta fica fixa o mês inteiro (não zera no
+-- dia 1º) e só muda se a gestão aprovar ou distratar uma venda de setembro.
+-- O "3" é a chave presenca_casa_min_vendas_mes_anterior (Central de
+-- Distribuição → Configurações); 0 desliga a regra.
 --
 -- Peças:
---   1. filiais ............ Barra Funda, Liberdade, Belém (coordenadas e raio
---                           editáveis pela gestão; sem coordenadas, não há
---                           conferência de localização)
+--   1. filiais ............ Barra Funda, Liberdade, Belém, com os endereços do
+--                           dono (coordenadas e raio pela gestão em /presenca;
+--                           sem coordenadas, não há conferência de localização)
 --   2. presenca_checkins .. um registro por check-in (onde, se liberou roleta e
---                           por quê, vendas do mês no momento). Não guarda a
+--                           por quê, vendas do mês anterior). Não guarda a
 --                           coordenada do celular — só a DISTÂNCIA até a filial.
 --                           Check-in em casa nunca pede localização.
 --   3. presenca_checkin() . a porta única (corretor e gestão)
@@ -42,17 +55,19 @@
 --                           vira "liberado pela gestão", registrado
 --   6. trava em profiles .. presente/presente_em só mudam pelas RPCs acima
 --   7. auto-checkout das 23h fecha os check-ins abertos
+--   8. presença obrigatória em toda fila (exceto a do SDR), também nas criadas
+--                           ou editadas depois
 --
--- Rollback da REGRA sem deploy: presenca_casa_min_vendas_mes = 0 (casa sempre
--- libera). Ver docs/ops/presenca-filiais.md.
+-- Rollback da REGRA sem deploy: presenca_casa_min_vendas_mes_anterior = 0
+-- (casa sempre libera). Ver docs/ops/presenca-filiais.md.
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
 -- 0) Configurações (Central de Distribuição → Configurações)
 -- ---------------------------------------------------------------------------
 INSERT INTO public.distribuicao_settings (chave, valor, descricao) VALUES
-  ('presenca_casa_min_vendas_mes', '3'::jsonb,
-   'Vendas aprovadas no mês (sem distrato) para o check-in EM CASA liberar a roleta. Abaixo disso, só o check-in numa filial (plantão) libera. 0 = em casa sempre libera.'),
+  ('presenca_casa_min_vendas_mes_anterior', '3'::jsonb,
+   'Vendas aprovadas no mês anterior (sem distrato, pela data de assinatura) para o check-in EM CASA liberar a roleta. Abaixo disso, só o check-in numa filial (plantão) libera. 0 = em casa sempre libera.'),
   ('presenca_loja_exige_localizacao', 'false'::jsonb,
    'Check-in na filial só libera a roleta com a localização do celular dentro do raio da filial (vale para filial com coordenadas cadastradas).')
 ON CONFLICT (chave) DO NOTHING;
@@ -82,11 +97,19 @@ DROP TRIGGER IF EXISTS trg_filiais_updated_at ON public.filiais;
 CREATE TRIGGER trg_filiais_updated_at BEFORE UPDATE ON public.filiais
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
-INSERT INTO public.filiais (slug, nome, ordem) VALUES
-  ('barra-funda', 'Barra Funda', 1),
-  ('liberdade',   'Liberdade',   2),
-  ('belem',       'Belém',       3)
-ON CONFLICT (slug) DO NOTHING;
+-- Endereços passados pelo dono (09/10/2026). Coordenadas ficam para a gestão
+-- em /presenca → Filiais ("Buscar pelo endereço" + conferir no mapa): sem um
+-- geocodificador confiável aqui, ponto chutado a 300 m de raio faria check-in
+-- legítimo aparecer "fora do raio".
+INSERT INTO public.filiais (slug, nome, ordem, endereco) VALUES
+  ('barra-funda', 'Barra Funda', 1,
+   'Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003'),
+  ('liberdade',   'Liberdade',   2,
+   'Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001'),
+  ('belem',       'Belém',       3,
+   'Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002')
+ON CONFLICT (slug) DO UPDATE SET endereco = EXCLUDED.endereco
+  WHERE public.filiais.endereco IS NULL;
 
 ALTER TABLE public.filiais ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.filiais FROM PUBLIC, anon, authenticated;
@@ -131,8 +154,8 @@ CREATE TABLE IF NOT EXISTS public.presenca_checkins (
   -- Por que NÃO liberou: casa_abaixo_minimo_vendas | fora_da_filial | sem_localizacao
   motivo         text,
   -- Foto da regra no momento do check-in (auditoria: "por que não recebi?").
-  vendas_mes     integer NOT NULL DEFAULT 0,
-  vendas_minimas integer NOT NULL DEFAULT 0,
+  vendas_mes_anterior integer NOT NULL DEFAULT 0,
+  vendas_minimas      integer NOT NULL DEFAULT 0,
   -- Conferência de localização (só check-in na filial). Nunca a coordenada:
   -- só a distância até a filial e a precisão informada pelo aparelho.
   localizacao    text CHECK (localizacao IN (
@@ -180,9 +203,22 @@ CREATE POLICY presenca_checkins_select ON public.presenca_checkins
 -- 3) Peças internas da regra
 -- ---------------------------------------------------------------------------
 
--- Vendas aprovadas (sem distrato) do corretor no mês de _ref — mesmo critério
--- de corretor_vendas_trimestre. Interna: a contagem de colegas não sai por RPC.
-CREATE OR REPLACE FUNCTION public._corretor_vendas_mes(
+-- Primeiro dia do mês anterior a _ref (o mês que a meta conta).
+CREATE OR REPLACE FUNCTION public._presenca_mes_referencia(
+  _ref date DEFAULT ((now() AT TIME ZONE 'America/Sao_Paulo')::date)
+)
+RETURNS date
+LANGUAGE sql
+IMMUTABLE
+SET search_path = public
+AS $$
+  SELECT (date_trunc('month', _ref) - interval '1 month')::date;
+$$;
+
+-- Vendas aprovadas (sem distrato) do corretor no mês ANTERIOR ao de _ref, pela
+-- data de assinatura — mesmo critério de corretor_vendas_trimestre. Interna:
+-- a contagem de colegas não sai por RPC.
+CREATE OR REPLACE FUNCTION public._corretor_vendas_mes_anterior(
   _corretor uuid,
   _ref date DEFAULT ((now() AT TIME ZONE 'America/Sao_Paulo')::date)
 )
@@ -196,13 +232,13 @@ AS $$
    WHERE v.corretor_id = _corretor
      AND v.status_venda = 'aprovada'
      AND coalesce(v.distrato, false) = false
-     AND v.data_assinatura >= date_trunc('month', _ref)::date
-     AND v.data_assinatura <  (date_trunc('month', _ref) + interval '1 month')::date;
+     AND v.data_assinatura >= public._presenca_mes_referencia(_ref)
+     AND v.data_assinatura <  date_trunc('month', _ref)::date;
 $$;
-REVOKE ALL ON FUNCTION public._corretor_vendas_mes(uuid, date) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public._corretor_vendas_mes(uuid, date) TO service_role;
+REVOKE ALL ON FUNCTION public._corretor_vendas_mes_anterior(uuid, date) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._corretor_vendas_mes_anterior(uuid, date) TO service_role;
 
--- Mínimo de vendas no mês para o check-in em casa liberar a roleta.
+-- Mínimo de vendas no mês anterior para o check-in em casa liberar a roleta.
 CREATE OR REPLACE FUNCTION public._presenca_min_vendas_casa()
 RETURNS integer
 LANGUAGE sql
@@ -211,7 +247,7 @@ SET search_path = public
 AS $$
   SELECT greatest(0, coalesce(
     (SELECT (valor #>> '{}')::int FROM public.distribuicao_settings
-      WHERE chave = 'presenca_casa_min_vendas_mes'),
+      WHERE chave = 'presenca_casa_min_vendas_mes_anterior'),
     3));
 $$;
 REVOKE ALL ON FUNCTION public._presenca_min_vendas_casa() FROM PUBLIC, anon, authenticated;
@@ -310,9 +346,10 @@ AS $$
     'presente', coalesce(p.presente AND p.presente_em IS NOT NULL
                          AND (p.presente_em AT TIME ZONE 'America/Sao_Paulo')::date = cfg.hoje,
                          false),
-    'vendas_mes', public._corretor_vendas_mes(_corretor, cfg.hoje),
+    'mes_referencia', public._presenca_mes_referencia(cfg.hoje),
+    'vendas_mes_anterior', public._corretor_vendas_mes_anterior(_corretor, cfg.hoje),
     'vendas_minimas', cfg.minimo,
-    'casa_liberada', public._corretor_vendas_mes(_corretor, cfg.hoje) >= cfg.minimo,
+    'casa_liberada', public._corretor_vendas_mes_anterior(_corretor, cfg.hoje) >= cfg.minimo,
     'exige_localizacao', cfg.exige_loc,
     'checkin', (
       SELECT jsonb_build_object(
@@ -401,7 +438,7 @@ BEGIN
   -- clique): o índice de "um aberto por dia" não vira erro na cara dele.
   PERFORM pg_advisory_xact_lock(hashtext('presenca_checkin:' || _alvo::text));
 
-  _vendas := public._corretor_vendas_mes(_alvo, _hoje);
+  _vendas := public._corretor_vendas_mes_anterior(_alvo, _hoje);
 
   IF _modo = 'loja' THEN
     IF _por_gestao THEN
@@ -425,7 +462,8 @@ BEGIN
       _apto := true;
     END IF;
   ELSE
-    -- Em casa: nunca pede localização. Libera só com o mínimo de vendas do mês.
+    -- Em casa: nunca pede localização. Libera só com o mínimo de vendas do mês
+    -- anterior.
     _apto := _vendas >= _min;
     _motivo := CASE WHEN _apto THEN NULL ELSE 'casa_abaixo_minimo_vendas' END;
   END IF;
@@ -433,7 +471,7 @@ BEGIN
   PERFORM public._presenca_encerrar_aberto(_alvo);
 
   INSERT INTO public.presenca_checkins (
-    corretor_id, dia, modo, filial_id, apto_roleta, motivo, vendas_mes, vendas_minimas,
+    corretor_id, dia, modo, filial_id, apto_roleta, motivo, vendas_mes_anterior, vendas_minimas,
     localizacao, distancia_m, precisao_m, origem, registrado_por)
   VALUES (
     _alvo, _hoje, _modo, CASE WHEN _modo = 'loja' THEN _f.id END, _apto, _motivo, _vendas, _min,
@@ -491,10 +529,10 @@ RETURNS TABLE (
   localizacao    text,
   distancia_m    integer,
   origem         text,
-  checkin_em     timestamptz,
-  encerrado_em   timestamptz,
-  vendas_mes     integer,
-  vendas_minimas integer
+  checkin_em          timestamptz,
+  encerrado_em        timestamptz,
+  vendas_mes_anterior integer,
+  vendas_minimas      integer
 )
 LANGUAGE plpgsql
 STABLE SECURITY DEFINER
@@ -526,7 +564,7 @@ BEGIN
          c.origem,
          c.created_at,
          c.encerrado_em,
-         public._corretor_vendas_mes(p.id, _hoje),
+         public._corretor_vendas_mes_anterior(p.id, _hoje),
          _min
     FROM public.profiles p
     LEFT JOIN LATERAL (
@@ -553,7 +591,7 @@ GRANT EXECUTE ON FUNCTION public.presenca_hoje_v1() TO authenticated, service_ro
 -- marcar_presenca(true) NÃO marca mais presença sem local: aba antiga com o
 -- auto check-in do login (que chamava isto a cada hora) não pode burlar a
 -- regra. Com check-in aberto hoje, re-confirma — e o check-in em casa que não
--- tinha liberado é reavaliado (o corretor bateu as vendas do mês).
+-- tinha liberado é reavaliado (a gestão aprovou uma venda do mês anterior).
 CREATE OR REPLACE FUNCTION public.marcar_presenca(_presente boolean)
 RETURNS void
 LANGUAGE plpgsql
@@ -583,7 +621,7 @@ BEGIN
   END IF;
 
   IF NOT _c.apto_roleta AND _c.modo = 'casa'
-     AND public._corretor_vendas_mes(_uid, _hoje) >= public._presenca_min_vendas_casa() THEN
+     AND public._corretor_vendas_mes_anterior(_uid, _hoje) >= public._presenca_min_vendas_casa() THEN
     PERFORM public.presenca_checkin('casa');
   END IF;
 END;
@@ -614,10 +652,10 @@ BEGIN
 
   IF coalesce(_presente, false) THEN
     INSERT INTO public.presenca_checkins (
-      corretor_id, dia, modo, apto_roleta, vendas_mes, vendas_minimas, origem, registrado_por)
+      corretor_id, dia, modo, apto_roleta, vendas_mes_anterior, vendas_minimas, origem, registrado_por)
     VALUES (
       _corretor_id, _hoje, 'liberado_gestao', true,
-      public._corretor_vendas_mes(_corretor_id, _hoje), public._presenca_min_vendas_casa(),
+      public._corretor_vendas_mes_anterior(_corretor_id, _hoje), public._presenca_min_vendas_casa(),
       'gestao', _uid);
   END IF;
 
@@ -661,7 +699,7 @@ BEGIN
 
   -- 4) Presença da roleta: só pelo check-in (presenca_checkin, marcar_presenca,
   --    marcar_presenca_admin), que avisa com app.presenca_rpc. A regra do
-  --    plantão (menos de 3 vendas no mês = só na filial) mora lá.
+  --    plantão (menos de 3 vendas no mês anterior = só na filial) mora lá.
   IF current_setting('app.presenca_rpc', true) IS DISTINCT FROM 'on' THEN
     NEW.presente := OLD.presente;
     NEW.presente_em := OLD.presente_em;
@@ -713,3 +751,39 @@ AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.resetar_presenca_diaria() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.resetar_presenca_diaria() TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 8) Presença obrigatória em toda fila (decisão do dono, 09/10/2026)
+-- ---------------------------------------------------------------------------
+-- "Corretor precisa estar presente para receber leads das filas que está
+-- apto." Os motores já respeitam roletas.exigir_presenca; aqui ela vira
+-- sempre ligada — inclusive em fila criada ou editada depois (Central,
+-- criar_roleta_campanha, SQL avulso): o gatilho liga de volta em vez de
+-- recusar, para nenhum caminho desconhecido quebrar.
+--
+-- Fora: a fila do SDR (tipo 'sdr', Agendados do SDR). A elegibilidade dela
+-- (_elegibilidade_roleta_sdr) não lê esta chave e entrega por agenda livre,
+-- "sem presença do dia" (docs/politica-sdr-v1.md, item 7). Mudar isso é
+-- decisão própria, pendente com o dono.
+UPDATE public.roletas
+   SET exigir_presenca = true
+ WHERE tipo IS DISTINCT FROM 'sdr'
+   AND exigir_presenca IS NOT TRUE;
+
+CREATE OR REPLACE FUNCTION public.tg_roletas_presenca_obrigatoria()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.tipo IS DISTINCT FROM 'sdr' THEN
+    NEW.exigir_presenca := true;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_roletas_presenca_obrigatoria ON public.roletas;
+CREATE TRIGGER trg_roletas_presenca_obrigatoria
+  BEFORE INSERT OR UPDATE ON public.roletas
+  FOR EACH ROW EXECUTE FUNCTION public.tg_roletas_presenca_obrigatoria();

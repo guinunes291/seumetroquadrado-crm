@@ -636,8 +636,8 @@ describe("trava da roleta (60/150)", () => {
       `DELETE FROM public.roleta_participantes WHERE roleta_id IN (SELECT id FROM public.roletas WHERE slug = 'teste-65')`,
     );
     const r = await c.query(
-      `INSERT INTO public.roletas (slug, nome, exigir_presenca) VALUES ('teste-65', 'Teste 65', false)
-       ON CONFLICT (slug) DO UPDATE SET exigir_presenca = false, ativo = true RETURNING slug`,
+      `INSERT INTO public.roletas (slug, nome) VALUES ('teste-65', 'Teste 65')
+       ON CONFLICT (slug) DO UPDATE SET ativo = true RETURNING slug`,
     );
     await c.query(
       `INSERT INTO public.roleta_participantes (roleta_id, corretor_id, ativo)
@@ -645,6 +645,11 @@ describe("trava da roleta (60/150)", () => {
       [ana.id],
     );
     await c.query(`UPDATE public.profiles SET telefone = '11999990000' WHERE id = $1`, [ana.id]);
+    // Presença é obrigatória em toda fila (20261013120000): Ana faz o check-in
+    // numa filial para que só a regra dos 60/150 decida aqui.
+    await comoUsuario(c, ana.id);
+    await c.query(`SELECT public.presenca_checkin('loja', 'barra-funda')`);
+    await comoSuperuser(c);
     return r.rows[0].slug as string;
   }
   const apto = async (slug: string) => {

@@ -75,7 +75,8 @@ function toastDoCheckin(p: MinhaPresenca) {
     toast.success(`Check-in feito: ${local}. Você está na roleta hoje.`);
   } else {
     toast.warning(`Check-in registrado: ${local}. Você está fora da roleta.`, {
-      description: motivoPresencaLabel(c.motivo, { ...p, mes: nomeDoMes(p.dia) }) ?? undefined,
+      description:
+        motivoPresencaLabel(c.motivo, { ...p, mes: nomeDoMes(p.mes_referencia) }) ?? undefined,
       duration: 10_000,
     });
   }

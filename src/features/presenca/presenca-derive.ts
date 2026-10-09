@@ -1,9 +1,10 @@
 // Presença por filial (migration 20261013120000) — regras de TELA, puras.
 //
 // A regra de verdade mora no banco (presenca_checkin): check-in na filial
-// libera a roleta; em casa só libera com o mínimo de vendas aprovadas no mês
-// (presenca_casa_min_vendas_mes, hoje 3). Aqui só traduzimos o que o banco
-// devolveu em frases, estados e colunas — nada de decidir aptidão no cliente.
+// libera a roleta; em casa só libera com o mínimo de vendas aprovadas no MÊS
+// ANTERIOR (presenca_casa_min_vendas_mes_anterior, hoje 3). Aqui só traduzimos
+// o que o banco devolveu em frases, estados e colunas — nada de decidir
+// aptidão no cliente.
 
 import type { Intent } from "@/lib/status-tones";
 
@@ -45,7 +46,9 @@ export type MinhaPresenca = {
   dia: string;
   /** Na roleta agora (a chave que os motores leem). */
   presente: boolean;
-  vendas_mes: number;
+  /** Primeiro dia do mês que a meta conta (o anterior), YYYY-MM-DD. */
+  mes_referencia: string;
+  vendas_mes_anterior: number;
   vendas_minimas: number;
   casa_liberada: boolean;
   exige_localizacao: boolean;
@@ -70,7 +73,7 @@ export type PresencaHojeRow = {
   origem: "corretor" | "gestao" | null;
   checkin_em: string | null;
   encerrado_em: string | null;
-  vendas_mes: number;
+  vendas_mes_anterior: number;
   vendas_minimas: number;
 };
 
@@ -86,7 +89,8 @@ export function parseMinhaPresenca(json: unknown): MinhaPresenca {
   return {
     dia: String(o.dia ?? ""),
     presente: o.presente === true,
-    vendas_mes: num(o.vendas_mes),
+    mes_referencia: String(o.mes_referencia ?? ""),
+    vendas_mes_anterior: num(o.vendas_mes_anterior),
     vendas_minimas: num(o.vendas_minimas, 3),
     casa_liberada: o.casa_liberada === true,
     exige_localizacao: o.exige_localizacao === true,
@@ -110,17 +114,13 @@ export function parseMinhaPresenca(json: unknown): MinhaPresenca {
   };
 }
 
-/** "outubro" a partir de "2026-10-13" (sem fuso: a data já é BRT). */
+/** "setembro" a partir de "2026-09-01" (sem fuso: a data já é BRT). */
 export function nomeDoMes(dia: string): string {
   const [a, m] = dia.split("-").map(Number);
-  if (!a || !m) return "este mês";
+  if (!a || !m) return "o mês anterior";
   return new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(
     new Date(Date.UTC(a, m - 1, 1)),
   );
-}
-
-export function faltamVendas(p: Pick<MinhaPresenca, "vendas_mes" | "vendas_minimas">): number {
-  return Math.max(0, p.vendas_minimas - p.vendas_mes);
 }
 
 /** "Barra Funda" · "Em casa" · "Liberado pela gestão". */
@@ -167,14 +167,14 @@ export function localizacaoLabel(
 /** Por que o check-in não liberou a roleta, em linguagem de corretor. */
 export function motivoPresencaLabel(
   motivo: MotivoPresenca | null,
-  ctx: { vendas_mes: number; vendas_minimas: number; mes?: string },
+  ctx: { vendas_mes_anterior: number; vendas_minimas: number; mes?: string },
 ): string | null {
   switch (motivo) {
     case "casa_abaixo_minimo_vendas": {
-      const mes = ctx.mes ? ` em ${ctx.mes}` : " no mês";
+      const mes = ctx.mes ? ` em ${ctx.mes}` : " no mês anterior";
       return (
         `Em casa, a roleta só libera com ${ctx.vendas_minimas} venda${ctx.vendas_minimas === 1 ? "" : "s"} ` +
-        `aprovada${ctx.vendas_minimas === 1 ? "" : "s"}${mes} — você tem ${ctx.vendas_mes}. ` +
+        `aprovada${ctx.vendas_minimas === 1 ? "" : "s"}${mes} — você teve ${ctx.vendas_mes_anterior}. ` +
         "Para receber leads hoje, faça o check-in numa filial."
       );
     }
@@ -197,7 +197,7 @@ export type SituacaoHoje = {
 /** O cabeçalho do card de check-in: onde estou e se recebo lead. */
 export function situacaoHoje(p: MinhaPresenca): SituacaoHoje {
   const c = p.checkin;
-  const mes = nomeDoMes(p.dia);
+  const mes = nomeDoMes(p.mes_referencia);
   if (!c) {
     return {
       estado: "sem_checkin",
@@ -221,7 +221,7 @@ export function situacaoHoje(p: MinhaPresenca): SituacaoHoje {
       titulo: c.modo === "casa" ? "Em casa — na roleta" : `${local} — na roleta`,
       detalhe:
         c.modo === "casa"
-          ? `Você tem ${p.vendas_mes} venda${p.vendas_mes === 1 ? "" : "s"} aprovada${p.vendas_mes === 1 ? "" : "s"} em ${mes}: pode receber leads trabalhando de casa.`
+          ? `Você teve ${p.vendas_mes_anterior} venda${p.vendas_mes_anterior === 1 ? "" : "s"} aprovada${p.vendas_mes_anterior === 1 ? "" : "s"} em ${mes}: pode receber leads trabalhando de casa.`
           : "Você está apto a receber leads das roletas hoje.",
       intent: "success",
     };
@@ -344,4 +344,10 @@ export function parseCoordenadas(texto: string): { lat: number; lng: number } | 
 
 export function coordenadasTexto(lat: number | null, lng: number | null): string {
   return lat == null || lng == null ? "" : `${lat}, ${lng}`;
+}
+
+/** "Av. Marquês de São Vicente, 1619" — o endereço sem bairro, cidade e CEP. */
+export function enderecoCurto(endereco: string | null): string | null {
+  if (!endereco) return null;
+  return endereco.split(/\s+[–—-]\s+/)[0].trim() || null;
 }

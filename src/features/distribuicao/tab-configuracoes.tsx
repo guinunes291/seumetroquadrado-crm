@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { roletaLabel } from "@/lib/distribuicao";
+import { PRESENCA_OBRIGATORIA_HINT, presencaObrigatoria, roletaLabel } from "@/lib/distribuicao";
 import {
   useAtualizarConfigOrigem,
   useAtualizarRoleta,
@@ -70,9 +70,9 @@ export function TabConfiguracoes() {
             />
             {/* presenca_checkin (20261013120000): chave ausente = 3. */}
             <SettingNumero
-              chave="presenca_casa_min_vendas_mes"
-              label="Vendas no mês para receber leads trabalhando de casa"
-              hint="Abaixo disso, só o check-in numa filial (plantão) coloca o corretor na roleta. Vendas aprovadas, sem distrato, assinadas no mês. 0 = em casa sempre libera."
+              chave="presenca_casa_min_vendas_mes_anterior"
+              label="Vendas no mês anterior para receber leads trabalhando de casa"
+              hint="Abaixo disso, só o check-in numa filial (plantão) coloca o corretor nas filas. Vendas aprovadas, sem distrato, assinadas no mês anterior (em outubro, as de setembro). 0 = em casa sempre libera."
               min={0}
               sufixo="vendas"
             />
@@ -169,6 +169,8 @@ export function TabConfiguracoes() {
                     <TableCell>
                       <Switch
                         checked={r.exigir_presenca}
+                        disabled={presencaObrigatoria(r)}
+                        title={presencaObrigatoria(r) ? PRESENCA_OBRIGATORIA_HINT : undefined}
                         onCheckedChange={(v) =>
                           atualizarRoleta.mutate({ slug: r.slug, exigirPresenca: v })
                         }

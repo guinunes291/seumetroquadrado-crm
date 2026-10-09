@@ -1,12 +1,19 @@
 // Presença por filial — a parte de TELA (a regra em si é testada no banco,
 // tests/db/presenca-filial.test.ts). Aqui: o que o corretor lê no card, a
-// faixa do topo e as colunas do quadro da gestão.
+// faixa do topo, as colunas do quadro da gestão, a busca de coordenadas da
+// filial e o interruptor de presença travado nas filas.
 import { describe, expect, it } from "vitest";
+import {
+  lerGeocodificacao,
+  linkMapa,
+  urlGeocodificacaoFilial,
+} from "@/features/presenca/filiais-geo";
+import { presencaObrigatoria } from "@/lib/distribuicao";
 import {
   agruparQuadro,
   coordenadasTexto,
   distanciaLabel,
-  faltamVendas,
+  enderecoCurto,
   localizacaoLabel,
   motivoPresencaLabel,
   nomeDoMes,
@@ -30,7 +37,8 @@ function presenca(over: Partial<MinhaPresenca> = {}): MinhaPresenca {
   return {
     dia: "2026-10-13",
     presente: false,
-    vendas_mes: 2,
+    mes_referencia: "2026-09-01",
+    vendas_mes_anterior: 2,
     vendas_minimas: 3,
     casa_liberada: false,
     exige_localizacao: false,
@@ -74,7 +82,7 @@ function linha(over: Partial<PresencaHojeRow>): PresencaHojeRow {
     origem: null,
     checkin_em: null,
     encerrado_em: null,
-    vendas_mes: 0,
+    vendas_mes_anterior: 0,
     vendas_minimas: 3,
     ...over,
   };
@@ -85,12 +93,14 @@ describe("parseMinhaPresenca", () => {
     const p = parseMinhaPresenca({
       dia: "2026-10-13",
       presente: true,
-      vendas_mes: "3",
+      mes_referencia: "2026-09-01",
+      vendas_mes_anterior: "3",
       vendas_minimas: 3,
       casa_liberada: true,
       checkin: { id: "c", modo: "casa", apto_roleta: true, origem: "corretor", criado_em: "x" },
     });
-    expect(p.vendas_mes).toBe(3);
+    expect(p.vendas_mes_anterior).toBe(3);
+    expect(p.mes_referencia).toBe("2026-09-01");
     expect(p.checkin).toMatchObject({ modo: "casa", filial_slug: null, encerrado_em: null });
     expect(p.filiais).toEqual([]);
     expect(parseMinhaPresenca(null)).toMatchObject({
@@ -117,7 +127,7 @@ describe("o que o corretor lê no card", () => {
     });
   });
 
-  it("em casa com 2 de 3 vendas: fora da roleta, com a conta e o caminho (filial)", () => {
+  it("em outubro, em casa com 2 de 3 vendas em setembro: fora da roleta, com a conta e o caminho (filial)", () => {
     const s = situacaoHoje(
       presenca({
         checkin: checkin({
@@ -132,7 +142,7 @@ describe("o que o corretor lê no card", () => {
     expect(s.estado).toBe("fora_da_roleta");
     expect(s.titulo).toBe("Em casa — fora da roleta");
     expect(s.detalhe).toBe(
-      "Em casa, a roleta só libera com 3 vendas aprovadas em outubro — você tem 2. " +
+      "Em casa, a roleta só libera com 3 vendas aprovadas em setembro — você teve 2. " +
         "Para receber leads hoje, faça o check-in numa filial.",
     );
   });
@@ -141,13 +151,15 @@ describe("o que o corretor lê no card", () => {
     const s = situacaoHoje(
       presenca({
         presente: true,
-        vendas_mes: 4,
+        vendas_mes_anterior: 4,
         casa_liberada: true,
         checkin: checkin({ modo: "casa", filial_slug: null, filial_nome: null }),
       }),
     );
     expect(s.estado).toBe("na_roleta");
-    expect(s.detalhe).toContain("4 vendas aprovadas em outubro");
+    expect(s.detalhe).toBe(
+      "Você teve 4 vendas aprovadas em setembro: pode receber leads trabalhando de casa.",
+    );
   });
 
   it("presença encerrada: chama de volta para o check-in", () => {
@@ -157,15 +169,21 @@ describe("o que o corretor lê no card", () => {
     expect(s.estado).toBe("encerrado");
   });
 
-  it("faltam vendas, mês por extenso, local e motivo singular", () => {
-    expect(faltamVendas({ vendas_mes: 1, vendas_minimas: 3 })).toBe(2);
-    expect(faltamVendas({ vendas_mes: 5, vendas_minimas: 3 })).toBe(0);
-    expect(nomeDoMes("2026-01-31")).toBe("janeiro");
+  it("mês por extenso (janeiro olha dezembro), local, motivo singular e endereço curto", () => {
+    expect(nomeDoMes("2025-12-01")).toBe("dezembro");
+    expect(nomeDoMes("")).toBe("o mês anterior");
     expect(rotuloLocal("liberado_gestao", null)).toBe("Liberado pela gestão");
     expect(rotuloLocal(null, null)).toBe("Sem check-in");
     expect(
-      motivoPresencaLabel("casa_abaixo_minimo_vendas", { vendas_mes: 0, vendas_minimas: 1 }),
-    ).toContain("com 1 venda aprovada no mês");
+      motivoPresencaLabel("casa_abaixo_minimo_vendas", {
+        vendas_mes_anterior: 0,
+        vendas_minimas: 1,
+      }),
+    ).toContain("com 1 venda aprovada no mês anterior — você teve 0");
+    expect(
+      enderecoCurto("Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003"),
+    ).toBe("Av. Marquês de São Vicente, 1619");
+    expect(enderecoCurto(null)).toBeNull();
   });
 });
 
@@ -223,7 +241,13 @@ describe("quadro da gestão", () => {
       apto_roleta: false,
       motivo: "casa_abaixo_minimo_vendas",
     }),
-    linha({ nome: "Duda", modo: "casa", presente: true, apto_roleta: true, vendas_mes: 3 }),
+    linha({
+      nome: "Duda",
+      modo: "casa",
+      presente: true,
+      apto_roleta: true,
+      vendas_mes_anterior: 3,
+    }),
     linha({ nome: "Edu", modo: "liberado_gestao", presente: true, apto_roleta: true }),
     linha({ nome: "Fábio" }),
     linha({
@@ -276,5 +300,47 @@ describe("coordenadas coladas do Google Maps", () => {
     expect(parseCoordenadas("-123.5, -46.6")).toBeNull();
     expect(coordenadasTexto(-23.526, -46.666)).toBe("-23.526, -46.666");
     expect(coordenadasTexto(null, null)).toBe("");
+  });
+});
+
+describe("coordenadas da filial pelo endereço (no navegador da gestão)", () => {
+  it("busca só rua, número e cidade, com 'Av.' por extenso", () => {
+    const url = new URL(
+      urlGeocodificacaoFilial(
+        "Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003",
+      ),
+    );
+    expect(url.hostname).toBe("nominatim.openstreetmap.org");
+    expect(url.searchParams.get("q")).toBe("Avenida Marquês de São Vicente, 1619, São Paulo");
+    expect(url.searchParams.get("countrycodes")).toBe("br");
+  });
+
+  it("achou o número = exato; achou só a avenida = pede conferência; fora de SP = descarta", () => {
+    expect(
+      lerGeocodificacao([
+        { lat: "-23.5193", lon: "-46.6731", addresstype: "building", category: "building" },
+      ]),
+    ).toEqual({ lat: -23.5193, lng: -46.6731, exato: true });
+    expect(
+      lerGeocodificacao([
+        { lat: "-23.5191", lon: "-46.6751", addresstype: "road", category: "highway" },
+      ]),
+    ).toMatchObject({ exato: false });
+    // homônimo em outra cidade (Av. da Liberdade em Lisboa)
+    expect(lerGeocodificacao([{ lat: "38.7203", lon: "-9.1453", addresstype: "road" }])).toBeNull();
+    expect(lerGeocodificacao([])).toBeNull();
+    expect(lerGeocodificacao(null)).toBeNull();
+    expect(linkMapa(-23.5193, -46.6731)).toBe(
+      "https://www.google.com/maps/search/?api=1&query=-23.5193,-46.6731",
+    );
+  });
+});
+
+describe("presença obrigatória nas filas", () => {
+  it("toda fila tem o interruptor travado — menos a do SDR", () => {
+    expect(presencaObrigatoria({ tipo: "zona" })).toBe(true);
+    expect(presencaObrigatoria({ tipo: "campanha" })).toBe(true);
+    expect(presencaObrigatoria({ tipo: null })).toBe(true);
+    expect(presencaObrigatoria({ tipo: "sdr" })).toBe(false);
   });
 });

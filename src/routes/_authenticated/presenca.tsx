@@ -1,9 +1,10 @@
 // Check-in — presença por filial (migration 20261013120000).
 //
 // Corretor: diz onde está trabalhando hoje (Barra Funda, Liberdade, Belém ou
-// em casa). Filial libera a roleta; em casa, só com o mínimo de vendas
-// aprovadas no mês (hoje 3). Gestão: o quadro do dia por filial e o cadastro
-// das filiais. A regra mora no banco — esta tela só pergunta e explica.
+// em casa). Filial libera as filas; em casa, só com o mínimo de vendas
+// aprovadas no mês anterior (hoje 3). Gestão: o quadro do dia por filial e o
+// cadastro das filiais. A regra mora no banco — esta tela só pergunta e
+// explica.
 
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/page-header";

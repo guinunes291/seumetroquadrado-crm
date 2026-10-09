@@ -12,7 +12,7 @@ import { verificarContaAtiva } from "@/lib/conta-ativa";
  * colocava na roleta quem abrisse o CRM de casa, sem dizer onde estava. Agora
  * o corretor faz o check-in na filial (ou em casa) em /presenca — a faixa do
  * topo do shell avisa enquanto ele não fizer — e o banco aplica a regra do
- * plantão (menos de 3 vendas no mês: só na filial). Ver
+ * plantão (menos de 3 vendas no mês anterior: só na filial). Ver
  * docs/ops/presenca-filiais.md.
  */
 export async function guardarRotaAutenticada(locationHref: string): Promise<{ user: User }> {

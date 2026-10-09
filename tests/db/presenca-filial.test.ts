@@ -2,13 +2,15 @@
  * PRESENÇA POR FILIAL — migration 20261013120000. Pedido do dono (09/10/2026):
  * "os corretores marquem em que loja estão logando e marcando presença no dia
  * para que estejam aptos para as roletas. Corretores com menos de 3 vendas no
- * mês não podem pegar lead em casa, apenas com presença no plantão."
+ * mês não podem pegar lead em casa, apenas com presença no plantão." Na
+ * revisão: a meta conta o MÊS ANTERIOR, e presença vale para TODA fila.
  *
  * Elenco (corretores com telefone, na roleta do Plantão):
- *   Ana  — 0 vendas no mês
- *   Beto — 3 vendas aprovadas no mês
- *   Caio — 2 aprovadas no mês + 1 pendente + 1 com distrato + 1 do mês passado
- *          (conta 2: o critério é o do tier de comissão, só que no mês)
+ *   Ana  — 0 vendas no mês anterior
+ *   Beto — 3 vendas aprovadas no mês anterior
+ *   Caio — no mês anterior: 2 aprovadas + 1 pendente + 1 com distrato; e 1
+ *          aprovada no mês ATUAL (conta 2: o critério é o do tier de comissão,
+ *          só que no mês anterior)
  *
  * O que cada bloco prova:
  *   1. a regra: filial sempre libera; em casa só com o mínimo de vendas;
@@ -19,7 +21,8 @@
  *      registrado como "liberado pela gestão";
  *   5. a conferência de localização (distância, nunca a coordenada) e a chave
  *      que a torna obrigatória;
- *   6. RLS, quadro da gestão, edição de filiais e o auto-checkout das 23h.
+ *   6. RLS, quadro da gestão, edição de filiais e o auto-checkout das 23h;
+ *   7. presença obrigatória em toda fila — menos a do SDR (decisão pendente).
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -41,10 +44,13 @@ let superint: UsuarioTeste;
 let ana: UsuarioTeste;
 let beto: UsuarioTeste;
 let caio: UsuarioTeste;
+let mesAnterior: string; // YYYY-MM-01
+let enderecosOriginais: { slug: string; endereco: string | null }[];
 
 type Status = {
   presente: boolean;
-  vendas_mes: number;
+  mes_referencia: string;
+  vendas_mes_anterior: number;
   vendas_minimas: number;
   casa_liberada: boolean;
   checkin: {
@@ -163,54 +169,66 @@ beforeAll(async () => {
   );
   await c.query(`UPDATE public.roletas SET exigir_presenca = true WHERE slug = 'plantao'`);
 
-  const mes = (
-    await c.query(`SELECT date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo')::date AS ini`)
-  ).rows[0].ini as Date;
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const doMes = iso(mes);
-  const mesPassado = iso(new Date(Date.UTC(mes.getUTCFullYear(), mes.getUTCMonth() - 1, 15)));
+  const datas = (
+    await c.query(
+      `SELECT to_char(date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM-DD') AS atual,
+              to_char(date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo') - interval '1 month',
+                      'YYYY-MM-DD') AS anterior`,
+    )
+  ).rows[0] as { atual: string; anterior: string };
+  mesAnterior = datas.anterior;
+  const noMesAnterior = mesAnterior.slice(0, 8) + "15";
 
-  for (let i = 0; i < 3; i++) await venda(beto, doMes, "aprovada");
-  await venda(caio, doMes, "aprovada");
-  await venda(caio, doMes, "aprovada");
-  await venda(caio, doMes, "pendente");
-  await venda(caio, doMes, "aprovada", true);
-  await venda(caio, mesPassado, "aprovada");
+  for (let i = 0; i < 3; i++) await venda(beto, noMesAnterior, "aprovada");
+  await venda(caio, noMesAnterior, "aprovada");
+  await venda(caio, noMesAnterior, "aprovada");
+  await venda(caio, noMesAnterior, "pendente");
+  await venda(caio, noMesAnterior, "aprovada", true);
+  await venda(caio, datas.atual, "aprovada");
 
-  await setting("presenca_casa_min_vendas_mes", 3);
+  enderecosOriginais = (await c.query(`SELECT slug, endereco FROM public.filiais`)).rows;
+  await setting("presenca_casa_min_vendas_mes_anterior", 3);
   await setting("presenca_loja_exige_localizacao", false);
 });
 
 afterAll(async () => {
-  await setting("presenca_casa_min_vendas_mes", 3);
+  await setting("presenca_casa_min_vendas_mes_anterior", 3);
   await setting("presenca_loja_exige_localizacao", false);
-  await c.query(
-    `UPDATE public.filiais SET latitude = NULL, longitude = NULL, raio_metros = 300, endereco = NULL`,
-  );
+  await c.query(`UPDATE public.filiais SET latitude = NULL, longitude = NULL, raio_metros = 300`);
+  for (const f of enderecosOriginais) {
+    await c.query(`UPDATE public.filiais SET endereco = $2 WHERE slug = $1`, [f.slug, f.endereco]);
+  }
   await limparDados(c);
   await c.end();
   await pool.end();
 });
 
 describe("as filiais", () => {
-  it("nascem as três lojas da SMQ, ativas e na ordem do dono", async () => {
+  it("nascem as três lojas da SMQ, ativas, na ordem e com os endereços do dono", async () => {
     await comoUsuario(c, ana.id);
     const r = await c.query(`SELECT public.presenca_minha_v1() AS s`);
-    const filiais = (r.rows[0].s as { filiais: { slug: string; nome: string }[] }).filiais;
-    expect(filiais.map((f) => [f.slug, f.nome])).toEqual([
-      ["barra-funda", "Barra Funda"],
-      ["liberdade", "Liberdade"],
-      ["belem", "Belém"],
+    const filiais = (
+      r.rows[0].s as { filiais: { slug: string; nome: string; endereco: string | null }[] }
+    ).filiais;
+    expect(filiais.map((f) => [f.slug, f.nome, f.endereco])).toEqual([
+      [
+        "barra-funda",
+        "Barra Funda",
+        "Av. Marquês de São Vicente, 1619 - Barra Funda, São Paulo - SP, 01139-003",
+      ],
+      ["liberdade", "Liberdade", "Av. da Liberdade, 1000 - Liberdade, São Paulo - SP, 01502-001"],
+      ["belem", "Belém", "Av. Álvaro Ramos, 896 - Quarta Parada, São Paulo - SP, 03330-002"],
     ]);
   });
 });
 
 describe("a regra do plantão", () => {
-  it("Ana (0 vendas) em casa: o check-in fica registrado, mas não libera a roleta", async () => {
+  it("Ana (0 vendas no mês anterior) em casa: o check-in fica registrado, mas não libera a roleta", async () => {
     const s = await checkin(ana, "casa");
     expect(s).toMatchObject({
       presente: false,
-      vendas_mes: 0,
+      mes_referencia: mesAnterior,
+      vendas_mes_anterior: 0,
       vendas_minimas: 3,
       casa_liberada: false,
     });
@@ -260,15 +278,15 @@ describe("a regra do plantão", () => {
     ]);
   });
 
-  it("Beto (3 vendas aprovadas no mês) em casa: libera", async () => {
+  it("Beto (3 vendas aprovadas no mês anterior) em casa: libera", async () => {
     const s = await checkin(beto, "casa");
-    expect(s).toMatchObject({ presente: true, vendas_mes: 3, casa_liberada: true });
+    expect(s).toMatchObject({ presente: true, vendas_mes_anterior: 3, casa_liberada: true });
     expect(s.checkin).toMatchObject({ modo: "casa", apto_roleta: true, motivo: null });
   });
 
-  it("Caio conta 2: pendente, distrato e venda do mês passado não entram", async () => {
+  it("Caio conta 2: pendente, distrato e a venda deste mês não entram", async () => {
     const s = await checkin(caio, "casa");
-    expect(s.vendas_mes).toBe(2);
+    expect(s.vendas_mes_anterior).toBe(2);
     expect(s.presente).toBe(false);
     expect(s.checkin?.motivo).toBe("casa_abaixo_minimo_vendas");
   });
@@ -289,13 +307,13 @@ describe("a regra do plantão", () => {
   });
 
   it("rollback sem deploy: mínimo 0 faz o 'em casa' liberar para todos", async () => {
-    await setting("presenca_casa_min_vendas_mes", 0);
+    await setting("presenca_casa_min_vendas_mes_anterior", 0);
     try {
       const s = await checkin(caio, "casa");
       expect(s.presente).toBe(true);
       expect(s.checkin).toMatchObject({ apto_roleta: true });
     } finally {
-      await setting("presenca_casa_min_vendas_mes", 3);
+      await setting("presenca_casa_min_vendas_mes_anterior", 3);
     }
     // de volta ao 3: o próximo check-in em casa do Caio não libera
     expect((await checkin(caio, "casa")).presente).toBe(false);
@@ -329,28 +347,23 @@ describe("sem burla", () => {
     expect((await perfil(novo)).presente).toBe(false);
   });
 
-  it("marcar_presenca(true) com check-in em casa reavalia: bateu a 3ª venda, entra na roleta", async () => {
+  it("marcar_presenca(true) com check-in em casa reavalia: a gestão aprovou a 3ª venda do mês anterior", async () => {
     await comoUsuario(c, caio.id);
     await c.query(`SELECT public.marcar_presenca(true)`);
     expect((await perfil(caio)).presente).toBe(false); // ainda 2 vendas: nada muda
 
-    const mes = (
-      await c.query(
-        `SELECT (date_trunc('month', now() AT TIME ZONE 'America/Sao_Paulo')::date + 1)::text AS d`,
-      )
-    ).rows[0].d as string;
-    await venda(caio, mes, "aprovada");
+    await venda(caio, mesAnterior.slice(0, 8) + "28", "aprovada");
 
     await comoUsuario(c, caio.id);
     await c.query(`SELECT public.marcar_presenca(true)`);
     expect((await perfil(caio)).presente).toBe(true);
     await comoSuperuser(c);
     const r = await c.query(
-      `SELECT modo, apto_roleta, vendas_mes FROM public.presenca_checkins
+      `SELECT modo, apto_roleta, vendas_mes_anterior FROM public.presenca_checkins
         WHERE corretor_id = $1 AND encerrado_em IS NULL`,
       [caio.id],
     );
-    expect(r.rows).toEqual([{ modo: "casa", apto_roleta: true, vendas_mes: 3 }]);
+    expect(r.rows).toEqual([{ modo: "casa", apto_roleta: true, vendas_mes_anterior: 3 }]);
   });
 
   it("marcar_presenca(false) encerra o check-in e tira da roleta", async () => {
@@ -444,7 +457,7 @@ describe("gestão", () => {
 
     await comoUsuario(c, superint.id);
     const r = await c.query(
-      `SELECT nome, presente, modo, filial_slug, vendas_mes, vendas_minimas
+      `SELECT nome, presente, modo, filial_slug, vendas_mes_anterior, vendas_minimas
          FROM public.presenca_hoje_v1()`,
     );
     const porNome = Object.fromEntries(r.rows.map((x) => [x.nome, x]));
@@ -452,7 +465,7 @@ describe("gestão", () => {
       presente: true,
       modo: "loja",
       filial_slug: "belem",
-      vendas_mes: 3,
+      vendas_mes_anterior: 3,
       vendas_minimas: 3,
     });
     expect(porNome["Dani Sem Checkin"]).toMatchObject({ presente: false, modo: null });
@@ -559,5 +572,45 @@ describe("fim do dia", () => {
          FROM public.presenca_checkins`,
     );
     expect(r.rows[0]).toEqual({ abertos: 0, presentes: 0 });
+  });
+});
+
+describe("presença obrigatória em toda fila (decisão do dono, 09/10/2026)", () => {
+  it("toda fila exige presença — menos a do SDR, que entrega por agenda livre", async () => {
+    await comoSuperuser(c);
+    const r = await c.query(
+      `SELECT slug, exigir_presenca FROM public.roletas
+        WHERE exigir_presenca IS DISTINCT FROM (tipo IS DISTINCT FROM 'sdr')`,
+    );
+    expect(r.rows).toEqual([]);
+    const sdr = await c.query(
+      `SELECT exigir_presenca FROM public.roletas WHERE slug = 'agendados-sdr'`,
+    );
+    expect(sdr.rows).toEqual([{ exigir_presenca: false }]);
+  });
+
+  it("desligar a presença numa fila (por qualquer caminho) não pega", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.roletas SET exigir_presenca = false WHERE slug = 'plantao'`);
+    const nova = await c.query(
+      `INSERT INTO public.roletas (slug, nome, exigir_presenca) VALUES ('teste-sem-presenca', 'Teste', false)
+       ON CONFLICT (slug) DO UPDATE SET exigir_presenca = false RETURNING exigir_presenca`,
+    );
+    expect(nova.rows[0].exigir_presenca).toBe(true);
+    const plantao = await c.query(
+      `SELECT exigir_presenca FROM public.roletas WHERE slug = 'plantao'`,
+    );
+    expect(plantao.rows[0].exigir_presenca).toBe(true);
+    await c.query(`DELETE FROM public.roletas WHERE slug = 'teste-sem-presenca'`);
+  });
+
+  it("a fila do SDR continua podendo ser configurada (fica como está até a decisão)", async () => {
+    await comoSuperuser(c);
+    await c.query(`UPDATE public.roletas SET exigir_presenca = true WHERE slug = 'agendados-sdr'`);
+    await c.query(`UPDATE public.roletas SET exigir_presenca = false WHERE slug = 'agendados-sdr'`);
+    const r = await c.query(
+      `SELECT exigir_presenca FROM public.roletas WHERE slug = 'agendados-sdr'`,
+    );
+    expect(r.rows[0].exigir_presenca).toBe(false);
   });
 });

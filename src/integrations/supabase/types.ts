@@ -6513,7 +6513,7 @@ export type Database = {
           origem: string
           precisao_m: number | null
           registrado_por: string | null
-          vendas_mes: number
+          vendas_mes_anterior: number
           vendas_minimas: number
         }
         Insert: {
@@ -6531,7 +6531,7 @@ export type Database = {
           origem?: string
           precisao_m?: number | null
           registrado_por?: string | null
-          vendas_mes?: number
+          vendas_mes_anterior?: number
           vendas_minimas?: number
         }
         Update: {
@@ -6549,7 +6549,7 @@ export type Database = {
           origem?: string
           precisao_m?: number | null
           registrado_por?: string | null
-          vendas_mes?: number
+          vendas_mes_anterior?: number
           vendas_minimas?: number
         }
         Relationships: [
@@ -10537,7 +10537,7 @@ export type Database = {
         Args: { _cliente_id: string; _exceto_corretor?: string }
         Returns: string
       }
-      _corretor_vendas_mes: {
+      _corretor_vendas_mes_anterior: {
         Args: { _corretor: string; _ref?: string }
         Returns: number
       }
@@ -10899,6 +10899,7 @@ export type Database = {
         Returns: undefined
       }
       _presenca_loja_exige_localizacao: { Args: never; Returns: boolean }
+      _presenca_mes_referencia: { Args: { _ref?: string }; Returns: string }
       _presenca_min_vendas_casa: { Args: never; Returns: number }
       _presenca_status: { Args: { _corretor: string }; Returns: Json }
       _prospeccao_devolver_bolsao: {
@@ -13555,7 +13556,7 @@ export type Database = {
           nome: string
           origem: string
           presente: boolean
-          vendas_mes: number
+          vendas_mes_anterior: number
           vendas_minimas: number
         }[]
       }

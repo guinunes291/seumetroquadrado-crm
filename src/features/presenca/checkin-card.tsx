@@ -1,9 +1,10 @@
 // Card de check-in do corretor: "onde estou hoje?" em um toque.
 //
 // Filial = plantão, sempre libera a roleta. Em casa = libera só com o mínimo
-// de vendas aprovadas no mês (regra no banco, presenca_checkin). O card mostra
-// a regra ANTES do clique — o corretor com 2 de 3 vendas vê que "Em casa" não
-// libera, e por quê, antes de escolher.
+// de vendas aprovadas no mês anterior (regra no banco, presenca_checkin). O
+// card mostra
+// a regra ANTES do clique — o corretor com 2 de 3 vendas em setembro vê, em
+// outubro, que "Em casa" não libera, e por quê, antes de escolher.
 
 import { useState } from "react";
 import { CircleNotch, House, SignOut, Storefront } from "@phosphor-icons/react";
@@ -17,7 +18,7 @@ import { INTENT_BADGE_BORDERED } from "@/lib/status-tones";
 import { cn } from "@/lib/utils";
 import { useCheckin, useEncerrarPresenca, useMinhaPresenca } from "./presenca-client";
 import {
-  faltamVendas,
+  enderecoCurto,
   localizacaoLabel,
   nomeDoMes,
   situacaoHoje,
@@ -180,7 +181,7 @@ function OpcaoFilial(props: {
     <OpcaoBotao
       icone={<Storefront className="h-4 w-4 text-primary" />}
       titulo={props.filial.nome}
-      detalhe={props.filial.endereco ?? "Plantão: libera a roleta"}
+      detalhe={enderecoCurto(props.filial.endereco) ?? "Plantão: libera a roleta"}
       selecionada={props.selecionada}
       carregando={props.carregando}
       disabled={props.disabled}
@@ -197,14 +198,15 @@ function OpcaoCasa(props: {
   onClick: () => void;
 }) {
   const { p } = props;
+  const mes = nomeDoMes(p.mes_referencia);
   return (
     <OpcaoBotao
       icone={<House className="h-4 w-4 text-primary" />}
       titulo="Em casa"
       detalhe={
         p.casa_liberada
-          ? "Libera a roleta (meta de vendas batida)"
-          : `Não libera a roleta: faltam ${faltamVendas(p)} venda${faltamVendas(p) === 1 ? "" : "s"}`
+          ? `Libera a roleta (meta de ${mes} batida)`
+          : `Não libera a roleta: ${p.vendas_mes_anterior} de ${p.vendas_minimas} vendas em ${mes}`
       }
       aviso={!p.casa_liberada}
       selecionada={props.selecionada}
@@ -215,29 +217,37 @@ function OpcaoCasa(props: {
   );
 }
 
-/** "2 de 3 vendas aprovadas em outubro" — a régua do trabalho em casa. */
+/**
+ * "2 de 3 vendas aprovadas em setembro" — a régua do trabalho em casa. Conta o
+ * MÊS ANTERIOR: vale o mês inteiro e não zera no dia 1º.
+ */
 function RegraDasVendas({ p }: { p: MinhaPresenca }) {
   if (p.vendas_minimas <= 0) return null;
-  const mes = nomeDoMes(p.dia);
-  const pct = Math.min(100, Math.round((100 * p.vendas_mes) / p.vendas_minimas));
+  const mes = nomeDoMes(p.mes_referencia);
+  const pct = Math.min(100, Math.round((100 * p.vendas_mes_anterior) / p.vendas_minimas));
   return (
     <div className="rounded-lg bg-muted/50 p-3">
       <div className="flex items-baseline justify-between gap-2 text-sm">
         <span>
           Vendas aprovadas em {mes}:{" "}
           <strong>
-            {p.vendas_mes} de {p.vendas_minimas}
+            {p.vendas_mes_anterior} de {p.vendas_minimas}
           </strong>
         </span>
         <span className="text-xs text-muted-foreground">
-          {p.casa_liberada ? "pode receber leads de casa" : "só recebe leads no plantão"}
+          {p.casa_liberada
+            ? "este mês, pode receber leads de casa"
+            : "este mês, só recebe leads no plantão"}
         </span>
       </div>
       <Progress
         value={pct}
         className="mt-2 h-1.5"
-        aria-label={`${p.vendas_mes} de ${p.vendas_minimas} vendas`}
+        aria-label={`${p.vendas_mes_anterior} de ${p.vendas_minimas} vendas em ${mes}`}
       />
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Conta as vendas assinadas em {mes} e aprovadas no CRM (sem distrato).
+      </p>
     </div>
   );
 }
