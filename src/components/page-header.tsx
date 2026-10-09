@@ -12,46 +12,38 @@ const EYEBROW =
  * (ModuloAtualProvider), pela mesma regra da sidebar e da trilha — então
  * nunca discorda delas. Fora do shell não há módulo e não há eyebrow.
  */
-function EyebrowDoModulo({ titulo, contexto }: { titulo: string; contexto?: string }) {
+function EyebrowDoModulo({ titulo }: { titulo: string }) {
   const modulo = useModuloAtual();
   if (!modulo) return null;
   const n = `Módulo ${String(modulo.numero).padStart(2, "0")}`;
-  const rotulo = contexto
-    ? `${n} · ${contexto}`
-    : titulo === modulo.titulo
-      ? n
-      : `${n} · ${modulo.titulo}`;
-  return <p className={EYEBROW}>{rotulo}</p>;
+  return <p className={EYEBROW}>{titulo === modulo.titulo ? n : `${n} · ${modulo.titulo}`}</p>;
 }
 
 /**
  * Cabeçalho de página (identidade Lançamento, 2026-10): eyebrow com o número
  * do módulo, título grande em Sora, descrição e ações à direita.
  * `titleAddon` encosta chips no título (temperatura, etapa) — o dossiê usa
- * para dizer quem é o lead numa linha só. `contexto` troca o nome do módulo
- * no eyebrow por outra informação ("Módulo 01 · sexta-feira, 9 de outubro");
- * `eyebrow` troca o rótulo inteiro por outro texto, ou o desliga com `false`.
+ * para dizer quem é o lead numa linha só. `eyebrow` troca o rótulo automático
+ * por outro texto, ou o desliga com `false`.
  */
 export function PageHeader({
   title,
   titleAddon,
   description,
   actions,
-  contexto,
   eyebrow,
 }: {
   title: string;
   titleAddon?: ReactNode;
   description?: ReactNode;
   actions?: ReactNode;
-  contexto?: string;
   eyebrow?: ReactNode | false;
 }) {
   return (
     <div className="mb-6 flex flex-col gap-3 md:mb-8 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         {eyebrow === undefined ? (
-          <EyebrowDoModulo titulo={title} contexto={contexto} />
+          <EyebrowDoModulo titulo={title} />
         ) : eyebrow ? (
           <p className={EYEBROW}>{eyebrow}</p>
         ) : null}

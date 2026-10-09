@@ -1,34 +1,34 @@
-// Cockpit da Fila Única — o placar do mockup aprovado: o anel do dia (quantos
-// leads cabem nos 40) e os três números que a lista responde (vencidos, vencem
-// hoje, sem próximo passo), num card só. No celular é compacto (~150 px de
-// altura); no desktop é o painel grande do hero, com anel de 150 px, os três
-// números maiores e, no rodapé, o dinheiro em jogo na fila.
+// Placar da Fila Única — o anel do dia (quantos leads ocupam os 65) e os três
+// números que a lista responde (vencidos, vencem hoje, sem próximo passo).
+// Dois desenhos, a mesma conta:
 //
-// O anel usa a cor do módulo Central de Comando (dourado do tema), não o
-// dourado sólido do FAB — a regra do "dourado raro" da identidade v3 vale para
-// o acento sólido, e o módulo já é dourado por definição.
+// - FilaCockpit: o compacto do celular (~150 px de altura), um card só.
+// - FilaCartao: o card "Fila Única" do topo da Central de Comando no desktop
+//   (identidade Lançamento, como no vídeo de lançamento) — título, anel
+//   grande, os três números lado a lado e o "Atender agora".
+//
+// O anel usa a cor do módulo Central de Comando (dourado do tema).
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Timer } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { LIMITE_FILA, type FilaUnica } from "@/features/fila-unica/derive";
 
-/** Anel "N de 40": desenha do zero até o valor no primeiro paint (draw-in do
+/** Anel "N de 65": desenha do zero até o valor no primeiro paint (draw-in do
  *  SMQ Motion); com motion-reduce o valor aparece direto. */
 function AnelDoDia({
   valor,
   teto,
   tamanho = 72,
   traco = 6,
-  grande = false,
-  rotulo = "carteira ativa",
+  cartao = false,
 }: {
   valor: number;
   teto: number;
   tamanho?: number;
   traco?: number;
-  grande?: boolean;
-  rotulo?: string;
+  /** O anel do card do desktop: número grande e "de 65" embaixo. */
+  cartao?: boolean;
 }) {
   const [desenhado, setDesenhado] = useState(false);
   useEffect(() => {
@@ -68,17 +68,19 @@ function AnelDoDia({
           strokeWidth={traco}
           strokeLinecap="round"
           strokeDasharray={`${cheio} ${c - cheio}`}
-          className="stroke-current drop-shadow-[0_0_8px_var(--color-modulo-central)] transition-[stroke-dasharray] duration-1000 ease-out motion-reduce:transition-none"
+          className={cn(
+            "stroke-current transition-[stroke-dasharray] duration-1000 ease-out motion-reduce:transition-none",
+            !cartao && "drop-shadow-[0_0_8px_var(--color-modulo-central)]",
+          )}
         />
       </svg>
       <span className="absolute inset-0 flex flex-col items-center justify-center leading-none text-foreground">
-        {grande ? (
+        {cartao ? (
           <>
-            <span className="font-display text-3xl font-semibold tracking-tight tabular-nums">
+            <span className="font-display text-5xl font-bold tracking-tight tabular-nums">
               {valor}
-              <span className="text-base font-medium text-muted-foreground">/{teto}</span>
             </span>
-            <span className="mt-1 text-xs text-muted-foreground">{rotulo}</span>
+            <span className="mt-1.5 text-sm text-muted-foreground">de {teto}</span>
           </>
         ) : (
           <>
@@ -94,39 +96,27 @@ function AnelDoDia({
 function Numero({
   valor,
   rotulo,
-  tom,
-  grande = false,
+  cor,
+  cartao = false,
 }: {
   valor: number;
   rotulo: string;
-  tom: "danger" | "warning";
-  grande?: boolean;
+  /** Cor do número quando há o que cobrar; zerado ele fica neutro. */
+  cor: string;
+  cartao?: boolean;
 }) {
-  const cor =
-    valor > 0 ? (tom === "danger" ? "text-destructive" : "text-warning") : "text-foreground";
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-lg border border-border-subtle bg-muted/40",
-        grande ? "px-3 py-2.5" : "px-2 py-1.5",
+        "rounded-lg border border-border-subtle",
+        cartao ? "min-h-[92px] bg-card px-3 py-3" : "bg-muted/40 px-2 py-1.5",
       )}
     >
-      {/* O filete colorido do mockup na borda esquerda do tile, só quando há o
-          que cobrar. */}
-      {grande && valor > 0 && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "absolute inset-y-0 left-0 w-[3px]",
-            tom === "danger" ? "bg-destructive" : "bg-warning",
-          )}
-        />
-      )}
       <div
         className={cn(
           "font-display font-semibold leading-none tabular-nums",
-          grande ? "text-[28px] tracking-tight" : "text-lg",
-          cor,
+          cartao ? "text-[28px] font-bold tracking-tight" : "text-lg",
+          valor > 0 ? cor : "text-foreground",
         )}
       >
         {valor}
@@ -134,7 +124,7 @@ function Numero({
       <div
         className={cn(
           "mt-1 leading-tight text-muted-foreground",
-          grande ? "text-xs" : "text-[10px]",
+          cartao ? "mt-2 text-xs" : "text-[10px]",
         )}
       >
         {rotulo}
@@ -152,110 +142,165 @@ export type CarteiraNoCockpit = {
   ocupadas: number;
   teto: number;
   estourou: boolean;
-  /** Rótulo sob o número do anel (default "carteira ativa"). */
+  /** Rótulo da carteira (default "carteira ativa"). */
   rotulo?: string;
   /** Regra dos 65 (Fatia 2): o anel é o status Em atendimento, X/65. */
   fonte?: "carteira" | "em_atendimento";
 };
 
+/** Com a carteira ativa disponível, o anel é ela. Estourado, o anel enche e o
+ *  excedente vira texto — nunca uma fração maior que 1, que leria como erro. */
+function ocupacao(fila: FilaUnica, carteira: CarteiraNoCockpit | null | undefined) {
+  const teto = carteira?.teto ?? LIMITE_FILA;
+  const noDia = carteira ? Math.min(carteira.ocupadas, teto) : Math.min(fila.total, LIMITE_FILA);
+  const excedente = carteira ? Math.max(0, carteira.ocupadas - teto) : fila.total - noDia;
+  return { teto, noDia, excedente };
+}
+
+/** SLA correndo, excedente acima do teto e o que ficou nas filas de Atender. */
+function Notas({
+  fila,
+  carteira,
+  excedente,
+  teto,
+  className,
+}: {
+  fila: FilaUnica;
+  carteira: CarteiraNoCockpit | null | undefined;
+  excedente: number;
+  teto: number;
+  className?: string;
+}) {
+  const r = fila.resumo;
+  if (r.slaCorrendo <= 0 && excedente <= 0 && r.ocultosInbox <= 0) return null;
+  return (
+    <div
+      className={cn(
+        "flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground",
+        className,
+      )}
+    >
+      {r.slaCorrendo > 0 && (
+        <span className="inline-flex items-center gap-1">
+          <Timer className="h-3.5 w-3.5 text-warning" />
+          {r.slaCorrendo} no SLA do 1º contato
+        </span>
+      )}
+      {excedente > 0 &&
+        (carteira?.fonte === "em_atendimento" ? (
+          // Acima dos 65 só quem já estava assim antes da regra: a trava
+          // não deixa entrar mais ninguém, e cada desfecho abre uma vaga.
+          <span className="text-warning">
+            +{excedente} acima dos {teto} — saia por desfecho até caber
+          </span>
+        ) : carteira?.estourou ? (
+          // Estourar o teto só acontece pelo fundo do funil, que nunca é
+          // devolvido. Dizer "entram conforme saem" aqui seria mentira: o
+          // que está travado é a ENTRADA, não a carteira.
+          <span className="text-warning">
+            +{excedente} acima do teto — você não recebe lead novo até desovar
+          </span>
+        ) : (
+          <span>+{excedente} entram conforme estes saem</span>
+        ))}
+      {r.ocultosInbox > 0 && <span>+{r.ocultosInbox} nas filas de Atender</span>}
+    </div>
+  );
+}
+
+/** O placar compacto do celular. */
 export function FilaCockpit({
   fila,
   carteira,
   className,
-  grande = false,
-  rodape,
 }: {
   fila: FilaUnica;
   carteira?: CarteiraNoCockpit | null;
   className?: string;
-  /** O painel do hero (desktop): anel de 150 px e números maiores. */
-  grande?: boolean;
-  /** Linha extra no rodapé (o dinheiro em jogo na fila). */
-  rodape?: ReactNode;
 }) {
   const r = fila.resumo;
-  const teto = carteira?.teto ?? LIMITE_FILA;
-  // Com a carteira ativa disponível, o anel é ela. Estourado, o anel enche e o
-  // excedente vira texto — nunca uma fração maior que 1, que leria como erro.
-  const noDia = carteira ? Math.min(carteira.ocupadas, teto) : Math.min(fila.total, LIMITE_FILA);
-  const excedente = carteira ? Math.max(0, carteira.ocupadas - teto) : fila.total - noDia;
+  const { teto, noDia, excedente } = ocupacao(fila, carteira);
   return (
     <section
       aria-label="Placar do dia"
       className={cn(
-        "rounded-2xl border border-border-subtle bg-card text-card-foreground shadow-elev-1",
-        grande ? "beam-border p-4 md:p-5" : "p-3",
+        "rounded-2xl border border-border-subtle bg-card p-3 text-card-foreground shadow-elev-1",
         className,
       )}
     >
-      <div
-        className={cn(
-          "grid items-center",
-          grande ? "grid-cols-[150px_1fr] gap-5" : "grid-cols-[72px_1fr] gap-3",
-        )}
-      >
-        {grande ? (
-          <AnelDoDia
-            valor={noDia}
-            teto={teto}
-            tamanho={150}
-            traco={9}
-            grande
-            rotulo={carteira?.rotulo}
-          />
-        ) : (
-          <AnelDoDia valor={noDia} teto={teto} rotulo={carteira?.rotulo} />
-        )}
-        <div className={cn("grid grid-cols-3", grande ? "gap-2.5" : "gap-1.5")}>
-          <Numero
-            valor={r.vencidos}
-            rotulo={grande ? "próximos passos vencidos" : "vencidos"}
-            tom="danger"
-            grande={grande}
-          />
-          <Numero valor={r.hoje} rotulo="vencem hoje" tom="warning" grande={grande} />
-          <Numero
-            valor={r.semProximoPasso}
-            rotulo="sem próximo passo"
-            tom="danger"
-            grande={grande}
-          />
+      <div className="grid grid-cols-[72px_1fr] items-center gap-3">
+        <AnelDoDia valor={noDia} teto={teto} />
+        <div className="grid grid-cols-3 gap-1.5">
+          <Numero valor={r.vencidos} rotulo="vencidos" cor="text-destructive" />
+          <Numero valor={r.hoje} rotulo="vencem hoje" cor="text-warning" />
+          <Numero valor={r.semProximoPasso} rotulo="sem próximo passo" cor="text-destructive" />
         </div>
       </div>
-      {rodape}
-      {(r.slaCorrendo > 0 || excedente > 0 || r.ocultosInbox > 0) && (
-        <div
-          className={cn(
-            "mt-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground",
-            grande ? "text-xs" : "text-[11px]",
-          )}
-        >
-          {r.slaCorrendo > 0 && (
-            <span className="inline-flex items-center gap-1">
-              <Timer className="h-3.5 w-3.5 text-warning" />
-              {r.slaCorrendo} no SLA do 1º contato
-            </span>
-          )}
-          {excedente > 0 &&
-            (carteira?.fonte === "em_atendimento" ? (
-              // Acima dos 65 só quem já estava assim antes da regra: a trava
-              // não deixa entrar mais ninguém, e cada desfecho abre uma vaga.
-              <span className="text-warning">
-                +{excedente} acima dos {teto} — saia por desfecho até caber
-              </span>
-            ) : carteira?.estourou ? (
-              // Estourar o teto só acontece pelo fundo do funil, que nunca é
-              // devolvido. Dizer "entram conforme saem" aqui seria mentira: o
-              // que está travado é a ENTRADA, não a carteira.
-              <span className="text-warning">
-                +{excedente} acima do teto — você não recebe lead novo até desovar
-              </span>
-            ) : (
-              <span>+{excedente} entram conforme estes saem</span>
-            ))}
-          {r.ocultosInbox > 0 && <span>+{r.ocultosInbox} nas filas de Atender</span>}
-        </div>
+      <Notas
+        fila={fila}
+        carteira={carteira}
+        excedente={excedente}
+        teto={teto}
+        className="mt-2 text-[11px]"
+      />
+    </section>
+  );
+}
+
+/** O card "Fila Única" do topo da Central de Comando (desktop). */
+export function FilaCartao({
+  fila,
+  carteira,
+  dia,
+  acao,
+  rodape,
+  className,
+}: {
+  fila: FilaUnica;
+  carteira?: CarteiraNoCockpit | null;
+  /** "Sexta-feira" — o dia da fila, no subtítulo. */
+  dia: string;
+  /** O botão que leva à lista ("Atender agora"). */
+  acao: ReactNode;
+  /** Linha extra no rodapé (o dinheiro em jogo na fila). */
+  rodape?: ReactNode;
+  className?: string;
+}) {
+  const r = fila.resumo;
+  const { teto, noDia, excedente } = ocupacao(fila, carteira);
+  return (
+    <section
+      aria-label="Fila Única — placar do dia"
+      className={cn(
+        "flex flex-col rounded-2xl border border-border-subtle bg-card p-5 text-card-foreground",
+        className,
       )}
+    >
+      <header>
+        <h2 className="font-display text-lg font-bold">Fila Única</h2>
+        <p className="text-xs text-muted-foreground">
+          {dia} · {carteira?.rotulo ?? "sua carteira ativa"}
+        </p>
+      </header>
+      <div className="flex flex-1 items-center justify-center py-6">
+        <AnelDoDia valor={noDia} teto={teto} tamanho={172} traco={12} cartao />
+      </div>
+      {/* Os três números do vídeo: vencidos em vermelho, os de hoje em âmbar,
+          sem próximo passo em navy — a cor só acende quando há o que cobrar. */}
+      <div className="grid grid-cols-3 gap-2">
+        <Numero valor={r.vencidos} rotulo="vencidos" cor="text-destructive" cartao />
+        <Numero valor={r.hoje} rotulo="vencem hoje" cor="text-warning" cartao />
+        <Numero valor={r.semProximoPasso} rotulo="sem próximo passo" cor="text-foreground" cartao />
+      </div>
+      <Notas
+        fila={fila}
+        carteira={carteira}
+        excedente={excedente}
+        teto={teto}
+        className="mt-3 text-xs"
+      />
+      <div className="mt-4">{acao}</div>
+      {rodape}
     </section>
   );
 }

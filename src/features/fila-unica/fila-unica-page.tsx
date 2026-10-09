@@ -46,7 +46,12 @@ import {
   type FilaUnicaItem,
 } from "@/features/fila-unica/derive";
 import { FilaCard } from "@/features/fila-unica/fila-card";
-import { FilaCockpit, type CarteiraNoCockpit } from "@/features/fila-unica/fila-cockpit";
+import {
+  FilaCartao,
+  FilaCockpit,
+  type CarteiraNoCockpit,
+} from "@/features/fila-unica/fila-cockpit";
+import { FunilResumo } from "@/features/fila-unica/fila-funil-resumo";
 import { useEmAtendimentoContador } from "@/features/em-atendimento/use-em-atendimento";
 import { resumoCarteira } from "@/features/carteira-ativa/derive";
 import {
@@ -115,10 +120,9 @@ function toPeekLead(l: FilaLead): PeekLead {
   };
 }
 
-/** "Sexta, 12 de setembro" — a data por extenso no lugar de um eyebrow em
- *  caixa alta (identidade v3, decisão 12), como na Home. */
-function dataPorExtenso(agora = new Date()): string {
-  const s = agora.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
+/** "Sexta-feira" — o dia da fila, no subtítulo do card Fila Única. */
+function diaDaSemana(agora = new Date()): string {
+  const s = agora.toLocaleDateString("pt-BR", { weekday: "long" });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
@@ -319,61 +323,50 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
   return (
     <div className="space-y-3 md:space-y-4">
       <AvisoViradaRegra65 />
-      {/* Hero do mockup: à esquerda data, título, tese e as duas portas da
-          página; à direita o cockpit grande. No celular é só data + título,
-          colado no placar compacto. */}
-      <div className="grid gap-3 md:grid-cols-[1.15fr_1fr] md:items-center md:gap-7 md:py-2">
-        <div className="-mb-3 md:mb-0">
-          {outro && (
-            <p
-              className="mb-1 flex flex-wrap items-center gap-2 text-xs md:text-sm"
-              data-testid="fila-de-outro"
-            >
-              <span>
-                Vendo a fila de <b>{nomeDoAlvo}</b>
-              </span>
-              <Link to="/fila" className="text-primary hover:underline">
-                voltar para a minha
-              </Link>
-            </p>
-          )}
-          {/* A data do dia mora no eyebrow do módulo ("Módulo 01 · sexta-feira…"). */}
-          <PageHeader
-            title="Fila Única"
-            contexto={dataPorExtenso()}
-            description={
-              <span className="hidden md:inline">
-                Uma lista só, ordenada por <b className="text-foreground">dinheiro em risco</b>.
-                Cada lead sai daqui com um <b className="text-foreground">resultado registrado</b> e
-                um <b className="text-foreground">próximo passo com data</b>. Nada fica sem dono,
-                sem prazo ou sem desfecho.
-              </span>
-            }
-          />
-          <div className="mt-3 hidden flex-wrap gap-2 md:flex">
-            <Button asChild size="sm">
-              <a href="#fila">Começar pelo mais caro</a>
-            </Button>
-            <Button asChild size="sm" variant="ghost">
-              <a href="#funil">Ver onde os clientes somem</a>
-            </Button>
-          </div>
-        </div>
+      {outro && (
+        <p
+          className="flex flex-wrap items-center gap-2 text-xs md:text-sm"
+          data-testid="fila-de-outro"
+        >
+          <span>
+            Vendo a fila de <b>{nomeDoAlvo}</b>
+          </span>
+          <Link to="/fila" className="text-primary hover:underline">
+            voltar para a minha
+          </Link>
+        </p>
+      )}
+      {/* Topo da Central de Comando como no vídeo de lançamento (identidade
+          Lançamento): o módulo no título; embaixo, o card "Fila Única" (o
+          placar do dia) e o resumo "Onde os clientes somem". No celular o
+          placar é o compacto, logo acima da lista, e o funil fica no fim. */}
+      <PageHeader
+        title="Central de Comando"
+        description="Uma lista só, na ordem em que o dinheiro está em risco."
+      />
+      <div className="hidden gap-4 md:grid lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
         {fila ? (
-          <FilaCockpit
+          <FilaCartao
             fila={fila}
             carteira={carteira}
-            grande
-            className="hidden md:block"
+            dia={diaDaSemana()}
+            acao={
+              fila.total > 0 ? (
+                <Button asChild className="w-full">
+                  <a href="#fila">Atender agora</a>
+                </Button>
+              ) : (
+                <Button asChild variant="outline" className="w-full">
+                  <Link to="/prospeccao">Fila zerada — prospectar</Link>
+                </Button>
+              )
+            }
             rodape={
               fila.resumo.emJogo > 0 ? (
                 <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-border-subtle pt-2.5 text-xs text-muted-foreground">
-                  <span>
-                    Dinheiro em jogo na sua fila{" "}
-                    <span className="text-muted-foreground/80">(VGV pelo preço de tabela)</span>
-                  </span>
+                  <span title="VGV pelo preço de tabela">Dinheiro em jogo na fila</span>
                   <b
-                    className="font-display text-xl font-semibold text-foreground"
+                    className="font-display text-base font-semibold text-foreground"
                     data-testid="fila-em-jogo"
                   >
                     {formatarEmJogo(fila.resumo.emJogo)}
@@ -382,9 +375,13 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
               ) : undefined
             }
           />
-        ) : (
-          <Skeleton className="hidden h-48 md:block" />
-        )}
+        ) : isLoading ? (
+          <Skeleton className="h-[480px] rounded-2xl" />
+        ) : null}
+        <FunilResumo
+          corretorId={alvo ?? null}
+          className={cn(!fila && !isLoading && "lg:col-span-2")}
+        />
       </div>
 
       <AsyncBoundary
@@ -410,10 +407,6 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
           <div className="space-y-3 md:space-y-4">
             {/* Celular: o placar compacto (no desktop ele está no hero). */}
             <FilaCockpit fila={fila} carteira={carteira} className="md:hidden" />
-
-            {/* O funil das etapas do mockup: leitura própria (fila_funil_v1),
-                fechado no celular para a lista vir primeiro. */}
-            <FilaFunil id="funil" corretorId={alvo ?? null} />
 
             {emFormacao > 0 && (
               <p
@@ -566,6 +559,10 @@ export function FilaUnicaPage({ corretorId }: { corretorId?: string } = {}) {
               </div>
               <FilaLateral className="hidden md:flex" />
             </div>
+
+            {/* O funil completo (metas, parados, vazamentos) — o "Ver funil"
+                do resumo no topo traz até aqui. Fechado no celular. */}
+            <FilaFunil id="funil" corretorId={alvo ?? null} />
 
             <FilaRegras className="hidden md:block" />
           </div>

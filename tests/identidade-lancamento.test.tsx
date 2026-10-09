@@ -50,11 +50,6 @@ describe("eyebrow do PageHeader", () => {
     expect(screen.getByText("Módulo 03 · Gestão de Carteira")).toBeInTheDocument();
   });
 
-  it("`contexto` troca o nome do módulo (ex.: a data na Fila Única)", () => {
-    comModulo(<PageHeader title="Fila Única" contexto="sexta-feira, 9 de outubro" />);
-    expect(screen.getByText("Módulo 03 · sexta-feira, 9 de outubro")).toBeInTheDocument();
-  });
-
   it("`eyebrow={false}` desliga; fora do shell não há eyebrow", () => {
     const { container } = comModulo(<PageHeader title="Kanban" eyebrow={false} />);
     expect(container.textContent).not.toContain("Módulo");

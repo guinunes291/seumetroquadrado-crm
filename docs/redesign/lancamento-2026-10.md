@@ -70,7 +70,6 @@ registrada ("na ordem do fluxo") e travada em teste.
 
 - **Eyebrow:** automático em todo `PageHeader` dentro do shell. Na página que
   É o módulo sai `Módulo 03`; numa seção, `Módulo 03 · Gestão de Carteira`.
-  `contexto="…"` troca o nome do módulo (a Fila Única usa a data);
   `eyebrow="…"` troca o texto inteiro; `eyebrow={false}` desliga.
 - **De onde vem o módulo:** `ModuloAtualProvider` (shell) resolve pela mesma
   regra da sidebar e da trilha e entrega por contexto (`useModuloAtual`). O
@@ -80,23 +79,54 @@ registrada ("na ordem do fluxo") e travada em teste.
 - **Tema:** `ThemeMenuItems` (em `components/theme-toggle.tsx`) dentro de
   qualquer `DropdownMenuContent`.
 
+## Fase 2 — Central de Comando (01) ✅
+
+O topo da Fila Única (`/fila`, a porta do módulo) ficou como o quadro do
+vídeo:
+
+- **Título do módulo.** `PageHeader` com "Central de Comando" e "Uma lista
+  só, na ordem em que o dinheiro está em risco." — o eyebrow sai
+  `MÓDULO 01`. A página continua sendo a Fila Única: é o que a trilha, a
+  sidebar e o card dizem.
+- **Card "Fila Única"** (`FilaCartao`, em `fila-cockpit.tsx`): dia e carteira
+  no subtítulo, anel dourado `37 de 65` (o contador da regra dos 65, ou a
+  carteira ativa em banco antigo), os três números (vencidos em vermelho,
+  vencem hoje em âmbar, sem próximo passo em navy — a cor só acende acima de
+  zero) e "Atender agora", que desce até a lista. Fila zerada vira
+  "prospectar". O dinheiro em jogo continua no rodapé. Substituiu o painel
+  `grande` do cockpit; o compacto do celular não mudou.
+- **"Onde os clientes somem"** (`FunilResumo`, `fila-funil-resumo.tsx`): uma
+  barra centrada por etapa (a mesma raiz quadrada do degrau), a contagem ao
+  lado do nome, a **queda na chegada** a cada etapa (100 − a conversão
+  aproximada da passagem, `resumoDoFunil` em `funil-derive.ts`) e a venda em
+  dourado. A **maior perda** é a passagem mais longe da META da casa, não a
+  maior queda bruta — o fechamento sempre cai mais e acusá-lo todo dia não
+  ensina nada. Usa a base inteira (a safra de 30 dias deixa a venda em
+  branco) e a mesma chave de cache do funil completo: uma chamada só.
+- **O funil completo desceu** para depois da lista (o "Ver funil" leva até
+  ele): no trabalho do dia a lista vem antes da análise. No celular, o
+  placar compacto continua acima da lista e o funil fecha a página.
+
+Testes: `tests/central-comando-lancamento.test.tsx` (quedas, maior perda pela
+meta, safra sem venda, linhas e "Ver funil", card com anel e números).
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
-de composição e acabamento. Ordem sugerida pelo uso diário:
+de composição e acabamento. Ordem sugerida pelo uso diário (a Central de
+Comando, primeira da fila, está feita — acima):
 
-| Módulo                     | O vídeo mostra                                                                                                                                                               | O que já existe                                                  |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 01 Central de Comando      | Card "Fila Única" com anel `37 de 65`, três números (vencidos, vencem hoje, sem próximo passo) e "Atender agora"; funil "Onde os clientes somem" com a maior perda destacada | `FilaCockpit`, regra dos 65, `fila-funil.tsx`                    |
-| 02 Prospecção              | "Bases do dia" (contagem por base) + cartão do lead com renda, FGTS, entrada e atalhos L / W / R / J / K                                                                     | Modo Foco com bases, lote e atalhos                              |
-| 03 Gestão de Carteira      | Kanban de 4 colunas com cartões enxutos (temperatura, horário, próximo passo) e alternador Lista / Kanban                                                                    | `/pipeline`, `leads-kanban-board.tsx`                            |
-| 05 Follow-Up               | D1 / D2 / D3 lado a lado com checklist e a régua dos 13 toques como linha de passos                                                                                          | `/cadencia` (Fila do Dia, Kanban) e `/follow-up` (régua)         |
-| 04 Modo Visita             | Cartão navy da visita (Ligar, WhatsApp, Rota, Documentos), briefing de 30 s, potencial de crédito e checklist                                                                | `briefing-visita.tsx`, simulador de financiamento                |
-| 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar                                                                         | Projetos em Foco já tem renda e "Só o que cabe"                  |
-| 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período                                                                        | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
-| 09 BI · Relatórios         | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$                                                                 | Painel do Gestor já tem as abas e as exceções                    |
-| 06 Pré-venda (SDR)         | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                                                                                      | Hub `/sdr`; a roda é desenho novo                                |
-| 10 Academia                | Trilha em 5 passos, quiz e certificado                                                                                                                                       | Trilha, quiz e certificado existem                               |
+| Módulo                     | O vídeo mostra                                                                                                | O que já existe                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 02 Prospecção              | "Bases do dia" (contagem por base) + cartão do lead com renda, FGTS, entrada e atalhos L / W / R / J / K      | Modo Foco com bases, lote e atalhos                              |
+| 03 Gestão de Carteira      | Kanban de 4 colunas com cartões enxutos (temperatura, horário, próximo passo) e alternador Lista / Kanban     | `/pipeline`, `leads-kanban-board.tsx`                            |
+| 05 Follow-Up               | D1 / D2 / D3 lado a lado com checklist e a régua dos 13 toques como linha de passos                           | `/cadencia` (Fila do Dia, Kanban) e `/follow-up` (régua)         |
+| 04 Modo Visita             | Cartão navy da visita (Ligar, WhatsApp, Rota, Documentos), briefing de 30 s, potencial de crédito e checklist | `briefing-visita.tsx`, simulador de financiamento                |
+| 07 Docs & Projetos         | Chips de renda + "Só o que cabe", cards com faixa "cabe na renda · parcela" e Book / Tabela / Enviar          | Projetos em Foco já tem renda e "Só o que cabe"                  |
+| 08 Assinaturas & Comissões | Aprovação de venda com os quatro marcos (contrato, ato, repasse, efetivação) e quatro KPIs do período         | Hub financeiro, `efetivacao-flags-field.tsx`, aprovação pendente |
+| 09 BI · Relatórios         | Abas Dia / Relatórios / Funil / Time / Metas & Ritmo "ao vivo", KPIs, vendas das 12 semanas e exceções em R$  | Painel do Gestor já tem as abas e as exceções                    |
+| 06 Pré-venda (SDR)         | Quatro colunas de contagem e a roleta desenhada como roda de corretores                                       | Hub `/sdr`; a roda é desenho novo                                |
+| 10 Academia                | Trilha em 5 passos, quiz e certificado                                                                        | Trilha, quiz e certificado existem                               |
 
 Fora de escopo de propósito: o contador `00 / 10` e a pílula com a URL são
 recursos de edição do vídeo, não do produto. O logo continua o PNG da marca
