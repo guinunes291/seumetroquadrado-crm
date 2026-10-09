@@ -317,17 +317,40 @@ do BI para gestão; o corretor continua entrando pelo Meu Raio-X.
   leads que entraram no mês, e diz isso na dica ("leitura do mês, não
   coorte").
 
+## Fase 10 — Academia (10) ✅
+
+O quadro do vídeo é a trilha do corretor (`/academia`):
+
+- **O título do módulo** ("Academia", eyebrow `MÓDULO 10`) e a frase do
+  vídeo; o nível do corretor ("Você está em Iniciante. Próximo nível: …")
+  desce para o quadro de progresso dos obrigatórios.
+- **"Trilha do corretor"** no topo, no lugar do "Continue de onde parou": o
+  módulo de onde parou numa linha de cinco passos — Trilha, Aula, Quiz,
+  Prática, Certificado — pelo estado real dele (`passos-trilha.ts`, mesma
+  regra de `estadoDoModulo`: o quiz só abre com as aulas feitas, a prática
+  depois do quiz). A linha é dourada até o passo atual; prática dispensada
+  aparece tracejada, não como pendência. O selo verde é o nome do módulo e
+  "Continuar" leva até ele.
+
+O quiz e o certificado que o vídeo mostra ao lado da trilha têm telas
+próprias (`quiz-page`, `certificado-page`); repeti-los na trilha seria uma
+segunda tela de quiz.
+
 ## Próximas fases — o miolo de cada módulo
 
 Tudo o que o vídeo mostra dentro dos módulos tem par no CRM; a diferença é
-de composição e acabamento. Ordem sugerida pelo uso diário (Central de
-Comando, Prospecção, Gestão de Carteira, Follow-Up, Modo Visita, Documentação &
-Projetos, Assinaturas & Comissões e BI · Relatórios estão feitas — acima):
+de composição e acabamento. Todos os módulos estão feitos (acima), menos a
+Pré-venda, que espera duas decisões do dono:
 
-| Módulo             | O vídeo mostra                                                          | O que já existe                    |
-| ------------------ | ----------------------------------------------------------------------- | ---------------------------------- |
-| 06 Pré-venda (SDR) | Quatro colunas de contagem e a roleta desenhada como roda de corretores | Hub `/sdr`; a roda é desenho novo  |
-| 10 Academia        | Trilha em 5 passos, quiz e certificado                                  | Trilha, quiz e certificado existem |
+| Módulo             | O vídeo mostra                                                          | O que já existe                   |
+| ------------------ | ----------------------------------------------------------------------- | --------------------------------- |
+| 06 Pré-venda (SDR) | Quatro colunas de contagem e a roleta desenhada como roda de corretores | Hub `/sdr`; a roda é desenho novo |
+
+A Pré-venda espera duas decisões: (1) quais status do lead entram em cada
+coluna — Sem contato, Em conversa, Qualificado, Agendado; (2) se o SDR pode
+ver os nomes dos corretores da fila da roleta (a roda do vídeo mostra as
+iniciais deles), dado que expor a carteira dos colegas já foi tratado como
+assunto de clima do time.
 
 Fora de escopo de propósito: o contador `00 / 10` e a pílula com a URL são
 recursos de edição do vídeo, não do produto. O logo continua o PNG da marca

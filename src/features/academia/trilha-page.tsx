@@ -25,6 +25,8 @@ import { useProximosEncontros } from "./gestao/gestao-client";
 import { ROTULO_TIPO_ENCONTRO } from "./gestao/derivacao";
 import { dataBr, diasAte } from "./formato";
 import { EsqueletoAcademia } from "./guard";
+import { passosDoModulo, type EstadoPasso } from "./passos-trilha";
+import { cn } from "@/lib/utils";
 import { ROTULO_NIVEL, proximoNivel } from "./niveis";
 import {
   ROTULO_ESTADO,
@@ -32,7 +34,6 @@ import {
   estadoDoModulo,
   hojeBrasilia,
   modulosDaFase,
-  progressoDoModulo,
   type EstadoModulo,
 } from "./estado-modulo";
 
@@ -61,6 +62,95 @@ function LinhaModulo({ m, hoje }: { m: AcademiaModuloStatusRow; hoje: string }) 
       </div>
       <StatusBadge intent={TOM_ESTADO[estado]}>{ROTULO_ESTADO[estado]}</StatusBadge>
     </Link>
+  );
+}
+
+const CIRCULO: Record<EstadoPasso, string> = {
+  feito: "border-primary bg-primary text-primary-foreground",
+  atual: "border-primary bg-primary text-primary-foreground ring-4 ring-gold-500/30",
+  pendente: "border-border bg-card text-muted-foreground",
+  dispensado: "border-dashed border-border bg-card text-muted-foreground",
+};
+
+/**
+ * "Trilha do corretor" (identidade Lançamento, como no vídeo): o módulo de
+ * onde parou, numa linha de cinco passos (Trilha, Aula, Quiz, Prática e
+ * Certificado), pelo estado real dele. Prática dispensada aparece
+ * tracejada, não como pendência.
+ */
+function TrilhaDoCorretor({ m }: { m: AcademiaModuloStatusRow }) {
+  const passos = passosDoModulo(m);
+  // A linha dourada vai do primeiro passo até o atual (todos, se concluído).
+  const atual = passos.findIndex((p) => p.estado === "atual");
+  const percorrido = ((atual === -1 ? passos.length - 1 : atual) / (passos.length - 1)) * 100;
+  return (
+    <section
+      aria-label="Trilha do corretor"
+      className="mb-4 rounded-2xl border border-border-subtle bg-card p-4 text-card-foreground md:p-5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="font-display text-lg font-bold">Trilha do corretor</h2>
+          <p className="text-xs text-muted-foreground">
+            Continue de onde parou · Fase {m.fase} · {m.aulas_feitas} de {m.aulas_total} aulas
+          </p>
+        </div>
+        <span className="max-w-full truncate rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
+          {m.titulo}
+        </span>
+      </div>
+      <ol className="relative mt-5 flex items-start justify-between">
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-5 top-5 h-0.5 bg-border md:inset-x-6 md:top-6"
+        >
+          <span className="block h-full bg-gold-500" style={{ width: `${percorrido}%` }} />
+        </span>
+        {passos.map((p, i) => (
+          <li
+            key={p.chave}
+            data-testid="passo-trilha"
+            data-estado={p.estado}
+            aria-label={`${i + 1}. ${p.rotulo}: ${
+              p.estado === "feito"
+                ? "feito"
+                : p.estado === "atual"
+                  ? "você está aqui"
+                  : p.estado === "dispensado"
+                    ? "não se aplica a este módulo"
+                    : "pendente"
+            }`}
+            className="relative flex flex-col items-center gap-1.5"
+          >
+            <span
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-full border-2 font-display text-sm font-bold md:h-12 md:w-12",
+                CIRCULO[p.estado],
+              )}
+            >
+              {p.estado === "feito" ? <CheckCircle className="h-5 w-5" weight="fill" /> : i + 1}
+            </span>
+            <span
+              className={cn(
+                "text-xs font-medium",
+                p.estado === "pendente" || p.estado === "dispensado"
+                  ? "text-muted-foreground"
+                  : "text-foreground",
+              )}
+            >
+              {p.rotulo}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4 flex justify-end">
+        <Button asChild size="sm">
+          <Link to="/academia/modulo/$codigo" params={{ codigo: m.codigo }}>
+            Continuar <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -95,18 +185,18 @@ export function TrilhaPage() {
   return (
     <div className="p-4 md:p-6">
       <PageHeader
-        title="Minha trilha"
-        description={
-          alvo
-            ? `Você está em ${ROTULO_NIVEL[nivel]}. Próximo nível: ${ROTULO_NIVEL[alvo]}.`
-            : `Você está em ${ROTULO_NIVEL[nivel]}, o topo da trilha.`
-        }
+        title="Academia"
+        description="Trilha, aulas, quiz, prática e certificados para formar o time."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link to="/academia/progresso">Meu progresso</Link>
           </Button>
         }
       />
+
+      {/* Como no vídeo: o módulo de onde parou, em cinco passos. Fica no
+          topo: é a próxima coisa a fazer. */}
+      {continuar && <TrilhaDoCorretor m={continuar} />}
 
       <Card className="mb-4">
         <CardContent className="pt-6">
@@ -117,6 +207,11 @@ export function TrilhaPage() {
             </span>
           </div>
           <Progress value={pct} aria-label="Progresso da trilha" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {alvo
+              ? `Você está em ${ROTULO_NIVEL[nivel]}. Próximo nível: ${ROTULO_NIVEL[alvo]}.`
+              : `Você está em ${ROTULO_NIVEL[nivel]}, o topo da trilha.`}
+          </p>
         </CardContent>
       </Card>
 
@@ -157,24 +252,6 @@ export function TrilhaPage() {
             })}
           </div>
         </section>
-      )}
-
-      {continuar && (
-        <Card className="mb-4 border-primary/40">
-          <CardContent className="flex items-center gap-3 py-4">
-            <GraduationCap className="h-6 w-6 shrink-0 text-primary" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">Continue de onde parou</p>
-              <p className="truncate text-sm font-medium">{continuar.titulo}</p>
-              <Progress className="mt-2" value={progressoDoModulo(continuar)} />
-            </div>
-            <Button asChild size="sm">
-              <Link to="/academia/modulo/$codigo" params={{ codigo: continuar.codigo }}>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
       )}
 
       {modulos.length === 0 ? (
