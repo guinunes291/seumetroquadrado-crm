@@ -95,7 +95,7 @@ export function InicioPage() {
   const comPendencia = visiveis.filter((s) => badgeDoSistema(s, badges, ctx) > 0).length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       <section>
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold-700 dark:text-gold-400">
           {dataPorExtenso()}
@@ -107,6 +107,15 @@ export function InicioPage() {
           {loading ? "Escolha por onde começar." : fraseDePendencias(comPendencia)}
         </p>
       </section>
+
+      {/* A agenda do dia fica ACIMA da grade (decisão do dono, 2026-10-09: o
+          vídeo abre direto nos módulos, mas o compromisso de hoje vem antes
+          da escolha de módulo — a decisão de 2026-09-04 segue de pé). */}
+      {!loading && temAgenda && (
+        <Suspense fallback={<Skeleton className="h-40 rounded-xl" aria-busy="true" />}>
+          <AgendaDoDiaCard />
+        </Suspense>
+      )}
 
       {loading ? (
         // Papéis ainda carregando: sem grade parcial, para os cards de gestão
@@ -133,14 +142,6 @@ export function InicioPage() {
       {/* Atrás da flag academia_card_inicio E da participação ativa: sem as
           duas, o componente devolve null. */}
       {!loading && <CardProximaAula />}
-
-      {/* A agenda do dia desceu para baixo da grade (o vídeo abre direto nos
-          módulos), mas continua na primeira tela após o login. */}
-      {!loading && temAgenda && (
-        <Suspense fallback={<Skeleton className="h-40 rounded-xl" aria-busy="true" />}>
-          <AgendaDoDiaCard />
-        </Suspense>
-      )}
     </div>
   );
 }
