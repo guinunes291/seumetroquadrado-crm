@@ -109,8 +109,8 @@ function useDiaOperacao(): string {
 const ROTAS_SEM_CARD = ["/modo-visita"];
 
 /**
- * Host global das metas do dia — montado no shell /_authenticated E no hub
- * /inicio (que vive fora do shell). Só para quem tem o papel corretor.
+ * Host global das metas do dia — montado uma vez no shell /_authenticated
+ * (que inclui o hub /inicio desde 2026-10). Só para quem tem o papel corretor.
  *
  * Fluxo: sem resposta de hoje no banco → popup (balanço do último dia + metas;
  * bloqueante em dia útil). Com resposta → card com o progresso; o lápis

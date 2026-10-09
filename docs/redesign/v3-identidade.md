@@ -1,5 +1,11 @@
 # Identidade v3 — decisões de redesign visual (registro)
 
+> **Nota (09/10/2026):** a identidade Lançamento (`lancamento-2026-10.md`)
+> substituiu parte destas decisões para deixar o CRM com a cara do vídeo de
+> lançamento: caixa alta e dourado voltam no eyebrow (`MÓDULO 0X`), a cor por
+> módulo saiu do hub e da trilha, a navegação usa ícone de traço e o hub
+> entrou no shell. O resto continua valendo.
+
 > Terceira rodada do redesign. As duas anteriores estão em `central-de-comando.md`
 > (conceito) e `v2-command.md` (acabamento premium). Esta rodada não muda o
 > conceito: tira a "cara de template" trocando ícones, fonte de corpo, regra do

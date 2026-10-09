@@ -361,3 +361,46 @@ export function geometriaDoDegrau(
     clipPath: `polygon(${f(tIn)}% 0, ${f(100 - tIn)}% 0, ${f(100 - bIn)}% 100%, ${f(bIn)}% 100%)`,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Resumo "Onde os clientes somem" (topo da Central de Comando, identidade
+// Lançamento): uma barra por etapa, centrada, e a QUEDA na chegada a cada
+// etapa — 100 − a conversão aproximada da passagem que entra nela. Mesma
+// conta do funil completo, só outro desenho; a meta da casa decide qual
+// queda é a "maior perda" (a passagem mais longe da meta, não a maior queda
+// bruta: o fechamento sempre cai mais, e acusá-lo todo dia não ensina nada).
+// ---------------------------------------------------------------------------
+
+export type LinhaResumoFunil = {
+  key: EtapaKey;
+  label: string;
+  quantidade: number;
+  /** Largura da barra (0..1), a mesma raiz quadrada do degrau. */
+  largura: number;
+  /** Queda (%) na chegada a esta etapa; null na primeira ou sem medida. */
+  queda: number | null;
+  /** A passagem que entra nesta etapa (rótulo, atual, meta) — para o título. */
+  passagem: FunilPassagem | null;
+  maiorPerda: boolean;
+};
+
+export function resumoDoFunil(leitura: FunilLeitura): LinhaResumoFunil[] {
+  const entrada = new Map(leitura.passagens.map((p) => [p.para, p]));
+  const abaixo = leitura.passagens.filter((p) => p.atual !== null && p.atual < p.meta);
+  const pior = abaixo.reduce<FunilPassagem | null>(
+    (pior, p) => (!pior || p.atual! / p.meta < pior.atual! / pior.meta ? p : pior),
+    null,
+  );
+  return leitura.etapas.map((e) => {
+    const p = entrada.get(e.key) ?? null;
+    return {
+      key: e.key,
+      label: e.label,
+      quantidade: e.quantidade,
+      largura: e.largura,
+      queda: p && p.atual !== null ? 100 - p.atual : null,
+      passagem: p,
+      maiorPerda: !!pior && p === pior,
+    };
+  });
+}

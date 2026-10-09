@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as InicioRouteImport } from './routes/inicio'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as VitrinePublicaRouteImport } from './routes/vitrine-publica'
@@ -38,6 +37,7 @@ import { Route as AuthenticatedFilaRouteImport } from './routes/_authenticated/f
 import { Route as AuthenticatedFollowUpRouteImport } from './routes/_authenticated/follow-up'
 import { Route as AuthenticatedHigieneFunilRouteImport } from './routes/_authenticated/higiene-funil'
 import { Route as AuthenticatedHojeRouteImport } from './routes/_authenticated/hoje'
+import { Route as AuthenticatedInicioRouteImport } from './routes/_authenticated/inicio'
 import { Route as AuthenticatedInteligenciaRouteImport } from './routes/_authenticated/inteligencia'
 import { Route as AuthenticatedKanbanRouteImport } from './routes/_authenticated/kanban'
 import { Route as AuthenticatedLeadsLandingRouteImport } from './routes/_authenticated/leads-landing'
@@ -135,11 +135,6 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InicioRoute = InicioRouteImport.update({
-  id: '/inicio',
-  path: '/inicio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const McpRoute = McpRouteImport.update({
@@ -273,6 +268,11 @@ const AuthenticatedHigieneFunilRoute =
 const AuthenticatedHojeRoute = AuthenticatedHojeRouteImport.update({
   id: '/hoje',
   path: '/hoje',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedInicioRoute = AuthenticatedInicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedInteligenciaRoute =
@@ -731,7 +731,6 @@ const AuthenticatedAcademiaModuloCodigoAulaOrdemRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/inicio': typeof InicioRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/vitrine-publica': typeof VitrinePublicaRoute
@@ -757,6 +756,7 @@ export interface FileRoutesByFullPath {
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/inicio': typeof AuthenticatedInicioRoute
   '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
@@ -845,7 +845,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/inicio': typeof InicioRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/vitrine-publica': typeof VitrinePublicaRoute
@@ -871,6 +870,7 @@ export interface FileRoutesByTo {
   '/follow-up': typeof AuthenticatedFollowUpRoute
   '/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/hoje': typeof AuthenticatedHojeRoute
+  '/inicio': typeof AuthenticatedInicioRoute
   '/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/kanban': typeof AuthenticatedKanbanRoute
   '/leads-landing': typeof AuthenticatedLeadsLandingRoute
@@ -961,7 +961,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/inicio': typeof InicioRoute
   '/mcp': typeof McpRoute
   '/reset-password': typeof ResetPasswordRoute
   '/vitrine-publica': typeof VitrinePublicaRoute
@@ -987,6 +986,7 @@ export interface FileRoutesById {
   '/_authenticated/follow-up': typeof AuthenticatedFollowUpRoute
   '/_authenticated/higiene-funil': typeof AuthenticatedHigieneFunilRoute
   '/_authenticated/hoje': typeof AuthenticatedHojeRoute
+  '/_authenticated/inicio': typeof AuthenticatedInicioRoute
   '/_authenticated/inteligencia': typeof AuthenticatedInteligenciaRoute
   '/_authenticated/kanban': typeof AuthenticatedKanbanRoute
   '/_authenticated/leads-landing': typeof AuthenticatedLeadsLandingRoute
@@ -1077,7 +1077,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/inicio'
     | '/mcp'
     | '/reset-password'
     | '/vitrine-publica'
@@ -1103,6 +1102,7 @@ export interface FileRouteTypes {
     | '/follow-up'
     | '/higiene-funil'
     | '/hoje'
+    | '/inicio'
     | '/inteligencia'
     | '/kanban'
     | '/leads-landing'
@@ -1191,7 +1191,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
-    | '/inicio'
     | '/mcp'
     | '/reset-password'
     | '/vitrine-publica'
@@ -1217,6 +1216,7 @@ export interface FileRouteTypes {
     | '/follow-up'
     | '/higiene-funil'
     | '/hoje'
+    | '/inicio'
     | '/inteligencia'
     | '/kanban'
     | '/leads-landing'
@@ -1306,7 +1306,6 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
-    | '/inicio'
     | '/mcp'
     | '/reset-password'
     | '/vitrine-publica'
@@ -1332,6 +1331,7 @@ export interface FileRouteTypes {
     | '/_authenticated/follow-up'
     | '/_authenticated/higiene-funil'
     | '/_authenticated/hoje'
+    | '/_authenticated/inicio'
     | '/_authenticated/inteligencia'
     | '/_authenticated/kanban'
     | '/_authenticated/leads-landing'
@@ -1422,7 +1422,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  InicioRoute: typeof InicioRoute
   McpRoute: typeof McpRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   VitrinePublicaRoute: typeof VitrinePublicaRoute
@@ -1482,13 +1481,6 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inicio': {
-      id: '/inicio'
-      path: '/inicio'
-      fullPath: '/inicio'
-      preLoaderRoute: typeof InicioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mcp': {
@@ -1664,6 +1656,13 @@ declare module '@tanstack/react-router' {
       path: '/hoje'
       fullPath: '/hoje'
       preLoaderRoute: typeof AuthenticatedHojeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/inicio': {
+      id: '/_authenticated/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof AuthenticatedInicioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inteligencia': {
@@ -2278,6 +2277,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFollowUpRoute: typeof AuthenticatedFollowUpRoute
   AuthenticatedHigieneFunilRoute: typeof AuthenticatedHigieneFunilRoute
   AuthenticatedHojeRoute: typeof AuthenticatedHojeRoute
+  AuthenticatedInicioRoute: typeof AuthenticatedInicioRoute
   AuthenticatedInteligenciaRoute: typeof AuthenticatedInteligenciaRoute
   AuthenticatedKanbanRoute: typeof AuthenticatedKanbanRoute
   AuthenticatedLeadsLandingRoute: typeof AuthenticatedLeadsLandingRoute
@@ -2351,6 +2351,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFollowUpRoute: AuthenticatedFollowUpRoute,
   AuthenticatedHigieneFunilRoute: AuthenticatedHigieneFunilRoute,
   AuthenticatedHojeRoute: AuthenticatedHojeRoute,
+  AuthenticatedInicioRoute: AuthenticatedInicioRoute,
   AuthenticatedInteligenciaRoute: AuthenticatedInteligenciaRoute,
   AuthenticatedKanbanRoute: AuthenticatedKanbanRoute,
   AuthenticatedLeadsLandingRoute: AuthenticatedLeadsLandingRoute,
@@ -2433,7 +2434,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  InicioRoute: InicioRoute,
   McpRoute: McpRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   VitrinePublicaRoute: VitrinePublicaRoute,

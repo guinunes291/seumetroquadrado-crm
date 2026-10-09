@@ -11,9 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import {
   ArrowClockwise,
+  ArrowRight,
   ArrowsHorizontal,
   CalendarDots,
-  DotsSixVertical,
   Envelope,
   Phone,
   Prohibit,
@@ -72,6 +72,11 @@ function diasParado(lead: { status: string; ultima_interacao: string | null; cre
   if (!ref) return 0;
   // Timestamp futuro (dado sujo/importação) não pode virar "-1d" no card.
   return Math.max(0, Math.floor((Date.now() - new Date(ref).getTime()) / 86400000));
+}
+
+/** "Registrar contato" → "registrar contato", para ler em "próximo passo: …". */
+function primeiraMinuscula(texto: string): string {
+  return texto.charAt(0).toLowerCase() + texto.slice(1);
 }
 
 type Lead = {
@@ -645,7 +650,7 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                     ref={registerColumn(col.id)}
                     aria-labelledby={`kanban-col-${col.id}`}
                     className={cn(
-                      "hidden w-10 shrink-0 rounded-lg border border-border-subtle border-t-2 bg-surface-2 transition-colors md:block",
+                      "hidden w-10 shrink-0 rounded-xl border-t-2 bg-muted/50 transition-colors md:block dark:bg-card/40",
                       col.tone,
                       dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",
                     )}
@@ -678,14 +683,18 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                   ref={registerColumn(col.id)}
                   aria-labelledby={`kanban-col-${col.id}`}
                   className={cn(
-                    "w-full shrink-0 rounded-lg border border-border-subtle border-t-2 bg-surface-2 p-2 transition-colors md:block md:w-72",
+                    // Coluna da identidade Lançamento: painel cinza-claro sem
+                    // borda, como no vídeo. Fica só o fio de 2px da cor da
+                    // etapa — com ~10 colunas lado a lado, é o que ajuda a
+                    // achar a etapa rolando de lado (o vídeo mostra 4).
+                    "group/col w-full shrink-0 rounded-xl border-t-2 bg-muted/50 p-2.5 transition-colors md:block md:w-72 dark:bg-card/40",
                     col.id !== mobileStageAtual && "hidden",
                     col.tone,
                     dragging?.overColumnId === col.id && "ring-2 ring-primary/60 bg-primary/5",
                   )}
                 >
                   <div className="flex items-center justify-between px-1 py-2">
-                    <h2 id={`kanban-col-${col.id}`} className="font-semibold text-sm">
+                    <h2 id={`kanban-col-${col.id}`} className="font-display text-sm font-semibold">
                       {col.label}
                       {col.id === "em_atendimento" && teto65 && (
                         <span
@@ -736,13 +745,13 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                           </>
                         );
                       })()}
-                      <Badge variant="secondary" className="text-[10px] tabular-nums">
+                      <span className="px-1 font-display text-sm font-semibold tabular-nums text-muted-foreground">
                         <AnimatedNumber value={quantidade} />
-                      </Badge>
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="hidden h-7 w-7 text-muted-foreground hover:text-foreground md:inline-flex"
+                        className="hidden h-7 w-7 text-muted-foreground hover:text-foreground focus-visible:opacity-100 md:inline-flex md:opacity-0 md:group-hover/col:opacity-100"
                         aria-label={`Recolher coluna ${col.label}`}
                         title="Recolher coluna"
                         onClick={() => toggleColapso(col.id)}
@@ -779,96 +788,144 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                         aria-label={`${lead.nome}, etapa ${col.label}`}
                         {...getCardProps(lead.id)}
                         className={cn(
-                          "p-2.5 shadow-elev-1 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow bg-background",
+                          "group/card relative cursor-grab rounded-xl border-border-subtle bg-card p-3 shadow-none transition-shadow hover:shadow-elev-2 active:cursor-grabbing",
                           dragging?.cardId === lead.id && "opacity-40",
                         )}
                       >
-                        <div className="flex items-start gap-1">
-                          <DotsSixVertical
-                            className="h-3.5 w-3.5 text-muted-foreground mt-1 shrink-0"
-                            aria-hidden="true"
-                          />
-                          <div className="flex-1 min-w-0">
-                            {/* O nome abre o dossiê-relâmpago. Botões são
-                                ignorados pelo onPointerDown do drag, então o
-                                clique nunca vira arrasto. */}
-                            <button
-                              type="button"
-                              className="block w-full truncate text-left text-sm font-medium hover:underline focus-visible:underline"
-                              aria-label={`Abrir visão rápida de ${lead.nome}`}
-                              onClick={() => setPeekLead(lead)}
-                            >
-                              {lead.nome}
-                            </button>
-                            {lead.projeto_nome && (
-                              <div className="text-[11px] text-muted-foreground truncate">
-                                {lead.projeto_nome}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              <span className="truncate">{lead.telefone}</span>
+                        {/* Cartão da identidade Lançamento (como no vídeo):
+                            nome e temperatura, o empreendimento, o contato do
+                            cliente e o próximo passo. Telefone e e-mail ficam
+                            à vista — o corretor confere com quem vai falar sem
+                            abrir nada. Os prazos (SLA, transferência, dias
+                            parado) só aparecem quando há o que cobrar; o
+                            corretor, só para a gestão — para o corretor a
+                            carteira inteira é dele. */}
+                        <div className="flex items-start justify-between gap-2">
+                          {/* O nome abre o dossiê-relâmpago. Botões são
+                              ignorados pelo onPointerDown do drag, então o
+                              clique nunca vira arrasto. */}
+                          <button
+                            type="button"
+                            className="min-w-0 truncate text-left text-sm font-semibold hover:underline focus-visible:underline"
+                            aria-label={`Abrir visão rápida de ${lead.nome}`}
+                            onClick={() => setPeekLead(lead)}
+                          >
+                            {lead.nome}
+                          </button>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <TemperatureChip
+                              temperatura={lead.temperatura}
+                              size="sm"
+                              pulse={false}
+                              className="shrink-0"
+                            />
+                            {/* Menu de etapa e descarte. No desktop aparecem
+                              por cima da temperatura ao passar o mouse ou
+                              focar o card; no toque ficam sempre à mão. */}
+                            <div className="flex shrink-0 items-center md:absolute md:right-1.5 md:top-1.5 md:rounded-lg md:bg-card md:opacity-0 md:shadow-elev-2 md:transition-opacity md:group-hover/card:opacity-100 md:group-focus-within/card:opacity-100">
+                              <LeadStageMenu
+                                lead={lead}
+                                onPickDirect={(target) =>
+                                  updateStatus.mutate({ id: lead.id, status: target })
+                                }
+                                onPickModal={(modal) => setModalState({ modal, lead })}
+                                onPickPerdido={() => setPerdidoLead(lead)}
+                                onPickContato={() => setContatoLead(lead)}
+                              />
+                              {lead.status !== "perdido" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  aria-label="Descartar lead"
+                                  title="Descartar lead"
+                                  draggable={false}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPerdidoLead(lead);
+                                  }}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                >
+                                  <Prohibit className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
-                            {lead.email && (
-                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Envelope className="h-3 w-3" />
-                                <span className="truncate">{lead.email}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between mt-2 gap-1 flex-wrap">
-                              <span className="text-[10px] text-muted-foreground">
-                                {lead.corretor_id
+                          </div>
+                        </div>
+                        {(lead.projeto_nome || gestao) && (
+                          <div className="mt-1 truncate text-xs text-muted-foreground">
+                            {[
+                              lead.projeto_nome,
+                              gestao
+                                ? lead.corretor_id
                                   ? (corretoresMap.get(lead.corretor_id) ?? "—")
-                                  : "sem corretor"}
-                              </span>
-                              {(lead.status === "novo" ||
-                                lead.status === "aguardando_atendimento") &&
-                                slaMap.get(lead.id) && (
-                                  <SlaBadge
-                                    compact
-                                    slaMinutos={slaMap.get(lead.id)!.sla_minutos}
-                                    referencia={lead.data_distribuicao ?? lead.created_at}
-                                  />
-                                )}
-                              <TransferSlaBadge
-                                compact
-                                showBar
-                                leadId={lead.id}
-                                origem={lead.origem}
-                                status={lead.status}
-                                dataDistribuicao={lead.data_distribuicao}
-                                tentativas={lead.tentativas_redistribuicao}
-                                timeouts={transferTimeouts}
-                                viaWebhook={lead.via_webhook}
-                              />
-
-                              <TemperatureChip
-                                temperatura={lead.temperatura}
-                                size="sm"
-                                pulse={false}
-                              />
-                              {(() => {
-                                const dias = diasParado(lead);
-                                return dias >= 2 ? (
-                                  <Badge
-                                    variant="secondary"
-                                    className={cn(
-                                      "gap-0.5 text-[9px]",
-                                      dias >= 5
-                                        ? "bg-destructive/15 text-destructive"
-                                        : "bg-warning/15 text-warning",
-                                    )}
-                                    title={`Sem interação há ${dias} dias`}
-                                  >
-                                    <WarningCircle className="h-2.5 w-2.5" /> {dias}d
-                                  </Badge>
-                                ) : null;
-                              })()}
+                                  : "sem corretor"
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        )}
+                        <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate tabular-nums">{lead.telefone}</span>
+                          </div>
+                          {lead.email && (
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <Envelope className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <span className="truncate">{lead.email}</span>
                             </div>
+                          )}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1 empty:hidden">
+                          {(lead.status === "novo" || lead.status === "aguardando_atendimento") &&
+                            slaMap.get(lead.id) && (
+                              <SlaBadge
+                                compact
+                                slaMinutos={slaMap.get(lead.id)!.sla_minutos}
+                                referencia={lead.data_distribuicao ?? lead.created_at}
+                              />
+                            )}
+                          <TransferSlaBadge
+                            compact
+                            showBar
+                            leadId={lead.id}
+                            origem={lead.origem}
+                            status={lead.status}
+                            dataDistribuicao={lead.data_distribuicao}
+                            tentativas={lead.tentativas_redistribuicao}
+                            timeouts={transferTimeouts}
+                            viaWebhook={lead.via_webhook}
+                          />
+                          {(() => {
+                            const dias = diasParado(lead);
+                            return dias >= 2 ? (
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  "gap-0.5 text-[10px]",
+                                  dias >= 5
+                                    ? "bg-destructive/15 text-destructive"
+                                    : "bg-warning/15 text-warning",
+                                )}
+                                title={`Sem interação há ${dias} dias`}
+                              >
+                                <WarningCircle className="h-2.5 w-2.5" /> {dias}d parado
+                              </Badge>
+                            ) : null;
+                          })()}
+                        </div>
+                        <div className="-mx-3">
+                          {/* "próximo passo: …" é a ação principal do card:
+                              continua com alvo de 44 px (toque), só que com
+                              cara de linha de texto, como no vídeo. O -mx-3
+                              alinha o texto ao nome. */}
+                          <div className="min-w-0">
                             {PROXIMA_ACAO[lead.status as LeadStatus] && (
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
                                 className="mt-2 min-h-11 w-full text-xs"
                                 disabled={updateStatus.isPending}
                                 onClick={(e) => {
@@ -878,35 +935,17 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                                   else setContatoLead(lead);
                                 }}
                               >
-                                {PROXIMA_ACAO[lead.status as LeadStatus]!.label}
-                              </Button>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-center gap-0.5 shrink-0">
-                            <LeadStageMenu
-                              lead={lead}
-                              onPickDirect={(target) =>
-                                updateStatus.mutate({ id: lead.id, status: target })
-                              }
-                              onPickModal={(modal) => setModalState({ modal, lead })}
-                              onPickPerdido={() => setPerdidoLead(lead)}
-                              onPickContato={() => setContatoLead(lead)}
-                            />
-                            {lead.status !== "perdido" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                aria-label="Descartar lead"
-                                title="Descartar lead"
-                                draggable={false}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPerdidoLead(lead);
-                                }}
-                                onPointerDown={(e) => e.stopPropagation()}
-                              >
-                                <Prohibit className="h-4 w-4" />
+                                <span className="flex w-full min-w-0 items-center justify-between gap-2 font-normal text-muted-foreground group-hover/card:text-foreground">
+                                  <span className="truncate">
+                                    próximo passo:{" "}
+                                    <b className="font-medium">
+                                      {primeiraMinuscula(
+                                        PROXIMA_ACAO[lead.status as LeadStatus]!.label,
+                                      )}
+                                    </b>
+                                  </span>
+                                  <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                                </span>
                               </Button>
                             )}
                           </div>
