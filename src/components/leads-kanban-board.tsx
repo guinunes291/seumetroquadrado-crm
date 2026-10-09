@@ -14,6 +14,8 @@ import {
   ArrowRight,
   ArrowsHorizontal,
   CalendarDots,
+  Envelope,
+  Phone,
   Prohibit,
   Question,
   Warning,
@@ -790,13 +792,14 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                           dragging?.cardId === lead.id && "opacity-40",
                         )}
                       >
-                        {/* Cartão enxuto (identidade Lançamento, como no
-                            vídeo): nome e temperatura, o empreendimento e o
-                            próximo passo. Telefone e e-mail moram no
-                            dossiê-relâmpago (clique no nome); os prazos (SLA,
-                            transferência, dias parado) só aparecem quando há o
-                            que cobrar; o corretor, só para a gestão — para o
-                            corretor a carteira inteira é dele. */}
+                        {/* Cartão da identidade Lançamento (como no vídeo):
+                            nome e temperatura, o empreendimento, o contato do
+                            cliente e o próximo passo. Telefone e e-mail ficam
+                            à vista — o corretor confere com quem vai falar sem
+                            abrir nada. Os prazos (SLA, transferência, dias
+                            parado) só aparecem quando há o que cobrar; o
+                            corretor, só para a gestão — para o corretor a
+                            carteira inteira é dele. */}
                         <div className="flex items-start justify-between gap-2">
                           {/* O nome abre o dossiê-relâmpago. Botões são
                               ignorados pelo onPointerDown do drag, então o
@@ -863,6 +866,18 @@ export function KanbanBoard({ initialSearch, corretorId, stages }: KanbanBoardPr
                               .join(" · ")}
                           </div>
                         )}
+                        <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <Phone className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <span className="truncate tabular-nums">{lead.telefone}</span>
+                          </div>
+                          {lead.email && (
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <Envelope className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <span className="truncate">{lead.email}</span>
+                            </div>
+                          )}
+                        </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1 empty:hidden">
                           {(lead.status === "novo" || lead.status === "aguardando_atendimento") &&
                             slaMap.get(lead.id) && (

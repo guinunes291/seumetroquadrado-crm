@@ -147,12 +147,16 @@ página tem a alternância Lista / Kanban:
   subtítulo do vídeo; a trilha e a sidebar continuam dizendo "Base de
   leads". A alternância Lista / Kanban virou pílula.
 - **Cartão enxuto** (`leads-kanban-board.tsx`, vale também para o
-  `/pipeline`): nome e temperatura, o empreendimento e "próximo passo: …".
-  Saíram do cartão o telefone e o e-mail (estão no dossiê-relâmpago, no
-  clique do nome) e a alça de arrasto (o cartão inteiro arrasta). O nome do
-  corretor só aparece para a gestão — para o corretor a carteira é toda
-  dele. Os prazos (SLA, transferência, dias parado) só aparecem quando há o
-  que cobrar.
+  `/pipeline`): nome e temperatura, o empreendimento, telefone e e-mail do
+  cliente e "próximo passo: …". Saiu só a alça de arrasto (o cartão inteiro
+  arrasta). O nome do corretor só aparece para a gestão — para o corretor a
+  carteira é toda dele.
+- **Telefone, e-mail e prazos ficam** (decisão do dono do produto, depois do
+  primeiro corte): o vídeo mostra o cartão sem contato, mas no uso diário o
+  corretor confere com quem vai falar sem abrir o dossiê. Os prazos (SLA,
+  transferência e "Nd parado") seguem com a regra de antes: aparecem quando
+  há o que cobrar — "parado" a partir de 2 dias sem interação, âmbar até 4,
+  vermelho a partir de 5.
 - **"Próximo passo" continua com alvo de 44 px** (decisão travada em
   `tests/final-regressions.test.ts`), agora com cara de linha de texto.
 - **Menu de etapa e descarte** aparecem no canto ao passar o mouse ou focar
