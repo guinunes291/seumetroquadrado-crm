@@ -268,11 +268,13 @@ function Preco({ item, compacto }: { item: ItemPrateleira; compacto?: boolean })
   if (!item.sob_consulta && item.preco_a_partir != null) {
     return (
       <div className={cn("min-w-0", compacto && "text-right")}>
-        <div className="text-xs text-muted-foreground font-medium">A partir de</div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          A partir de
+        </div>
         <div
           className={cn(
-            "font-display font-semibold tabular-nums tracking-tight text-gold-600 dark:text-gold-300",
-            compacto ? "text-base" : "text-xl",
+            "font-display font-bold tabular-nums tracking-tight text-foreground",
+            compacto ? "text-base" : "text-2xl",
           )}
         >
           {formatBRL(item.preco_a_partir)}
@@ -375,11 +377,14 @@ function BotaoMaterial({
   tipo,
   onAbrir,
   compacto,
+  largo,
 }: {
   item: ItemPrateleira;
   tipo: MaterialTipo;
   onAbrir: (item: ItemPrateleira, tipo: MaterialTipo) => void;
   compacto?: boolean;
+  /** Ocupa a célula inteira (linha Book · Tabela · Enviar do card em grade). */
+  largo?: boolean;
 }) {
   const url = tipo === "book" ? item.book_url : item.tabela_precos_url;
   const Icone = tipo === "book" ? BookOpen : Table;
@@ -389,13 +394,13 @@ function BotaoMaterial({
       <Tooltip>
         <TooltipTrigger asChild>
           {/* span wrapper: botão desabilitado não dispara os eventos do tooltip. */}
-          <span className="inline-flex">
+          <span className={cn("inline-flex", largo && "w-full")}>
             <Button
               size="sm"
               variant="outline"
               disabled
               aria-label={`${rotulo} indisponível`}
-              className={cn(compacto && "px-2")}
+              className={cn(compacto && "px-2", largo && "w-full")}
             >
               <Icone className="h-4 w-4" />
               {!compacto && <span className="ml-1">{rotulo}</span>}
@@ -411,7 +416,12 @@ function BotaoMaterial({
     );
   }
   return (
-    <Button asChild size="sm" variant="outline" className={cn("press-scale", compacto && "px-2")}>
+    <Button
+      asChild
+      size="sm"
+      variant="outline"
+      className={cn("press-scale", compacto && "px-2", largo && "w-full")}
+    >
       <a
         href={url}
         target="_blank"
@@ -450,83 +460,110 @@ function Acoes({
   | "onReportarErro"
   | "onAbrirFicha"
 > & { compacto?: boolean }) {
-  return (
-    <div className={cn("flex flex-wrap items-center gap-1.5", compacto && "flex-nowrap")}>
-      <BotaoMaterial item={item} tipo="book" onAbrir={onAbrirMaterial} compacto={compacto} />
-      <BotaoMaterial item={item} tipo="tabela" onAbrir={onAbrirMaterial} compacto={compacto} />
-      <Tooltip>
-        <TooltipTrigger asChild>
+  const enviar = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="sm"
+          className={cn("press-scale", compacto ? "px-2" : "w-full")}
+          onClick={() => onEnviar(item)}
+          aria-label={`Enviar ${item.nome} para um lead`}
+        >
+          <PaperPlaneTilt className="h-4 w-4" />
+          {!compacto && <span className="ml-1">Enviar</span>}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>Enviar ao cliente pelo WhatsApp e registrar no lead</TooltipContent>
+    </Tooltip>
+  );
+  const comparar = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">
           <Button
             size="sm"
+            variant={emComparacao ? "default" : compacto ? "outline" : "ghost"}
+            aria-pressed={emComparacao}
+            disabled={!emComparacao && comparacaoCheia}
+            onClick={() => onComparar(item)}
+            aria-label={emComparacao ? `Tirar ${item.nome} da comparação` : `Comparar ${item.nome}`}
             className={cn("press-scale", compacto && "px-2")}
-            onClick={() => onEnviar(item)}
-            aria-label={`Enviar ${item.nome} para um lead`}
           >
-            <PaperPlaneTilt className="h-4 w-4" />
-            {!compacto && <span className="ml-1">Enviar</span>}
+            <Scales className="h-4 w-4" />
+            {!compacto && <span className="ml-1">{emComparacao ? "Na sacola" : "Comparar"}</span>}
           </Button>
-        </TooltipTrigger>
-        <TooltipContent>Enviar ao cliente pelo WhatsApp e registrar no lead</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex">
-            <Button
-              size="sm"
-              variant={emComparacao ? "default" : "outline"}
-              aria-pressed={emComparacao}
-              disabled={!emComparacao && comparacaoCheia}
-              onClick={() => onComparar(item)}
-              aria-label={
-                emComparacao ? `Tirar ${item.nome} da comparação` : `Comparar ${item.nome}`
-              }
-              className={cn("press-scale", compacto && "px-2")}
-            >
-              <Scales className="h-4 w-4" />
-              {!compacto && <span className="ml-1">{emComparacao ? "Na sacola" : "Comparar"}</span>}
-            </Button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {comparacaoCheia && !emComparacao
-            ? "A sacola já tem 3 empreendimentos."
-            : "Colocar na sacola para comparar e enviar a seleção"}
-        </TooltipContent>
-      </Tooltip>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label={`Mais ações para ${item.nome}`}
-            className="px-2"
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>
+        {comparacaoCheia && !emComparacao
+          ? "A sacola já tem 3 empreendimentos."
+          : "Colocar na sacola para comparar e enviar a seleção"}
+      </TooltipContent>
+    </Tooltip>
+  );
+  const mais = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`Mais ações para ${item.nome}`}
+          className="px-2"
+        >
+          <DotsThree className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onCopiarResumo(item)}>
+          <Copy className="h-4 w-4" /> Copiar resumo para WhatsApp
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link
+            to="/projetos/$projetoId"
+            params={{ projetoId: item.id }}
+            onClick={() => onAbrirFicha?.(item)}
           >
-            <DotsThree className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onCopiarResumo(item)}>
-            <Copy className="h-4 w-4" /> Copiar resumo para WhatsApp
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link
-              to="/projetos/$projetoId"
-              params={{ projetoId: item.id }}
-              onClick={() => onAbrirFicha?.(item)}
-            >
-              <ArrowSquareOut className="h-4 w-4" /> Abrir ficha completa
-            </Link>
-          </DropdownMenuItem>
-          {onReportarErro && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => onReportarErro(item)}>
-                <Flag className="h-4 w-4" /> Reportar erro no cadastro
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <ArrowSquareOut className="h-4 w-4" /> Abrir ficha completa
+          </Link>
+        </DropdownMenuItem>
+        {onReportarErro && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => onReportarErro(item)}>
+              <Flag className="h-4 w-4" /> Reportar erro no cadastro
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  if (compacto) {
+    return (
+      <div className="flex flex-nowrap items-center gap-1.5">
+        <BotaoMaterial item={item} tipo="book" onAbrir={onAbrirMaterial} compacto />
+        <BotaoMaterial item={item} tipo="tabela" onAbrir={onAbrirMaterial} compacto />
+        {enviar}
+        {comparar}
+        {mais}
+      </div>
+    );
+  }
+
+  // Card em grade (identidade Lançamento, como no vídeo): Book · Tabela ·
+  // Enviar numa linha; comparar (a sacola da Vitrine, uso real — decisão 18)
+  // e o menu ficam numa linha discreta logo abaixo.
+  return (
+    <div className="space-y-1">
+      <div className="grid grid-cols-3 gap-1.5">
+        <BotaoMaterial item={item} tipo="book" onAbrir={onAbrirMaterial} largo />
+        <BotaoMaterial item={item} tipo="tabela" onAbrir={onAbrirMaterial} largo />
+        {enviar}
+      </div>
+      <div className="flex items-center justify-between">
+        {comparar}
+        {mais}
+      </div>
     </div>
   );
 }

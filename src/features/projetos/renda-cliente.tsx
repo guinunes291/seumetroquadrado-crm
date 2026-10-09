@@ -5,11 +5,9 @@
 // disponível. É estimativa: o aviso acompanha sempre.
 
 import { useEffect, useState } from "react";
-import { Wallet, X } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
+import { Check, X } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { faixaPorRenda } from "@/lib/mcmv-estimativa";
 import { RENDAS_RAPIDAS } from "@/lib/prateleira";
 import { parseRenda } from "@/lib/renda";
@@ -22,6 +20,7 @@ export function RendaCliente({
   soQueCabe,
   onSoQueCabe,
   nomeLead,
+  contagem,
   className,
 }: {
   renda: number | null;
@@ -30,6 +29,8 @@ export function RendaCliente({
   onSoQueCabe: (v: boolean) => void;
   /** Quando a prateleira foi aberta pelo dossiê de um lead. */
   nomeLead?: string | null;
+  /** Quantos empreendimentos a prateleira mostra agora (com os filtros). */
+  contagem?: number;
   className?: string;
 }) {
   const [texto, setTexto] = useState(renda != null ? String(renda) : "");
@@ -45,51 +46,19 @@ export function RendaCliente({
   };
 
   const faixa = renda != null ? faixaPorRenda(renda) : null;
+  // O campo mostra só a renda "de fora" dos chips — com um chip escolhido,
+  // ele fica vazio para não repetir o valor.
+  const doChip = renda != null && (RENDAS_RAPIDAS as readonly number[]).includes(renda);
 
+  // Identidade Lançamento (como no vídeo): uma linha só — "Renda familiar",
+  // os chips, "Só o que cabe" e a contagem. O campo livre continua para a
+  // renda que não está nos chips.
   return (
-    <section
-      aria-label="Renda do cliente"
-      className={cn(
-        "rounded-xl border border-gold-500/30 bg-card p-3 shadow-elev-1 sm:p-4",
-        className,
-      )}
-    >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gradient-command shadow-elev-1">
-            <Wallet className="h-5 w-5 text-gold-400" aria-hidden="true" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <Label htmlFor="renda-cliente" className="text-xs font-medium text-muted-foreground">
-              {nomeLead
-                ? `Renda familiar de ${nomeLead.split(" ")[0]}`
-                : "Renda familiar do cliente"}
-            </Label>
-            <div className="mt-1 flex items-center gap-2">
-              <Input
-                id="renda-cliente"
-                value={texto}
-                onChange={(e) => aplicar(e.target.value)}
-                inputMode="numeric"
-                placeholder="ex.: 4.000"
-                aria-describedby="renda-cliente-ajuda"
-                className="max-w-[12rem] tabular-nums"
-              />
-              {renda != null && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-9 w-9"
-                  onClick={() => aplicar("")}
-                  aria-label="Limpar renda"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
+    <section aria-label="Renda do cliente" className={cn("space-y-2", className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Label htmlFor="renda-cliente" className="mr-1 text-sm font-semibold">
+          {nomeLead ? `Renda familiar de ${nomeLead.split(" ")[0]}` : "Renda familiar"}
+        </Label>
         <div
           className="flex flex-wrap items-center gap-1.5"
           role="group"
@@ -102,33 +71,60 @@ export function RendaCliente({
               onClick={() => aplicar(renda === r ? "" : String(r))}
               aria-pressed={renda === r}
               className={cn(
-                "press-scale inline-flex min-h-9 items-center rounded-full border px-3 text-xs font-medium tabular-nums transition-colors",
+                "press-scale inline-flex min-h-9 items-center rounded-full border px-3.5 text-xs font-semibold tabular-nums transition-colors",
                 renda === r
-                  ? "border-gold-500/60 bg-gold-500/15 text-foreground"
-                  : "border-border-subtle bg-card text-muted-foreground hover:border-gold-500/40 hover:text-foreground",
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border-subtle bg-card text-foreground hover:border-primary/40",
               )}
             >
               {formatBRL(r)}
             </button>
           ))}
         </div>
-
-        <div className="flex items-center gap-2 md:pl-2">
-          <Switch
-            id="so-que-cabe"
-            checked={soQueCabe}
-            disabled={renda == null}
-            onCheckedChange={onSoQueCabe}
+        <div className="relative">
+          <Input
+            id="renda-cliente"
+            value={doChip ? "" : texto}
+            onChange={(e) => aplicar(e.target.value)}
+            inputMode="numeric"
+            placeholder="outra"
+            aria-describedby="renda-cliente-ajuda"
+            className="h-9 w-28 rounded-full pr-8 text-xs tabular-nums"
           />
-          <Label
-            htmlFor="so-que-cabe"
-            className={cn("cursor-pointer text-sm", renda == null && "text-muted-foreground")}
-          >
-            Só o que cabe
-          </Label>
+          {renda != null && !doChip && (
+            <button
+              type="button"
+              onClick={() => aplicar("")}
+              aria-label="Limpar renda"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
+        <button
+          type="button"
+          id="so-que-cabe"
+          aria-pressed={soQueCabe}
+          disabled={renda == null}
+          onClick={() => onSoQueCabe(!soQueCabe)}
+          title={renda == null ? "Escolha a renda para filtrar o que cabe" : undefined}
+          className={cn(
+            "press-scale inline-flex min-h-9 items-center gap-1 rounded-full px-3.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+            soQueCabe
+              ? "bg-gold-500 text-navy-900"
+              : "bg-gold-100 text-gold-800 hover:bg-gold-200 dark:bg-gold-500/15 dark:text-gold-300",
+          )}
+        >
+          <Check className="h-3.5 w-3.5" weight="bold" aria-hidden="true" /> Só o que cabe
+        </button>
+        {contagem != null && (
+          <span className="ml-auto font-display text-base font-bold tabular-nums">
+            {contagem} {contagem === 1 ? "empreendimento" : "empreendimentos"}
+          </span>
+        )}
       </div>
-      <p id="renda-cliente-ajuda" className="mt-2 text-xs text-muted-foreground">
+      <p id="renda-cliente-ajuda" className="text-xs text-muted-foreground">
         {faixa ? (
           <>
             <span className="font-medium text-foreground">{faixa.rotulo}</span> · estimativa PRICE
@@ -136,7 +132,7 @@ export function RendaCliente({
             formal é da Caixa.
           </>
         ) : (
-          "Informe a renda para ver em cada empreendimento se cabe e a prestação estimada."
+          "Escolha a renda para ver em cada empreendimento se cabe e a prestação estimada."
         )}
       </p>
     </section>
