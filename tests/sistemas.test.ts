@@ -75,6 +75,7 @@ describe("visibilidade por papel", () => {
       "projetos-foco",
       "vitrine",
       "mapa-lojas",
+      "simulador-amortizacao",
     ]);
   });
 

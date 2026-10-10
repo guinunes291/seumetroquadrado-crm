@@ -4,12 +4,13 @@
 // internos cuidam das próprias queries/mutations — aqui é só composição.
 
 import { Link } from "@tanstack/react-router";
-import { MapTrifold } from "@phosphor-icons/react";
+import { Calculator, MapTrifold } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { LeadObjecoes } from "@/components/lead-objecoes";
 import { SimuladorFinanciamento } from "@/components/simulador-financiamento";
 import { EmpreendimentoRecomendado } from "@/components/empreendimento-recomendado";
 import type { DossieLead } from "@/features/leads/dossie/types";
+import { parseValorBR } from "@/lib/simulador";
 import { PerfilClienteCard } from "@/features/leads/dossie/perfil-cliente-card";
 
 export function QualificacaoTab({ lead }: { lead: DossieLead }) {
@@ -21,6 +22,23 @@ export function QualificacaoTab({ lead }: { lead: DossieLead }) {
         entradaInicial={lead.entrada_disponivel}
         rendaInicial={lead.renda_informada}
       />
+      <Button asChild variant="outline" className="w-full justify-start">
+        <Link
+          to="/simulador-amortizacao"
+          search={{
+            renda:
+              parseValorBR(lead.renda_informada == null ? null : String(lead.renda_informada)) ??
+              undefined,
+            entrada:
+              parseValorBR(
+                lead.entrada_disponivel == null ? null : String(lead.entrada_disponivel),
+              ) ?? undefined,
+          }}
+        >
+          <Calculator className="mr-2 h-4 w-4" />
+          Planilha de amortização (SAC x PRICE)
+        </Link>
+      </Button>
       <Button asChild variant="outline" className="w-full justify-start">
         <Link to="/vitrine" search={{ leadId: lead.id }}>
           <MapTrifold className="mr-2 h-4 w-4" />

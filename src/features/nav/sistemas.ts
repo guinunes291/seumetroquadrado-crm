@@ -28,6 +28,7 @@ import {
   Briefcase,
   Broom,
   Buildings,
+  Calculator,
   CalendarDots,
   ChartBar,
   ChartLineUp,
@@ -492,6 +493,15 @@ export const SISTEMAS: Sistema[] = [
       // o cliente é atendido — e o stand costuma ficar longe da obra. Todos os
       // papéis, SDR incluso: quem agenda visita precisa saber para onde mandar.
       { id: "mapa-lojas", label: "Mapa de Lojas", icon: Storefront, to: "/mapa-lojas" },
+      // Planilha de amortização (2026-10-10): SAC x PRICE mês a mês com TR,
+      // seguros, obra e FGTS. Consulta de apoio à venda, todos os papéis — o
+      // dossiê do lead abre a mesma tela já preenchida.
+      {
+        id: "simulador-amortizacao",
+        label: "Planilha de amortização",
+        icon: Calculator,
+        to: "/simulador-amortizacao",
+      },
       {
         id: "materiais",
         label: "Materiais (gestão)",
