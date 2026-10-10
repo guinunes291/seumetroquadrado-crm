@@ -186,6 +186,10 @@ registrar cada um em `drizzle.__drizzle_migrations` com `hash` = sha256 do
 arquivo e `created_at` = `when` do journal, para o migrator não reaplicar.
 Foi assim que `0062`, `0067` e `0068` entraram em 05/10 (`0065`/`0066` já
 tinham sido aplicadas direto pelo #247 e só foram registradas).
+Em 10/10, `0073` e `0075` entraram da mesma forma, mas só a `0073` foi
+registrada. A `0075` fica sem registro até a `0074` entrar, porque registrar
+uma entrada com `when` maior faria o migrador pular a `0074` (estado e ordem
+em `docs/ops/presenca-filiais.md` §6).
 
 ### 5.4 Como foi conferido
 
